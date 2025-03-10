@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "790634165676",
+    "project_id": "ssbc-9ef2d",
+    "storage_bucket": "ssbc-9ef2d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790634165676:android:3aa6c510fa921ee45d7609",
+        "android_client_info": {
+          "package_name": "com.example.ssbc_mobileapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhiB48_d9_x7gtk1-G9430EpRCwZHEnhw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

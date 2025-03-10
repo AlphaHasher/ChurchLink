@@ -45,5 +45,34 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- 🔹 Firebase Configuration Keys -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/> <!-- Set to false if using manual Firebase initialization -->
+
+	<!-- 🔹 Permissions Required for Firebase Features -->
+	<!-- Cloud Messaging (Push Notifications) -->
+	<key>GoogleAppID</key>
+	<string>YOUR_FIREBASE_APP_ID</string>
+
+	<key>GCM_SENDER_ID</key>
+	<string>YOUR_FIREBASE_SENDER_ID</string>
+
+	<key>GoogleServices-Info</key>
+	<string>YOUR_GOOGLE_SERVICES_INFO</string>
+
+	<!-- Enable Background Modes (for push notifications) -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- Enable network security configuration (if needed) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
