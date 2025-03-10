@@ -1,4 +1,3 @@
-```markdown
 # FastAPI Project with Scalar Docs
 
 This project is a simple FastAPI application using **[Scalar](https://scalar-api.com/)** for beautiful API documentation and **[uv](https://github.com/astral-sh/uv)** for easy dependency management.
