@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:app/components/tiles.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:app/pages/testpage.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -109,6 +111,20 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            Tiles(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: ((context) => const TestPage()),
+                        ),
+                      );
+                    },
+                    mainText: "Test",
+                    subText: '',
+                    height: 120,
+                    width: 170
+              ),
           ],
         ),
       ),
