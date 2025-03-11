@@ -57,6 +57,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+app/android/local.properties
 
 # Symbolication related
 app.*.symbols
