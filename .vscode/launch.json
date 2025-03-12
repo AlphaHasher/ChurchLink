@@ -8,7 +8,7 @@
             "name": "app",
             "request": "launch",
             "type": "dart",
-            "program": "frontend/app/lib/pages/main.dart"
+            "program": "frontend/app/lib/main.dart"
         },
         {
             "name": "app (profile mode)",
