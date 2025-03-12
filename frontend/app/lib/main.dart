@@ -8,7 +8,7 @@ import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:app/components/firebase_options.dart';
+import 'package:app/firebase/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
