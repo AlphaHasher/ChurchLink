@@ -6,9 +6,9 @@
     "configurations": [
         {
             "name": "app",
-            "cwd": "app",
             "request": "launch",
-            "type": "dart"
+            "type": "dart",
+            "program": "frontend/app/lib/pages/main.dart"
         },
         {
             "name": "app (profile mode)",
@@ -25,11 +25,11 @@
             "flutterMode": "release"
         },
         {
-            "name": "Flutter (lib\\pages\\main.dart)",
+            "name": "Flutter (frontend\\app\\lib\\pages\\main.dart)",
             "type": "dart",
             "request": "launch",
             "cwd": "app",
-            "program": "lib\\pages\\main.dart"
+            "program": "frontend\\app\\lib\\pages\\main.dart"
         }
     ]
 }
