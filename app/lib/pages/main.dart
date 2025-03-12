@@ -1,9 +1,12 @@
-import 'package:app/pages/testpage2.dart';
+import 'package:app/pages/weeklybulletin.dart';
 import 'package:flutter/material.dart';
 import 'package:app/components/tiles.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:app/pages/testpage.dart';
-
+import 'package:app/pages/joinlive.dart';
+import 'package:app/pages/giving.dart';
+import 'package:app/pages/eventspage.dart';
+import 'package:app/pages/ministries.dart';
+import 'package:app/pages/contact.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -32,7 +35,7 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60)),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -89,53 +92,102 @@ class _MyHomePageState extends State<MyHomePage> {
                   Navigator.push(
                     context,
                     CupertinoPageRoute(
-                      builder: ((context) => const TestPage()),
+                      builder: ((context) => const JoinLive()),
                     ),
                   );
                 },
-                mainText: "Test",
+                mainText: "Join Live",
                 subText: '',
-                height: 120,
-                width: 170,
+                height: 150,
+                width: 150,
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 15),
               Tiles(
                 onTap: () {
                   Navigator.push(
                     context,
                     CupertinoPageRoute(
-                      builder: ((context) => const TestPageTwo()),
+                      builder: ((context) => const WeeklyBulletin()),
                     ),
                   );
                 },
-                mainText: "Test",
+                mainText: "Weekly Bulletin",
                 subText: '',
-                height: 120,
-                width: 170,
+                height: 150,
+                width: 150,
              ),
              ],
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 15),
             Row(
                mainAxisAlignment: MainAxisAlignment.center,
                children: [
                  Tiles(
-                   onTap: () {},
-                   mainText: "Extra Row 1",
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: ((context) => const EventsPage()),
+                      ),
+                    );
+                   },
+                   mainText: "Events",
                    subText: '',
-                   height: 120,
-                   width: 170,
+                   height: 150,
+                   width: 150,
                  ),
-                 const SizedBox(width: 7),
+                 const SizedBox(width: 15),
                  Tiles(
-                   onTap: () {},
-                   mainText: "Extra Row 2",
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: ((context) => const Giving()),
+                      ),
+                    );
+                   },
+                   mainText: "Giving",
                    subText: '',
-                   height: 120,
-                   width: 170,
-          ),
-        ],
-      ),
+                   height: 150,
+                   width: 150,
+                 ),
+              ],
+           ),
+           const SizedBox(height: 15),
+            Row(
+               mainAxisAlignment: MainAxisAlignment.center,
+               children: [
+                 Tiles(
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: ((context) => const Ministries()),
+                      ),
+                    );
+                   },
+                   mainText: "Ministries",
+                   subText: '',
+                   height: 150,
+                   width: 150,
+                 ),
+                 const SizedBox(width: 15),
+                 Tiles(
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: ((context) => const Contact()),
+                      ),
+                    );
+                   },
+                   mainText: "Contact Us",
+                   subText: '',
+                   height: 150,
+                   width: 150,
+                 ),
+              ],
+           ),
     ],
   ),
 ),

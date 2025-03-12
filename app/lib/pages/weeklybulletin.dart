@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class TestPageTwo extends StatefulWidget {
-  const TestPageTwo({super.key});
+class WeeklyBulletin extends StatefulWidget {
+  const WeeklyBulletin({super.key});
 
   @override
-  State<TestPageTwo> createState() => _TestPageTwoState();
+  State<WeeklyBulletin> createState() => _WeeklyBulletinState();
 }
 
-class _TestPageTwoState extends State<TestPageTwo> {
+class _WeeklyBulletinState extends State<WeeklyBulletin> {
   @override
   Widget build(BuildContext context) {
           return Scaffold(
@@ -16,9 +16,9 @@ class _TestPageTwoState extends State<TestPageTwo> {
              iconTheme: const IconThemeData(
                     color: Colors.white), // back arrow color
               title: Padding(
-                 padding: const EdgeInsets.only(left: 100),
+                 padding: const EdgeInsets.only(left: 60),
                  child: Text(
-                   "Test",
+                   "Weekly Bulletin",
                   style:
                   const TextStyle(color: Colors.white), // title color
                 ),

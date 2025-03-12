@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class TestPage extends StatefulWidget {
-  const TestPage({super.key});
+class EventsPage extends StatefulWidget {
+  const EventsPage({super.key});
 
   @override
-  State<TestPage> createState() => _TestPageState();
+  State<EventsPage> createState() => _EventsPageState();
 }
 
-class _TestPageState extends State<TestPage> {
+class _EventsPageState extends State<EventsPage> {
   @override
   Widget build(BuildContext context) {
           return Scaffold(
@@ -18,7 +18,7 @@ class _TestPageState extends State<TestPage> {
               title: Padding(
                  padding: const EdgeInsets.only(left: 100),
                  child: Text(
-                   "Test",
+                   "Events",
                   style:
                   const TextStyle(color: Colors.white), // title color
                 ),
@@ -44,4 +44,3 @@ class _TestPageState extends State<TestPage> {
           );
          }
       }
-  
