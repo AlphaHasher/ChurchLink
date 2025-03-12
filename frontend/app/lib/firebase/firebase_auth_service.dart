@@ -1,12 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-/// **Once page navigation is implemented**
-/// TODO:
 /// - Connect to login page
 /// - Connect to sign up page
 /// - Connect to user profile
-/// /// - Add toasts for error messages
+/// - Add toasts for error messages
 /// - More testing (very minimal testing has been done but it works (kinda))
 
 class AuthenticationService { // REMINDER - Needs to be used as an instance
