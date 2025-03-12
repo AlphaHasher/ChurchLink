@@ -6,7 +6,7 @@ export default function Navbar() {
   const location = useLocation();
 
   return (
-    <NavigationMenu className="flex p-4 bg-gray-900 justify-between text-white w-full! max-w-screen-lg mx-auto">
+    <NavigationMenu className="flex p-4 bg-gray-900 justify-between text-white w-full! max-w-screen!">
       <NavigationMenuList className="flex gap-4">
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
