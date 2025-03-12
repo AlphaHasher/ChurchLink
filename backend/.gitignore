@@ -1,0 +1,4 @@
+# This prevents pycache from getting pushed, which is incredibly annoying
+**/__pycache__/
+
+.env
