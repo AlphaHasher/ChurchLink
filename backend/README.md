@@ -113,7 +113,7 @@ The application will automatically connect to MongoDB at `mongodb://localhost:27
 ## 🔥 Firebase Setup
 Before running the application, you need to set up Firebase credentials:
 
-1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+1. Go to the Firebase project Tai made at [Firebase Console](https://console.firebase.google.com/)
 2. Generate a service account key:
    - Go to Project Settings > Service Accounts
    - Click "Generate New Private Key"
@@ -121,4 +121,99 @@ Before running the application, you need to set up Firebase credentials:
 3. Place the JSON file in the `firebase` directory
 4. Rename the file to `firebase_credentials.json`
 
-Your directory structure should look like:
+# 🛣️ Adding New Routes
+
+This project uses a role-based routing structure with corresponding model files. For a complete working example, refer to:
+- `models/item.py` - Example model with CRUD operations
+- `routes/base_routes/item_routes.py` - Example route implementation with all standard REST endpoints
+
+### 1. Create a Model
+First, create a model file in the `models` directory, following the pattern in `models/item.py`:
+
+```python
+# models/your_model.py
+from typing import Optional
+from pydantic import BaseModel
+from helpers.DB import DB
+from bson import ObjectId
+
+class YourModelBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class YourModelCreate(YourModelBase):
+    pass
+
+class YourModelOut(YourModelBase):
+    id: str
+
+# Add CRUD Operations (see models/item.py for a complete example)
+async def create_your_model(item: YourModelCreate):
+    result = await DB.db["your_collection"].insert_one(item.model_dump())
+    item_data = await DB.db["your_collection"].find_one({"_id": result.inserted_id})
+    return YourModelOut(id=str(item_data["_id"]), **item_data)
+
+async def get_your_model(id: str):
+    # ... implementation ...
+```
+
+### 2. Create a Route File
+Add your route file in the appropriate role-based directory (see `routes/base_routes/item_routes.py` for a complete example):
+
+```python
+# routes/[role]_routes/your_model_routes.py
+from fastapi import APIRouter
+from models.your_model import YourModelCreate, create_your_model
+
+your_model_router = APIRouter(prefix="/your-models")
+
+@your_model_router.get("/")
+async def get_items_route():
+    # ... implementation ...
+
+@your_model_router.post("/")
+async def create_item_route(item: YourModelCreate):
+    return await create_your_model(item)
+```
+
+### 3. Include the Router
+In `main.py`, import and include your router in the appropriate section:
+
+```python
+from routes.base_routes.your_model_routes import your_model_router as your_model_router_base
+
+# For base routes
+router_base.include_router(your_model_router_base)
+
+# For admin routes
+router_admin.include_router(your_model_router_admin)
+
+# For finance routes
+router_finance.include_router(your_model_router_finance)
+```
+
+### Route Structure
+- Base routes (`/api/v1/*`): General features for authenticated users
+- Admin routes (`/api/v1/admin/*`): Administrative features
+- Finance routes (`/api/v1/finance/*`): Finance-related features
+- Dev routes (`/api/v1/dev/*`): Development utilities
+
+### Common REST Endpoints
+Include these standard endpoints in your route files:
+```python
+@router.get("/")              # List all items
+@router.get("/{id}")          # Get single item
+@router.post("/")             # Create item
+@router.patch("/{id}")        # Update item
+@router.delete("/{id}")       # Delete item
+```
+
+### Access Control
+Routes are automatically protected based on their location:
+- `base_routes`: Requires "base" role
+- `admin_routes`: Requires "admin" role
+- `finance_routes`: Requires "finance" role
+- `dev_routes`: Requires "developer" role
