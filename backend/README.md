@@ -109,3 +109,16 @@ docker rm mongodb
 ```
 
 The application will automatically connect to MongoDB at `mongodb://localhost:27017`.
+
+## 🔥 Firebase Setup
+Before running the application, you need to set up Firebase credentials:
+
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Generate a service account key:
+   - Go to Project Settings > Service Accounts
+   - Click "Generate New Private Key"
+   - Save the downloaded JSON file
+3. Place the JSON file in the `firebase` directory
+4. Rename the file to `firebase_credentials.json`
+
+Your directory structure should look like:
