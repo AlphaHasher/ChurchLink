@@ -5,7 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiosqlite>=0.21.0",
     "fastapi>=0.115.11",
+    "firebase-admin>=6.7.0",
+    "pydantic>=2.10.6",
     "scalar-fastapi>=1.0.3",
     "uvicorn>=0.34.0",
 ]
