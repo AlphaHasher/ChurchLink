@@ -12,6 +12,10 @@ load_dotenv()
 #You can use various websites to get YouTube channel ID from Youtube @ links for testing purposes
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 PRIMARY_CHANNEL_ID = os.getenv("PRIMARY_CHANNEL_ID")
+PUBLIC_DOMAIN = os.getenv("PUBLIC_DOMAIN")
+
+HUB_URL = "https://pubsubhubbub.appspot.com/subscribe"
+CALLBACK_URL = f"{PUBLIC_DOMAIN}/api/v1/api_listener/youtube_listener/live"
 
 youtubeClient = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
@@ -46,9 +50,8 @@ class YoutubeHelper:
     #print(checkYoutubeChannel(PRIMARY_CHANNEL_ID))
 
 
+    #This function sends the request to subscribe to the pubsubhub notifications.
     def subscribeToMainNotifications():
-        HUB_URL = "https://pubsubhubbub.appspot.com/subscribe"
-        CALLBACK_URL = "https://yourdomain.com/youtube/live"
         data = {
         "hub.mode": "subscribe",
         "hub.topic": f"https://www.youtube.com/xml/feeds/videos.xml?channel_id={PRIMARY_CHANNEL_ID}",
@@ -56,6 +59,5 @@ class YoutubeHelper:
         "hub.lease_seconds": 864000,  # 10 days
         }
         response = requests.post(HUB_URL, data=data)
+        print("Sending Request to Subscribe to YouTube Notifications")
         print(response.status_code, response.text)
-
-    subscribeToMainNotifications()
