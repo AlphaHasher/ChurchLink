@@ -113,7 +113,7 @@ The application will automatically connect to MongoDB at `mongodb://localhost:27
 ## 🔥 Firebase Setup
 Before running the application, you need to set up Firebase credentials:
 
-1. Go to the Firebase project Tai made at [Firebase Console](https://console.firebase.google.com/)
+1. Go to the Firebase project Tai made at [Link to Project](https://console.firebase.google.com/project/ssbc-9ef2d/settings/general/web:NDkxODllZGItM2ZhMC00YTE2LWIwOTQtNGJiZTM0MzNjMzk2)
 2. Generate a service account key:
    - Go to Project Settings > Service Accounts
    - Click "Generate New Private Key"
