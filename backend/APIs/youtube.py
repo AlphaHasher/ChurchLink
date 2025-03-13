@@ -6,10 +6,10 @@ load_dotenv()
 
 #Loads Some necessary stuff from the ENV
 #YOUTUBE_API_KEY, is naturally the API key used to handle the requests, based on the project.churchlink@gmail.com email address
-#Each YouTube channel has a more "cryptic" id in a way, think of this like how discord has the integer ID in addition to the usernames, the YouTube API utilizes these IDs, so it's helpful to have the SSBC ID loaded as it is the primarily used channel
+#Each YouTube channel has a more "cryptic" id in a way, think of this like how discord has the integer ID in addition to the usernames, the YouTube API utilizes these IDs, so it's helpful to have the main ID loaded as it is the primarily used channel
 #You can use various websites to get YouTube channel ID from Youtube @ links for testing purposes
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-SSBC_YOUTUBE_CHANNEL_ID = os.getenv("SSBC_YOUTUBE_CHANNEL_ID")
+PRIMARY_CHANNEL_ID = os.getenv("PRIMARY_CHANNEL_ID")
 
 youtubeClient = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
@@ -39,4 +39,4 @@ def checkYoutubeChannel(channelID):
 
 # Test Code Below, uncomment and optionally replace the channel ID with a livestreaming channel to check:
 # This will be deleted later, it was just used by me to ensure that the API call functions
-#print(checkYoutubeChannel(SSBC_YOUTUBE_CHANNEL_ID))
+#print(checkYoutubeChannel(PRIMARY_CHANNEL_ID))
