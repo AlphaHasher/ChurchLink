@@ -77,6 +77,7 @@ router_base.dependencies.append(Depends(role_based_access(["base"])))
 # Admin Router Configuration 
 #####################################################
 router_admin = APIRouter(prefix="/api/v1/admin")
+router_admin.dependencies.append(Depends(role_based_access(["admin"])))
 # router_admin.include_router("import something from routes/admin_routes/")
 
 #####################################################
@@ -85,6 +86,7 @@ router_admin = APIRouter(prefix="/api/v1/admin")
 # Finance Router Configuration
 #####################################################
 router_finance = APIRouter(prefix="/api/v1/finance")
+router_finance.dependencies.append(Depends(role_based_access(["finance"])))
 # router_finance.include_router("import something from routes/finance_routes/")
 
 #####################################################
