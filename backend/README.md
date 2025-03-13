@@ -217,3 +217,112 @@ Routes are automatically protected based on their location:
 - `admin_routes`: Requires "admin" role
 - `finance_routes`: Requires "finance" role
 - `dev_routes`: Requires "developer" role
+
+## 🔐 API Authentication
+All API requests must include a Firebase ID token in the Authorization header. The token should be included as a Bearer token.
+
+### Web Example (Fetch API)
+```javascript
+// Get the token from Firebase Auth
+const token = await firebase.auth().currentUser.getIdToken();
+
+// Make API request
+const response = await fetch('http://localhost:8000/api/v1/items', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  // other fetch options...
+});
+
+// Example with full CRUD operations
+const api = {
+  // GET request
+  async getItems() {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const response = await fetch('http://localhost:8000/api/v1/items', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    return response.json();
+  },
+
+  // POST request
+  async createItem(data) {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const response = await fetch('http://localhost:8000/api/v1/items', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  }
+};
+```
+
+### Flutter Example (Dio)
+```dart
+import 'package:dio/dio.dart';
+
+class ApiService {
+  final Dio _dio = Dio();
+  
+  // Initialize with base URL
+  ApiService() {
+    _dio.options.baseUrl = 'http://localhost:8000/api/v1';
+  }
+
+  // Add auth token to requests
+  Future<void> setAuthToken(String token) {
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  // Example CRUD operations
+  Future<List<Item>> getItems() async {
+    final response = await _dio.get('/items');
+    return (response.data as List)
+        .map((item) => Item.fromJson(item))
+        .toList();
+  }
+
+  Future<Item> createItem(Map<String, dynamic> data) async {
+    final response = await _dio.post('/items', 
+      data: data,
+    );
+    return Item.fromJson(response.data);
+  }
+
+  Future<Item> updateItem(String id, Map<String, dynamic> data) async {
+    final response = await _dio.patch('/items/$id', 
+      data: data,
+    );
+    return Item.fromJson(response.data);
+  }
+
+  Future<void> deleteItem(String id) async {
+    await _dio.delete('/items/$id');
+  }
+}
+
+// Usage example
+void main() async {
+  final api = ApiService();
+  
+  // Get token from Firebase
+  final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+  await api.setAuthToken(token!);
+
+  // Make authenticated requests
+  final items = await api.getItems();
+}
+```
+
+Remember to:
+1. Get a fresh token before making requests
+2. Handle token expiration and refresh
+3. Include the token in all API requests
+4. Handle authentication errors (401, 403)
