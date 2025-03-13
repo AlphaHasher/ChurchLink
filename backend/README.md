@@ -56,3 +56,75 @@ Scalar offers:
 ```bash
 uv add <package-name>
 ```
+
+---
+
+## 🔑 Managing Roles
+This project includes an `add_roles.py` script to help manage user roles in Firebase Authentication.
+
+### Using add_roles.py
+To modify user roles, run:
+```bash
+uv run add_roles.py <user-id> <role1> [role2 ...]
+```
+
+For example:
+```bash
+# Add roles
+uv run add_roles.py user123 base admin finance
+
+# Remove roles using --remove flag
+uv run add_roles.py user123 admin --remove
+```
+
+The script will:
+- Connect to Firebase Authentication
+- Modify the user's custom claims to add or remove roles
+- Display the updated roles for the user
+
+Available options:
+- `<user-id>`: The Firebase user ID to modify
+- `<role1> [role2 ...]`: One or more roles to add/remove
+- `--remove`: Optional flag to remove roles instead of adding them
+
+The script will show success/error messages and display the user's current roles after modification.
+
+## 🗄️ Database Setup
+This project uses MongoDB as its database. The easiest way to run MongoDB is using Docker:
+
+```bash
+docker run -d --name mongodb -p 27017:27017 mongo:latest
+```
+
+This command:
+- Runs MongoDB in detached mode (in background)
+- Names the container "mongodb"
+- Maps port 27017 to your local machine
+- Uses the latest MongoDB image
+
+Useful Docker commands:
+```bash
+# Check if container is running
+docker ps
+
+# Stop the container
+docker stop mongodb
+
+# Remove the container
+docker rm mongodb
+```
+
+The application will automatically connect to MongoDB at `mongodb://localhost:27017`.
+
+## 🔥 Firebase Setup
+Before running the application, you need to set up Firebase credentials:
+
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Generate a service account key:
+   - Go to Project Settings > Service Accounts
+   - Click "Generate New Private Key"
+   - Save the downloaded JSON file
+3. Place the JSON file in the `firebase` directory
+4. Rename the file to `firebase_credentials.json`
+
+Your directory structure should look like:

@@ -1,91 +1,45 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI
+from scalar_fastapi import get_scalar_api_reference
+from fastapi import APIRouter
 from contextlib import asynccontextmanager
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-import firebase_admin
-from firebase_admin import auth, credentials
-from firebase_auth import verify_firebase_token
-from database import init_db, save_user, get_user
 import os
-import jwt
-import datetime
-import json
-
-# Secret key for JWT (change this in production)
-JWT_SECRET = os.getenv("JWT_SECRET", "supersecretjwtkey")
-
-# ✅ Load Firebase Admin SDK Credentials
-FIREBASE_CREDENTIALS = os.getenv("FIREBASE_CREDENTIALS", "firebase-adminsdk.json")
-if not firebase_admin._apps:
-    cred = credentials.Certificate(FIREBASE_CREDENTIALS)
-    firebase_admin.initialize_app(cred)
-
-# ✅ Define Request Model
-class RegisterRequest(BaseModel):
-    id_token: str
-
-
-# Initialize database on startup
+from fastapi.middleware.cors import CORSMiddleware
+import firebase_admin
+from firebase_admin import credentials
+import fastapi
+from helpers.DB import DB as DatabaseManager
+from helpers.Firebase_helpers import role_based_access
+from fastapi import Depends
+from get_bearer_token import generate_test_token
+from pydantic import BaseModel
+from routes.base_routes.item_routes import item_router as item_router_base
+from add_roles import add_user_role, RoleUpdate
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_db()  # Initialize SQLite DB on startup
-    yield  # Continue running the app
+async def lifespan(app: fastapi.FastAPI):
+    # Initialize Firebase Admin SDK if not already initialized
+    if not firebase_admin._apps:
+        from firebase.firebase_credentials import get_firebase_credentials
+        cred = credentials.Certificate(get_firebase_credentials())
+        firebase_admin.initialize_app(cred)
+    
+    # MongoDB connection setup
+    DatabaseManager.init_db()
+    
+    yield
+
+    # Cleanup
+    DatabaseManager.close_db()
 
 app = FastAPI(lifespan=lifespan)
 
-
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL")],  # Get frontend URL from env
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
-# Pydantic model for Firebase token request
-class FirebaseTokenRequest(BaseModel):
-    id_token: str
-
-def create_jwt(uid: str, email: str, role: str):
-    """
-    Generates a JWT for authenticated users.
-    """
-    payload = {
-        "uid": uid,
-        "email": email,
-        "role": role,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)  # Expires in 1 day
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-
-def verify_jwt(token: str):
-    """
-    Verifies the JWT token.
-    """
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-
-
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import firebase_admin
-from firebase_admin import auth, credentials
-import traceback  # For printing full error logs
-
-# Initialize Firebase (only once)
-if not firebase_admin._apps:
-    cred = credentials.Certificate("path/to/serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
-
-app = FastAPI()
 
 class RegisterRequest(BaseModel):
     id_token: str
@@ -178,40 +132,101 @@ async def google_signin(data: FirebaseTokenRequest):
 
     print(f"✅ Google Sign-In Success: {email}")
 
-    # Save user to SQLite
-    await save_user(uid, email, display_name, role="user")
+class LoginCredentials(BaseModel):
+    email: str
+    password: str
 
-    # Generate JWT for session authentication
-    jwt_token = create_jwt(uid, email, "user")
-    return {"token": jwt_token}
+#####################################################
+# Dev Router Configuration
+#####################################################
+router_dev = APIRouter(prefix="/api/v1/dev", tags=["dev"])
+# Add Firebase authentication dependency to dev router, needs developer role
+router_dev.dependencies.append(Depends(role_based_access(["developer"])))
 
-# Protected Route (Requires JWT)
-@app.get("/user")
-async def get_user_info(token: str = Depends(verify_jwt)):
+
+##for development purposes
+@router_dev.post("/auth/token")
+async def get_auth_token(credentials: LoginCredentials):
+    """Get a Firebase authentication token using email and password"""
+    try:
+        token = generate_test_token(
+            email=credentials.email,
+            password=credentials.password
+        )
+        if token:
+            return {"access_token": token, "token_type": "Bearer"}
+        return {"error": "Failed to generate token"}
+    except Exception as e:
+        return {"error": str(e)}
+    
+@router_dev.post("/roles", summary="Update user roles")
+async def update_user_roles(role_update: RoleUpdate):
     """
-    Fetches user information from SQLite.
+    Add or remove roles for a specified user.
+    
+    - **uid**: The user ID to modify
+    - **roles**: List of roles to add/remove
+    - **remove**: If true, removes the specified roles. If false, adds them.
+    
+    Returns:
+        dict: Contains status, message, and current roles
     """
-    user = await get_user(token["uid"])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+    return add_user_role(
+        uid=role_update.uid,
+        roles=role_update.roles,
+        remove=role_update.remove
+    )
 
-# Update user role
-@app.patch("/user/role")
-async def update_user_role(uid: str, new_role: str, token: str = Depends(verify_jwt)):
-    """
-    Updates the user role (admin or user).
-    """
-    if token["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Only admin can change roles")
 
-    async with aiosqlite.connect("users.db") as db:
-        await db.execute("UPDATE users SET role = ? WHERE uid = ?", (new_role, uid))
-        await db.commit()
 
-    return {"message": f"User {uid} role updated to {new_role}"}
+
+# This are an example we can discuss as a group
+
+#####################################################
+# Base Router Configuration
+#####################################################
+router_base = APIRouter(prefix="/api/v1", tags=["base"])
+# Add Firebase authentication dependency to base router, needs base role
+router_base.dependencies.append(Depends(role_based_access(["base"])))
+router_base.include_router(item_router_base)
+
+
+
+#####################################################
+
+
+
+#####################################################
+# Admin Router Configuration 
+#####################################################
+router_admin = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+router_admin.dependencies.append(Depends(role_based_access(["admin"])))
+# router_admin.include_router("import something from routes/admin_routes/")
+
+#####################################################
+
+#####################################################
+# Finance Router Configuration
+#####################################################
+router_finance = APIRouter(prefix="/api/v1/finance", tags=["finance"])
+router_finance.dependencies.append(Depends(role_based_access(["finance"])))
+# router_finance.include_router("import something from routes/finance_routes/")
+
+#####################################################
+
+
+
+
+
+
+
+# Include routers in main app
+app.include_router(router_base)
+app.include_router(router_admin)
+app.include_router(router_finance)
+
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
