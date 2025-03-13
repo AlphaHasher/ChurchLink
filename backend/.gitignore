@@ -1,7 +1,7 @@
-# This prevents pycache from getting pushed, which is incredibly annoying
-**/__pycache__/
-
-.env
-
 # This is an application that helps test code when public-facing tasks are required
 ngrok.exe
+.venv
+bearer.txt
+**/__pycache__/
+__pycache__/
+.env
