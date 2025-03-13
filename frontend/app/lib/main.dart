@@ -1,12 +1,8 @@
-import 'package:app/pages/weeklybulletin.dart';
+import 'package:app/pages/bible.dart';
+import 'package:app/pages/dashboard.dart';
+import 'package:app/pages/sermons.dart';
+import 'package:app/pages/usersettings.dart';
 import 'package:flutter/material.dart';
-import 'package:app/components/tiles.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:app/pages/joinlive.dart';
-import 'package:app/pages/giving.dart';
-import 'package:app/pages/eventspage.dart';
-import 'package:app/pages/ministries.dart';
-import 'package:app/pages/contact.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:app/components/firebase_options.dart';
 
@@ -49,7 +45,10 @@ class _MyHomePageState extends State<MyHomePage> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-      const MyApp(),
+      const DashboardPage(),
+      const BiblePage(),
+      const SermonsPage(),
+      const UserSettings(),
   ];
 
   @override
@@ -59,8 +58,15 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
+      body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
+        currentIndex: _currentIndex,
+        onTap: (value) => {
+          setState(() {
+            _currentIndex = value;
+          })
+        },
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -80,118 +86,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ]
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-              Tiles(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: ((context) => const JoinLive()),
-                    ),
-                  );
-                },
-                mainText: "Join Live",
-                subText: '',
-                height: 150,
-                width: 150,
-              ),
-              const SizedBox(width: 15),
-              Tiles(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: ((context) => const WeeklyBulletin()),
-                    ),
-                  );
-                },
-                mainText: "Weekly Bulletin",
-                subText: '',
-                height: 150,
-                width: 150,
-             ),
-             ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 Tiles(
-                   onTap: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                        builder: ((context) => const EventsPage()),
-                      ),
-                    );
-                   },
-                   mainText: "Events",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
-                 const SizedBox(width: 15),
-                 Tiles(
-                   onTap: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                        builder: ((context) => const Giving()),
-                      ),
-                    );
-                   },
-                   mainText: "Giving",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
-              ],
-           ),
-           const SizedBox(height: 15),
-            Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 Tiles(
-                   onTap: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                        builder: ((context) => const Ministries()),
-                      ),
-                    );
-                   },
-                   mainText: "Ministries",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
-                 const SizedBox(width: 15),
-                 Tiles(
-                   onTap: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                        builder: ((context) => const Contact()),
-                      ),
-                    );
-                   },
-                   mainText: "Contact Us",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
-              ],
-           ),
-    ],
-  ),
-),
-       // This trailing comma makes auto-formatting nicer for build methods.
     );
+       // This trailing comma makes auto-formatting nicer for build methods.
   }
 }
