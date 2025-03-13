@@ -10,7 +10,7 @@ class ItemBase(BaseModel):
     description: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
     def __repr__(self):
         return f"Name={self.name}, description={self.description}"

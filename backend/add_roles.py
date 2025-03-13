@@ -2,11 +2,14 @@ import firebase_admin
 from firebase_admin import credentials, auth
 import argparse
 from typing import List
+from pydantic import BaseModel
 
+class RoleUpdate(BaseModel):
+    uid: str
+    roles: List[str]
+    remove: bool = False
 
-
-
-def add_user_role(uid: str, roles: List[str], remove: bool = False) -> None:
+def add_user_role(uid: str, roles: List[str], remove: bool = False) -> dict:
     """
     Add or remove roles from a user's custom claims in Firebase Auth.
     
@@ -14,6 +17,9 @@ def add_user_role(uid: str, roles: List[str], remove: bool = False) -> None:
         uid: The user ID to modify
         roles: List of roles to add/remove
         remove: If True, removes the specified roles instead of adding them
+    
+    Returns:
+        dict: Response containing status and current roles
     """
     try:
         # Initialize Firebase Admin SDK if not already initialized
@@ -38,17 +44,32 @@ def add_user_role(uid: str, roles: List[str], remove: bool = False) -> None:
         # Update the claims
         new_claims = {**current_claims, 'roles': list(current_roles)}
         auth.set_custom_user_claims(uid, new_claims)
-        print(f"Success: Roles {roles} have been {action} user {uid}")
-        print(f"Current roles: {list(current_roles)}")
+        
+        response = {
+            "status": "success",
+            "message": f"Roles {roles} have been {action} user {uid}",
+            "current_roles": list(current_roles)
+        }
+        
+        # Print if running from CLI
+        if __name__ == "__main__":
+            print(f"Success: {response['message']}")
+            print(f"Current roles: {response['current_roles']}")
+            
+        return response
     
     except auth.UserNotFoundError:
-        print(f"Error: User {uid} not found")
+        error_msg = f"Error: User {uid} not found"
+        if __name__ == "__main__":
+            print(error_msg)
+        return {"status": "error", "message": error_msg}
     except Exception as e:
-        print(f"Error: Failed to modify user roles. {str(e)}")
+        error_msg = f"Error: Failed to modify user roles. {str(e)}"
+        if __name__ == "__main__":
+            print(error_msg)
+        return {"status": "error", "message": error_msg}
 
 if __name__ == "__main__":
-    import argparse
-    
     parser = argparse.ArgumentParser(description='Modify user roles in Firebase')
     parser.add_argument('uid', help='User ID to modify')
     parser.add_argument('roles', nargs='+', help='Roles to add/remove')

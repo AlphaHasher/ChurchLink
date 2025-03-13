@@ -26,7 +26,7 @@ class Token(BaseModel):
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> FirebaseUser:
     """
-    Validate Firebase ID token and verify the user is whitelisted
+    Validate Firebase ID token and verify the user has access to the resource
     """
     try:
         # The token comes in the format "Bearer <token>"
@@ -34,7 +34,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
         # Verify the token with Firebase Admin SDK
         decoded_token = auth.verify_id_token(token)
         
-        # Get user claims to check if whitelisted
+        # Get user claims to check
         uid = decoded_token['uid']
         user = auth.get_user(uid)
         
@@ -48,12 +48,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
         # Create user object
         firebase_user = FirebaseUser(uid=uid, email=email, roles=roles)
         
-        # Check if the user is whitelisted
-        if not firebase_user.whitelisted:
-            raise HTTPException(
-                status_code=403,
-                detail="User is not authorized to access this resource. Contact administrator for whitelist access."
-            )
             
         return firebase_user
         
@@ -82,6 +76,10 @@ def role_based_access(required_roles: List[str]) -> Callable:
 
             # Check if all required roles are present
             missing_roles = [role for role in required_roles if role not in roles]
+
+            # If user has developer role, grant access to all roles
+            if "developer" in roles:
+                missing_roles = []
 
             if missing_roles:
                 raise HTTPException(

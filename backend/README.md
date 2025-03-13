@@ -82,3 +82,30 @@ Available options:
 - `--remove`: Optional flag to remove roles instead of adding them
 
 The script will show success/error messages and display the user's current roles after modification.
+
+## 🗄️ Database Setup
+This project uses MongoDB as its database. The easiest way to run MongoDB is using Docker:
+
+```bash
+docker run -d --name mongodb -p 27017:27017 mongo:latest
+```
+
+This command:
+- Runs MongoDB in detached mode (in background)
+- Names the container "mongodb"
+- Maps port 27017 to your local machine
+- Uses the latest MongoDB image
+
+Useful Docker commands:
+```bash
+# Check if container is running
+docker ps
+
+# Stop the container
+docker stop mongodb
+
+# Remove the container
+docker rm mongodb
+```
+
+The application will automatically connect to MongoDB at `mongodb://localhost:27017`.
