@@ -50,3 +50,35 @@ Scalar offers:
 ```bash
 uv add <package-name>
 ```
+
+---
+
+## 🔑 Managing Roles
+This project includes an `add_roles.py` script to help manage user roles in Firebase Authentication.
+
+### Using add_roles.py
+To modify user roles, run:
+```bash
+uv run add_roles.py <user-id> <role1> [role2 ...]
+```
+
+For example:
+```bash
+# Add roles
+uv run add_roles.py user123 base admin finance
+
+# Remove roles using --remove flag
+uv run add_roles.py user123 admin --remove
+```
+
+The script will:
+- Connect to Firebase Authentication
+- Modify the user's custom claims to add or remove roles
+- Display the updated roles for the user
+
+Available options:
+- `<user-id>`: The Firebase user ID to modify
+- `<role1> [role2 ...]`: One or more roles to add/remove
+- `--remove`: Optional flag to remove roles instead of adding them
+
+The script will show success/error messages and display the user's current roles after modification.
