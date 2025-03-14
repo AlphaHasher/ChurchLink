@@ -23,7 +23,7 @@ uv run main.py
 - server might run on 0.0.0.0:8000, force host run on 127.0.0.1 to debug correctly
 
 ```bash
-uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000
+uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 This will:
