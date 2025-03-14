@@ -1,8 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../lib/src/auth/firebase_auth_service.dart';
+import 'src/auth/firebase_auth_service.dart';
 import 'register_page_test.dart';
-import 'home_page.dart'; 
+import '../pages/dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -45,29 +44,34 @@ class _LoginPageState extends State<LoginPage> {
                     emailController.text.trim(),
                     passwordController.text.trim(),
                   );
-                  print(token != null ? "Sign-In Successful!" : "Sign-In Failed");
+                  if (token != null) {
+                  print("Sign-In Successful! Token: $token");
 
                   // ✅ Navigate to HomePage after successful sign-in
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => HomePage()),
+                    MaterialPageRoute(builder: (context) => DashboardPage()),
                   );
+                } else {
+                  print("Sign-In Failed. Check logs.");
+                }
                 },
               child: Text("Login"),
             ),
             ElevatedButton(
               onPressed: () async {
-                String? token = await _authService.signInWithGoogle();
-                if (token != null) {
-                  print("Google Sign-In Successful! Token: $token");
+                String? token = await _authService.signInWithGoogle(); // ✅ Fix: Now returns a Future<String?>
+
+                if (token != null && token.isNotEmpty) {  // ✅ Ensure token is not null/empty
+                  print("✅ Google Sign-In Successful! Token: $token");
 
                   // ✅ Navigate to HomePage after successful sign-in
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => HomePage()),
+                    MaterialPageRoute(builder: (context) => DashboardPage()),
                   );
                 } else {
-                  print("Google Sign-In Failed. Check logs.");
+                  print("❌ Google Sign-In Failed. Check logs.");
                 }
               },
               child: Text("Sign in with Google"),

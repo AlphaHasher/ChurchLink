@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../lib/src/auth/firebase_auth_service.dart';
+import 'src/auth/firebase_auth_service.dart';
 import 'login_page_test.dart';
 import 'home_page.dart';
 

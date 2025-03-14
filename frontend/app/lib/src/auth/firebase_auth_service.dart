@@ -16,85 +16,113 @@ class FirebaseAuthService {
   // ✅ Google Sign-In (Fixed)
 Future<String?> signInWithGoogle() async {
   try {
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
     if (googleUser == null) {
       print("Google Sign-In Canceled");
-      return null; // User canceled
+      return null; // User canceled sign-in
     }
 
     final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-    // ✅ Firebase Sign-In with Google Credential
     final AuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,  // Google OAuth token
-      idToken: googleAuth.idToken,          // Google ID token
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
     );
 
     final UserCredential userCredential =
-        await _firebaseAuth.signInWithCredential(credential);
+        await FirebaseAuth.instance.signInWithCredential(credential);
 
-    // ✅ Get Firebase ID Token (THIS is what FastAPI expects)
-    final String? firebaseIdToken = await userCredential.user?.getIdToken();
-
-    if (firebaseIdToken == null) {
-      print("Failed to retrieve Firebase ID Token");
-      return null;
+    final String? idToken = await userCredential.user?.getIdToken(true);
+    if (idToken == null) {
+      throw Exception("❌ Failed to retrieve Firebase ID Token.");
     }
 
-    // Debug: Print Firebase ID token to confirm correct token is retrieved
-    print("🔥 Firebase ID Token: $firebaseIdToken");
+    print("🔥 Firebase ID Token: $idToken");
 
-    // ✅ Send Firebase ID Token to FastAPI backend for verification
+    // ✅ Send Firebase ID Token to FastAPI backend
     final response = await http.post(
       Uri.parse("$backendUrl/auth/google"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"id_token": firebaseIdToken}),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $idToken",
+      },
     );
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
-      print("✅ Backend Response: ${response.body}");
-      return responseData["token"]; // Return JWT token from backend
+      print("✅ Google Sign-In Successful: ${response.body}");
+
+      // ✅ Return the backend token if available
+      if (responseData.containsKey("token")) {
+        return responseData["token"];  // ✅ FIXED: Return backend token
+      } else {
+        print("❌ Unexpected Backend Response: ${response.body}");
+        return null;
+      }
     } else {
-      print("❌ Backend Error: ${response.body}");
-      return null;
+      throw Exception("❌ Backend Error: ${response.body}");
     }
   } catch (e) {
-    print("❌ Error signing in with Google: $e");
+    print("❌ Error during Google Sign-In: $e");
     return null;
   }
 }
 
   // ✅ Email & Password Sign-In
   Future<String?> signInWithEmail(String email, String password) async {
-  try {
-    final UserCredential userCredential =
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    final User? user = userCredential.user;
-    if (user == null) {
-      throw Exception("❌ No authenticated user found.");
+      final User? user = userCredential.user;
+      if (user == null) {
+        throw Exception("❌ No authenticated user found.");
+      }
+
+      if (!user.emailVerified) {
+        print("❌ Email not verified. Please verify your email.");
+        return "Email not verified. Please check your inbox.";
+      }
+
+      final String? idToken = await user.getIdToken(true);
+      if (idToken == null) {
+        throw Exception("❌ Failed to retrieve Firebase ID Token.");
+      }
+      print("🔥 Firebase ID Token: $idToken");
+
+      final response = await http.post(
+        Uri.parse("$backendUrl/auth/token"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $idToken",
+        },
+      );
+
+      print("🔍 Backend Response: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print("✅ Login Successful: ${response.body}");
+
+        if (responseData.containsKey("access_token")) {
+          return responseData["access_token"];
+        } else {
+          throw Exception("❌ No token received in response.");
+        }
+      } else {
+        throw Exception("❌ Backend Error: ${response.body}");
+      }
+    } catch (e) {
+      print("❌ Error signing in with email: $e");
+      return null;
     }
-
-    if (!user.emailVerified) {
-      print("❌ Email not verified. Please verify your email.");
-      return "Email not verified. Please check your inbox.";
-    }
-
-    final idToken = await user.getIdToken(true);
-    return idToken;
-  } catch (e) {
-    print("❌ Error signing in with email: $e");
-    return null;
   }
-}
 
   Future<String?> registerWithEmail(String email, String password) async {
   try {
-    // ✅ Step 1: Create user in Firebase
     final UserCredential userCredential =
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
       email: email,
@@ -108,17 +136,6 @@ Future<String?> signInWithGoogle() async {
 
     print("✅ Firebase User Created: ${user.email}");
 
-    // ❌ Removed Email Verification Step ❌
-    // if (!user.emailVerified) {
-    //   await user.sendEmailVerification();
-    //   print("📩 Verification email sent to ${user.email}");
-    // }
-
-    // ✅ Step 2: Force reload Firebase session to ensure ID token is available
-    await Future.delayed(Duration(seconds: 2)); // Wait for session update
-    await user.reload();
-
-    // ✅ Step 3: Retrieve Firebase ID Token (force refresh)
     final String? idToken = await user.getIdToken(true);
     if (idToken == null) {
       throw Exception("❌ Failed to retrieve Firebase ID Token.");
@@ -126,24 +143,20 @@ Future<String?> signInWithGoogle() async {
 
     print("🔥 Firebase ID Token: $idToken");
 
-    /// ✅ Step 5: Debug and Send Token to FastAPI
     final response = await http.post(
-      Uri.parse("http://10.0.2.2:8000/auth/register"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"id_token": idToken}),
+      Uri.parse("$backendUrl/auth/register"),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $idToken", // ✅ Send ID token in Authorization header
+      },
     );
-    
-    print("🔍 Backend Response: ${response.body}"); // ✅ Debugging
-    
+
+    print("🔍 Backend Response: ${response.body}");
+
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
       print("✅ Registration Successful: ${response.body}");
-      
-      if (responseData.containsKey("token")) {
-        return responseData["token"]; // ✅ Ensure token exists before returning
-      } else {
-        throw Exception("❌ No token received in response.");
-      }
+      return responseData["email"]; // ✅ Return registered email
     } else {
       throw Exception("❌ Backend Error: ${response.body}");
     }
