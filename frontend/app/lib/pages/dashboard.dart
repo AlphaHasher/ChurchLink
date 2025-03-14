@@ -1,6 +1,6 @@
 import 'package:app/pages/weeklybulletin.dart';
 import 'package:flutter/material.dart';
-import 'package:app/components/tiles.dart';
+import 'package:app/components/Tiles.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/giving.dart';

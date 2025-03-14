@@ -25,10 +25,10 @@ async def lifespan(app: fastapi.FastAPI):
         from firebase.firebase_credentials import get_firebase_credentials
         cred = credentials.Certificate(get_firebase_credentials())
         firebase_admin.initialize_app(cred)
-
+    
     # MongoDB connection setup
     DatabaseManager.init_db()
-
+    
     yield
 
     # Cleanup
@@ -76,16 +76,16 @@ async def get_auth_token(credentials: LoginCredentials):
         return {"error": "Failed to generate token"}
     except Exception as e:
         return {"error": str(e)}
-
+    
 @router_dev.post("/roles", summary="Update user roles")
 async def update_user_roles(role_update: RoleUpdate):
     """
     Add or remove roles for a specified user.
-
+    
     - **uid**: The user ID to modify
     - **roles**: List of roles to add/remove
     - **remove**: If true, removes the specified roles. If false, adds them.
-
+    
     Returns:
         dict: Contains status, message, and current roles
     """
@@ -115,7 +115,7 @@ router_base.include_router(item_router_base)
 
 
 #####################################################
-# Admin Router Configuration
+# Admin Router Configuration 
 #####################################################
 router_admin = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 router_admin.dependencies.append(Depends(role_based_access(["admin"])))
