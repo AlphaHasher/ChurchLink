@@ -3,17 +3,16 @@ import 'package:app/pages/dashboard.dart';
 import 'package:app/pages/user/guest_settings.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/pages/user/user_settings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'login_page_test.dart';
 import 'package:app/firebase/firebase_options.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp();
   runApp(MyApp());
 }
 
@@ -31,6 +30,8 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
