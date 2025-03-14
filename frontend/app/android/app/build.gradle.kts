@@ -41,10 +41,14 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("release-key.jks")
-            storePassword = "potato"
-            keyAlias = "RandomTestingKey"
-            keyPassword = "potato"
+            val keyStoreFile = file(keystoreProperties.getProperty("storeFile", "release-key.jks"))
+            if (!keyStoreFile.exists()) {
+                logger.error("Key store file ${keyStoreFile.absolutePath} not found - please read frontend/app/README.md for instructions on how to generate Firebase SHA keys")
+            }
+            storeFile = keyStoreFile
+            storePassword = keystoreProperties.getProperty("storePassword", "potato")
+            keyAlias = keystoreProperties.getProperty("keyAlias", "RandomTestingKey")
+            keyPassword = keystoreProperties.getProperty("keyPassword", "potato")
         }
     }
 
