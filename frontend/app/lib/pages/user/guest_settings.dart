@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../login_page_test.dart';
 
 class GuestSettings extends StatefulWidget {
   const GuestSettings({super.key});
@@ -113,6 +114,13 @@ class _GuestSettingsState extends State<GuestSettings> {
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
                 // Add your navigation logic here
+                if (category['category'] == "Account") {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginPage()), // Replace `LoginPage` with your actual login page widget
+                  );
+                }
+
               },
             ),
           ),

@@ -33,7 +33,7 @@ class _RegisterPageState extends State<RegisterPage> {
   });
 
   try {
-    // ✅ Step 1: Register the user with Firebase
+    // Register the user with Firebase
     String? token = await _authService.registerWithEmail(
       emailController.text.trim(),
       passwordController.text.trim(),
@@ -42,7 +42,7 @@ class _RegisterPageState extends State<RegisterPage> {
     if (token != null) {
       print("✅ Account Register Successful! Token: $token");
 
-      // ✅ Step 2: Navigate to HomePage after successful registration
+      // Navigate to HomePage after successful registration
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => LoginPage()),

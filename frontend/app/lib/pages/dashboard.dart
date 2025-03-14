@@ -150,16 +150,6 @@ class _MyHomePageState extends State<MyHomePage> {
                  ),
               ],
            ),
-           ElevatedButton(
-                  onPressed: () async {
-                    await _authService.signOut();  // Sign out user
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginPage()),
-                    );
-                  },
-                  child: Text("Sign Out"),
-                ),
     ],
   ),
       
