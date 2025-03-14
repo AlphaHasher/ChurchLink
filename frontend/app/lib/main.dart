@@ -4,7 +4,7 @@ import 'package:app/pages/sermons.dart';
 import 'package:app/pages/usersettings.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:app/components/firebase_options.dart';
+import 'package:app/firebase/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
