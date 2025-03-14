@@ -10,6 +10,7 @@ dependencies = [
     "firebase-admin>=6.7.0",
     "pydantic>=2.10.6",
     "motor>=3.7.0",
+    "pymongo>=4.11.2",
     "python-dotenv>=1.0.1",
     "scalar-fastapi>=1.0.3",
     "uvicorn>=0.34.0",
