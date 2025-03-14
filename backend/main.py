@@ -138,3 +138,18 @@ router_finance.dependencies.append(Depends(role_based_access(["finance"])))
 #####################################################
 
 
+
+
+
+
+
+# Include routers in main app
+app.include_router(router_base)
+app.include_router(router_admin)
+app.include_router(router_finance)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
