@@ -7,6 +7,8 @@ import 'package:app/pages/giving.dart';
 import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
+import '../login_page_test.dart';
+import '../src/auth/firebase_auth_service.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -36,6 +38,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final FirebaseAuthService _authService = FirebaseAuthService();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,9 +150,20 @@ class _MyHomePageState extends State<MyHomePage> {
                  ),
               ],
            ),
+           ElevatedButton(
+                  onPressed: () async {
+                    await _authService.signOut();  // Sign out user
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginPage()),
+                    );
+                  },
+                  child: Text("Sign Out"),
+                ),
     ],
   ),
-),
+      
+    ),
        // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
