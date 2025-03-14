@@ -30,10 +30,10 @@ This will:
 ## 📜 Scalar API Docs
 This project uses **[Scalar](https://scalar-api.com/)** to generate beautiful API documentation.
 
-- Access your API normally at:  
+- Access your API normally at:
   **[http://localhost:8000/docs](http://localhost:8000/docs)**
 
-- Access the Scalar documentation at:  
+- Access the Scalar documentation at:
   **[http://localhost:8000/scalar](http://localhost:8000/scalar)**
 
 Scalar offers:
@@ -92,7 +92,7 @@ docker run -d --name mongodb -p 27017:27017 mongo:latest
 
 This command:
 - Runs MongoDB in detached mode (in background)
-- Names the container "mongodb"
+- Names the container “mongodb”
 - Maps port 27017 to your local machine
 - Uses the latest MongoDB image
 
@@ -113,10 +113,10 @@ The application will automatically connect to MongoDB at `mongodb://localhost:27
 ## 🔥 Firebase Setup
 Before running the application, you need to set up Firebase credentials:
 
-1. Go to the Firebase project Tai made at [Link to Project](https://console.firebase.google.com/project/ssbc-9ef2d/settings/general/web:NDkxODllZGItM2ZhMC00YTE2LWIwOTQtNGJiZTM0MzNjMzk2)
+1. Open your [Firebase project](https://console.firebase.google.com)
 2. Generate a service account key:
    - Go to Project Settings > Service Accounts
-   - Click "Generate New Private Key"
+   - Click “Generate New Private Key” (Generating new key will NOT invalidate existing keys)
    - Save the downloaded JSON file
 3. Place the JSON file in the `firebase` directory
 4. Rename the file to `firebase_credentials.json`
@@ -140,7 +140,7 @@ from bson import ObjectId
 class YourModelBase(BaseModel):
     name: str
     description: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -213,10 +213,10 @@ Include these standard endpoints in your route files:
 
 ### Access Control
 Routes are automatically protected based on their location:
-- `base_routes`: Requires "base" role
-- `admin_routes`: Requires "admin" role
-- `finance_routes`: Requires "finance" role
-- `dev_routes`: Requires "developer" role
+- `base_routes`: Requires “base” role
+- `admin_routes`: Requires “admin” role
+- `finance_routes`: Requires “finance” role
+- `dev_routes`: Requires “developer” role
 
 ## 🔐 API Authentication
 All API requests must include a Firebase ID token in the Authorization header. The token should be included as a Bearer token.
@@ -270,7 +270,7 @@ import 'package:dio/dio.dart';
 
 class ApiService {
   final Dio _dio = Dio();
-  
+
   // Initialize with base URL
   ApiService() {
     _dio.options.baseUrl = 'http://localhost:8000/api/v1';
@@ -290,14 +290,14 @@ class ApiService {
   }
 
   Future<Item> createItem(Map<String, dynamic> data) async {
-    final response = await _dio.post('/items', 
+    final response = await _dio.post('/items',
       data: data,
     );
     return Item.fromJson(response.data);
   }
 
   Future<Item> updateItem(String id, Map<String, dynamic> data) async {
-    final response = await _dio.patch('/items/$id', 
+    final response = await _dio.patch('/items/$id',
       data: data,
     );
     return Item.fromJson(response.data);
@@ -311,7 +311,7 @@ class ApiService {
 // Usage example
 void main() async {
   final api = ApiService();
-  
+
   // Get token from Firebase
   final token = await FirebaseAuth.instance.currentUser?.getIdToken();
   await api.setAuthToken(token!);
