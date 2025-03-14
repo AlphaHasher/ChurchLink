@@ -13,6 +13,10 @@ class AuthenticationService { // REMINDER - Needs to be used as an instance
 
   // Listen to auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+  // Get auth
+  FirebaseAuth getAuthInstance() {
+    return _auth;
+  }
   // Get current user
   User? getCurrentUser() {
     return _auth.currentUser;
