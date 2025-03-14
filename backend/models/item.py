@@ -30,7 +30,7 @@ class ItemOut(ItemBase):
 
 # CRUD Operations examples
 async def create_item(item: ItemCreate):
-    result = await DB.db["items"].insert_one(item.dict())
+    result = await DB.db["items"].insert_one(item.model_dump())
     item_data = await DB.db["items"].find_one({"_id": result.inserted_id})
     return ItemOut(id=str(item_data["_id"]), **item_data)
 
@@ -39,6 +39,10 @@ async def get_item_by_id(item_id: str):
     if item:
         return ItemOut(id=str(item["_id"]), **item)
     return None
+
+async def update_item(item_id: str, item: ItemCreate):
+    result = await DB.db["items"].update_one({"_id": ObjectId(item_id)}, {"$set": item.model_dump()})
+    return result.modified_count > 0
 
 async def get_items(skip: int = 0, limit: int = 100):
     items_cursor = DB.db["items"].find().skip(skip).limit(limit)
