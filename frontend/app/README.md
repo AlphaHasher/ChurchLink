@@ -60,11 +60,48 @@ flutter pub get
 flutter doctor
 ```
 
-### **8. Troubleshooting**
+### **8. Firebase SHA Keys Setup**
+To enable Firebase Authentication and other Firebase features, you need to add your app's SHA-1 and SHA-256 fingerprints to the Firebase Console.
+
+#### **For Debug Key**
+```sh
+cd android
+./gradlew signingReport
+```
+Look for the "debug" configuration in the output. You'll see both SHA-1 and SHA-256 keys.
+
+#### **For Release Key**
+For the release key (release-key.jks), use:
+```sh
+keytool -list -v -keystore app/release-key.jks -alias RandomTestingKey
+```
+When prompted, enter the keystore password.
+
+#### **Configure Keystore Properties**
+Create or edit `android/keystore.properties` to match your keystore settings:
+```properties
+storeFile=release-key.jks
+storePassword=your_store_password
+keyAlias=your_key_alias
+keyPassword=your_key_password
+```
+Make sure these values match your actual keystore configuration.
+
+#### **Adding Keys to Firebase Console**
+1. Go to the [Link to Project](https://console.firebase.google.com/project/ssbc-9ef2d/settings/general/web:NDkxODllZGItM2ZhMC00YTE2LWIwOTQtNGJiZTM0MzNjMzk2)
+3. Go to Project Settings
+4. In the "Your apps" section, select your Android app
+5. Click "Add fingerprint"
+6. Add both SHA-1 and SHA-256 keys for both debug and release configurations
+
+### **9. Troubleshooting**
 If you face issues, try running with additional logs:
 ```sh
 flutter run --verbose
 ```
 
 For more details, check the Flutter documentation: [Flutter Docs](https://flutter.dev/docs).
+
+
+
 

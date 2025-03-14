@@ -46,12 +46,6 @@ android {
             keyAlias = "RandomTestingKey"
             keyPassword = "potato"
         }
-        getByName("debug") {
-            storeFile = file("release-key.jks") // Same keystore for debug
-            storePassword = "potato"
-            keyAlias = "RandomTestingKey"
-            keyPassword = "potato"
-        }
     }
 
     buildTypes {
@@ -59,7 +53,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
