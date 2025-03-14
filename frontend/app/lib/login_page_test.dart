@@ -44,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
                     emailController.text.trim(),
                     passwordController.text.trim(),
                   );
-                  if (token != null) {
+                  if (token != null && token.isNotEmpty) {
                   print("Sign-In Successful! Token: $token");
 
                   // ✅ Navigate to HomePage after successful sign-in

@@ -9,13 +9,13 @@ from firebase_admin import credentials, auth
 import fastapi
 from helpers.DB import DB as DatabaseManager
 from helpers.Firebase_helpers import role_based_access
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, Depends
+from fastapi.security import HTTPBearer
 from get_bearer_token import generate_test_token
 from pydantic import BaseModel
 from routes.base_routes.item_routes import item_router as item_router_base
 from add_roles import add_user_role, RoleUpdate
-import json
+
 
 
 @asynccontextmanager
@@ -49,133 +49,6 @@ app.add_middleware(
 class RegisterRequest(BaseModel):
     id_token: str
 
-@app.post("/auth/register")
-async def register_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    Registers a new user using a Firebase ID Token.
-    """
-    try:
-        token = credentials.credentials  # Extract Bearer token
-        print("🔍 Verifying Firebase ID Token...")
-
-        # ✅ Verify Firebase ID Token
-        decoded_token = auth.verify_id_token(token)
-        print("✅ Token Verified:", decoded_token)
-
-        uid = decoded_token.get("uid")
-        email = decoded_token.get("email")
-
-        # Ensure UID and Email Exist
-        if not uid or not email:
-            raise HTTPException(status_code=400, detail="Invalid token: missing UID or Email.")
-
-        print(f"✅ User Registered: {email} (UID: {uid})")
-
-        return {
-            "message": "User registered successfully",
-            "email": email,
-            "uid": uid,  
-        }
-
-    except auth.ExpiredIdTokenError:
-        print("❌ Expired Firebase Token.")
-        raise HTTPException(status_code=401, detail="Expired Firebase token.")
-
-    except auth.InvalidIdTokenError:
-        print("❌ Invalid Firebase ID Token.")
-        raise HTTPException(status_code=401, detail="Invalid Firebase token.")
-
-    except Exception as e:
-        print("❌ Backend Error:", e)
-        raise HTTPException(status_code=500, detail=str(e)) 
-    
-
-@app.post("/auth/email")
-async def email_login(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    Authenticate a user using Firebase ID Token and return the email and UID.
-    """
-    try:
-        token = credentials.credentials  # Extract Bearer token
-        print("🔍 Verifying Firebase ID Token...")
-
-        # ✅ Verify Firebase ID Token
-        decoded_token = auth.verify_id_token(token)
-        print("✅ Token Verified:", decoded_token)
-
-        uid = decoded_token.get("uid")
-        email = decoded_token.get("email")
-
-        # Ensure UID and Email Exist
-        if not uid or not email:
-            raise HTTPException(status_code=400, detail="Invalid token: missing UID or Email.")
-
-        print(f"✅ User Authenticated: {email} (UID: {uid})")
-
-        return {
-            "message": "User authenticated successfully",
-            "email": email,
-            "uid": uid,  
-        }
-
-    except auth.ExpiredIdTokenError:
-        print("❌ Expired Firebase Token.")
-        raise HTTPException(status_code=401, detail="Expired Firebase token.")
-
-    except auth.InvalidIdTokenError:
-        print("❌ Invalid Firebase ID Token.")
-        raise HTTPException(status_code=401, detail="Invalid Firebase token.")
-
-    except Exception as e:
-        print("❌ Backend Error:", e)
-        raise HTTPException(status_code=500, detail=str(e)) 
-
-# Google Sign-In Endpoint
-@app.post("/auth/google")
-async def google_signin(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    Handles Google Sign-In using Firebase ID Token.
-    """
-    try:
-        token = credentials.credentials  # Extract Bearer token from header
-        print("🔍 Verifying Firebase ID Token...")
-
-        # ✅ Verify Firebase ID Token
-        decoded_token = auth.verify_id_token(token)
-        print("✅ Token Verified:", decoded_token)
-
-        # Extract user details
-        uid = decoded_token.get("uid")
-        email = decoded_token.get("email")
-        display_name = decoded_token.get("name", "No Name")
-
-        if not uid or not email:
-            raise HTTPException(status_code=400, detail="Invalid token: missing UID or Email.")
-
-        print(f"✅ Google Sign-In Success: {email} (UID: {uid})")
-
-        # ✅ Generate a backend token (JWT or Firebase token)
-        backend_token = token  # You can replace this with a JWT token if needed
-
-        return {
-            "message": "Google Sign-In Successful",
-            "email": email,
-            "uid": uid,
-            "display_name": display_name,
-            "token": backend_token
-        }
-
-    except auth.ExpiredIdTokenError:
-        print("❌ Expired Firebase Token.")
-        raise HTTPException(status_code=401, detail="Expired Firebase token.")
-
-    except auth.InvalidIdTokenError:
-        print("❌ Invalid Firebase ID Token.")
-        raise HTTPException(status_code=401, detail="Invalid Firebase token.")
-
-    except Exception as e:
-        print("❌ Backend Error:", e)
-        raise HTTPException(status_code=500, detail=str(e))
 
 class LoginCredentials(BaseModel):
     email: str
