@@ -14,8 +14,9 @@ from fastapi import Depends
 from get_bearer_token import generate_test_token
 from pydantic import BaseModel
 from routes.base_routes.item_routes import item_router as item_router_base
-from routes.api_listener_routes.youtube_listener_routes import youtube_router as youtube_router
+from routes.webhook_listener_routes.youtube_listener_routes import youtube_router as youtube_router
 from add_roles import add_user_role, RoleUpdate
+import asyncio
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
@@ -26,10 +27,14 @@ async def lifespan(app: fastapi.FastAPI):
     
     # MongoDB connection setup
     DatabaseManager.init_db()
+
+    # Run Youtube Notification loop
+    youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
     
     yield
 
     # Cleanup
+    youtubeSubscriptionCheck.cancel()
     DatabaseManager.close_db()
 
 app = FastAPI(lifespan=lifespan)
@@ -141,10 +146,10 @@ router_finance.dependencies.append(Depends(role_based_access(["finance"])))
 
 
 #####################################################
-# API Listener Router Config
+# Webhook Listener Router Config
 #####################################################
-router_api_listener = APIRouter(prefix="/api/v1/api_listener", tags=["base"])
-router_api_listener.include_router(youtube_router)
+router_webhook_listener = APIRouter(prefix="/api/v1/webhook_listener", tags=["base"])
+router_webhook_listener.include_router(youtube_router)
 
 
 
@@ -155,12 +160,10 @@ router_api_listener.include_router(youtube_router)
 app.include_router(router_base)
 app.include_router(router_admin)
 app.include_router(router_finance)
-app.include_router(router_api_listener)
+app.include_router(router_webhook_listener)
 
 
 if __name__ == "__main__":
     import uvicorn
-
-    YoutubeHelper.subscribeToMainNotifications()
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
     
