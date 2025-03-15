@@ -1,3 +1,4 @@
+import 'package:app/pages/user/edit_profile.dart';
 import 'package:app/pages/user/guest_settings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -173,8 +174,21 @@ class _UserSettingsState extends State<UserSettings> {
               title: Text(item['title']),
               subtitle: item.containsKey('subtitle') ? Text(item['subtitle']) : null,
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Add your navigation logic here
+              onTap: () async {
+                if (item['title'] == 'Edit Profile' && _user != null) {
+                  User? updatedUser = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProfileScreen(user: _user!),
+                    ),
+                  );
+
+                  if (updatedUser != null) {
+                    setState(() {
+                      _user = updatedUser; // Update UI after editing profile
+                    });
+                  }
+                }
               },
             ),
           ),
