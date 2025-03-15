@@ -35,7 +35,7 @@ class _UserSettingsState extends State<UserSettings> {
     });
   }
 
-  // -------------------------------------------------------------
+// -------------------------------------------------------------
 // 🔹 Avatar Management Section
 // This section handles:
 // ✅ Fetching the current user
@@ -208,7 +208,7 @@ class _UserSettingsState extends State<UserSettings> {
             // -------------------------------------------------------------
             // 🔹 END UI Components for Avatar
             // -------------------------------------------------------------
-            
+
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,6 +313,10 @@ class _UserSettingsState extends State<UserSettings> {
                 if (item['title'] == 'Change Avatar' && _user != null && !_isUploading) {
                   await _changeAvatar();
                 }
+
+                if (item['title'] == 'Change Password' && _user != null) {
+                  _showChangePasswordDialog(); // 🔹 Call function to handle password change
+                }
               },
             ),
           ),
@@ -341,6 +345,98 @@ class _UserSettingsState extends State<UserSettings> {
       ),
     );
   } 
+
+
+// -------------------------------------------------------------
+// 🔹 Change Password Section
+// This section handles:
+// ✅ show Dialog
+// ✅ Input new Password
+// -------------------------------------------------------------
+  void _showChangePasswordDialog() {
+    final TextEditingController passwordController = TextEditingController();
+    final TextEditingController confirmPasswordController = TextEditingController();
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Change Password"),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "New Password",
+                  ),
+                  validator: (value) {
+                    if (value == null || value.length < 6) {
+                      return "Password must be at least 6 characters";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "Confirm Password",
+                  ),
+                  validator: (value) {
+                    if (value != passwordController.text) {
+                      return "Passwords do not match";
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Close dialog
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_formKey.currentState!.validate()) {
+                  await _changePassword(passwordController.text);
+                  Navigator.pop(context); // Close dialog after success
+                }
+              },
+              child: const Text("Change"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+    Future<void> _changePassword(String newPassword) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        await user.updatePassword(newPassword); // 🔹 Update password in Firebase
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Password updated successfully!")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error: ${e.toString()}")),
+      );
+    }
+  }
+// -------------------------------------------------------------
+// 🔹 END Change Password Section
+// -------------------------------------------------------------
 }
 
 
