@@ -3,6 +3,7 @@ import 'package:app/pages/user/guest_settings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../firebase/firebase_auth_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 //avatar
 import 'dart:io';
@@ -51,14 +52,14 @@ class _UserSettingsState extends State<UserSettings> {
     String fileName = uri.pathSegments.last.split('.').first; // Extract public ID
 
     // 🔹 Cloudinary API delete request
-    Uri deleteUri = Uri.parse("https://api.cloudinary.com/v1_1/dh2msfer1/image/destroy");
+    Uri deleteUri = Uri.parse("https://api.cloudinary.com/v1_1/CLOUDINARY_CLOUD_NAME/image/destroy");
 
     var response = await http.post(
       deleteUri,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "public_id": fileName,
-        "api_key": "582998399417464",
+        "api_key": "CLOUDINARY_API_KEY",
       }),
     );
 
@@ -90,7 +91,7 @@ class _UserSettingsState extends State<UserSettings> {
     Uri uri = Uri.parse("https://api.cloudinary.com/v1_1/dh2msfer1/image/upload");
 
     var request = http.MultipartRequest("POST", uri)
-      ..fields['upload_preset'] = "user_avatars"
+      ..fields['upload_preset'] = "CLOUDINARY_UPLOAD_PRESET"
       ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
     var response = await request.send();

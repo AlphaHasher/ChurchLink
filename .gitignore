@@ -68,3 +68,4 @@ app.*.map.json
 /android/app/release
 frontend/app/ios/Flutter/Debug.xcconfig
 frontend/app/ios/Flutter/Debug.xcconfig
+frontend/app/.env

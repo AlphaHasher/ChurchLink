@@ -10,9 +10,12 @@ import 'login_page_test.dart';
 import 'package:app/firebase/firebase_options.dart';
 import 'firebase/firebase_auth_service.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await dotenv.load(); // Load .env variables
   runApp(MyApp());
 }
 
