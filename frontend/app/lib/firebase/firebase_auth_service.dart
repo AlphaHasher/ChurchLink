@@ -1,12 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
+// import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class FirebaseAuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final String backendUrl = "http://10.0.2.2:8000"; // FastAPI backend URL
+  // final String backendUrl = "http://10.0.2.2:8000"; // FastAPI backend URL
 
   // // ✅ Initialize Firebase Auth
   // Future<void> initializeFirebase() async {
