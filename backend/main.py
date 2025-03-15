@@ -5,19 +5,15 @@ from contextlib import asynccontextmanager
 import os
 from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
-from firebase_admin import credentials, auth
+from firebase_admin import credentials
 import fastapi
 from helpers.DB import DB as DatabaseManager
 from helpers.Firebase_helpers import role_based_access
-from fastapi import FastAPI, Depends
-from fastapi.security import HTTPBearer
+from fastapi import Depends
 from get_bearer_token import generate_test_token
 from pydantic import BaseModel
 from routes.base_routes.item_routes import item_router as item_router_base
 from add_roles import add_user_role, RoleUpdate
-
-
-
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
@@ -35,7 +31,6 @@ async def lifespan(app: fastapi.FastAPI):
     DatabaseManager.close_db()
 
 app = FastAPI(lifespan=lifespan)
-security = HTTPBearer()
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,9 +41,19 @@ app.add_middleware(
 )
 
 
-class RegisterRequest(BaseModel):
-    id_token: str
 
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
+
+
+##nice looking docs
+@app.get("/scalar", include_in_schema=False)
+async def scalar_html():
+    return get_scalar_api_reference(
+        openapi_url=app.openapi_url,
+        title=app.title,
+    )
 
 class LoginCredentials(BaseModel):
     email: str
