@@ -1,4 +1,7 @@
+import 'package:app/pages/user/guest_settings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../firebase/firebase_auth_service.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -8,6 +11,22 @@ class UserSettings extends StatefulWidget {
 }
 
 class _UserSettingsState extends State<UserSettings> {
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUser();
+  }
+
+  void _fetchUser() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    setState(() {
+      _user = currentUser;
+    });
+  }
+  
   final List<Map<String, dynamic>> _settingsCategories = [
     {
       'category': 'Account',
@@ -40,13 +59,17 @@ class _UserSettingsState extends State<UserSettings> {
         {'icon': Icons.policy, 'title': 'Terms & Policies', 'subtitle': 'Privacy policy and terms of use'},
       ]
     },
+    {
+      'category': 'LogOut',
+      'items': [
+        {'icon': Icons.account_circle, 'title': 'Log Out'}
+      ]
+    },
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Create a flat list of all widgets to avoid nested scrollables
     List<Widget> pageWidgets = [];
-
     const Color SSBC_GRAY = Color.fromARGB(255, 142, 163, 168);
 
     // Profile card
@@ -68,18 +91,18 @@ class _UserSettingsState extends State<UserSettings> {
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'John Doe',
-                  style: TextStyle(
+                  _user != null ? _user!.displayName ?? 'Guest User' : 'Guest User',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'john.doe@example.com',
-                  style: TextStyle(
+                  _user != null ? _user!.email ?? 'guest@example.com' : 'guest@example.com',
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.grey,
                   ),
@@ -87,6 +110,33 @@ class _UserSettingsState extends State<UserSettings> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+
+    pageWidgets.add(const SizedBox(height: 16));
+
+    // Logout Button
+    pageWidgets.add(
+      ElevatedButton(
+        onPressed: () async {
+          await _authService.signOut();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => GuestSettings()),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: SSBC_GRAY,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Logout',
+          style: TextStyle(fontSize: 16),
         ),
       ),
     );
@@ -121,7 +171,7 @@ class _UserSettingsState extends State<UserSettings> {
                 color: SSBC_GRAY,
               ),
               title: Text(item['title']),
-              subtitle: Text(item['subtitle']),
+              subtitle: item.containsKey('subtitle') ? Text(item['subtitle']) : null,
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
                 // Add your navigation logic here
@@ -133,31 +183,6 @@ class _UserSettingsState extends State<UserSettings> {
 
       pageWidgets.add(const SizedBox(height: 8));
     }
-
-    // Add logout button
-    pageWidgets.add(
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: () {
-            // Add logout logic
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: SSBC_GRAY,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            'Logout',
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
-      ),
-    );
 
     return Scaffold(
       appBar: AppBar(
@@ -177,5 +202,5 @@ class _UserSettingsState extends State<UserSettings> {
         ),
       ),
     );
-  }
+  } 
 }
