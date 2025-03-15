@@ -4,6 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../firebase/firebase_auth_service.dart';
 
+//avatar
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
 
@@ -14,6 +20,7 @@ class UserSettings extends StatefulWidget {
 class _UserSettingsState extends State<UserSettings> {
   final FirebaseAuthService _authService = FirebaseAuthService();
   User? _user;
+  bool _isUploading = false; 
 
   @override
   void initState() {
@@ -27,6 +34,90 @@ class _UserSettingsState extends State<UserSettings> {
       _user = currentUser;
     });
   }
+
+  // -------------------------------------------------------------
+// 🔹 Avatar Management Section
+// This section handles:
+// ✅ Fetching the current user
+// ✅ Uploading a new avatar to Cloudinary - NEED CLOUDINARY ACCOUNT - API - AND CREATE 'UPLOAD PRESENT'
+// ✅ Deleting the old avatar before uploading a new one
+// ✅ Updating the user's avatar in Firebase Authentication
+// ✅ Displaying a loading indicator while uploading
+// -------------------------------------------------------------
+
+  Future<void> _deleteOldImage(String imageUrl) async {
+    // Extract public ID from Cloudinary URL
+    Uri uri = Uri.parse(imageUrl);
+    String fileName = uri.pathSegments.last.split('.').first; // Extract public ID
+
+    // 🔹 Cloudinary API delete request
+    Uri deleteUri = Uri.parse("https://api.cloudinary.com/v1_1/dh2msfer1/image/destroy");
+
+    var response = await http.post(
+      deleteUri,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "public_id": fileName,
+        "api_key": "582998399417464",
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print("Old avatar deleted successfully!");
+    } else {
+      print("Failed to delete old avatar: ${response.body}");
+    }
+  }
+
+  Future<void> _changeAvatar() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    setState(() {
+      _isUploading = true; // Show loading indicator
+    });
+
+    User? user = FirebaseAuth.instance.currentUser;
+
+    //  Delete Old Avatar if Exists
+    if (user?.photoURL != null) {
+      await _deleteOldImage(user!.photoURL!);
+    }
+
+    File file = File(image.path);
+    Uri uri = Uri.parse("https://api.cloudinary.com/v1_1/dh2msfer1/image/upload");
+
+    var request = http.MultipartRequest("POST", uri)
+      ..fields['upload_preset'] = "user_avatars"
+      ..files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    var response = await request.send();
+    var responseData = await response.stream.bytesToString();
+    var jsonData = jsonDecode(responseData);
+
+    String imageUrl = jsonData['secure_url']; // Get new image URL
+
+    //  Save the New Image URL to Firebase Authentication
+    await user?.updatePhotoURL(imageUrl);
+    await user?.reload(); // Refresh user data
+
+    setState(() {
+      _isUploading = false; // Hide loading indicator
+      _user = FirebaseAuth.instance.currentUser; // Refresh user state
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Profile picture updated!")),
+    );
+  }
+
+// -------------------------------------------------------------
+// 🔹 END Avatar Management Section
+// -------------------------------------------------------------
+
+
   
   final List<Map<String, dynamic>> _settingsCategories = [
     {
@@ -80,15 +171,44 @@ class _UserSettingsState extends State<UserSettings> {
         padding: const EdgeInsets.all(10),
         child: Row(
           children: [
-            const CircleAvatar(
-              radius: 32,
-              backgroundColor: SSBC_GRAY,
-              child: Icon(
-                Icons.person,
-                size: 40,
-                color: Colors.white,
-              ),
+            // -------------------------------------------------------------
+            // 🔹 UI Components for Avatar
+            // This part ensures:
+            // ✅ The avatar is displayed correctly
+            // ✅ A loading animation is shown during uploads
+            // -------------------------------------------------------------
+
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: _user != null && _user!.photoURL != null
+                      ? NetworkImage(_user!.photoURL!) // 🔹 Show uploaded avatar
+                      : null,
+                  child: _user == null || _user!.photoURL == null
+                      ? Icon(Icons.person, size: 40, color: Colors.white) // Default avatar
+                      : null,
+                ),
+
+                // 🔹 Show loading animation when uploading
+                if (_isUploading)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.3), // Dim background
+                      child: Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
             ),
+
+            // -------------------------------------------------------------
+            // 🔹 END UI Components for Avatar
+            // -------------------------------------------------------------
+            
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,6 +309,10 @@ class _UserSettingsState extends State<UserSettings> {
                     });
                   }
                 }
+
+                if (item['title'] == 'Change Avatar' && _user != null && !_isUploading) {
+                  await _changeAvatar();
+                }
               },
             ),
           ),
@@ -218,3 +342,6 @@ class _UserSettingsState extends State<UserSettings> {
     );
   } 
 }
+
+
+
