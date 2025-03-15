@@ -1,3 +1,4 @@
+import 'package:app/forgot_password_page_test.dart';
 import 'package:app/pages/user/user_settings.dart';
 import 'package:flutter/material.dart';
 import '../firebase/firebase_auth_service.dart';
@@ -89,6 +90,11 @@ class _LoginPageState extends State<LoginPage> {
             TextButton(
               onPressed: () {
                 // Navigate to Forgot Password Page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ForgotPasswordPage()),
+                );
+                
               },
               child: Text("Forgot Password?"),
             ),
