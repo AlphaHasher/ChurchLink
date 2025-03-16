@@ -8,11 +8,20 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Try loading the .env file & handle errors
+  try {
+    await dotenv.load(fileName: ".env"); // Explicitly specify the .env file
+  } catch (e) {
+    print("❌ Failed to load .env file: $e");
+  }
+
+  // ✅ Initialize Firebase AFTER .env loads
   await Firebase.initializeApp();
-  //await dotenv.load(); // Load .env variables
-  runApp(MyApp());
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
