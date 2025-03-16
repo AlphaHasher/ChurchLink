@@ -132,42 +132,45 @@ class _UserSettingsState extends State<UserSettings> {
     ];
 
     // Profile card
-    pageWidgets.add(
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 32,
-              backgroundColor: SSBC_GRAY,
-              backgroundImage: const AssetImage('assets/user/ssbc-dove.png'),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  loggedIn ? (user?.displayName ?? "(Please set your display name") : 'Guest',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+    if(loggedIn) {
+      pageWidgets.add(
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: SSBC_GRAY,
+                backgroundImage: const AssetImage('assets/user/ssbc-dove.png'),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    loggedIn ? (user?.displayName ??
+                        "(Please set your display name") : 'Guest',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
 
-                loggedIn ? Text(
+                  loggedIn ? Text(
                     user?.email ?? "(Please set your display email)",
                     style: const TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
                     ),
-                ): const SizedBox(),
-              ],
-            ),
-          ],
+                  ) : const SizedBox(),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     pageWidgets.add(const SizedBox(height: 16));
 
