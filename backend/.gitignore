@@ -2,3 +2,5 @@
 bearer.txt
 __pycache__/
 .env
+new.env
+keys.json

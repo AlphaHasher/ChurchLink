@@ -1,0 +1,10 @@
+keys.json
+new.env
+.env
+new_firebase_credentials.json
+output/*
+output/
+
+backend*
+web*
+app*
