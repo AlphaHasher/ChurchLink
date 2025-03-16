@@ -64,10 +64,6 @@ def decrypt_files(input_file: str = 'age.env'):
     # Decrypt and parse the JSON data
     decrypted_data = f.decrypt(encrypted_data)
 
-    # save this to a file
-    with open('decrypted_data.json', 'wb') as file:
-        file.write(decrypted_data)
-
     files_data = json.loads(decrypted_data.decode('utf-8'))
     
     # Create crypt directory if it doesn't exist
@@ -121,7 +117,7 @@ def main():
     parser.add_argument('files', nargs='*', 
                         default=['.env', 
                                  'firebase/firebase_credentials.json',
-                                #  '../frontend/app/.env',
+                                  '../frontend/app/android/app/google-services.json',
                                  '../frontend/web/churchlink/.env'
                                  ],
 
