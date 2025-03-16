@@ -1,3 +1,4 @@
+import 'package:app/src/auth/firebase_auth_service.dart';
 import 'package:flutter/material.dart';
 
 class UserSettings extends StatefulWidget {
@@ -8,6 +9,7 @@ class UserSettings extends StatefulWidget {
 }
 
 class _UserSettingsState extends State<UserSettings> {
+  final FirebaseAuthService _authService = FirebaseAuthService();
   final List<Map<String, dynamic>> _settingsCategories = [
     {
       'category': 'Account',
@@ -142,6 +144,8 @@ class _UserSettingsState extends State<UserSettings> {
         child: ElevatedButton(
           onPressed: () {
             // Add logout logic
+            _authService.signOut();
+
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: SSBC_GRAY,

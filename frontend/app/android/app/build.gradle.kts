@@ -1,13 +1,4 @@
-import java.util.Properties
-import java.io.FileInputStream
 
-val keystorePropertiesFile = rootProject.file("keystore.properties")
-val keystoreProperties = Properties()
-
-// Load properties file if it exists, otherwise just continue without loading
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-}
 
 plugins {
     id("com.android.application")
@@ -39,27 +30,12 @@ android {
         multiDexEnabled = true
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file("release-key.jks")
-            storePassword = "potato"
-            keyAlias = "RandomTestingKey"
-            keyPassword = "potato"
-        }
-        getByName("debug") {
-            storeFile = file("release-key.jks") // Same keystore for debug
-            storePassword = "potato"
-            keyAlias = "RandomTestingKey"
-            keyPassword = "potato"
-        }
-    }
-
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Default debug signing will be used
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            // Default debug signing will be used
         }
     }
 }

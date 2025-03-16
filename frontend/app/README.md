@@ -68,3 +68,25 @@ flutter run --verbose
 
 For more details, check the Flutter documentation: [Flutter Docs](https://flutter.dev/docs).
 
+### **9. Release Keystore Setup**
+Before building a release version, you need to set up your keystore:
+
+1. Generate the keystore file by running this command in the `/android/app` directory:
+```sh
+keytool -genkey -v -keystore release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias RandomTestingKey -storepass potato -keypass potato
+```
+
+2. Place the generated `release-key.jks` file in the `/android/app` directory.
+
+3. Ensure your `android/keystore.properties` file contains the following:
+```properties
+storeFile=release-key.jks
+storePassword=potato
+keyAlias=RandomTestingKey
+keyPassword=potato
+```
+
+**Note:** In a production environment, use secure passwords and never commit the actual keystore or its credentials to version control.
+
+
+
