@@ -17,7 +17,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
   final _lastNameController = TextEditingController();
   final _forgotPasswordEmailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final _forgotPasswordFormKey = GlobalKey<FormState>();
+
   bool _isLogin = true; // Toggle between login and signup
   FirebaseAuthService authService = FirebaseAuthService();
 

@@ -21,7 +21,6 @@ class UserSettings extends StatefulWidget {
 class _UserSettingsState extends State<UserSettings> {
   final ScrollController _scrollController = ScrollController();
   FirebaseAuthService authService = FirebaseAuthService();
-  File? _profileImage;
   final _imagePicker = ImagePicker();
 
   @override

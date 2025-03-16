@@ -256,7 +256,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (value == null || value.isEmpty) {
       return null; // Phone can be optional
     }
-    if (!RegExp(r"^[0-9\+\-\(\) ]{10,15}$").hasMatch(value)) {
+    if (!RegExp(r"^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$").hasMatch(value)) {
       return 'Enter a valid phone number';
     }
     return null;
