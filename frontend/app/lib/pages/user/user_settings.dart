@@ -1,53 +1,107 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../components/auth_popup.dart';
+import '../../firebase/firebase_auth_service.dart';
+
 class UserSettings extends StatefulWidget {
-  const UserSettings({super.key});
+  const UserSettings({
+    super.key
+  });
 
   @override
   State<UserSettings> createState() => _UserSettingsState();
 }
 
 class _UserSettingsState extends State<UserSettings> {
-  final List<Map<String, dynamic>> _settingsCategories = [
-    {
-      'category': 'Account',
-      'items': [
-        {'icon': Icons.account_circle, 'title': 'Edit Profile', 'subtitle': 'Name, email, phone number'},
-        {'icon': Icons.image, 'title': 'Change Avatar', 'subtitle': 'Update your profile picture'},
-        {'icon': Icons.password, 'title': 'Change Password', 'subtitle': 'Update your password'},
-      ]
-    },
-    {
-      'category': 'Preferences',
-      'items': [
-        {'icon': Icons.dark_mode, 'title': 'Theme', 'subtitle': 'Light or dark mode'},
-        {'icon': Icons.language, 'title': 'Language', 'subtitle': 'Change app language'},
-        {'icon': Icons.notifications, 'title': 'Notifications', 'subtitle': 'Customize alert preferences'},
-      ]
-    },
-    {
-      'category': 'Privacy',
-      'items': [
-        {'icon': Icons.visibility, 'title': 'Account Visibility', 'subtitle': 'Who can see your profile'},
-        {'icon': Icons.delete, 'title': 'Delete Account', 'subtitle': 'Permanently remove your data'},
-      ]
-    },
-    {
-      'category': 'Support',
-      'items': [
-        {'icon': Icons.help, 'title': 'Help Center', 'subtitle': 'FAQ and support resources'},
-        {'icon': Icons.feedback, 'title': 'Send Feedback', 'subtitle': 'Help us improve'},
-        {'icon': Icons.policy, 'title': 'Terms & Policies', 'subtitle': 'Privacy policy and terms of use'},
-      ]
-    },
-  ];
+  final ScrollController _scrollController = ScrollController();
+  FirebaseAuthService authService = FirebaseAuthService();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Listen for auth state changes
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      setState(() {});
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+      );
+    });
+
+    // Listen for user changes
+    FirebaseAuth.instance.userChanges().listen((User? user) {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Create a flat list of all widgets to avoid nested scrollables
     List<Widget> pageWidgets = [];
+    final List<Map<String, dynamic>> settingsCategories = [
+      {
+        'category': 'Account',
+        'items': [
+          {
+            'icon': Icons.account_circle, 'title': 'Edit Profile', 'subtitle': 'Name, email, phone number',
+            'ontap': () {}
+          },
+          {'icon': Icons.image, 'title': 'Change Avatar', 'subtitle': 'Update your profile picture',
+            'ontap': () {}
+          },
+          {'icon': Icons.password, 'title': 'Change Password', 'subtitle': 'Update your password',
+            'ontap': () {}
+          },
+        ]
+      },
+      {
+        'category': 'Guest',
+        'items': [
+          {'icon': Icons.account_circle, 'title': 'Login or Signup', 'subtitle': 'To access more features login or signup',
+            'ontap': () {
+              AuthPopup.show(context);
+            }
+          },
+        ]
+      },
+      {
+        'category': 'Preferences',
+        'items': [
+          {'icon': Icons.dark_mode, 'title': 'Theme', 'subtitle': 'Light or dark mode'},
+          {'icon': Icons.language, 'title': 'Language', 'subtitle': 'Change app language'},
+          {'icon': Icons.notifications, 'title': 'Notifications', 'subtitle': 'Customize alert preferences'},
+        ]
+      },
+      {
+        'category': 'Privacy',
+        'items': [
+          {'icon': Icons.visibility, 'title': 'Account Visibility', 'subtitle': 'Who can see your profile'},
+          {'icon': Icons.delete, 'title': 'Delete Account', 'subtitle': 'Permanently remove your data'},
+        ]
+      },
+      {
+        'category': 'Support',
+        'items': [
+          {'icon': Icons.help, 'title': 'Help Center', 'subtitle': 'FAQ and support resources'},
+          {'icon': Icons.feedback, 'title': 'Send Feedback', 'subtitle': 'Help us improve'},
+          {'icon': Icons.policy, 'title': 'Terms & Policies', 'subtitle': 'Privacy policy and terms of use'},
+        ]
+      },
+    ];
 
     const Color SSBC_GRAY = Color.fromARGB(255, 142, 163, 168);
+
+    FirebaseAuthService authService = FirebaseAuthService();
+    bool loggedIn = authService.getCurrentUser() != null;
+    User? user = authService.getCurrentUser();
 
     // Profile card
     pageWidgets.add(
@@ -56,34 +110,30 @@ class _UserSettingsState extends State<UserSettings> {
         padding: const EdgeInsets.all(10),
         child: Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 32,
               backgroundColor: SSBC_GRAY,
-              child: Icon(
-                Icons.person,
-                size: 40,
-                color: Colors.white,
-              ),
+              backgroundImage: const AssetImage('assets/user/ssbc-dove.png'),
             ),
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'John Doe',
-                  style: TextStyle(
+                  loggedIn ? (user?.displayName ?? "(Please set your display name") : 'Guest',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'john.doe@example.com',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
+
+                loggedIn ? Text(
+                    user?.email ?? "(Please set your display email)",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                ): const SizedBox(),
               ],
             ),
           ],
@@ -94,7 +144,15 @@ class _UserSettingsState extends State<UserSettings> {
     pageWidgets.add(const SizedBox(height: 16));
 
     // Generate categories and items from list
-    for (var category in _settingsCategories) {
+    for (var category in settingsCategories) {
+      // Either show account or guest based on login status
+      switch(category['category']) {
+        case 'Account' || 'Privacy':
+          if(!loggedIn) continue; break;
+        case 'Guest':
+          if(loggedIn) continue; break;
+      }
+
       pageWidgets.add(
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -123,9 +181,7 @@ class _UserSettingsState extends State<UserSettings> {
               title: Text(item['title']),
               subtitle: Text(item['subtitle']),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Add your navigation logic here
-              },
+              onTap: item['ontap'],
             ),
           ),
         );
@@ -135,29 +191,32 @@ class _UserSettingsState extends State<UserSettings> {
     }
 
     // Add logout button
-    pageWidgets.add(
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: () {
-            // Add logout logic
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: SSBC_GRAY,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+    if(loggedIn) {
+      pageWidgets.add(
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              //Logout with auth
+              authService.signOut();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SSBC_GRAY,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Logout',
+              style: TextStyle(fontSize: 16),
             ),
           ),
-          child: const Text(
-            'Logout',
-            style: TextStyle(fontSize: 16),
-          ),
         ),
-      ),
-    );
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -172,6 +231,7 @@ class _UserSettingsState extends State<UserSettings> {
       backgroundColor: const Color.fromARGB(255, 245, 245, 245),
       body: SafeArea(
         child: ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
           children: pageWidgets,
         ),

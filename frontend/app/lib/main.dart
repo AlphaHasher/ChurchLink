@@ -1,12 +1,10 @@
 import 'package:app/pages/bible.dart';
 import 'package:app/pages/dashboard.dart';
-import 'package:app/pages/user/guest_settings.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/pages/user/user_settings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'login_page_test.dart';
 import 'package:app/firebase/firebase_options.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 
@@ -41,7 +39,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final AuthenticationService authService = AuthenticationService();
+  final FirebaseAuthService authService = FirebaseAuthService();
 
   User? user;
   int _currentIndex = 0;
@@ -52,13 +50,6 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
-
-    super.initState();
-    authService.getAuthInstance().authStateChanges().listen((User? user) {
-      setState(() {
-        // This will rebuild the widget with the correct settings screen
-      });
-    });
   }
 
   // Method to get the current screens based on auth state
@@ -70,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
       const DashboardPage(),
       const BiblePage(),
       const SermonsPage(),
-      isLoggedIn ? const UserSettings() : const GuestSettings(),
+      const UserSettings(),
     ];
   }
 
@@ -101,7 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             BottomNavigationBarItem(
                 icon: Icon(Icons.account_box),
-                label: isLoggedIn ? "Profile" : "Guest"
+                label: "Profile"
             ),
           ]
       ),

@@ -1,144 +1,181 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-/// Another test commit
-/// - Connect to login page
-/// - Connect to sign up page
-/// - Connect to user profile
-/// - Add toasts for error messages
-/// - More testing (very minimal testing has been done but it works (kinda))
+class FirebaseAuthService {
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final String backendUrl = "http://10.0.2.2:8000"; // FastAPI backend URL
 
-class AuthenticationService { // REMINDER - Needs to be used as an instance
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // // ✅ Initialize Firebase Auth
+  // Future<void> initializeFirebase() async {
+  //   await FirebaseAuth.instance.useAuthEmulator('localhost', 9099); // Use emulator if needed
+  // }
 
-  // Listen to auth state changes
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-  // Get auth
-  FirebaseAuth getAuthInstance() {
-    return _auth;
+  // ✅ Google Sign-In (Fixed)
+Future<String?> signInWithGoogle() async {
+  try {
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    if (googleUser == null) {
+      print("Google Sign-In Canceled");
+      return null; // User canceled sign-in
+    }
+
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+    final AuthCredential credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final UserCredential userCredential =
+        await FirebaseAuth.instance.signInWithCredential(credential);
+
+    final String? idToken = await userCredential.user?.getIdToken(true);
+    if (idToken == null) {
+      throw Exception("❌ Failed to retrieve Firebase ID Token.");
+    }
+
+    print("🔥 Firebase ID Token: $idToken");
+    return idToken;
+    // // ✅ Send Firebase ID Token to FastAPI backend
+    // final response = await http.post(
+    //   Uri.parse("$backendUrl/auth/google"),
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //     "Authorization": "Bearer $idToken",
+    //   },
+    // );
+
+    // if (response.statusCode == 200) {
+    //   final responseData = jsonDecode(response.body);
+    //   print("✅ Google Sign-In Successful: ${response.body}");
+
+    //   // ✅ Return the backend token if available
+    //   if (responseData.containsKey("token")) {
+    //     return responseData["token"];  // ✅ FIXED: Return backend token
+    //   } else {
+    //     print("❌ Unexpected Backend Response: ${response.body}");
+    //     return null;
+    //   }
+    // } else {
+    //   throw Exception("❌ Backend Error: ${response.body}");
+    // }
+  } catch (e) {
+    print("❌ Error during Google Sign-In: $e");
+    return null;
   }
-  // Get current user
-  User? getCurrentUser() {
-    return _auth.currentUser;
+}
+
+  // ✅ Email & Password Sign-In
+  Future<String?> signInWithEmail(String email, String password) async {
+    try {
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final User? user = userCredential.user;
+      if (user == null) {
+        throw Exception("❌ No authenticated user found.");
+      }
+
+      if (!user.emailVerified) {
+        print("❌ Email not verified. Please verify your email.");
+        return "Email not verified. Please check your inbox.";
+      }
+
+      final String? idToken = await user.getIdToken(true);
+      if (idToken == null) {
+        throw Exception("❌ Failed to retrieve Firebase ID Token.");
+      }
+      print("🔥 Firebase ID Token: $idToken");
+      return idToken;
+
+      // final response = await http.post(
+      //   Uri.parse("$backendUrl/auth/token"),
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     "Authorization": "Bearer $idToken",
+      //   },
+      // );
+
+      // print("🔍 Backend Response: ${response.body}");
+
+      // if (response.statusCode == 200) {
+      //   final responseData = jsonDecode(response.body);
+      //   print("✅ Login Successful: ${response.body}");
+
+      //   if (responseData.containsKey("access_token")) {
+      //     return responseData["access_token"];
+      //   } else {
+      //     throw Exception("❌ No token received in response.");
+      //   }
+      // } else {
+      //   throw Exception("❌ Backend Error: ${response.body}");
+      // }
+    } catch (e) {
+      print("❌ Error signing in with email: $e");
+      return null;
+    }
   }
-  // Sign out
+
+  Future<String?> registerWithEmail(String email, String password) async {
+  try {
+    final UserCredential userCredential =
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final User? user = userCredential.user;
+    if (user == null) {
+      throw Exception("❌ User registration failed: No Firebase user found.");
+    }
+
+    print("✅ Firebase User Created: ${user.email}");
+
+    final String? idToken = await user.getIdToken(true);
+    if (idToken == null) {
+      throw Exception("❌ Failed to retrieve Firebase ID Token.");
+    }
+
+    print("🔥 Firebase ID Token: $idToken");
+    return idToken;
+    // final response = await http.post(
+    //   Uri.parse("$backendUrl/auth/register"),
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //     "Authorization": "Bearer $idToken", // ✅ Send ID token in Authorization header
+    //   },
+    // );
+
+    // print("🔍 Backend Response: ${response.body}");
+
+    // if (response.statusCode == 200) {
+    //   final responseData = jsonDecode(response.body);
+    //   print("✅ Registration Successful: ${response.body}");
+    //   return responseData["email"]; // ✅ Return registered email
+    // } else {
+    //   throw Exception("❌ Backend Error: ${response.body}");
+    // }
+  } catch (e) {
+    print("❌ Error during registration: $e");
+    return null;
+  }
+}
+
+  // ✅ Logout User
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _googleSignIn.signOut();
+    await _firebaseAuth.signOut();
   }
 
-  // Sign up with email and password
-  Future<User?> signUpEmailPass(String email, String password) async {
-    // Check before  Firebase call
-    try {
-      validateEmail(email);
-      validatePassword(password);
-    } on FormatException catch (e) {
-      return null;
-    }
-
-    // Call Firebase
-    try {
-      final UserCredential userCreds =
-      await _auth.createUserWithEmailAndPassword(
-          email: email,
-          password: password
-      );
-      return userCreds.user;
-    } on FirebaseAuthException catch (e) {
-      String err = ''; // Error message for user
-      if (e.code == 'weak-password') {
-        err = 'The password provided is too weak.';
-      } else if (e.code == 'email-already-in-use') {
-        err = 'An account already exists with that email';
-      }
-      // Prompt error here
-      return null;
-    }
-  }
-
-  // Sign-in with email and password
-  Future<User?> signInEmailPass(String email, String password) async {
-    // Check before  Firebase call
-    try {
-      validateEmail(email);
-      validatePassword(password);
-    } on FormatException catch (e) {
-      return null;
-    }
-
-    // Call Firebase
-    try {
-      final UserCredential userCreds =
-        await _auth.signInWithEmailAndPassword(
-            email: email,
-            password: password
-        );
-      return userCreds.user;
-    } on FirebaseAuthException catch (e) {
-      String err = ''; // Error message for user
-      if (e.code == 'invalid-email') {
-        err = 'Email is invalid';
-      } else if (e.code == 'invalid-credential') {
-        err = 'Password is incorrect';
-      }
-      // Prompt error here
-      return null;
-    }
-  }
-
-  // Sign in with Google
-  Future<UserCredential?> signInGoogle() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
-    try {
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        throw Exception('Something went wrong');
-      }
-
-      // Obtain the auth details from the Google Sign-In
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      // Create a new credential for Firebase
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Sign in to Firebase with the Google credential
-      return await _auth.signInWithCredential(credential);
-    } on Exception catch(e) {
-      print(e);
-      return null;
-    }
-  }
-
-  /// Validation Helpers
-  final RegExp emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-  void validateEmail(String email) {
-    if (!emailRegex.hasMatch(email)) {
-      throw FormatException('Invalid email format');
-    }
-  }
-
-  void validatePassword(String password) {
-    // Check minimum length
-    if (password.length < 6) {
-      throw FormatException('Password must be at least 6 characters long');
-    }
-
-    // Check for at least one uppercase letter
-    if (!RegExp(r'[A-Z]').hasMatch(password)) {
-      throw FormatException('Password must contain at least one uppercase letter');
-    }
-
-    // Check for at least one lowercase letter
-    if (!RegExp(r'[a-z]').hasMatch(password)) {
-      throw FormatException('Password must contain at least one lowercase letter');
-    }
-
-    // Check for at least one digit
-    if (!RegExp(r'[0-9]').hasMatch(password)) {
-      throw FormatException('Password must contain at least one digit');
-    }
+  // ✅ Check User Login Status
+  User? getCurrentUser() {
+    return _firebaseAuth.currentUser;
   }
 }
