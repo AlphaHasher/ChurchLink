@@ -5,7 +5,6 @@ import 'package:app/pages/user/user_settings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:app/firebase/firebase_options.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 
 void main() async {
@@ -48,6 +47,7 @@ class _MyHomePageState extends State<MyHomePage> {
   // Create a stream to listen for auth state changes
   @override
   void initState() {
+    super.initState();
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
   }

@@ -1,8 +1,4 @@
-import 'package:app/pages/user/user_settings.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-
 import '../../firebase/firebase_auth_service.dart';
 
 class ContinueWithEmailPage extends StatefulWidget {

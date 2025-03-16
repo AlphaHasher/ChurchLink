@@ -7,7 +7,6 @@ import 'package:app/pages/giving.dart';
 import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
-import '../firebase/firebase_auth_service.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -37,7 +36,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final FirebaseAuthService _authService = FirebaseAuthService();
   @override
   Widget build(BuildContext context) {
     return Scaffold(

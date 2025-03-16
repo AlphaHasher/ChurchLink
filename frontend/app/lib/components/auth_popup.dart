@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-
 import '../firebase/firebase_auth_service.dart';
 import '../pages/user/use_email.dart';
 
 class AuthPopup extends StatelessWidget {
   AuthPopup({
-    Key? key
-  }) : super(key: key);
+    super.key
+  });
 
   // Show the popup by calling this static method
   static Future<void> show(BuildContext context) {
