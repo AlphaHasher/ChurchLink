@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../components/password_reset.dart';
 import '../../firebase/firebase_auth_service.dart';
 
 class ContinueWithEmailPage extends StatefulWidget {
@@ -14,7 +15,9 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
   final _confirmPasswordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _forgotPasswordEmailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _forgotPasswordFormKey = GlobalKey<FormState>();
   bool _isLogin = true; // Toggle between login and signup
   FirebaseAuthService authService = FirebaseAuthService();
 
@@ -145,7 +148,24 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         },
                       ),
                     ],
-                    const SizedBox(height: 24),
+
+                    // Forgot password text button (only in login mode)
+                    if (_isLogin) ...[
+                      Container(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            PasswordReset.show(context);
+                          },
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _submitForm,
                       style: ElevatedButton.styleFrom(
@@ -198,7 +218,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
 
         if (token != null && token.isNotEmpty) {
           await authService.getCurrentUser()?.updateProfile(displayName:
-            '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
+          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
           );
           authService.signOut();
           String? token2 = await authService.signInWithEmail(email, password);
@@ -221,6 +241,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
     _confirmPasswordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _forgotPasswordEmailController.dispose();
     super.dispose();
   }
 }

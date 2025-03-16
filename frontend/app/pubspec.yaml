@@ -39,6 +39,10 @@ dependencies:
   #cloud_firestore: ^5.6.5
   google_sign_in: ^6.3.0
   http: ^1.3.0 #for backend call
+  #avatar
+  image_picker: ^1.1.2
+  flutter_dotenv: ^5.2.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

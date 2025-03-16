@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../components/auth_popup.dart';
+import '../../components/password_reset.dart';
 import '../../firebase/firebase_auth_service.dart';
+import 'edit_profile.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({
@@ -16,6 +21,8 @@ class UserSettings extends StatefulWidget {
 class _UserSettingsState extends State<UserSettings> {
   final ScrollController _scrollController = ScrollController();
   FirebaseAuthService authService = FirebaseAuthService();
+  File? _profileImage;
+  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -43,22 +50,49 @@ class _UserSettingsState extends State<UserSettings> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final XFile? pickedImage = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (pickedImage != null) {
+      setState(() {
+        _profileImage = File(pickedImage.path);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Widget> pageWidgets = [];
+    const Color SSBC_GRAY = Color.fromARGB(255, 142, 163, 168);
+    FirebaseAuthService authService = FirebaseAuthService();
+    bool loggedIn = authService.getCurrentUser() != null;
+    User? user = authService.getCurrentUser();
+
     final List<Map<String, dynamic>> settingsCategories = [
       {
         'category': 'Account',
         'items': [
           {
             'icon': Icons.account_circle, 'title': 'Edit Profile', 'subtitle': 'Name, email, phone number',
-            'ontap': () {}
+            'ontap': () {
+              if(user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditProfileScreen(user: user),
+                  ),
+                );
+              }
+            }
           },
           {'icon': Icons.image, 'title': 'Change Avatar', 'subtitle': 'Update your profile picture',
-            'ontap': () {}
+            'ontap': () {_pickImage();}
           },
-          {'icon': Icons.password, 'title': 'Change Password', 'subtitle': 'Update your password',
-            'ontap': () {}
+          {'icon': Icons.password, 'title': 'Change Password', 'subtitle': 'Request an email to reset your password',
+            'ontap': () {PasswordReset.show(context);}
           },
         ]
       },
@@ -96,12 +130,6 @@ class _UserSettingsState extends State<UserSettings> {
         ]
       },
     ];
-
-    const Color SSBC_GRAY = Color.fromARGB(255, 142, 163, 168);
-
-    FirebaseAuthService authService = FirebaseAuthService();
-    bool loggedIn = authService.getCurrentUser() != null;
-    User? user = authService.getCurrentUser();
 
     // Profile card
     pageWidgets.add(
