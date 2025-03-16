@@ -60,7 +60,43 @@ flutter pub get
 flutter doctor
 ```
 
-### **8. Troubleshooting**
+### **8. Firebase SHA Keys Setup**
+To enable Firebase Authentication and other Firebase features, you need to add your app's SHA-1 and SHA-256 fingerprints to the Firebase Console. 
+YOU NEED ADD THE DEBUG KEY TO CONSOLE NOT BUILD
+
+#### **For Debug Key**
+```sh
+cd android
+./gradlew signingReport
+```
+Look for the "debug" configuration in the output. You'll see both SHA-1 and SHA-256 keys.
+
+
+#### **Adding Keys to Firebase Console**
+1. Go to the [Link to Project](https://console.firebase.google.com/project/ssbc-9ef2d/settings/general/web:NDkxODllZGItM2ZhMC00YTE2LWIwOTQtNGJiZTM0MzNjMzk2)
+3. Go to Project Settings
+4. In the "Your apps" section, select your Android app
+5. Click "Add fingerprint"
+6. Add both SHA-1 and SHA-256 keys for both debug and release configurations
+
+#### **Generating Release Key**
+For the release key (release-key.jks), use:
+```sh
+keytool -list -v -keystore app/release-key.jks -alias RandomTestingKey
+```
+When prompted, enter the keystore password.
+
+#### **Configure Keystore Properties**
+Create or edit `android/keystore.properties` to match your keystore settings:
+```properties
+storeFile=release-key.jks
+storePassword=your_store_password
+keyAlias=your_key_alias
+keyPassword=your_key_password
+```
+Make sure these values match your actual keystore configuration.
+
+### **9. Troubleshooting**
 If you face issues, try running with additional logs:
 ```sh
 flutter run --verbose
@@ -68,25 +104,6 @@ flutter run --verbose
 
 For more details, check the Flutter documentation: [Flutter Docs](https://flutter.dev/docs).
 
-### **9. Release Keystore Setup**
-Before building a release version, you need to set up your keystore:
-
-1. Generate the keystore file by running this command in the `/android/app` directory:
-```sh
-keytool -genkey -v -keystore release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias RandomTestingKey -storepass potato -keypass potato
-```
-
-2. Place the generated `release-key.jks` file in the `/android/app` directory.
-
-3. Ensure your `android/keystore.properties` file contains the following:
-```properties
-storeFile=release-key.jks
-storePassword=potato
-keyAlias=RandomTestingKey
-keyPassword=potato
-```
-
-**Note:** In a production environment, use secure passwords and never commit the actual keystore or its credentials to version control.
 
 
 
