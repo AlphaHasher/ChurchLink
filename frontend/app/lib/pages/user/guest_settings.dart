@@ -41,43 +41,43 @@ class _GuestSettingsState extends State<GuestSettings> {
 
     const Color SSBC_GRAY = Color.fromARGB(255, 142, 163, 168);
 
-    // Profile card
-    pageWidgets.add(
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 32,
-              backgroundColor: SSBC_GRAY,
-              backgroundImage: const AssetImage('assets/user/ssbc-dove.png'),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'John Doe',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'john.doe@example.com',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    // // Profile card No Login - No profile
+    // pageWidgets.add(
+    //   Container(
+    //     margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+    //     padding: const EdgeInsets.all(10),
+    //     child: Row(
+    //       children: [
+    //         CircleAvatar(
+    //           radius: 32,
+    //           backgroundColor: SSBC_GRAY,
+    //           backgroundImage: const AssetImage('assets/user/ssbc-dove.png'),
+    //         ),
+    //         const SizedBox(width: 16),
+    //         Column(
+    //           crossAxisAlignment: CrossAxisAlignment.start,
+    //           children: const [
+    //             Text(
+    //               'John Doe',
+    //               style: TextStyle(
+    //                 fontSize: 20,
+    //                 fontWeight: FontWeight.bold,
+    //               ),
+    //             ),
+    //             SizedBox(height: 4),
+    //             Text(
+    //               'john.doe@example.com',
+    //               style: TextStyle(
+    //                 fontSize: 14,
+    //                 color: Colors.grey,
+    //               ),
+    //             ),
+    //           ],
+    //         ),
+    //       ],
+    //     ),
+    //   ),
+    // );
 
     pageWidgets.add(const SizedBox(height: 16));
 

@@ -1,4 +1,15 @@
+import 'package:app/pages/user/edit_profile.dart';
+import 'package:app/pages/user/guest_settings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../firebase/firebase_auth_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+//avatar
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -8,6 +19,107 @@ class UserSettings extends StatefulWidget {
 }
 
 class _UserSettingsState extends State<UserSettings> {
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  User? _user;
+  bool _isUploading = false; 
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUser();
+  }
+
+  void _fetchUser() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    setState(() {
+      _user = currentUser;
+    });
+  }
+
+// -------------------------------------------------------------
+// 🔹 Avatar Management Section
+// This section handles:
+// ✅ Fetching the current user
+// ✅ Uploading a new avatar to Cloudinary - NEED CLOUDINARY ACCOUNT - API - AND CREATE 'UPLOAD PRESENT'
+// ✅ Deleting the old avatar before uploading a new one
+// ✅ Updating the user's avatar in Firebase Authentication
+// ✅ Displaying a loading indicator while uploading
+// -------------------------------------------------------------
+
+  Future<void> _deleteOldImage(String imageUrl) async {
+    // Extract public ID from Cloudinary URL
+    Uri uri = Uri.parse(imageUrl);
+    String fileName = uri.pathSegments.last.split('.').first; // Extract public ID
+
+    // 🔹 Cloudinary API delete request
+    Uri deleteUri = Uri.parse("https://api.cloudinary.com/v1_1/CLOUDINARY_CLOUD_NAME/image/destroy");
+
+    var response = await http.post(
+      deleteUri,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "public_id": fileName,
+        "api_key": "CLOUDINARY_API_KEY",
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print("Old avatar deleted successfully!");
+    } else {
+      print("Failed to delete old avatar: ${response.body}");
+    }
+  }
+
+  Future<void> _changeAvatar() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    setState(() {
+      _isUploading = true; // Show loading indicator
+    });
+
+    User? user = FirebaseAuth.instance.currentUser;
+
+    //  Delete Old Avatar if Exists
+    if (user?.photoURL != null) {
+      await _deleteOldImage(user!.photoURL!);
+    }
+
+    File file = File(image.path);
+    Uri uri = Uri.parse("https://api.cloudinary.com/v1_1/dh2msfer1/image/upload");
+
+    var request = http.MultipartRequest("POST", uri)
+      ..fields['upload_preset'] = "CLOUDINARY_UPLOAD_PRESET"
+      ..files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    var response = await request.send();
+    var responseData = await response.stream.bytesToString();
+    var jsonData = jsonDecode(responseData);
+
+    String imageUrl = jsonData['secure_url']; // Get new image URL
+
+    //  Save the New Image URL to Firebase Authentication
+    await user?.updatePhotoURL(imageUrl);
+    await user?.reload(); // Refresh user data
+
+    setState(() {
+      _isUploading = false; // Hide loading indicator
+      _user = FirebaseAuth.instance.currentUser; // Refresh user state
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Profile picture updated!")),
+    );
+  }
+
+// -------------------------------------------------------------
+// 🔹 END Avatar Management Section
+// -------------------------------------------------------------
+
+
+  
   final List<Map<String, dynamic>> _settingsCategories = [
     {
       'category': 'Account',
@@ -40,13 +152,17 @@ class _UserSettingsState extends State<UserSettings> {
         {'icon': Icons.policy, 'title': 'Terms & Policies', 'subtitle': 'Privacy policy and terms of use'},
       ]
     },
+    {
+      'category': 'LogOut',
+      'items': [
+        {'icon': Icons.account_circle, 'title': 'Log Out'}
+      ]
+    },
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Create a flat list of all widgets to avoid nested scrollables
     List<Widget> pageWidgets = [];
-
     const Color SSBC_GRAY = Color.fromARGB(255, 142, 163, 168);
 
     // Profile card
@@ -56,30 +172,59 @@ class _UserSettingsState extends State<UserSettings> {
         padding: const EdgeInsets.all(10),
         child: Row(
           children: [
-            const CircleAvatar(
-              radius: 32,
-              backgroundColor: SSBC_GRAY,
-              child: Icon(
-                Icons.person,
-                size: 40,
-                color: Colors.white,
-              ),
+            // -------------------------------------------------------------
+            // 🔹 UI Components for Avatar
+            // This part ensures:
+            // ✅ The avatar is displayed correctly
+            // ✅ A loading animation is shown during uploads
+            // -------------------------------------------------------------
+
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: _user != null && _user!.photoURL != null
+                      ? NetworkImage(_user!.photoURL!) // 🔹 Show uploaded avatar
+                      : null,
+                  child: _user == null || _user!.photoURL == null
+                      ? Icon(Icons.person, size: 40, color: Colors.white) // Default avatar
+                      : null,
+                ),
+
+                // 🔹 Show loading animation when uploading
+                if (_isUploading)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.3), // Dim background
+                      child: Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
             ),
+
+            // -------------------------------------------------------------
+            // 🔹 END UI Components for Avatar
+            // -------------------------------------------------------------
+
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'John Doe',
-                  style: TextStyle(
+                  _user != null ? _user!.displayName ?? 'Guest User' : 'Guest User',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'john.doe@example.com',
-                  style: TextStyle(
+                  _user != null ? _user!.email ?? 'guest@example.com' : 'guest@example.com',
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.grey,
                   ),
@@ -87,6 +232,33 @@ class _UserSettingsState extends State<UserSettings> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+
+    pageWidgets.add(const SizedBox(height: 16));
+
+    // Logout Button
+    pageWidgets.add(
+      ElevatedButton(
+        onPressed: () async {
+          await _authService.signOut();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => GuestSettings()),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: SSBC_GRAY,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Logout',
+          style: TextStyle(fontSize: 16),
         ),
       ),
     );
@@ -121,10 +293,31 @@ class _UserSettingsState extends State<UserSettings> {
                 color: SSBC_GRAY,
               ),
               title: Text(item['title']),
-              subtitle: Text(item['subtitle']),
+              subtitle: item.containsKey('subtitle') ? Text(item['subtitle']) : null,
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Add your navigation logic here
+              onTap: () async {
+                if (item['title'] == 'Edit Profile' && _user != null) {
+                  User? updatedUser = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProfileScreen(user: _user!),
+                    ),
+                  );
+
+                  if (updatedUser != null) {
+                    setState(() {
+                      _user = updatedUser; // Update UI after editing profile
+                    });
+                  }
+                }
+
+                if (item['title'] == 'Change Avatar' && _user != null && !_isUploading) {
+                  await _changeAvatar();
+                }
+
+                if (item['title'] == 'Change Password' && _user != null) {
+                  _showChangePasswordDialog(); // 🔹 Call function to handle password change
+                }
               },
             ),
           ),
@@ -133,31 +326,6 @@ class _UserSettingsState extends State<UserSettings> {
 
       pageWidgets.add(const SizedBox(height: 8));
     }
-
-    // Add logout button
-    pageWidgets.add(
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: () {
-            // Add logout logic
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: SSBC_GRAY,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            'Logout',
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
-      ),
-    );
 
     return Scaffold(
       appBar: AppBar(
@@ -177,5 +345,100 @@ class _UserSettingsState extends State<UserSettings> {
         ),
       ),
     );
+  } 
+
+
+// -------------------------------------------------------------
+// 🔹 Change Password Section
+// This section handles:
+// ✅ show Dialog
+// ✅ Input new Password
+// -------------------------------------------------------------
+  void _showChangePasswordDialog() {
+    final TextEditingController passwordController = TextEditingController();
+    final TextEditingController confirmPasswordController = TextEditingController();
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Change Password"),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "New Password",
+                  ),
+                  validator: (value) {
+                    if (value == null || value.length < 6) {
+                      return "Password must be at least 6 characters";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "Confirm Password",
+                  ),
+                  validator: (value) {
+                    if (value != passwordController.text) {
+                      return "Passwords do not match";
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Close dialog
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_formKey.currentState!.validate()) {
+                  await _changePassword(passwordController.text);
+                  Navigator.pop(context); // Close dialog after success
+                }
+              },
+              child: const Text("Change"),
+            ),
+          ],
+        );
+      },
+    );
   }
+
+    Future<void> _changePassword(String newPassword) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        await user.updatePassword(newPassword); // 🔹 Update password in Firebase
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Password updated successfully!")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error: ${e.toString()}")),
+      );
+    }
+  }
+// -------------------------------------------------------------
+// 🔹 END Change Password Section
+// -------------------------------------------------------------
 }
+
+
+

@@ -8,11 +8,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'login_page_test.dart';
 import 'package:app/firebase/firebase_options.dart';
-import 'package:app/firebase/firebase_auth_service.dart';
+import 'firebase/firebase_auth_service.dart';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await dotenv.load(); // Load .env variables
   runApp(MyApp());
 }
 
@@ -41,24 +44,27 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final AuthenticationService authService = AuthenticationService();
+  final FirebaseAuthService authService = FirebaseAuthService();
 
   User? user;
   int _currentIndex = 0;
   bool isLoggedIn = false;
 
-  // Create a stream to listen for auth state changes
   @override
   void initState() {
-    user = authService.getCurrentUser();
-    isLoggedIn = user != null;
-
     super.initState();
-    authService.getAuthInstance().authStateChanges().listen((User? user) {
+
+    // Listen for authentication state changes
+    FirebaseAuth.instance.authStateChanges().listen((User? newUser) {
       setState(() {
-        // This will rebuild the widget with the correct settings screen
+        user = newUser;
+        isLoggedIn = user != null;
       });
     });
+
+    // Fetch current user initially
+    user = authService.getCurrentUser();
+    isLoggedIn = user != null;
   }
 
   // Method to get the current screens based on auth state

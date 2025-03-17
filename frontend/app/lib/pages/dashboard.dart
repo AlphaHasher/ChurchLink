@@ -8,7 +8,7 @@ import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
 import '../login_page_test.dart';
-import '../src/auth/firebase_auth_service.dart';
+import '../firebase/firebase_auth_service.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});

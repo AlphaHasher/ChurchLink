@@ -1,5 +1,7 @@
+import 'package:app/forgot_password_page_test.dart';
+import 'package:app/pages/user/user_settings.dart';
 import 'package:flutter/material.dart';
-import 'src/auth/firebase_auth_service.dart';
+import '../firebase/firebase_auth_service.dart';
 import 'register_page_test.dart';
 import '../pages/dashboard.dart';
 
@@ -50,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
                   // ✅ Navigate to HomePage after successful sign-in
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => DashboardPage()),
+                    MaterialPageRoute(builder: (context) => UserSettings()),
                   );
                 } else {
                   print("Sign-In Failed. Check logs.");
@@ -67,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
                   // ✅ Navigate to HomePage after successful sign-in
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => DashboardPage()),
+                    MaterialPageRoute(builder: (context) => UserSettings()),
                   );
                 } else {
                   print("❌ Google Sign-In Failed. Check logs.");
@@ -88,6 +90,11 @@ class _LoginPageState extends State<LoginPage> {
             TextButton(
               onPressed: () {
                 // Navigate to Forgot Password Page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ForgotPasswordPage()),
+                );
+                
               },
               child: Text("Forgot Password?"),
             ),
