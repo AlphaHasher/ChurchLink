@@ -1,22 +1,27 @@
 import 'package:app/pages/bible.dart';
 import 'package:app/pages/dashboard.dart';
-import 'package:app/pages/user/guest_settings.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/pages/user/user_settings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'login_page_test.dart';
-import 'package:app/firebase/firebase_options.dart';
-import 'firebase/firebase_auth_service.dart';
-
+import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Try loading the .env file & handle errors
+  try {
+    await dotenv.load(fileName: ".env"); // Explicitly specify the .env file
+  } catch (e) {
+    print("❌ Failed to load .env file: $e");
+  }
+
+  // ✅ Initialize Firebase AFTER .env loads
   await Firebase.initializeApp();
-  await dotenv.load(); // Load .env variables
-  runApp(MyApp());
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -33,8 +38,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -53,16 +56,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-
-    // Listen for authentication state changes
-    FirebaseAuth.instance.authStateChanges().listen((User? newUser) {
-      setState(() {
-        user = newUser;
-        isLoggedIn = user != null;
-      });
-    });
-
-    // Fetch current user initially
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
   }
@@ -76,7 +69,7 @@ class _MyHomePageState extends State<MyHomePage> {
       const DashboardPage(),
       const BiblePage(),
       const SermonsPage(),
-      isLoggedIn ? const UserSettings() : const GuestSettings(),
+      const UserSettings(),
     ];
   }
 
@@ -107,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             BottomNavigationBarItem(
                 icon: Icon(Icons.account_box),
-                label: isLoggedIn ? "Profile" : "Guest"
+                label: "Profile"
             ),
           ]
       ),
