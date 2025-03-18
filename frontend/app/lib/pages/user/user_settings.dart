@@ -172,7 +172,7 @@ class _UserSettingsState extends State<UserSettings> {
             'title': 'Change Password',
             'subtitle': 'Request an email to reset your password',
             'ontap': () {
-              PasswordReset.show(context);
+              PasswordReset.show(context, user?.email);
             }
           },
         ]

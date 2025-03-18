@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
-import 'login_page_test.dart';
 import 'package:app/firebase/firebase_options.dart';
 import 'firebase/firebase_auth_service.dart';
 
