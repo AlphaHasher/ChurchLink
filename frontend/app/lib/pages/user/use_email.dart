@@ -155,7 +155,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
-                            PasswordReset.show(context);
+                            PasswordReset.show(context, null);
                           },
                           child: const Text(
                             'Forgot Password?',

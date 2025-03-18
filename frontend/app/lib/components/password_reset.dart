@@ -11,7 +11,7 @@ class PasswordReset extends StatelessWidget {
   final FirebaseAuthService authService = FirebaseAuthService();
 
   // Show the password reset dialog by calling this static method
-  static Future<void> show(BuildContext context, {String? email}) {
+  static Future<void> show(BuildContext context, String? email) {
     return showDialog(
       context: context,
       builder: (context) {
@@ -39,6 +39,7 @@ class PasswordReset extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             TextFormField(
+              enabled: authService.getCurrentUser()?.email == null,
               controller: forgotPasswordEmailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(

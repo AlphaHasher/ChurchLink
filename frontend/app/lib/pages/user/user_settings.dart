@@ -92,7 +92,7 @@ class _UserSettingsState extends State<UserSettings> {
             'ontap': () {_pickImage();}
           },
           {'icon': Icons.password, 'title': 'Change Password', 'subtitle': 'Request an email to reset your password',
-            'ontap': () {PasswordReset.show(context);}
+            'ontap': () {PasswordReset.show(context, user?.email);}
           },
         ]
       },
