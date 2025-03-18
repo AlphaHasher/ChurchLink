@@ -61,7 +61,7 @@ flutter doctor
 ```
 
 ### **8. Firebase SHA Keys Setup**
-To enable Firebase Authentication and other Firebase features, you need to add your app's SHA-1 and SHA-256 fingerprints to the Firebase Console. 
+To enable Firebase Authentication and other Firebase features, you need to add your app's SHA-1 and SHA-256 fingerprints to the Firebase Console.
 YOU NEED ADD THE DEBUG KEY TO CONSOLE NOT BUILD
 
 #### **For Debug Key**
@@ -85,6 +85,15 @@ For the release key (release-key.jks), use:
 keytool -list -v -keystore app/release-key.jks -alias RandomTestingKey
 ```
 When prompted, enter the keystore password.
+
+---
+In order to generate a release-key.jks file run this command in the terminal:
+```sh
+keytool -genkey -v -keystore android/app/release-key.jks -alias RandomTestingKey -keyalg RSA -keysize 2048 -validity 10000
+```
+When prompted, enter the keystore password and other details from your keystore.properties file.
+
+---
 
 #### **Configure Keystore Properties**
 Create or edit `android/keystore.properties` to match your keystore settings:
