@@ -1,4 +1,4 @@
-function HeaderDove({ width = 220, height = 65, className = "" }: { width?: number; height?: number, className?: string }) {
+function HeaderDove({ width = 220, height = 40, className = "" }: { width?: number; height?: number, className?: string }) {
   return (
     <svg
       width={width}
