@@ -1,4 +1,10 @@
-function Dove({ width = 65, height = 65 }: { width?: number; height?: number }) {
+function Dove({
+  width = 65,
+  height = 65,
+}: {
+  width?: number;
+  height?: number;
+}) {
   return (
     <svg
       width={width}
