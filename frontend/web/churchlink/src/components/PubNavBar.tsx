@@ -54,7 +54,7 @@ export default function PubNavBar() {
       <div className="h-38 w-full lg:h-30 flex flex-row justify-between align-center">
         <NavigationMenuList className="flex gap-4 justify-between xl:pl-8 ">
           <Link to="/">
-            <HeaderDove className="w-60 xs:w-70 sm:w-90 lg:w-70 lg:h-30 h-40" />
+            <HeaderDove className="w-60 xs:w-70 sm:w-90 lg:w-70 lg:h-30 h-40 max-w-[70vw]" />
           </Link>
         </NavigationMenuList>
         <NavigationMenuList className="lg:flex flex-1 gap-4 justify-between h-28 xl:pr-8 align-center">

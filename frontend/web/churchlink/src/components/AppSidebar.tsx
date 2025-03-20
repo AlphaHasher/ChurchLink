@@ -9,7 +9,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { Link } from "react-router-dom";
 
 // Menu items.
 const items = [
@@ -61,6 +63,9 @@ const items = [
 ];
 
 export function AppSidebar() {
+
+  const { setOpen } = useSidebar();
+
   return (
     <Sidebar side="right" variant="sidebar" className="lg:hidden!">
       <SidebarContent className="bg-[#141414f2] backdrop-blur-sm w-screen relative">
@@ -77,10 +82,10 @@ export function AppSidebar() {
                 className="hover:bg-transparent! hover:text-white"
                 >
                   <SidebarMenuButton asChild className="hover:bg-transparent! text-white! hover:bg-white/10! h-22 ">
-                    <a href={item.url}>
+                    <Link to={item.url} onClick={() => setOpen(false)}>
                       <item.icon />
                       <span className="text-2xl">{item.title.toUpperCase()}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                   <hr 
                   className="border-white/10"
