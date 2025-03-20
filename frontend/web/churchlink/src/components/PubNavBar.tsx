@@ -56,14 +56,11 @@ export default function PubNavBar() {
           <Link to="/">
             <HeaderDove className="w-90 h-40 lg:w-70 lg:h-30" />
           </Link>
-          <NavigationMenuItem>
-            <SidebarTrigger className="bg-black! text-white!  hover:bg-gray-200 text-black [&_svg:not([class*='size-'])]:size-10 lg:hidden!" />
-          </NavigationMenuItem>
         </NavigationMenuList>
-        <NavigationMenuList className="flex gap-4 justify-between h-28 xl:pr-8">
+        <NavigationMenuList className="lg:flex flex-1 gap-4 justify-between h-28 xl:pr-8 align-center">
           {items.map((item) => (
             <NavigationMenuItem
-              className="hover:bg-gray-400/20! p-2 text-white! hover:text-white hidden lg:block rounded-lg xl:text-xl!"
+              className=" hidden lg:block hover:bg-gray-400/20! p-2 text-white! hover:text-white  rounded-lg xl:text-xl!"
               key={item.title}
             >
               <Link className="text-white! rounded-lg" to={item.url}>
@@ -71,6 +68,9 @@ export default function PubNavBar() {
               </Link>
             </NavigationMenuItem>
           ))}
+          <NavigationMenuItem className="lg:hidden flex justify-end align-center h-2">
+            <SidebarTrigger className="bg-black! text-white!  hover:bg-gray-200 text-black [&_svg:not([class*='size-'])]:size-10 lg:hidden!" />
+          </NavigationMenuItem>
         </NavigationMenuList>
       </div>
     </NavigationMenu>
