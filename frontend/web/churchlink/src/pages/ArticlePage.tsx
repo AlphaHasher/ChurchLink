@@ -98,11 +98,17 @@ function ArticlePage() {
           </p>
           
           {article.cover && (
-            <img 
-              src={getImageUrl()} 
-              alt={article.title}
-              className="w-full max-h-96 object-cover mb-6 rounded"
-            />
+            <div className="mb-6 flex justify-center">
+              <img 
+                src={getImageUrl()} 
+                alt={article.title}
+                className="max-w-full h-auto rounded"
+                onError={(e) => {
+                  console.error("Failed to load image:", getImageUrl());
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
           )}
           
           <p className="text-lg mb-6">{article.description}</p>

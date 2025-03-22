@@ -11,22 +11,20 @@ headers = {
     "Content-Type": "application/json"
 }
 
-async def get_articles():
-    """Get all articles from Strapi"""
+async def get_uploads():
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{STRAPI_URL}/api/articles", headers=headers)
+        response = await client.get(f"{STRAPI_URL}/api/upload/files", headers=headers)
 
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail="Error fetching articles from Strapi")
 
         return response.json()
-
-async def get_article_by_id(article_id: str):
-    """Get a specific article by ID from Strapi"""
+    
+async def get_upload_by_id(upload_id: str):
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{STRAPI_URL}/api/articles/{article_id}?populate=*", headers=headers)
+        response = await client.get(f"{STRAPI_URL}/api/upload/files/{upload_id}", headers=headers)
 
         if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=f"Article with ID {article_id} not found")
+            raise HTTPException(status_code=response.status_code, detail=f"Upload with ID {upload_id} not found")
 
         return response.json()
