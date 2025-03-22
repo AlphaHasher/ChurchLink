@@ -1,74 +1,71 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from 'firebase/auth';
+import { User, getIdTokenResult } from 'firebase/auth';
 import { auth, onAuthStateChanged } from './firebase';
-// import { useIsMobile } from '@/hooks/use-mobile';
 
+// Extend Firebase User to include role
+interface AuthUser extends User {
+  role?: string;
+}
 
-//whitelisted is an example claim that will need to be changed later
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: AuthUser | null;
   loading: boolean;
   isWhitelisted: boolean;
+  role: string | null;
 }
 
-//whitelisted is an example claim that will need to be changed later
-const AuthContext = createContext<AuthContextType>({ 
-  currentUser: null, 
-  loading: true,
-  isWhitelisted: false
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Hook for consuming authentication context
+const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-
-  //example claim will need to change later
   const [isWhitelisted, setIsWhitelisted] = useState(false);
-
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      
       if (user) {
         try {
-          // Get the ID token with fresh claims
-          const idTokenResult = await user.getIdTokenResult(true);
-          
-          // Check if user has the whitelisted claim
-          const whitelisted = !!idTokenResult.claims.whitelisted;
-          setIsWhitelisted(whitelisted);
-        
-          // }
+          const idTokenResult = await getIdTokenResult(user);
+          const userRole = (idTokenResult.claims.role as string) || "user";
+          setRole(userRole);
+          setIsWhitelisted(!!idTokenResult.claims.whitelisted);
+          setCurrentUser({ ...user, role: userRole });
         } catch (error) {
           console.error("Error fetching user claims:", error);
           setIsWhitelisted(false);
+          setRole(null);
+          setCurrentUser(null);
         }
       } else {
         setIsWhitelisted(false);
+        setRole(null);
+        setCurrentUser(null);
       }
-      
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-
   const value = {
     currentUser,
     loading,
     isWhitelisted,
+    role,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
-}
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+};
+
+// ✅ Export as named exports (Fixes HMR issue)
+export { AuthProvider, useAuth };
