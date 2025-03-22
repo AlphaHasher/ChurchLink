@@ -21,7 +21,7 @@ async def get_articles():
 
         return response.json()
 
-async def get_article_by_id(article_id: int):
+async def get_article_by_id(article_id: str):
     """Get a specific article by ID from Strapi"""
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{STRAPI_URL}/api/articles/{article_id}", headers=headers)
