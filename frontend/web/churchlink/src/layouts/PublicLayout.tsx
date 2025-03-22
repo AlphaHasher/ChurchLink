@@ -1,4 +1,5 @@
 import Navbar from "@/components/navbar";
+import Footer from "@/components/Footer";
 
 function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
     >
       <Navbar />
       {children}
+      <Footer />
     </div>
   );
 }
