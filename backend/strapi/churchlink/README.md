@@ -8,7 +8,6 @@ Start your Strapi application with autoReload enabled. [Learn more](https://docs
 
 To get started run:
 ```
-cd C:\Users\Daniel\Documents\GitHub\ChurchLink\backend\strapi\churchlink
 npm run develop
 ```
 
