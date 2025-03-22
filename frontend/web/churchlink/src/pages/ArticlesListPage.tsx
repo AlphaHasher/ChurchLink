@@ -22,7 +22,6 @@ function ArticlesListPage() {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const result = await response.json();
-      console.log("API Response:", result); // Debug log
       setArticles(result.data);
       setLoading(false);
     } catch (err) {

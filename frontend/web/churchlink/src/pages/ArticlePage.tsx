@@ -37,7 +37,6 @@ function ArticlePage() {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const result = await response.json();
-      console.log("Article API Response:", result); // Debug log
       setArticle(result.data);
       setLoading(false);
     } catch (err) {
@@ -83,7 +82,6 @@ function ArticlePage() {
     );
   }
 
-  // Helper function to get image URL
   const getImageUrl = () => {
     if (!article.cover) return undefined;
     const imageUrl = article.cover.formats?.medium?.url || article.cover.url;
