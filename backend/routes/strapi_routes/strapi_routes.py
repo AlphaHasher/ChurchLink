@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models.strapi_article import get_articles, get_article_by_id
 
 
-strapi_router = APIRouter(prefix="/strapi")
+strapi_router = APIRouter()
 
 
 # Article routes - some are commented out for now
@@ -15,7 +15,7 @@ async def get_articles_route():
 #     return await create_article(article)
 
 @strapi_router.get("/articles/{article_id}")
-async def get_article_route(article_id: str):
+async def get_article_route(article_id: int):
     return await get_article_by_id(article_id)
 
 # @strapi_router.put("/articles/{article_id}")
