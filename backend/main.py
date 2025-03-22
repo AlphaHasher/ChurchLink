@@ -156,6 +156,7 @@ router_webhook_listener.include_router(youtube_router)
 #####################################################
 router_strapi = APIRouter(prefix="/api/v1/strapi", tags=["strapi"])
 router_strapi.include_router(strapi_router)
+router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 
 
 # Include routers in main app
