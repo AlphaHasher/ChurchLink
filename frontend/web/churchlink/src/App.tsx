@@ -1,10 +1,25 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useParams, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
-import Home from "./pages/Home";
 import PublicLayout from "./layouts/PublicLayout";
 import PrivateLayout from "./layouts/PrivateLayout";
+import General from "./pages/General";
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import Permissions from "./pages/admin/Permissions";
+import Users from "./pages/admin/Users";
+import Notification from "./pages/admin/Notification";
+import ContentManagement from "./pages/admin/ContentManagement";
+import Finance from "./pages/admin/Finance";
+
+function GeneralWrapper() {
+  const { name } = useParams();
+  return <General name={name || "Home"} />;
+}
+
+//admin dashboard
+
 
 //admin dashboard
 import AdminLayout from "./layouts/AdminLayout";
@@ -24,7 +39,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/" element={currentUser ? <PrivateLayout><Home /></PrivateLayout> : <PublicLayout><Home /></PublicLayout>} />
+          {/* <Route path="/" element={currentUser ? <PrivateLayout><Home /></PrivateLayout> : <PublicLayout><Home /></PublicLayout>} /> */}
 
           {/* ✅ Ensure Admin Route is Included */}
           {/* <Route path="/admin" element={role === "admin" ? <AdminLayout /> : <Navigate to="/" />} >
@@ -47,6 +62,21 @@ function App() {
 
           {/* Catch-all Redirect */}
           <Route path="*" element={<Navigate to="/" />} />
+          
+          <Route
+            path="/:name?"
+            element={
+              currentUser ? (
+                <PrivateLayout>
+                  <GeneralWrapper />
+                </PrivateLayout>
+              ) : (
+                <PublicLayout>
+                  <GeneralWrapper />
+                </PublicLayout>
+              )
+            }
+          />
         </Routes>
       </Router>
     </AuthProvider>
