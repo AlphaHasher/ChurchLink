@@ -18,17 +18,7 @@ function GeneralWrapper() {
   return <General name={name || "Home"} />;
 }
 
-//admin dashboard
 
-
-//admin dashboard
-import AdminLayout from "./layouts/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import Permissions from "./pages/admin/Permissions";
-import Users from "./pages/admin/Users";
-import Notification from "./pages/admin/Notification";
-import ContentManagement from "./pages/admin/ContentManagement";
-import Finance from "./pages/admin/Finance";
 
 function App() {
   const { currentUser, role } = useAuth(); // Get auth state
