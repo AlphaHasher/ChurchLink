@@ -18,7 +18,6 @@ function GeneralWrapper() {
   return <General name={name || "Home"} />;
 }
 
-//admin dashboard
 
 
 function App() {
@@ -30,6 +29,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          {/* <Route path="/" element={currentUser ? <PrivateLayout><Home /></PrivateLayout> : <PublicLayout><Home /></PublicLayout>} /> */}
 
           {/* ✅ Ensure Admin Route is Included */}
           {/* <Route path="/admin" element={role === "admin" ? <AdminLayout /> : <Navigate to="/" />} >
@@ -52,6 +52,7 @@ function App() {
 
           {/* Catch-all Redirect */}
           <Route path="*" element={<Navigate to="/" />} />
+          
           <Route
             path="/:name?"
             element={
