@@ -575,7 +575,7 @@ export function DataTableDemo() {
                 onClick={() => {
                   // Hide all
                   table.getAllColumns().forEach((column) => {
-                    column.toggleVisibility(false);
+                    if (column.id !== "name") column.toggleVisibility(false);
                   });
                 }}
               >
@@ -600,7 +600,7 @@ export function DataTableDemo() {
             {/* Columns List */}
             {table
               .getAllColumns()
-              .filter((column) => column.getCanHide())
+              .filter((column) => column.getCanHide() && column.id !== "name")
               .map((column) => {
                 // Get the human-readable label from permissionLabels
                 const label = permissionLabels[column.id as keyof typeof permissionLabels];
