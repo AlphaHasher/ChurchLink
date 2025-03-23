@@ -1,7 +1,7 @@
-import { Navigate, Outlet } from "react-router-dom";
-import Sidebar from "@/components/ui/SideBar";
+// import { Navigate, Outlet } from "react-router-dom";
+// import Sidebar from "@/components/ui/sidebar";
 import TopBar from "@/components/ui/TopBar";
-import { useAuth } from "@/lib/auth-context";
+// import { useAuth } from "@/lib/auth-context";
 
 const AdminLayout = () => {
 
@@ -14,10 +14,10 @@ const AdminLayout = () => {
 
   return (
     <div className="flex">
-      <Sidebar />
+      {/* <Sidebar /> */}
       <div className="flex-1">
         <TopBar />
-        <Outlet />
+        {/* <Outlet /> */}
       </div>
     </div>
   );
