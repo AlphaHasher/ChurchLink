@@ -6,11 +6,11 @@ import { useAuth } from "@/lib/auth-context";
 const AdminLayout = () => {
 
   //Restore this to use role admin later
-  // const { currentUser, role } = useAuth();
+  const { currentUser, role } = useAuth();
 
-  // if (!currentUser || role !== "admin") {
-  //   return <Navigate to="/" />;
-  // }
+  if (!currentUser || role !== "admin") {
+    return <Navigate to="/" />;
+  }
 
   return (
     <div className="flex">
