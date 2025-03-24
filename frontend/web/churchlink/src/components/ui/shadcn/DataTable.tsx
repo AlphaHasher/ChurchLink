@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function BaseTable({ className, ...props }: React.ComponentProps<"table">) {
+function DataTable({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
@@ -103,7 +103,7 @@ function TableCaption({
 }
 
 export {
-  BaseTable as Table,
+  DataTable as Table,
   TableHeader,
   TableBody,
   TableFooter,
