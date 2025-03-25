@@ -1,6 +1,6 @@
 import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { auth, createUserWithEmailAndPassword } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 
@@ -162,9 +162,9 @@ function Signup() {
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{" "}
-          <a href="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link to="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">
             Go back to login
-          </a>
+          </Link>
         </div>
       </div>
     </div>

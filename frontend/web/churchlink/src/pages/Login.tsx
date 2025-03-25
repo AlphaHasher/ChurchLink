@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Dove from "@/assets/Dove";
 
 function Login() {
@@ -184,9 +184,9 @@ function Login() {
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Don't have an account?{" "}
-          <a href="/auth/signup" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link to="/auth/signup" className="text-blue-600 hover:text-blue-700 font-medium">
             Sign up here
-          </a>
+          </Link>
         </div>
       </div>
     </div>
