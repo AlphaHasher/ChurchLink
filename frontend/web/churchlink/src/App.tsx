@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, useParams, Navigate } from "rea
 import { AuthProvider, useAuth } from "./lib/auth-context";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
+import ArticlePage from "./pages/ArticlePage";
+import ArticlesListPage from "./pages/ArticlesListPage";
+
 import PublicLayout from "./layouts/PublicLayout";
 import PrivateLayout from "./layouts/PrivateLayout";
 import General from "./pages/General";
@@ -19,6 +22,7 @@ function GeneralWrapper() {
 }
 
 
+
 function App() {
   const { currentUser, role } = useAuth(); // Get auth state
 
@@ -28,6 +32,9 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/articles" element={<ArticlesListPage />} />
+          <Route path="/articles/:id" element={<ArticlePage />} />
+          {/* <Route path="/" element={currentUser ? <PrivateLayout><Home /></PrivateLayout> : <PublicLayout><Home /></PublicLayout>} /> */}
           {/* <Route path="/" element={currentUser ? <PrivateLayout><Home /></PrivateLayout> : <PublicLayout><Home /></PublicLayout>} /> */}
 
           {/* ✅ Ensure Admin Route is Included */}
@@ -51,7 +58,8 @@ function App() {
 
           {/* Catch-all Redirect */}
           <Route path="*" element={<Navigate to="/" />} />
-          
+
+
           <Route
             path="/:name?"
             element={

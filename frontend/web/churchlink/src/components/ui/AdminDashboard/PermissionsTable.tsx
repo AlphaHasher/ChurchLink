@@ -109,11 +109,10 @@ const createPermColumn = (accessorKey: keyof AccountPermissions): ColumnDef<Acco
               : row.getValue(accessorKey)}
           </div>
 
-          {/* Directly use EditPermDialog for the permissions row data */}
+          {/* Put EditPermDialog and DeletePermDialog */}
           {accessorKey === "name" && (
             <>
               <EditPermDialog permissions={rowData} />
-              {/* Add DeletePermDialog here next to the Edit button */}
               <DeletePermDialog permissions={rowData} />
             </>
           )}
@@ -230,7 +229,7 @@ export function PermissionsTable() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Create Permissions Button (Far right) */}
+        {/* Add the CreatePermDialog on the top right */}
         <div className="ml-auto">
           <CreatePermDialog />
         </div>
