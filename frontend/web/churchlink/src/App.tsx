@@ -35,7 +35,6 @@ function App() {
           <Route path="/articles" element={<ArticlesListPage />} />
           <Route path="/articles/:id" element={<ArticlePage />} />
           {/* <Route path="/" element={currentUser ? <PrivateLayout><Home /></PrivateLayout> : <PublicLayout><Home /></PublicLayout>} /> */}
-          {/* <Route path="/" element={currentUser ? <PrivateLayout><Home /></PrivateLayout> : <PublicLayout><Home /></PublicLayout>} /> */}
 
           {/* ✅ Ensure Admin Route is Included */}
           {/* <Route path="/admin" element={role === "admin" ? <AdminLayout /> : <Navigate to="/" />} >
@@ -58,7 +57,6 @@ function App() {
 
           {/* Catch-all Redirect */}
           <Route path="*" element={<Navigate to="/" />} />
-
 
           <Route
             path="/:name?"
