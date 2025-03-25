@@ -1,12 +1,14 @@
-import AdminLayout from "@/layouts/AdminLayout";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import Permissions from "@/pages/admin/Permissions";
-import ContentManagement from "@/pages/admin/ContentManagement";
-import Notification from "@/pages/admin/Notification";
-import Finance from "@/pages/admin/Finance";
-import Users from "@/pages/admin/Users";
+import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
+import AdminLayout from "@/layouts/AdminLayout";
 
+// Lazy load admin components
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const Permissions = lazy(() => import("@/pages/admin/Permissions"));
+const ContentManagement = lazy(() => import("@/pages/admin/ContentManagement"));
+const Notification = lazy(() => import("@/pages/admin/Notification"));
+const Finance = lazy(() => import("@/pages/admin/Finance"));
+const Users = lazy(() => import("@/pages/admin/Users"));
 
 export const PrivateRoutes = () => {
   return (
