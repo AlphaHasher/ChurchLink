@@ -1,19 +1,20 @@
-import { Route, Routes } from 'react-router';
-
-import { PrivateRoute, PublicRoute } from './guard';
 // import { LoginPage } from '../features/auth';
-import { HomeRoutes } from './HomeRouter';
-import SignIn from '../pages/Authentication/SignIn';
-import SignUp from '../pages/Authentication/SignUp';
+import { Route, Routes } from "react-router-dom";
+import { PublicRoute } from "./guard/PublicRoute";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import { PublicRoutes } from "./PublicRoutes";
+import PrivateRoute from "./guard/PrivateRoute";
+import { PrivateRoutes } from "./PrivateRoutes";
 
 export const AppRouter = () => {
   return (
     <Routes>
       <Route
-        path="/auth/signin"
+        path="/auth/login"
         element={
           <PublicRoute>
-            <SignIn />
+            <Login />
           </PublicRoute>
         }
       />
@@ -21,7 +22,16 @@ export const AppRouter = () => {
         path="/auth/signup"
         element={
           <PublicRoute>
-            <SignUp />
+            <Signup />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/pages/*"
+        element={
+          <PublicRoute>
+            <PublicRoutes />
           </PublicRoute>
         }
       />
@@ -30,7 +40,7 @@ export const AppRouter = () => {
         path="/*"
         element={
           <PrivateRoute>
-            <HomeRoutes />
+            <PrivateRoutes />
           </PrivateRoute>
         }
       />

@@ -1,54 +1,47 @@
-import Dove from "@/assets/Dove";
 import HeaderDove from "@/assets/HeaderDove";
 import {
   NavigationMenu,
   NavigationMenuItem,
   NavigationMenuList,
-  NavigationMenuLink,
 } from "@/components/ui/navigation-menu";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { SidebarTrigger } from "./ui/sidebar";
+import ProfileDropDown from "./Main/ProfileDropDown";
 // import * as DropdownMenu frLogIn, om "@radix-ui/react-dropdown-menu";
 
 // Menu items.
 const items = [
   {
     title: "About",
-    url: "/about",
+    url: "/pages/about",
   },
   {
     title: "Events",
-    url: "/events",
+    url: "/pages/events",
   },
   {
     title: "Ministries",
-    url: "/ministries",
+    url: "/pages/ministries",
   },
   {
     title: "Media",
-    url: "/media",
+    url: "/pages/media",
   },
   {
     title: "Giving",
-    url: "/giving",
+    url: "/pages/giving",
   },
   {
     title: "Weekly Bulletin",
-    url: "/weekly-bulletin",
+    url: "/pages/weekly-bulletin",
   },
   {
     title: "Русский",
-    url: "/russian",
-  },
-  {
-    title: "Login",
-    url: "/login",
+    url: "/pages/russian",
   },
 ];
 
 export default function PrivNavBar() {
-  const location = useLocation();
-
   return (
     <NavigationMenu className="flex p-5 bg-[#000000] justify-between align-center text-white w-full! max-w-screen! max-h-max ">
       <div className="h-38 w-full lg:h-30 flex flex-row justify-between align-center">
@@ -69,8 +62,11 @@ export default function PrivNavBar() {
             </NavigationMenuItem>
           ))}
           <NavigationMenuItem className="lg:hidden flex justify-end align-center h-2">
-            <SidebarTrigger className="bg-black! text-white!  hover:bg-gray-200 text-black [&_svg:not([class*='size-'])]:size-10 lg:hidden!" />
+            <SidebarTrigger className="bg-black text-white hover:bg-white/10 rounded-lg transition-colors duration-200 [&_svg:not([class*='size-'])]:size-10 lg:hidden!" />
           </NavigationMenuItem>
+          <div className="hidden lg:flex items-center justify-center h-full w-9">
+            <ProfileDropDown className="hover:bg-white/10 transition-colors duration-200 p-0! text-black rounded-full!" />
+          </div>
         </NavigationMenuList>
       </div>
     </NavigationMenu>

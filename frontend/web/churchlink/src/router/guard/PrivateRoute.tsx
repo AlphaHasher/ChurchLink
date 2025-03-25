@@ -23,7 +23,7 @@ export const PrivateRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // If logged in, show the dashboard (or whatever content is wrapped)
-  return user ? <>{children}</> : <Navigate to="/auth/signin" replace />;
+  return user ? <>{children}</> : <Navigate to="/auth/login" replace />;
 };
 
 export default PrivateRoute;

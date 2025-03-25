@@ -1,9 +1,18 @@
-import { AppSidebar } from "@/components/Main/AppSidebar";
+import { AppSidebar, Item } from "@/components/Main/AppSidebar";
 import PubNavBar from "@/components/PubNavBar";
+import PrivNavBar from "@/components/PrivNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import Footer from "@/components/Main/Footer";
+import { useAuth } from "@/lib/auth-context";
+import { useState } from "react";
 
-function PublicLayout({ children }: { children: React.ReactNode }) {
+function PublicLayout({
+  children
+}: {
+  children: React.ReactNode;
+}) {
+  const { user } = useAuth();
+
   return (
     <SidebarProvider
       defaultOpen={false}
@@ -14,16 +23,15 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
         } as React.CSSProperties
       }
     >
-      <div className="flex w-full">
-        <div className="flex flex-col w-full">
+      <div className="flex flex-col min-h-screen w-full">
+        <div className="flex flex-col flex-grow w-full">
           <div className="lg:hidden!">
-            <AppSidebar
-            />
+            <AppSidebar/>
           </div>
-          <PubNavBar />
-          {children}
-          <Footer />
+          {user ? <PrivNavBar /> : <PubNavBar />}
+          <main className="flex-grow">{children}</main>
         </div>
+        <Footer />
       </div>
     </SidebarProvider>
   );
