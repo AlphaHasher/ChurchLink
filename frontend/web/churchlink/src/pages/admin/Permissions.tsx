@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import PermissionsTable from "@/components/ui/AdminDashboard/Permissions/RoleTable/PermissionsTable";
+import PermissionsTable from "@/components/AdminDashboard/Permissions/RoleTable/PermissionsTable";
 
 import { MockPermData } from "@/TEMPORARY/MockPermData";
 import { MockUserData } from "@/TEMPORARY/MockUserData";

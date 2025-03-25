@@ -8,7 +8,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/shadcn/Dialog";
+} from "@/components/ui/Dialog";
 import { IconUsersGroup } from "@tabler/icons-react";
 import RoleMembersTable from "./RoleMembersTable";
 import { applyRoleMemberMask } from "@/helpers/DataFunctions";

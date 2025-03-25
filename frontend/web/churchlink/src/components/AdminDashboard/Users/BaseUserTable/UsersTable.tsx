@@ -23,19 +23,25 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/shadcn/DataTable"
+} from "@/components/ui/DataTable"
+
+import { AccountPermissions } from "@/types/AccountPermissions"
+import { BaseUserMask, UserLabels } from "@/types/UserInfo"
+import { AssignRolesDialog } from "./AssignRolesDialog"
+import { getRoleOptions, recoverRoleArray } from "@/helpers/DataFunctions"
 
 
-import { PermRoleMemberMask, RoleMembersLabels } from "@/types/UserInfo"
-
-
-interface RoleMembersTableProps {
-  data: PermRoleMemberMask[]; // Define the expected data type
+interface UsersTableProps {
+  data: BaseUserMask[];
+  permData: AccountPermissions[];
 }
 
-// In the Table, this creates the Columns that display the permissions they have.
-const createColumn = (accessorKey: keyof PermRoleMemberMask): ColumnDef<PermRoleMemberMask> => {
-  const label = RoleMembersLabels[accessorKey];
+// In the Table, this creates the Columns that display user information
+const createColumn = (
+  accessorKey: keyof BaseUserMask,
+  permData: AccountPermissions[]
+): ColumnDef<BaseUserMask> => {
+  const label = UserLabels[accessorKey];
 
   return {
     accessorKey,
@@ -53,29 +59,37 @@ const createColumn = (accessorKey: keyof PermRoleMemberMask): ColumnDef<PermRole
 
       return (
         <div
-          className={`flex items-center space-x-2 w-full "justify-center"
-            text-center`}
+          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end=" : ""
+            } text-center`}
         >
           <div>
             {row.getValue(accessorKey)}
           </div>
+
+          {accessorKey === "name" && (
+            <div className="ml-auto flex space-x-2">
+              <AssignRolesDialog userData={row.original} roleList={getRoleOptions(permData)} initialRoles={recoverRoleArray(row.original)} permData={permData}></AssignRolesDialog>
+            </div>
+          )}
         </div>
       );
     },
   };
 };
 
-export const columns: ColumnDef<PermRoleMemberMask>[] = [];
 
-Object.keys(RoleMembersLabels).forEach((key) => {
-  columns.push(createColumn(key as keyof PermRoleMemberMask));
-});
 
-export function RoleMembersTable({ data }: RoleMembersTableProps) {
+export function UsersTable({ data, permData }: UsersTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+
+  const columns: ColumnDef<BaseUserMask>[] = [];
+
+  Object.keys(UserLabels).forEach((key) => {
+    columns.push(createColumn(key as keyof BaseUserMask, permData));
+  });
 
   const table = useReactTable({
     data,
@@ -185,6 +199,8 @@ export function RoleMembersTable({ data }: RoleMembersTableProps) {
       </div>
     </div>
   );
+
+
 }
 
-export default RoleMembersTable;
+export default UsersTable;

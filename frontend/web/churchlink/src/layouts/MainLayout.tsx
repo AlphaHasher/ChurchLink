@@ -1,7 +1,7 @@
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppSidebar } from "@/components/Main/AppSidebar";
 import PubNavBar from "@/components/PubNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import Footer from "@/components/Footer";
+import Footer from "@/components/Main/Footer";
 
 function PublicLayout({ children }: { children: React.ReactNode }) {
   return (

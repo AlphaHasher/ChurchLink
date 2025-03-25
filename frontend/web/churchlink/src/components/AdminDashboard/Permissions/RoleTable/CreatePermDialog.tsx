@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { AccountPermissions } from "@/types/AccountPermissions"
-import { PermissionTogglers } from "@/components/ui/AdminDashboard/Permissions/RoleTable/PermissionTogglers"
+import { PermissionTogglers } from "@/components/AdminDashboard/Permissions/RoleTable/PermissionTogglers"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -10,7 +10,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/shadcn/Dialog"
+} from "@/components/ui/Dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 

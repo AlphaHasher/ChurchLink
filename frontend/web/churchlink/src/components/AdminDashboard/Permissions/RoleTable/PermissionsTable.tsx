@@ -29,11 +29,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/shadcn/DataTable"
+} from "@/components/ui/DataTable"
 
-import { CreatePermDialog } from "@/components/ui/AdminDashboard/Permissions/RoleTable/CreatePermDialog"
-import { EditPermDialog } from "@/components/ui/AdminDashboard/Permissions/RoleTable/EditPermDialog"
-import { DeletePermDialog } from "@/components/ui/AdminDashboard/Permissions/RoleTable/DeletePermDialog"
+import { CreatePermDialog } from "@/components/AdminDashboard/Permissions/RoleTable/CreatePermDialog"
+import { EditPermDialog } from "@/components/AdminDashboard/Permissions/RoleTable/EditPermDialog"
+import { DeletePermDialog } from "@/components/AdminDashboard/Permissions/RoleTable/DeletePermDialog"
 
 import {
   AccountPermissions, permissionLabels

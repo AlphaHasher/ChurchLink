@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Trash2, User } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
-import LogicalUserPermsTable from "@/components/ui/AdminDashboard/Users/LogicalUserOverview/LogicalUserPermsTable"
+import LogicalUserPermsTable from "@/components/AdminDashboard/Users/LogicalUserOverview/LogicalUserPermsTable"
 
 import { MockPermData } from "@/TEMPORARY/MockPermData";
 import { MockUserData } from "@/TEMPORARY/MockUserData";
 
 import { applyBaseUserMask, applyUserPermLogicMask } from "@/helpers/DataFunctions";
-import UsersTable from "@/components/ui/AdminDashboard/Users/BaseUserTable/UsersTable";
+import UsersTable from "@/components/AdminDashboard/Users/BaseUserTable/UsersTable";
 
 interface UserData {
   id: string;

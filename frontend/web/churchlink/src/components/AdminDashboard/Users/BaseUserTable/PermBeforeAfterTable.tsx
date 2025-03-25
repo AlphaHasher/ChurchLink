@@ -17,7 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/shadcn/DataTable"
+} from "@/components/ui/DataTable"
 
 import { PermComp, PermCompLabels } from "@/types/AccountPermissions"
 

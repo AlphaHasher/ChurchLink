@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import PublicLayout from '@/layouts/PublicLayout';
-import ArticleCard from '@/components/ArticleCard';
+import PublicLayout from '@/layouts/MainLayout';
+import ArticleCard from '@/components/Main/ArticleCard';
 
 interface Article {
   id: number;
