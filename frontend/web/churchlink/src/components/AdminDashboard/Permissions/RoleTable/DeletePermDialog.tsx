@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { IconTrash } from "@tabler/icons-react";
-
+import { Trash } from "lucide-react";
 interface DeletePermDialogProps {
     permissions: AccountPermissions;
 }
@@ -60,7 +59,7 @@ export function DeletePermDialog({
                     className="!bg-white text-red border shadow-sm !hover:bg-red-600"
                     onClick={() => setIsOpen(true)} // Open the dialog when the button is clicked
                 >
-                    <IconTrash stroke={2} />
+                    <Trash />
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">

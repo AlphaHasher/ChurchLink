@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { IconEdit } from '@tabler/icons-react';
+import { Edit } from "lucide-react";
 
 interface EditPermDialogProps {
     permissions: AccountPermissions;
@@ -53,7 +53,7 @@ export function EditPermDialog({
                     className="!bg-white text-black border shadow-sm hover:bg-blue-600"
                     onClick={() => setIsOpen(true)} // Open the dialog when the button is clicked
                 >
-                    <IconEdit stroke={2} />
+                    <Edit />
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">

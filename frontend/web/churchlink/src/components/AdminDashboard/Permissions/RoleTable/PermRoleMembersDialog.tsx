@@ -9,11 +9,10 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/Dialog";
-import { IconUsersGroup } from "@tabler/icons-react";
 import RoleMembersTable from "./RoleMembersTable";
 import { applyRoleMemberMask } from "@/helpers/DataFunctions";
 import { UserInfo } from "@/types/UserInfo";
-
+import { Users } from "lucide-react";
 interface PermRoleMembersDialogProps {
     permissions: AccountPermissions;
     userData: UserInfo[];
@@ -33,7 +32,7 @@ export function PermRoleMembersDialog({
                     className="!bg-white text-red border shadow-sm !hover:bg-red-600"
                     onClick={() => setIsOpen(true)} // Open the dialog when the button is clicked
                 >
-                    <IconUsersGroup stroke={2} />
+                    <Users />
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
