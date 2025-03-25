@@ -31,57 +31,28 @@ import {
   TableRow,
 } from "@/components/ui/shadcn/DataTable"
 
-import { CreatePermDialog } from "./CreatePermDialog"
-import { EditPermDialog } from "./EditPermDialog"
-import { DeletePermDialog } from "./DeletePermDialog"
+import { CreatePermDialog } from "@/components/ui/AdminDashboard/Permissions/RoleTable/CreatePermDialog"
+import { EditPermDialog } from "@/components/ui/AdminDashboard/Permissions/RoleTable/EditPermDialog"
+import { DeletePermDialog } from "@/components/ui/AdminDashboard/Permissions/RoleTable/DeletePermDialog"
 
 import {
   AccountPermissions, permissionLabels
 } from "@/types/AccountPermissions"
+import { PermRoleMembersDialog } from "./PermRoleMembersDialog"
 
-// Creates some sample data for dev test purposes
+import { UserInfo } from "@/types/UserInfo"
 
-const data: AccountPermissions[] = [
-  {
-    name: "Administrator",
-    isAdmin: true,
-    manageWholeSite: true,
-    editAllEvents: true,
-    editAllPages: true,
-    accessFinances: true,
-    manageNotifications: true,
-    manageMediaContent: true,
-    manageUserPermissions: true,
-    manageBiblePlan: true,
-  },
-  {
-    name: "Youth Ministry",
-    isAdmin: false,
-    manageWholeSite: false,
-    editAllEvents: false,
-    editAllPages: false,
-    accessFinances: false,
-    manageNotifications: false,
-    manageMediaContent: true,
-    manageUserPermissions: false,
-    manageBiblePlan: false,
-  },
-  {
-    name: "Moderator",
-    isAdmin: false,
-    manageWholeSite: false,
-    editAllEvents: true,
-    editAllPages: true,
-    accessFinances: true,
-    manageNotifications: true,
-    manageMediaContent: true,
-    manageUserPermissions: true,
-    manageBiblePlan: true,
-  },
-];
+
+interface PermissionsTableProps {
+  data: AccountPermissions[]; // Define the expected data type
+  userData: UserInfo[];
+}
 
 // In the Table, this creates the Columns that display the permissions they have.
-const createPermColumn = (accessorKey: keyof AccountPermissions): ColumnDef<AccountPermissions> => {
+const createPermColumn = (
+  accessorKey: keyof AccountPermissions,
+  userData: UserInfo[]
+): ColumnDef<AccountPermissions> => {
   const label = permissionLabels[accessorKey];
 
   return {
@@ -100,7 +71,10 @@ const createPermColumn = (accessorKey: keyof AccountPermissions): ColumnDef<Acco
       const rowData = row.original; // Access the row data
 
       return (
-        <div className="flex items-center space-x-2">
+        <div
+          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end=" : "justify-center"
+            } text-center`}
+        >
           <div className="capitalize">
             {typeof row.getValue(accessorKey) === "boolean"
               ? row.getValue(accessorKey)
@@ -111,10 +85,11 @@ const createPermColumn = (accessorKey: keyof AccountPermissions): ColumnDef<Acco
 
           {/* Put EditPermDialog and DeletePermDialog */}
           {accessorKey === "name" && (
-            <>
+            <div className="ml-auto flex space-x-2">
               <EditPermDialog permissions={rowData} />
               <DeletePermDialog permissions={rowData} />
-            </>
+              <PermRoleMembersDialog permissions={rowData} userData={userData} />
+            </div>
           )}
         </div>
       );
@@ -122,17 +97,19 @@ const createPermColumn = (accessorKey: keyof AccountPermissions): ColumnDef<Acco
   };
 };
 
-export const columns: ColumnDef<AccountPermissions>[] = [];
 
-Object.keys(permissionLabels).forEach((key) => {
-  columns.push(createPermColumn(key as keyof AccountPermissions));
-});
 
-export function PermissionsTable() {
+export function PermissionsTable({ data, userData }: PermissionsTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+
+  const columns: ColumnDef<AccountPermissions>[] = [];
+
+  Object.keys(permissionLabels).forEach((key) => {
+    columns.push(createPermColumn(key as keyof AccountPermissions, userData));
+  });
 
   const table = useReactTable({
     data,
@@ -154,7 +131,7 @@ export function PermissionsTable() {
   });
 
   return (
-    <div className="w-full max-w-6xl overflow-x-auto">
+    <div className="container mx-start">
       <div className="flex items-center py-4">
         {/* Search Input */}
         <Input
@@ -174,74 +151,65 @@ export function PermissionsTable() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {/* Container for buttons with horizontal spacing */}
-            <div className="flex space-x-2 mb-3">
-              {/* Hide All Permissions Button */}
-              <Button
-                variant="outline"
-                className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                onClick={() => {
-                  // Hide all
-                  table.getAllColumns().forEach((column) => {
-                    if (column.id !== "name") column.toggleVisibility(false);
-                  });
-                }}
-              >
-                Hide All Permissions
-              </Button>
+            <Button
+              variant="outline"
+              className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+              onClick={() => {
+                table.getAllColumns().forEach((column) => {
+                  if (column.id !== "name") column.toggleVisibility(false);
+                });
+              }}
+            >
+              Hide All Permissions
+            </Button>
+            <Button
+              variant="outline"
+              className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+              onClick={() => {
+                table.getAllColumns().forEach((column) => {
+                  column.toggleVisibility(true);
+                });
+              }}
+            >
+              Show All Permissions
+            </Button>
 
-              {/* Show All Permissions Button */}
-              <Button
-                variant="outline"
-                className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                onClick={() => {
-                  // Show all columns by setting their visibility to true
-                  table.getAllColumns().forEach((column) => {
-                    column.toggleVisibility(true);
-                  });
-                }}
-              >
-                Show All Permissions
-              </Button>
-            </div>
-
-            {/* Columns List */}
             {table
               .getAllColumns()
               .filter((column) => column.getCanHide() && column.id !== "name")
-              .map((column) => {
-                const label = permissionLabels[column.id as keyof typeof permissionLabels];
-
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
-                    onSelect={(event) => event.preventDefault()}
-                  >
-                    {label}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
+              .map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column.id}
+                  className="capitalize"
+                  checked={column.getIsVisible()}
+                  onCheckedChange={(value) =>
+                    column.toggleVisibility(!!value)
+                  }
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  {permissionLabels[column.id as keyof typeof permissionLabels]}
+                </DropdownMenuCheckboxItem>
+              ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Add the CreatePermDialog on the top right */}
+        {/* Create Permission Dialog (Aligned Right) */}
         <div className="ml-auto">
           <CreatePermDialog />
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      {/* Scrollable Table Container */}
+      <div className="rounded-md border overflow-x-auto max-w-full">
+        <Table className="w-full min-w-max">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className={header.column.id === "name" ? "sticky left-0 bg-white z-10 shadow-right" : ""}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -256,7 +224,10 @@ export function PermissionsTable() {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className={cell.column.id === "name" ? "sticky left-0 bg-white z-10 shadow-right" : ""}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -273,8 +244,8 @@ export function PermissionsTable() {
         </Table>
       </div>
 
+      {/* Pagination Controls */}
       <div className="flex items-center justify-end space-x-2 py-4">
-        {/* Pagination Text */}
         <div className="text-sm text-gray-600">
           {`Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-${Math.min(
             (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
@@ -305,6 +276,8 @@ export function PermissionsTable() {
       </div>
     </div>
   );
+
+
 }
 
 export default PermissionsTable;

@@ -58,15 +58,17 @@ export function EditPermDialog({
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Edit Permission Set</DialogTitle>
-                    <DialogDescription>
-                        Make your desired edits to the permissions set. You can only modify permissions that your account already has. Click "Save changes" when you are done.
-                    </DialogDescription>
+                    <DialogTitle>Edit Permission Role</DialogTitle>
+                    <div className="pt-6">
+                        <DialogDescription>
+                            Make your desired edits to the permissions role. You can only modify permissions that your account already has. Click "Save changes" when you are done.
+                        </DialogDescription>
+                    </div>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="name">Permissions Name</Label>
-                        <small className="text-gray-500 text-xs">A unique name that you will use to apply this permission set to users</small>
+                        <small className="text-gray-500 text-xs">A unique name that you will use to apply this permission role to users</small>
                         <Input
                             id="name"
                             value={permissions.name}

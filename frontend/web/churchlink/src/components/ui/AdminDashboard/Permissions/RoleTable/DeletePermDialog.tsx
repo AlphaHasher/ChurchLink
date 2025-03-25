@@ -65,19 +65,21 @@ export function DeletePermDialog({
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Delete Permission Set</DialogTitle>
-                    <DialogDescription>
-                        Are you absolutely sure you want to delete the permission set "
-                        {initialPermissions.name}"? This action cannot be undone. Please
-                        type the name "{initialPermissions.name}" to confirm the deletion.
-                    </DialogDescription>
+                    <DialogTitle>Delete Permission Role</DialogTitle>
+                    <div className="pt-6">
+                        <DialogDescription>
+                            Are you absolutely sure you want to delete the permission role "
+                            {initialPermissions.name}"? This action cannot be undone. Please
+                            type the name "{initialPermissions.name}" to confirm the deletion.
+                        </DialogDescription>
+                    </div>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="name">Deletion Confirmation</Label>
                         <small className="text-gray-500 text-xs">
                             Type the name "{initialPermissions.name}" to confirm that you
-                            want to delete this permission set.
+                            want to delete this permission role.
                         </small>
                         <Input
                             id="name"

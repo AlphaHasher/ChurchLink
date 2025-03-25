@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { AccountPermissions } from "@/types/AccountPermissions"
-import { PermissionTogglers } from "./PermissionTogglers"
+import { PermissionTogglers } from "@/components/ui/AdminDashboard/Permissions/RoleTable/PermissionTogglers"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -67,21 +67,23 @@ export function CreatePermDialog() {
                     className="!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600"
                     onClick={() => setIsOpen(true)} // Open the dialog when the button is clicked
                 >
-                    Create Permissions
+                    Create New Role
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Add New Permissions</DialogTitle>
-                    <DialogDescription>
-                        Define your new permission set. You can only assign permissions that your account already has. Click "Save changes" when you are done.
-                    </DialogDescription>
+                    <DialogTitle>New Permission Role</DialogTitle>
+                    <div className="pt-6">
+                        <DialogDescription>
+                            Define your new permission role. You can only assign permissions that your account already has. Click "Save changes" when you are done.
+                        </DialogDescription>
+                    </div>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     {/* Name Input Section */}
                     <div className="grid gap-2">
                         <Label htmlFor="name">Permissions Name</Label>
-                        <small className="text-gray-500 text-xs">A unique name that you will use to apply this permission set to users</small>
+                        <small className="text-gray-500 text-xs">A unique name that you will use to apply this permission role to users</small>
                         <Input
                             id="name"
                             value={permissions.name}
