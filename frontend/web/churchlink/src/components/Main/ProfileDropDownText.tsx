@@ -5,9 +5,7 @@ import {
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
 import { Button } from "../ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { LogOut, User, Settings } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
 import { Link } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
 
@@ -16,7 +14,6 @@ interface ProfileDropDownProps {
 }
 
 function ProfileDropDownText({ className }: ProfileDropDownProps) {
-  const { user } = useAuth();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

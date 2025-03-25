@@ -3,21 +3,6 @@ import ArticlesListPage from "@/pages/ArticlesListPage";
 import ArticlePage from "@/pages/ArticlePage";
 import General from "@/pages/General";
 import { Route, Routes, useParams } from "react-router-dom";
-import {
-  Calendar,
-  FileVideo,
-  Heart,
-  Home,
-  Inbox,
-  Languages,
-  LogIn,
-  Newspaper,
-  Search,
-  User,
-} from "lucide-react";
-import { Item } from "@/components/Main/AppSidebar";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 
 
 

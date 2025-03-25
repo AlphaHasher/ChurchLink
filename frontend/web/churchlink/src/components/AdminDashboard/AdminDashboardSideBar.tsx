@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Users, BarChart2, Settings, LogOut, Home, Shield, User } from "lucide-react";
+import { BarChart2, Settings, LogOut, Home, Shield, User } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 

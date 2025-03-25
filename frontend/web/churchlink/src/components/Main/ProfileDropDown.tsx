@@ -17,6 +17,7 @@ interface ProfileDropDownProps {
 
 function ProfileDropDown({ className }: ProfileDropDownProps) {
   const { user } = useAuth();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -26,7 +27,7 @@ function ProfileDropDown({ className }: ProfileDropDownProps) {
         >
           <Avatar className="size-full rounded-full">
             <AvatarImage
-              src={user?.photoURL || "/avatars/placeholder.png"}
+              src={user?.photoURL || ""}
               alt="Profile"
               className="size-full rounded-full object-cover"
             />

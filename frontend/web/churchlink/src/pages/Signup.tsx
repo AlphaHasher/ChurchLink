@@ -14,7 +14,7 @@ function Signup() {
 
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate("/pages/home");
     }
   }, [user]);
 

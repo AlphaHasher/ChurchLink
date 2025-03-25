@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+// import { useAuth } from "@/lib/auth-context";
 
 interface Notification {
   id: number;
@@ -10,7 +10,7 @@ interface Notification {
 }
 
 const Notification = () => {
-  const { role } = useAuth();
+  // const { role } = useAuth();
 //   if (role !== "admin") return <p>Access Denied</p>; // Restrict to admins only
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -21,11 +21,10 @@ const Notification = () => {
     schedule: "",
     platform: "both",
   });
-
   const handleAddNotification = () => {
     setNotifications((prev) => [
       ...prev,
-      { id: Date.now(), ...newNotification },
+      { id: Date.now(), ...newNotification, platform: newNotification.platform as "mobile" | "email" | "both" },
     ]);
     setNewNotification({ title: "", message: "", schedule: "", platform: "both" });
   };

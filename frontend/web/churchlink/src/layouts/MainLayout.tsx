@@ -1,10 +1,9 @@
-import { AppSidebar, Item } from "@/components/Main/AppSidebar";
+import { AppSidebar } from "@/components/Main/AppSidebar";
 import PubNavBar from "@/components/PubNavBar";
 import PrivNavBar from "@/components/PrivNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import Footer from "@/components/Main/Footer";
 import { useAuth } from "@/lib/auth-context";
-import { useState } from "react";
 
 function PublicLayout({
   children

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth-context";
+// import { useAuth } from "@/lib/auth-context";
 
 interface Donation {
   id: string;
@@ -9,7 +9,7 @@ interface Donation {
 }
 
 const Finance = () => {
-  const { role } = useAuth();
+  // const { role } = useAuth();
 //   if (role !== "admin" && role !== "finance") return <p>Access Denied</p>; // Restrict access
 
   const [paypalId, setPaypalId] = useState("");

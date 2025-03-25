@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+
+// import { useAuth } from "@/lib/auth-context";
 import PermissionsTable from "@/components/AdminDashboard/Permissions/RoleTable/PermissionsTable";
 
 import { MockPermData } from "@/TEMPORARY/MockPermData";
@@ -8,7 +8,7 @@ import { MockUserData } from "@/TEMPORARY/MockUserData";
 
 
 const Permissions = () => {
-  const { role } = useAuth();
+  // const { role } = useAuth();
   //   if (role !== "admin") return <p>Access Denied</p>; // Restrict non-admins
 
 

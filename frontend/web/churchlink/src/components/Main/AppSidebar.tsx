@@ -10,7 +10,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Link } from "react-router-dom";
-import ProfileDropDown from "./ProfileDropDown";
 import ProfileDropDownText from "./ProfileDropDownText";
 import {
   Calendar,
@@ -35,9 +34,7 @@ export type Item = {
   icon: React.ElementType;
 };
 
-interface AppSidebarProps {
-  items: Item[];
-}
+
 
 const publicItems = [
   {
