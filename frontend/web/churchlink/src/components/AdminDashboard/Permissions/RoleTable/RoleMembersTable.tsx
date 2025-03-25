@@ -1,5 +1,4 @@
-"use client"
-import * as React from "react"
+
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -27,6 +26,7 @@ import {
 
 
 import { PermRoleMemberMask, RoleMembersLabels } from "@/types/UserInfo"
+import { useState } from "react"
 
 
 interface RoleMembersTableProps {
@@ -72,10 +72,10 @@ Object.keys(RoleMembersLabels).forEach((key) => {
 });
 
 export function RoleMembersTable({ data }: RoleMembersTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
 
   const table = useReactTable({
     data,

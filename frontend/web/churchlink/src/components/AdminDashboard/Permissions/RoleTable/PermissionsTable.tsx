@@ -1,5 +1,3 @@
-"use client"
-import * as React from "react"
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -41,6 +39,7 @@ import {
 import { PermRoleMembersDialog } from "./PermRoleMembersDialog"
 
 import { UserInfo } from "@/types/UserInfo"
+import { useState } from "react"
 
 
 interface PermissionsTableProps {
@@ -100,10 +99,10 @@ const createPermColumn = (
 
 
 export function PermissionsTable({ data, userData }: PermissionsTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
 
   const columns: ColumnDef<AccountPermissions>[] = [];
 
