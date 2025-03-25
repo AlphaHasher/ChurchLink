@@ -1,5 +1,4 @@
-"use client"
-import * as React from "react"
+
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -29,6 +28,7 @@ import { AccountPermissions } from "@/types/AccountPermissions"
 import { BaseUserMask, UserLabels } from "@/types/UserInfo"
 import { AssignRolesDialog } from "./AssignRolesDialog"
 import { getRoleOptions, recoverRoleArray } from "@/helpers/DataFunctions"
+import { useState } from "react"
 
 
 interface UsersTableProps {
@@ -80,10 +80,10 @@ const createColumn = (
 
 
 export function UsersTable({ data, permData }: UsersTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
 
   const columns: ColumnDef<BaseUserMask>[] = [];
 

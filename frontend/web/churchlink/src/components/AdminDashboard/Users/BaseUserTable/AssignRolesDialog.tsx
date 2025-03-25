@@ -10,8 +10,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/Dialog";
-import { IconShieldPlus } from '@tabler/icons-react';
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ShieldPlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import PermBeforeAfterTable from "./PermBeforeAfterTable";
 import { createPermComps } from "@/helpers/DataFunctions";
@@ -66,7 +65,7 @@ export function AssignRolesDialog({
                     variant="outline"
                     className="!bg-white text-black border shadow-sm hover:bg-blue-600"
                 >
-                    <IconShieldPlus stroke={2} />
+                    <ShieldPlus />
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-3xl w-full max-h-screen flex flex-col">

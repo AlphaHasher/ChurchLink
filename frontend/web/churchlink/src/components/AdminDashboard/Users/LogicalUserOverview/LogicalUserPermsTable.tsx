@@ -1,5 +1,4 @@
-"use client"
-import * as React from "react"
+
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -37,6 +36,7 @@ import {
 } from "@/types/AccountPermissions"
 
 import { UserPermMask } from "@/types/UserInfo"
+import { useState } from "react"
 
 
 // Explicitly for type safety copy the permissionLabels
@@ -101,10 +101,10 @@ Object.keys(userLabels).forEach((key) => {
 });
 
 export function LogicalUserPermsTable({ data }: LogicalUserPermsTableProps) {
-    const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-    const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-    const [rowSelection, setRowSelection] = React.useState({});
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+    const [rowSelection, setRowSelection] = useState({});
 
     const table = useReactTable({
         data,
