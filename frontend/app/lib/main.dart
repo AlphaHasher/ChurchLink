@@ -7,6 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  print("Background message: ${message.notification?.title}");
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +27,22 @@ Future<void> main() async {
   await Firebase.initializeApp();
 
   runApp(const MyApp());
+}
+
+void setupFirebaseMessaging() {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  // Requesting permission
+  messaging.requestPermission();
+
+  // Retrieve device token
+  messaging.getToken().then((token) => print("Firebase Token: $token"));
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print("Foreground message: ${message.notification?.title}");
+  });
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
 }
 
 class MyApp extends StatelessWidget {
