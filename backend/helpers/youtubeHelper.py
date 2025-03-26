@@ -93,12 +93,6 @@ class YoutubeHelper:
         
         return retDict
 
-
-    # Test Code Below, uncomment and optionally replace the channel ID with a livestreaming channel to check:
-    # This will be deleted later, it was just used by me to ensure that the API call functions
-    #print(checkYoutubeChannel(PRIMARY_CHANNEL_ID))
-
-
     #This function sends the request to subscribe to the pubsubhub notifications.
     @staticmethod
     async def subscribeToMainNotifications():
