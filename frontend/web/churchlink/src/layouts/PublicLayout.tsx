@@ -1,7 +1,6 @@
 import { AppSidebar } from "@/components/AppSidebar";
 import PubNavBar from "@/components/PubNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import Footer from "@/components/Footer";
 
 function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -22,7 +21,6 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
           </div>
           <PubNavBar />
           {children}
-          <Footer />
         </div>
       </div>
     </SidebarProvider>
