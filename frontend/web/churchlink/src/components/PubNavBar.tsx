@@ -1,12 +1,10 @@
-import Dove from "@/assets/Dove";
 import HeaderDove from "@/assets/HeaderDove";
 import {
   NavigationMenu,
   NavigationMenuItem,
   NavigationMenuList,
-  NavigationMenuLink,
 } from "@/components/ui/navigation-menu";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { SidebarTrigger } from "./ui/sidebar";
 // import * as DropdownMenu frLogIn, om "@radix-ui/react-dropdown-menu";
 
@@ -14,40 +12,39 @@ import { SidebarTrigger } from "./ui/sidebar";
 const items = [
   {
     title: "About",
-    url: "/about",
+    url: "/pages/about",
   },
   {
     title: "Events",
-    url: "/events",
+    url: "/pages/events",
   },
   {
     title: "Ministries",
-    url: "/ministries",
+    url: "/pages/ministries",
   },
   {
     title: "Media",
-    url: "/media",
+    url: "/pages/media",
   },
   {
     title: "Giving",
-    url: "/giving",
+    url: "/pages/giving",
   },
   {
     title: "Weekly Bulletin",
-    url: "/weekly-bulletin",
+    url: "/pages/weekly-bulletin",
   },
   {
     title: "Русский",
-    url: "/russian",
+    url: "/pages/russian",
   },
   {
     title: "Login",
-    url: "/login",
+    url: "/auth/login",
   },
 ];
 
 export default function PubNavBar() {
-  const location = useLocation();
 
   return (
     <NavigationMenu className="flex p-5 bg-[#000000] justify-between align-center text-white w-full! max-w-screen! max-h-max ">

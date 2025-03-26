@@ -18,7 +18,7 @@ class ItemBase(BaseModel):
     @staticmethod
     def to_out(item_data):
         return ItemOut(id=str(item_data.id), **item_data)
-    
+
 
 class ItemCreate(ItemBase):
     pass  # No 'id' in this model, used for creating a Item
