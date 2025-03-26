@@ -2,6 +2,17 @@
 
 Strapi comes with a full featured [Command Line Interface](https://docs.strapi.io/dev-docs/cli) (CLI) which lets you scaffold and manage your project in seconds.
 
+#### `setup`
+
+Setup is really easy regarding the .env file. Just copy the .env.example file and rename it to .env. You don't even need to change the values in the .env file. The default values are already set for you. These will need to be set however to propoer values when deploying to production.
+
+#### `admin login`
+
+To access the admin interface, browse: `http://localhost:1339/admin`
+
+- Username: `admin@gmail.com`
+- Password: `Csc190&csc191`
+
 ### `develop`
 
 Start your Strapi application with autoReload enabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-develop)
