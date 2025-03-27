@@ -8,7 +8,7 @@ interface AuthUser extends User {
 }
 
 interface AuthContextType {
-  currentUser: AuthUser | null;
+  user: AuthUser | null;
   loading: boolean;
   isWhitelisted: boolean;
   role: string | null;
@@ -26,7 +26,7 @@ const useAuth = () => {
 };
 
 const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [user,  setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isWhitelisted, setIsWhitelisted] = useState(false);
   const [role, setRole] = useState<string | null>(null);
@@ -39,17 +39,17 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userRole = (idTokenResult.claims.role as string) || "user";
           setRole(userRole);
           setIsWhitelisted(!!idTokenResult.claims.whitelisted);
-          setCurrentUser({ ...user, role: userRole });
+          setUser({ ...user, role: userRole });
         } catch (error) {
           console.error("Error fetching user claims:", error);
           setIsWhitelisted(false);
           setRole(null);
-          setCurrentUser(null);
+          setUser(null);
         }
       } else {
         setIsWhitelisted(false);
         setRole(null);
-        setCurrentUser(null);
+        setUser(null);
       }
       setLoading(false);
     });
@@ -58,7 +58,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const value = {
-    currentUser,
+    user,
     loading,
     isWhitelisted,
     role,
