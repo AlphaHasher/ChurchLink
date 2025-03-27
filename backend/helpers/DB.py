@@ -1,3 +1,5 @@
+import os
+
 from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
 
@@ -7,7 +9,7 @@ class DB:
 
     @staticmethod
     def init_db():
-        DB.client = AsyncIOMotorClient("mongodb://localhost:27017")
+        DB.client = AsyncIOMotorClient(os.getenv("MONGODB_URL") or "mongodb://localhost:27017")
         DB.db = DB.client["SSBC_DB"]
 
     @staticmethod
@@ -15,25 +17,24 @@ class DB:
         DB.client.close()
 
     @staticmethod
-    async def connect():
+    async def is_connected():
         try:
             await DB.client.admin.command('ping')
-            print("Successfully connected to MongoDB")
-            return DB.db
+            print("MongoDB connected successfully")
+            return True
         except Exception as e:
             print(f"Connection error: {e}")
+            return False
 
     @staticmethod
-    async def insert_document(collection_name, document):
+    async def create_document(collection_name, document):
         collection = DB.db[collection_name]
-        result = await collection.insert_one(document)
-        return result.inserted_id
+        return (await collection.insert_one(document)).inserted_id
 
     @staticmethod
     async def find_documents(collection_name, query=None, limit=None):
         collection = DB.db[collection_name]
-        query = query or {}
-        cursor = collection.find(query)
+        cursor = collection.find(query or {})
         if limit:
             cursor.limit(limit)
         return await cursor.to_list(length=limit) if limit else await cursor.to_list(length=None)
@@ -41,20 +42,20 @@ class DB:
     @staticmethod
     async def update_document(collection_name, filter_query, update_data):
         collection = DB.db[collection_name]
-        result = await collection.update_many(filter_query, {'$set': update_data})
-        return result.modified_count
+        return (await collection.update_many(filter_query, {'$set': update_data})).modified_count
 
     @staticmethod
     async def delete_documents(collection_name, delete_query):
         collection = DB.db[collection_name]
-        result = await collection.delete_many(delete_query)
-        return result.deleted_count
+        return (await collection.delete_many(delete_query)).deleted_count
 
 ### Testing connection to mongodb service, works on my machine with compass
 async def main():
     ## Main usage:
     DB.init_db()
-    await DB.connect()
+    print(await DB.is_connected())
+
+    print(type(DB.db))
 
     ## Generic usage:
     # Insert a document into a collection
@@ -63,7 +64,7 @@ async def main():
         "age": 30,
         "email": "john@example.com"
     }
-    await DB.insert_document("users", user_example)
+    await DB.create_document("users", user_example)
 
     # Find documents
     john = await DB.find_documents("users", {"name": "John Doe"}, limit=5)
@@ -76,6 +77,8 @@ async def main():
     # Delete documents
     deleted = await DB.delete_documents("users", {"name": "John Doe"})
     print(f"Deleted {deleted} documents")
+
+    DB.close_db()
 
 if __name__ == "__main__":
     asyncio.run(main())
