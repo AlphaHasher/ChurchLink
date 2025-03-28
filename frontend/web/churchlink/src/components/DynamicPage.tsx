@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom'; // Import useLocation to capture the full path
 
 export interface Page {
   id: number;
@@ -9,7 +9,10 @@ export interface Page {
 }
 
 const DynamicPage: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>(); // Get the slug from the URL
+  const location = useLocation(); // Use useLocation to get the full path
+  const slug = location.pathname.replace(/^\/|\/$/g, ''); // Capture full path and remove the leading and trailing slashes
+  console.log("Captured slug:", slug); // Log the captured slug
+
   const [pageData, setPageData] = useState<Page | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,11 +26,12 @@ const DynamicPage: React.FC = () => {
 
     const fetchPageData = async () => {
       try {
+        const encodedSlug = encodeURIComponent(slug);
         const apiUrl = import.meta.env.VITE_STRAPI_URL;
         if (!apiUrl) {
           throw new Error('API URL is not defined in the environment variables');
         }
-        const response = await fetch(`${apiUrl}/api/dynamic-pages?filters[slug][$eq]=${slug}`);
+        const response = await fetch(`${apiUrl}/api/dynamic-pages?filters[slug][$eq]=${encodedSlug}`);
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }
