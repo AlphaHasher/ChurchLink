@@ -9,14 +9,6 @@ import { MockUserData } from "@/TEMPORARY/MockUserData";
 import { applyBaseUserMask, applyUserPermLogicMask } from "@/helpers/DataFunctions";
 import UsersTable from "@/components/AdminDashboard/Users/BaseUserTable/UsersTable";
 
-import LogicalUserPermsTable from "@/components/ui/AdminDashboard/Users/LogicalUserOverview/LogicalUserPermsTable"
-
-import { MockPermData } from "@/TEMPORARY/MockPermData";
-import { MockUserData } from "@/TEMPORARY/MockUserData";
-
-import { applyBaseUserMask, applyUserPermLogicMask } from "@/helpers/DataFunctions";
-import UsersTable from "@/components/ui/AdminDashboard/Users/BaseUserTable/UsersTable";
-
 interface UserData {
   id: string;
   name: string;
