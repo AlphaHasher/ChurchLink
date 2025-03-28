@@ -12,7 +12,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Handles notifications received while the app is in the background
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
-  print("📢 Background notification received: ${message.notification?.title}");
+  print(" Background notification received: ${message.notification?.title}");
 }
 
 // Initialize Local Notifications
@@ -62,11 +62,11 @@ void setupFirebaseMessaging() async {
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     print(" User granted permission");
 
-    // ✅ Retrieve the FCM device token
+    // Retrieve the FCM device token
     String? token = await messaging.getToken();
     print(" Firebase Token: $token");
 
-    // ✅ Handle foreground messages with local notifications
+    // Handle foreground messages with local notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print(" Foreground message received: ${message.notification?.title}");
 
@@ -119,7 +119,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ChurchLink',
-      navigatorKey: navigatorKey, // ✅ Allows navigation from notifications
+      navigatorKey: navigatorKey, // Allows navigation from notifications
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60)),
       ),
