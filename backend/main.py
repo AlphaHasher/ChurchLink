@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
         firebase_admin.initialize_app(cred)
 
     # MongoDB connection setup
-    DatabaseManager.init_db()
+    await DatabaseManager.init_db()
 
     # Run Youtube Notification loop
     youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
