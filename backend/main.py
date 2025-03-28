@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException, APIRouter, Depends
+from fastapi import FastAPI, APIRouter, Depends
 from scalar_fastapi import get_scalar_api_reference
 from contextlib import asynccontextmanager
 import os
 from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials
-from helpers.DB import DB as DatabaseManager
+from backend.mongo.database import DB as DatabaseManager
 from helpers.Firebase_helpers import role_based_access
 from helpers.youtubeHelper import YoutubeHelper
 from get_bearer_token import generate_test_token
