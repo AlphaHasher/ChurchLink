@@ -23,7 +23,11 @@ const DynamicPage: React.FC = () => {
 
     const fetchPageData = async () => {
       try {
-        const response = await fetch(`http://localhost:1339/api/dynamic-pages?filters[slug][$eq]=${slug}`); // Correct API URL
+        const apiUrl = import.meta.env.VITE_STRAPI_URL;
+        if (!apiUrl) {
+          throw new Error('API URL is not defined in the environment variables');
+        }
+        const response = await fetch(`${apiUrl}/api/dynamic-pages?filters[slug][$eq]=${slug}`);
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }
