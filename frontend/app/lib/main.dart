@@ -8,35 +8,51 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Handles notifications received while the app is in the background
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
   print("📢 Background notification received: ${message.notification?.title}");
 }
 
+// Initialize Local Notifications
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Load environment variables
+  // Load environment variables
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    print("❌ Failed to load .env file: $e");
+    print("Failed to load .env file: $e");
   }
 
-  // ✅ Initialize Firebase
+  // Initialize Firebase
   await Firebase.initializeApp();
 
-  // ✅ Setup Firebase Messaging
+  // Setup Notifications
+  await setupLocalNotifications();
   setupFirebaseMessaging();
 
   runApp(const MyApp());
 }
 
+Future<void> setupLocalNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher'); // Ensure you have an icon in `android/app/src/main/res/mipmap`
+
+  const InitializationSettings initializationSettings =
+      InitializationSettings(android: initializationSettingsAndroid);
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+}
+
 void setupFirebaseMessaging() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-  // ✅ Request permission from the user
+  // Request permission from the user
   NotificationSettings settings = await messaging.requestPermission(
     alert: true,
     badge: true,
@@ -44,38 +60,56 @@ void setupFirebaseMessaging() async {
   );
 
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-    print("✅ User granted permission");
+    print(" User granted permission");
 
     // ✅ Retrieve the FCM device token
     String? token = await messaging.getToken();
-    print("🔥 Firebase Token: $token");
+    print(" Firebase Token: $token");
 
-    // ✅ Handle foreground messages
+    // ✅ Handle foreground messages with local notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("📢 Foreground message received: ${message.notification?.title}");
+      print(" Foreground message received: ${message.notification?.title}");
 
-      // Show a SnackBar notification
-      ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
-        SnackBar(
-          content: Text("${message.notification?.title}: ${message.notification?.body}"),
-        ),
-      );
+      // Show a pop-up notification
+      showLocalNotification(message);
     });
 
-    // ✅ Handle background messages
+    //  Handle background messages
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
 
-    // ✅ Handle when notification is clicked
+    //  Handle when notification is clicked
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print("📩 Notification clicked!");
       navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => DashboardPage()));
     });
   } else {
-    print("❌ User denied permission");
+    print(" User denied permission");
   }
 }
 
-// ✅ Global navigator key for displaying notifications
+//  Show Local Notification for Foreground Messages
+void showLocalNotification(RemoteMessage message) async {
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      AndroidNotificationDetails(
+    'high_importance_channel', // Unique channel ID
+    'High Importance Notifications',
+    importance: Importance.max,
+    priority: Priority.high,
+    ticker: 'ticker',
+  );
+
+  const NotificationDetails platformChannelSpecifics =
+      NotificationDetails(android: androidPlatformChannelSpecifics);
+
+  await flutterLocalNotificationsPlugin.show(
+    0, // Notification ID
+    message.notification?.title, // Title
+    message.notification?.body, // Body
+    platformChannelSpecifics,
+  );
+}
+
+//  Global navigator key for handling navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
@@ -85,7 +119,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ChurchLink',
-      navigatorKey: navigatorKey, // ✅ Allows access to Navigator for SnackBars
+      navigatorKey: navigatorKey, // ✅ Allows navigation from notifications
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60)),
       ),
@@ -144,3 +178,4 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+
