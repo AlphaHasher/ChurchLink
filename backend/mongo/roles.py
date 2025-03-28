@@ -73,9 +73,9 @@ class RoleHandler:
             print(f"An error occurred:\n {e}")
 
     @staticmethod
-    async def map(roles):
+    async def names_to_ids(roles_strs):
         role_ids = []
-        for role in roles:
+        for role in roles_strs:
             if await RoleHandler.is_role(role):
                 role_ids.append((await RoleHandler.get_role(role))[0]["_id"])
         return role_ids
