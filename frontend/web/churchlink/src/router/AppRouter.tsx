@@ -5,6 +5,7 @@ import { PublicRoute } from "./guard/PublicRoute";
 import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "./guard/PrivateRoute";
 import { PrivateRoutes } from "./PrivateRoutes";
+import DynamicPage from "../components/DynamicPage";
 
 // Lazy load components
 const Login = lazy(() => import("@/pages/Login"));
@@ -27,6 +28,16 @@ export const AppRouter = () => {
           element={
             <PublicRoute>
               <Signup />
+            </PublicRoute>
+          }
+        />
+
+        {/* Dynamic page route for any URL */}
+        <Route
+          path="/:slug/*" // Catch all routes. Apparently works with slashes compared to "/:slug", though functionality does not work at the moment.
+          element={
+            <PublicRoute>
+              <DynamicPage />
             </PublicRoute>
           }
         />
