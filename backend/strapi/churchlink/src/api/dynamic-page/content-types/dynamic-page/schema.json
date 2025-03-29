@@ -23,6 +23,11 @@
     "content": {
       "type": "string",
       "required": true
+    },
+    "permission_roles": {
+      "type": "json",
+      "default": [],
+      "required": true
     }
   }
 }

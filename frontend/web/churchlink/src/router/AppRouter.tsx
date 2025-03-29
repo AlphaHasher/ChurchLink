@@ -52,7 +52,7 @@ export const AppRouter = () => {
         />
 
         <Route
-          path="/*"
+          path="/admin/*"
           element={
             <PrivateRoute>
               <PrivateRoutes />
