@@ -14,13 +14,13 @@ export const PrivateRoutes = () => {
   return (
     <>
       <Routes>
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route path="/" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<Users />} />
-          <Route path="/admin/permissions" element={<Permissions />} />
-          <Route path="/admin/content" element={<ContentManagement />} />
-          <Route path="/admin/notifications" element={<Notification />} />
-          <Route path="/admin/finance" element={<Finance />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/permissions" element={<Permissions />} />
+          <Route path="/content" element={<ContentManagement />} />
+          <Route path="/notifications" element={<Notification />} />
+          <Route path="/finance" element={<Finance />} />
         </Route>
       </Routes>
     </>

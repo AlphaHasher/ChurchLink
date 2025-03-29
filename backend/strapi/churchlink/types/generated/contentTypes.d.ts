@@ -524,6 +524,9 @@ export interface ApiDynamicPageDynamicPage extends Struct.CollectionTypeSchema {
       'api::dynamic-page.dynamic-page'
     > &
       Schema.Attribute.Private;
+    permission_roles: Schema.Attribute.JSON &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<[]>;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.String &
       Schema.Attribute.Required &
