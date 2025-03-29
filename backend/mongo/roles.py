@@ -16,20 +16,27 @@ class RoleHandler:
             perms[perm] = True
         return perms
 
+    @staticmethod
+    async def is_role(name):
+        return len(await DB.find_documents("roles", {"name": name})) > 0
+
+    @staticmethod
+    async def names_to_ids(roles_strs):
+        role_ids = []
+        for role in roles_strs:
+            if await RoleHandler.is_role(role):
+                role_ids.append((await RoleHandler.find_role(role))[0]["_id"])
+        return role_ids
+
+    ################
+    ## Operations ##
+    ################
     @classmethod
     def create_schema(cls, name, perm_strs):
         return {
             "name": name,
             "permissions": RoleHandler.create_permission_list(perm_strs)
         }
-
-    @staticmethod
-    async def is_role(name):
-        return len(await DB.find_documents("roles", {"name": name})) > 0
-
-    ################
-    ## Operations ##
-    ################
     
     @staticmethod
     async def create_role(name, permissions):
@@ -49,8 +56,24 @@ class RoleHandler:
             print(f"An error occurred:\n {e}")
 
     @staticmethod
-    async def get_role(name):
+    async def find_role(name):
         return await DB.find_documents("roles", {"name": name})
+
+    @staticmethod
+    async def find_role_id(name):
+        result = await DB.find_documents("roles", {"name": name})
+        if result and len(result) > 0:
+
+            return result[0]["_id"]
+        return None
+
+    @staticmethod
+    async def find_roles_with_permissions(permission_names):
+        query = {}
+        for perm in permission_names:
+            query[f"permissions.{perm}"] = True
+
+        return await DB.find_documents("roles", query)
 
     @staticmethod
     async def update_role(name, permissions):
@@ -71,11 +94,3 @@ class RoleHandler:
             await DB.delete_documents("roles", {"name": name})
         except Exception as e:
             print(f"An error occurred:\n {e}")
-
-    @staticmethod
-    async def names_to_ids(roles_strs):
-        role_ids = []
-        for role in roles_strs:
-            if await RoleHandler.is_role(role):
-                role_ids.append((await RoleHandler.get_role(role))[0]["_id"])
-        return role_ids
