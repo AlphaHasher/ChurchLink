@@ -22,7 +22,6 @@ async def main():
     # Overwrite role perms
     await Role.update_role("Event Manager", ["event_management", "finance"])
 
-
     ### Users
     await User.create_user("fname", "lname", "email", ["Event Manager", "Administrator"], "phone", "birthday", "address", )
     await User.create_user("fname2", "lname2", "email2", ["Administrator"], "phone2", "birthday2", "address2")
