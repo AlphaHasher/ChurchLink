@@ -114,7 +114,7 @@ async def update_user_roles(role_update: RoleUpdate):
 #####################################################
 # Base Router Configuration
 #####################################################
-router_base = APIRouter(prefix="/api/v1", tags=["base"])
+router_base = APIRouter(prefix="/api/v1")
 # Add Firebase authentication dependency to base router, needs base role
 router_base.dependencies.append(Depends(role_based_access(["base"])))
 router_base.include_router(item_router_base)

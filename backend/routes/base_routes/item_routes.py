@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from models.item import ItemCreate, get_items, create_item, get_item_by_id, update_item, delete_item
 
-item_router = APIRouter(prefix="/items")
+item_router = APIRouter(prefix="/items", tags=["Items"])
 
 
 @item_router.get("/")

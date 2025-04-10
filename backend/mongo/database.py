@@ -2,6 +2,10 @@ import os
 import pymongo
 from motor.motor_asyncio import AsyncIOMotorClient
 
+# MongoDB connection settings
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "SSBC_DB")
+
 class DB:
     client = None
     db = None
@@ -16,7 +20,7 @@ class DB:
         },
         {
             "name": "events",
-            "indexes": ["date", "price"]
+            "indexes": ["date", "name"]
         }
     ]
 
@@ -24,14 +28,26 @@ class DB:
     ## Setup ##
     ###########
 
-    @staticmethod
-    async def init_db(name=None):
-        DB.client = AsyncIOMotorClient(os.getenv("MONGODB_URL") or "mongodb://localhost:27017")
-        DB.db = DB.client[name or "SSBC_DB"]
-        # Sanity check
-        await DB.is_connected()
-        # Schema validation
-        await DB.init_collections()
+    @classmethod
+    async def init_db(cls):
+        """Initialize the database connection and create indexes."""
+        try:
+            # Connect to MongoDB
+            cls.client = AsyncIOMotorClient(os.getenv("MONGODB_URL") or "mongodb://localhost:27017")
+            cls.db = cls.client[DB_NAME]
+            
+            # Drop existing indexes on events collection
+            await cls.db["events"].drop_indexes()
+            
+            # Create new indexes
+            for collection in cls.collections:
+                for index in collection["indexes"]:
+                    await cls.db[collection["name"]].create_index([(index, 1)])
+            
+            print("Database initialized successfully")
+        except Exception as e:
+            print(f"Error initializing database: {e}")
+            raise e
 
     @staticmethod
     async def init_collections():
