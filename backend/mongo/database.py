@@ -14,6 +14,10 @@ class DB:
             "name": "roles",
             "indexes": ["name"]
         },
+        {
+            "name": "events",
+            "indexes": ["date", "price"]
+        }
     ]
 
     ###########
