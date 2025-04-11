@@ -2,7 +2,7 @@ import asyncio
 from mongo.database import DB
 # Import new models and functions
 from models.roles import RoleCreate, create_role, update_role, get_role_by_name, get_roles_with_permissions, create_permission_list
-from models.churchuser import UserCreate, create_user, update_user_roles, find_users_with_role_id, find_users_with_permissions
+from models.user import UserCreate, create_user, update_user_roles, find_users_with_role_id, find_users_with_permissions
 from pydantic import EmailStr
 from datetime import datetime # Needed for potential birthday field
 
