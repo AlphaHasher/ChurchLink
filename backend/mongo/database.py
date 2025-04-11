@@ -21,9 +21,7 @@ class DB:
         {
             "name": "events",
             # Reverting indexes back to original based on user feedback
-            "indexes": ["name", "date"]
-            # Consider adding a text index for search_events if not already present
-            # Example: {"name": "text", "description": "text"}
+            "indexes": ["name"]
         }
     ]
 
@@ -40,61 +38,28 @@ class DB:
         # Schema validation and index creation
         await DB.init_collections()
 
+
+
     @staticmethod
     async def init_collections():
-        existing_collections = await DB.db.list_collection_names()
-        for collection_spec in DB.collections:
-            collection_name = collection_spec["name"]
-            
-            if collection_name not in existing_collections:
-                print(f"Creating collection: {collection_name}")
+        for collection in DB.collections:
+            collection_name = collection["name"]
+            collection_names = await DB.db.list_collection_names()
+            if collection_name not in collection_names:
                 await DB.db.create_collection(collection_name)
-            else:
-                print(f"Collection {collection_name} already exists.")
 
-            # Create defined indexes
-            if "indexes" in collection_spec:
-                collection = DB.db[collection_name]
-                # Fetch existing indexes to avoid recreating them (optional but good practice)
-                existing_indexes = await collection.index_information()
-                
-                for index_field in collection_spec["indexes"]:
-                    index_name = f"{index_field}_1" # Default name format for single field ascending index
-                    unique_index_name = f"unique_{index_field}_index"
-                    
-                    # Check if a similar index already exists
-                    if index_name not in existing_indexes and unique_index_name not in existing_indexes:
-                        try:
-                            print(f"Creating index on {collection_name}.{index_field}")
-                            await collection.create_index([(index_field, pymongo.ASCENDING)], name=index_name)
-                             # If uniqueness is desired, uncomment the unique index creation below
-                            # print(f"Creating unique index on {collection_name}.{index_field}")
-                            # await collection.create_index(
-                            #     [(index_field, pymongo.ASCENDING)],
-                            #     unique=True,
-                            #     name=unique_index_name
-                            # )
-                        except Exception as e:
-                             print(f"Error creating index on {collection_name}.{index_field}: {e}")
-                    # else:
-                    #     print(f"Index on {collection_name}.{index_field} already exists.")
-            
-            # Example: Ensure text index for events (if needed for search_events)
-            if collection_name == "events":
-                collection = DB.db[collection_name]
-                existing_indexes = await collection.index_information()
-                text_index_name = "event_text_search_index"
-                # Define fields for text index
-                text_index_fields = [("name", "text"), ("description", "text")] 
-                # Check if a text index already exists
-                if text_index_name not in existing_indexes and not any(v.get('text') for v in existing_indexes.values()):
-                    print(f"Creating text index on {collection_name} for fields: name, description")
-                    try:
-                        await collection.create_index(text_index_fields, name=text_index_name, default_language='english')
-                    except Exception as e:
-                         print(f"Error creating text index on {collection_name}: {e}")
-                # else:
-                #      print(f"Text index on {collection_name} already exists.")
+            # Create unique indexer from schema property name
+            if "indexes" in collection:
+                for index in collection["indexes"]:
+                    # Ensure unique field
+                    await DB.db[collection_name].create_indexes([
+                        pymongo.IndexModel(
+                            [(index, pymongo.ASCENDING)],
+                            unique=True,
+                            name="unique_" + index + "_index"
+                        )
+                    ])
+
 
 
     @staticmethod
