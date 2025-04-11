@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Query, Body
+from fastapi import APIRouter, HTTPException, status, Query, Body, Depends
 from pydantic import EmailStr
 from bson import ObjectId
 from datetime import datetime # Import datetime if needed for birthday query
@@ -8,9 +8,9 @@ from datetime import datetime # Import datetime if needed for birthday query
 from models.user import (
     UserCreate, UserOut, AddressSchema, # Assuming AddressSchema might be needed for updates
     create_user, get_user_by_id, get_user_by_email,
-    find_users_with_role_id, find_users_with_permissions,
-    find_users_by_first_name, find_users_by_last_name,
-    update_user_roles, delete_user, find_users_by_age
+    get_users,
+    find_users_with_permissions,
+    update_user_roles, delete_user
 )
 
 # Assuming RoleOut might be needed if fetching roles associated with users
@@ -75,25 +75,37 @@ async def get_user_by_email_route(user_email: EmailStr):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with email '{user_email}' not found")
     return user
 
-# --- User Search/Filtering ---
+# --- Updated Route for Listing/Filtering Multiple Users --- 
 @user_router.get(
-    "/with-role/{role_id}",
+    "/",
     response_model=List[UserOut],
-    summary="Find users by role ID"
+    summary="List users or find by various criteria"
 )
-async def find_users_with_role_id_route(role_id: str):
+async def get_users_route(
+    first_name: Optional[str] = Query(None, description="Filter by first name (exact match)"),
+    last_name: Optional[str] = Query(None, description="Filter by last name (exact match)"),
+    age: Optional[int] = Query(None, description="Filter by current age"),
+    role_id: Optional[str] = Query(None, description="Filter by assigned role ID (ObjectId string)"),
+    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
+    limit: Optional[int] = Query(100, ge=1, description="Maximum number of records to return (default 100)")
+):
     """
-    Finds all users who are assigned the specified role ID.
+    Lists users or finds users matching the provided optional query parameters.
+    If no filter parameters are provided, lists all users (paginated).
+    Supports pagination with `skip` and `limit`.
     """
-    try:
-        ObjectId(role_id)
-    except Exception:
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid ObjectId format for role ID: {role_id}")
-
-    users = await find_users_with_role_id(role_id)
-    # Return empty list if none found, no error needed
+    # Call the updated function with query parameters (email removed)
+    users = await get_users(
+        first_name=first_name,
+        last_name=last_name,
+        age=age,
+        role_id=role_id,
+        skip=skip,
+        limit=limit
+    )
     return users
 
+# --- Permission-based search route remains separate --- 
 @user_router.get(
     "/with-permissions/",
     response_model=List[UserOut],
@@ -110,44 +122,6 @@ async def find_users_with_permissions_route(
          raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No permission names provided")
     users = await find_users_with_permissions(permission_names)
     return users
-
-@user_router.get(
-    "/by-name/",
-    response_model=List[UserOut],
-    summary="Find users by first or last name"
-)
-async def find_users_by_name_route(first_name: Optional[str] = None, last_name: Optional[str] = None):
-    """
-    Finds users matching the provided first name and/or last name.
-    - Provide `first_name` query parameter to search by first name.
-    - Provide `last_name` query parameter to search by last name.
-    - If both are provided, it might require a specific model function (find_by_full_name) or adjusted logic.
-      (Current implementation will likely use find_by_first_name or find_by_last_name depending on which is called last if both provided, needs refinement for combined search)
-    """
-    users = []
-    if first_name:
-        users = await find_users_by_first_name(first_name)
-    elif last_name: # Use elif to avoid overwriting if first_name was also provided and matched
-        users = await find_users_by_last_name(last_name)
-    else:
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please provide 'first_name' or 'last_name' query parameter.")
-    # Consider adding find_by_full_name if needed for AND condition
-    return users
-
-@user_router.get(
-    "/by-age/{age}",
-    response_model=List[UserOut],
-    summary="Find users by exact age"
-)
-async def find_users_by_age_route(age: int):
-    """
-    Finds users who are currently the specified age based on their birthday.
-    """
-    if age < 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Age must be non-negative")
-    users = await find_users_by_age(age)
-    return users
-
 
 # --- User Modification ---
 @user_router.put(

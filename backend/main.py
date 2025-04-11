@@ -18,7 +18,7 @@ import asyncio
 from routes.base_routes.event_routes import event_router as event_router
 from routes.base_routes.role_routes import role_router as role_router
 from routes.base_routes.user_routes import user_router as user_router
-
+from routes.base_routes.event_routes import public_event_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
@@ -110,9 +110,13 @@ async def update_user_roles(role_update: RoleUpdate):
     )
 
 
+#routes that are public and don't need authentication
+#####################################################
+# Public Router Configuration
+#####################################################
+public_router = APIRouter(prefix="/api/v1")
+public_router.include_router(public_event_router)
 
-
-# This are an example we can discuss as a group
 
 #####################################################
 # Base Router Configuration
@@ -124,9 +128,6 @@ router_base.include_router(item_router_base)
 router_base.include_router(event_router)
 router_base.include_router(role_router)
 router_base.include_router(user_router)
-
-#####################################################
-
 
 
 #####################################################
@@ -169,7 +170,7 @@ app.include_router(router_admin)
 app.include_router(router_finance)
 app.include_router(router_webhook_listener)
 app.include_router(router_strapi)
-
+app.include_router(public_router)
 
 if __name__ == "__main__":
     import uvicorn

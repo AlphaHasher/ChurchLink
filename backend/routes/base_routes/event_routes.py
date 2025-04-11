@@ -6,19 +6,20 @@ from bson import ObjectId
 
 
 event_router = APIRouter(prefix="/events", tags=["Events"])
+public_event_router = APIRouter(prefix="/events", tags=["Events Public Routes"])
 
 
-@event_router.get("/", summary="Get events by filters")
+@public_event_router.get("/", summary="Get events by filters")
 async def get_events(skip: int = 0, limit: int = 100, ministry: str = None, min_age: int = None, gender: Literal["male", "female", "all"] = "all", free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "gender", "free"] = "date"):
     return await sort_events(skip, limit, ministry, min_age, gender, free, sort, sort_by)
 
 
-@event_router.get("/search", summary="Search events")
+@public_event_router.get("/search", summary="Search events")
 async def search_events_route(query: str, skip: int = 0, limit: int = 100, ministry: str = None, min_age: int = None, gender: Literal["male", "female", "all"] = "all", free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "gender", "free"] = "date"):
     return await search_events(query, skip, limit, ministry, min_age, gender, free, sort, sort_by)
 
 
-@event_router.get("/{event_id}", summary="Get event by id")
+@public_event_router.get("/{event_id}", summary="Get event by id")
 async def get_event_by_id_route(event_id: str):
     event = await get_event_by_id(event_id)
     if not event:

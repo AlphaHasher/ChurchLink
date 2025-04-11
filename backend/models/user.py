@@ -1,10 +1,67 @@
-from typing import Optional, List
+from typing import Optional, List, Any, Annotated
 from datetime import datetime
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import (
+    BaseModel, Field, EmailStr, ConfigDict, 
+    GetCoreSchemaHandler, GetJsonSchemaHandler
+)
+from pydantic_core import core_schema
 from bson import ObjectId
 from mongo.database import DB
 # Import the refactored roles functions
 from models.roles import get_role_ids_from_names, get_roles_with_permissions
+
+# Custom Pydantic type for handling BSON ObjectId
+class _ObjectIdPydanticAnnotation:
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        _source_type: Any,
+        _handler: GetCoreSchemaHandler,
+    ) -> core_schema.CoreSchema:
+        """
+        Defines how to validate the ObjectId. 
+        Accepts ObjectId instances directly or attempts to validate from a string.
+        """
+        def validate_from_str(v: str) -> ObjectId:
+            try:
+                return ObjectId(v)
+            except Exception:
+                # Catch specific exceptions if needed (e.g., bson.errors.InvalidId)
+                raise ValueError(f"Invalid ObjectId string format: '{v}'")
+
+        # Schema for validating from a string input
+        from_str_schema = core_schema.chain_schema(
+            [
+                core_schema.str_schema(),
+                core_schema.no_info_plain_validator_function(validate_from_str),
+            ]
+        )
+
+        return core_schema.union_schema(
+            [
+                # Allow ObjectId instances directly during model creation/validation
+                core_schema.is_instance_schema(ObjectId),
+                # Allow validation from string input
+                from_str_schema,
+            ],
+            # Always serialize to string representation
+            serialization=core_schema.plain_serializer_function_ser_schema(lambda x: str(x)),
+        )
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> dict:
+        """
+        Defines the JSON schema representation for ObjectId as a string.
+        """
+        # Use the existing string schema handler and add the 'objectid' format
+        json_schema = handler(core_schema.str_schema())
+        json_schema.update({'type': 'string', 'format': 'objectid'})
+        return json_schema
+
+# Annotated type using the custom class
+PydanticObjectId = Annotated[ObjectId, _ObjectIdPydanticAnnotation]
 
 # Pydantic Models for User Data
 class AddressSchema(BaseModel):
@@ -22,28 +79,21 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
     birthday: Optional[datetime] = None
     address: AddressSchema = Field(default_factory=AddressSchema)
-    roles: List[ObjectId] # Store role ObjectIds directly
+    roles: List[PydanticObjectId] = Field(default_factory=list)
     bible_notes: List[str] = Field(default_factory=list)
     createdOn: datetime = Field(default_factory=datetime.now)
-
-    # Add model config to allow ObjectId
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 class UserCreate(UserBase):
     # Input roles as names, will be converted to ObjectIds before saving
     roles_in: List[str] = Field(..., alias="roles") # Expect 'roles' in input as list of names
 
     # Exclude the direct 'roles' field from the input model if conversion happens separately
-    # Also exclude createdOn as it's set automatically
     model_config = ConfigDict(
-        # exclude={"roles", "createdOn"}, # createdOn handled by default_factory
-        exclude={"roles"}, 
-        arbitrary_types_allowed=True # Inherited, but good to be explicit if needed elsewhere
+        exclude={"roles"}
     )
 
 class UserOut(UserBase):
     id: str # Output id as string
-    # UserOut inherits model_config from UserBase
 
 # CRUD Operations as top-level async functions
 
@@ -117,25 +167,72 @@ async def get_user_by_email(email: EmailStr) -> Optional[UserOut]:
         print(f"An error occurred fetching user by email: {e}")
         return None
 
+# --- Renamed and Refined Get Users Function --- 
+async def get_users(
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    age: Optional[int] = None,
+    role_id: Optional[str] = None, # Input as string, convert to ObjectId
+    skip: int = 0,
+    limit: Optional[int] = 100 # Default limit, use None for no limit
+) -> List[UserOut]:
+    """
+    Finds a list of users based on various optional non-unique criteria.
+    Supports pagination using skip and limit.
+    Use get_user_by_id or get_user_by_email for single user lookups by unique fields.
+    """
+    query = {}
+    
+    if first_name:
+        query["first_name"] = first_name
+    if last_name:
+        query["last_name"] = last_name
+    # Removed email query logic
+    if role_id:
+        try:
+            query["roles"] = ObjectId(role_id)
+        except Exception:
+             print(f"Invalid role_id format provided to get_users: {role_id}")
+             return []
+    if age is not None:
+        if age < 0:
+            print("Age must be non-negative")
+            return []
+        today = datetime.now()
+        start_date = datetime(today.year - age - 1, today.month, today.day)
+        end_date = datetime(today.year - age, today.month, today.day)
+        query["birthday"] = {"$gte": start_date, "$lt": end_date}
 
-async def find_users_with_role_id(role_id: str) -> List[UserOut]:
-    """
-    Finds all users associated with a specific role ID using DB.find_documents.
-    """
+    # If query is empty, it implies fetching all users (respecting pagination)
+    # We might want different behavior, e.g., require at least one filter?
+    # For now, allowing empty query to list users.
+    # if not query:
+    #     print("Warning: get_users called without any search criteria.")
+    #     return [] 
+
     users_out = []
     try:
-        obj_role_id = ObjectId(role_id)
-        # Use find_documents helper
-        user_docs = await DB.find_documents("users", {"roles": obj_role_id})
+        cursor = DB.db["users"].find(query)
+        
+        # Apply pagination
+        if skip > 0:
+            cursor = cursor.skip(skip)
+        effective_limit = limit if limit is not None else 0
+        if effective_limit > 0:
+             cursor = cursor.limit(effective_limit)
+
+        user_docs = await cursor.to_list(length=effective_limit if effective_limit > 0 else None)
+        
         for user_doc in user_docs:
             user_doc["id"] = str(user_doc.pop("_id"))
             users_out.append(UserOut(**user_doc))
         return users_out
     except Exception as e:
-        print(f"An error occurred finding users by role ID: {e}")
+        # Renamed function name in error message
+        print(f"An error occurred during get_users: {e}") 
         return []
 
-
+# --- Keep permission-based search separate as it involves role lookup --- 
 async def find_users_with_permissions(permission_names: List[str]) -> List[UserOut]:
     """
     Finds users with roles granting specified permissions using DB.find_documents.
@@ -159,41 +256,7 @@ async def find_users_with_permissions(permission_names: List[str]) -> List[UserO
         print(f"An error occurred finding users by permissions: {e}")
         return []
 
-
-# Example finders (add more as needed based on the original UserHandler)
-async def find_users_by_first_name(first_name: str) -> List[UserOut]:
-    """
-    Finds users by first name using DB.find_documents.
-    """
-    users_out = []
-    try:
-        # Use find_documents helper
-        user_docs = await DB.find_documents("users", {"first_name": first_name})
-        for user_doc in user_docs:
-            user_doc["id"] = str(user_doc.pop("_id"))
-            users_out.append(UserOut(**user_doc))
-        return users_out
-    except Exception as e:
-        print(f"An error occurred finding users by first name: {e}")
-        return []
-
-async def find_users_by_last_name(last_name: str) -> List[UserOut]:
-    """
-    Finds users by last name using DB.find_documents.
-    """
-    users_out = []
-    try:
-        # Use find_documents helper
-        user_docs = await DB.find_documents("users", {"last_name": last_name})
-        for user_doc in user_docs:
-            user_doc["id"] = str(user_doc.pop("_id"))
-            users_out.append(UserOut(**user_doc))
-        return users_out
-    except Exception as e:
-        print(f"An error occurred finding users by last name: {e}")
-        return []
-
-
+# --- User Modification/Deletion --- 
 async def update_user_roles(email: EmailStr, role_names: List[str]) -> bool:
     """
     Updates the roles for a user specified by email.
@@ -218,7 +281,6 @@ async def update_user_roles(email: EmailStr, role_names: List[str]) -> bool:
         print(f"An error occurred updating user roles: {e}")
         return False
 
-
 async def delete_user(user_id: str) -> bool:
     """
     Deletes a user by their ID.
@@ -234,31 +296,3 @@ async def delete_user(user_id: str) -> bool:
         print(f"An error occurred deleting user: {e}")
         return False
 
-# Add other necessary functions like update_user_profile, find_by_phone, find_by_age etc.
-# following the same pattern: Pydantic models for input/output, top-level async function.
-# Example:
-async def find_users_by_age(age: int) -> List[UserOut]:
-    """
-    Finds users within a specific age range using DB.find_documents.
-    """
-    users_out = []
-    try:
-        today = datetime.now()
-        start_date = datetime(today.year - age - 1, today.month, today.day)
-        end_date = datetime(today.year - age, today.month, today.day)
-
-        query = {
-            "birthday": {
-                "$gte": start_date,
-                "$lt": end_date
-            }
-        }
-        # Use find_documents helper
-        user_docs = await DB.find_documents("users", query)
-        for user_doc in user_docs:
-            user_doc["id"] = str(user_doc.pop("_id"))
-            users_out.append(UserOut(**user_doc))
-        return users_out
-    except Exception as e:
-        print(f"An error occurred finding users by age: {e}")
-        return []
