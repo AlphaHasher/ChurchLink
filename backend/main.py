@@ -10,10 +10,7 @@ from helpers.Firebase_helpers import role_based_access
 from helpers.youtubeHelper import YoutubeHelper
 from get_bearer_token import generate_test_token
 from pydantic import BaseModel
-from routes.base_routes.item_routes import item_router as item_router_base
-from routes.webhook_listener_routes.youtube_listener_routes import (
-    youtube_router as youtube_router,
-)
+from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from add_roles import add_user_role, RoleUpdate
 import asyncio
@@ -91,7 +88,8 @@ async def get_auth_token(credentials: LoginCredentials):
     """Get a Firebase authentication token using email and password"""
     try:
         token = generate_test_token(
-            email=credentials.email, password=credentials.password
+            email=credentials.email, 
+            password=credentials.password
         )
         if token:
             return {"access_token": token, "token_type": "Bearer"}
@@ -113,7 +111,9 @@ async def update_user_roles(role_update: RoleUpdate):
         dict: Contains status, message, and current roles
     """
     return add_user_role(
-        uid=role_update.uid, roles=role_update.roles, remove=role_update.remove
+        uid=role_update.uid, 
+        roles=role_update.roles, 
+        remove=role_update.remove
     )
 
 
@@ -131,7 +131,6 @@ public_router.include_router(public_event_router)
 router_base = APIRouter(prefix="/api/v1")
 # Add Firebase authentication dependency to base router, needs base role
 router_base.dependencies.append(Depends(role_based_access(["base"])))
-# router_base.include_router(item_router_base)
 router_base.include_router(event_router)
 router_base.include_router(role_router)
 router_base.include_router(user_router)

@@ -5,7 +5,7 @@
 # Search
 
 
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 from datetime import datetime
 from mongo.database import DB
 from pydantic import BaseModel, Field
@@ -20,18 +20,35 @@ class Event(BaseModel):
     description: str
     date: datetime
     location: str
-    price: str
-    ministry: str
+    price: float
+    spots: int
+    rsvp: bool
+    recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
+    ministry: List[str]
     min_age: int = Field(default=1, ge=1)
+    max_age: int = Field(default=100, ge=1)
     gender: Literal["all", "male", "female"]
-    free: bool
     image_url: Optional[str] = None  # Add optional image URL
     thumbnail_url: Optional[str] = None  # Add optional thumbnail URL
     mock: bool = False
 
 
-class EventCreate(Event):
-    pass
+class EventCreate(BaseModel):
+    name: str
+    description: str
+    date: datetime
+    location: str
+    price: float
+    spots: int
+    rsvp: bool
+    recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
+    ministry: List[str]
+    min_age: int = Field(default=1, ge=1)
+    max_age: int = Field(default=100, ge=1)
+    gender: Literal["all", "male", "female"]
+    image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    mock: bool = False
 
 
 class EventOut(Event):
@@ -131,25 +148,39 @@ async def search_events(
     skip: int = 0,
     limit: int = 100,
     ministry: str = None,
-    min_age: int = None,
+    min_age: Optional[int] = None,
+    max_age: Optional[int] = None,
     gender: Literal["male", "female", "all"] = "all",
-    free: bool = None,
+    is_free: Optional[bool] = None,
     sort: Literal["asc", "desc"] = "asc",
     sort_by: Literal[
-        "date", "name", "location", "price", "ministry", "min_age", "gender", "free"
+        "date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"
     ] = "date",
 ):
     query = {"$text": {"$search": query_text}}
 
     # Apply filters
     if ministry:
-        query["ministry"] = ministry
+        query["ministry"] = {"$in": [ministry]}
+    
+    age_filter = {}
     if min_age is not None:
-        query["min_age"] = {"$gte": min_age}
+        age_filter["$lte"] = min_age
+    if max_age is not None:
+        age_filter["$gte"] = max_age
+    
+    if min_age is not None and max_age is not None:
+        query["min_age"] = {"$lte": max_age}
+        query["max_age"] = {"$gte": min_age}
+    elif min_age is not None:
+         query["max_age"] = {"$gte": min_age}
+    elif max_age is not None:
+         query["min_age"] = {"$lte": max_age}
+
     if gender != "all":
         query["gender"] = gender
-    if free is not None:
-        query["free"] = free
+    if is_free is not None:
+        query["price"] = 0.0 if is_free else {"$gt": 0.0}
 
     # Get total count matching search and filters
     total = await DB.db["events"].count_documents(query)
@@ -178,12 +209,13 @@ async def sort_events(
     skip: int = 0,
     limit: int = 100,
     ministry: str = None,
-    min_age: int = None,
+    min_age: Optional[int] = None,
+    max_age: Optional[int] = None,
     gender: Literal["male", "female", "all"] = "all",
-    free: bool = None,
+    is_free: Optional[bool] = None,
     sort: Literal["asc", "desc"] = "asc",
     sort_by: Literal[
-        "date", "name", "location", "price", "ministry", "min_age", "gender", "free"
+        "date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"
     ] = "date",
 ):
     """
@@ -192,10 +224,11 @@ async def sort_events(
     Args:
         skip (int): Number of events to skip
         limit (int): Maximum number of events to return
-        ministry (str): Filter by ministry
-        min_age (int): Filter by minimum age
+        ministry (str): Filter by ministry (must be in the event's list)
+        min_age (int): Filter by minimum attendee age
+        max_age (int): Filter by maximum attendee age
         gender (str): Filter by gender
-        free (bool): Filter by free status
+        is_free (bool): Filter by free status (price == 0)
         sort (str): Sort direction ("asc" or "desc")
         sort_by (str): Field to sort by
 
@@ -206,18 +239,20 @@ async def sort_events(
 
     # Apply filters
     if ministry:
-        query["ministry"] = ministry
+        query["ministry"] = {"$in": [ministry]}
 
-    # Apply age filters directly
-    if min_age is not None:
-        query["min_age"] = {
-            "$gte": min_age
-        }  # Filter events where event's min_age >= requested min_age
+    if min_age is not None and max_age is not None:
+        query["min_age"] = {"$lte": max_age}
+        query["max_age"] = {"$gte": min_age}
+    elif min_age is not None:
+         query["max_age"] = {"$gte": min_age}
+    elif max_age is not None:
+         query["min_age"] = {"$lte": max_age}
 
     if gender != "all":
         query["gender"] = gender
-    if free is not None:
-        query["free"] = free
+    if is_free is not None:
+        query["price"] = 0.0 if is_free else {"$gt": 0.0}
 
     # Get events with sorting
     sort_direction = 1 if sort == "asc" else -1
@@ -257,21 +292,15 @@ async def get_event_amount() -> int:
 async def create_mock_events(count: int) -> dict:
     """
     Create a specified number of mock events in the database.
-    (Uses insert_one directly within the loop for clarity)
-    Could potentially be optimized with insert_many if DB helper supported it.
+    Uses the updated EventCreate model.
     """
     fake = Faker()
     ministries = [
-        "Youth",
-        "Children",
-        "Women",
-        "Men",
-        "Family",
-        "Worship",
-        "Outreach",
-        "Bible Study",
+        "Youth", "Children", "Women", "Men", "Family",
+        "Worship", "Outreach", "Bible Study", "Young Adults", "Seniors"
     ]
     genders = ["male", "female", "all"]
+    recurring_options = ["daily", "weekly", "monthly", "yearly", "never"]
 
     inserted_count = 0
     try:
@@ -279,47 +308,51 @@ async def create_mock_events(count: int) -> dict:
             # Generate random date between now and 1 year from now
             start_date = datetime.now()
             end_date = datetime.now().replace(year=datetime.now().year + 1)
-            random_date = fake.date_time_between(
-                start_date=start_date, end_date=end_date
-            )
+            random_date = fake.date_time_between(start_date=start_date, end_date=end_date)
 
-            # Generate random age range
-            mock_min_age = random.randint(1, 18)
+            # Generate random age range ensuring min_age <= max_age
+            mock_min_age = random.randint(1, 80) # e.g. min age can be up to 80
+            mock_max_age = random.randint(mock_min_age, 100) # max age is between min_age and 100
 
-            # Create mock event
-            mock_event = EventCreate(
-                id=str(ObjectId()),
-                name=fake.sentence(nb_words=4),
-                description=fake.paragraph(nb_sentences=3),
+            # Decide if event is free or paid
+            is_event_free = random.choice([True, False])
+            mock_price = 0.0 if is_event_free else round(random.uniform(5.0, 150.0), 2)
+
+            # Choose one or more ministries
+            num_ministries = random.randint(1, 3)
+            mock_ministries = random.sample(ministries, num_ministries)
+
+            # Create mock event using EventCreate (no id)
+            mock_event_data = EventCreate(
+                name=fake.catch_phrase(), # Shorter, more event-like names
+                description=fake.paragraph(nb_sentences=random.randint(2, 5)),
                 date=random_date,
                 location=fake.address(),
-                price=f"${random.randint(0, 100)}",
-                ministry=random.choice(ministries),
+                price=mock_price, # Use float price
+                spots=random.randint(10, 200), # Add spots
+                rsvp=random.choice([True, False]), # Add rsvp
+                recurring=random.choice(recurring_options), # Add recurring
+                ministry=mock_ministries, # Use list of ministries
                 min_age=mock_min_age,
+                max_age=mock_max_age, # Add max_age
                 gender=random.choice(genders),
-                free=random.choice([True, False]),
-                image_url=fake.image_url()
-                if random.choice([True, False])
-                else None,  # Add mock image URL
-                thumbnail_url=fake.image_url(width=200, height=200)
-                if random.choice([True, False])
-                else None,  # Add mock thumbnail URL
-                mock=True,
+                image_url=fake.image_url() if random.random() > 0.3 else None, # More likely to have image
+                thumbnail_url=fake.image_url(width=200, height=200) if random.random() > 0.5 else None, # More likely to have thumbnail
+                mock=True, # Mark as mock
             )
 
-            # Insert into database directly
-            # Using insert_one here for simplicity within the loop
-            # Could use DB.insert_document, but result handling is similar
-            result = await DB.db["events"].insert_one(mock_event.model_dump())
+            # Insert into database using the model function's internal logic
+            # This uses DB.insert_document helper implicitly now via create_event, if we used it
+            # Or insert directly as before:
+            result = await DB.db["events"].insert_one(mock_event_data.model_dump())
             if result.inserted_id:
                 inserted_count += 1
 
-        print(
-            f"Successfully created {inserted_count} mock events out of {count} requested."
-        )
+        print(f"Successfully created {inserted_count} mock events out of {count} requested.")
         return {"message": f"Successfully created {inserted_count} mock events"}
     except Exception as e:
         print(f"Error creating mock events: {e}")
-        return {
-            "message": f"Error creating mock events after {inserted_count} insertions."
-        }
+        # Log the exception traceback for detailed debugging if needed
+        import traceback
+        traceback.print_exc()
+        return {"message": f"Error creating mock events after {inserted_count} insertions."}
