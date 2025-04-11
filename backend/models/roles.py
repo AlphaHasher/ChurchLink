@@ -1,7 +1,8 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from bson import ObjectId
-from database import DB
+from mongo.database import DB
+from fastapi import HTTPException, status
 
 
 # Pydantic Models for Role Data
@@ -42,7 +43,7 @@ def create_permission_list(perm_strs: List[str]) -> PermissionSchema:
 
 async def create_role(role_data: RoleCreate) -> Optional[RoleOut]:
     """
-    Creates a new role in the database.
+    Creates a new role in the database using DB.insert_document.
     """
     existing_role = await DB.db["roles"].find_one({"name": role_data.name})
     if existing_role:
@@ -50,22 +51,29 @@ async def create_role(role_data: RoleCreate) -> Optional[RoleOut]:
         return None
 
     try:
-        result = await DB.db["roles"].insert_one(role_data.model_dump())
-        created_role = await DB.db["roles"].find_one({"_id": result.inserted_id})
-        if created_role:
-            created_role["id"] = str(created_role.pop("_id"))
-            return RoleOut(**created_role)
+        # Use the helper method to insert
+        inserted_id = await DB.insert_document("roles", role_data.model_dump())
+        if inserted_id:
+            # Fetch the created role to return it as RoleOut
+            created_role = await DB.db["roles"].find_one({"_id": inserted_id})
+            if created_role:
+                created_role["id"] = str(created_role.pop("_id"))
+                return RoleOut(**created_role)
+        # Return None if insertion failed or fetching failed
         return None
     except Exception as e:
-        print(f"An error occurred during role creation: {e}")
+        # The insert_document method already prints errors, but we can add more context
+        print(f"An error occurred during the create_role process: {e}")
         return None
 
 
 async def get_role_by_id(role_id: str) -> Optional[RoleOut]:
     """
     Retrieves a role by its MongoDB ObjectId string.
+    (Uses find_one directly as it targets a unique _id)
     """
     try:
+        # Use find_one directly for specific ID lookup
         role_doc = await DB.db["roles"].find_one({"_id": ObjectId(role_id)})
         if role_doc:
             role_doc["id"] = str(role_doc.pop("_id"))
@@ -78,11 +86,14 @@ async def get_role_by_id(role_id: str) -> Optional[RoleOut]:
 
 async def get_role_by_name(name: str) -> Optional[RoleOut]:
     """
-    Retrieves a role by its name.
+    Retrieves a role by its name using DB.find_documents.
+    Assumes name is unique; returns the first match if found.
     """
     try:
-        role_doc = await DB.db["roles"].find_one({"name": name})
-        if role_doc:
+        # Use find_documents helper
+        results = await DB.find_documents("roles", {"name": name}, limit=1)
+        if results:
+            role_doc = results[0]
             role_doc["id"] = str(role_doc.pop("_id"))
             return RoleOut(**role_doc)
         return None
@@ -93,11 +104,10 @@ async def get_role_by_name(name: str) -> Optional[RoleOut]:
 
 async def get_roles_with_permissions(permission_names: List[str]) -> List[RoleOut]:
     """
-    Finds all roles that have all the specified permissions enabled.
+    Finds all roles that have all the specified permissions enabled using DB.find_documents.
     """
     query = {}
     for perm in permission_names:
-        # Ensure the permission exists in the schema to avoid errors
         if perm in PermissionSchema.model_fields:
             query[f"permissions.{perm}"] = True
         else:
@@ -105,8 +115,9 @@ async def get_roles_with_permissions(permission_names: List[str]) -> List[RoleOu
 
     roles_out = []
     try:
-        cursor = DB.db["roles"].find(query)
-        async for role_doc in cursor:
+        # Use find_documents helper
+        role_docs = await DB.find_documents("roles", query)
+        for role_doc in role_docs:
             role_doc["id"] = str(role_doc.pop("_id"))
             roles_out.append(RoleOut(**role_doc))
         return roles_out
@@ -118,6 +129,7 @@ async def get_roles_with_permissions(permission_names: List[str]) -> List[RoleOu
 async def update_role(role_id: str, role_update_data: RoleCreate) -> bool:
     """
     Updates an existing role by its ID.
+    (Uses update_one directly to target a specific _id)
     Note: This replaces the entire role document except for the _id.
     Consider using a different model (e.g., RoleUpdate) for partial updates.
     """
@@ -133,6 +145,7 @@ async def update_role(role_id: str, role_update_data: RoleCreate) -> bool:
                 )
                 return False
 
+        # Use update_one directly for specific ID update
         result = await DB.db["roles"].update_one(
             {"_id": ObjectId(role_id)},
             {
@@ -148,8 +161,10 @@ async def update_role(role_id: str, role_update_data: RoleCreate) -> bool:
 async def delete_role(role_id: str) -> bool:
     """
     Deletes a role by its ID.
+    (Uses delete_one directly to target a specific _id)
     """
     try:
+        # Use delete_one directly for specific ID deletion
         result = await DB.db["roles"].delete_one({"_id": ObjectId(role_id)})
         return result.deleted_count > 0
     except Exception as e:

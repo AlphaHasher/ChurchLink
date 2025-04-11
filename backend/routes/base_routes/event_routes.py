@@ -1,6 +1,9 @@
-from fastapi import APIRouter
-from models.event import sort_events, create_event, get_event_by_id, EventCreate, update_event, delete_event, search_events, create_mock_events
-from typing import Literal
+
+from fastapi import APIRouter, HTTPException, status
+from models.event import sort_events, create_event, get_event_by_id, EventCreate, update_event, delete_event, search_events, create_mock_events, delete_events, EventOut
+from typing import Literal, List
+from bson import ObjectId
+
 
 event_router = APIRouter(prefix="/events", tags=["Events"])
 
@@ -17,23 +20,62 @@ async def search_events_route(query: str, skip: int = 0, limit: int = 100, minis
 
 @event_router.get("/{event_id}", summary="Get event by id")
 async def get_event_by_id_route(event_id: str):
-    return await get_event_by_id(event_id)
+    event = await get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    return event
 
 
-@event_router.post("/", summary="Create event")
+@event_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
 async def create_event_route(event: EventCreate):
-    return await create_event(event)
+    created_event = await create_event(event)
+    if not created_event:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error creating event (maybe duplicate name/data?)")
+    return created_event
 
 
 @event_router.put("/{event_id}", summary="Update event")
 async def update_event_route(event_id: str, event: EventCreate):
-    return await update_event(event_id, event)
+    success = await update_event(event_id, event)
+    if not success:
+         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found or update failed")
+    return {"message": "Event updated successfully", "success": True}
 
 
 @event_router.delete("/{event_id}", summary="Delete event")
 async def delete_event_route(event_id: str):
-    return await delete_event(event_id)
+    success = await delete_event(event_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    return {"message": "Event deleted successfully", "success": True}
 
+@event_router.delete("/", summary="Delete multiple events by ID")
+async def delete_events_route(event_ids: List[str]):
+    """
+    Deletes multiple events based on a list of provided string ObjectIds.
+    """
+    if not event_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No event IDs provided")
+        
+    try:
+        # Convert string IDs to ObjectIds
+        object_ids = [ObjectId(id_str) for id_str in event_ids]
+    except Exception as e:
+        # Handle potential errors if IDs are not valid ObjectIds
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid ObjectId format provided in list: {e}")
+
+    # Construct the filter query
+    filter_query = {"_id": {"$in": object_ids}}
+    
+    # Call the model function with the correct filter
+    deleted_count = await delete_events(filter_query)
+    
+    # Note: This endpoint currently returns success even if some/all IDs were not found.
+    # You could add logic to check if deleted_count matches len(event_ids) if needed.
+    # if deleted_count < len(event_ids):
+    #     print(f"Warning: Requested deletion for {len(event_ids)} IDs, but only {deleted_count} were found and deleted.")
+
+    return {"message": f"Attempted deletion for {len(event_ids)} IDs.", "deleted_count": deleted_count}
 
 @event_router.post("/mock", summary="Create mock events")
 async def create_mock_events_route(count: int = 10):
