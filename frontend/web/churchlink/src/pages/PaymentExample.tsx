@@ -1,33 +1,8 @@
 import { useState } from "react";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 
-// Define types for props and data structures
 interface MessageProps {
   content: string;
-}
-
-interface CartItem {
-  id: string;
-  quantity: string;
-  name: string;
-  price: number;
-}
-
-interface OrderData {
-  id?: string;
-  details?: Array<{
-    issue?: string;
-    description: string;
-  }>;
-  debug_id?: string;
-  purchase_units?: Array<{
-    payments: {
-      captures: Array<{
-        status: string;
-        id: string;
-      }>;
-    };
-  }>;
 }
 
 // Renders errors or successful transactions on the screen.
@@ -39,10 +14,13 @@ function Payment() {
   const initialOptions = {
     clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
     "enable-funding": "venmo",
+    "disable-funding": "",
     "buyer-country": "US",
     currency: "USD",
+    "data-page-type": "product-details",
     components: "buttons",
-  };
+    "data-sdk-integration-source": "developer-studio",
+};
 
   const [message, setMessage] = useState<string>("");
 
@@ -59,7 +37,7 @@ function Payment() {
           createOrder={async () => {
             try {
               // Using the FastAPI endpoint
-              const response = await fetch("/api/orders", {
+              const response = await fetch("/api/v1/paypal/orders", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -71,18 +49,18 @@ function Payment() {
                     {
                       id: "21",
                       quantity: "1",
-                      name: "Sample Product",
-                      price: 100.00,
-                    } as CartItem,
+                      // name: "Sample Product",
+                      // price: 100.00,
+                    },
                   ],
                 }),
               });
 
-              if (!response.ok) {
-                throw new Error(`Server responded with status: ${response.status}`);
-              }
+              // if (!response.ok) {
+              //   throw new Error(`Server responded with status: ${response.status}`);
+              // }
 
-              const orderData = await response.json() as OrderData;
+              const orderData = await response.json();
 
               if (orderData.id) {
                 return orderData.id;
@@ -103,7 +81,7 @@ function Payment() {
           onApprove={async (data: { orderID: string }, actions: { restart: () => void }) => {
             try {
               const response = await fetch(
-                `/api/orders/${data.orderID}/capture`,
+                `/api/v1/paypal/orders/${data.orderID}/capture`,
                 {
                   method: "POST",
                   headers: {
@@ -112,7 +90,7 @@ function Payment() {
                 }
               );
 
-              const orderData = await response.json() as OrderData;
+              const orderData = await response.json();
               // Three cases to handle:
               //   (1) Recoverable INSTRUMENT_DECLINED -> call actions.restart()
               //   (2) Other non-recoverable errors -> Show a failure message

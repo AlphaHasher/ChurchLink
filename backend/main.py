@@ -153,7 +153,7 @@ router_finance.dependencies.append(Depends(role_based_access(["finance"])))
 
 router_paypal = APIRouter(prefix="/api/v1/paypal", tags=["paypal"])
 router_paypal.include_router(paypal_router)
-router_paypal.dependencies.append(Depends(role_based_access(["finance"])))
+# router_paypal.dependencies.append(Depends(role_based_access(["finance"])))
 
 
 #####################################################
