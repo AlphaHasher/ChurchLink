@@ -24,7 +24,6 @@ from paypalserversdk.models.purchase_unit_request import PurchaseUnitRequest
 from paypalserversdk.models.payment_source import PaymentSource
 from paypalserversdk.models.card_request import CardRequest
 from paypalserversdk.models.card_attributes import CardAttributes
-from paypalserversdk.models.card_verification import CardVerification
 from paypalserversdk.models.item import Item
 from paypalserversdk.models.item_category import ItemCategory
 from paypalserversdk.models.paypal_wallet import PaypalWallet
@@ -109,7 +108,12 @@ async def create_order(request: Request):
 @paypal_router.post("/orders/{order_id}/capture", status_code=200)
 async def capture_order(order_id: str):
     # Capture the order payment.
-    order = orders_controller.capture_order({"id": order_id, "prefer": "return=representation"})
+    order = orders_controller.capture_order(
+        {
+            "id": order_id,
+            "prefer": "return=representation"
+        }
+    )
     
     # Return the captured order details as JSON.
     return Response(

@@ -56,10 +56,6 @@ function Payment() {
                 }),
               });
 
-              // if (!response.ok) {
-              //   throw new Error(`Server responded with status: ${response.status}`);
-              // }
-
               const orderData = await response.json();
 
               if (orderData.id) {
@@ -78,7 +74,7 @@ function Payment() {
               return "";
             }
           }}
-          onApprove={async (data: { orderID: string }, actions: { restart: () => void }) => {
+          onApprove={async (data, actions) => {
             try {
               const response = await fetch(
                 `/api/v1/paypal/orders/${data.orderID}/capture`,
