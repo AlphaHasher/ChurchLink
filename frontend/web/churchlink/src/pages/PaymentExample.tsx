@@ -12,7 +12,7 @@ function Message({ content }: MessageProps) {
 
 function Payment() {
   const initialOptions = {
-    clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
+    "clientId": import.meta.env.VITE_PAYPAL_CLIENT_ID,
     "enable-funding": "venmo",
     "disable-funding": "",
     "buyer-country": "US",
@@ -36,8 +36,7 @@ function Payment() {
           }}
           createOrder={async () => {
             try {
-              // Using the FastAPI endpoint
-              const response = await fetch("/api/v1/paypal/orders", {
+              const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/v1/paypal/orders`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -49,21 +48,35 @@ function Payment() {
                     {
                       id: "21",
                       quantity: "1",
-                      // name: "Sample Product",
-                      // price: 100.00,
                     },
                   ],
                 }),
               });
 
               const orderData = await response.json();
+              console.log("PayPal order data:", orderData);
 
-              if (orderData.id) {
-                return orderData.id;
+              // Handle case where response is a string instead of a JSON object
+              let parsedData = orderData;
+              if (typeof orderData === 'string') {
+                try {
+                  parsedData = JSON.parse(orderData);
+                  console.log("Parsed order data:", parsedData);
+                } catch (parseError) {
+                  console.error("Failed to parse response as JSON:", parseError);
+                }
+              }
+              
+              const orderId = parsedData.id || orderData.id;
+              console.log("ID value:", orderId);
+              
+              if (orderId) {
+                console.log("Returning order ID:", orderId);
+                return orderId;
               } else {
-                const errorDetail = orderData?.details?.[0];
+                const errorDetail = parsedData?.details?.[0] || orderData?.details?.[0];
                 const errorMessage = errorDetail
-                  ? `${errorDetail.issue} ${errorDetail.description} (${orderData.debug_id})`
+                  ? `${errorDetail.issue} ${errorDetail.description} (${parsedData.debug_id || orderData.debug_id})`
                   : JSON.stringify(orderData);
 
                 throw new Error(errorMessage);
@@ -77,7 +90,7 @@ function Payment() {
           onApprove={async (data, actions) => {
             try {
               const response = await fetch(
-                `/api/v1/paypal/orders/${data.orderID}/capture`,
+                `${import.meta.env.VITE_API_HOST}/api/v1/paypal/orders/${data.orderID}/capture`,
                 {
                   method: "POST",
                   headers: {
