@@ -11,9 +11,9 @@ from firebase_admin import credentials
 from helpers.youtubeHelper import YoutubeHelper
 
 from get_bearer_token import generate_test_token
-from routes.base_routes.item_routes import item_router as item_router_base
-from routes.webhook_listener_routes.youtube_listener_routes import youtube_router as youtube_router
-from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
+from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
+from routes.strapi_routes.strapi_routes import strapi_router
+from routes.paypal_routes.paypal_routes import paypal_router
 from add_roles import add_user_role, RoleUpdate
 
 
@@ -121,7 +121,7 @@ async def update_user_roles(role_update: RoleUpdate):
 router_base = APIRouter(prefix="/api/v1", tags=["base"])
 # Add Firebase authentication dependency to base router, needs base role
 router_base.dependencies.append(Depends(role_based_access(["base"])))
-router_base.include_router(item_router_base)
+# router_base.include_router(item_router_base)
 
 
 
@@ -152,6 +152,7 @@ router_finance.dependencies.append(Depends(role_based_access(["finance"])))
 #####################################################
 
 router_paypal = APIRouter(prefix="/api/v1/paypal", tags=["paypal"])
+router_paypal.include_router(paypal_router)
 router_paypal.dependencies.append(Depends(role_based_access(["finance"])))
 
 
