@@ -2,6 +2,7 @@ import os
 import logging
 
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import JSONResponse
 from paypalserversdk.http.auth.o_auth_2 import ClientCredentialsAuthCredentials
 from paypalserversdk.logging.configuration.api_logging_configuration import (
     LoggingConfiguration,
@@ -97,9 +98,8 @@ async def create_order(request: Request):
     })
 
     # Return the order details as JSON.
-    return Response(
-        content=ApiHelper.json_serialize(order.body),
-        media_type="application/json"
+    return JSONResponse(
+        content=ApiHelper.json_serialize(order.body)
     )
 
 # ------------------------------------------------------------------------------
@@ -116,7 +116,6 @@ async def capture_order(order_id: str):
     )
     
     # Return the captured order details as JSON.
-    return Response(
+    return JSONResponse(
         content=ApiHelper.json_serialize(order.body),
-        media_type="application/json"
     )
