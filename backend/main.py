@@ -1,20 +1,26 @@
 from fastapi import FastAPI, APIRouter, Depends
-from scalar_fastapi import get_scalar_api_reference
-from contextlib import asynccontextmanager
-import os
 from fastapi.middleware.cors import CORSMiddleware
-import firebase_admin
-from firebase_admin import credentials
+from scalar_fastapi import get_scalar_api_reference
+
 from mongo.database import DB as DatabaseManager
+
+import firebase_admin
 from helpers.Firebase_helpers import role_based_access
+from firebase_admin import credentials
+
 from helpers.youtubeHelper import YoutubeHelper
+
 from get_bearer_token import generate_test_token
-from pydantic import BaseModel
 from routes.base_routes.item_routes import item_router as item_router_base
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router as youtube_router
 from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from add_roles import add_user_role, RoleUpdate
+
+
+from contextlib import asynccontextmanager
+from pydantic import BaseModel
 import asyncio
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,8 +51,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
 )
-
-
 
 @app.get("/")
 async def root():
@@ -143,6 +147,13 @@ router_finance.dependencies.append(Depends(role_based_access(["finance"])))
 
 #####################################################
 
+#####################################################
+# PayPal Router Configuration
+#####################################################
+
+router_paypal = APIRouter(prefix="/api/v1/paypal", tags=["paypal"])
+router_paypal.dependencies.append(Depends(role_based_access(["finance"])))
+
 
 #####################################################
 # Webhook Listener Router Config
@@ -163,6 +174,7 @@ router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 app.include_router(router_base)
 app.include_router(router_admin)
 app.include_router(router_finance)
+app.include_router(router_paypal)
 app.include_router(router_webhook_listener)
 app.include_router(router_strapi)
 
