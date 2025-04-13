@@ -41,9 +41,9 @@ export function applyUserPermLogicMask(inputData: UserInfo[], allPerms: AccountP
 };
 
 //Function to apply the RoleMemberMask transformation
-export function applyRoleMemberMask(inputData: UserInfo[], roleID: string) {
+export function applyRoleMemberMask(inputData: UserInfo[], allPerms: AccountPermissions[], roleID: string) {
     return inputData
-        .filter(user => user.permissions.includes(roleID))
+        .filter(user => roleIdListToRoleStringList(allPerms, user.permissions).includes(roleID))
         .map(user => ({
             name: `${user.firstName} ${user.lastName}`,
             email: user.email

@@ -52,6 +52,7 @@ interface PermissionsTableProps {
 const createPermColumn = (
   accessorKey: keyof AccountPermissions,
   userData: UserInfo[],
+  data: AccountPermissions[],
   onSave: () => Promise<void>
 ): ColumnDef<AccountPermissions> => {
   const label = permissionLabels[accessorKey];
@@ -93,7 +94,7 @@ const createPermColumn = (
                   <DeletePermDialog permissions={rowData} onSave={onSave} />
                 </>
               )}
-              <PermRoleMembersDialog permissions={rowData} userData={userData} />
+              <PermRoleMembersDialog permissions={rowData} userData={userData} permData={data} />
             </div>
           )}
 
@@ -114,7 +115,7 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
   const columns: ColumnDef<AccountPermissions>[] = [];
 
   Object.keys(permissionLabels).forEach((key) => {
-    columns.push(createPermColumn(key as keyof AccountPermissions, userData, onSave));
+    columns.push(createPermColumn(key as keyof AccountPermissions, userData, data, onSave));
   });
 
   const table = useReactTable({
