@@ -1,4 +1,5 @@
-from database import DB
+from mongo.database import DB
+from bson import ObjectId
 
 class RoleHandler:
     permission_template = {
@@ -7,7 +8,19 @@ class RoleHandler:
         "website_management": False,
         "event_management": False,
         "page_management": False,
+        "media_management":False,
     }
+
+    @staticmethod
+    async def verify_admin_role():
+        roleCheck = await RoleHandler.find_role("Administrator")
+        if roleCheck and len(roleCheck) == 1:
+            return
+        else:
+            perms = RoleHandler.permission_template.copy()
+            for key, value in perms.items():
+                perms[key] = True
+            await RoleHandler.create_role("Administrator", perms)
 
     @staticmethod
     def create_permission_list(perm_strs):
@@ -45,15 +58,21 @@ class RoleHandler:
         """
         if await RoleHandler.is_role(name):
             print(f"RoleHandler with this name already exists: {name}")
-            return
+            return False
 
         try:
             await DB.insert_document("roles", RoleHandler.create_schema(
                 name,
                 permissions
             ))
+            return True
         except Exception as e:
             print(f"An error occurred:\n {e}")
+            return False
+
+    @staticmethod
+    async def find_all_roles():
+        return await DB.find_documents("roles", {})
 
     @staticmethod
     async def find_role(name):
@@ -76,21 +95,36 @@ class RoleHandler:
         return await DB.find_documents("roles", query)
 
     @staticmethod
-    async def update_role(name, permissions):
-        if not await RoleHandler.is_role(name):
-            print(f"RoleHandler with this name does not exist: {name}")
+    async def update_role(id, name, permissions):
+
+        _id = ObjectId(id)
+
+        # Check to see if requested name already exists
+        if await RoleHandler.is_role(name):
+            # It is okay if the requested name exists and it's the ID requesting to be updated
+            # It means the perms are being updated, without the name being updated.
+            # Only send error if the ID of the existing document doesnt match the parameter ID
+            check = await RoleHandler.find_role_id(name)
+            if check != _id:
+                print(f"RoleHandler with this name already exists: {name}")
+                return False
 
         try:
-            await DB.update_document("roles", {"name": name}, RoleHandler.create_schema(
+            await DB.update_document("roles", {"_id": _id}, RoleHandler.create_schema(
                 name,
                 permissions
             ))
+            return True
         except Exception as e:
             print(f"An error occurred:\n {e}")
+            return False
 
     @staticmethod
-    async def delete_role(name):
+    async def delete_role(id):
         try:
-            await DB.delete_documents("roles", {"name": name})
+            _id = ObjectId(id)
+            await DB.delete_documents("roles", {"_id": _id})
+            return True
         except Exception as e:
             print(f"An error occurred:\n {e}")
+            return False

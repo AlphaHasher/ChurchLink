@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth, createUserWithEmailAndPassword } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { verifyAndSyncUser } from "@/helpers/UserHelper";
 
 function Signup() {
   const [email, setEmail] = useState("");
@@ -21,7 +22,11 @@ function Signup() {
   const handleGoogleSignup = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      const uid = userCredential.user.uid;
+
+      const verified = await verifyAndSyncUser(uid, setError);
+      if (!verified) return;
       // Successful signup will trigger the useEffect above and redirect
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -42,7 +47,11 @@ function Signup() {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      const verified = await verifyAndSyncUser(uid, setError);
+      if (!verified) return;
       // Successful signup will trigger the useEffect above and redirect
     } catch (err: unknown) {
       if (err instanceof Error) {

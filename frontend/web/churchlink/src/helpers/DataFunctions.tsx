@@ -4,7 +4,7 @@ import { BaseUserMask, UserInfo, UserPermMask } from "@/types/UserInfo";
 // Function to transform a UserInfo type object to a UserPermMask
 const transformToUserPermMask = (user: UserInfo, allPerms: AccountPermissions[]): UserPermMask => {
     // Collect ALL of the Roles that the user actually has.
-    const roles = allPerms.filter(role => user.permissions.includes(role.name));
+    const roles = allPerms.filter(role => roleIdListToRoleStringList(allPerms, user.permissions).includes(role.name));
 
     // Initialize a collection of Permissions with all perm bools to false
     const permissions: PermMask = Object.keys(allPerms[0]).reduce((acc, key) => {
@@ -51,13 +51,14 @@ export function applyRoleMemberMask(inputData: UserInfo[], roleID: string) {
 };
 
 //Function to apply the BaseUserMask transformation
-export function applyBaseUserMask(inputData: UserInfo[]) {
+export function applyBaseUserMask(inputData: UserInfo[], perms: AccountPermissions[]) {
     return inputData
         .map(user => ({
+            uid: user.uid,
             name: `${user.firstName} ${user.lastName}`,
             email: user.email,
             dateOfBirth: user.dateOfBirth.toISOString().split('T')[0].replace(/-/g, '/'), // Convert Date to YYYY/MM/DD
-            permissions: user.permissions.length > 0 ? user.permissions.join(', ') : 'N/A' // Convert to CSV or 'N/A'
+            permissions: user.permissions.length > 0 ? roleIdListToRoleStringList(perms, user.permissions).join(', ') : 'N/A' // Convert to CSV or 'N/A'
         }));
 };
 
@@ -126,3 +127,49 @@ export function createPermComps(startRoles: string[], endRoles: string[], roleDe
 };
 
 
+// Helper function to convert the fetched data from backend to a UserInfo[]
+export function processFetchedUserData(users: any[]): UserInfo[] {
+    return users.map(user => ({
+        uid: user.uid || "Unknown",
+        firstName: user.first_name || "Unknown",
+        lastName: user.last_name || "Unknown",
+        email: user.email || "No email",
+        dateOfBirth: new Date("2000-01-01"),
+        permissions: user.roles || [],
+    }));
+};
+
+// Helper function to convert the fetched data from backend to an AccountPermissions[]
+export function processFetchedPermData(perms: any[]): AccountPermissions[] {
+    return perms.map((perm) => ({
+        _id: perm._id,
+        name: perm.name,
+        ...perm.permissions, // spreads the boolean fields directly
+    }));
+};
+
+// Helper function to convert list of role names to role ids
+export function roleStringListToRoleIdList(
+    perms: AccountPermissions[],
+    roles: string[]
+): string[] {
+    return roles
+        .map(roleName => {
+            const match = perms.find(perm => perm.name === roleName);
+            return match?._id || null;
+        })
+        .filter((_id): _id is string => _id !== null); // filter out nulls, ensure it's string[]
+};
+
+// Helper function to convert list of role ids to role names
+export function roleIdListToRoleStringList(
+    perms: AccountPermissions[],
+    ids: string[]
+): string[] {
+    return ids
+        .map(id => {
+            const match = perms.find(perm => perm._id === id);
+            return match?.name || null;
+        })
+        .filter((name): name is string => name !== null); // filter out nulls, ensure it's string[]
+};

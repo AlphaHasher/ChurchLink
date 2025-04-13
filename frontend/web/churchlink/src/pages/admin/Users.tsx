@@ -1,70 +1,45 @@
 import { useEffect, useState } from "react";
 // import { useAuth } from "@/lib/auth-context";
 
-import LogicalUserPermsTable from "@/components/AdminDashboard/Users/LogicalUserOverview/LogicalUserPermsTable"
-
-import { MockPermData } from "@/TEMPORARY/MockPermData";
-import { MockUserData } from "@/TEMPORARY/MockUserData";
-
-import { applyBaseUserMask, applyUserPermLogicMask } from "@/helpers/DataFunctions";
+import LogicalUserPermsTable from "@/components/AdminDashboard/Users/LogicalUserOverview/LogicalUserPermsTable";
 import UsersTable from "@/components/AdminDashboard/Users/BaseUserTable/UsersTable";
 
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  role: "admin" | "user" | "editor" | "finance" | "media" | "mod";
-}
+import { applyBaseUserMask, applyUserPermLogicMask } from "@/helpers/DataFunctions";
+
+import { fetchUsers } from "@/helpers/UserHelper";
+import { fetchPermissions } from "@/helpers/PermissionsHelper";
+
+import { UserInfo } from "@/types/UserInfo";
+import { AccountPermissions } from "@/types/AccountPermissions";
 
 const Users = () => {
-  // const { currentUser, role } = useAuth();
-  const [_, setUsers] = useState<UserData[]>([]);
+  const [users, setUsers] = useState<UserInfo[]>([]);
+  const [perms, setPerms] = useState<AccountPermissions[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch users from API or Firebase
+  const loadData = async () => {
+    const usersFromAPI = await fetchUsers();
+    setUsers(usersFromAPI);
+    const permsFromAPI = await fetchPermissions();
+    setPerms(permsFromAPI);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch("/api/users"); // Replace with actual API URL
-        const data = await response.json();
-        setUsers(data);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchUsers();
+    loadData();
   }, []);
-
-  // const handleRoleChange = async (id: string, newRole: UserData["role"]) => {
-  //   if (role !== "admin") return; // Only allow admins to update roles
-
-  //   try {
-  //     await fetch(`/api/users/${id}`, {
-  //       method: "PUT",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ role: newRole }),
-  //     });
-
-  //     setUsers((prev) =>
-  //       prev.map((user) => (user.id === id ? { ...user, role: newRole } : user))
-  //     );
-  //   } catch (error) {
-  //     console.error("Error updating role:", error);
-  //   }
-  // };
 
   if (loading) return <p>Loading users...</p>;
 
   return (
     <div className="p-6">
       <h1 className="text-xl font-bold mb-4">Users Overview</h1>
-      <UsersTable data={applyBaseUserMask(MockUserData)} permData={MockPermData}></UsersTable>
-      <h1 className="text-xl font-bold mb-4">User Permissions Logical Overview</h1>
-      <LogicalUserPermsTable data={applyUserPermLogicMask(MockUserData, MockPermData)} />
 
+      <UsersTable data={applyBaseUserMask(users, perms)} permData={perms} onSave={loadData} />
+
+      <h1 className="text-xl font-bold mb-4">User Permissions Logical Overview</h1>
+      <LogicalUserPermsTable data={applyUserPermLogicMask(users, perms)} />
     </div>
   );
 };

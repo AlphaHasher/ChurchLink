@@ -9,6 +9,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { Link, useNavigate } from "react-router-dom";
 import Dove from "@/assets/Dove";
+import { verifyAndSyncUser } from "@/helpers/UserHelper";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -47,7 +48,11 @@ function Login() {
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      const verified = await verifyAndSyncUser(uid, setError);
+      if (!verified) return;
       // Successful login - you can add navigation here
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -61,7 +66,11 @@ function Login() {
   const handleGoogleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      const uid = userCredential.user.uid;
+
+      const verified = await verifyAndSyncUser(uid, setError);
+      if (!verified) return;
       // Successful login - you can add navigation here
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -76,10 +85,10 @@ function Login() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         <div className="flex justify-center mb-6">
-        <Dove
-          className="fill-black!"
-          fill="black"
-        />
+          <Dove
+            className="fill-black!"
+            fill="black"
+          />
         </div>
 
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
@@ -124,7 +133,7 @@ function Login() {
           </div>
 
           <div className="flex justify-end">
-            <a 
+            <a
               href="#"
               onClick={handleForgotPassword}
               className="text-sm text-blue-600 hover:text-blue-700"

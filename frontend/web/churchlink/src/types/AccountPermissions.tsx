@@ -1,20 +1,18 @@
 export type AccountPermissions = {
+  _id: string;
   name: string;
-  isAdmin: boolean;
-  manageWholeSite: boolean;
-  editAllEvents: boolean;
-  editAllPages: boolean;
-  accessFinances: boolean;
-  manageNotifications: boolean;
-  manageMediaContent: boolean;
-  manageBiblePlan: boolean;
-  manageUserPermissions: boolean;
+  admin: boolean;
+  finance: boolean;
+  website_management: boolean;
+  event_management: boolean;
+  page_management: boolean;
+  media_management: boolean;
 };
 
 
 // Create a type "Perm Mask", it masks AccountPermissions to ONLY have the permissions themselves
 // Thus the type is only the perm bools.
-export type PermMask = Omit<AccountPermissions, 'name'>;
+export type PermMask = Omit<AccountPermissions, 'name' | '_id'>;
 
 export type PermComp = {
   status: string;
@@ -23,15 +21,12 @@ export type PermComp = {
 
 export const permissionLabels: Record<string, string> = {
   name: "Permission Name",
-  isAdmin: "Administrator",
-  manageWholeSite: "Site Management",
-  editAllEvents: "Event Moderator",
-  editAllPages: "Page Moderator",
-  accessFinances: "Financial Access",
-  manageNotifications: "Notification Management",
-  manageMediaContent: "Manage Media Content",
-  manageBiblePlan: "Manage Bible Plan",
-  manageUserPermissions: "Manage User Permissions",
+  admin: "Administrator",
+  website_management: "Site Management",
+  event_management: "Event Moderator",
+  page_management: "Page Moderator",
+  finance: "Financial Access",
+  media_management: "Manage Media Content",
 };
 
 // Remove the 'name' key from permissionLabels

@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel
-from helpers.DB import DB
+from mongo import database as DB
 from bson import ObjectId
 
 
