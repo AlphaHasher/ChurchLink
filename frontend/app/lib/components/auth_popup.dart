@@ -1,11 +1,10 @@
+import 'package:app/helpers/AuthController.dart';
 import 'package:flutter/material.dart';
 import '../firebase/firebase_auth_service.dart';
 import '../pages/user/use_email.dart';
 
 class AuthPopup extends StatelessWidget {
-  AuthPopup({
-    super.key
-  });
+  AuthPopup({super.key});
 
   // Show the popup by calling this static method
   static Future<void> show(BuildContext context) {
@@ -18,6 +17,7 @@ class AuthPopup extends StatelessWidget {
   }
 
   FirebaseAuthService authService = FirebaseAuthService();
+  AuthController authController = AuthController();
 
   @override
   Widget build(BuildContext context) {
@@ -101,10 +101,7 @@ class AuthPopup extends StatelessWidget {
                   children: [
                     Icon(option['icon'], size: 24),
                     const SizedBox(width: 12),
-                    Text(
-                      option['title'],
-                      style: const TextStyle(fontSize: 16),
-                    ),
+                    Text(option['title'], style: const TextStyle(fontSize: 16)),
                   ],
                 ),
               ),
@@ -138,11 +135,20 @@ class AuthPopup extends StatelessWidget {
   }
 
   void _continueWithGoogle(BuildContext context) async {
-    String? token = await authService.signInWithGoogle();
-    if (token != null && token.isNotEmpty) {
+    final authController = AuthController(); // or inject it however you like
+
+    bool verified = await authController.loginWithGoogleAndSync((
+      String errorMsg,
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMsg)));
+    });
+
+    if (verified) {
       Navigator.pop(context);
     } else {
-      // Canceled or failed
+      //Verification failed.
     }
   }
 }
