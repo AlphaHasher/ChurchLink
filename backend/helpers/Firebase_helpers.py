@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Security, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from firebase_admin import auth
 from pydantic import BaseModel
@@ -18,10 +18,6 @@ class FirebaseUser:
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-
-
-
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> FirebaseUser:
@@ -100,3 +96,40 @@ def role_based_access(required_roles: List[str]) -> Callable:
                 detail=f"Error retrieving user claims: {str(e)}"
             )
     return check_role
+
+
+def permission_required(required_permissions: list):
+    """
+    Dependency generator to enforce permission-based access control in FastAPI routes.
+
+    This function checks if the authenticated user (based on their Firebase token) has the required permissions
+    for a given route. It does this by:
+    - Extracting the user's roles from the Firebase token.
+    - Looking up each role's permissions from the MongoDB `roles` collection.
+    - Ensuring that all `required_permissions` are present in the user's aggregated permission set.
+
+    Usage:
+        @router.get("/example", dependencies=[permission_required(["edit_page"])])
+        async def example_endpoint():
+            ...
+
+    Notes:
+    - This function should be used when fine-grained permission control is needed beyond just role-based access.
+    - Make sure the `roles` collection in the DB contains permission lists for each role.
+    """
+    async def permission_checker(request: Request = Depends(), current_user: FirebaseUser = Depends(get_current_user)):
+        user_roles = current_user.roles if current_user else []
+        user_permissions = set()
+
+        # For each role, fetch the associated permissions from your database or config
+        # Here, we assume you have a function `get_permissions_for_role` that retrieves them
+        from mongo.database import DB
+        for role in user_roles:
+            role_doc = await DB.roles.find_one({"name": role})
+            if role_doc:
+                role_permissions = role_doc.get("permissions", [])
+                user_permissions.update(role_permissions)
+
+        if not all(p in user_permissions for p in required_permissions):
+            raise HTTPException(status_code=403, detail="Permission denied")
+    return Depends(permission_checker)
