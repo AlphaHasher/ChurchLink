@@ -49,9 +49,8 @@ function Login() {
     e.preventDefault();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
 
-      const verified = await verifyAndSyncUser(uid, setError);
+      const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
       // Successful login - you can add navigation here
     } catch (err: unknown) {
@@ -67,9 +66,8 @@ function Login() {
     try {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
-      const uid = userCredential.user.uid;
 
-      const verified = await verifyAndSyncUser(uid, setError);
+      const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
       // Successful login - you can add navigation here
     } catch (err: unknown) {

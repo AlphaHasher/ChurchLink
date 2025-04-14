@@ -23,9 +23,8 @@ function Signup() {
     try {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
-      const uid = userCredential.user.uid;
 
-      const verified = await verifyAndSyncUser(uid, setError);
+      const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
       // Successful signup will trigger the useEffect above and redirect
     } catch (err: unknown) {
@@ -48,9 +47,8 @@ function Signup() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
 
-      const verified = await verifyAndSyncUser(uid, setError);
+      const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
       // Successful signup will trigger the useEffect above and redirect
     } catch (err: unknown) {

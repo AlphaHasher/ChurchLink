@@ -23,6 +23,23 @@ class RoleHandler:
             await RoleHandler.create_role("Administrator", perms)
 
     @staticmethod
+    async def infer_permissions(role_ids):
+        permissions = RoleHandler.permission_template.copy()
+
+        for id in role_ids:
+            role = await RoleHandler.find_role_by_id(id)
+            if role == None:
+                return permissions
+            for key, value in role['permissions'].items():
+                if key == '_id':
+                    continue
+                permissions[key] = permissions[key] or value
+
+        return permissions
+
+
+
+    @staticmethod
     def create_permission_list(perm_strs):
         perms = RoleHandler.permission_template.copy()
         for perm in perm_strs:
@@ -84,6 +101,14 @@ class RoleHandler:
         if result and len(result) > 0:
 
             return result[0]["_id"]
+        return None
+    
+    @staticmethod
+    async def find_role_by_id(id):
+        _id = ObjectId(id)
+        result = await DB.find_documents("roles", {"_id":_id})
+        if result and len(result) > 0:
+            return result[0]
         return None
 
     @staticmethod

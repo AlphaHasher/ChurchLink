@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends
 from models.strapi_article import get_articles, get_article_by_id
 from models.strapi_uploads import get_uploads, get_upload_by_id
-from models.strapi_redirect import process_redirect
+from models.strapi_user_management import process_redirect
+from helpers.Firebase_helpers import authenticate_uid
 
 
 strapi_router = APIRouter()
@@ -31,8 +32,7 @@ async def get_upload_by_id_route(upload_id: str):
 ###################
 # Re-direct service
 
-# TODO: Make this implement actual permissions and middleware instead of just an email parameter 
 @strapi_router.post("/strapi-redirect")
-async def process_strapi_redirect(email: str = Query(..., description="The email of the user")):
-    return await process_redirect(email)
+async def process_strapi_redirect(uid: str = Depends(authenticate_uid)):
+    return await process_redirect(uid)
 

@@ -97,6 +97,14 @@ class UserHandler:
         if len(docs) == 0:
             return False
         return docs[0]
+    
+    @staticmethod
+    async def does_user_have_permissions(uid):
+        user = await UserHandler.find_by_uid(uid)
+        if user == None:
+            return False
+        return len(user['roles']) > 0
+
 
     @staticmethod
     async def find_by_phone(phone):
@@ -119,7 +127,7 @@ class UserHandler:
         return await DB.update_document("users", filterQuery, updateData)
 
     @staticmethod
-    async def update_roles(uid, roles):
+    async def update_roles(uid, roles, strapiSyncFunction):
         if not await UserHandler.is_user(uid):
             print(f"User with this uid does not exist: {uid}")
             return False
@@ -128,7 +136,7 @@ class UserHandler:
             await DB.update_document("users", {"uid": uid}, {
                     "roles": roles
             })
-            return True
+            return await strapiSyncFunction(uid)
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False

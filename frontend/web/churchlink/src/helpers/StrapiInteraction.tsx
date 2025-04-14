@@ -1,10 +1,17 @@
+import { confirmAuth } from "./AuthPackaging";
+
 const API_BASE = import.meta.env.VITE_API_HOST;
 const API_REDIRECT = "/api/v1/strapi";
 
-export const processStrapiRedirect = async (email: string) => {
+export const processStrapiRedirect = async () => {
     try {
-        const res = await fetch(`${API_BASE}${API_REDIRECT}/strapi-redirect?email=${encodeURIComponent(email)}`, {
+        const idToken = await confirmAuth();
+        const res = await fetch(`${API_BASE}${API_REDIRECT}/strapi-redirect`, {
             method: "POST",
+            headers: {
+                Authorization: `Bearer ${idToken}`,
+                "Content-Type": "application/json",
+            },
         });
 
         if (!res.ok) throw new Error("Failed to contact redirect service");

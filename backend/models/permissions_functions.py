@@ -2,6 +2,7 @@ from mongo.roles import RoleHandler
 from pydantic import BaseModel, Field
 from mongo.roles import RoleHandler
 from mongo.churchuser import UserHandler
+from helpers.StrapiHelper import StrapiHelper
 
 
 class RoleCreateInput(BaseModel):
@@ -29,14 +30,17 @@ class UserRoleUpdateInput(BaseModel):
 
 boolKeys = ['admin', 'finance', 'website_management', 'event_management', 'page_management', 'media_management']
 
-async def fetch_perms():
-    perms = await RoleHandler.find_all_roles()
+async def fetch_perms(uid):
+    if await UserHandler.does_user_have_permissions(uid):
+        perms = await RoleHandler.find_all_roles()
 
-    for role in perms:
-        if "_id" in role:
-            role["_id"] = str(role["_id"])
+        for role in perms:
+            if "_id" in role:
+                role["_id"] = str(role["_id"])
 
-    return {"permissions": perms}
+        return {"Success":True, "permissions": perms}
+    else:
+        return {"success":False, "permissions":[]}
 
 async def create_role(payload: RoleCreateInput):
     permStr = []
@@ -81,17 +85,15 @@ async def strip_users_of_role(id: str):
 
     for user in users_with_role:
         updated_roles = [rid for rid in user.get("roles", []) if rid != id]
-        await UserHandler.update_roles(user['uid'], updated_roles)
+        await UserHandler.update_roles(user['uid'], updated_roles, StrapiHelper.sync_strapi_roles)
 
 async def update_user_roles(payload: UserRoleUpdateInput):
     try:
-        if await UserHandler.update_roles(payload.uid, payload.role_ids):
+        if await UserHandler.update_roles(payload.uid, payload.role_ids, StrapiHelper.sync_strapi_roles):
             return {"success": True, "msg":"Your user roles have been updated successfully."}
         else:
             return {"success": False, "msg":"Your user roles could not be updated due to an unknown critical error!"}
     except:
         return {"success": False, "msg":"Your user roles could not be updated due to an unknown critical error!"}
-
-    return
 
 

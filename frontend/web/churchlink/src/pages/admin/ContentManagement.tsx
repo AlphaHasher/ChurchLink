@@ -9,8 +9,7 @@ const ContentManagement = () => {
   };
 
   const handleOpenMediaLibrary = () => {
-    const email = "admin@gmail.com"; // Replace with dynamic email later
-    processStrapiRedirect(email);
+    processStrapiRedirect();
   };
 
   return (
