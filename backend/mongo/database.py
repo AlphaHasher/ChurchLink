@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 class DB:
     client = None
     db = None
+    pages = None
     collections = [
         {
             "name": "users", # name of collection,
@@ -24,6 +25,7 @@ class DB:
     async def init_db(name=None):
         DB.client = AsyncIOMotorClient(os.getenv("MONGODB_URL") or "mongodb://localhost:27017")
         DB.db = DB.client[name or "SSBC_DB"]
+        DB.pages = DB.db["pages"]
         # Sanity check
         await DB.is_connected()
         # Schema validation

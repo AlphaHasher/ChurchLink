@@ -15,6 +15,8 @@ from routes.webhook_listener_routes.youtube_listener_routes import youtube_route
 from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from add_roles import add_user_role, RoleUpdate
 import asyncio
+from routes.page_management_routes.page_routes import router as page_route
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -46,6 +48,10 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+#####################################################
+# Page Builder Router
+#####################################################
+app.include_router(page_route)
 
 
 @app.get("/")
