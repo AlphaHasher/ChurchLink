@@ -96,7 +96,7 @@ function EventViewer() {
       </div>
 
       {selectedEvent && (
-       <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
         <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative">
           <button
             onClick={() => setSelectedEvent(null)}
