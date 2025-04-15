@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface Page {
   _id: string;
@@ -10,11 +10,15 @@ interface Page {
 
 const WebBuilderPageList = () => {
   const [pages, setPages] = useState<Page[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch("/api/pages")
       .then((res) => res.json())
-      .then((data) => setPages(data));
+      .then((data) => {
+        const visiblePages = data.filter((page: Page) => page.visible);
+        setPages(visiblePages);
+      });
   }, []);
 
   const toggleVisibility = async (id: string, current: boolean) => {
@@ -65,12 +69,12 @@ const WebBuilderPageList = () => {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right space-x-2">
-                  <Link
-                    to={`/admin/webbuilder/edit/${page.slug}`}
+                  <button
+                    onClick={() => navigate(`/admin/webbuilder/edit/${page.slug}`)}
                     className="text-sm text-blue-600 hover:underline"
                   >
                     Edit
-                  </Link>
+                  </button>
                   <button
                     onClick={() => toggleVisibility(page._id, page.visible)}
                     className="text-sm text-yellow-600 hover:underline"

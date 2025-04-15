@@ -4,6 +4,20 @@ import axios from "axios";
 import ServiceTimesSection from "@/components/AdminDashboard/WebBuilder/sections/ServiceTimesSection";
 import HeroSection, { HeroContent } from "@/components/AdminDashboard/WebBuilder/sections/HeroSection";
 import MenuSection, { MenuSectionContent } from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ServiceTimesContent {
   title: string;
@@ -107,6 +121,23 @@ const EditPage = () => {
     setSections(updatedSections);
   };
 
+  const DraggableSection = ({ section, index, children }: { section: Section; index: number; children: React.ReactNode }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+        {children}
+      </div>
+    );
+  };
+
+  const sensors = useSensors(useSensor(PointerSensor));
+
   if (!slug) return <div className="text-red-500">Invalid page slug.</div>;
   if (!pageData) return <div>Loading...</div>;
 
@@ -133,102 +164,118 @@ const EditPage = () => {
           Add Section
         </button>
       </div>
-      <div className="flex flex-col gap-4">
-        {sections.map((section, index) => (
-          <div key={section.id} className="border p-4 rounded shadow bg-white">
-            {section.type === "text" && (
-              <textarea
-                className="w-full border p-2 rounded"
-                rows={4}
-                value={typeof section.content === "string" ? section.content : ""}
-                onChange={(e) => handleContentChange(index, e.target.value)}
-              />
-            )}
-            {section.type === "image" && (
-              <div className="flex flex-col gap-2">
-                {typeof section.content === "string" && section.content && (
-                  <img src={section.content} alt="Preview" className="max-w-full h-auto rounded border mt-2" />
-                )}
-                <input
-                  type="text"
-                  className="w-full border p-2 rounded"
-                  placeholder="Image URL"
-                  value={typeof section.content === "string" ? section.content : ""}
-                  onChange={(e) => {
-                    const updatedSections = [...sections];
-                    updatedSections[index].content = e.target.value;
-                    setSections(updatedSections);
-                  }}
-                />
-                
-              </div>
-            )}
-            {section.type === "video" && (
-              <div>
-                <input
-                  type="text"
-                  className="w-full border p-2 rounded"
-                  placeholder="YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
-                  value={typeof section.content === "string" ? section.content : ""}
-                  onChange={(e) => {
-                    const input = e.target.value;
-                    let embedUrl = input;
-
-                    // Auto-convert watch URLs to embed
-                    const youtubeMatch = input.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/);
-                    if (youtubeMatch) {
-                      const videoId = youtubeMatch[1];
-                      embedUrl = `https://www.youtube.com/embed/${videoId}`;
-                    }
-
-                    handleContentChange(index, embedUrl);
-                  }}
-                />
-                {section.content && (
-                  <div className="mt-2">
-                    <iframe
-                      src={typeof section.content === "string" ? section.content : ""}
-                      className="w-full aspect-video"
-                      allowFullScreen
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={({ active, over }) => {
+          if (active.id !== over?.id) {
+            const oldIndex = sections.findIndex((s) => s.id === active.id);
+            const newIndex = sections.findIndex((s) => s.id === over?.id);
+            setSections((items) => arrayMove(items, oldIndex, newIndex));
+          }
+        }}
+      >
+        <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+          <div className="flex flex-col gap-4">
+            {sections.map((section, index) => (
+              <DraggableSection key={section.id} section={section} index={index}>
+                <div className="border p-4 rounded shadow bg-white">
+                  {section.type === "text" && (
+                    <textarea
+                      className="w-full border p-2 rounded"
+                      rows={4}
+                      value={typeof section.content === "string" ? section.content : ""}
+                      onChange={(e) => handleContentChange(index, e.target.value)}
                     />
-                  </div>
-                )}
-              </div>
-            )}
-            {section.type === "hero" && (
-              <HeroSection
-                data={section.content as HeroContent}
-                isEditing
-                onChange={(newContent) => handleContentChange(index, newContent)}
-              />
-            )}
-            {section.type === "service-times" && (
-              <ServiceTimesSection
-                data={section.content as ServiceTimesContent}
-                isEditing
-                onChange={(newContent) => handleContentChange(index, newContent)}
-              />
-            )}
-            {section.type === "menu" && (
-              <MenuSection
-                data={section.content as MenuSectionContent}
-                isEditing
-                onChange={(newContent) => handleContentChange(index, newContent)}
-              />
-            )}
-            <button
-              onClick={() => {
-                if (window.confirm("Are you sure you want to remove this section?")) {
-                  handleRemoveSection(index);
-                }
-              }}
-              className="mt-2 text-red-500 hover:underline"
-            >
-              Remove
-            </button>
+                  )}
+                  {section.type === "image" && (
+                    <div className="flex flex-col gap-2">
+                      {typeof section.content === "string" && section.content && (
+                        <img src={section.content} alt="Preview" className="max-w-full h-auto rounded border mt-2" />
+                      )}
+                      <input
+                        type="text"
+                        className="w-full border p-2 rounded"
+                        placeholder="Image URL"
+                        value={typeof section.content === "string" ? section.content : ""}
+                        onChange={(e) => {
+                          const updatedSections = [...sections];
+                          updatedSections[index].content = e.target.value;
+                          setSections(updatedSections);
+                        }}
+                      />
+                      
+                    </div>
+                  )}
+                  {section.type === "video" && (
+                    <div>
+                      <input
+                        type="text"
+                        className="w-full border p-2 rounded"
+                        placeholder="YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
+                        value={typeof section.content === "string" ? section.content : ""}
+                        onChange={(e) => {
+                          const input = e.target.value;
+                          let embedUrl = input;
+
+                          // Auto-convert watch URLs to embed
+                          const youtubeMatch = input.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/);
+                          if (youtubeMatch) {
+                            const videoId = youtubeMatch[1];
+                            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                          }
+
+                          handleContentChange(index, embedUrl);
+                        }}
+                      />
+                      {section.content && (
+                        <div className="mt-2">
+                          <iframe
+                            src={typeof section.content === "string" ? section.content : ""}
+                            className="w-full aspect-video"
+                            allowFullScreen
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {section.type === "hero" && (
+                    <HeroSection
+                      data={section.content as HeroContent}
+                      isEditing
+                      onChange={(newContent) => handleContentChange(index, newContent)}
+                    />
+                  )}
+                  {section.type === "service-times" && (
+                    <ServiceTimesSection
+                      data={section.content as ServiceTimesContent}
+                      isEditing
+                      onChange={(newContent) => handleContentChange(index, newContent)}
+                    />
+                  )}
+                  {section.type === "menu" && (
+                    <MenuSection
+                      data={section.content as MenuSectionContent}
+                      isEditing
+                      onChange={(newContent) => handleContentChange(index, newContent)}
+                    />
+                  )}
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to remove this section?")) {
+                        handleRemoveSection(index);
+                      }
+                    }}
+                    className="mt-2 text-red-500 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </DraggableSection>
+            ))}
           </div>
-        ))}
-      </div>
+        </SortableContext>
+      </DndContext>
       <button
         onClick={handleSave}
         className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"

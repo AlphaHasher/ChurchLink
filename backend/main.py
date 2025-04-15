@@ -174,10 +174,7 @@ router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 #####################################################
 # Web Builder Config
 #####################################################
-router_pages = APIRouter(prefix="/api/v1/pages", tags=["pages"])
-router_pages.dependencies.append(Depends(role_based_access(["page_editor"])))
-router_pages.include_router(page_route)
-app.include_router(router_pages)
+app.include_router(page_route)
 
 
 # Include routers in main app

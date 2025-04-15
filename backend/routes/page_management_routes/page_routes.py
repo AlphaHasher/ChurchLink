@@ -3,7 +3,6 @@ from mongo.database import DB
 from models.page_models import Page
 from bson import ObjectId, errors as bson_errors
 from datetime import datetime
-from helpers.Firebase_helpers import permission_required
 
 router = APIRouter()
 

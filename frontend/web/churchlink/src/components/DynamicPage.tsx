@@ -17,6 +17,7 @@ export interface Page {
   slug?: string;
   content?: string;
   sections?: Section[];
+  visible?: boolean; // added visibility property to Page
 }
 
 const DynamicPage: React.FC = () => {
@@ -53,6 +54,7 @@ const DynamicPage: React.FC = () => {
   if (loading) return <div className="text-center">Loading...</div>;
   if (error) return <div className="text-center text-red-500">{error}</div>;
   if (!pageData) return null;
+  if (pageData.visible === false) return null;
 
   return (
     <>
