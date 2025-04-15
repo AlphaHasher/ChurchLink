@@ -10,12 +10,15 @@ from helpers.Firebase_helpers import role_based_access
 from helpers.youtubeHelper import YoutubeHelper
 from get_bearer_token import generate_test_token
 from pydantic import BaseModel
-from routes.base_routes.item_routes import item_router as item_router_base
-from routes.webhook_listener_routes.youtube_listener_routes import youtube_router as youtube_router
+from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from add_roles import add_user_role, RoleUpdate
 import asyncio
 from routes.page_management_routes.page_routes import router as page_route
+from routes.base_routes.event_routes import event_router
+from routes.base_routes.role_routes import role_router 
+from routes.base_routes.user_routes import user_router 
+from routes.base_routes.event_routes import public_event_router
 
 
 @asynccontextmanager
@@ -23,6 +26,7 @@ async def lifespan(app: FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
     if not firebase_admin._apps:
         from firebase.firebase_credentials import get_firebase_credentials
+
         cred = credentials.Certificate(get_firebase_credentials())
         firebase_admin.initialize_app(cred)
 
@@ -30,13 +34,16 @@ async def lifespan(app: FastAPI):
     await DatabaseManager.init_db()
 
     # Run Youtube Notification loop
-    youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
+    youtubeSubscriptionCheck = asyncio.create_task(
+        YoutubeHelper.youtubeSubscriptionLoop()
+    )
 
     yield
 
     # Cleanup
     youtubeSubscriptionCheck.cancel()
     DatabaseManager.close_db()
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -48,10 +55,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-#####################################################
-# Page Builder Router
-#####################################################
-app.include_router(page_route)
 
 
 @app.get("/")
@@ -67,9 +70,11 @@ async def scalar_html():
         title=app.title,
     )
 
+
 class LoginCredentials(BaseModel):
     email: str
     password: str
+
 
 #####################################################
 # Dev Router Configuration
@@ -85,7 +90,7 @@ async def get_auth_token(credentials: LoginCredentials):
     """Get a Firebase authentication token using email and password"""
     try:
         token = generate_test_token(
-            email=credentials.email,
+            email=credentials.email, 
             password=credentials.password
         )
         if token:
@@ -93,6 +98,7 @@ async def get_auth_token(credentials: LoginCredentials):
         return {"error": "Failed to generate token"}
     except Exception as e:
         return {"error": str(e)}
+
 
 @router_dev.post("/roles", summary="Update user roles")
 async def update_user_roles(role_update: RoleUpdate):
@@ -107,28 +113,29 @@ async def update_user_roles(role_update: RoleUpdate):
         dict: Contains status, message, and current roles
     """
     return add_user_role(
-        uid=role_update.uid,
-        roles=role_update.roles,
+        uid=role_update.uid, 
+        roles=role_update.roles, 
         remove=role_update.remove
     )
 
 
+# routes that are public and don't need authentication
+#####################################################
+# Public Router Configuration
+#####################################################
+public_router = APIRouter(prefix="/api/v1")
+public_router.include_router(public_event_router)
 
-
-# This are an example we can discuss as a group
 
 #####################################################
 # Base Router Configuration
 #####################################################
-router_base = APIRouter(prefix="/api/v1", tags=["base"])
+router_base = APIRouter(prefix="/api/v1")
 # Add Firebase authentication dependency to base router, needs base role
 router_base.dependencies.append(Depends(role_based_access(["base"])))
-router_base.include_router(item_router_base)
-
-
-
-#####################################################
-
+router_base.include_router(event_router)
+router_base.include_router(role_router)
+router_base.include_router(user_router)
 
 
 #####################################################
@@ -164,6 +171,14 @@ router_strapi = APIRouter(prefix="/api/v1/strapi", tags=["strapi"])
 router_strapi.include_router(strapi_router)
 router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 
+#####################################################
+# Web Builder Config
+#####################################################
+router_pages = APIRouter(prefix="/api/v1/pages", tags=["pages"])
+router_pages.dependencies.append(Depends(role_based_access(["page_editor"])))
+router_pages.include_router(page_route)
+app.include_router(router_pages)
+
 
 # Include routers in main app
 app.include_router(router_base)
@@ -171,7 +186,7 @@ app.include_router(router_admin)
 app.include_router(router_finance)
 app.include_router(router_webhook_listener)
 app.include_router(router_strapi)
-
+app.include_router(public_router)
 
 if __name__ == "__main__":
     import uvicorn
