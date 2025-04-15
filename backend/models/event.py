@@ -6,7 +6,7 @@
 
 
 from typing import Literal, Optional, List
-from datetime import datetime
+from datetime import datetime, time, timezone
 from mongo.database import DB
 from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
@@ -207,6 +207,10 @@ async def sort_events(
     sort_by: Literal[
         "date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"
     ] = "date",
+    name: Optional[str] = None,
+    max_price: Optional[float] = None,
+    date_after: Optional[datetime] = None,
+    date_before: Optional[datetime] = None,
 ):
     """
     Get events with optional filters and sorting.
@@ -239,6 +243,21 @@ async def sort_events(
         query["gender"] = gender
     if is_free is not None:
         query["price"] = 0.0 if is_free else {"$gt": 0.0}
+
+    if max_price is not None:
+        query.setdefault("price", {})
+        query["price"]["$lte"] = max_price
+
+    if name:
+        query["name"] = {"$regex": name, "$options": "i"}  # Case-insensitive name search
+
+    if date_after is not None:
+        query.setdefault("date", {})
+        query["date"]["$gte"] = datetime.combine(date_after, time.min)
+
+    if date_before is not None:
+        query.setdefault("date", {})
+        query["date"]["$lte"] = datetime.combine(date_before, time.max)
 
     # Get events with sorting
     sort_direction = 1 if sort == "asc" else -1
@@ -294,7 +313,7 @@ async def create_mock_events(count: int) -> dict:
             # Generate random date between now and 1 year from now
             start_date = datetime.now()
             end_date = datetime.now().replace(year=datetime.now().year + 1)
-            random_date = fake.date_time_between(start_date=start_date, end_date=end_date)
+            random_date = fake.date_time_between(start_date=start_date, end_date=end_date).replace(tzinfo=None)
 
             # Generate random age range ensuring min_age <= max_age
             mock_min_age = random.randint(1, 80) # e.g. min age can be up to 80
