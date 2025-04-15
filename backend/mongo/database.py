@@ -2,8 +2,12 @@ import os
 import pymongo
 from motor.motor_asyncio import AsyncIOMotorClient
 
+# MongoDB connection settings
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "SSBC_DB")
+
 class DB:
-    client = None
+    client: AsyncIOMotorClient = None
     db = None
     collections = [
         {
@@ -14,6 +18,11 @@ class DB:
             "name": "roles",
             "indexes": ["name"]
         },
+        {
+            "name": "events",
+            # Reverting indexes back to original based on user feedback
+            "indexes": ["name"]
+        }
     ]
 
     ###########
@@ -22,12 +31,14 @@ class DB:
 
     @staticmethod
     async def init_db(name=None):
-        DB.client = AsyncIOMotorClient(os.getenv("MONGODB_URL") or "mongodb://localhost:27017")
-        DB.db = DB.client[name or "SSBC_DB"]
+        DB.client = AsyncIOMotorClient(MONGODB_URL)
+        DB.db = DB.client[name or DB_NAME]
         # Sanity check
         await DB.is_connected()
-        # Schema validation
+        # Schema validation and index creation
         await DB.init_collections()
+
+
 
     @staticmethod
     async def init_collections():
@@ -49,13 +60,19 @@ class DB:
                         )
                     ])
 
+
+
     @staticmethod
     def close_db():
-        print("Closing DB client connection")
-        DB.client.close()
+        if DB.client:
+            print("Closing DB client connection")
+            DB.client.close()
 
     @staticmethod
     async def is_connected():
+        if not DB.client:
+            print("DB client not initialized.")
+            return False
         try:
             await DB.client.admin.command('ping')
             print("MongoDB connected successfully")
@@ -70,23 +87,67 @@ class DB:
 
     @staticmethod
     async def insert_document(collection_name, document):
-        collection = DB.db[collection_name]
-        return (await collection.insert_one(document)).inserted_id
+        """Inserts a document into the specified collection and returns the inserted document's ID."""
+        if not DB.db:
+            print("Database not initialized.")
+            return None
+        try:
+            collection = DB.db[collection_name]
+            result = await collection.insert_one(document)
+            return result.inserted_id
+        except Exception as e:
+            print(f"Error inserting document into {collection_name}: {e}")
+            return None
 
     @staticmethod
     async def find_documents(collection_name, query=None, limit=None):
-        collection = DB.db[collection_name]
-        cursor = collection.find(query or {})
-        if limit:
-            cursor.limit(limit)
-        return await cursor.to_list(length=limit) if limit else await cursor.to_list(length=None)
+        """Finds documents in the specified collection matching the query."""
+        if not DB.db:
+            print("Database not initialized.")
+            return [] # Return empty list on error/uninitialized
+        try:
+            collection = DB.db[collection_name]
+            cursor = collection.find(query or {})
+            if limit is not None:
+                # Ensure limit is a positive integer
+                limit = max(1, int(limit))
+                cursor.limit(limit)
+                return await cursor.to_list(length=limit)
+            else:
+                # Fetch all documents if no limit is specified
+                return await cursor.to_list(length=None)
+        except Exception as e:
+            print(f"Error finding documents in {collection_name}: {e}")
+            return []
 
     @staticmethod
     async def update_document(collection_name, filter_query, update_data):
-        collection = DB.db[collection_name]
-        return (await collection.update_many(filter_query, {'$set': update_data})).modified_count
+        """Updates documents matching the filter query using $set. Uses update_many."""
+        if not DB.db:
+            print("Database not initialized.")
+            return 0
+        try:
+            collection = DB.db[collection_name]
+            # Using update_many as per the provided helper function
+            result = await collection.update_many(filter_query, {'$set': update_data})
+            return result.modified_count
+        except Exception as e:
+            print(f"Error updating documents in {collection_name}: {e}")
+            return 0
 
     @staticmethod
     async def delete_documents(collection_name, delete_query):
-        collection = DB.db[collection_name]
-        return (await collection.delete_many(delete_query)).deleted_count
+        """Deletes documents matching the query. Uses delete_many."""
+        if not DB.db:
+            print("Database not initialized.")
+            return 0
+        try:
+            collection = DB.db[collection_name]
+            # Using delete_many as per the provided helper function
+            result = await collection.delete_many(delete_query)
+            return result.deleted_count
+        except Exception as e:
+            print(f"Error deleting documents from {collection_name}: {e}")
+            return 0
+
+# Models can now use DB helpers or interact directly with DB.db[collection_name]
