@@ -14,6 +14,7 @@ from faker import Faker
 import random
 
 
+
 class Event(BaseModel):
     id: str
     name: str
@@ -148,8 +149,7 @@ async def search_events(
     skip: int = 0,
     limit: int = 100,
     ministry: str = None,
-    min_age: Optional[int] = None,
-    max_age: Optional[int] = None,
+    age: Optional[int] = None,
     gender: Literal["male", "female", "all"] = "all",
     is_free: Optional[bool] = None,
     sort: Literal["asc", "desc"] = "asc",
@@ -164,18 +164,9 @@ async def search_events(
         query["ministry"] = {"$in": [ministry]}
     
     age_filter = {}
-    if min_age is not None:
-        age_filter["$lte"] = min_age
-    if max_age is not None:
-        age_filter["$gte"] = max_age
-    
-    if min_age is not None and max_age is not None:
-        query["min_age"] = {"$lte": max_age}
-        query["max_age"] = {"$gte": min_age}
-    elif min_age is not None:
-         query["max_age"] = {"$gte": min_age}
-    elif max_age is not None:
-         query["min_age"] = {"$lte": max_age}
+    if age is not None:
+        query["min_age"] = {"$lte": age}
+        query["max_age"] = {"$gte": age}
 
     if gender != "all":
         query["gender"] = gender
@@ -209,8 +200,7 @@ async def sort_events(
     skip: int = 0,
     limit: int = 100,
     ministry: str = None,
-    min_age: Optional[int] = None,
-    max_age: Optional[int] = None,
+    age: Optional[int] = None,
     gender: Literal["male", "female", "all"] = "all",
     is_free: Optional[bool] = None,
     sort: Literal["asc", "desc"] = "asc",
@@ -241,13 +231,9 @@ async def sort_events(
     if ministry:
         query["ministry"] = {"$in": [ministry]}
 
-    if min_age is not None and max_age is not None:
-        query["min_age"] = {"$lte": max_age}
-        query["max_age"] = {"$gte": min_age}
-    elif min_age is not None:
-         query["max_age"] = {"$gte": min_age}
-    elif max_age is not None:
-         query["min_age"] = {"$lte": max_age}
+    if age is not None:
+        query["min_age"] = {"$lte": age}
+        query["max_age"] = {"$gte": age}
 
     if gender != "all":
         query["gender"] = gender
