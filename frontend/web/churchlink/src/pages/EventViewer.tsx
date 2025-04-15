@@ -9,24 +9,34 @@ const events = [
     title: "Community Clean-Up Day",
     description: "Join us for a day of giving back by helping clean up our neighborhood park.",
     imageUrl: cleaningImg,
+    date: "April 20, 2025",
+    time: "10:00 AM - 2:00 PM",
   },
   {
     id: 2,
     title: "Charity Run 5K",
     description: "Participate in our annual 5K charity run to support local shelters.",
     imageUrl: runningImg,
+    date: "May 5, 2025",
+    time: "8:00 AM - 11:00 AM",
   },
   {
     id: 3,
     title: "Computer Science Student Awareness Day",
     description: "Join us for a day of spreading awareness for overworked Computer Science students.",
     imageUrl: headacheImg,
+    date: "May 15, 2025",
+    time: "12:00 PM - 4:00 PM",
   },
 ];
 
 function EventViewer({}: { }) {
   const handleSignUp = (eventTitle: string) => {
     alert(`You signed up for: ${eventTitle}`);
+  };
+
+  const handleDetails = (eventTitle: string) => {
+    alert(`Event details for: ${eventTitle}`);
   };
 
   return (
@@ -47,10 +57,18 @@ function EventViewer({}: { }) {
               <div>
                 <h2 className="text-xl font-semibold mb-2">{event.title}</h2>
                 <p className="text-sm text-gray-600 mb-4">{event.description}</p>
+                <p className="text-sm text-gray-800 font-medium">{event.date}</p>
+                <p className="text-sm text-gray-800 mb-4">{event.time}</p>
               </div>
               <button
-                onClick={() => handleSignUp(event.title)}
+                onClick={() => handleDetails(event.title)}
                 className="mt-auto px-4 py-2 bg-blue-600 text-black rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                Event Details
+              </button>
+              <button
+                onClick={() => handleSignUp(event.title)}
+                className="mt-2 px-4 py-2 bg-blue-600 text-black rounded-xl hover:bg-blue-700 transition-colors"
               >
                 Sign Up
               </button>
