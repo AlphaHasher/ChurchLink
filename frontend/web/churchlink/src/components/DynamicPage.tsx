@@ -3,11 +3,13 @@ import { useLocation } from 'react-router-dom';
 import HeroSection from "@/components/AdminDashboard/WebBuilder/sections/HeroSection";
 import ServiceTimesSection from "@/components/AdminDashboard/WebBuilder/sections/ServiceTimesSection";
 import MenuSection from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
+import ContactInfoSection from "@/components/AdminDashboard/WebBuilder/sections/ContactInfoSection";
+import MapSection from "@/components/AdminDashboard/WebBuilder/sections/MapSection";
 import Footer from "@/components/Main/Footer";
 
 export interface Section {
   id: string;
-  type: "text" | "image" | "video" | "hero" | "service-times" | "menu";
+  type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map";
   content: any; // use any to handle complex objects like hero
 }
 
@@ -93,6 +95,12 @@ const DynamicPage: React.FC = () => {
 
               {section.type === "menu" && (
                 <MenuSection data={section.content} isEditing={false} />
+              )}
+
+              {section.type === "contact-info" && <ContactInfoSection data={section.content} isEditing={false} />}
+
+              {section.type === "map" && (
+                <MapSection data={section.content} isEditing={false} />
               )}
             </React.Fragment>
           ))}

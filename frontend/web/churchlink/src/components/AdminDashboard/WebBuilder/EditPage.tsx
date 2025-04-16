@@ -4,18 +4,21 @@ import axios from "axios";
 import ServiceTimesSection from "@/components/AdminDashboard/WebBuilder/sections/ServiceTimesSection";
 import HeroSection, { HeroContent } from "@/components/AdminDashboard/WebBuilder/sections/HeroSection";
 import MenuSection, { MenuSectionContent } from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
+import ContactInfoSection, { ContactInfoContent } from "@/components/AdminDashboard/WebBuilder/sections/ContactInfoSection";
+import MapSection from "@/components/AdminDashboard/WebBuilder/sections/MapSection";
 import {
   DndContext,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
+  DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -26,8 +29,8 @@ interface ServiceTimesContent {
 
 interface Section {
   id: string;
-  type: "text" | "image" | "video" | "hero" | "service-times" | "menu";
-  content: string | HeroContent | ServiceTimesContent | MenuSectionContent;
+  type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map";
+  content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent;
 }
 
 interface PageData {
@@ -38,12 +41,40 @@ interface PageData {
   sections: Section[];
 }
 
+const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div {...listeners} className="cursor-grab text-gray-400 text-sm mb-2 select-none">
+        &#x2630; Drag (Re-Order Section)
+      </div>
+      {children}
+    </div>
+  );
+};
+
 const EditPage = () => {
   const { slug } = useParams();
   const [pageData, setPageData] = useState<PageData | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [newSectionType, setNewSectionType] = useState<Section["type"]>("text");
   const [, setSaving] = useState(false);
+  
+  const sensors = useSensors(useSensor(PointerSensor));
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = sections.findIndex((s) => s.id === active.id);
+      const newIndex = sections.findIndex((s) => s.id === over?.id);
+      setSections(arrayMove(sections, oldIndex, newIndex));
+    }
+  };
 
   useEffect(() => {
     const fetchPage = async () => {
@@ -59,7 +90,7 @@ const EditPage = () => {
     if (slug) fetchPage();
   }, [slug]);
 
-  const handleContentChange = (index: number, newContent: string | HeroContent | ServiceTimesContent | MenuSectionContent) => {
+  const handleContentChange = (index: number, newContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent) => {
     const updatedSections = [...sections];
     updatedSections[index].content = newContent;
     setSections(updatedSections);
@@ -89,7 +120,7 @@ const EditPage = () => {
   };
 
   const handleAddSection = (type: Section["type"]) => {
-    let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent = "";
+    let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent = "";
  
     if (type === "hero") {
       defaultContent = {
@@ -111,6 +142,15 @@ const EditPage = () => {
       defaultContent = {
         items: [],
       };
+    } else if (type === "contact-info") {
+      defaultContent = {
+        items: [
+          { label: "Phone", value: "(123) 456-7890", iconUrl: "" },
+          { label: "Email", value: "info@example.com", iconUrl: "" },
+        ],
+      };
+    } else if (type === "map") {
+      defaultContent = "https://www.google.com/maps/embed?pb=...";
     }
  
     setSections([...sections, { id: Date.now().toString(), type, content: defaultContent }]);
@@ -120,23 +160,6 @@ const EditPage = () => {
     const updatedSections = sections.filter((_, i) => i !== index);
     setSections(updatedSections);
   };
-
-  const DraggableSection = ({ section, index, children }: { section: Section; index: number; children: React.ReactNode }) => {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-    };
-
-    return (
-      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-        {children}
-      </div>
-    );
-  };
-
-  const sensors = useSensors(useSensor(PointerSensor));
 
   if (!slug) return <div className="text-red-500">Invalid page slug.</div>;
   if (!pageData) return <div>Loading...</div>;
@@ -156,6 +179,8 @@ const EditPage = () => {
           <option value="hero">Hero</option>
           <option value="service-times">Service Times</option>
           <option value="menu">Menu</option>
+          <option value="contact-info">Contact Info</option>
+          <option value="map">Map</option>
         </select>
         <button
           onClick={() => handleAddSection(newSectionType)}
@@ -164,21 +189,11 @@ const EditPage = () => {
           Add Section
         </button>
       </div>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={({ active, over }) => {
-          if (active.id !== over?.id) {
-            const oldIndex = sections.findIndex((s) => s.id === active.id);
-            const newIndex = sections.findIndex((s) => s.id === over?.id);
-            setSections((items) => arrayMove(items, oldIndex, newIndex));
-          }
-        }}
-      >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-4">
             {sections.map((section, index) => (
-              <DraggableSection key={section.id} section={section} index={index}>
+              <SortableItem key={section.id} id={section.id}>
                 <div className="border p-4 rounded shadow bg-white">
                   {section.type === "text" && (
                     <textarea
@@ -260,6 +275,20 @@ const EditPage = () => {
                       onChange={(newContent) => handleContentChange(index, newContent)}
                     />
                   )}
+                  {section.type === "contact-info" && (
+                    <ContactInfoSection
+                      data={section.content as ContactInfoContent}
+                      isEditing
+                      onChange={(newContent) => handleContentChange(index, newContent)}
+                    />
+                  )}
+                  {section.type === "map" && (
+                    <MapSection
+                      data={section.content as string}
+                      isEditing
+                      onChange={(newContent) => handleContentChange(index, newContent)}
+                    />
+                  )}
                   <button
                     onClick={() => {
                       if (window.confirm("Are you sure you want to remove this section?")) {
@@ -271,7 +300,7 @@ const EditPage = () => {
                     Remove
                   </button>
                 </div>
-              </DraggableSection>
+              </SortableItem>
             ))}
           </div>
         </SortableContext>
