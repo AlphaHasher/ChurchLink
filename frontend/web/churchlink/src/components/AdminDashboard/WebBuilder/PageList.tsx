@@ -16,8 +16,7 @@ const WebBuilderPageList = () => {
     fetch("/api/pages")
       .then((res) => res.json())
       .then((data) => {
-        const visiblePages = data.filter((page: Page) => page.visible);
-        setPages(visiblePages);
+        setPages(data);
       });
   }, []);
 
