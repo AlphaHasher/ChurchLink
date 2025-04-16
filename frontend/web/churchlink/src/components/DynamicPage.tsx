@@ -6,6 +6,8 @@ import MenuSection from "@/components/AdminDashboard/WebBuilder/sections/MenuSec
 import ContactInfoSection from "@/components/AdminDashboard/WebBuilder/sections/ContactInfoSection";
 import MapSection from "@/components/AdminDashboard/WebBuilder/sections/MapSection";
 import Footer from "@/components/Main/Footer";
+import NotFoundPage from "@/pages/NotFoundPage";
+import InConstructionPage from "@/pages/InConstructionPage";
 
 export interface Section {
   id: string;
@@ -44,7 +46,8 @@ const DynamicPage: React.FC = () => {
         const data = await response.json();
         setPageData(data);
       } catch {
-        setError('Error fetching page data');
+        // setError('Error fetching page data');
+        return <NotFoundPage />;
       } finally {
         setLoading(false);
       }
@@ -55,9 +58,8 @@ const DynamicPage: React.FC = () => {
 
   if (loading) return <div className="text-center">Loading...</div>;
   if (error) return <div className="text-center text-red-500">{error}</div>;
-  if (!pageData) return null;
-  if (pageData.visible === false) return null;
-
+  if (!pageData) return <NotFoundPage />;
+  if (pageData.visible === false) return <InConstructionPage />;
   return (
     <>
       {/* <Header /> */}
