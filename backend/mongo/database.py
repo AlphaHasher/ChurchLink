@@ -9,6 +9,7 @@ DB_NAME = os.getenv("DB_NAME", "SSBC_DB")
 class DB:
     client: AsyncIOMotorClient = None
     db = None
+    pages = None
     collections = [
         {
             "name": "users", # name of collection,
@@ -33,6 +34,7 @@ class DB:
     async def init_db(name=None):
         DB.client = AsyncIOMotorClient(MONGODB_URL)
         DB.db = DB.client[name or DB_NAME]
+        DB.pages = DB.db["pages"]
         # Sanity check
         await DB.is_connected()
         # Schema validation and index creation

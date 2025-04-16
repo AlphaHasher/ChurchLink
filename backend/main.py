@@ -14,6 +14,7 @@ from routes.webhook_listener_routes.youtube_listener_routes import youtube_route
 from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from add_roles import add_user_role, RoleUpdate
 import asyncio
+from routes.page_management_routes.page_routes import router as page_route
 from routes.base_routes.event_routes import event_router
 from routes.base_routes.role_routes import role_router 
 from routes.base_routes.user_routes import user_router 
@@ -53,6 +54,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
 )
+
 
 
 @app.get("/")
@@ -168,6 +170,11 @@ router_webhook_listener.include_router(youtube_router)
 router_strapi = APIRouter(prefix="/api/v1/strapi", tags=["strapi"])
 router_strapi.include_router(strapi_router)
 router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
+
+#####################################################
+# Web Builder Config
+#####################################################
+app.include_router(page_route)
 
 
 # Include routers in main app
