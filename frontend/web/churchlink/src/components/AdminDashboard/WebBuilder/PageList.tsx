@@ -33,6 +33,9 @@ const WebBuilderPageList = () => {
   };
 
   const deletePage = async (id: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this page?");
+    if (!confirmDelete) return;
+
     await fetch(`/api/pages/${id}`, { method: "DELETE" });
     setPages((prev) => prev.filter((p) => p._id !== id));
   };
