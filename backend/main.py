@@ -15,6 +15,7 @@ from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from add_roles import add_user_role, RoleUpdate
 import asyncio
 from routes.page_management_routes.page_routes import router as page_route
+from routes.page_management_routes.header_routes import header_router as header_route
 from routes.base_routes.event_routes import event_router
 from routes.base_routes.role_routes import role_router 
 from routes.base_routes.user_routes import user_router 
@@ -174,8 +175,8 @@ router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 #####################################################
 # Web Builder Config
 #####################################################
+app.include_router(header_route)
 app.include_router(page_route)
-
 
 # Include routers in main app
 app.include_router(router_base)
