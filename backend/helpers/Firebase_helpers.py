@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Security, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from firebase_admin import auth
 from pydantic import BaseModel
@@ -18,10 +18,6 @@ class FirebaseUser:
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-
-
-
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> FirebaseUser:
@@ -100,3 +96,5 @@ def role_based_access(required_roles: List[str]) -> Callable:
                 detail=f"Error retrieving user claims: {str(e)}"
             )
     return check_role
+
+

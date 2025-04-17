@@ -8,7 +8,7 @@ dependencies = [
     "bs4>=0.0.2",
     "fastapi>=0.115.11",
     "firebase-admin>=6.7.0",
-    "pydantic>=2.10.6",
+    "pydantic[email]>=2.10.6",
     "motor>=3.7.0",
     "pymongo>=4.11.2",
     "python-dotenv>=1.0.1",
@@ -20,4 +20,5 @@ dependencies = [
     "scalar-fastapi>=1.0.3",
     "uvicorn>=0.34.0",
     "paypal-server-sdk>=1.0.0",
+    "faker>=37.1.0",
 ]

@@ -8,6 +8,7 @@ const ArticlesListPage = lazy(() => import("@/pages/ArticlesListPage"));
 const ArticlePage = lazy(() => import("@/pages/ArticlePage"));
 const General = lazy(() => import("@/pages/General"));
 const Giving = lazy(() => import("@/pages/Giving"));
+const EventViewer = lazy(() => import("@/pages/EventViewer"));
 
 function GeneralWrapper() {
   const { name } = useParams();
@@ -19,11 +20,12 @@ export const PublicRoutes = () => {
     <>
       <MainLayout>
         <Routes>
-          <Route path="/:name?" element={<GeneralWrapper />} />
+          <Route path="/events" element={<EventViewer />} />
           <Route path="/articles" element={<ArticlesListPage />} />
           <Route path="/articles/:id" element={<ArticlePage />} />
           <Route path="/giving" element={<Giving />} />
           <Route path="/PaymentExample" element={<Payment />} />
+          <Route path="/:name?" element={<GeneralWrapper />} />
         </Routes>
       </MainLayout>
     </>

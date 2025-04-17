@@ -11,9 +11,9 @@ from firebase_admin import credentials
 from helpers.youtubeHelper import YoutubeHelper
 
 from get_bearer_token import generate_test_token
-from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.strapi_routes.strapi_routes import strapi_router
 from routes.paypal_routes.paypal_routes import paypal_router
+from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from add_roles import add_user_role, RoleUpdate
 
 
@@ -21,12 +21,19 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import asyncio
 import os
+from routes.page_management_routes.page_routes import router as page_route
+from routes.base_routes.event_routes import event_router
+from routes.base_routes.role_routes import role_router
+from routes.base_routes.user_routes import user_router
+from routes.base_routes.event_routes import public_event_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
     if not firebase_admin._apps:
         from firebase.firebase_credentials import get_firebase_credentials
+
         cred = credentials.Certificate(get_firebase_credentials())
         firebase_admin.initialize_app(cred)
 
@@ -34,13 +41,16 @@ async def lifespan(app: FastAPI):
     await DatabaseManager.init_db()
 
     # Run Youtube Notification loop
-    youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
+    youtubeSubscriptionCheck = asyncio.create_task(
+        YoutubeHelper.youtubeSubscriptionLoop()
+    )
 
     yield
 
     # Cleanup
     youtubeSubscriptionCheck.cancel()
     DatabaseManager.close_db()
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -65,9 +75,11 @@ async def scalar_html():
         title=app.title,
     )
 
+
 class LoginCredentials(BaseModel):
     email: str
     password: str
+
 
 #####################################################
 # Dev Router Configuration
@@ -92,6 +104,7 @@ async def get_auth_token(credentials: LoginCredentials):
     except Exception as e:
         return {"error": str(e)}
 
+
 @router_dev.post("/roles", summary="Update user roles")
 async def update_user_roles(role_update: RoleUpdate):
     """
@@ -111,22 +124,23 @@ async def update_user_roles(role_update: RoleUpdate):
     )
 
 
+# routes that are public and don't need authentication
+#####################################################
+# Public Router Configuration
+#####################################################
+public_router = APIRouter(prefix="/api/v1")
+public_router.include_router(public_event_router)
 
-
-# This are an example we can discuss as a group
 
 #####################################################
 # Base Router Configuration
 #####################################################
-router_base = APIRouter(prefix="/api/v1", tags=["base"])
+router_base = APIRouter(prefix="/api/v1")
 # Add Firebase authentication dependency to base router, needs base role
 router_base.dependencies.append(Depends(role_based_access(["base"])))
-# router_base.include_router(item_router_base)
-
-
-
-#####################################################
-
+router_base.include_router(event_router)
+router_base.include_router(role_router)
+router_base.include_router(user_router)
 
 
 #####################################################
@@ -170,6 +184,11 @@ router_strapi = APIRouter(prefix="/api/v1/strapi", tags=["strapi"])
 router_strapi.include_router(strapi_router)
 router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 
+#####################################################
+# Web Builder Config
+#####################################################
+app.include_router(page_route)
+
 
 # Include routers in main app
 app.include_router(router_base)
@@ -178,7 +197,7 @@ app.include_router(router_finance)
 app.include_router(router_paypal)
 app.include_router(router_webhook_listener)
 app.include_router(router_strapi)
-
+app.include_router(public_router)
 
 if __name__ == "__main__":
     import uvicorn
