@@ -6,6 +6,7 @@ import HeroSection, { HeroContent } from "@/components/AdminDashboard/WebBuilder
 import MenuSection, { MenuSectionContent } from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
 import ContactInfoSection, { ContactInfoContent } from "@/components/AdminDashboard/WebBuilder/sections/ContactInfoSection";
 import MapSection from "@/components/AdminDashboard/WebBuilder/sections/MapSection";
+import EventSection from "@/components/AdminDashboard/WebBuilder/sections/EventSection"; // Import EventSection
 import {
   DndContext,
   closestCenter,
@@ -29,8 +30,8 @@ interface ServiceTimesContent {
 
 interface Section {
   id: string;
-  type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map";
-  content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent;
+  type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map" | "event"; // Updated type
+  content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string };
 }
 
 interface PageData {
@@ -120,7 +121,7 @@ const EditPage = () => {
   };
 
   const handleAddSection = (type: Section["type"]) => {
-    let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent = "";
+    let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string } = "";
  
     if (type === "hero") {
       defaultContent = {
@@ -150,7 +151,9 @@ const EditPage = () => {
         ],
       };
     } else if (type === "map") {
-      defaultContent = "https://www.google.com/maps/embed?pb=...";
+      defaultContent = { embedUrl: "https://www.google.com/maps/embed?pb=..." };
+    } else if (type === "event") { // Added case for event
+      defaultContent = "";
     }
  
     setSections([...sections, { id: Date.now().toString(), type, content: defaultContent }]);
@@ -181,6 +184,7 @@ const EditPage = () => {
           <option value="menu">Menu</option>
           <option value="contact-info">Contact Info</option>
           <option value="map">Map</option>
+          <option value="event">Event</option> {/* Added event option */}
         </select>
         <button
           onClick={() => handleAddSection(newSectionType)}
@@ -284,10 +288,13 @@ const EditPage = () => {
                   )}
                   {section.type === "map" && (
                     <MapSection
-                      data={section.content as string}
+                      data={section.content as { embedUrl?: string }}
                       isEditing
                       onChange={(newContent) => handleContentChange(index, newContent)}
                     />
+                  )}
+                  {section.type === "event" && ( // Added rendering for EventSection
+                    <EventSection />
                   )}
                   <button
                     onClick={() => {
