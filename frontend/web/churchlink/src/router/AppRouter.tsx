@@ -32,6 +32,15 @@ export const AppRouter = () => {
           }
         />
 
+
+        <Route
+          path="/"
+          element={
+            <PublicRoute>
+              <DynamicPage />
+            </PublicRoute>
+          }
+        />
         {/* Dynamic page route for any URL */}
         <Route
           path="/:slug/*" // Catch all routes. Apparently works with slashes compared to "/:slug", though functionality does not work at the moment.
