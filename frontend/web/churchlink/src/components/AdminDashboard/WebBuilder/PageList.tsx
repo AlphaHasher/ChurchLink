@@ -42,7 +42,15 @@ const WebBuilderPageList = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-semibold mb-4">Website Pages</h1>
+        <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-semibold">Website Pages</h1>
+            <button
+                onClick={() => navigate("/admin/webbuilder/add")}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center"
+            >
+                <span className="mr-1">+</span> Add Page
+            </button>
+        </div>
       <div className="bg-white rounded shadow-md overflow-hidden">
         <table className="min-w-full table-auto text-left">
           <thead className="bg-gray-100 text-gray-700 text-sm">
