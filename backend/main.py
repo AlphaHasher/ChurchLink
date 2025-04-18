@@ -26,6 +26,10 @@ from routes.base_routes.user_routes import user_router
 from routes.base_routes.event_routes import public_event_router
 
 
+# You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
+BYPASS_FIREBASE_SYNC = False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
@@ -38,8 +42,9 @@ async def lifespan(app: FastAPI):
     # MongoDB connection setup
     await DatabaseManager.init_db()
 
-    # Sync MongoDB to Firebase
-    await FirebaseSyncer.SyncDBToFirebase()
+    if not BYPASS_FIREBASE_SYNC:
+        # Sync MongoDB to Firebase
+        await FirebaseSyncer.SyncDBToFirebase()
 
     # Verify that an Administrator Role (Mandatory) exists
     await RoleHandler.verify_admin_role()
