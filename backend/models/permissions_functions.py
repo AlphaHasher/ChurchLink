@@ -62,6 +62,7 @@ async def update_role(payload: RoleUpdateInput):
             permStr.append(key)
     try:
         if await RoleHandler.update_role(payload.id, payload.name, permStr):
+            await update_users_with_role(payload.id)
             return {"success": True, "msg":"Your role has been updated."}
         else:
             return {"success": False, "msg":"Your role could not be updated. Did you try to use a duplicate role name?"}
@@ -79,10 +80,13 @@ async def delete_role(payload: RoleUpdateInput):
     except:
         return {"success": False, "msg":"Your role could not be deleted due to an unknown critical error!"}
     
-async def strip_users_of_role(id: str):
-
+async def update_users_with_role(id:str):
     users_with_role = await UserHandler.find_users_with_role_id(id)
-
+    for user in users_with_role:
+        await UserHandler.update_roles(user['uid'], user['roles'], StrapiHelper.sync_strapi_roles)
+    
+async def strip_users_of_role(id: str):
+    users_with_role = await UserHandler.find_users_with_role_id(id)
     for user in users_with_role:
         updated_roles = [rid for rid in user.get("roles", []) if rid != id]
         await UserHandler.update_roles(user['uid'], updated_roles, StrapiHelper.sync_strapi_roles)

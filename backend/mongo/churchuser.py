@@ -13,7 +13,7 @@ class UserHandler:
     ## Operations ##
     ################
     @staticmethod
-    async def create_schema(first_name, last_name, email, uid, roles, phone=None, birthday=None, address=None):
+    async def create_schema(first_name:str, last_name:str, email:str, uid:str, roles:list, phone=None, birthday=None, address=None):
         return {
             "first_name": first_name,
             "last_name": last_name,

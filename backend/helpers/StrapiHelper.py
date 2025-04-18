@@ -63,7 +63,8 @@ class StrapiHelper:
             'exists': False,
             'active': False,
             'invite_url': None,
-            'id': None
+            'id': None,
+            'current_roles':[]
         }
 
         url = f"{STRAPI_URL}/admin/users"
@@ -106,6 +107,7 @@ class StrapiHelper:
                     invite_url = await StrapiHelper.invite_strapi_user(email, first_name, last_name, uid)
                     retDict['invite_url'] = invite_url
 
+                retDict['current_roles'] = [role['id'] for role in user.get('roles', [])]
                 break  # no need to continue loop after match
 
         return retDict
@@ -219,7 +221,8 @@ class StrapiHelper:
                 # If the user still has some roles, we want to retain their account but update it
                 admin_roles = await StrapiHelper.get_admin_role_ids(token)
                 update_roles = await StrapiHelper.gather_proper_permissions(admin_roles, mongo_user['uid'])
-                await StrapiHelper.update_strapi_user_roles(strapi_user_id, update_roles, token)
+                if sorted(update_roles) != sorted(strapiUserExists['current_roles']):
+                    await StrapiHelper.update_strapi_user_roles(strapi_user_id, update_roles, token)
             
         return True
             
