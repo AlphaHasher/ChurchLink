@@ -53,7 +53,6 @@ async def get_header() -> Optional[Header]:
                     ))
 
         # Create a Header object with the items
-        print(header_items)
         return Header(items=header_items)
     except Exception as e:
         print(f"Error getting header items: {e}")
@@ -112,8 +111,8 @@ async def add_link(item: dict) -> bool:
         item_input["type"] = "link"
         item_input["index"] = len(await DB.find_documents(db_path, {}))
         item_input["updated_at"] = datetime.utcnow()
-        await DB.insert_document(db_path, item_input)
-        return True
+        res = await DB.insert_document(db_path, item_input)
+        return res is not None
     except Exception as e:
         print(f"Error adding navigation item to header: {e}")
         return False
@@ -123,12 +122,20 @@ async def add_dropdown(item: dict) -> bool:
     Adds a new dropdown navigation item to the header.
     """
     try:
-        item_input = item
-        item_input["type"] = "dropdown"
-        item_input["index"] = len(await DB.find_documents(db_path, {}))
-        item_input["updated_at"] = datetime.utcnow()
-        await DB.insert_document(db_path, item_input)
-        return True
+        res = await DB.insert_document(db_path, {
+            "title": item["title"],
+            "items": [
+                {
+                    "title": subitem.title,
+                    "url": subitem.url
+                } for subitem in item["items"]
+            ],
+            "visible": item.get("visible", True),
+            "type": "dropdown",
+            "index": len(await DB.find_documents(db_path, {})),
+            "updated_at": datetime.utcnow()
+        })
+        return res is not None
     except Exception as e:
         print(f"Error adding dropdown navigation item to header: {e}")
         return False

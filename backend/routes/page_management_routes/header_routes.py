@@ -47,7 +47,7 @@ async def get_header_item_route(title: str = Path(...)):
     # Return updated header
     return item
 
-@header_router.delete("/items/{title}", response_model=bool)
+@header_router.delete("/{title}", response_model=bool)
 async def remove_header_item_route(title: str = Path(...)):
     """Remove an item from the header by title."""
     success = await remove_item_by_name(title)

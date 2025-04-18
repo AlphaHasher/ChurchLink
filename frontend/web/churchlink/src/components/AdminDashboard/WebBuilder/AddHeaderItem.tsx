@@ -47,7 +47,7 @@ const AddHeaderItem = () => {
 
     // For dropdowns
     const [newDropdownTitle, setNewDropdownTitle] = useState("");
-    const [dropdownLinks, setDropdownLinks] = useState<HeaderLink>([]);
+    const [dropdownLinks, setDropdownLinks] = useState<HeaderLink[]>([]);
     const [tempLinkTitle, setTempLinkTitle] = useState("");
     const [tempLinkUrl, setTempLinkUrl] = useState("");
 
@@ -90,10 +90,6 @@ const AddHeaderItem = () => {
             toast.error("Dropdown title is required");
             return;
         }
-        if (dropdownLinks.length < 1) {
-            toast.error("Add at least two links to the dropdown");
-            return;
-        }
 
         try {
             const res = await axios.post("/api/header/items/dropdowns", {
@@ -131,7 +127,7 @@ const AddHeaderItem = () => {
                 <h2 className="text-xl font-semibold">Add Navigation Item</h2>
                 <button
                     onClick={() => navigate("/admin/webbuilder/header")}
-                    className="text-blue-600 hover:underline"
+                    className="text-white hover:underline"
                 >
                     Back to Header
                 </button>

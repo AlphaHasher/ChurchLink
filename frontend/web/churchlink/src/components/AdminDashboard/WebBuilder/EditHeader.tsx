@@ -111,7 +111,7 @@ const EditHeader = () => {
     const handleRemoveItem = async (title: string) => {
         if (confirm(`Are you sure you want to remove "${title}" from navigation?`)) {
             try {
-                await axios.delete(`/api/header/items/${title}`);
+                await axios.delete(`/api/header/${title}`);
                 toast.success("Navigation item removed successfully");
                 fetchHeader(); // Refresh the header data
             } catch (err) {
@@ -127,12 +127,11 @@ const EditHeader = () => {
         <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Edit Header Navigation</h2>
-                <Link
-                    to="/admin/webbuilder/header/add"
-                    className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded"
-                >
-                    Add Navigation Item
-                </Link>
+                <button
+                    onClick={() => navigate("/admin/webbuilder/header/add")}
+                    className="text-sm text-white hover:underline"
+                    > Add Navigation Item
+                </button>
             </div>
 
             {/* Current header items */}
@@ -162,20 +161,20 @@ const EditHeader = () => {
                                             <div className="flex gap-2">
                                                 <button
                                                     className={`text-sm px-2 py-1 rounded ${
-                                                        item.visible !== false ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                                        item.visible !== false ? "text-gray-100" : "text-red-800"
                                                     }`}
                                                 >
                                                     {item.visible !== false ? "Visible" : "Hidden"}
                                                 </button>
                                                 <button
                                                     onClick={() => navigate(`/admin/webbuilder/header/edit/${item.title}`)}
-                                                    className="text-sm text-blue-600 hover:underline"
+                                                    className="text-sm text-blue-500 hover:underline"
                                                 >
                                                     Edit
                                                 </button>
                                                 <button
                                                     onClick={() => handleRemoveItem(item.title)}
-                                                    className="text-sm text-red-500 hover:underline"
+                                                    className="text-sm text-red-400 hover:underline"
                                                 >
                                                     Remove
                                                 </button>
@@ -189,25 +188,6 @@ const EditHeader = () => {
                 ) : (
                     <p className="text-gray-500">No navigation items yet. Click "Add Navigation Item" to create one.</p>
                 )}
-            </div>
-
-            {/* Save Changes Button */}
-            <div className="mt-4 flex justify-start">
-                <button
-                    onClick={async () => {
-                        if (!header) return;
-                        try {
-                            await axios.put("/api/header/reorder", header.items);
-                            toast.success("Navigation changes saved successfully");
-                        } catch (err) {
-                            console.error("Failed to save changes:", err);
-                            toast.error("Failed to save navigation changes");
-                        }
-                    }}
-                    className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded"
-                >
-                    Save Changes
-                </button>
             </div>
         </div>
     );
