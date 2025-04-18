@@ -1,8 +1,6 @@
-from fastapi import APIRouter, HTTPException, status, Body, Path
+from fastapi import APIRouter, HTTPException, Body, Path
 from mongo.database import DB
 from models.header import Header, HeaderDropdown, HeaderLink, HeaderItem, remove_item_by_name, get_header, get_item_by_title, add_link, add_dropdown
-from typing import List
-from bson import ObjectId, errors as bson_errors
 
 header_router = APIRouter(prefix="/api/header")
 

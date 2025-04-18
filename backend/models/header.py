@@ -1,6 +1,6 @@
 # backend/models/header.py
 from datetime import datetime
-from typing import List, Optional, Literal, Final, Union
+from typing import List, Optional, Final, Union
 from pydantic import BaseModel
 from mongo.database import DB
 
