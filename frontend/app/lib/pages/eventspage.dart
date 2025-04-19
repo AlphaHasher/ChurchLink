@@ -198,7 +198,7 @@ void _showFilterSheet(BuildContext context) {
 
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "Gender"),
-                  value: _gender,
+                  value: tempGender,
                   items: [
                     null,              // Show all: no filtering
                     'all',             // Only "All Genders" events
@@ -232,7 +232,7 @@ void _showFilterSheet(BuildContext context) {
 
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "Ministry"),
-                  value: _ministry,
+                  value: tempMinistry,
                   items: [
                     null,
                     'Children',
@@ -259,7 +259,7 @@ void _showFilterSheet(BuildContext context) {
                   children: [
                     const Text("Date Range", style: TextStyle(fontWeight: FontWeight.w500)),
                     RangeSlider(
-                      values: _dateRange,
+                      values: tempDateRange,
                       min: 0,
                       max: _maxDate.difference(_minDate).inDays.toDouble(),
                       divisions: 20,
