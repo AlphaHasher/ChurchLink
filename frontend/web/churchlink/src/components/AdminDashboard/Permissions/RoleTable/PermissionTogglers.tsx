@@ -54,67 +54,46 @@ export const PermissionTogglers = ({ permissions, onChange }: PermissionTogglers
     return (
         <div className="grid gap-4 py-4">
             <RadioToggler
-                name="isAdmin"
+                name="admin"
                 label="Administrator Privileges"
                 description="This option grants the user complete site access, without any restriction"
-                value={permissions.isAdmin}
-                onChange={handleChange("isAdmin")}
+                value={permissions.admin}
+                onChange={handleChange("admin")}
             />
             <RadioToggler
-                name="manageWholeSite"
+                name="website_management"
                 label="Site Management"
                 description="This option grants the user the ability to change the core layout of the site, more than just static pages and events"
-                value={permissions.manageWholeSite}
-                onChange={handleChange("manageWholeSite")}
+                value={permissions.website_management}
+                onChange={handleChange("website_management")}
             />
             <RadioToggler
-                name="editAllEvents"
+                name="event_management"
                 label="Event Moderator"
                 description="This option grants the user the ability to manage all events, regardless of specific permission tags"
-                value={permissions.editAllEvents}
-                onChange={handleChange("editAllEvents")}
+                value={permissions.event_management}
+                onChange={handleChange("event_management")}
             />
             <RadioToggler
-                name="editAllPages"
+                name="page_management"
                 label="Page Moderator"
                 description="This option grants the user the ability to manage all pages (but not the core site layout), regardless of specific permission tags"
-                value={permissions.editAllPages}
-                onChange={handleChange("editAllPages")}
+                value={permissions.page_management}
+                onChange={handleChange("page_management")}
             />
             <RadioToggler
-                name="accessFinances"
+                name="finance"
                 label="Financial Access"
                 description="This option grants the user the ability to access financial information and pages"
-                value={permissions.accessFinances}
-                onChange={handleChange("accessFinances")}
+                value={permissions.finance}
+                onChange={handleChange("finance")}
             />
             <RadioToggler
-                name="manageNotifications"
-                label="Notification Management"
-                description="This option grants the user the ability to manage push notifications sent to mobile"
-                value={permissions.manageNotifications}
-                onChange={handleChange("manageNotifications")}
-            />
-            <RadioToggler
-                name="manageMediaContent"
+                name="media_management"
                 label="Media Management"
                 description="This option grants the user the ability to add or remove media from the site"
-                value={permissions.manageMediaContent}
-                onChange={handleChange("manageMediaContent")}
-            />
-            <RadioToggler
-                name="manageBiblePlan"
-                label="Bible Plan Management"
-                description="This option grants the user the ability to edit the church Bible Reading Plan"
-                value={permissions.manageBiblePlan}
-                onChange={handleChange("manageBiblePlan")}
-            />
-            <RadioToggler
-                name="manageUserPermissions"
-                label="Manage User Permissions"
-                description="This option grants the user the ability to create and edit permissions, and grant permissions to users. This user can only bestow permissions they themselves have access to."
-                value={permissions.manageUserPermissions}
-                onChange={handleChange("manageUserPermissions")}
+                value={permissions.media_management}
+                onChange={handleChange("media_management")}
             />
         </div>
     )

@@ -34,12 +34,14 @@ import { useState } from "react"
 interface UsersTableProps {
   data: BaseUserMask[];
   permData: AccountPermissions[];
+  onSave: () => Promise<void>;
 }
 
 // In the Table, this creates the Columns that display user information
 const createColumn = (
   accessorKey: keyof BaseUserMask,
-  permData: AccountPermissions[]
+  permData: AccountPermissions[],
+  onSave: () => Promise<void>
 ): ColumnDef<BaseUserMask> => {
   const label = UserLabels[accessorKey];
 
@@ -68,7 +70,7 @@ const createColumn = (
 
           {accessorKey === "name" && (
             <div className="ml-auto flex space-x-2">
-              <AssignRolesDialog userData={row.original} roleList={getRoleOptions(permData)} initialRoles={recoverRoleArray(row.original)} permData={permData}></AssignRolesDialog>
+              <AssignRolesDialog userData={row.original} roleList={getRoleOptions(permData)} initialRoles={recoverRoleArray(row.original)} permData={permData} onSave={onSave}></AssignRolesDialog>
             </div>
           )}
         </div>
@@ -79,7 +81,7 @@ const createColumn = (
 
 
 
-export function UsersTable({ data, permData }: UsersTableProps) {
+export function UsersTable({ data, permData, onSave }: UsersTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -88,7 +90,7 @@ export function UsersTable({ data, permData }: UsersTableProps) {
   const columns: ColumnDef<BaseUserMask>[] = [];
 
   Object.keys(UserLabels).forEach((key) => {
-    columns.push(createColumn(key as keyof BaseUserMask, permData));
+    columns.push(createColumn(key as keyof BaseUserMask, permData, onSave));
   });
 
   const table = useReactTable({

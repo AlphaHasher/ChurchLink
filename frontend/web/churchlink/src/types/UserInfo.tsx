@@ -2,6 +2,7 @@ import { PermMask } from "./AccountPermissions";
 
 
 export type UserInfo = {
+    uid: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -12,6 +13,7 @@ export type UserInfo = {
 
 
 export type BaseUserMask = {
+    uid: string;
     name: string;
     email: string;
     dateOfBirth: string;

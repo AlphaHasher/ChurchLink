@@ -16,11 +16,12 @@ import { Users } from "lucide-react";
 interface PermRoleMembersDialogProps {
     permissions: AccountPermissions;
     userData: UserInfo[];
+    permData: AccountPermissions[];
 }
 
 //Dialog that allows the user to delete an existing permission
 export function PermRoleMembersDialog({
-    permissions: initialPermissions, userData: userData
+    permissions: initialPermissions, userData: userData, permData: permData,
 }: PermRoleMembersDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -46,7 +47,7 @@ export function PermRoleMembersDialog({
                         <small className="text-gray-500 text-m">
                             A table quickly allowing you to examine who has the "{initialPermissions.name}" Permission Role. You can assign and unassign Permission Roles in the "Manage Users" section of the dashboard.
                         </small>
-                        <RoleMembersTable data={applyRoleMemberMask(userData, initialPermissions.name)} />
+                        <RoleMembersTable data={applyRoleMemberMask(userData, permData, initialPermissions.name)} />
                     </div>
                 </div>
             </DialogContent>

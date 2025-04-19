@@ -1,3 +1,4 @@
+import 'package:app/helpers/AuthController.dart';
 import 'package:flutter/material.dart';
 import '../../components/password_reset.dart';
 import '../../firebase/firebase_auth_service.dart';
@@ -20,6 +21,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
 
   bool _isLogin = true; // Toggle between login and signup
   FirebaseAuthService authService = FirebaseAuthService();
+  AuthController authController = AuthController();
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +56,9 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         child: CircleAvatar(
                           radius: 32,
                           backgroundColor: Colors.black,
-                          backgroundImage: const AssetImage('assets/user/ssbc-dove.png'),
+                          backgroundImage: const AssetImage(
+                            'assets/user/ssbc-dove.png',
+                          ),
                         ),
                       ),
                     ),
@@ -187,7 +191,11 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         side: const BorderSide(color: Colors.black),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: Text(_isLogin ? 'Need an account? Sign up' : 'Already have an account? Sign in'),
+                      child: Text(
+                        _isLogin
+                            ? 'Need an account? Sign up'
+                            : 'Already have an account? Sign in',
+                      ),
                     ),
                   ],
                 ),
@@ -199,34 +207,39 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
     );
   }
 
+  Future<void> _handleLogin() async {
+    bool verified = await authController.loginWithEmailAndSync(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+      (String errorMsg) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+      },
+    );
+    if (verified) {
+      Navigator.pop(context);
+    } else {
+      //Verification failed.
+    }
+  }
+
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      if(_isLogin) {
-        String? token = await authService.signInWithEmail(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        );
-        if (token != null && token.isNotEmpty) {
-          Navigator.pop(context);
-        } else {
-          // Sign in failed
-        }
+      if (_isLogin) {
+        await _handleLogin();
       } else {
         String email = _emailController.text.trim();
         String password = _passwordController.text.trim();
         String? token = await authService.registerWithEmail(email, password);
 
         if (token != null && token.isNotEmpty) {
-          await authService.getCurrentUser()?.updateProfile(displayName:
-          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
+          await authService.getCurrentUser()?.updateProfile(
+            displayName:
+                '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
           );
           authService.signOut();
-          String? token2 = await authService.signInWithEmail(email, password);
-          if (token2 != null && token2.isNotEmpty) {
-            Navigator.pop(context);
-          } else {
-            // Re-Sign in failed
-          }
+          await _handleLogin();
         } else {
           // Sign up failed
         }

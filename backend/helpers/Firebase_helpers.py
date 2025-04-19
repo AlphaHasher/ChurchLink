@@ -20,6 +20,22 @@ class Token(BaseModel):
     token_type: str
 
 
+
+
+async def authenticate_uid(credentials: HTTPAuthorizationCredentials = Security(security)):
+    try:
+        # The token comes in the format "Bearer <token>"
+        token = credentials.credentials
+        # Verify the token with Firebase Admin SDK
+        decoded_token = auth.verify_id_token(token)
+        
+        # Get user claims to check
+        uid = decoded_token['uid']
+        return uid
+    except:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> FirebaseUser:
     """
     Validate Firebase ID token and verify the user has access to the resource

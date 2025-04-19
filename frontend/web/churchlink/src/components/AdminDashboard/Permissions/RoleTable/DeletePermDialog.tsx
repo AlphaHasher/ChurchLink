@@ -13,13 +13,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash } from "lucide-react";
+
+import { deleteRole } from "@/helpers/PermissionsHelper";
 interface DeletePermDialogProps {
     permissions: AccountPermissions;
+    onSave: () => Promise<void>;
 }
 
 //Dialog that allows the user to delete an existing permission
 export function DeletePermDialog({
     permissions: initialPermissions,
+    onSave: onSave
 }: DeletePermDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [userInput, setUserInput] = useState(""); // Track user input
@@ -36,11 +40,17 @@ export function DeletePermDialog({
         setUserInput(""); // Reset the input when the dialog closes
     };
 
-    //TEST OUTPUT: Just spits out an alert to show it works
-    const handleDelete = () => {
+    // Handle Delete button
+    const handleDelete = async () => {
         if (userInput === initialPermissions.name) {
-            alert(`Deleted permission set: ${initialPermissions.name}`);
-            handleDialogClose();
+            const res = await deleteRole(initialPermissions)
+            if (res?.success) {
+                await onSave()
+                handleDialogClose()
+            }
+            else {
+                alert(`Error!: ${res.msg}`)
+            }
         } else {
             alert("Names do not match. Please try again.");
         }
