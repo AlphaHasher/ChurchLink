@@ -1,4 +1,4 @@
-// EditHeader.tsx
+// EditHeader.tsx - Updated to batch changes
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -38,6 +38,11 @@ interface Header {
     items: HeaderItem[];
 }
 
+interface PendingChanges {
+    removals: string[];
+    visibility: Record<string, boolean>;
+}
+
 const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
@@ -61,8 +66,14 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
 };
 
 const EditHeader = () => {
+    const [originalHeader, setOriginalHeader] = useState<Header | null>(null);
     const [header, setHeader] = useState<Header | null>(null);
     const [loading, setLoading] = useState(true);
+    const [pendingChanges, setPendingChanges] = useState<PendingChanges>({
+        removals: [],
+        visibility: {}
+    });
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const navigate = useNavigate();
 
     const sensors = useSensors(useSensor(PointerSensor));
@@ -74,8 +85,12 @@ const EditHeader = () => {
     const fetchHeader = async () => {
         try {
             setLoading(true);
-            const response = await axios.get("/api/header");
+            const response = await axios.get("/api/header/items");
+            setOriginalHeader(response.data);
             setHeader(response.data);
+            // Reset pending changes
+            setPendingChanges({ removals: [], visibility: {} });
+            setHasUnsavedChanges(false);
         } catch (err) {
             console.error("Failed to fetch header:", err);
             toast.error("Failed to load header data");
@@ -95,33 +110,99 @@ const EditHeader = () => {
             if (oldIndex !== -1 && newIndex !== -1) {
                 const newItems = arrayMove(header.items, oldIndex, newIndex);
                 setHeader({ ...header, items: newItems });
-
-                try {
-                    await axios.put("/api/header/reorder", newItems);
-                    toast.success("Navigation order updated");
-                } catch (err) {
-                    console.error("Failed to reorder navigation items:", err);
-                    toast.error("Failed to update navigation order");
-                    fetchHeader(); // Revert to server state on failure
-                }
+                setHasUnsavedChanges(true);
             }
         }
     };
 
-    const handleRemoveItem = async (title: string) => {
+    const handleRemoveItem = (title: string) => {
         if (confirm(`Are you sure you want to remove "${title}" from navigation?`)) {
-            try {
-                await axios.delete(`/api/header/${title}`);
-                toast.success("Navigation item removed successfully");
-                fetchHeader(); // Refresh the header data
-            } catch (err) {
-                console.error("Failed to remove navigation item:", err);
-                toast.error("Failed to remove navigation item");
+            setPendingChanges(prev => ({
+                ...prev,
+                removals: [...prev.removals, title]
+            }));
+
+            if (header) {
+                // Update UI but don't send to backend yet
+                const newItems = header.items.filter(item => item.title !== title);
+                setHeader({ ...header, items: newItems });
             }
+
+            setHasUnsavedChanges(true);
         }
     };
 
-    if (loading) return <div>Loading header data...</div>;
+    const handleChangeVisibility = (title: string, currentVisibility: boolean) => {
+        setPendingChanges(prev => ({
+            ...prev,
+            visibility: {
+                ...prev.visibility,
+                [title]: !currentVisibility
+            }
+        }));
+
+        if (header) {
+            // Update UI but don't send to backend yet
+            const newItems = header.items.map(item =>
+                item.title === title ? { ...item, visible: !currentVisibility } : item
+            );
+            setHeader({ ...header, items: newItems });
+        }
+
+        setHasUnsavedChanges(true);
+    };
+
+    const handleSaveChanges = async () => {
+        if (!header) return;
+
+        try {
+            // Apply all changes at once
+
+            // 1. Process removals
+            for (const title of pendingChanges.removals) {
+                await axios.delete(`/api/header/${title}`);
+            }
+
+            // 2. Apply visibility changes
+            for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
+                await axios.put(`/api/header/${title}/visibility`, { visible });
+            }
+
+            // 3. Save reordering last (after removals are processed)
+            const currentTitles = header.items.map(item => item.title);
+            await axios.put("/api/header/reorder", currentTitles);
+
+            toast.success("Navigation changes saved successfully");
+
+            // Refresh data from server
+            await fetchHeader();
+        } catch (err) {
+            console.error("Failed to save navigation changes:", err);
+            toast.error("Failed to save changes");
+            await fetchHeader(); // Revert to server state on failure
+        }
+    };
+
+    const handleCancelChanges = () => {
+        if (hasUnsavedChanges && confirm("Are you sure you want to discard all pending changes?")) {
+            setHeader(originalHeader);
+            setPendingChanges({ removals: [], visibility: {} });
+            setHasUnsavedChanges(false);
+        }
+    };
+
+    const isItemPendingRemoval = (title: string) => {
+        return pendingChanges.removals.includes(title);
+    };
+
+    const getEffectiveVisibility = (item: HeaderItem) => {
+        if (item.title in pendingChanges.visibility) {
+            return pendingChanges.visibility[item.title];
+        }
+        return item.visible;
+    };
+
+    if (loading) return <div className="p-6 text-center">Loading header data...</div>;
 
     return (
         <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
@@ -129,8 +210,9 @@ const EditHeader = () => {
                 <h2 className="text-xl font-semibold">Edit Header Navigation</h2>
                 <button
                     onClick={() => navigate("/admin/webbuilder/header/add")}
-                    className="text-sm text-white hover:underline"
-                    > Add Navigation Item
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                    Add Navigation Item
                 </button>
             </div>
 
@@ -160,21 +242,20 @@ const EditHeader = () => {
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
-                                                    className={`text-sm px-2 py-1 rounded ${
-                                                        item.visible !== false ? "text-gray-100" : "text-red-800"
-                                                    }`}
+                                                    onClick={() => handleChangeVisibility(item.title, !!getEffectiveVisibility(item))}
+                                                    className={getEffectiveVisibility(item) ? "text-green-500" : "text-red-500"}
                                                 >
-                                                    {item.visible !== false ? "Visible" : "Hidden"}
+                                                    {getEffectiveVisibility(item) ? "Visible" : "Hidden"}
                                                 </button>
                                                 <button
                                                     onClick={() => navigate(`/admin/webbuilder/header/edit/${item.title}`)}
-                                                    className="text-sm text-blue-500 hover:underline"
+                                                    className="text-blue-600 hover:underline"
                                                 >
                                                     Edit
                                                 </button>
                                                 <button
                                                     onClick={() => handleRemoveItem(item.title)}
-                                                    className="text-sm text-red-400 hover:underline"
+                                                    className="text-red-500 hover:underline"
                                                 >
                                                     Remove
                                                 </button>
@@ -189,6 +270,26 @@ const EditHeader = () => {
                     <p className="text-gray-500">No navigation items yet. Click "Add Navigation Item" to create one.</p>
                 )}
             </div>
+
+            {header && header.items.length > 0 && (
+                <div className="flex gap-4 justify-left mt-4">
+                    <button
+                        onClick={handleSaveChanges}
+                        className={`${hasUnsavedChanges ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400'} text-white px-4 py-2 rounded`}
+                        disabled={!hasUnsavedChanges}
+                    >
+                        Save Changes
+                    </button>
+                    {hasUnsavedChanges && (
+                        <button
+                            onClick={handleCancelChanges}
+                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

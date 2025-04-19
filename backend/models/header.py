@@ -58,6 +58,40 @@ async def get_header() -> Optional[Header]:
         print(f"Error getting header items: {e}")
         return None
 
+async def get_header_items() -> Optional[Header]:
+    """
+    Gets all header items from the database.
+    Combines them into ordered array to be used for NavBar.
+    """
+    try:
+        items_data = await DB.find_documents(db_path)
+        if not items_data:
+            return None
+
+        # Convert the MongoDB documents into HeaderItem objects
+        header_items = list()
+        for i in range(len(items_data)):
+            item = items_data[i]
+            # Database type check
+            if item["type"] == "dropdown":
+                header_items.append(HeaderDropdown(
+                    title=item["title"],
+                    items=item["items"],
+                    visible=item["visible"]
+                ))
+            elif item["type"] == "link":
+                header_items.append(HeaderLink(
+                    title=item["title"],
+                    url=item["url"],
+                    visible=item["visible"]
+                ))
+
+        # Create a Header object with the items
+        return Header(items=header_items)
+    except Exception as e:
+        print(f"Error getting header items: {e}")
+        return None
+
 async def get_item_by_title(title: str) -> Optional[Union[HeaderLink, HeaderDropdown]]:
     """
     Gets a header item by its title.
@@ -149,4 +183,42 @@ async def remove_item_by_name(title: str) -> bool:
         return result > 0  # Return True if at least one document was deleted
     except Exception as e:
         print(f"Error removing header item: {e}")
+        return False
+
+async def reorder_items(titles: List[str]) -> bool:
+    """
+    Reorders header items based on the provided list of titles.
+    """
+    try:
+        # Update each item's index based on its position in the titles list
+        res = True
+        for index, title in enumerate(titles):
+            # Update the document where title matches
+            result = await DB.db[db_path].update_one(
+                {"title": title},
+                {"$set": {"index": index, "updated_at": datetime.utcnow()}}
+            )
+
+            # If any update fails, log but continue with others
+            if not result:
+                res = False
+                break
+
+        return res
+    except Exception as e:
+        print(f"Error reordering header items: {e}")
+        return False
+
+async def change_visibility(title: str, visible: bool) -> bool:
+    """
+    Changes the visibility of a header item.
+    """
+    try:
+        result = await DB.db[db_path].update_one(
+            {"title": title},
+            {"$set": {"visible": visible, "updated_at": datetime.utcnow()}}
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error changing header item visibility: {e}")
         return False

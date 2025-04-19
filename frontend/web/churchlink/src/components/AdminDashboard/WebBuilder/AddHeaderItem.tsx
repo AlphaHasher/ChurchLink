@@ -73,6 +73,7 @@ const AddHeaderItem = () => {
             const res = await axios.post("/api/header/items/links", {
                 "title": newLinkTitle,
                 "url": newLinkUrl,
+                "visible": false,
             });
             if (res) {
                 navigate("/admin/webbuilder/header");
@@ -95,6 +96,7 @@ const AddHeaderItem = () => {
             const res = await axios.post("/api/header/items/dropdowns", {
                 "title": newDropdownTitle,
                 "items": dropdownLinks,
+                "visible": false,
             });
             if (res) {
                 navigate("/admin/webbuilder/header");
