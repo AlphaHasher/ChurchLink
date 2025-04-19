@@ -172,8 +172,7 @@ const EditHeader = () => {
 
             // 3. Save reordering last (after removals are processed)
             const currentTitles = header.items.map(item => item.title);
-            await axios.put("/api/header/reorder", currentTitles);
-
+            await axios.put("/api/header/reorder", {titles: currentTitles});
             toast.success("Navigation changes saved successfully");
 
             // Refresh data from server

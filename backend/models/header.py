@@ -38,26 +38,28 @@ async def get_header() -> Optional[Header]:
             return None
 
         # Convert the MongoDB documents into HeaderItem objects
-        header_items = list()
+        header_items = [None] * len(items_data) # Make a full list to capture indexes
         for i in range(len(items_data)):
             item = items_data[i]
-            # Database type check
             if type(item) != "int" and item.get("visible", True):
                 if item["type"] == "dropdown":
-                    header_items.append(HeaderDropdown(
+                    header_items[item["index"]] = HeaderDropdown(
                         title=item["title"],
                         russian_title=item["russian_title"],
-                        items=item["items"]
-                    ))
+                        items=item["items"],
+                        visible=item["visible"]
+                    )
                 elif item["type"] == "link":
-                    header_items.append(HeaderLink(
+                    header_items[item["index"]] = HeaderLink(
                         title=item["title"],
                         russian_title=item["russian_title"],
-                        url=item["url"]
-                    ))
+                        url=item["url"],
+                        visible=item["visible"]
+                    )
 
         # Create a Header object with the items
-        return Header(items=header_items)
+        public_header = [i for i in header_items if i is not None]
+        return Header(items=public_header)
     except Exception as e:
         print(f"Error getting header items: {e}")
         return None
@@ -73,7 +75,7 @@ async def get_header_items() -> Optional[Header]:
             return None
 
         # Convert the MongoDB documents into HeaderItem objects
-        header_items = [None] * len(items_data)
+        header_items = [None] * len(items_data) # Make a full list to capture indexes
         for i in range(len(items_data)):
             item = items_data[i]
             if item["type"] == "dropdown":
@@ -91,8 +93,9 @@ async def get_header_items() -> Optional[Header]:
                     visible=item["visible"]
                 )
 
-        # Create a Header object with the items
-        return Header(items=header_items)
+        # Collapse list to remove hidden items
+        public_header = [i for i in header_items if i is not None]
+        return Header(items=public_header)
     except Exception as e:
         print(f"Error getting header items: {e}")
         return None
@@ -110,11 +113,10 @@ async def get_item_by_title(title: str) -> Optional[Union[HeaderLink, HeaderDrop
             return None
 
         # Convert the MongoDB document into the appropriate HeaderItem type
-        if item.get("visible", True):
-            if item["type"] == "dropdown":
-                return HeaderDropdown(title=item["title"], russian_title=item["russian_title"], items=item["items"])
-            elif item["type"] == "link":
-                return HeaderLink(title=item["title"], russian_title=item["russian_title"], url=item["url"])
+        if item["type"] == "dropdown":
+            return HeaderDropdown(title=item["title"], russian_title=item["russian_title"], items=item["items"])
+        elif item["type"] == "link":
+            return HeaderLink(title=item["title"], russian_title=item["russian_title"], url=item["url"])
 
         return None
     except Exception as e:
@@ -199,7 +201,7 @@ async def reorder_items(titles: List[str]) -> bool:
     try:
         # Update each item's index based on its position in the titles list
         res = True
-        print(titles)
+
         for index, title in enumerate(titles):
             # Update the document where title matches
             result = await DB.db[db_path].update_one(
@@ -238,36 +240,13 @@ async def update_item(title: str, updated_item: dict) -> bool:
         if not item:
             return False
 
-        # Prepare update data
-        update_data = {}
-
-        # Update title if provided
-        if "title" in updated_item:
-            update_data["title"] = updated_item["title"]
-
-        # Update russian_title if provided
-        if "russian_title" in updated_item:
-            update_data["russian_title"] = updated_item["russian_title"]
-
-        # Update URL for links if provided
-        if item["type"] == "link" and "url" in updated_item:
-            update_data["url"] = updated_item["url"]
-
-        # Update items for dropdowns if provided
-        if item["type"] == "dropdown" and "items" in updated_item:
-            update_data["items"] = updated_item["items"]
-
-        # Update visibility if provided
-        if "visible" in updated_item:
-            update_data["visible"] = updated_item["visible"]
-
         # Add timestamp
-        update_data["updated_at"] = datetime.utcnow()
+        updated_item["updated_at"] = datetime.utcnow()
 
         # Update the document
         result = await DB.db[db_path].update_one(
             {"title": title},
-            {"$set": update_data}
+            {"$set": updated_item}
         )
 
         return result.modified_count > 0

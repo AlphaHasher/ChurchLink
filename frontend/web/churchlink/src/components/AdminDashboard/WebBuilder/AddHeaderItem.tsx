@@ -127,6 +127,7 @@ const AddHeaderItem = () => {
         }
         setDropdownLinks([...dropdownLinks, { title: tempLinkTitle, russian_title: tempLinkRussianTitle, url: tempLinkUrl }]);
         setTempLinkTitle("");
+        setTempLinkRussianTitle("");
         setTempLinkUrl("");
     };
 

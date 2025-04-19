@@ -38,12 +38,12 @@ export default function PrivNavBar() {
     const [loading, setLoading] = useState(true);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-    const is_russian = true
+    const is_russian = false
 
     useEffect(() => {
         const fetchHeaderItems = async () => {
             try {
-                const response = await axios.get<Header>("/api/header/items");
+                const response = await axios.get<Header>("/api/header");
                 setHeaderItems(response.data.items);
             } catch (error) {
                 console.error("Failed to fetch header items:", error);
@@ -97,7 +97,7 @@ export default function PrivNavBar() {
                                                     to={"/" + subItem.url}
                                                     className="block py-1 px-2 hover:bg-gray-700 rounded whitespace-nowrap"
                                                 >
-                                                    {is_russian ? subItem.russian_title : item.title}
+                                                    {is_russian ? subItem.russian_title : subItem.title}
                                                 </Link>
                                             ))}
                                         </div>

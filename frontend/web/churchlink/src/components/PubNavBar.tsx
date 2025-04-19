@@ -11,6 +11,7 @@ import axios from "axios";
 
 interface HeaderLink {
     title: string;
+    russian_title: string;
     url: string;
     visible?: boolean;
     type?: string;
@@ -18,6 +19,7 @@ interface HeaderLink {
 
 interface HeaderDropdown {
     title: string;
+    russian_title: string;
     items: HeaderLink[];
     visible?: boolean;
     type?: string;
@@ -33,6 +35,8 @@ export default function PubNavBar() {
     const [headerItems, setHeaderItems] = useState<HeaderItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+    const is_russian = false
 
     useEffect(() => {
         const fetchHeaderItems = async () => {
@@ -65,7 +69,7 @@ export default function PubNavBar() {
                         >
                             {'url' in item ? (
                                 <Link className="text-white! rounded-lg" to={"/" + item.url}>
-                                    {item.title}
+                                    {is_russian ? item.russian_title : item.title}
                                 </Link>
                             ) : (
                                 <div className="relative"
@@ -79,7 +83,7 @@ export default function PubNavBar() {
                                                 to={"/" + subItem.url}
                                                 className="block py-1 px-2 hover:bg-gray-700 rounded whitespace-nowrap"
                                             >
-                                                {subItem.title}
+                                                {is_russian ? subItem.russian_title : subItem.title}
                                             </Link>
                                         ))}
                                     </div>

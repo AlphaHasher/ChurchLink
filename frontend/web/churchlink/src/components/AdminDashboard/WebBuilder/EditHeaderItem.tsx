@@ -127,7 +127,7 @@ const EditHeaderItem: React.FC = () => {
                     url,
                 };
 
-            const response = await axios.put(`/api/header/${title}`, updatedItem);
+            const response = await axios.put(`/api/header/items/edit/${title}`, updatedItem);
 
             if (response.data) {
                 toast.success("Navigation item updated successfully");
