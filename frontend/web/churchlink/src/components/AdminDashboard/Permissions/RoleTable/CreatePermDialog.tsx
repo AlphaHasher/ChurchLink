@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/Dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
 
 import { createRole } from "@/helpers/PermissionsHelper"
 
@@ -41,6 +42,9 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
     // Track whether the dialog is open or closed
     const [isOpen, setIsOpen] = useState(false)
 
+    // Track saving state
+    const [saving, setSaving] = useState(false)
+
     // Reset permissions when dialog is closed
     const handleDialogClose = () => {
         setPermissions(initialPermissions) // Reset to initial permissions
@@ -49,6 +53,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
 
     // Handle Save Button
     const handleSaveChanges = async () => {
+        setSaving(true)
         const res = await createRole(permissions)
         if (res?.success) {
             await onSave()
@@ -57,6 +62,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         else {
             alert(`Error!: ${res.msg}`)
         }
+        setSaving(false)
     }
 
     // Handle when the dialog is closed, either by clicking the X or the backdrop
@@ -104,8 +110,17 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
                     <PermissionTogglers permissions={permissions} onChange={setPermissions} />
                 </div>
                 <DialogFooter>
-                    <Button type="button" onClick={handleDialogClose}>Cancel</Button>
-                    <Button type="button" onClick={handleSaveChanges}>Save changes</Button>
+                    <Button type="button" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
+                    <Button type="button" onClick={handleSaveChanges} disabled={saving}>
+                        {saving ? (
+                            <>
+                                <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                Saving...
+                            </>
+                        ) : (
+                            "Save changes"
+                        )}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
