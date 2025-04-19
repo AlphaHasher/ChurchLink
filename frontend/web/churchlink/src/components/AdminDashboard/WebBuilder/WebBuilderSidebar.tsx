@@ -5,9 +5,10 @@ const WebBuilderSidebar: React.FC = () => {
   const { pathname } = useLocation();
 
   const links = [
-    { name: "Pages", to: "/admin/webbuilder" },
-    { name: "Media", to: "/admin/webbuilder/media" },
-    { name: "Settings", to: "/admin/webbuilder/settings" },
+      { name: "Pages", to: "/admin/webbuilder" },
+      { name: "Header", to: "/admin/webbuilder/header" },
+      { name: "Media", to: "/admin/webbuilder/media" },
+      { name: "Settings", to: "/admin/webbuilder/settings" },
   ];
 
   return (

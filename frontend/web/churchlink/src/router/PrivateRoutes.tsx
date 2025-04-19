@@ -12,6 +12,9 @@ const Finance = lazy(() => import("@/pages/admin/Finance"));
 const WebBuilder = lazy(() => import("@/pages/admin/WebBuilder"));
 const AddPage = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddPage"));
 const EditPage = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditPage"));
+const EditHeader = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditHeader"));
+const EditHeaderItem = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditHeaderItem"));
+const AddHeaderItem = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddHeaderItem"));
 const Users = lazy(() => import("@/pages/admin/Users"));
 
 
@@ -29,6 +32,9 @@ export const PrivateRoutes = () => {
         <Route path="/finance" element={<Finance />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
+        <Route path="/webbuilder/header" element={<EditHeader />} />
+        <Route path="/webbuilder/header/edit/:title" element={<EditHeaderItem />} />
+        <Route path="/webbuilder/header/add" element={<AddHeaderItem />} />
       </Route>
     </Routes>
   );
