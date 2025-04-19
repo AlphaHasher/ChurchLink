@@ -22,12 +22,14 @@ import { CSS } from "@dnd-kit/utilities";
 
 interface HeaderLink {
     title: string;
+    russian_title: string;
     url: string;
     visible?: boolean;
 }
 
 interface HeaderDropdown {
     title: string;
+    russian_title: string;
     items: HeaderLink[];
     visible?: boolean;
 }
@@ -189,10 +191,6 @@ const EditHeader = () => {
             setPendingChanges({ removals: [], visibility: {} });
             setHasUnsavedChanges(false);
         }
-    };
-
-    const isItemPendingRemoval = (title: string) => {
-        return pendingChanges.removals.includes(title);
     };
 
     const getEffectiveVisibility = (item: HeaderItem) => {

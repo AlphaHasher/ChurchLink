@@ -13,6 +13,7 @@ import axios from "axios";
 // Define interfaces for header data types
 interface HeaderLink {
     title: string;
+    russian_title: string;
     url: string;
     visible?: boolean;
     type?: string;
@@ -20,6 +21,7 @@ interface HeaderLink {
 
 interface HeaderDropdown {
     title: string;
+    russian_title: string;
     items: HeaderLink[];
     visible?: boolean;
     type?: string;
@@ -36,10 +38,12 @@ export default function PrivNavBar() {
     const [loading, setLoading] = useState(true);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
+    const is_russian = true
+
     useEffect(() => {
         const fetchHeaderItems = async () => {
             try {
-                const response = await axios.get<Header>("/api/header");
+                const response = await axios.get<Header>("/api/header/items");
                 setHeaderItems(response.data.items);
             } catch (error) {
                 console.error("Failed to fetch header items:", error);
@@ -62,7 +66,7 @@ export default function PrivNavBar() {
                 </NavigationMenuList>
 
                 {/* Navigation Items Section */}
-                <NavigationMenuList className="lg:flex flex-wrap gap-4 justify-end h-28 xl:pr-8 align-center">
+                <NavigationMenuList className="lg:flex flex-wrap justify-end h-28 xl:pr-8 align-center">
                     {!loading && headerItems.map((item) => (
                         <NavigationMenuItem
                             className="hidden lg:block hover:bg-gray-400/20! p-2 text-white! hover:text-white rounded-lg xl:text-xl!"
@@ -70,7 +74,7 @@ export default function PrivNavBar() {
                         >
                             {'url' in item ? (
                                 <Link className="text-white! rounded-lg" to={"/" + item.url}>
-                                    {item.title}
+                                    {is_russian ? item.russian_title : item.title}
                                 </Link>
                             ) : (
                                 <div className="relative">
@@ -79,11 +83,11 @@ export default function PrivNavBar() {
                                         onMouseEnter={() => setActiveDropdown(item.title)}
                                         onMouseLeave={() => setActiveDropdown(null)}
                                     >
-                                        {item.title}
+                                        {is_russian ? item.russian_title : item.title}
                                     </span>
                                     {activeDropdown === item.title && (
                                         <div
-                                            className="absolute top-full left-0 bg-black p-2 rounded-lg z-10 min-w-[150px]"
+                                            className="absolute top-full left-0 bg-black p-2 rounded-lg min-w-[150px]"
                                             onMouseEnter={() => setActiveDropdown(item.title)}
                                             onMouseLeave={() => setActiveDropdown(null)}
                                         >
@@ -93,7 +97,7 @@ export default function PrivNavBar() {
                                                     to={"/" + subItem.url}
                                                     className="block py-1 px-2 hover:bg-gray-700 rounded whitespace-nowrap"
                                                 >
-                                                    {subItem.title}
+                                                    {is_russian ? subItem.russian_title : item.title}
                                                 </Link>
                                             ))}
                                         </div>

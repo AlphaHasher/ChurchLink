@@ -50,6 +50,14 @@ async def get_header_item_route(title: str = Path(...)):
     # Return updated header
     return item
 
+@header_router.put("/{title}", response_model=bool)
+async def update_header_item_route(title: str = Path(...), updated_item: dict = Body(...)):
+    """Update an item in the header by title."""
+    success = await update_item(title, updated_item)
+    if not success:
+        raise HTTPException(status_code=404, detail="Header item not found or update failed")
+    return success
+
 @header_router.delete("/{title}", response_model=bool)
 async def remove_header_item_route(title: str = Path(...)):
     """Remove an item from the header by title."""

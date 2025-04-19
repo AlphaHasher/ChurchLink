@@ -10,6 +10,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 interface HeaderLink {
     title: string;
+    russian_title: string;
     url: string;
     visible?: boolean;
 }
@@ -43,12 +44,15 @@ const AddHeaderItem = () => {
 
     // For simple links
     const [newLinkTitle, setNewLinkTitle] = useState("");
+    const [newLinkRussianTitle, setNewLinkRussianTitle] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
 
     // For dropdowns
     const [newDropdownTitle, setNewDropdownTitle] = useState("");
+    const [newDropdownRussianTitle, setNewDropdownRussianTitle] = useState("");
     const [dropdownLinks, setDropdownLinks] = useState<HeaderLink[]>([]);
     const [tempLinkTitle, setTempLinkTitle] = useState("");
+    const [tempLinkRussianTitle, setTempLinkRussianTitle] = useState("");
     const [tempLinkUrl, setTempLinkUrl] = useState("");
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -72,6 +76,7 @@ const AddHeaderItem = () => {
         try {
             const res = await axios.post("/api/header/items/links", {
                 "title": newLinkTitle,
+                "russian_title": newLinkRussianTitle,
                 "url": newLinkUrl,
                 "visible": false,
             });
@@ -92,9 +97,15 @@ const AddHeaderItem = () => {
             return;
         }
 
+        if (!newDropdownRussianTitle) {
+            toast.error("Dropdown russian title is required");
+            return;
+        }
+
         try {
             const res = await axios.post("/api/header/items/dropdowns", {
                 "title": newDropdownTitle,
+                "russian_title": newDropdownRussianTitle,
                 "items": dropdownLinks,
                 "visible": false,
             });
@@ -110,11 +121,11 @@ const AddHeaderItem = () => {
 
     const handleAddDropdownLink = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!tempLinkTitle || !tempLinkUrl) {
+        if (!tempLinkTitle || !tempLinkRussianTitle || !tempLinkUrl) {
             toast.error("Link title and URL are required");
             return;
         }
-        setDropdownLinks([...dropdownLinks, { title: tempLinkTitle, url: tempLinkUrl }]);
+        setDropdownLinks([...dropdownLinks, { title: tempLinkTitle, russian_title: tempLinkRussianTitle, url: tempLinkUrl }]);
         setTempLinkTitle("");
         setTempLinkUrl("");
     };
@@ -170,6 +181,14 @@ const AddHeaderItem = () => {
                     />
                     <input
                         type="text"
+                        placeholder="Russian Title"
+                        value={newLinkRussianTitle}
+                        onChange={(e) => setNewLinkRussianTitle(e.target.value)}
+                        className="border rounded px-3 py-2"
+                        required
+                    />
+                    <input
+                        type="text"
                         placeholder="Link URL"
                         value={newLinkUrl}
                         onChange={(e) => setNewLinkUrl(e.target.value)}
@@ -193,7 +212,14 @@ const AddHeaderItem = () => {
                         className="border rounded px-3 py-2"
                         required
                     />
-
+                    <input
+                        type="text"
+                        placeholder="Russian Title"
+                        value={newDropdownRussianTitle}
+                        onChange={(e) => setNewDropdownRussianTitle(e.target.value)}
+                        className="border rounded px-3 py-2"
+                        required
+                    />
                     <div className="border rounded p-4 bg-gray-50">
                         <h4 className="font-medium mb-2">Dropdown Links</h4>
 
@@ -240,6 +266,13 @@ const AddHeaderItem = () => {
                                     placeholder="Link Title"
                                     value={tempLinkTitle}
                                     onChange={(e) => setTempLinkTitle(e.target.value)}
+                                    className="border rounded px-3 py-2"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Russian Title"
+                                    value={tempLinkRussianTitle}
+                                    onChange={(e) => setTempLinkRussianTitle(e.target.value)}
                                     className="border rounded px-3 py-2"
                                 />
                                 <input

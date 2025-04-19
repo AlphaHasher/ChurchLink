@@ -33,7 +33,7 @@ export const PrivateRoutes = () => {
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/header" element={<EditHeader />} />
-        <Route path="/webbuilder/header/edit/:slug" element={<EditHeaderItem />} />
+        <Route path="/webbuilder/header/edit/:title" element={<EditHeaderItem />} />
         <Route path="/webbuilder/header/add" element={<AddHeaderItem />} />
       </Route>
     </Routes>
