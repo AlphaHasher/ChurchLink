@@ -6,7 +6,6 @@ import AdminLayout from "@/layouts/AdminLayout";
 // Lazy load admin components
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const Permissions = lazy(() => import("@/pages/admin/Permissions"));
-const ContentManagement = lazy(() => import("@/pages/admin/ContentManagement"));
 const Notification = lazy(() => import("@/pages/admin/Notification"));
 const Finance = lazy(() => import("@/pages/admin/Finance"));
 const WebBuilder = lazy(() => import("@/pages/admin/WebBuilder"));
@@ -24,7 +23,6 @@ export const PrivateRoutes = () => {
         <Route path="/webbuilder" element={<WebBuilder />} />
         <Route path="/users" element={<Users />} />
         <Route path="/permissions" element={<Permissions />} />
-        <Route path="/content" element={<ContentManagement />} />
         <Route path="/notifications" element={<Notification />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
