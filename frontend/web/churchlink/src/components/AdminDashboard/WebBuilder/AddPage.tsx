@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -7,8 +7,6 @@ import "react-toastify/dist/ReactToastify.css";
 const AddPage = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [path, setPath] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +30,6 @@ const AddPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newSlug = generateSlug(title);
-    const newPath = `/${newSlug}`;
     setLoading(true);
 
     try {

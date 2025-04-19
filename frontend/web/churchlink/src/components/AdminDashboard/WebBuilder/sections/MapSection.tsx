@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 interface MapSectionProps {
   isEditing?: boolean;
-  data: {
+  data?: {
     embedUrl?: string;
   };
   onChange?: (data: any) => void;
