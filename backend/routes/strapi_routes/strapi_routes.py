@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter
 from models.strapi_article import get_articles, get_article_by_id
 from models.strapi_uploads import get_uploads, get_upload_by_id
 from models.strapi_user_management import process_redirect
