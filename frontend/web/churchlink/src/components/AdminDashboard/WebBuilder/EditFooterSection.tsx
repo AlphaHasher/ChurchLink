@@ -209,7 +209,7 @@ const EditHeaderItem: React.FC = () => {
 
     return (
         <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
-            <h2 className="text-xl font-semibold mb-4">Edit Navigation Item</h2>
+            <h2 className="text-xl font-semibold mb-4">Edit Section</h2>
 
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
