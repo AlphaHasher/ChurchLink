@@ -14,7 +14,7 @@ async def create_page(page: Page = Body(...)):
     if not page.slug.strip():
         raise HTTPException(status_code=400, detail="Slug is required")
 
-    existing_page = await DB.pages.find_one({"slug": page.slug})
+    existing_page = await DB.db["pages"].find_one({"slug": page.slug})
     if existing_page:
         raise HTTPException(status_code=400, detail="Slug already exists. Please choose a different slug.")
 
@@ -22,12 +22,12 @@ async def create_page(page: Page = Body(...)):
     page_data["created_at"] = datetime.utcnow()
     page_data["updated_at"] = datetime.utcnow()
     page_data["visible"] = True
-    result = await DB.pages.insert_one(page_data)
+    result = await DB.db["pages"].insert_one(page_data)
     return {"_id": str(result.inserted_id)}
 
 @router.get("/api/pages/{slug}")
 async def get_page_by_slug(slug: str):
-    page = await DB.pages.find_one({"slug": slug})
+    page = await DB.db["pages"].find_one({"slug": slug})
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
     page["_id"] = str(page["_id"])
@@ -49,7 +49,7 @@ async def update_page_sections(
     except bson_errors.InvalidId:
         raise HTTPException(status_code=400, detail="Invalid page ID format")
 
-    result = await DB.pages.update_one(
+    result = await DB.db["pages"].update_one(
         {"_id": object_id},
         {"$set": data}
     )
@@ -66,7 +66,7 @@ async def delete_page(page_id: str = Path(...)):
     except bson_errors.InvalidId:
         raise HTTPException(status_code=400, detail="Invalid page ID format")
 
-    result = await DB.pages.delete_one({"_id": object_id})
+    result = await DB.db["pages"].delete_one({"_id": object_id})
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Page not found")
@@ -75,7 +75,7 @@ async def delete_page(page_id: str = Path(...)):
 
 @router.get("/api/pages")
 async def list_pages(skip: int = 0, limit: int = 20):
-    cursor = DB.pages.find().skip(skip).limit(limit)
+    cursor = DB.db["pages"].find().skip(skip).limit(limit)
     pages = await cursor.to_list(length=limit)
     for page in pages:
         page["_id"] = str(page["_id"])
@@ -83,7 +83,7 @@ async def list_pages(skip: int = 0, limit: int = 20):
 
 @router.get("/api/pages/check-slug")
 async def check_slug_availability(slug: str):
-    existing_page = await DB.pages.find_one({"slug": slug})
+    existing_page = await DB.db["pages"].find_one({"slug": slug})
     return {"available": existing_page is None}
 
 @router.put("/api/pages/{page_id}/visibility")
@@ -93,7 +93,7 @@ async def toggle_page_visibility(page_id: str = Path(...), visible: bool = Body(
     except bson_errors.InvalidId:
         raise HTTPException(status_code=400, detail="Invalid page ID format")
 
-    result = await DB.pages.update_one(
+    result = await DB.db["pages"].update_one(
         {"_id": object_id},
         {"$set": {"visible": visible, "updated_at": datetime.utcnow()}}
     )
