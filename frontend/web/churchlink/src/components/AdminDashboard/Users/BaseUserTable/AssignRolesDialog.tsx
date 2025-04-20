@@ -13,14 +13,22 @@ import {
 import { ChevronDown, ShieldPlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import PermBeforeAfterTable from "./PermBeforeAfterTable";
-import { createPermComps } from "@/helpers/DataFunctions";
+import { createPermComps, roleStringListToRoleIdList } from "@/helpers/DataFunctions";
 import { AccountPermissions } from "@/types/AccountPermissions";
+
+import { updateUserRoles } from "@/helpers/PermissionsHelper";
 
 interface AssignRolesDialogProps {
     userData: BaseUserMask;
     permData: AccountPermissions[];
     roleList: string[]; // List of available roles
     initialRoles: string[]; // List of initial selected roles
+    onSave: () => Promise<void>;
+}
+
+interface RoleChangeParams {
+    uid: string;
+    role_ids: string[];
 }
 
 // Allows user to edit an already existing permission
@@ -28,7 +36,8 @@ export function AssignRolesDialog({
     userData,
     permData,
     roleList,
-    initialRoles
+    initialRoles,
+    onSave
 }: AssignRolesDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedRoles, setSelectedRoles] = useState<string[]>(initialRoles);
@@ -38,10 +47,24 @@ export function AssignRolesDialog({
         setSelectedRoles(initialRoles);
     }, [initialRoles]);
 
-    const handleDialogClose = () => setIsOpen(false);
-    const handleSaveChanges = () => {
-        handleDialogClose(); // Close the dialog after saving
-        // Handle saving logic here (e.g., API call to update roles)
+    const handleDialogClose = () => {
+        setIsOpen(false);
+        setSelectedRoles(initialRoles);
+    }
+
+    const handleSaveChanges = async () => {
+        const reqParams: RoleChangeParams = {
+            uid: userData.uid,
+            role_ids: roleStringListToRoleIdList(permData, selectedRoles),
+        };
+        const res = await updateUserRoles(reqParams)
+        if (res?.success) {
+            await onSave()
+            handleDialogClose()
+        }
+        else {
+            alert(`Error!: ${res.msg}`)
+        }
     };
 
     const toggleRole = (role: string) => {
@@ -52,6 +75,14 @@ export function AssignRolesDialog({
         );
     };
 
+    // Handle when the dialog is closed, either by clicking the X or the backdrop
+    const handleDialogCloseChange = (open: boolean) => {
+        if (!open) {
+            handleDialogClose() // Reset and close when dialog is closed
+        }
+        setIsOpen(open) // Update dialog open state
+    }
+
     const handleCheckboxClick = (event: React.MouseEvent, role: string) => {
         event.preventDefault();  // Prevent dropdown from closing
         event.stopPropagation(); // Stop the event from propagating to the dropdown
@@ -59,7 +90,7 @@ export function AssignRolesDialog({
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={handleDialogCloseChange}>
             <DialogTrigger asChild>
                 <Button
                     variant="outline"

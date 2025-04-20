@@ -14,7 +14,11 @@ from get_bearer_token import generate_test_token
 from routes.strapi_routes.strapi_routes import strapi_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
+from routes.user_routes.user_routes import users_router
+from routes.permissions_routes.permissions_routes import permissions_router
 from add_roles import add_user_role, RoleUpdate
+from mongo.firebase_sync import FirebaseSyncer
+from mongo.roles import RoleHandler
 
 
 from contextlib import asynccontextmanager
@@ -30,6 +34,10 @@ from routes.base_routes.user_routes import user_router
 from routes.base_routes.event_routes import public_event_router
 
 
+# You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
+BYPASS_FIREBASE_SYNC = False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
@@ -41,6 +49,13 @@ async def lifespan(app: FastAPI):
 
     # MongoDB connection setup
     await DatabaseManager.init_db()
+
+    if not BYPASS_FIREBASE_SYNC:
+        # Sync MongoDB to Firebase
+        await FirebaseSyncer.SyncDBToFirebase()
+
+    # Verify that an Administrator Role (Mandatory) exists
+    await RoleHandler.verify_admin_role()
 
     # Run Youtube Notification loop
     youtubeSubscriptionCheck = asyncio.create_task(
@@ -175,7 +190,7 @@ router_paypal.include_router(paypal_router)
 #####################################################
 # Webhook Listener Router Config
 #####################################################
-router_webhook_listener = APIRouter(prefix="/api/v1/webhook_listener", tags=["base"])
+router_webhook_listener = APIRouter(prefix="/api/v1/webhook_listener", tags=["webhook_listener"])
 router_webhook_listener.include_router(youtube_router)
 
 
@@ -191,6 +206,18 @@ router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 #####################################################
 app.include_router(header_route)
 app.include_router(page_route)
+
+#####################################################
+# Users Router Config
+#####################################################
+router_users = APIRouter(prefix="/api/v1/users", tags=["users"])
+router_users.include_router(users_router)
+
+#####################################################
+# Permissions Router Config
+#####################################################
+router_permissions = APIRouter(prefix="/api/v1/permissions", tags=["permissions"])
+router_permissions.include_router(permissions_router)
 app.include_router(footer_route)
 
 # Include routers in main app
@@ -201,6 +228,9 @@ app.include_router(router_paypal)
 app.include_router(router_webhook_listener)
 app.include_router(router_strapi)
 app.include_router(public_router)
+app.include_router(router_users)
+app.include_router(router_permissions)
+
 
 if __name__ == "__main__":
     import uvicorn

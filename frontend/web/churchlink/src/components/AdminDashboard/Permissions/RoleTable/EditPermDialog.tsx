@@ -15,13 +15,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Edit } from "lucide-react";
 
+import { updateRole } from "@/helpers/PermissionsHelper";
+
 interface EditPermDialogProps {
     permissions: AccountPermissions;
+    onSave: () => Promise<void>;
 }
 
 // Allows user to edit an already existing permission
 export function EditPermDialog({
     permissions: initialPermissions,
+    onSave: onSave
 }: EditPermDialogProps) {
     const [permissions, setPermissions] = useState<AccountPermissions>(initialPermissions);
     const [isOpen, setIsOpen] = useState(false);
@@ -36,9 +40,17 @@ export function EditPermDialog({
         setIsOpen(false); // Close the dialog
     };
 
-    const handleSaveChanges = () => {
-        handleDialogClose(); // Close the dialog after saving
-    };
+    // Handle Save Button
+    const handleSaveChanges = async () => {
+        const res = await updateRole(permissions)
+        if (res?.success) {
+            await onSave()
+            handleDialogClose()
+        }
+        else {
+            alert(`Error!: ${res.msg}`)
+        }
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => {
