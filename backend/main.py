@@ -5,6 +5,7 @@ import os
 from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials
+
 from mongo.database import DB as DatabaseManager
 from helpers.Firebase_helpers import role_based_access
 from helpers.youtubeHelper import YoutubeHelper
@@ -20,6 +21,8 @@ from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
 import asyncio
 from routes.page_management_routes.page_routes import router as page_route
+from routes.page_management_routes.header_routes import header_router as header_route
+from routes.page_management_routes.footer_routes import footer_router as footer_route
 from routes.base_routes.event_routes import event_router
 from routes.base_routes.role_routes import role_router 
 from routes.base_routes.user_routes import user_router 
@@ -193,6 +196,7 @@ router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
 #####################################################
 # Web Builder Config
 #####################################################
+app.include_router(header_route)
 app.include_router(page_route)
 
 #####################################################
@@ -206,7 +210,7 @@ router_users.include_router(users_router)
 #####################################################
 router_permissions = APIRouter(prefix="/api/v1/permissions", tags=["permissions"])
 router_permissions.include_router(permissions_router)
-
+app.include_router(footer_route)
 
 # Include routers in main app
 app.include_router(router_base)

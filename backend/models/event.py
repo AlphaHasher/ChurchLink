@@ -239,14 +239,15 @@ async def sort_events(
         query["min_age"] = {"$lte": age}
         query["max_age"] = {"$gte": age}
 
-    if gender != "all":
+    if gender is not None:
         query["gender"] = gender
-    if is_free is not None:
-        query["price"] = 0.0 if is_free else {"$gt": 0.0}
 
-    if max_price is not None:
-        query.setdefault("price", {})
-        query["price"]["$lte"] = max_price
+    if is_free is not None and is_free:
+        # Only free events
+        query["price"] = 0.0
+    elif max_price is not None:
+        # Paid events
+        query["price"] = {"$lte": max_price}
 
     if name:
         query["name"] = {"$regex": name, "$options": "i"}  # Case-insensitive name search
@@ -301,8 +302,16 @@ async def create_mock_events(count: int) -> dict:
     """
     fake = Faker()
     ministries = [
-        "Youth", "Children", "Women", "Men", "Family",
-        "Worship", "Outreach", "Bible Study", "Young Adults", "Seniors"
+        "Children",
+        "Education",
+        "Family",
+        "Music",
+        "Quo Vadis Theater",
+        "Skala Teens",
+        "VBS",
+        "United Service",
+        "Women's Ministries",
+        "Youth"
     ]
     genders = ["male", "female", "all"]
     recurring_options = ["daily", "weekly", "monthly", "yearly", "never"]
