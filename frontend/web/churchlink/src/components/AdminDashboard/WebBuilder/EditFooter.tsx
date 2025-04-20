@@ -1,4 +1,3 @@
-// EditHeader.tsx - Updated to batch changes
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -20,24 +19,22 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-interface HeaderLink {
+interface FooterItem {
     title: string;
     russian_title: string;
     url: string;
     visible?: boolean;
 }
 
-interface HeaderDropdown {
+interface FooterSection {
     title: string;
     russian_title: string;
-    items: HeaderLink[];
+    items: FooterItem[];
     visible?: boolean;
 }
 
-type HeaderItem = HeaderLink | HeaderDropdown;
-
-interface Header {
-    items: HeaderItem[];
+interface Footer {
+    items: FooterSection[];
 }
 
 interface PendingChanges {
@@ -67,9 +64,9 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
     );
 };
 
-const EditHeader = () => {
-    const [originalHeader, setOriginalHeader] = useState<Header | null>(null);
-    const [header, setHeader] = useState<Header | null>(null);
+const EditFooter = () => {
+    const [originalFooter, setOriginalFooter] = useState<Footer | null>(null);
+    const [footer, setFooter] = useState<Footer | null>(null);
     const [loading, setLoading] = useState(true);
     const [pendingChanges, setPendingChanges] = useState<PendingChanges>({
         removals: [],
@@ -81,53 +78,53 @@ const EditHeader = () => {
     const sensors = useSensors(useSensor(PointerSensor));
 
     useEffect(() => {
-        fetchHeader();
+        fetchFooter();
     }, []);
 
-    const fetchHeader = async () => {
+    const fetchFooter = async () => {
         try {
             setLoading(true);
-            const response = await axios.get("/api/header/items");
-            setOriginalHeader(response.data);
-            setHeader(response.data);
+            const response = await axios.get("/api/footer/items");
+            setOriginalFooter(response.data);
+            setFooter(response.data);
             // Reset pending changes
             setPendingChanges({ removals: [], visibility: {} });
             setHasUnsavedChanges(false);
         } catch (err) {
-            console.error("Failed to fetch header:", err);
-            toast.error("Failed to load header data");
+            console.error("Failed to fetch footer:", err);
+            toast.error("Failed to load footer data");
         } finally {
             setLoading(false);
         }
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
-        if (!header) return;
+        if (!footer) return;
 
         const { active, over } = event;
         if (active.id !== over?.id) {
-            const oldIndex = header.items.findIndex(item => item.title === active.id);
-            const newIndex = header.items.findIndex(item => item.title === over?.id);
+            const oldIndex = footer.items.findIndex(item => item.title === active.id);
+            const newIndex = footer.items.findIndex(item => item.title === over?.id);
 
             if (oldIndex !== -1 && newIndex !== -1) {
-                const newItems = arrayMove(header.items, oldIndex, newIndex);
-                setHeader({ ...header, items: newItems });
+                const newItems = arrayMove(footer.items, oldIndex, newIndex);
+                setFooter({ ...footer, items: newItems });
                 setHasUnsavedChanges(true);
             }
         }
     };
 
     const handleRemoveItem = (title: string) => {
-        if (confirm(`Are you sure you want to remove "${title}" from navigation?`)) {
+        if (confirm(`Are you sure you want to remove "${title}"?`)) {
             setPendingChanges(prev => ({
                 ...prev,
                 removals: [...prev.removals, title]
             }));
 
-            if (header) {
+            if (footer) {
                 // Update UI but don't send to backend yet
-                const newItems = header.items.filter(item => item.title !== title);
-                setHeader({ ...header, items: newItems });
+                const newItems = footer.items.filter(item => item.title !== title);
+                setFooter({ ...footer, items: newItems });
             }
 
             setHasUnsavedChanges(true);
@@ -143,98 +140,98 @@ const EditHeader = () => {
             }
         }));
 
-        if (header) {
+        if (footer) {
             // Update UI but don't send to backend yet
-            const newItems = header.items.map(item =>
+            const newItems = footer.items.map(item =>
                 item.title === title ? { ...item, visible: !currentVisibility } : item
             );
-            setHeader({ ...header, items: newItems });
+            setFooter({ ...footer, items: newItems });
         }
 
         setHasUnsavedChanges(true);
     };
 
     const handleSaveChanges = async () => {
-        if (!header) return;
+        if (!footer) return;
 
         try {
             // Apply all changes at once
 
             // 1. Process removals
             for (const title of pendingChanges.removals) {
-                await axios.delete(`/api/header/${title}`);
+                await axios.delete(`/api/footer/${title}`);
             }
 
             // 2. Apply visibility changes
             for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                await axios.put(`/api/header/${title}/visibility`, { visible });
+                await axios.put(`/api/footer/${title}/visibility`, { visible });
             }
 
             // 3. Save reordering last (after removals are processed)
-            const currentTitles = header.items.map(item => item.title);
-            await axios.put("/api/header/reorder", {titles: currentTitles});
-            toast.success("Navigation changes saved successfully");
+            const currentTitles = footer.items.map(item => item.title);
+            await axios.put("/api/footer/reorder", {titles: currentTitles});
+            toast.success("Footer changes saved successfully");
 
             // Refresh data from server
-            await fetchHeader();
+            await fetchFooter();
         } catch (err) {
-            console.error("Failed to save navigation changes:", err);
+            console.error("Failed to save footer changes:", err);
             toast.error("Failed to save changes");
-            await fetchHeader(); // Revert to server state on failure
+            await fetchFooter(); // Revert to server state on failure
         }
     };
 
     const handleCancelChanges = () => {
         if (hasUnsavedChanges && confirm("Are you sure you want to discard all pending changes?")) {
-            setHeader(originalHeader);
+            setFooter(originalFooter);
             setPendingChanges({ removals: [], visibility: {} });
             setHasUnsavedChanges(false);
         }
     };
 
-    const getEffectiveVisibility = (item: HeaderItem) => {
+    const getEffectiveVisibility = (item: FooterItem) => {
         if (item.title in pendingChanges.visibility) {
             return pendingChanges.visibility[item.title];
         }
         return item.visible;
     };
 
-    if (loading) return <div className="p-6 text-center">Loading header data...</div>;
+    if (loading) return <div className="p-6 text-center">Loading footer data...</div>;
 
     return (
         <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Edit Header Navigation</h2>
+                <h2 className="text-xl font-semibold">Edit Footer Sections</h2>
                 <button
-                    onClick={() => navigate("/admin/webbuilder/header/add")}
+                    onClick={() => navigate("/admin/webbuilder/footer/add")}
                     className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
                 >
-                    Add Navigation Item
+                    Add Section
                 </button>
             </div>
 
-            {/* Current header items */}
+            {/* Current footer items */}
             <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Current Navigation Items</h3>
-                {header && header.items.length > 0 ? (
+                <h3 className="text-lg font-medium mb-2">Current Sections</h3>
+                {footer && footer.items.length > 0 ? (
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
                         onDragEnd={handleDragEnd}
                     >
                         <SortableContext
-                            items={header.items.map(item => item.title)}
+                            items={footer.items.map(item => item.title)}
                             strategy={verticalListSortingStrategy}
                         >
                             <ul className="border rounded divide-y">
-                                {header.items.map((item) => (
+                                {footer.items.map((item) => (
                                     <SortableItem key={item.title} id={item.title}>
                                         <li className="flex justify-between items-center p-2">
                                             <div className="flex flex-1">
                                                 <div>
                                                     <span className="font-medium">{item.title}</span>
                                                     {('url' in item) && <span className="ml-2 text-sm text-gray-500">{item.url}</span>}
-                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
@@ -245,7 +242,7 @@ const EditHeader = () => {
                                                     {getEffectiveVisibility(item) ? "Visible" : "Hidden"}
                                                 </button>
                                                 <button
-                                                    onClick={() => navigate(`/admin/webbuilder/header/edit/${item.title}`)}
+                                                    onClick={() => navigate(`/admin/webbuilder/footer/edit/${item.title}`)}
                                                     className="text-blue-600 hover:underline"
                                                 >
                                                     Edit
@@ -264,11 +261,11 @@ const EditHeader = () => {
                         </SortableContext>
                     </DndContext>
                 ) : (
-                    <p className="text-gray-500">No navigation items yet. Click "Add Navigation Item" to create one.</p>
+                    <p className="text-gray-500">No sections yet. Click "Add Section" to create one.</p>
                 )}
             </div>
 
-            {header && header.items.length > 0 && (
+            {footer && footer.items.length > 0 && (
                 <div className="flex gap-4 justify-left mt-4">
                     <button
                         onClick={handleSaveChanges}
@@ -291,4 +288,4 @@ const EditHeader = () => {
     );
 };
 
-export default EditHeader;
+export default EditFooter;

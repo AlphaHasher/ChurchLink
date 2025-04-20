@@ -7,6 +7,7 @@ const WebBuilderSidebar: React.FC = () => {
   const links = [
       { name: "Pages", to: "/admin/webbuilder" },
       { name: "Header", to: "/admin/webbuilder/header" },
+      { name: "Footer", to: "/admin/webbuilder/footer" },
       { name: "Media", to: "/admin/webbuilder/media" },
       { name: "Settings", to: "/admin/webbuilder/settings" },
   ];
