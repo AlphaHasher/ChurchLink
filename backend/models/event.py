@@ -5,6 +5,7 @@
 # Search
 
 
+from http.client import HTTPException
 from typing import Literal, Optional, List
 from datetime import datetime, time, timezone
 from mongo.database import DB
@@ -370,3 +371,22 @@ async def create_mock_events(count: int) -> dict:
         import traceback
         traceback.print_exc()
         return {"message": f"Error creating mock events after {inserted_count} insertions."}
+
+async def get_all_ministries():
+    if DB.db is None:
+        raise HTTPException(status_code=500, detail="Database not initialized.")
+    try:
+        ministries_cursor = DB.db["events"].aggregate([
+            {"$unwind": {"path": "$ministry", "preserveNullAndEmptyArrays": False}},
+            {"$group": {"_id": "$ministry"}},
+            {"$sort": {"_id": 1}}
+        ])
+        ministries = await ministries_cursor.to_list(length=100)
+        return [m["_id"] for m in ministries]
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to fetch ministries", "reason": str(e)}
+        )

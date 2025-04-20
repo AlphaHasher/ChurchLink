@@ -19,13 +19,13 @@ async def get_events(skip: int = 0, limit: int = 100, ministry: str = None, age:
 async def search_events_route(query: str, skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Optional[Literal["male", "female", "all"]] = None, is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date"):
     return await search_events(query, skip, limit, ministry, age, gender, is_free, sort, sort_by)
 
-
-@public_event_router.get("/{event_id}", summary="Get event by id")
-async def get_event_by_id_route(event_id: str):
-    event = await get_event_by_id(event_id)
-    if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-    return event
+# This route catches all paths under /api/v1/events/...
+# @public_event_router.get("/{event_id}", summary="Get event by id")
+# async def get_event_by_id_route(event_id: str):
+#     event = await get_event_by_id(event_id)
+#     if not event:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+#     return event
 
 
 @event_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
@@ -83,13 +83,26 @@ async def delete_events_route(event_ids: List[str]):
 async def create_mock_events_route(count: int = 10):
     return await create_mock_events(count)
 
+@public_event_router.get("/upcoming", summary="Alias: Get upcoming events")
+async def get_upcoming_events_alias(
+    skip: int = 0,
+    limit: int = 100,
+    ministry: str = None,
+    age: Optional[int] = None,
+    gender: Literal["male", "female", "all"] = "all",
+    is_free: bool = None,
+    sort: Literal["asc", "desc"] = "asc",
+    sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date",
+    name: Optional[str] = None,
+    max_price: Optional[float] = None,
+    date_after: Optional[date] = None,
+    date_before: Optional[date] = None,
+):
+    return await sort_events(skip, limit, ministry, age, gender, is_free, sort, sort_by, name=name, max_price=max_price, date_after=date_after, date_before=date_before)
 
+from models.event import get_all_ministries  # ensure this is imported
 
-
-
-
-
-
-
-
+@public_event_router.get("/ministries", summary="Get all unique ministries")
+async def get_ministries_route():
+    return await get_all_ministries()
 

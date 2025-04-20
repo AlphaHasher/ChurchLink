@@ -3,9 +3,13 @@ import axios from 'axios';
 
 interface Event {
   id: string;
-  title: string;
-  date: string;
+  name: string;
   description?: string;
+  date: string;
+  location?: string;
+  price?: number;
+  image_url?: string;
+  thumbnail_url?: string;
 }
 
 const EventSection: React.FC = () => {
@@ -13,15 +17,37 @@ const EventSection: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [ministry, setMinistry] = useState('');
   const [ageRange, setAgeRange] = useState('');
+  const [availableMinistries, setAvailableMinistries] = useState<string[]>([]);
+  const [visibleCount, setVisibleCount] = useState(3);
+
+  useEffect(() => {
+    const fetchMinistries = async () => {
+      try {
+        const response = await axios.get('/api/v1/events/ministries');
+        setAvailableMinistries(response.data);
+      } catch (err) {
+        console.error('Failed to fetch ministries:', err);
+      }
+    };
+    fetchMinistries();
+  }, []);
 
   useEffect(() => {
     const fetchEvents = async () => {
+      setLoading(true);
       try {
         const params = new URLSearchParams();
         if (ministry) params.append('ministry', ministry);
-        if (ageRange) params.append('ageRange', ageRange);
+        if (ageRange) {
+          const [minAge, maxAge] = ageRange.split('-');
+          if (minAge && maxAge) {
+            params.append('age', minAge); // age filtering works with a single age against min/max in DB
+          }
+        }
+        params.append('limit', '999');
 
-        const response = await axios.get(`/api/events/upcoming?${params.toString()}`);
+        const response = await axios.get(`/api/v1/events/upcoming?${params.toString()}`);
+        console.log('Fetched events:', response.data.length, response.data);
         setEvents(response.data);
       } catch (error) {
         console.error('Failed to fetch events:', error);
@@ -36,46 +62,94 @@ const EventSection: React.FC = () => {
   if (loading) return <div>Loading...</div>;
 
   return (
-    <section>
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-        <label>
-          Ministry:
-          <select value={ministry} onChange={e => setMinistry(e.target.value)}>
-            <option value="">All</option>
-            <option value="Youth">Youth</option>
-            <option value="Adult">Adult</option>
-            <option value="Senior">Senior</option>
-          </select>
-        </label>
-        <label>
-          Age Range:
-          <select value={ageRange} onChange={e => setAgeRange(e.target.value)}>
-            <option value="">All</option>
-            <option value="0-12">0–12</option>
-            <option value="13-17">13–17</option>
-            <option value="18-35">18–35</option>
-            <option value="36-60">36–60</option>
-            <option value="60+">60+</option>
-          </select>
-        </label>
-      </div>
-      <h2 style={{ marginBottom: '1rem' }}>Upcoming Events</h2>
-      {events.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#555' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅</div>
-          <h3 style={{ fontSize: '1.5rem', fontWeight: '600' }}>There are no upcoming events.</h3>
+    <section className="w-full bg-white">
+      <div className="w-full max-w-screen-xl mx-auto px-4 py-8">
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+          <label>
+            Ministry:
+            <select value={ministry} onChange={e => setMinistry(e.target.value)}>
+              <option value="">All</option>
+              {availableMinistries.map(min => (
+                <option key={min} value={min}>{min}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Age Range:
+            <select value={ageRange} onChange={e => setAgeRange(e.target.value)}>
+              <option value="">All</option>
+              <option value="0-12">0–12</option>
+              <option value="13-17">13–17</option>
+              <option value="18-35">18–35</option>
+              <option value="36-60">36–60</option>
+              <option value="60+">60+</option>
+            </select>
+          </label>
         </div>
-      ) : (
-        <ul style={{ display: 'grid', gap: '1rem', listStyle: 'none', padding: 0 }}>
-          {events.map(event => (
-            <li key={event.id} style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '1rem', background: '#f9f9f9' }}>
-              <h3 style={{ margin: '0 0 0.5rem' }}>{event.title}</h3>
-              <p style={{ margin: 0 }}>{new Date(event.date).toLocaleDateString()}</p>
-              {event.description && <p style={{ marginTop: '0.5rem' }}>{event.description}</p>}
-            </li>
-          ))}
-        </ul>
-      )}
+        <h2 style={{ marginBottom: '1rem' }}>Upcoming Events</h2>
+        {events.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#555' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅</div>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '600' }}>There are no upcoming events.</h3>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+            {events.slice(0, visibleCount).map((event) => (
+              <div
+                key={event.id}
+                className="rounded-2xl shadow-md overflow-hidden bg-white flex flex-col h-full"
+              >
+                <div
+                  className="h-40 w-full bg-cover bg-center"
+                  style={{
+                    backgroundImage: `url(${
+                      event.thumbnail_url
+                        ? event.thumbnail_url.startsWith('http')
+                          ? event.thumbnail_url
+                          : '/assets/' + event.thumbnail_url
+                        : '/assets/default-thumbnail.jpg'
+                    })`
+                  }}
+                />
+                <div className="flex flex-col h-full">
+                  <div className="flex flex-col justify-between flex-grow p-4">
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2">{event.name}</h2>
+                      <p className="text-sm text-gray-600 mb-2">{event.description}</p>
+                      <p className="text-sm text-gray-800 font-medium">{new Date(event.date).toLocaleDateString()}</p>
+                      <p className="text-sm text-gray-800 mb-4">{event.location}</p>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <button
+                        className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition duration-200"
+                        onClick={() => alert(`You signed up for: ${event.name}`)}
+                      >
+                        Sign Up
+                      </button>
+                      <button
+                        className="w-full px-4 py-2 bg-white text-blue-600 font-semibold border border-blue-600 rounded-xl hover:bg-blue-50 transition duration-200"
+                        onClick={() => alert(`Viewing details for: ${event.name}`)}
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {visibleCount < events.length && (
+          <div className="text-center mt-4">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              onClick={() => setVisibleCount((prev) => prev + 3)}
+            >
+              Show More
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 };
