@@ -14,10 +14,7 @@ import { ChevronDown, ShieldPlus, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import PermBeforeAfterTable from "./PermBeforeAfterTable";
 import { createPermComps, roleStringListToRoleIdList } from "@/helpers/DataFunctions";
-import { createPermComps, roleStringListToRoleIdList } from "@/helpers/DataFunctions";
 import { AccountPermissions } from "@/types/AccountPermissions";
-
-import { updateUserRoles } from "@/helpers/PermissionsHelper";
 
 import { updateUserRoles } from "@/helpers/PermissionsHelper";
 

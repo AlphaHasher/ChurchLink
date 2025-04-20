@@ -6,7 +6,6 @@ import { ChurchEvent } from "@/types/ChurchEvent";
 const transformToUserPermMask = (user: UserInfo, allPerms: AccountPermissions[]): UserPermMask => {
     // Collect ALL of the Roles that the user actually has.
     const roles = allPerms.filter(role => roleIdListToRoleStringList(allPerms, user.permissions).includes(role.name));
-    const roles = allPerms.filter(role => roleIdListToRoleStringList(allPerms, user.permissions).includes(role.name));
 
     // Initialize a collection of Permissions with all perm bools to false
     const permissions: PermMask = Object.keys(allPerms[0]).reduce((acc, key) => {
