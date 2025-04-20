@@ -26,8 +26,8 @@ class Event(BaseModel):
     rsvp: bool
     recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
     ministry: List[str]
-    min_age: int = Field(default=1, ge=1)
-    max_age: int = Field(default=100, ge=1)
+    min_age: int = Field(default=1, ge=0)
+    max_age: int = Field(default=100, ge=0)
     gender: Literal["all", "male", "female"]
     image_url: Optional[str] = None  # Add optional image URL
     thumbnail_url: Optional[str] = None  # Add optional thumbnail URL
@@ -44,8 +44,8 @@ class EventCreate(BaseModel):
     rsvp: bool
     recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
     ministry: List[str]
-    min_age: int = Field(default=1, ge=1)
-    max_age: int = Field(default=100, ge=1)
+    min_age: int = Field(default=1, ge=0)
+    max_age: int = Field(default=100, ge=0)
     gender: Literal["all", "male", "female"]
     image_url: Optional[str] = None
     thumbnail_url: Optional[str] = None

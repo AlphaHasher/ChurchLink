@@ -12,6 +12,7 @@ const WebBuilder = lazy(() => import("@/pages/admin/WebBuilder"));
 const AddPage = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddPage"));
 const EditPage = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditPage"));
 const Users = lazy(() => import("@/pages/admin/Users"));
+const Events = lazy(() => import("@/pages/admin/Events"));
 
 
 
@@ -25,6 +26,7 @@ export const PrivateRoutes = () => {
         <Route path="/permissions" element={<Permissions />} />
         <Route path="/notifications" element={<Notification />} />
         <Route path="/finance" element={<Finance />} />
+        <Route path="/events" element={<Events />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
       </Route>

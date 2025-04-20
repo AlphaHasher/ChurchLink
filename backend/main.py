@@ -24,10 +24,14 @@ from routes.base_routes.event_routes import event_router
 from routes.base_routes.role_routes import role_router 
 from routes.base_routes.user_routes import user_router 
 from routes.base_routes.event_routes import public_event_router
+from dotenv import load_dotenv
+load_dotenv()
 
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
+
+FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
 
 
 @asynccontextmanager
@@ -65,7 +69,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL")],  # Get frontend URL from env
+    allow_origins=[FRONTEND_URL],  # Get frontend URL from env
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
@@ -148,7 +152,6 @@ public_router.include_router(public_event_router)
 #####################################################
 router_base = APIRouter(prefix="/api/v1")
 # Add Firebase authentication dependency to base router, needs base role
-router_base.dependencies.append(Depends(role_based_access(["base"])))
 router_base.include_router(event_router)
 router_base.include_router(role_router)
 router_base.include_router(user_router)

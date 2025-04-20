@@ -77,7 +77,7 @@ const createPermColumn = (
           className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end=" : "justify-center"
             } text-center`}
         >
-          <div className="capitalize">
+          <div>
             {typeof row.getValue(accessorKey) === "boolean"
               ? row.getValue(accessorKey)
                 ? "✅Yes"

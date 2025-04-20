@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { BarChart2, Settings, LogOut, Home, Shield, User, Folder, Loader2 } from "lucide-react"; // ← Add Loader2 icon
+import { BarChart2, Settings, LogOut, Home, Shield, User, Folder, Loader2, CalendarFold } from "lucide-react"; // ← Add Loader2 icon
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { processStrapiRedirect } from "@/helpers/StrapiInteraction";
@@ -38,7 +38,7 @@ const Sidebar = () => {
           )}
           {loading ? "Loading..." : "Media Library"}
         </Link>
-
+        <Link to="/admin/events" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><CalendarFold /> Events</Link>
         <Link to="/admin/webbuilder" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">🧱 Web Builder</Link>
         <Link to="/admin/finance" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">💰 Finance</Link>
         <Link to="/admin/notifications" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">📢 Notifications</Link>
