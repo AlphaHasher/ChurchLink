@@ -11,12 +11,12 @@ public_event_router = APIRouter(prefix="/events", tags=["Events Public Routes"])
 
 
 @public_event_router.get("/", summary="Get events by filters")
-async def get_events(skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Literal["male", "female", "all"] = "all", is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date", name: Optional[str] = None, max_price: Optional[float] = None, date_after: Optional[date] = None, date_before: Optional[date] = None,):
+async def get_events(skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Optional[Literal["male", "female", "all"]] = None, is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date", name: Optional[str] = None, max_price: Optional[float] = None, date_after: Optional[date] = None, date_before: Optional[date] = None,):
     return await sort_events(skip, limit, ministry, age, gender, is_free, sort, sort_by, name=name, max_price=max_price, date_after=date_after, date_before=date_before)
 
 
 @public_event_router.get("/search", summary="Search events")
-async def search_events_route(query: str, skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Literal["male", "female", "all"] = "all", is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date"):
+async def search_events_route(query: str, skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Optional[Literal["male", "female", "all"]] = None, is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date"):
     return await search_events(query, skip, limit, ministry, age, gender, is_free, sort, sort_by)
 
 
