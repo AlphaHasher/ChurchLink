@@ -1,26 +1,32 @@
 from fastapi import FastAPI, APIRouter, Depends
-from scalar_fastapi import get_scalar_api_reference
-from contextlib import asynccontextmanager
-import os
 from fastapi.middleware.cors import CORSMiddleware
-import firebase_admin
-from firebase_admin import credentials
+from scalar_fastapi import get_scalar_api_reference
 
 from mongo.database import DB as DatabaseManager
+
+import firebase_admin
 from helpers.Firebase_helpers import role_based_access
+from firebase_admin import credentials
+
 from helpers.youtubeHelper import YoutubeHelper
+
 from get_bearer_token import generate_test_token
-from pydantic import BaseModel
+from routes.strapi_routes.strapi_routes import strapi_router
+from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
-from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from add_roles import add_user_role, RoleUpdate
+
+
+from contextlib import asynccontextmanager
+from pydantic import BaseModel
 import asyncio
+import os
 from routes.page_management_routes.page_routes import router as page_route
 from routes.page_management_routes.header_routes import header_router as header_route
 from routes.page_management_routes.footer_routes import footer_router as footer_route
 from routes.base_routes.event_routes import event_router
-from routes.base_routes.role_routes import role_router 
-from routes.base_routes.user_routes import user_router 
+from routes.base_routes.role_routes import role_router
+from routes.base_routes.user_routes import user_router
 from routes.base_routes.event_routes import public_event_router
 
 
@@ -58,8 +64,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-
-
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -93,7 +97,7 @@ async def get_auth_token(credentials: LoginCredentials):
     """Get a Firebase authentication token using email and password"""
     try:
         token = generate_test_token(
-            email=credentials.email, 
+            email=credentials.email,
             password=credentials.password
         )
         if token:
@@ -116,8 +120,8 @@ async def update_user_roles(role_update: RoleUpdate):
         dict: Contains status, message, and current roles
     """
     return add_user_role(
-        uid=role_update.uid, 
-        roles=role_update.roles, 
+        uid=role_update.uid,
+        roles=role_update.roles,
         remove=role_update.remove
     )
 
@@ -159,6 +163,14 @@ router_finance.dependencies.append(Depends(role_based_access(["finance"])))
 
 #####################################################
 
+#####################################################
+# PayPal Router Configuration
+#####################################################
+
+router_paypal = APIRouter(prefix="/api/v1/paypal", tags=["paypal"])
+router_paypal.include_router(paypal_router)
+# router_paypal.dependencies.append(Depends(role_based_access(["finance"])))
+
 
 #####################################################
 # Webhook Listener Router Config
@@ -185,6 +197,7 @@ app.include_router(footer_route)
 app.include_router(router_base)
 app.include_router(router_admin)
 app.include_router(router_finance)
+app.include_router(router_paypal)
 app.include_router(router_webhook_listener)
 app.include_router(router_strapi)
 app.include_router(public_router)
