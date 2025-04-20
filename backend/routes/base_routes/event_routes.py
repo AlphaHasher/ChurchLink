@@ -31,7 +31,7 @@ async def get_event_by_id_route(event_id: str):
 @event_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
 async def create_event_route(event: EventCreate):
     created_event = await create_event(event)
-    if not created_event:
+    if created_event is None:
          raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error creating event (maybe duplicate name/data?)")
     return created_event
 

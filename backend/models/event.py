@@ -64,10 +64,10 @@ async def create_event(event: EventCreate) -> Optional[EventOut]:
     try:
         # Use the helper method to insert
         inserted_id = await DB.insert_document("events", event.model_dump())
-        if inserted_id:
+        if inserted_id is not None:
             # Fetch the created event to return it as EventOut
             event_data = await DB.db["events"].find_one({"_id": inserted_id})
-            if event_data:
+            if event_data is not None:
                 event_data["id"] = str(event_data.pop("_id"))
                 return EventOut(**event_data)
         # Return None if insertion or fetching failed
@@ -84,7 +84,7 @@ async def get_event_by_id(event_id: str) -> Optional[EventOut]:
     """
     try:
         event_doc = await DB.db["events"].find_one({"_id": ObjectId(event_id)})
-        if event_doc:
+        if event_doc is not None:
             event_doc["id"] = str(event_doc.pop("_id"))
             return EventOut(**event_doc)
         return None
@@ -350,7 +350,7 @@ async def create_mock_events(count: int) -> dict:
             # This uses DB.insert_document helper implicitly now via create_event, if we used it
             # Or insert directly as before:
             result = await DB.db["events"].insert_one(mock_event_data.model_dump())
-            if result.inserted_id:
+            if result.inserted_id is not None:
                 inserted_count += 1
 
         print(f"Successfully created {inserted_count} mock events out of {count} requested.")

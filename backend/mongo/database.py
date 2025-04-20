@@ -40,8 +40,6 @@ class DB:
         # Schema validation and index creation
         await DB.init_collections()
 
-
-
     @staticmethod
     async def init_collections():
         for collection in DB.collections:
@@ -62,8 +60,6 @@ class DB:
                         )
                     ])
 
-
-
     @staticmethod
     def close_db():
         if DB.client:
@@ -72,7 +68,7 @@ class DB:
 
     @staticmethod
     async def is_connected():
-        if not DB.client:
+        if DB.client is None:
             print("DB client not initialized.")
             return False
         try:
@@ -90,7 +86,7 @@ class DB:
     @staticmethod
     async def insert_document(collection_name, document):
         """Inserts a document into the specified collection and returns the inserted document's ID."""
-        if not DB.db:
+        if DB.db is None:
             print("Database not initialized.")
             return None
         try:
@@ -104,7 +100,7 @@ class DB:
     @staticmethod
     async def find_documents(collection_name, query=None, limit=None):
         """Finds documents in the specified collection matching the query."""
-        if not DB.db:
+        if DB.db is None:
             print("Database not initialized.")
             return [] # Return empty list on error/uninitialized
         try:
@@ -125,7 +121,7 @@ class DB:
     @staticmethod
     async def update_document(collection_name, filter_query, update_data):
         """Updates documents matching the filter query using $set. Uses update_many."""
-        if not DB.db:
+        if DB.db is None:
             print("Database not initialized.")
             return 0
         try:
@@ -140,7 +136,7 @@ class DB:
     @staticmethod
     async def delete_documents(collection_name, delete_query):
         """Deletes documents matching the query. Uses delete_many."""
-        if not DB.db:
+        if DB.db is None:
             print("Database not initialized.")
             return 0
         try:
