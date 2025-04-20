@@ -13,9 +13,7 @@ from helpers.youtubeHelper import YoutubeHelper
 from get_bearer_token import generate_test_token
 from routes.strapi_routes.strapi_routes import strapi_router
 from routes.paypal_routes.paypal_routes import paypal_router
-from routes.strapi_routes.strapi_routes import strapi_router as strapi_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
-from routes.strapi_routes.strapi_routes import strapi_router
 from routes.user_routes.user_routes import users_router
 from routes.permissions_routes.permissions_routes import permissions_router
 from add_roles import add_user_role, RoleUpdate
