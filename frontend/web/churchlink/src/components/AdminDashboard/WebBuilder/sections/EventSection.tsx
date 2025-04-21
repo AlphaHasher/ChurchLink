@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import type { EventItem } from '../../../pages/EventViewer';
 
 interface Event {
   id: string;
@@ -20,7 +19,16 @@ const EventSection: React.FC = () => {
   const [ageRange, setAgeRange] = useState('');
   const [availableMinistries, setAvailableMinistries] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState(3);
-  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<{
+    id: string;
+    name: string;
+    description?: string;
+    date: string;
+    location?: string;
+    price?: number;
+    image_url?: string;
+    thumbnail_url?: string;
+  } | null>(null);
 
   useEffect(() => {
     const fetchMinistries = async () => {
@@ -65,7 +73,16 @@ const EventSection: React.FC = () => {
     alert(`You signed up for: ${eventName}`);
   };
 
-  const handleDetails = (event: EventItem) => {
+  const handleDetails = (event: {
+    id: string;
+    name: string;
+    description?: string;
+    date: string;
+    location?: string;
+    price?: number;
+    image_url?: string;
+    thumbnail_url?: string;
+  }) => {
     setSelectedEvent(event);
   };
 
