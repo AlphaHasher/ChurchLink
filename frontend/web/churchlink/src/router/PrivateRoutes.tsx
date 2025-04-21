@@ -18,7 +18,6 @@ const AddHeaderItem = lazy(() => import("@/components/AdminDashboard/WebBuilder/
 const EditFooter = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditFooter"));
 const EditFooterSection = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditFooterSection.tsx"));
 const AddFooterSection = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddFooterSection"));
-
 const Users = lazy(() => import("@/pages/admin/Users"));
 
 export const PrivateRoutes = () => {
