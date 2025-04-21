@@ -6,7 +6,7 @@ import HeroSection, { HeroContent } from "@/components/AdminDashboard/WebBuilder
 import MenuSection, { MenuSectionContent } from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
 import ContactInfoSection, { ContactInfoContent } from "@/components/AdminDashboard/WebBuilder/sections/ContactInfoSection";
 import MapSection from "@/components/AdminDashboard/WebBuilder/sections/MapSection";
-import EventSection from "@/components/AdminDashboard/WebBuilder/sections/EventSection"; // Import EventSection
+import EventSection from "@/components/AdminDashboard/WebBuilder/sections/EventSection"; 
 import {
   DndContext,
   closestCenter,
@@ -32,6 +32,7 @@ interface Section {
   id: string;
   type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map" | "event"; // Updated type
   content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string };
+  settings?: { showFilters?: boolean }; // New optional property
 }
 
 interface PageData {
@@ -122,7 +123,8 @@ const EditPage = () => {
 
   const handleAddSection = (type: Section["type"]) => {
     let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string } = "";
- 
+    let settings;
+
     if (type === "hero") {
       defaultContent = {
         title: "",
@@ -154,9 +156,10 @@ const EditPage = () => {
       defaultContent = { embedUrl: "https://www.google.com/maps/embed?pb=..." };
     } else if (type === "event") { // Added case for event
       defaultContent = "";
+      settings = { showFilters: true }; // Default setting for event
     }
  
-    setSections([...sections, { id: Date.now().toString(), type, content: defaultContent }]);
+    setSections([...sections, { id: Date.now().toString(), type, content: defaultContent, settings }]);
   };
 
   const handleRemoveSection = (index: number) => {
@@ -295,8 +298,26 @@ const EditPage = () => {
                   )}
                   {section.type === "event" && (
                     <div className="pointer-events-none opacity-60">
-                      <EventSection />
+                      <EventSection showFilters={section.settings?.showFilters !== false} />
                       <p className="text-center text-sm text-gray-500 mt-2">This section is preview-only and not editable.</p>
+                    </div>
+                  )}
+                  {section.type === "event" && (
+                    <div className="mt-2">
+                      <label className="text-sm">
+                        <input
+                          type="checkbox"
+                          checked={section.settings?.showFilters !== false}
+                          onChange={(e) => {
+                            const updatedSections = [...sections];
+                            const updatedSettings = { ...(section.settings || {}), showFilters: e.target.checked };
+                            updatedSections[index] = { ...section, settings: updatedSettings };
+                            setSections(updatedSections);
+                          }}
+                          className="mr-2"
+                        />
+                        Show Filters
+                      </label>
                     </div>
                   )}
                   <button

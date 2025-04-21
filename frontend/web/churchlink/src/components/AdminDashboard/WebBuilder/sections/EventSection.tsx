@@ -12,7 +12,11 @@ interface Event {
   thumbnail_url?: string;
 }
 
-const EventSection: React.FC = () => {
+interface EventSectionProps {
+  showFilters?: boolean;
+}
+
+const EventSection: React.FC<EventSectionProps> = ({ showFilters = true }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [ministry, setMinistry] = useState('');
@@ -91,28 +95,30 @@ const EventSection: React.FC = () => {
   return (
     <section className="w-full bg-white">
       <div className="w-full max-w-screen-xl mx-auto px-4 py-8">
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-          <label>
-            Ministry:
-            <select value={ministry} onChange={e => setMinistry(e.target.value)}>
-              <option value="">All</option>
-              {availableMinistries.map(min => (
-                <option key={min} value={min}>{min}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Age Range:
-            <select value={ageRange} onChange={e => setAgeRange(e.target.value)}>
-              <option value="">All</option>
-              <option value="0-12">0–12</option>
-              <option value="13-17">13–17</option>
-              <option value="18-35">18–35</option>
-              <option value="36-60">36–60</option>
-              <option value="60+">60+</option>
-            </select>
-          </label>
-        </div>
+        {showFilters && (
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <label>
+              Ministry:
+              <select value={ministry} onChange={e => setMinistry(e.target.value)}>
+                <option value="">All</option>
+                {availableMinistries.map(min => (
+                  <option key={min} value={min}>{min}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Age Range:
+              <select value={ageRange} onChange={e => setAgeRange(e.target.value)}>
+                <option value="">All</option>
+                <option value="0-12">0–12</option>
+                <option value="13-17">13–17</option>
+                <option value="18-35">18–35</option>
+                <option value="36-60">36–60</option>
+                <option value="60+">60+</option>
+              </select>
+            </label>
+          </div>
+        )}
         <h2 style={{ marginBottom: '1rem' }}>Upcoming Events</h2>
         {events.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#555' }}>
