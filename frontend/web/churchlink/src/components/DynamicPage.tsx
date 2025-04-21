@@ -14,6 +14,8 @@ export interface SectionSettings {
   showFilters?: boolean;
   eventName?: string | string[];
   lockedFilters?: { ministry?: string; ageRange?: string };
+  title?: string;
+  showTitle?: boolean;
 }
 
 export interface Section {
@@ -117,6 +119,8 @@ const DynamicPage: React.FC = () => {
                   showFilters={section.settings?.showFilters !== false}
                   eventName={section.settings?.eventName}
                   lockedFilters={section.settings?.lockedFilters}
+                  title={section.settings?.title}
+                  showTitle={section.settings?.showTitle !== false}
                 />
               )}
             </React.Fragment>

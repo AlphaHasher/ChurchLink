@@ -16,9 +16,11 @@ interface EventSectionProps {
   showFilters?: boolean;
   eventName?: string | string[];
   lockedFilters?: { ministry?: string; ageRange?: string };
+  title?: string;
+  showTitle?: boolean;
 }
 
-const EventSection: React.FC<EventSectionProps> = ({ showFilters = true, eventName, lockedFilters }) => {
+const EventSection: React.FC<EventSectionProps> = ({ showFilters = true, eventName, lockedFilters, title, showTitle }) => {
   const filtersDisabled = !!eventName || (lockedFilters?.ministry || lockedFilters?.ageRange);
   showFilters = showFilters && !filtersDisabled;
   const [events, setEvents] = useState<Event[]>([]);
@@ -61,8 +63,10 @@ const [selectedEvent, setSelectedEvent] = useState<{
         if (isNameSet) {
           const all = await axios.get(`/api/v1/events/upcoming?limit=999`);
           const names = Array.isArray(eventName) ? eventName : [eventName];
-          const matches = all.data.filter((e: Event) =>
-            names.some(name => e.name.toLowerCase().includes(name.toLowerCase()))
+          const matches = all.data.filter(
+            (e: Event) =>
+              typeof e.name === 'string' &&
+              names.some(name => typeof name === 'string' && e.name!.toLowerCase().includes(name.toLowerCase()))
           );
           setEvents(matches);
         } else {
@@ -136,7 +140,9 @@ const [selectedEvent, setSelectedEvent] = useState<{
             </label>
           </div>
         )}
-        <h2 style={{ marginBottom: '1rem' }}>Upcoming Events</h2>
+        {showTitle !== false && (
+          <h2 className="text-3xl font-bold mb-6 text-center">{title || "Upcoming Events"}</h2>
+        )}
  
         {events.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#555' }}>

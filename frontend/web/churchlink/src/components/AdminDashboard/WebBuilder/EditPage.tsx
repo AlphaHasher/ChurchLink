@@ -33,7 +33,7 @@ interface Section {
   id: string;
   type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map" | "event"; // Updated type
   content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string };
-  settings?: { showFilters?: boolean; eventName?: string | string[]; lockedFilters?: { ministry?: string; ageRange?: string } }; // Updated optional property
+  settings?: { showFilters?: boolean; eventName?: string | string[]; lockedFilters?: { ministry?: string; ageRange?: string }; title?: string; showTitle?: boolean }; // Updated optional property
 }
 
 interface PageData {
@@ -312,27 +312,33 @@ const EditPage = () => {
                   )}
                   {section.type === "event" && (
                     <div className="pointer-events-none opacity-60">
-                      <EventSection showFilters={section.settings?.showFilters !== false} eventName={section.settings?.eventName} lockedFilters={section.settings?.lockedFilters} />
+                      <EventSection
+                        showFilters={section.settings?.showFilters !== false}
+                        eventName={section.settings?.eventName}
+                        lockedFilters={section.settings?.lockedFilters}
+                        title={section.settings?.title}
+                        showTitle={section.settings?.showTitle !== false}
+                      />
                       <p className="text-center text-sm text-gray-500 mt-2">This section is preview-only and not editable.</p>
                     </div>
                   )}
                   {section.type === "event" && (
                     <div className="mt-2 flex flex-col gap-2">
                       <label className="text-sm flex items-center gap-2">
-                        <input
+                      <input
                           type="checkbox"
                           checked={
                             !!section.settings?.showFilters &&
                             !(
                               (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
-                              section.settings?.lockedFilters?.ministry ||
-                              section.settings?.lockedFilters?.ageRange
+                              !!section.settings?.lockedFilters?.ministry ||
+                              !!section.settings?.lockedFilters?.ageRange
                             )
                           }
                           disabled={
                             (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
-                            section.settings?.lockedFilters?.ministry ||
-                            section.settings?.lockedFilters?.ageRange
+                            !!section.settings?.lockedFilters?.ministry ||
+                            !!section.settings?.lockedFilters?.ageRange
                           }
                           onChange={(e) => {
                             const updatedSections = [...sections];
@@ -413,6 +419,37 @@ const EditPage = () => {
                           <option value="36-60">36–60</option>
                           <option value="60+">60+</option>
                         </select>
+                      </label>
+                      <label className="text-sm">
+                        Section Title:
+                        <input
+                          type="text"
+                          className="ml-2 border px-2 py-1 rounded w-full"
+                          placeholder="Upcoming Events"
+                          value={section.settings?.title || ""}
+                          onChange={(e) => {
+                            const updatedSections = [...sections];
+                            const updatedSettings = { ...(section.settings || {}), title: e.target.value };
+                            updatedSections[index] = { ...section, settings: updatedSettings };
+                            setSections(updatedSections);
+                          }}
+                        />
+                      </label>
+                      <label className="text-sm flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={section.settings?.showTitle !== false}
+                          onChange={(e) => {
+                            const updatedSections = [...sections];
+                            const updatedSettings = {
+                              ...(section.settings || {}),
+                              showTitle: e.target.checked,
+                            };
+                            updatedSections[index] = { ...section, settings: updatedSettings };
+                            setSections(updatedSections);
+                          }}
+                        />
+                        Show Title
                       </label>
                     </div>
                   )}
