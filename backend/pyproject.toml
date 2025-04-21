@@ -19,5 +19,6 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "scalar-fastapi>=1.0.3",
     "uvicorn>=0.34.0",
+    "paypal-server-sdk>=1.0.0",
     "faker>=37.1.0",
 ]

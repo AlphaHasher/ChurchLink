@@ -30,6 +30,10 @@ class DB:
         {
             "name": "header-items",
             "indexes": ["title"]
+        },
+        {
+            "name": "footer-items",
+            "indexes": ["title"]
         }
     ]
 

@@ -234,7 +234,7 @@ const EditHeader = () => {
                                                 <div>
                                                     <span className="font-medium">{item.title}</span>
                                                     {('url' in item) && <span className="ml-2 text-sm text-gray-500">{item.url}</span>}
-                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} links</span>}
+                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">

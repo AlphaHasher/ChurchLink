@@ -45,12 +45,15 @@ import { useState } from "react"
 interface PermissionsTableProps {
   data: AccountPermissions[]; // Define the expected data type
   userData: UserInfo[];
+  onSave: () => Promise<void>;
 }
 
 // In the Table, this creates the Columns that display the permissions they have.
 const createPermColumn = (
   accessorKey: keyof AccountPermissions,
-  userData: UserInfo[]
+  userData: UserInfo[],
+  data: AccountPermissions[],
+  onSave: () => Promise<void>
 ): ColumnDef<AccountPermissions> => {
   const label = permissionLabels[accessorKey];
 
@@ -85,11 +88,16 @@ const createPermColumn = (
           {/* Put EditPermDialog and DeletePermDialog */}
           {accessorKey === "name" && (
             <div className="ml-auto flex space-x-2">
-              <EditPermDialog permissions={rowData} />
-              <DeletePermDialog permissions={rowData} />
-              <PermRoleMembersDialog permissions={rowData} userData={userData} />
+              {row.getValue("name") !== "Administrator" && (
+                <>
+                  <EditPermDialog permissions={rowData} onSave={onSave} />
+                  <DeletePermDialog permissions={rowData} onSave={onSave} />
+                </>
+              )}
+              <PermRoleMembersDialog permissions={rowData} userData={userData} permData={data} />
             </div>
           )}
+
         </div>
       );
     },
@@ -98,7 +106,7 @@ const createPermColumn = (
 
 
 
-export function PermissionsTable({ data, userData }: PermissionsTableProps) {
+export function PermissionsTable({ data, userData, onSave }: PermissionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -107,7 +115,7 @@ export function PermissionsTable({ data, userData }: PermissionsTableProps) {
   const columns: ColumnDef<AccountPermissions>[] = [];
 
   Object.keys(permissionLabels).forEach((key) => {
-    columns.push(createPermColumn(key as keyof AccountPermissions, userData));
+    columns.push(createPermColumn(key as keyof AccountPermissions, userData, data, onSave));
   });
 
   const table = useReactTable({
@@ -194,7 +202,7 @@ export function PermissionsTable({ data, userData }: PermissionsTableProps) {
 
         {/* Create Permission Dialog (Aligned Right) */}
         <div className="ml-auto">
-          <CreatePermDialog />
+          <CreatePermDialog onSave={onSave} />
         </div>
       </div>
 

@@ -6,7 +6,6 @@ import {
     NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 import { Link } from "react-router-dom";
-import { SidebarTrigger } from "./ui/sidebar";
 import ProfileDropDown from "./Main/ProfileDropDown";
 import axios from "axios";
 
@@ -106,11 +105,7 @@ export default function PrivNavBar() {
                             )}
                         </NavigationMenuItem>
                     ))}
-
-                    {/* Mobile Menu Trigger */}
-                    <NavigationMenuItem className="lg:hidden flex justify-end align-center h-2">
-                        <SidebarTrigger className="bg-black! text-white! hover:bg-gray-200 text-black [&_svg:not([class*='size-'])]:size-10 lg:hidden!" />
-                    </NavigationMenuItem>
+                  
                     <div className="hidden lg:flex items-center justify-center h-full w-9">
                         <ProfileDropDown className="hover:bg-white/10 transition-colors duration-200 p-0! text-black rounded-full!" />
                     </div>

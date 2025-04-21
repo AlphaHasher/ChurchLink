@@ -6,7 +6,7 @@ import {
     NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 import { Link } from "react-router-dom";
-import { SidebarTrigger } from "./ui/sidebar";
+
 import axios from "axios";
 
 interface HeaderLink {

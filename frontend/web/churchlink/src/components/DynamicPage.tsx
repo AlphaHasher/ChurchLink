@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from "@/lib/auth-context";
 import HeroSection from "@/components/AdminDashboard/WebBuilder/sections/HeroSection";
 import ServiceTimesSection from "@/components/AdminDashboard/WebBuilder/sections/ServiceTimesSection";
 import MenuSection from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
@@ -8,6 +9,8 @@ import MapSection from "@/components/AdminDashboard/WebBuilder/sections/MapSecti
 import Footer from "@/components/Main/Footer";
 import NotFoundPage from "@/pages/NotFoundPage";
 import InConstructionPage from "@/pages/InConstructionPage";
+import PrivNavBar from "@/components/PrivNavBar.tsx";
+import PubNavBar from "@/components/PubNavBar.tsx";
 
 export interface Section {
   id: string;
@@ -31,6 +34,7 @@ const DynamicPage: React.FC = () => {
   const [pageData, setPageData] = useState<Page | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const user = useAuth();
 
   useEffect(() => {
     if (!slug) {
@@ -52,7 +56,6 @@ const DynamicPage: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchPageData();
   }, [slug]);
 
@@ -60,11 +63,11 @@ const DynamicPage: React.FC = () => {
   if (error) return <div className="text-center text-red-500">{error}</div>;
   if (!pageData) return <NotFoundPage />;
   if (pageData.visible === false) return <InConstructionPage />;
+
   return (
     <>
-      {/* <Header /> */}
+      {user ? <PrivNavBar/> : <PubNavBar/>}
       <>
-
       {pageData.sections && pageData.sections.length > 0 ? (
         <>
           {pageData.sections.map((section) => (
@@ -111,7 +114,7 @@ const DynamicPage: React.FC = () => {
         <p>No content available.</p>
       )}
       </>
-      <Footer />
+      <Footer/>
     </>
   );
 };
