@@ -20,7 +20,7 @@ function Payment() {
     "data-page-type": "product-details",
     components: "buttons",
     "data-sdk-integration-source": "developer-studio",
-};
+  };
 
   const [message, setMessage] = useState<string>("");
 
@@ -66,10 +66,10 @@ function Payment() {
                   console.error("Failed to parse response as JSON:", parseError);
                 }
               }
-              
+
               const orderId = parsedData.id || orderData.id;
               console.log("ID value:", orderId);
-              
+
               if (orderId) {
                 console.log("Returning order ID:", orderId);
                 return orderId;

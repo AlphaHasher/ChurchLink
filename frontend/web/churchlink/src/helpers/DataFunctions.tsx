@@ -1,5 +1,6 @@
 import { AccountPermissions, PermMask, PermComp } from "@/types/AccountPermissions";
 import { BaseUserMask, UserInfo, UserPermMask } from "@/types/UserInfo";
+import { ChurchEvent } from "@/types/ChurchEvent";
 
 // Function to transform a UserInfo type object to a UserPermMask
 const transformToUserPermMask = (user: UserInfo, allPerms: AccountPermissions[]): UserPermMask => {
@@ -147,6 +148,11 @@ export function processFetchedPermData(perms: any[]): AccountPermissions[] {
         ...perm.permissions, // spreads the boolean fields directly
     }));
 };
+
+export function processFetchedEventData(events: any[]): ChurchEvent[] {
+    return events as ChurchEvent[];
+};
+
 
 // Helper function to convert list of role names to role ids
 export function roleStringListToRoleIdList(

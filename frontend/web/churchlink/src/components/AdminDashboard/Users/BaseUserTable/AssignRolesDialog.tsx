@@ -10,7 +10,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/Dialog";
-import { ChevronDown, ShieldPlus } from "lucide-react";
+import { ChevronDown, ShieldPlus, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import PermBeforeAfterTable from "./PermBeforeAfterTable";
 import { createPermComps, roleStringListToRoleIdList } from "@/helpers/DataFunctions";
@@ -41,6 +41,7 @@ export function AssignRolesDialog({
 }: AssignRolesDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedRoles, setSelectedRoles] = useState<string[]>(initialRoles);
+    const [saving, setSaving] = useState(false);
 
     // Update selected roles when initialRoles change
     useEffect(() => {
@@ -53,6 +54,7 @@ export function AssignRolesDialog({
     }
 
     const handleSaveChanges = async () => {
+        setSaving(true);
         const reqParams: RoleChangeParams = {
             uid: userData.uid,
             role_ids: roleStringListToRoleIdList(permData, selectedRoles),
@@ -65,6 +67,7 @@ export function AssignRolesDialog({
         else {
             alert(`Error!: ${res.msg}`)
         }
+        setSaving(false);
     };
 
     const toggleRole = (role: string) => {
@@ -141,8 +144,17 @@ export function AssignRolesDialog({
 
                 {/* Footer Buttons */}
                 <DialogFooter className="flex justify-end gap-2 mt-4">
-                    <Button variant="outline" className="text-white" onClick={handleDialogClose}>Cancel</Button>
-                    <Button variant="default" onClick={handleSaveChanges}>Save Changes</Button>
+                    <Button variant="outline" className="text-white" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
+                    <Button variant="default" onClick={handleSaveChanges} disabled={saving}>
+                        {saving ? (
+                            <>
+                                <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                Saving...
+                            </>
+                        ) : (
+                            "Save Changes"
+                        )}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

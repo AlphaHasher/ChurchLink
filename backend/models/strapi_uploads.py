@@ -2,6 +2,8 @@ import httpx
 import os
 from dotenv import load_dotenv
 from fastapi import HTTPException
+from mongo.churchuser import UserHandler
+from helpers.StrapiHelper import StrapiHelper
 
 load_dotenv()
 
@@ -28,3 +30,11 @@ async def get_upload_by_id(upload_id: str):
             raise HTTPException(status_code=response.status_code, detail=f"Upload with ID {upload_id} not found")
 
         return response.json()
+    
+async def search_uploads(uid:str, query: str):
+    if not await UserHandler.does_user_have_permissions(uid):
+        raise HTTPException(
+                status_code=500,
+                detail="Proper Permissions not present!"
+            )
+    return await StrapiHelper.search_uploads_by_name(query)

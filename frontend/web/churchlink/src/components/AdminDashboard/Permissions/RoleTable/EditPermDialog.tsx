@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Edit } from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
 
 import { updateRole } from "@/helpers/PermissionsHelper";
 
@@ -29,6 +29,7 @@ export function EditPermDialog({
 }: EditPermDialogProps) {
     const [permissions, setPermissions] = useState<AccountPermissions>(initialPermissions);
     const [isOpen, setIsOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         // Reset the permissions when dialog is opened
@@ -42,6 +43,7 @@ export function EditPermDialog({
 
     // Handle Save Button
     const handleSaveChanges = async () => {
+        setSaving(true);
         const res = await updateRole(permissions)
         if (res?.success) {
             await onSave()
@@ -50,6 +52,7 @@ export function EditPermDialog({
         else {
             alert(`Error!: ${res.msg}`)
         }
+        setSaving(false);
     }
 
     return (
@@ -92,8 +95,17 @@ export function EditPermDialog({
                     <PermissionTogglers permissions={permissions} onChange={setPermissions} />
                 </div>
                 <DialogFooter>
-                    <Button type="button" onClick={handleDialogClose}>Cancel</Button>
-                    <Button type="button" onClick={handleSaveChanges}>Save changes</Button>
+                    <Button type="button" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
+                    <Button type="button" onClick={handleSaveChanges} disabled={saving}>
+                        {saving ? (
+                            <>
+                                <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                Saving...
+                            </>
+                        ) : (
+                            "Save changes"
+                        )}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

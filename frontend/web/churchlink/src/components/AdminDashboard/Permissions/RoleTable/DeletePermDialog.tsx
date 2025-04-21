@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash } from "lucide-react";
+import { Trash, Loader2 } from "lucide-react";
 
 import { deleteRole } from "@/helpers/PermissionsHelper";
+
 interface DeletePermDialogProps {
     permissions: AccountPermissions;
     onSave: () => Promise<void>;
@@ -28,6 +29,7 @@ export function DeletePermDialog({
     const [isOpen, setIsOpen] = useState(false);
     const [userInput, setUserInput] = useState(""); // Track user input
     const [isDeleteEnabled, setIsDeleteEnabled] = useState(false); // Enable delete only when the input matches the name
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         // Reset user input and delete enabled status when dialog is opened
@@ -43,6 +45,7 @@ export function DeletePermDialog({
     // Handle Delete button
     const handleDelete = async () => {
         if (userInput === initialPermissions.name) {
+            setIsDeleting(true);
             const res = await deleteRole(initialPermissions)
             if (res?.success) {
                 await onSave()
@@ -51,6 +54,7 @@ export function DeletePermDialog({
             else {
                 alert(`Error!: ${res.msg}`)
             }
+            setIsDeleting(false);
         } else {
             alert("Names do not match. Please try again.");
         }
@@ -98,16 +102,23 @@ export function DeletePermDialog({
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button type="button" onClick={handleDialogClose}>
+                    <Button type="button" onClick={handleDialogClose} disabled={isDeleting}>
                         Cancel
                     </Button>
                     <Button
                         type="button"
                         className="!bg-red-30"
                         onClick={handleDelete}
-                        disabled={!isDeleteEnabled} // Disable delete button until input matches the name
+                        disabled={!isDeleteEnabled || isDeleting}
                     >
-                        Confirm Delete
+                        {isDeleting ? (
+                            <>
+                                <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                Deleting...
+                            </>
+                        ) : (
+                            "Confirm Delete"
+                        )}
                     </Button>
                 </DialogFooter>
             </DialogContent>

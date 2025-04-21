@@ -6,7 +6,6 @@ import AdminLayout from "@/layouts/AdminLayout";
 // Lazy load admin components
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const Permissions = lazy(() => import("@/pages/admin/Permissions"));
-const ContentManagement = lazy(() => import("@/pages/admin/ContentManagement"));
 const Notification = lazy(() => import("@/pages/admin/Notification"));
 const Finance = lazy(() => import("@/pages/admin/Finance"));
 const WebBuilder = lazy(() => import("@/pages/admin/WebBuilder"));
@@ -19,6 +18,7 @@ const EditFooter = lazy(() => import("@/components/AdminDashboard/WebBuilder/Edi
 const EditFooterSection = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditFooterSection.tsx"));
 const AddFooterSection = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddFooterSection"));
 const Users = lazy(() => import("@/pages/admin/Users"));
+const Events = lazy(() => import("@/pages/admin/Events"));
 
 export const PrivateRoutes = () => {
   return (
@@ -28,9 +28,9 @@ export const PrivateRoutes = () => {
         <Route path="/webbuilder" element={<WebBuilder />} />
         <Route path="/users" element={<Users />} />
         <Route path="/permissions" element={<Permissions />} />
-        <Route path="/content" element={<ContentManagement />} />
         <Route path="/notifications" element={<Notification />} />
         <Route path="/finance" element={<Finance />} />
+        <Route path="/events" element={<Events />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/header" element={<EditHeader />} />

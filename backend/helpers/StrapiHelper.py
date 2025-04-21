@@ -8,6 +8,7 @@ from mongo.roles import RoleHandler
 load_dotenv()
 
 STRAPI_URL = os.getenv("STRAPI_URL", "")
+STRAPI_API_KEY = os.getenv("STRAPI_API_KEY", "")
 SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "")
 SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD", "")
 
@@ -246,4 +247,34 @@ class StrapiHelper:
                 status_code=500,
                 detail=f"Failed to update roles for Strapi user {user_id}: {res.text}"
             )
+        
+
+    # This one requires API token
+    @staticmethod
+    async def search_uploads_by_name(query: str) -> list:
+
+        params = {
+            "filters[name][$containsi]": query
+        }
+
+        headers = {
+            "Authorization": f"Bearer {STRAPI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                f"{STRAPI_URL}/api/upload/files",
+                headers=headers,
+                params=params
+            )
+
+        if res.status_code != 200:
+            print(res)
+            raise HTTPException(
+                status_code=res.status_code,
+                detail="Failed to search uploads by name from Strapi"
+            )
+
+        return res.json()
     
