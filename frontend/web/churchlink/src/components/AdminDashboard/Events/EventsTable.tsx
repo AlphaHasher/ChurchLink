@@ -42,19 +42,19 @@ function getDisplayValue(value: any, key: any): string {
     }
 
     if (typeof value === "string") {
-        // Try to parse date
-        try {
-            const parsedDate = new Date(value);
-            if (!isNaN(parsedDate.getTime())) {
-                const year = parsedDate.getFullYear();
-                const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
-                const day = String(parsedDate.getDate()).padStart(2, "0");
-                return `${year}/${month}/${day}`;
+        if (key === "date") {
+            try {
+                const parsedDate = new Date(value);
+                if (!isNaN(parsedDate.getTime())) {
+                    const year = parsedDate.getFullYear();
+                    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+                    const day = String(parsedDate.getDate()).padStart(2, "0");
+                    return `${year}/${month}/${day}`;
+                }
+            } catch {
+                // fall through
             }
-        } catch {
-            // fall through
         }
-
         // Capitalize recurring/gender fields
         if (key === "recurring" || key === "gender") {
             return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
