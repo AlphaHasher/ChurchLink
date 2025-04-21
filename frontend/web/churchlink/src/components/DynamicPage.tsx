@@ -10,10 +10,17 @@ import Footer from "@/components/Main/Footer";
 import NotFoundPage from "@/pages/NotFoundPage";
 import InConstructionPage from "@/pages/InConstructionPage";
 
+export interface SectionSettings {
+  showFilters?: boolean;
+  eventName?: string | string[];
+  lockedFilters?: { ministry?: string; ageRange?: string };
+}
+
 export interface Section {
   id: string;
   type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map" | "event";
   content: any; // use any to handle complex objects like hero
+  settings?: SectionSettings;
 }
 
 export interface Page {
@@ -105,7 +112,13 @@ const DynamicPage: React.FC = () => {
               {section.type === "map" && (
                 <MapSection data={section.content} isEditing={false} />
               )}
-              {section.type === "event" && <EventSection />}
+              {section.type === "event" && (
+                <EventSection
+                  showFilters={section.settings?.showFilters !== false}
+                  eventName={section.settings?.eventName}
+                  lockedFilters={section.settings?.lockedFilters}
+                />
+              )}
             </React.Fragment>
           ))}
         </>

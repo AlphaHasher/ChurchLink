@@ -14,25 +14,29 @@ interface Event {
 
 interface EventSectionProps {
   showFilters?: boolean;
+  eventName?: string | string[];
+  lockedFilters?: { ministry?: string; ageRange?: string };
 }
 
-const EventSection: React.FC<EventSectionProps> = ({ showFilters = true }) => {
+const EventSection: React.FC<EventSectionProps> = ({ showFilters = true, eventName, lockedFilters }) => {
+  const filtersDisabled = !!eventName || (lockedFilters?.ministry || lockedFilters?.ageRange);
+  showFilters = showFilters && !filtersDisabled;
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [ministry, setMinistry] = useState('');
   const [ageRange, setAgeRange] = useState('');
   const [availableMinistries, setAvailableMinistries] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState(3);
-  const [selectedEvent, setSelectedEvent] = useState<{
-    id: string;
-    name: string;
-    description?: string;
-    date: string;
-    location?: string;
-    price?: number;
-    image_url?: string;
-    thumbnail_url?: string;
-  } | null>(null);
+const [selectedEvent, setSelectedEvent] = useState<{
+  id: string;
+  name: string;
+  description?: string;
+  date: string;
+  location?: string;
+  price?: number;
+  image_url?: string;
+  thumbnail_url?: string;
+} | null>(null);
 
   useEffect(() => {
     const fetchMinistries = async () => {
@@ -50,19 +54,32 @@ const EventSection: React.FC<EventSectionProps> = ({ showFilters = true }) => {
     const fetchEvents = async () => {
       setLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (ministry) params.append('ministry', ministry);
-        if (ageRange) {
-          const [minAge, maxAge] = ageRange.split('-');
-          if (minAge && maxAge) {
-            params.append('age', minAge); // age filtering works with a single age against min/max in DB
-          }
-        }
-        params.append('limit', '999');
+        const isNameSet = Array.isArray(eventName)
+          ? eventName.length > 0
+          : typeof eventName === 'string' && eventName.trim() !== '';
 
-        const response = await axios.get(`/api/v1/events/upcoming?${params.toString()}`);
-        console.log('Fetched events:', response.data.length, response.data);
-        setEvents(response.data);
+        if (isNameSet) {
+          const all = await axios.get(`/api/v1/events/upcoming?limit=999`);
+          const names = Array.isArray(eventName) ? eventName : [eventName];
+          const matches = all.data.filter((e: Event) =>
+            names.some(name => e.name.toLowerCase().includes(name.toLowerCase()))
+          );
+          setEvents(matches);
+        } else {
+          const finalMinistry = lockedFilters?.ministry ?? ministry;
+          const finalAgeRange = lockedFilters?.ageRange ?? ageRange;
+          const params = new URLSearchParams();
+          if (finalMinistry) params.append('ministry', finalMinistry);
+          if (finalAgeRange) {
+            const [minAge, maxAge] = finalAgeRange.split('-');
+            if (minAge && maxAge) {
+              params.append('age', minAge);
+            }
+          }
+          params.append('limit', '999');
+          const response = await axios.get(`/api/v1/events/upcoming?${params.toString()}`);
+          setEvents(response.data);
+        }
       } catch (error) {
         console.error('Failed to fetch events:', error);
       } finally {
@@ -71,7 +88,7 @@ const EventSection: React.FC<EventSectionProps> = ({ showFilters = true }) => {
     };
 
     fetchEvents();
-  }, [ministry, ageRange]);
+  }, [eventName, ministry, ageRange, lockedFilters]);
 
   const handleSignUp = (eventName: string) => {
     alert(`You signed up for: ${eventName}`);
@@ -120,6 +137,7 @@ const EventSection: React.FC<EventSectionProps> = ({ showFilters = true }) => {
           </div>
         )}
         <h2 style={{ marginBottom: '1rem' }}>Upcoming Events</h2>
+ 
         {events.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#555' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅</div>
@@ -212,7 +230,6 @@ const EventSection: React.FC<EventSectionProps> = ({ showFilters = true }) => {
               <p className="text-gray-900 font-medium text-base mb-1">📅 {new Date(selectedEvent.date).toLocaleString()}</p>
               <p className="text-gray-900 text-base mb-1">📍 {selectedEvent.location}</p>
               <p className="text-gray-900 text-base mb-1">💲 Price: ${selectedEvent.price ?? 'Free'}</p>
-              {/* <p className="text-gray-500 text-sm mt-2">🆔 Event ID: {selectedEvent.id}</p> */}
               <button
                 onClick={() => handleSignUp(selectedEvent.name)}
                 className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"

@@ -7,6 +7,7 @@ import MenuSection, { MenuSectionContent } from "@/components/AdminDashboard/Web
 import ContactInfoSection, { ContactInfoContent } from "@/components/AdminDashboard/WebBuilder/sections/ContactInfoSection";
 import MapSection from "@/components/AdminDashboard/WebBuilder/sections/MapSection";
 import EventSection from "@/components/AdminDashboard/WebBuilder/sections/EventSection"; 
+import MultiTagInput from "@/helpers/MultiTagInput";
 import {
   DndContext,
   closestCenter,
@@ -32,7 +33,7 @@ interface Section {
   id: string;
   type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map" | "event"; // Updated type
   content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string };
-  settings?: { showFilters?: boolean }; // New optional property
+  settings?: { showFilters?: boolean; eventName?: string | string[]; lockedFilters?: { ministry?: string; ageRange?: string } }; // Updated optional property
 }
 
 interface PageData {
@@ -65,6 +66,7 @@ const EditPage = () => {
   const { slug } = useParams();
   const [pageData, setPageData] = useState<PageData | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
+  const [eventSuggestions, setEventSuggestions] = useState<string[]>([]);
   const [newSectionType, setNewSectionType] = useState<Section["type"]>("text");
   const [, setSaving] = useState(false);
   
@@ -91,6 +93,18 @@ const EditPage = () => {
 
     if (slug) fetchPage();
   }, [slug]);
+
+  useEffect(() => {
+    const fetchEventNames = async () => {
+      try {
+        const res = await axios.get('/api/v1/events/names');
+        setEventSuggestions(res.data);
+      } catch (err) {
+        console.error("Failed to fetch event names", err);
+      }
+    };
+    fetchEventNames();
+  }, []);
 
   const handleContentChange = (index: number, newContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent) => {
     const updatedSections = [...sections];
@@ -156,7 +170,7 @@ const EditPage = () => {
       defaultContent = { embedUrl: "https://www.google.com/maps/embed?pb=..." };
     } else if (type === "event") { // Added case for event
       defaultContent = "";
-      settings = { showFilters: true }; // Default setting for event
+      settings = { showFilters: true, lockedFilters: {} }; // Default setting for event
     }
  
     setSections([...sections, { id: Date.now().toString(), type, content: defaultContent, settings }]);
@@ -298,25 +312,107 @@ const EditPage = () => {
                   )}
                   {section.type === "event" && (
                     <div className="pointer-events-none opacity-60">
-                      <EventSection showFilters={section.settings?.showFilters !== false} />
+                      <EventSection showFilters={section.settings?.showFilters !== false} eventName={section.settings?.eventName} lockedFilters={section.settings?.lockedFilters} />
                       <p className="text-center text-sm text-gray-500 mt-2">This section is preview-only and not editable.</p>
                     </div>
                   )}
                   {section.type === "event" && (
-                    <div className="mt-2">
-                      <label className="text-sm">
+                    <div className="mt-2 flex flex-col gap-2">
+                      <label className="text-sm flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={section.settings?.showFilters !== false}
+                          checked={
+                            !!section.settings?.showFilters &&
+                            !(
+                              (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
+                              section.settings?.lockedFilters?.ministry ||
+                              section.settings?.lockedFilters?.ageRange
+                            )
+                          }
+                          disabled={
+                            (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
+                            section.settings?.lockedFilters?.ministry ||
+                            section.settings?.lockedFilters?.ageRange
+                          }
                           onChange={(e) => {
                             const updatedSections = [...sections];
-                            const updatedSettings = { ...(section.settings || {}), showFilters: e.target.checked };
+                            const updatedSettings = {
+                              ...(section.settings || {}),
+                              showFilters: e.target.checked,
+                            };
                             updatedSections[index] = { ...section, settings: updatedSettings };
                             setSections(updatedSections);
                           }}
-                          className="mr-2"
+                          className="mr-1"
                         />
                         Show Filters
+                        {(section.settings?.eventName?.length || section.settings?.lockedFilters?.ministry || section.settings?.lockedFilters?.ageRange) && (
+                          <span className="text-xs text-gray-500 ml-2">(Disabled when using specific event or locked filter)</span>
+                        )}
+                      </label>
+                      <MultiTagInput
+                        label="Specific Event Names"
+                        value={Array.isArray(section.settings?.eventName) ? section.settings.eventName : section.settings?.eventName ? [section.settings.eventName] : []}
+                        onChange={(newTags) => {
+                          const updatedSections = [...sections];
+                          const updatedSettings = { ...(section.settings || {}), eventName: newTags };
+                          updatedSections[index] = { ...section, settings: updatedSettings };
+                          setSections(updatedSections);
+                        }}
+                        placeholder="Add event name"
+                        suggestions={eventSuggestions}
+                        datalistId={`eventSuggestions-${index}`}
+                      />
+                      <label className="text-sm">
+                        Lock Ministry Filter:
+                        <select
+                          className="ml-2 border px-2 py-1 rounded"
+                          value={section.settings?.lockedFilters?.ministry || ""}
+                          onChange={(e) => {
+                            const updatedSections = [...sections];
+                            const updatedSettings = {
+                              ...(section.settings || {}),
+                              lockedFilters: {
+                                ...(section.settings?.lockedFilters || {}),
+                                ministry: e.target.value || undefined
+                              }
+                            };
+                            updatedSections[index] = { ...section, settings: updatedSettings };
+                            setSections(updatedSections);
+                          }}
+                        >
+                          <option value="">-- None --</option>
+                          <option value="Youth">Youth</option>
+                          <option value="Young Adults">Young Adults</option>
+                          <option value="Men">Men</option>
+                          <option value="Women">Women</option>
+                        </select>
+                      </label>
+                      <label className="text-sm">
+                        Lock Age Range Filter:
+                        <select
+                          className="ml-2 border px-2 py-1 rounded"
+                          value={section.settings?.lockedFilters?.ageRange || ""}
+                          onChange={(e) => {
+                            const updatedSections = [...sections];
+                            const updatedSettings = {
+                              ...(section.settings || {}),
+                              lockedFilters: {
+                                ...(section.settings?.lockedFilters || {}),
+                                ageRange: e.target.value || undefined
+                              }
+                            };
+                            updatedSections[index] = { ...section, settings: updatedSettings };
+                            setSections(updatedSections);
+                          }}
+                        >
+                          <option value="">-- None --</option>
+                          <option value="0-12">0–12</option>
+                          <option value="13-17">13–17</option>
+                          <option value="18-35">18–35</option>
+                          <option value="36-60">36–60</option>
+                          <option value="60+">60+</option>
+                        </select>
                       </label>
                     </div>
                   )}
