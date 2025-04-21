@@ -21,7 +21,11 @@ interface EventSectionProps {
 }
 
 const EventSection: React.FC<EventSectionProps> = ({ showFilters = true, eventName, lockedFilters, title, showTitle }) => {
-  const filtersDisabled = !!eventName || (lockedFilters?.ministry || lockedFilters?.ageRange);
+  const isNameSet = Array.isArray(eventName)
+    ? eventName.length > 0
+    : typeof eventName === 'string' && eventName.trim() !== '';
+
+  const filtersDisabled = isNameSet || !!lockedFilters?.ministry || !!lockedFilters?.ageRange;
   showFilters = showFilters && !filtersDisabled;
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
