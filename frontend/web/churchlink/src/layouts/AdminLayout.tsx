@@ -23,8 +23,7 @@ const AdminLayout = ({ customSidebar, children }: AdminLayoutProps) => {
       <div className="flex-1 flex flex-col">
         {isWebBuilderRoute ? (
           <WebBuilderTopBar
-            hasChanges={false} // optionally connect to context later
-            onSave={() => {}}   // optionally pass from context later
+            
           />
         ) : (
           <TopBar />

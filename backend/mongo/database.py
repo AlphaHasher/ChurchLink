@@ -50,8 +50,6 @@ class DB:
         # Schema validation and index creation
         await DB.init_collections()
 
-
-
     @staticmethod
     async def init_collections():
         for collection in DB.collections:
@@ -72,8 +70,6 @@ class DB:
                         )
                     ])
 
-
-
     @staticmethod
     def close_db():
         if DB.client:
@@ -82,7 +78,7 @@ class DB:
 
     @staticmethod
     async def is_connected():
-        if not DB.client:
+        if DB.client is None:
             print("DB client not initialized.")
             return False
         try:
