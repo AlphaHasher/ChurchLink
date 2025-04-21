@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import type { EventItem } from '../../../pages/EventViewer';
 
 interface Event {
   id: string;
@@ -19,6 +20,7 @@ const EventSection: React.FC = () => {
   const [ageRange, setAgeRange] = useState('');
   const [availableMinistries, setAvailableMinistries] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState(3);
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
   useEffect(() => {
     const fetchMinistries = async () => {
@@ -58,6 +60,14 @@ const EventSection: React.FC = () => {
 
     fetchEvents();
   }, [ministry, ageRange]);
+
+  const handleSignUp = (eventName: string) => {
+    alert(`You signed up for: ${eventName}`);
+  };
+
+  const handleDetails = (event: EventItem) => {
+    setSelectedEvent(event);
+  };
 
   if (loading) return <div>Loading...</div>;
 
@@ -122,13 +132,13 @@ const EventSection: React.FC = () => {
                     <div className="mt-4 space-y-2">
                       <button
                         className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition duration-200"
-                        onClick={() => alert(`You signed up for: ${event.name}`)}
+                        onClick={() => handleSignUp(event.name)}
                       >
                         Sign Up
                       </button>
                       <button
                         className="w-full px-4 py-2 bg-white text-blue-600 font-semibold border border-blue-600 rounded-xl hover:bg-blue-50 transition duration-200"
-                        onClick={() => alert(`Viewing details for: ${event.name}`)}
+                        onClick={() => handleDetails(event)}
                       >
                         View Details
                       </button>
@@ -147,6 +157,46 @@ const EventSection: React.FC = () => {
             >
               Show More
             </button>
+          </div>
+        )}
+        {selectedEvent && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="absolute top-4 right-6 text-black-500 hover:text-gray-800 text-2xl"
+              >
+                ×
+              </button>
+              {selectedEvent.image_url && (
+                <img
+                  src={
+                    selectedEvent.image_url.startsWith("http")
+                      ? selectedEvent.image_url
+                      : "/assets/" + selectedEvent.image_url
+                  }
+                  alt={selectedEvent.name}
+                  className="w-full max-h-80 object-cover rounded-lg mb-6"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = "/assets/default-thumbnail.jpg";
+                  }}
+                />
+              )}
+              <h2 className="text-3xl font-bold mb-2">{selectedEvent.name}</h2>
+              <p className="text-gray-700 mb-4 text-lg">{selectedEvent.description}</p>
+              <p className="text-gray-900 font-medium text-base mb-1">📅 {new Date(selectedEvent.date).toLocaleString()}</p>
+              <p className="text-gray-900 text-base mb-1">📍 {selectedEvent.location}</p>
+              <p className="text-gray-900 text-base mb-1">💲 Price: ${selectedEvent.price ?? 'Free'}</p>
+              {/* <p className="text-gray-500 text-sm mt-2">🆔 Event ID: {selectedEvent.id}</p> */}
+              <button
+                onClick={() => handleSignUp(selectedEvent.name)}
+                className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
+              >
+                Sign Up
+              </button>
+            </div>
           </div>
         )}
       </div>
