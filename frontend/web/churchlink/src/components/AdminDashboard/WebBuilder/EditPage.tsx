@@ -293,8 +293,11 @@ const EditPage = () => {
                       onChange={(newContent) => handleContentChange(index, newContent)}
                     />
                   )}
-                  {section.type === "event" && ( // Added rendering for EventSection
-                    <EventSection />
+                  {section.type === "event" && (
+                    <div className="pointer-events-none opacity-60">
+                      <EventSection />
+                      <p className="text-center text-sm text-gray-500 mt-2">This section is preview-only and not editable.</p>
+                    </div>
                   )}
                   <button
                     onClick={() => {
