@@ -215,7 +215,9 @@ const EditPage = () => {
           <div className="flex flex-col gap-4">
             {sections.map((section, index) => (
               <SortableItem key={section.id} id={section.id}>
+                
                 <div className="border p-4 rounded shadow bg-white">
+                  <h2 className="text-lg font-semibold capitalize p-1">{section.type.replace("-", " ")} Section</h2>
                   {section.type === "text" && (
                     <textarea
                       className="w-full border p-2 rounded"
