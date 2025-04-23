@@ -28,6 +28,7 @@ import { ChurchEvent, eventLabels } from "@/types/ChurchEvent"
 import { CreateEventDialog } from "./CreateEventDialog"
 import { DeleteEventDialog } from "./DeleteEventDialog"
 import { EditEventDialog } from "./EditEventDialog"
+import { getDisplayValue } from "@/helpers/DataFunctions"
 
 interface EventsTableProps {
     data: ChurchEvent[];
@@ -36,44 +37,6 @@ interface EventsTableProps {
 
 const skipTerms = ["id", "description", "image_url", "thumbnail_url", "ru_name", "ru_description"];
 
-function getDisplayValue(value: any, key: any): string {
-    if (typeof value === "boolean") {
-        return value ? "✅Yes" : "❌No";
-    }
-
-    if (typeof value === "string") {
-        if (key === "date") {
-            try {
-                const parsedDate = new Date(value);
-                if (!isNaN(parsedDate.getTime())) {
-                    const year = parsedDate.getFullYear();
-                    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
-                    const day = String(parsedDate.getDate()).padStart(2, "0");
-                    return `${year}/${month}/${day}`;
-                }
-            } catch {
-                // fall through
-            }
-        }
-        // Capitalize recurring/gender fields
-        if (key === "recurring" || key === "gender") {
-            return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-        }
-
-        return value;
-    }
-
-    if (Array.isArray(value)) {
-        if (value.length === 0) return "N/A";
-        return `[${value.join(", ")}]`;
-    }
-
-    if (value === null || value === undefined) {
-        return "N/A";
-    }
-
-    return String(value);
-}
 
 const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<void>): ColumnDef<ChurchEvent> => {
     const label = eventLabels[accessorKey];

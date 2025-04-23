@@ -8,27 +8,25 @@ from helpers.StrapiHelper import StrapiHelper
 class RoleCreateInput(BaseModel):
     name: str
     admin: bool
-    finance: bool
-    website_management: bool
+    permissions_management: bool
+    event_editing: bool
     event_management: bool
-    page_management: bool
     media_management: bool
 
 class RoleUpdateInput(BaseModel):
     id: str = Field(alias="_id")
     name: str
     admin: bool
-    finance: bool
-    website_management: bool
+    permissions_management: bool
+    event_editing: bool
     event_management: bool
-    page_management: bool
     media_management: bool
 
 class UserRoleUpdateInput(BaseModel):
     uid: str
     role_ids: list
 
-boolKeys = ['admin', 'finance', 'website_management', 'event_management', 'page_management', 'media_management']
+boolKeys = ['admin', 'permissions_management', 'event_editing', 'event_management', 'media_management']
 
 async def fetch_perms(uid):
     if await UserHandler.does_user_have_permissions(uid):
@@ -42,11 +40,23 @@ async def fetch_perms(uid):
     else:
         return {"success":False, "permissions":[]}
 
-async def create_role(payload: RoleCreateInput):
+async def create_role(payload: RoleCreateInput, uid: str):
+    user = await UserHandler.find_by_uid(uid)
+    if user is None:
+        return {"success": False, "msg":"User not found!"}
+    user_perms = await RoleHandler.infer_permissions(user['roles'])
+    if not user_perms['admin'] and not user_perms['permissions_management']:
+        return {"success":False, "msg":"You do not have the necessary permissions to create roles!"}
+    for key, value in user_perms.items():
+        if getattr(payload, key) and not value:
+            return {"success":False, "msg":f"You do not have the necessary permissions to create a role with permission: {key}!"}
+
     permStr = []
     for key in boolKeys:
         if getattr(payload, key):
             permStr.append(key)
+    if payload.name.strip() == '':
+        return {"success": False, "msg":"Your role could not be created. You have provided an invalid name."}
     try:
         if await RoleHandler.create_role(payload.name, permStr):
             return {"success": True, "msg":"Your role has been created."}

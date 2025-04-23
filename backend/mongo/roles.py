@@ -3,12 +3,12 @@ from bson import ObjectId
 
 class RoleHandler:
     permission_template = {
-        "admin": False,
-        "finance": False,
-        "website_management": False,
-        "event_management": False,
-        "page_management": False,
+        "admin":False,
+        "permissions_management": False,
+        "event_editing":False,
+        "event_management":False,
         "media_management":False,
+
     }
 
     @staticmethod

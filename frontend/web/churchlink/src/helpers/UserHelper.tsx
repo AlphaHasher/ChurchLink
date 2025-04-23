@@ -75,3 +75,26 @@ export const fetchUsers = async () => {
         return [];
     }
 };
+
+export const getMyPermissions = async () => {
+    try {
+
+        const idToken = await confirmAuth();
+
+        const res = await fetch(`${API_BASE}${API_USERS}/get-my-permissions`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${idToken}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!res.ok) throw new Error("Failed to get user perms");
+
+        const data = await res.json();
+        return data;
+    } catch (err) {
+        console.error("Failed to get user perms:", err);
+        return null;
+    }
+};

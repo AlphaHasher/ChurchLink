@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, Depends
-from models.users_functions import process_sync_by_uid, fetch_users
+from models.users_functions import process_sync_by_uid, fetch_users, get_my_permissions
 from helpers.Firebase_helpers import authenticate_uid
 
 users_router = APIRouter()
@@ -14,4 +14,8 @@ async def process_sync_request(uid: str = Depends(authenticate_uid)):
 @users_router.get("/get-users")
 async def process_get_users(uid: str = Depends(authenticate_uid)):
     return await fetch_users(uid)
+
+@users_router.get("/get-my-permissions")
+async def process_get_my_permissions(uid: str = Depends(authenticate_uid)):
+    return await get_my_permissions(uid)
 
