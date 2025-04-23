@@ -175,12 +175,12 @@ base_router.include_router(user_router)
 base_router.include_router(strapi_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
-base_router.include_router(header_router)
-base_router.include_router(footer_router)
 
 
 non_v1_router = APIRouter(prefix="/api")
 non_v1_router.include_router(page_router)
+non_v1_router.include_router(header_router)
+non_v1_router.include_router(footer_router)
 
 
 # Include routers in main app
