@@ -5,6 +5,7 @@ from bson import ObjectId
 from datetime import datetime # Import datetime if needed for birthday query
 
 # Import models and functions from models/user.py
+from helpers.Firebase_helpers import authenticate_uid
 from models.user import (
     UserCreate, UserOut, AddressSchema, # Assuming AddressSchema might be needed for updates
     create_user, get_user_by_id, get_user_by_email,
@@ -12,6 +13,7 @@ from models.user import (
     find_users_with_permissions,
     update_user_roles, delete_user
 )
+from models.users_functions import fetch_users, process_sync_by_uid
 
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
@@ -165,3 +167,13 @@ async def delete_user_route(user_id: str):
 # TODO: Add endpoints for updating user profile details (name, phone, address, birthday)
 # This would likely require a new Pydantic model for partial updates (e.g., UserUpdate)
 # and a corresponding model function (e.g., update_user_profile).
+
+
+@user_router.post("/sync-user")
+async def process_sync_request(uid: str = Depends(authenticate_uid)):
+    return await process_sync_by_uid(uid)
+    
+
+@user_router.get("/get-users")
+async def process_get_users(uid: str = Depends(authenticate_uid)):
+    return await fetch_users(uid)

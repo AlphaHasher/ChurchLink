@@ -5,7 +5,7 @@ from models.strapi_user_management import process_redirect
 from helpers.Firebase_helpers import authenticate_uid
 
 
-strapi_router = APIRouter()
+strapi_router = APIRouter(prefix="/strapi", tags=["strapi"])
 
 ###################
 # Article routes
