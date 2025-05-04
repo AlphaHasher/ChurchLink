@@ -23,9 +23,9 @@
   - **Flutter (Mobile App)**  
   - **React (Web App)**  
 
-- **Backend:** *(To be determined)*  
+- **Backend:** FastAPI
 
-- **CMS:** Strapi (or alternative)  
+- **CMS:** Strapi
 
 - **Database:**  
   - **MongoDB** (Main Database)  
@@ -34,8 +34,6 @@
 - **Notifications:** Firebase Cloud Messaging (FCM)  
 
 - **Bible Integration:** *(To be determined)*  
-
-- **Hosting:** Firebase / AWS  
 
 - **Authentication:** Firebase Auth  
 
