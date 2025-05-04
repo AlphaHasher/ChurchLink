@@ -169,7 +169,7 @@ async def add_dropdown(item: dict) -> bool:
             "items": [
                 {
                     "title": subitem.title,
-                    "russian_title": item["russian_title"],
+                    "russian_title": subitem.russian_title,
                     "url": subitem.url
                 } for subitem in item["items"]
             ],
