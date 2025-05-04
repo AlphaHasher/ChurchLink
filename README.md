@@ -1,4 +1,7 @@
 # ChurchLink
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3ec313d2-1a35-419a-9054-8a64406ca937" width="250">
+</p>
 
 ## 📌 Overview
 
@@ -16,6 +19,23 @@
 - **Announcements & Banners** – Display church updates and messages.
 - **Donation & Payment Integration** – Support for online giving via **PayPal**.
 - **Multilingual Support** – Accessibility for diverse church communities.
+
+## 🖼️ Screenshots
+
+### 📋 Admin Interface
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4d653ea6-ae5b-47eb-ab62-50d1d437e9cc" width="600" alt="Admin UI">
+</p>
+
+### 🔨 Web Builder
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7e3bad19-1e61-4916-a851-25cb4a8dc0d6" width="600" alt="Admin UI">
+</p>
+
+### 📱 Mobile App – Event View
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/cb5c3bb3-2b0b-4ab5-b5e3-2188d442e43b" width="300" alt="Mobile Event View">
+</p>
 
 ## 🛠️ Tech Stack
 
