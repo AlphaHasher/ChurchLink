@@ -183,23 +183,13 @@ ChurchLink supports permissions implemented by the means of **user-defined permi
 
 Below is a comprehensive overview of the planned MongoDB Database integration
 
-![image](https://github.com/user-attachments/assets/6c84dcc6-07c6-4867-9262-ee56d2927e17)
+![image](https://github.com/user-attachments/assets/474516d7-ef95-47d1-8d20-be1606d4e074)
 
-![image](https://github.com/user-attachments/assets/0f11c4ae-0ed7-4e85-bc58-a0189e622d68)
+![image](https://github.com/user-attachments/assets/0a10a6a3-40bc-4f25-bfbf-75d85d0dae10)
 
-![image](https://github.com/user-attachments/assets/3b26989f-dc39-4436-81df-e2563fbd115a)
+![image](https://github.com/user-attachments/assets/4e92ee2d-73f0-4a3d-b8e0-2ac92203bca5)
 
-![image](https://github.com/user-attachments/assets/d9f17c12-d9af-43f8-a2d5-262a6c0829b5)
-
-![image](https://github.com/user-attachments/assets/6b12de16-cd11-4d62-864a-52001029455a)
-
-![image](https://github.com/user-attachments/assets/09cfcec7-3aba-4597-84b2-b052270d77a0)
-
-![image](https://github.com/user-attachments/assets/e2de03ec-3503-4845-8515-4f4c5b69894a)
-
-![image](https://github.com/user-attachments/assets/e5b12280-487e-4f0b-a74e-58eca00748de)
-
-![image](https://github.com/user-attachments/assets/f56035cc-fd0f-466d-8ae1-d851b802daf7)
+![image](https://github.com/user-attachments/assets/d7ac3199-7b50-4327-be05-aff06136975d)
 
 
 ---
