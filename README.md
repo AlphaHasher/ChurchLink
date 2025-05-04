@@ -211,7 +211,7 @@ Below is a tentative idea of the kind of timeline that we plan to see for CSC-19
 
 Sprint 5 - Completion of Events, including the proper gathering of data for the user and EventPersons, Completing our PayPal Finances integration
 
-Sprint 6 - The Completion of a fully functional Bible Reader, including Reading plans
+Sprint 6 - The Completion of a fully functional Bible Reader, including Reading plans, completing notifications hubs
 
 Sprint 7 - The Completion of Media-Watching such as with the Church's existing content, and watching YouTube livestreams. Completing integration of a simple viewer of pages for Mobile
 
