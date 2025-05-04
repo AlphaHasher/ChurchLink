@@ -1,4 +1,6 @@
-# ChurchLink
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/feb41274-e2a4-450a-af58-7164c9ecbfb3" width="75%">
+</p>
 
 ## 📌 Overview
 
@@ -17,13 +19,30 @@
 - **Donation & Payment Integration** – Support for online giving via **PayPal**.
 - **Multilingual Support** – Accessibility for diverse church communities.
 
+## 🖼️ Screenshots
+
+### 📋 Admin Interface
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4d653ea6-ae5b-47eb-ab62-50d1d437e9cc" width="600" alt="Admin UI">
+</p>
+
+### 🔨 Web Builder
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7e3bad19-1e61-4916-a851-25cb4a8dc0d6" width="600" alt="Admin UI">
+</p>
+
+### 📱 Mobile App – Event View
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/cb5c3bb3-2b0b-4ab5-b5e3-2188d442e43b" width="300" alt="Mobile Event View">
+</p>
+
 ## 🛠️ Tech Stack
 
 - **Frontend:**  
-  - **Flutter (Mobile App)**  
-  - **React (Web App)**  
+  - **Flutter (Mobile App via the Dart Language)**  
+  - **React (Web App via the TypeScript Language)**  
 
-- **Backend:** FastAPI
+- **Backend: FaspAPI (Server via the Python Language)**
 
 - **CMS:** Strapi
 
@@ -157,6 +176,35 @@ ChurchLink supports **online donations** through **PayPal**, allowing churches t
 ChurchLink supports permissions implemented by the means of **user-defined permission roles.** Some of these permissions are directly integrated into **Strapi**, for a seamless transition from ChurchLink provided utilities to Strapi itself. Below is the list of permissions that can be implemented into these roles, that have fully been implemented as working.
 
 - media_management: Allows this user to be able to upload/edit/delete media content in the Strapi Dashboard
+
+---
+
+## 📊 Database Design
+
+Below is a comprehensive overview of the planned MongoDB Database integration
+
+![image](https://github.com/user-attachments/assets/474516d7-ef95-47d1-8d20-be1606d4e074)
+
+![image](https://github.com/user-attachments/assets/0a10a6a3-40bc-4f25-bfbf-75d85d0dae10)
+
+![image](https://github.com/user-attachments/assets/4e92ee2d-73f0-4a3d-b8e0-2ac92203bca5)
+
+![image](https://github.com/user-attachments/assets/d7ac3199-7b50-4327-be05-aff06136975d)
+
+
+---
+
+## ⏳ Predicted Timeline
+
+Below is a tentative idea of the kind of timeline that we plan to see for CSC-191 in the completion of this project. Subject to change pending changing conditions of decision making.
+
+Sprint 5 - Completion of Events, including the proper gathering of data for the user and EventPersons, Completing our PayPal Finances integration
+
+Sprint 6 - The Completion of a fully functional Bible Reader, including Reading plans, completing notifications hubs
+
+Sprint 7 - The Completion of Media-Watching such as with the Church's existing content, and watching YouTube livestreams. Completing integration of a simple viewer of pages for Mobile
+
+Spint 8 - PROJECT SHOULD BE DONE, Clean-up of any remaining last things we want to get fixed or implemented
 
 ---
 
