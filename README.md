@@ -1,6 +1,5 @@
-# ChurchLink
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/3ec313d2-1a35-419a-9054-8a64406ca937" width="250">
+  <img src="https://github.com/user-attachments/assets/feb41274-e2a4-450a-af58-7164c9ecbfb3" width="75%">
 </p>
 
 ## 📌 Overview
