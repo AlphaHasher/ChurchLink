@@ -205,6 +205,20 @@ Below is a comprehensive overview of the planned MongoDB Database integration
 
 ---
 
+## ⏳ Predicted Timeline
+
+Below is a tentative idea of the kind of timeline that we plan to see for CSC-191 in the completion of this project. Subject to change pending changing conditions of decision making.
+
+Sprint 5 - Completion of Events, including the proper gathering of data for the user and EventPersons, Completing our PayPal Finances integration
+
+Sprint 6 - The Completion of a fully functional Bible Reader, including Reading plans
+
+Sprint 7 - The Completion of Media-Watching such as with the Church's existing content, and watching YouTube livestreams. Completing integration of a simple viewer of pages for Mobile
+
+Spint 8 - PROJECT SHOULD BE DONE, Clean-up of any remaining last things we want to get fixed or implemented
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions from the community! If you’d like to contribute:
