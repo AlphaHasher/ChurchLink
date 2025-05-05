@@ -13,7 +13,7 @@ from models.user import (
     find_users_with_permissions,
     update_user_roles, delete_user
 )
-from models.users_functions import fetch_users, process_sync_by_uid, get_my_permissions
+from models.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, MyPermsRequest
 
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
@@ -178,6 +178,6 @@ async def process_sync_request(uid: str = Depends(authenticate_uid)):
 async def process_get_users(uid: str = Depends(authenticate_uid)):
     return await fetch_users(uid)
 
-@user_router.get("/get-my-permissions")
-async def process_get_my_permissions(uid: str = Depends(authenticate_uid)):
-    return await get_my_permissions(uid)
+@user_router.post("/get-my-permissions")
+async def process_get_my_permissions(payload: MyPermsRequest, uid: str = Depends(authenticate_uid)):
+    return await get_my_permissions(payload, uid)

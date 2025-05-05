@@ -155,7 +155,25 @@ async def strip_users_of_role(id: str):
         updated_roles = [rid for rid in user.get("roles", []) if rid != id]
         await UserHandler.update_roles(user['uid'], updated_roles, StrapiHelper.sync_strapi_roles)
 
-async def update_user_roles(payload: UserRoleUpdateInput):
+async def update_user_roles(payload: UserRoleUpdateInput, uid:str):
+    # Find user in mongo
+    user = await UserHandler.find_by_uid(uid)
+    # Return failure if no user found
+    if user is None:
+        return {"success": False, "msg":"User not found!"}
+    # Gather user permissions
+    user_perms = await RoleHandler.infer_permissions(user['roles'])
+    # If user is not an Admin or Permissions manager, refuse
+    if not user_perms['admin'] and not user_perms['permissions_management']:
+        return {"success":False, "msg":"You do not have the necessary permissions to assign roles!"}
+
+    roles = await RoleHandler.get_user_assignable_roles(user_perms)
+    valid_ids = []
+    for role in roles:
+        valid_ids.append(str(role['_id']))
+    for id in payload.role_ids:
+        if id not in valid_ids:
+            return {"success":False, "msg":f"You do not have the necessary permissions to assign role with ID: {id}"}
     try:
         if await UserHandler.update_roles(payload.uid, payload.role_ids, StrapiHelper.sync_strapi_roles):
             return {"success": True, "msg":"Your user roles have been updated successfully."}

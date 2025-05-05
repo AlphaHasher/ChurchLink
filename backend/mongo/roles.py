@@ -37,6 +37,23 @@ class RoleHandler:
 
         return permissions
 
+    @staticmethod
+    async def get_user_assignable_roles(permissions):
+        returnable_roles = []
+        roles = await RoleHandler.find_all_roles()
+        for role in roles:
+            breakFlag = False
+            if (role['permissions']['permissions_management'] or role['permissions']['admin']) and permissions['admin'] == False:
+                continue
+            breakFlag = False
+            for key, value in role['permissions'].items():
+                if value and permissions[key] == False:
+                    breakFlag = True
+                    break
+            if breakFlag:
+                continue
+            returnable_roles.append(role)
+        return returnable_roles
 
 
     @staticmethod

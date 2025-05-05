@@ -1,7 +1,11 @@
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
+from pydantic import BaseModel, Field
 
+
+class MyPermsRequest(BaseModel):
+    user_assignable_roles: bool
 
 async def process_sync_by_uid(uid):
     syncRequest = await FirebaseSyncer.syncUserByUID(uid)
@@ -28,13 +32,29 @@ async def fetch_users(uid):
     else:
         return {"success": False, "users": []}
     
-async def get_my_permissions(uid):
+async def get_my_permissions(payload: MyPermsRequest, uid:str):
+    retDict = {"success":False, "perms":RoleHandler.permission_template.copy(), "msg":"", "user_assignable_roles":[]}
+
     if await UserHandler.does_user_have_permissions(uid):
         user = await UserHandler.find_by_uid(uid)
         if user is not None:
             perms = await RoleHandler.infer_permissions(user['roles'])
-            return {"success":True, "perms":perms, "msg": "Permissions successfully fetched!"}
+            retDict['success'] = True
+            retDict['msg'] = "Permissions successfully fetched!"
+            retDict['perms'] = perms
+            if payload.user_assignable_roles:
+                raw_roles = await RoleHandler.get_user_assignable_roles(perms)
+                roles = [
+                    {"_id" :str(r.get("_id")),
+                     "name": r.get("name"),
+                     "permissions": r.get("permissions", {})
+                    }
+                    for r in raw_roles
+                ]
+                retDict['user_assignable_roles'] = roles
         else:
-            return {"success":False, "perms":RoleHandler.permission_template.copy(), "msg": "Mongo user not found!"}
+            retDict['msg'] = "Mongo user not found!"
     else:
-        return {"success":False, "perms": RoleHandler.permission_template.copy(), "msg": "User does not have permissions!"}
+        retDict["msg"] = "User does not have permissions!"
+    
+    return retDict

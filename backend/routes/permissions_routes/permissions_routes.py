@@ -26,4 +26,4 @@ async def process_role_delete(payload: RoleUpdateInput, uid: str = Depends(authe
 
 @permissions_router.patch("/update-user-roles")
 async def process_user_role_update(payload: UserRoleUpdateInput, uid: str = Depends(authenticate_uid)):
-    return await update_user_roles(payload)
+    return await update_user_roles(payload, uid)
