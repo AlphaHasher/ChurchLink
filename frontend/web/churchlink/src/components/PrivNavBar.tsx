@@ -105,7 +105,7 @@ export default function PrivNavBar() {
                             )}
                         </NavigationMenuItem>
                     ))}
-
+                  
                     <div className="hidden lg:flex items-center justify-center h-full w-9">
                         <ProfileDropDown className="hover:bg-white/10 transition-colors duration-200 p-0! text-black rounded-full!" />
                     </div>

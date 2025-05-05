@@ -6,6 +6,7 @@ interface Page {
   title: string;
   slug: string;
   visible: boolean;
+  locked?: boolean;
 }
 
 const WebBuilderPageList = () => {
@@ -29,6 +30,18 @@ const WebBuilderPageList = () => {
 
     setPages((prev) =>
       prev.map((p) => (p._id === id ? { ...p, visible: !current } : p))
+    );
+  };
+
+  const toggleLock = async (id: string, current: boolean) => {
+    await fetch(`/api/pages/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locked: !current }),
+    });
+
+    setPages((prev) =>
+      prev.map((p) => (p._id === id ? { ...p, locked: !current } : p))
     );
   };
 
@@ -58,6 +71,7 @@ const WebBuilderPageList = () => {
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">Slug</th>
               <th className="px-4 py-3">Visibility</th>
+              <th className="px-4 py-3">Lock Status</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -78,6 +92,14 @@ const WebBuilderPageList = () => {
                     {page.visible ? "Visible" : "Hidden"}
                   </span>
                 </td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={() => toggleLock(page._id, page.locked ?? false)}
+                    className="text-sm text-gray-600 hover:underline"
+                  >
+                    {page.locked ? "Unlock" : "Lock"}
+                  </button>
+                </td>
                 <td className="px-4 py-3 text-right space-x-2">
                   <button
                     onClick={() => navigate(`/admin/webbuilder/edit/${page.slug}`)}
@@ -93,7 +115,8 @@ const WebBuilderPageList = () => {
                   </button>
                   <button
                     onClick={() => deletePage(page._id)}
-                    className="text-sm text-red-600 hover:underline"
+                    className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                    disabled={page.locked}
                   >
                     Delete
                   </button>

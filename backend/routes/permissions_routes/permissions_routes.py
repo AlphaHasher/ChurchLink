@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from models.permissions_functions import fetch_perms, create_role, RoleCreateInput, RoleUpdateInput, UserRoleUpdateInput, update_role, delete_role, update_user_roles
 from helpers.Firebase_helpers import authenticate_uid
 
-permissions_router = APIRouter()
+permissions_router = APIRouter(prefix="/permissions", tags=["permissions"])
 
 ###################
 # Update Request

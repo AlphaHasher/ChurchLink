@@ -1,5 +1,5 @@
 name: app
-description: "A new Flutter project."
+description: "ChurchLink"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -46,7 +46,8 @@ dependencies:
   flutter_dotenv: ^5.2.1
   intl: ^0.20.2
   flutter_local_notifications: ^19.0.0
-
+  flutter_paypal_payment: ^1.0.7
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

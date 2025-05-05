@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Body, Path
 from mongo.database import DB
 from models.footer import *
 
-footer_router = APIRouter(prefix="/api/footer")
+footer_router = APIRouter(prefix="/footer", tags=["footer"])
 
 @footer_router.get("", response_model=Footer)
 async def get_footer_route():

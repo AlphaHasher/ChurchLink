@@ -1,5 +1,3 @@
-import React from "react";
-
 const InConstructionPage = () => {
   return (
     <div className="min-h-screen flex flex-col justify-center items-center text-center bg-yellow-50">
