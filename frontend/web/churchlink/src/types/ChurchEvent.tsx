@@ -17,7 +17,8 @@ export type ChurchEvent = {
     max_age: number;
     gender: string;
     image_url: string;
-    thumbnail_url: String;
+    roles: string[];
+    published: boolean;
 };
 
 export const eventLabels: Record<string, string> = {
@@ -37,7 +38,8 @@ export const eventLabels: Record<string, string> = {
     max_age: "Maximum Age",
     gender: "Genders Allowed",
     image_url: "Image URL",
-    thumbnail_url: "Thumbnail URL",
+    roles: 'Roles Allowed to Edit',
+    published: 'Published Status',
 };
 
 export type FetchEventsParams = {

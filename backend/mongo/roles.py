@@ -54,6 +54,23 @@ class RoleHandler:
                 continue
             returnable_roles.append(role)
         return returnable_roles
+    
+    @staticmethod
+    async def get_user_event_editor_roles(role_ids, perms):
+        returnable_roles = []
+        roles = await RoleHandler.find_roles_with_permissions(['event_editing'])
+        if perms['admin'] or perms['event_management']:
+            returnable_roles = roles.copy()
+            admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])
+            for role in admin_roles:
+                if role in returnable_roles:
+                    returnable_roles.remove(role)
+        else:
+            for role in roles:
+                if str(role['_id']) in role_ids:
+                    returnable_roles.append(role)
+        return returnable_roles
+        
 
 
     @staticmethod

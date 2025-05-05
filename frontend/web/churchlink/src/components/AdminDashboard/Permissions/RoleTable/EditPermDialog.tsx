@@ -125,7 +125,6 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
                 {checkingPerms ? (
                     <>
                         <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                        Checking...
                     </>
                 ) : (
                     <Edit />

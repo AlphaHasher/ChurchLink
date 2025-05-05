@@ -85,6 +85,8 @@ export const getMyPermissions = async (options?: MyPermsRequest) => {
         // Provide default values if options is not passed
         const defaultOptions: MyPermsRequest = {
             user_assignable_roles: false,
+            event_editor_roles: false,
+            user_role_ids: false,
         };
 
         const idToken = await confirmAuth();

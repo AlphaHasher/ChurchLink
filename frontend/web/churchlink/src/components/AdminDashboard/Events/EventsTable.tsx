@@ -28,39 +28,46 @@ import { ChurchEvent, eventLabels } from "@/types/ChurchEvent"
 import { CreateEventDialog } from "./CreateEventDialog"
 import { DeleteEventDialog } from "./DeleteEventDialog"
 import { EditEventDialog } from "./EditEventDialog"
-import { getDisplayValue } from "@/helpers/DataFunctions"
+import { getDisplayValue, roleIdListToRoleStringList } from "@/helpers/DataFunctions"
+import { AccountPermissions } from "@/types/AccountPermissions"
 
 interface EventsTableProps {
     data: ChurchEvent[];
+    permData: AccountPermissions[];
     onSave: () => Promise<void>;
 }
 
 const skipTerms = ["id", "description", "image_url", "thumbnail_url", "ru_name", "ru_description"];
 
 
-const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<void>): ColumnDef<ChurchEvent> => {
+const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<void>, permData: AccountPermissions[]): ColumnDef<ChurchEvent> => {
     const label = eventLabels[accessorKey];
 
     return {
         accessorKey,
         header: ({ column }) => (
-            <Button
-                variant="ghost"
-                className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            >
-                {label}
-                <ArrowUpDown />
-            </Button>
+            <div className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-start" : "justify-center"
+                } text-center`}>
+                <Button
+                    variant="ghost"
+                    className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                >
+                    {label}
+                    <ArrowUpDown />
+                </Button>
+            </div>
+
         ),
         cell: ({ row }) => {
             const rowData = row.original;
             return (
                 <div
-                    className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end" : "justify-center"} text-center`}
+                    className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end" : "justify-center"
+                        } text-center`}
                 >
                     <div>
-                        {getDisplayValue(row.getValue(accessorKey), accessorKey)}
+                        {accessorKey === 'roles' ? getDisplayValue(roleIdListToRoleStringList(permData, row.getValue(accessorKey)), accessorKey) : getDisplayValue(row.getValue(accessorKey), accessorKey)}
                     </div>
                     {accessorKey === "name" && (
                         <div className="ml-auto flex space-x-2">
@@ -74,7 +81,7 @@ const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<
     }
 }
 
-export function EventsTable({ data, onSave }: EventsTableProps) {
+export function EventsTable({ data, permData, onSave }: EventsTableProps) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -83,7 +90,7 @@ export function EventsTable({ data, onSave }: EventsTableProps) {
     const columns: ColumnDef<ChurchEvent>[] = []
     Object.keys(eventLabels).forEach((key) => {
         if (!skipTerms.includes(key)) {
-            columns.push(createPermColumn(key as keyof ChurchEvent, onSave))
+            columns.push(createPermColumn(key as keyof ChurchEvent, onSave, permData))
         }
     })
 

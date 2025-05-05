@@ -120,7 +120,6 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
                 {checkingPerms ? (
                     <>
                         <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                        Checking...
                     </>
                 ) : (
                     "Create New Role"
