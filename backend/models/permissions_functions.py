@@ -41,15 +41,24 @@ async def fetch_perms(uid):
         return {"success":False, "permissions":[]}
 
 async def create_role(payload: RoleCreateInput, uid: str):
+    # Find user in mongo
     user = await UserHandler.find_by_uid(uid)
+    # Return failure if no user found
     if user is None:
         return {"success": False, "msg":"User not found!"}
+    # Gather user permissions
     user_perms = await RoleHandler.infer_permissions(user['roles'])
+    # If user is not an Admin or Permissions manager, refuse
     if not user_perms['admin'] and not user_perms['permissions_management']:
         return {"success":False, "msg":"You do not have the necessary permissions to create roles!"}
+    #Verify no illegal perms are added
     for key, value in user_perms.items():
-        if getattr(payload, key) and not value:
-            return {"success":False, "msg":f"You do not have the necessary permissions to create a role with permission: {key}!"}
+        if key in ['admin', 'permissions_management']:
+            if getattr(payload, key) and not user_perms['admin']:
+                return {"success":False, "msg":f"You do not have the necessary permissions to create a role with permission: {key}!"}
+        else:
+            if getattr(payload, key) and not value:
+                return {"success":False, "msg":f"You do not have the necessary permissions to create a role with permission: {key}!"}
 
     permStr = []
     for key in boolKeys:
