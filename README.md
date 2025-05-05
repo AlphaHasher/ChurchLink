@@ -6,6 +6,8 @@
 
 **ChurchLink** is a web and mobile platform designed to help churches manage their content, events, and community interactions. The project includes a **web builder** that allows church staff to create and update pages, add banners, post announcements, and engage with members through an easy-to-use interface.
 
+So far, most of our work has been done on web and admin tools, but by the completion of CSC-191, a full suite for Admin-Web-Mobile will be completed.
+
 ## 🎯 Features
 
 - **Simple Page Template System** – Create and edit church pages using pre-designed templates.
@@ -19,16 +21,46 @@
 - **Donation & Payment Integration** – Support for online giving via **PayPal**.
 - **Multilingual Support** – Accessibility for diverse church communities.
 
-## 🖼️ Screenshots
 
-### 📋 Admin Interface
+
+### 📋 Admin Interface, Users View
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/4d653ea6-ae5b-47eb-ab62-50d1d437e9cc" width="600" alt="Admin UI">
+  <img src="https://github.com/user-attachments/assets/1faf5c88-a333-4e5e-a399-6c59dc44630e" width="600" alt="Admin UI">
 </p>
 
-### 🔨 Web Builder
+### 📋 Admin Interface, Creating a new Permission Role
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/7e3bad19-1e61-4916-a851-25cb4a8dc0d6" width="600" alt="Admin UI">
+  <img src="https://github.com/user-attachments/assets/b5398827-a8da-42db-9fe7-cb64b2d797b9" width="600" alt="Role Creation">
+</p>
+
+### 📋 Admin Interface, Creating a new Event
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/56fd6152-9e44-40a9-96b7-55227e41073f" width="600" alt="Event Creation">
+</p>
+
+### 🔨 Web Builder, Page View
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7e3bad19-1e61-4916-a851-25cb4a8dc0d6" width="600" alt="Web Builder">
+</p>
+
+### 🔨 Web Builder, Header Item Creation
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/dc50bc84-b905-4eec-a60b-77c41b9d3468" width="600" alt="Header Creation">
+</p>
+
+### 🎥 Media Library, Strapi Integration
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/b2b3b1fd-ef02-4ab1-a9de-4e696d775386" width="600" alt="Media Library">
+</p>
+
+### 👤 Login Popup
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a3194747-d719-467d-872d-babe77edbbae" width="600" alt="Login">
+</p>
+
+### 💻 Web Example
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/204b81f6-7f41-4235-a692-2e4da7c36b3b" width="600" alt="Web Example">
 </p>
 
 ### 📱 Mobile App – Event View
@@ -205,6 +237,24 @@ Sprint 6 - The Completion of a fully functional Bible Reader, including Reading 
 Sprint 7 - The Completion of Media-Watching such as with the Church's existing content, and watching YouTube livestreams. Completing integration of a simple viewer of pages for Mobile
 
 Spint 8 - PROJECT SHOULD BE DONE, Clean-up of any remaining last things we want to get fixed or implemented
+
+---
+
+## 📖 Instructions
+
+According to the guidelines for the README.md deliverable, sections must be laid out for testing, deployment, and developer instructions. While the filling out of this content is a CSC 191 assignment, we will section out these places. However, we would encourage a current reader of this repository to read our wiki for detailed instructions.
+
+---
+
+## 📖 Developer Instructions
+
+---
+
+## 📖 Testing Instructions
+
+---
+
+## 📖 Deployment Instructions
 
 ---
 
