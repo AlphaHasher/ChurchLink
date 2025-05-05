@@ -60,10 +60,10 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
             <RadioToggler
                 name="admin"
                 label="Administrator Privileges"
-                description="This option grants the user complete site access, without any restriction. This permission level is the only one that can modify admin-level and permissions manager-level roles."
+                description="This option grants the user complete site access, without any restriction. This permission level is the only one that can modify admin-level and permissions manager-level roles. This is the highest level of permissions, and roles other than the default Administrator role are not allowed to have it."
                 value={permissions.admin}
                 onChange={handleChange("admin")}
-                disabled={!editor_permissions.admin}
+                disabled={true}
             />
             <RadioToggler
                 name="permissions_management"

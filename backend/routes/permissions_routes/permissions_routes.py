@@ -18,11 +18,11 @@ async def process_role_creation(payload: RoleCreateInput, uid: str = Depends(aut
 
 @permissions_router.patch("/update-role")
 async def process_role_update(payload: RoleUpdateInput, uid: str = Depends(authenticate_uid)):
-    return await update_role(payload)
+    return await update_role(payload, uid)
 
 @permissions_router.delete("/delete-role")
 async def process_role_delete(payload: RoleUpdateInput, uid: str = Depends(authenticate_uid)):
-    return await delete_role(payload)
+    return await delete_role(payload, uid)
 
 @permissions_router.patch("/update-user-roles")
 async def process_user_role_update(payload: UserRoleUpdateInput, uid: str = Depends(authenticate_uid)):

@@ -59,7 +59,6 @@ async def create_role(payload: RoleCreateInput, uid: str):
         else:
             if getattr(payload, key) and not value:
                 return {"success":False, "msg":f"You do not have the necessary permissions to create a role with permission: {key}!"}
-
     permStr = []
     for key in boolKeys:
         if getattr(payload, key):
@@ -74,7 +73,35 @@ async def create_role(payload: RoleCreateInput, uid: str):
     except:
         return {"success": False, "msg":"Your role could not be created due to an unknown critical error!"}
     
-async def update_role(payload: RoleUpdateInput):
+async def update_role(payload: RoleUpdateInput, uid: str):
+    # Find user in mongo
+    user = await UserHandler.find_by_uid(uid)
+    # Find role in mongo
+    role = await RoleHandler.find_role_by_id(payload.id)
+    # Return failure if no user found
+    if user is None:
+        return {"success": False, "msg":"User not found!"}
+    # Return failure if no role found
+    if role is None:
+        return {"success": False, "msg":"Role not found!"}
+    # Gather user permissions
+    user_perms = await RoleHandler.infer_permissions(user['roles'])
+    # If user is not an Admin or Permissions manager, refuse
+    if not user_perms['admin'] and not user_perms['permissions_management']:
+        return {"success":False, "msg":"You do not have the necessary permissions to edit roles!"}
+    # If perm has permissions_management and editor not an admin, refuse
+    if not user_perms['admin'] and payload.permissions_management:
+        return {"success":False, "msg":"Only Administrators may edit roles granting permissions management!"}
+    #Verify no illegal perms are attempted to be modified
+    for key, value in user_perms.items():
+        # Strictly refuse if role has Admin or Permissions Management
+        if key in ['admin', 'permissions_management']:
+            if getattr(payload, key) and not user_perms['admin']:
+                return {"success":False, "msg":f"You do not have the necessary permissions to edit a role with permission: {key}!"}
+        else:
+            if (getattr(payload, key)!= role['permissions'][key]) and not value:
+                return {"success":False, "msg":f"You do not have the necessary permissions to enable or disable the permission: {key}!"}
+                
     permStr = []
     for key in boolKeys:
         if getattr(payload, key):
@@ -89,7 +116,25 @@ async def update_role(payload: RoleUpdateInput):
         print(e)
         return {"success": False, "msg":"Your role could not be updated due to an unknown critical error!"}
     
-async def delete_role(payload: RoleUpdateInput):
+async def delete_role(payload: RoleUpdateInput, uid:str):
+    # Find user in mongo
+    user = await UserHandler.find_by_uid(uid)
+    # Return failure if no user found
+    if user is None:
+        return {"success": False, "msg":"User not found!"}
+    # Gather user permissions
+    user_perms = await RoleHandler.infer_permissions(user['roles'])
+    # If user is not an Admin or Permissions manager, refuse
+    if not user_perms['admin'] and not user_perms['permissions_management']:
+        return {"success":False, "msg":"You do not have the necessary permissions to delete roles!"}
+    #Verify no illegal perms are present
+    for key, value in user_perms.items():
+        if key in ['admin', 'permissions_management']:
+            if getattr(payload, key) and not user_perms['admin']:
+                return {"success":False, "msg":f"You do not have the necessary permissions to delete a role with permission: {key}!"}
+        else:
+            if getattr(payload, key) and not value:
+                return {"success":False, "msg":f"You do not have the necessary permissions to delete a role with permission: {key}!"}
     try:
         await strip_users_of_role(payload.id)
         if await RoleHandler.delete_role(payload.id):
