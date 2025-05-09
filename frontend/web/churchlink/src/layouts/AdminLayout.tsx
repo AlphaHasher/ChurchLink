@@ -14,21 +14,15 @@ const AdminLayout = ({ customSidebar, children }: AdminLayoutProps) => {
   const location = useLocation();
   const isWebBuilderRoute = location.pathname.includes("/webbuilder");
 
-  const renderedSidebar = customSidebar 
-    ?? (isWebBuilderRoute ? <WebBuilderSidebar /> : <Sidebar />);
+  const renderedSidebar =
+    customSidebar ?? (isWebBuilderRoute ? <WebBuilderSidebar /> : <Sidebar />);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       {renderedSidebar}
-      <div className="flex-1 flex flex-col">
-        {isWebBuilderRoute ? (
-          <WebBuilderTopBar
-            
-          />
-        ) : (
-          <TopBar />
-        )}
-        <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {isWebBuilderRoute ? <WebBuilderTopBar /> : <TopBar />}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
           {children || <Outlet />}
         </div>
       </div>
