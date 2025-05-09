@@ -32,6 +32,7 @@ import {
 import { CreatePermDialog } from "@/components/AdminDashboard/Permissions/RoleTable/CreatePermDialog"
 import { EditPermDialog } from "@/components/AdminDashboard/Permissions/RoleTable/EditPermDialog"
 import { DeletePermDialog } from "@/components/AdminDashboard/Permissions/RoleTable/DeletePermDialog"
+import { getDisplayValue } from "@/helpers/DataFunctions"
 
 import {
   AccountPermissions, permissionLabels
@@ -60,29 +61,27 @@ const createPermColumn = (
   return {
     accessorKey,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        {label}
-        <ArrowUpDown />
-      </Button>
+      <div className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-start" : "justify-center"
+        } text-center`} ><Button
+          variant="ghost"
+          className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {label}
+          <ArrowUpDown />
+        </Button></div>
+
     ),
     cell: ({ row }) => {
       const rowData = row.original; // Access the row data
 
       return (
         <div
-          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end=" : "justify-center"
+          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end" : "justify-center"
             } text-center`}
         >
           <div>
-            {typeof row.getValue(accessorKey) === "boolean"
-              ? row.getValue(accessorKey)
-                ? "✅Yes"
-                : "❌No"
-              : row.getValue(accessorKey)}
+            {getDisplayValue(row.getValue(accessorKey), accessorKey)}
           </div>
 
           {/* Put EditPermDialog and DeletePermDialog */}

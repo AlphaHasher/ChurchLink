@@ -13,11 +13,11 @@ export type UserInfo = {
 
 
 export type BaseUserMask = {
-    uid: string;
     name: string;
     email: string;
     dateOfBirth: string;
     permissions: string;
+    uid: string;
 }
 
 export const UserLabels: Record<string, string> = {
@@ -25,6 +25,7 @@ export const UserLabels: Record<string, string> = {
     email: "Email Address",
     dateOfBirth: "Date of Birth",
     permissions: "Permission Roles",
+    uid: "User ID",
 };
 
 // Create a type "UserPermMask", this is what we will show in the LogicalPerm Table

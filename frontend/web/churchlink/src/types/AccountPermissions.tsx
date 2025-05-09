@@ -2,10 +2,9 @@ export type AccountPermissions = {
   _id: string;
   name: string;
   admin: boolean;
-  finance: boolean;
-  website_management: boolean;
+  permissions_management: boolean;
+  event_editing: boolean;
   event_management: boolean;
-  page_management: boolean;
   media_management: boolean;
 };
 
@@ -22,11 +21,10 @@ export type PermComp = {
 export const permissionLabels: Record<string, string> = {
   name: "Permission Name",
   admin: "Administrator",
-  website_management: "Site Management",
-  event_management: "Event Moderator",
-  page_management: "Page Moderator",
-  finance: "Financial Access",
-  media_management: "Manage Media Content",
+  permissions_management: "Permissions Manager",
+  event_editing: "Event Editor",
+  event_management: "Event Manager",
+  media_management: "Media Library Manager",
 };
 
 // Remove the 'name' key from permissionLabels

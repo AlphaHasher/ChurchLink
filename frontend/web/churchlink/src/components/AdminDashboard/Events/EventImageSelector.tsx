@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { fetchStrapiImages, processStrapiRedirect } from "@/helpers/StrapiInteraction"
 import { Label } from "@/components/ui/label"

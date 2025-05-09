@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, HTTPException, status, Depends
-from models.event import sort_events, create_event, get_event_by_id, EventCreate, update_event, delete_event, search_events, create_mock_events, delete_events, EventOut
+from models.event import sort_events, create_event, get_event_by_id, EventCreate, update_event, delete_event, search_events, delete_events, EventOut
+from models.event_functions import process_create_event, process_edit_event, process_delete_event
 from typing import Literal, List
 from bson import ObjectId
 from typing import Optional
@@ -32,26 +33,18 @@ async def search_events_route(query: str, skip: int = 0, limit: int = 100, minis
 
 @event_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
 async def create_event_route(event: EventCreate, uid:str = Depends(authenticate_uid)):
-    created_event = await create_event(event)
-    if created_event is None:
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error creating event (maybe duplicate name/data?)")
-    return created_event
+    await process_create_event(event, uid)
 
 
 @event_router.put("/{event_id}", summary="Update event")
 async def update_event_route(event_id: str, event: EventCreate, uid:str = Depends(authenticate_uid)):
-    success = await update_event(event_id, event)
-    if not success:
-         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found or update failed")
-    return {"message": "Event updated successfully", "success": True}
+    await process_edit_event(event_id, event, uid)
+    
 
 
 @event_router.delete("/{event_id}", summary="Delete event")
 async def delete_event_route(event_id: str, uid:str = Depends(authenticate_uid)):
-    success = await delete_event(event_id)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-    return {"message": "Event deleted successfully", "success": True}
+    await process_delete_event(event_id, uid)
 
 @event_router.delete("/", summary="Delete multiple events by ID")
 async def delete_events_route(event_ids: List[str], uid:str = Depends(authenticate_uid)):
@@ -81,9 +74,6 @@ async def delete_events_route(event_ids: List[str], uid:str = Depends(authentica
 
     return {"message": f"Attempted deletion for {len(event_ids)} IDs.", "deleted_count": deleted_count}
 
-@event_router.post("/mock", summary="Create mock events")
-async def create_mock_events_route(count: int = 10):
-    return await create_mock_events(count)
 
 @public_event_router.get("/upcoming", summary="Alias: Get upcoming events")
 async def get_upcoming_events_alias(

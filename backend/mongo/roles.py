@@ -3,12 +3,12 @@ from bson import ObjectId
 
 class RoleHandler:
     permission_template = {
-        "admin": False,
-        "finance": False,
-        "website_management": False,
-        "event_management": False,
-        "page_management": False,
+        "admin":False,
+        "permissions_management": False,
+        "event_editing":False,
+        "event_management":False,
         "media_management":False,
+
     }
 
     @staticmethod
@@ -37,6 +37,40 @@ class RoleHandler:
 
         return permissions
 
+    @staticmethod
+    async def get_user_assignable_roles(permissions):
+        returnable_roles = []
+        roles = await RoleHandler.find_all_roles()
+        for role in roles:
+            breakFlag = False
+            if (role['permissions']['permissions_management'] or role['permissions']['admin']) and permissions['admin'] == False:
+                continue
+            breakFlag = False
+            for key, value in role['permissions'].items():
+                if value and permissions[key] == False:
+                    breakFlag = True
+                    break
+            if breakFlag:
+                continue
+            returnable_roles.append(role)
+        return returnable_roles
+    
+    @staticmethod
+    async def get_user_event_editor_roles(role_ids, perms):
+        returnable_roles = []
+        roles = await RoleHandler.find_roles_with_permissions(['event_editing'])
+        if perms['admin'] or perms['event_management']:
+            returnable_roles = roles.copy()
+            admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])
+            for role in admin_roles:
+                if role in returnable_roles:
+                    returnable_roles.remove(role)
+        else:
+            for role in roles:
+                if str(role['_id']) in role_ids:
+                    returnable_roles.append(role)
+        return returnable_roles
+        
 
 
     @staticmethod

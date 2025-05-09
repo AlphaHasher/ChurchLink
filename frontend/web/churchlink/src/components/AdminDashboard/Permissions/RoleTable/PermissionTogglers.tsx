@@ -1,5 +1,5 @@
 import { Label } from "@/components/ui/label"
-import { AccountPermissions } from "@/types/AccountPermissions"
+import { AccountPermissions, PermMask } from "@/types/AccountPermissions"
 
 type RadioTogglerProps = {
     name: string
@@ -7,11 +7,12 @@ type RadioTogglerProps = {
     description: string
     value: boolean
     onChange: (value: boolean) => void
+    disabled?: boolean
 }
 
-const RadioToggler = ({ name, label, description, value, onChange }: RadioTogglerProps) => {
+const RadioToggler = ({ name, label, description, value, onChange, disabled = false }: RadioTogglerProps) => {
     return (
-        <div className="grid gap-2">
+        <div className={`grid gap-2 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Label htmlFor={name}>{label}</Label>
             <small className="text-gray-500 text-xs">{description}</small>
 
@@ -21,8 +22,9 @@ const RadioToggler = ({ name, label, description, value, onChange }: RadioToggle
                         type="radio"
                         name={name}
                         checked={value === true}
-                        onChange={() => onChange(true)}
+                        onChange={() => !disabled && onChange(true)}
                         className="mr-2"
+                        disabled={disabled}
                     />
                     Yes
                 </label>
@@ -31,8 +33,9 @@ const RadioToggler = ({ name, label, description, value, onChange }: RadioToggle
                         type="radio"
                         name={name}
                         checked={value === false}
-                        onChange={() => onChange(false)}
+                        onChange={() => !disabled && onChange(false)}
                         className="mr-2"
+                        disabled={disabled}
                     />
                     No
                 </label>
@@ -43,10 +46,11 @@ const RadioToggler = ({ name, label, description, value, onChange }: RadioToggle
 
 type PermissionTogglersProps = {
     permissions: AccountPermissions
+    editor_permissions: PermMask
     onChange: (updatedPermissions: AccountPermissions) => void
 }
 
-export const PermissionTogglers = ({ permissions, onChange }: PermissionTogglersProps) => {
+export const PermissionTogglers = ({ permissions, editor_permissions, onChange }: PermissionTogglersProps) => {
     const handleChange = (key: keyof AccountPermissions) => (value: boolean) => {
         onChange({ ...permissions, [key]: value })  // Update the permission value while keeping other values intact
     }
@@ -56,37 +60,34 @@ export const PermissionTogglers = ({ permissions, onChange }: PermissionTogglers
             <RadioToggler
                 name="admin"
                 label="Administrator Privileges"
-                description="This option grants the user complete site access, without any restriction"
+                description="This option grants the user complete site access, without any restriction. This permission level is the only one that can modify admin-level and permissions manager-level roles. This is the highest level of permissions, and roles other than the default Administrator role are not allowed to have it."
                 value={permissions.admin}
                 onChange={handleChange("admin")}
+                disabled={true}
             />
             <RadioToggler
-                name="website_management"
-                label="Site Management"
-                description="This option grants the user the ability to change the core layout of the site, more than just static pages and events"
-                value={permissions.website_management}
-                onChange={handleChange("website_management")}
+                name="permissions_management"
+                label="Permissions Management"
+                description="This option grants the user the ability to manage permission roles and assign them to users. This role cannot modify roles that contain Permissions Management or Admin privilleges for safety of preventing overwriting your own permissions. Users with this role can only modify permissions they explicitly have, i.e., you can only assign Event Management if you yourself have the Event Management perm."
+                value={permissions.permissions_management}
+                onChange={handleChange("permissions_management")}
+                disabled={!editor_permissions.admin}
+            />
+            <RadioToggler
+                name="event_editing"
+                label="Event Editor"
+                description="This option grants the user the ability to create or edit events. In addition, this role becomes accessible as being able to be assigned for Events role-based access."
+                value={permissions.event_editing}
+                onChange={handleChange("event_editing")}
+                disabled={!editor_permissions.admin && !editor_permissions.event_editing}
             />
             <RadioToggler
                 name="event_management"
                 label="Event Moderator"
-                description="This option grants the user the ability to manage all events, regardless of specific permission tags"
+                description="This option grants the user the ability to manage all events, regardless of specific permission tags. An Event Editor role is still necessary for event creation, but this lets the user manage them all."
                 value={permissions.event_management}
                 onChange={handleChange("event_management")}
-            />
-            <RadioToggler
-                name="page_management"
-                label="Page Moderator"
-                description="This option grants the user the ability to manage all pages (but not the core site layout), regardless of specific permission tags"
-                value={permissions.page_management}
-                onChange={handleChange("page_management")}
-            />
-            <RadioToggler
-                name="finance"
-                label="Financial Access"
-                description="This option grants the user the ability to access financial information and pages"
-                value={permissions.finance}
-                onChange={handleChange("finance")}
+                disabled={!editor_permissions.admin && !editor_permissions.event_management}
             />
             <RadioToggler
                 name="media_management"
@@ -94,7 +95,9 @@ export const PermissionTogglers = ({ permissions, onChange }: PermissionTogglers
                 description="This option grants the user the ability to add or remove media from the site"
                 value={permissions.media_management}
                 onChange={handleChange("media_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.media_management}
             />
+
         </div>
     )
 }

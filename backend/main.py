@@ -30,6 +30,7 @@ from routes.webhook_listener_routes.youtube_listener_routes import youtube_route
 from routes.permissions_routes.permissions_routes import permissions_router
 
 
+from dotenv import load_dotenv
 load_dotenv()
 
 
