@@ -207,6 +207,14 @@ ChurchLink supports **online donations** through **PayPal**, allowing churches t
 
 ChurchLink supports permissions implemented by the means of **user-defined permission roles.** Some of these permissions are directly integrated into **Strapi**, for a seamless transition from ChurchLink provided utilities to Strapi itself. Below is the list of permissions that can be implemented into these roles, that have fully been implemented as working.
 
+- admin: Allows the user to have complete permissions access. Only able to be granted to default Administrator role. Allows for creation/edit/deletion of roles with permissions_management perm.
+
+- permissions_management: Allows this user to be able to create/edit/delete/assign roles. Special rule: These users cannot edit roles with the admin or permissions management permissions. These users cannot change permissions they do not already explicitly have permissions for.
+
+- event_editing: Allows this user to be able to create/edit/delete events. Special rule: This role becomes available now to be used in the "lock" model for Events, at least ONE of these Role Types is necessary to create events, these roles are the ONLY ones that can be assigned to events.
+
+- event_management: Allows this user to be able to create/edit/delete ALL events regardless if they have the proper "keys" for the event "locks". event_management or admin is required in order to be able to edit the "locks" of pre-existing events. Reasoning why this is restricted to event managers is because if event editors could modify the locks, a massive headache would occur in multi-lock event systems when different users don't have ALL locks. Best to avoid them kicking eachother off, or editing roles they don't have access to.
+
 - media_management: Allows this user to be able to upload/edit/delete media content in the Strapi Dashboard
 
 ---

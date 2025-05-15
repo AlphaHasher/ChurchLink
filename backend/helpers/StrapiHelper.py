@@ -195,7 +195,7 @@ class StrapiHelper:
         user_roles = mongo_user['roles']
         user_permissions = await RoleHandler.infer_permissions(user_roles)
 
-        if user_permissions['media_management']:
+        if user_permissions['media_management'] or user_permissions['admin']:
             returned_roles.append(admin_roles['media-management'])
 
         return returned_roles

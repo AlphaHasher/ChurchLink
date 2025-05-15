@@ -2,6 +2,46 @@ import { AccountPermissions, PermMask, PermComp } from "@/types/AccountPermissio
 import { BaseUserMask, UserInfo, UserPermMask } from "@/types/UserInfo";
 import { ChurchEvent } from "@/types/ChurchEvent";
 
+export function getDisplayValue(value: any, key: any): string {
+    if (typeof value === "boolean") {
+        return value ? "✅Yes" : "❌No";
+    }
+
+    if (typeof value === "string") {
+        if (key === "date") {
+            try {
+                const parsedDate = new Date(value);
+                if (!isNaN(parsedDate.getTime())) {
+                    const year = parsedDate.getFullYear();
+                    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+                    const day = String(parsedDate.getDate()).padStart(2, "0");
+                    return `${year}/${month}/${day}`;
+                }
+            } catch {
+                // fall through
+            }
+        }
+        // Capitalize recurring/gender fields
+        if (key === "recurring" || key === "gender") {
+            return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        }
+
+        return value;
+    }
+
+    if (Array.isArray(value)) {
+        if (value.length === 0) return "N/A";
+        return `[${value.join(", ")}]`;
+    }
+
+    if (value === null || value === undefined) {
+        return "N/A";
+    }
+
+    return String(value);
+};
+
+
 // Function to transform a UserInfo type object to a UserPermMask
 const transformToUserPermMask = (user: UserInfo, allPerms: AccountPermissions[]): UserPermMask => {
     // Collect ALL of the Roles that the user actually has.
