@@ -1,17 +1,17 @@
 FROM ghcr.io/astral-sh/uv:debian-slim
 
-# Install Node.js and npm
-RUN apt-get update && \
-    apt-get install -y curl gnupg && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# # don't need node js for python side
+# RUN apt-get update && \
+#     apt-get install -y curl gnupg && \
+#     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+#     apt-get install -y nodejs && \
+#     apt-get clean && \
+#     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements file
+# Copy everything
 COPY . .
 
 EXPOSE 8000
