@@ -11,10 +11,10 @@ FROM ghcr.io/astral-sh/uv:debian-slim
 # Set working directory
 WORKDIR /app
 
-# testing
+# Copy Python files first
 COPY . .
 
 EXPOSE 8000
 
-# Keep container running for debugging
-CMD ["tail", "-f", "/dev/null"]
+# # more debugging
+CMD ["sh", "-c", "echo '=== Files in /app ===' && ls -la /app && echo '=== Running main.py ===' && uv run main.py"]
