@@ -96,7 +96,7 @@ const AddFooterItem = () => {
             toast.error("Item title and URL are required");
             return;
         }
-        setSectionItems([...sectionItems, { title: tempItemTitle, russian_title: tempItemRussianTitle, url: tempItemUrl || null }]);
+        setSectionItems([...sectionItems, { title: tempItemTitle, russian_title: tempItemRussianTitle, url: tempItemUrl || "" }]);
         setTempItemTitle("");
         setTempItemRussianTitle("");
         setTempItemUrl("");

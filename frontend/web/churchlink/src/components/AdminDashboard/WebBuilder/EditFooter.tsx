@@ -189,7 +189,7 @@ const EditFooter = () => {
         }
     };
 
-    const getEffectiveVisibility = (item: FooterItem) => {
+    const getEffectiveVisibility = (item: FooterItem | FooterSection) => {
         if (item.title in pendingChanges.visibility) {
             return pendingChanges.visibility[item.title];
         }
@@ -230,7 +230,7 @@ const EditFooter = () => {
                                             <div className="flex flex-1">
                                                 <div>
                                                     <span className="font-medium">{item.title}</span>
-                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{item.url}</span>}
+                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{(item as FooterItem).url}</span>}
                                                     {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>

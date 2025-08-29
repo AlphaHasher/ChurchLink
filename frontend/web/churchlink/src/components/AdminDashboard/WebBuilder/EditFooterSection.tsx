@@ -156,7 +156,7 @@ const EditHeaderItem: React.FC = () => {
             updatedItems[editingItemIndex] = {
                 title: tempLinkTitle,
                 russian_title: tempLinkRussianTitle,
-                url: tempLinkUrl || null,
+                url: tempLinkUrl || "",
                 visible: true,
                 type: "link"
             };
@@ -167,7 +167,7 @@ const EditHeaderItem: React.FC = () => {
             setDropdownItems([...dropdownItems, {
                 title: tempLinkTitle,
                 russian_title: tempLinkRussianTitle,
-                url: tempLinkUrl || null,
+                url: tempLinkUrl || "",
                 visible: true,
                 type: "link"
             }]);

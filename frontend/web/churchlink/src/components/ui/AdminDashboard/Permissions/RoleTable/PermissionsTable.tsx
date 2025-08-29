@@ -51,7 +51,8 @@ interface PermissionsTableProps {
 // In the Table, this creates the Columns that display the permissions they have.
 const createPermColumn = (
   accessorKey: keyof AccountPermissions,
-  userData: UserInfo[]
+  userData: UserInfo[],
+  data: AccountPermissions[]
 ): ColumnDef<AccountPermissions> => {
   const label = permissionLabels[accessorKey];
 
@@ -88,7 +89,7 @@ const createPermColumn = (
             <div className="ml-auto flex space-x-2">
               <EditPermDialog permissions={rowData} />
               <DeletePermDialog permissions={rowData} />
-              <PermRoleMembersDialog permissions={rowData} userData={userData} />
+              <PermRoleMembersDialog permissions={rowData} userData={userData} permData={data} />
             </div>
           )}
         </div>
@@ -108,7 +109,7 @@ export function PermissionsTable({ data, userData }: PermissionsTableProps) {
   const columns: ColumnDef<AccountPermissions>[] = [];
 
   Object.keys(permissionLabels).forEach((key) => {
-    columns.push(createPermColumn(key as keyof AccountPermissions, userData));
+    columns.push(createPermColumn(key as keyof AccountPermissions, userData, data));
   });
 
   const table = useReactTable({

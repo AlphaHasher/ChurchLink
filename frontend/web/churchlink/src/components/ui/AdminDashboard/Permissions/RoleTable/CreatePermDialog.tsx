@@ -20,16 +20,14 @@ export function CreatePermDialog() {
 
     //Since a new PermissionSet is being created, initialize a fresh permission set to start blank
     const initialPermissions: AccountPermissions = {
+        _id: "",
         name: "",
-        isAdmin: false,
-        manageWholeSite: false,
-        editAllEvents: false,
-        editAllPages: false,
-        accessFinances: false,
-        manageNotifications: false,
-        manageMediaContent: false,
-        manageBiblePlan: false,
-        manageUserPermissions: false,
+        admin: false,
+        finance: false,
+        website_management: false,
+        event_management: false,
+        page_management: false,
+        media_management: false,
     }
 
     // State to hold current permissions
