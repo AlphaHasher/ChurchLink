@@ -16,5 +16,5 @@ COPY . .
 
 EXPOSE 8000
 
-# what the heck is happening
-CMD ["sh", "-c", "echo '=== Files in /app ===' && ls -la /app && echo '=== Running main.py ===' && uv run main.py"]
+# Keep container running for debugging
+CMD ["tail", "-f", "/dev/null"]
