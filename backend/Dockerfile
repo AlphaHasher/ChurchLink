@@ -11,10 +11,18 @@ FROM ghcr.io/astral-sh/uv:debian-slim
 # Set working directory
 WORKDIR /app
 
-# Copy everything
-COPY . .
+# Copy Python files first
+COPY pyproject.toml uv.lock ./
+COPY *.py ./
+COPY routes/ ./routes/
+COPY models/ ./models/
+COPY helpers/ ./helpers/
+COPY mongo/ ./mongo/
+COPY firebase/ ./firebase/
+COPY config/ ./config/
+COPY .env* ./
 
 EXPOSE 8000
 
-# Run the application
-CMD ["sh", "-c", "uv run main.py"]
+# Verify files are present and run the application
+CMD ["sh", "-c", "ls -la main.py && uv run main.py"]
