@@ -13,6 +13,7 @@ WORKDIR /app
 
 # Copy Python files first
 COPY pyproject.toml uv.lock ./
+COPY main.py ./
 COPY *.py ./
 COPY routes/ ./routes/
 COPY models/ ./models/
@@ -24,5 +25,5 @@ COPY .env* ./
 
 EXPOSE 8000
 
-# Verify files are present and run the application
-CMD ["sh", "-c", "ls -la main.py && uv run main.py"]
+# what the heck is happening
+CMD ["sh", "-c", "echo '=== Files in /app ===' && ls -la /app && echo '=== Running main.py ===' && uv run main.py"]
