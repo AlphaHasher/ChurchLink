@@ -11,17 +11,8 @@ FROM ghcr.io/astral-sh/uv:debian-slim
 # Set working directory
 WORKDIR /app
 
-# Copy Python files first
-COPY pyproject.toml uv.lock ./
-COPY main.py ./
-COPY *.py ./
-COPY routes/ ./routes/
-COPY models/ ./models/
-COPY helpers/ ./helpers/
-COPY mongo/ ./mongo/
-COPY firebase/ ./firebase/
-COPY config/ ./config/
-COPY .env* ./
+# testing
+COPY . .
 
 EXPOSE 8000
 
