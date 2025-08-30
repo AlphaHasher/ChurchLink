@@ -232,9 +232,11 @@ class _UserSettingsState extends State<UserSettings> {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: ssbcGray,
-                    backgroundImage: user?.photoURL != null && user!.photoURL!.isNotEmpty
-                        ? NetworkImage(user.photoURL!) // ✅ Load Firebase profile picture
-                        : const AssetImage('assets/user/ssbc-dove.png') as ImageProvider, // Default image
+                    backgroundImage: _profileImage != null
+                        ? FileImage(_profileImage!) // Show locally picked image first
+                        : (user?.photoURL != null && user!.photoURL!.isNotEmpty
+                            ? NetworkImage(user.photoURL!) // Then Firebase profile picture
+                            : const AssetImage('assets/user/ssbc-dove.png') as ImageProvider), // Default image
                   ),
 
                   // 🔹 Show a loading spinner when uploading an image

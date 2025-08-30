@@ -149,11 +149,11 @@ class _EventsPageState extends State<EventsPage> {
           _isLoading = false;
         });
       } else {
-        print("Failed to load events: ${response.statusCode}");
+        debugPrint("Failed to load events: ${response.statusCode}");
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print("Error loading events: $e");
+      debugPrint("Error loading events: $e");
       setState(() => _isLoading = false);
     }
   }
