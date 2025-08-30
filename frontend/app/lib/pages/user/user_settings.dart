@@ -138,7 +138,7 @@ class _UserSettingsState extends State<UserSettings> {
   @override
   Widget build(BuildContext context) {
     List<Widget> pageWidgets = [];
-    const Color SSBC_GRAY = Color.fromARGB(255, 142, 163, 168);
+    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     bool loggedIn = authService.getCurrentUser() != null;
     User? user = authService.getCurrentUser();
 
@@ -228,7 +228,7 @@ class _UserSettingsState extends State<UserSettings> {
                 children: [
                   CircleAvatar(
                     radius: 32,
-                    backgroundColor: SSBC_GRAY,
+                    backgroundColor: ssbcGray,
                     backgroundImage: user?.photoURL != null && user!.photoURL!.isNotEmpty
                         ? NetworkImage(user.photoURL!) // ✅ Load Firebase profile picture
                         : const AssetImage('assets/user/ssbc-dove.png') as ImageProvider, // Default image
@@ -304,7 +304,7 @@ class _UserSettingsState extends State<UserSettings> {
             child: ListTile(
               leading: Icon(
                 item['icon'],
-                color: SSBC_GRAY,
+                color: ssbcGray,
               ),
               title: Text(item['title']),
               subtitle: Text(item['subtitle']),
@@ -329,7 +329,7 @@ class _UserSettingsState extends State<UserSettings> {
               authService.signOut();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: SSBC_GRAY,
+              backgroundColor: ssbcGray,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
@@ -347,7 +347,7 @@ class _UserSettingsState extends State<UserSettings> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: SSBC_GRAY,
+        backgroundColor: ssbcGray,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           "User Settings",

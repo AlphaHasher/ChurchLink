@@ -4,7 +4,7 @@ import '../../components/password_reset.dart';
 import '../../firebase/firebase_auth_service.dart';
 
 class ContinueWithEmailPage extends StatefulWidget {
-  const ContinueWithEmailPage({Key? key}) : super(key: key);
+  const ContinueWithEmailPage({super.key});
 
   @override
   State<ContinueWithEmailPage> createState() => _ContinueWithEmailPageState();
