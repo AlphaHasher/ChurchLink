@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import PublicLayout from '@/layouts/MainLayout';
+import api from '@/api/api';
 
 interface Block {
   __component: string;
@@ -32,12 +33,8 @@ function ArticlePage() {
 
   const fetchArticle = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/v1/strapi/articles/${id}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const result = await response.json();
-      setArticle(result.data);
+      const response = await api.get(`/v1/strapi/articles/${id}`);
+      setArticle(response.data.data);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching article:", err);

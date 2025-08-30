@@ -1,27 +1,13 @@
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { processFetchedUserData } from "./DataFunctions";
-import { confirmAuth } from "./AuthPackaging";
-
-
-
-const API_BASE = import.meta.env.VITE_API_HOST;
-const API_USERS = "/api/v1/users";
+import api from "../api/api";
 
 export const processMongoVerification = async () => {
     try {
-        const idToken = await confirmAuth()
-        const res = await fetch(`${API_BASE}${API_USERS}/sync-user`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-        });
+        const res = await api.post("/v1/users/sync-user");
 
-        const data = await res.json();
-
-        if (data.verified) {
+        if (res.data.verified) {
             return true;
         }
         else {
@@ -55,21 +41,8 @@ export const verifyAndSyncUser = async (onError: (msg: string) => void) => {
 
 export const fetchUsers = async () => {
     try {
-
-        const idToken = await confirmAuth();
-
-        const res = await fetch(`${API_BASE}${API_USERS}/get-users`, {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!res.ok) throw new Error("Failed to fetch users");
-
-        const data = await res.json();
-        return processFetchedUserData(data.users);
+        const res = await api.get("/v1/users/get-users");
+        return processFetchedUserData(res.data.users);
     } catch (err) {
         console.error("Failed to fetch users:", err);
         return [];

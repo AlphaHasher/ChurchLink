@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "@/api/api";
 
 interface FooterItem {
     title: string;
@@ -29,7 +29,7 @@ const Footer = () => {
         const fetchFooterData = async () => {
             try {
                 setLoading(true);
-                const response = await axios.get("/api/footer/items");
+                const response = await api.get("/footer/items");
                 setFooterData(response.data);
                 setError(null);
             } catch (err) {

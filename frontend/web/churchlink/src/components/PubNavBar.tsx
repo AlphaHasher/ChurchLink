@@ -6,8 +6,7 @@ import {
     NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 import { Link } from "react-router-dom";
-
-import axios from "axios";
+import api from "@/api/api";
 
 interface HeaderLink {
     title: string;
@@ -41,7 +40,7 @@ export default function PubNavBar() {
     useEffect(() => {
         const fetchHeaderItems = async () => {
             try {
-                const response = await axios.get<Header>("/api/header");
+                const response = await api.get<Header>("/header");
                 setHeaderItems(response.data.items);
             } catch (error) {
                 console.error("Failed to fetch header items:", error);

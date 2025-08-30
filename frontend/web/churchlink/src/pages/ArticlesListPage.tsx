@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import PublicLayout from '@/layouts/MainLayout';
 import ArticleCard from '@/components/Main/ArticleCard';
+import api from '@/api/api';
 
 interface Article {
   id: number;
@@ -17,12 +18,8 @@ function ArticlesListPage() {
 
   const fetchArticles = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/v1/strapi/articles`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const result = await response.json();
-      setArticles(result.data);
+      const response = await api.get("/v1/strapi/articles");
+      setArticles(response.data.data);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching articles:", err);

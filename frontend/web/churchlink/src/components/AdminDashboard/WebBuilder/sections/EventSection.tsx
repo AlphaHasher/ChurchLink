@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@/api/api';
 
 interface Event {
   id: string;
@@ -43,7 +43,7 @@ const [selectedEvent, setSelectedEvent] = useState<{
   useEffect(() => {
     const fetchMinistries = async () => {
       try {
-        const response = await axios.get('/api/v1/events/ministries');
+        const response = await api.get('/v1/events/ministries');
         setAvailableMinistries(response.data);
       } catch (err) {
         console.error('Failed to fetch ministries:', err);
@@ -61,7 +61,7 @@ const [selectedEvent, setSelectedEvent] = useState<{
           : typeof eventName === 'string' && eventName.trim() !== '';
 
         if (isNameSet) {
-          const all = await axios.get(`/api/v1/events/upcoming?limit=999`);
+          const all = await api.get('/v1/events/upcoming?limit=999');
           const names = Array.isArray(eventName) ? eventName : [eventName];
           const matches = all.data.filter(
             (e: Event) =>
@@ -81,7 +81,7 @@ const [selectedEvent, setSelectedEvent] = useState<{
             }
           }
           params.append('limit', '999');
-          const response = await axios.get(`/api/v1/events/upcoming?${params.toString()}`);
+          const response = await api.get(`/v1/events/upcoming?${params.toString()}`);
           setEvents(response.data);
         }
       } catch (error) {

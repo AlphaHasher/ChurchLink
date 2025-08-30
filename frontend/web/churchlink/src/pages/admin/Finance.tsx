@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import api from "@/api/api";
 // import { useAuth } from "@/lib/auth-context";
 
 interface Donation {
@@ -19,10 +20,9 @@ const Finance = () => {
   useEffect(() => {
     const fetchDonations = async () => {
       try {
-        const response = await fetch("/api/admin/donations"); // API endpoint
-        const data = await response.json();
-        setDonations(data);
-        setTotalDonations(data.reduce((sum: number, d: Donation) => sum + d.amount, 0));
+        const response = await api.get("/admin/donations");
+        setDonations(response.data);
+        setTotalDonations(response.data.reduce((sum: number, d: Donation) => sum + d.amount, 0));
       } catch (error) {
         console.error("Error fetching donations:", error);
       }

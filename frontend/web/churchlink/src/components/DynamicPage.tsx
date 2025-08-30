@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from "@/lib/auth-context";
+import api from "@/api/api";
 import HeroSection from "@/components/AdminDashboard/WebBuilder/sections/HeroSection";
 import ServiceTimesSection from "@/components/AdminDashboard/WebBuilder/sections/ServiceTimesSection";
 import MenuSection from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
@@ -55,10 +56,8 @@ const DynamicPage: React.FC = () => {
 
     const fetchPageData = async () => {
       try {
-        const response = await fetch(`/api/pages/${slug}`);
-        if (!response.ok) throw new Error('Failed to fetch data');
-        const data = await response.json();
-        setPageData(data);
+        const response = await api.get(`/pages/${slug}`);
+        setPageData(response.data);
       } catch {
         // setError('Error fetching page data');
         return <NotFoundPage />;

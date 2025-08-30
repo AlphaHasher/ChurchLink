@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/api/api";
 import ServiceTimesSection from "@/components/AdminDashboard/WebBuilder/sections/ServiceTimesSection";
 import HeroSection, { HeroContent } from "@/components/AdminDashboard/WebBuilder/sections/HeroSection";
 import MenuSection, { MenuSectionContent } from "@/components/AdminDashboard/WebBuilder/sections/MenuSection";
@@ -83,7 +83,7 @@ const EditPage = () => {
   useEffect(() => {
     const fetchPage = async () => {
       try {
-        const res = await axios.get(`/api/pages/${slug}`);
+        const res = await api.get(`/pages/${slug}`);
         setPageData(res.data);
         setSections(res.data.sections || []);
       } catch (err) {
@@ -97,7 +97,7 @@ const EditPage = () => {
   useEffect(() => {
     const fetchEventNames = async () => {
       try {
-        const res = await axios.get('/api/v1/events/names');
+        const res = await api.get('/v1/events/names');
         setEventSuggestions(res.data);
       } catch (err) {
         console.error("Failed to fetch event names", err);
@@ -122,7 +122,7 @@ const EditPage = () => {
     console.log("Saving page with data:", JSON.stringify({ sections }));
     try {
       setSaving(true);
-      await axios.put(`/api/pages/${_id}`, {
+      await api.put(`/pages/${_id}`, {
         ...restPageData,
         sections,
       });

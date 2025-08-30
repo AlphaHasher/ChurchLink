@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "@/api/api";
 
 interface Page {
   _id: string;
@@ -14,43 +15,49 @@ const WebBuilderPageList = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("/api/pages")
-      .then((res) => res.json())
-      .then((data) => {
-        setPages(data);
-      });
+    const fetchPages = async () => {
+      try {
+        const response = await api.get("/pages");
+        setPages(response.data);
+      } catch (error) {
+        console.error("Error fetching pages:", error);
+      }
+    };
+    fetchPages();
   }, []);
 
   const toggleVisibility = async (id: string, current: boolean) => {
-    await fetch(`/api/pages/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visible: !current }),
-    });
-
-    setPages((prev) =>
-      prev.map((p) => (p._id === id ? { ...p, visible: !current } : p))
-    );
+    try {
+      await api.put(`/pages/${id}`, { visible: !current });
+      setPages((prev) =>
+        prev.map((p) => (p._id === id ? { ...p, visible: !current } : p))
+      );
+    } catch (error) {
+      console.error("Error updating page visibility:", error);
+    }
   };
 
   const toggleLock = async (id: string, current: boolean) => {
-    await fetch(`/api/pages/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locked: !current }),
-    });
-
-    setPages((prev) =>
-      prev.map((p) => (p._id === id ? { ...p, locked: !current } : p))
-    );
+    try {
+      await api.put(`/pages/${id}`, { locked: !current });
+      setPages((prev) =>
+        prev.map((p) => (p._id === id ? { ...p, locked: !current } : p))
+      );
+    } catch (error) {
+      console.error("Error updating page lock status:", error);
+    }
   };
 
   const deletePage = async (id: string) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this page?");
     if (!confirmDelete) return;
 
-    await fetch(`/api/pages/${id}`, { method: "DELETE" });
-    setPages((prev) => prev.filter((p) => p._id !== id));
+    try {
+      await api.delete(`/pages/${id}`);
+      setPages((prev) => prev.filter((p) => p._id !== id));
+    } catch (error) {
+      console.error("Error deleting page:", error);
+    }
   };
 
   return (

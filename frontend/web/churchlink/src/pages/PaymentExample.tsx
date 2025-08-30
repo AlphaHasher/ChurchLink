@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import api from "@/api/api";
 
 interface MessageProps {
   content: string;
@@ -36,24 +37,16 @@ function Payment() {
           }}
           createOrder={async () => {
             try {
-              const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/v1/paypal/orders`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                // use the "body" param to optionally pass additional order information
-                // like product ids and quantities
-                body: JSON.stringify({
-                  cart: [
-                    {
-                      id: "21",
-                      quantity: "1",
-                    },
-                  ],
-                }),
+              const response = await api.post("/v1/paypal/orders", {
+                cart: [
+                  {
+                    id: "21",
+                    quantity: "1",
+                  },
+                ],
               });
 
-              const orderData = await response.json();
+              const orderData = response.data;
               console.log("PayPal order data:", orderData);
 
               // Handle case where response is a string instead of a JSON object
@@ -89,17 +82,9 @@ function Payment() {
           }}
           onApprove={async (data, actions) => {
             try {
-              const response = await fetch(
-                `${import.meta.env.VITE_API_HOST}/api/v1/paypal/orders/${data.orderID}/capture`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                }
-              );
+              const response = await api.post(`/v1/paypal/orders/${data.orderID}/capture`);
 
-              const orderData = await response.json();
+              const orderData = response.data;
               // Three cases to handle:
               //   (1) Recoverable INSTRUMENT_DECLINED -> call actions.restart()
               //   (2) Other non-recoverable errors -> Show a failure message

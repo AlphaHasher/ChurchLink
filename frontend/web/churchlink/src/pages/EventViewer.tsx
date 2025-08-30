@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import api from "@/api/api";
 
 interface EventItem {
   id: string;
@@ -21,13 +22,8 @@ function EventViewer() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-
-        const response = await fetch(`/api/v1/events/`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setEvents(data);
+        const response = await api.get("/v1/events/");
+        setEvents(response.data);
       } catch (error) {
         console.error("Error fetching events:", error);
       }

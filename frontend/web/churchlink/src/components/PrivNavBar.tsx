@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Link } from "react-router-dom";
 import ProfileDropDown from "./Main/ProfileDropDown";
-import axios from "axios";
+import api from "@/api/api";
 
 // Define interfaces for header data types
 interface HeaderLink {
@@ -42,7 +42,7 @@ export default function PrivNavBar() {
     useEffect(() => {
         const fetchHeaderItems = async () => {
             try {
-                const response = await axios.get<Header>("/api/header");
+                const response = await api.get<Header>("/header");
                 setHeaderItems(response.data.items);
             } catch (error) {
                 console.error("Failed to fetch header items:", error);
