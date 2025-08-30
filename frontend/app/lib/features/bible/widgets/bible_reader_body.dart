@@ -439,7 +439,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
 }
 
 // ===== Data for navigation =====
-const List<String> _translations = ['kjv', 'asv', 'bbe', 'web', 'ylt'];
+const List<String> _translations = ['kjv', 'rst'];
 
 const List<String> _bookNames = [
   'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
