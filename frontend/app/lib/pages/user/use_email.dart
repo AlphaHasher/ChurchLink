@@ -1,4 +1,4 @@
-import 'package:app/helpers/AuthController.dart';
+import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
 import '../../components/password_reset.dart';
 import '../../firebase/firebase_auth_service.dart';
@@ -212,12 +212,14 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
       _emailController.text.trim(),
       _passwordController.text.trim(),
       (String errorMsg) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        }
       },
     );
-    if (verified) {
+    if (verified && mounted) {
       Navigator.pop(context);
     } else {
       //Verification failed.

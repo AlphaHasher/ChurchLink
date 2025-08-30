@@ -10,8 +10,6 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
-  enable-experiment:
-    - non-nullable
 
 linter:
   # The lint rules applied to this project can be customized in the

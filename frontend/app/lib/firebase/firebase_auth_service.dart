@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-// import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class FirebaseAuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -18,7 +17,7 @@ class FirebaseAuthService {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
-        print("Google Sign-In Canceled");
+        debugPrint("Google Sign-In Canceled");
         return null; // User canceled sign-in
       }
 
@@ -37,7 +36,7 @@ class FirebaseAuthService {
         throw Exception("❌ Failed to retrieve Firebase ID Token.");
       }
 
-      print("🔥 Firebase ID Token: $idToken");
+      debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
       // // ✅ Send Firebase ID Token to FastAPI backend
       // final response = await http.post(
@@ -63,7 +62,7 @@ class FirebaseAuthService {
       //   throw Exception("❌ Backend Error: ${response.body}");
       // }
     } catch (e) {
-      print("❌ Error during Google Sign-In: $e");
+      debugPrint("❌ Error during Google Sign-In: $e");
       return null;
     }
   }
@@ -83,7 +82,7 @@ class FirebaseAuthService {
       }
 
       if (!user.emailVerified) {
-        print("❌ Email not verified. Please verify your email.");
+        debugPrint("❌ Email not verified. Please verify your email.");
         return "Email not verified. Please check your inbox.";
       }
 
@@ -91,7 +90,7 @@ class FirebaseAuthService {
       if (idToken == null) {
         throw Exception("❌ Failed to retrieve Firebase ID Token.");
       }
-      print("🔥 Firebase ID Token: $idToken");
+      debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
 
       // final response = await http.post(
@@ -117,7 +116,7 @@ class FirebaseAuthService {
       //   throw Exception("❌ Backend Error: ${response.body}");
       // }
     } catch (e) {
-      print("❌ Error signing in with email: $e");
+      debugPrint("❌ Error signing in with email: $e");
       return null;
     }
   }
@@ -135,14 +134,14 @@ class FirebaseAuthService {
         throw Exception("❌ User registration failed: No Firebase user found.");
       }
 
-      print("✅ Firebase User Created: ${user.email}");
+      debugPrint("✅ Firebase User Created: ${user.email}");
 
       final String? idToken = await user.getIdToken(true);
       if (idToken == null) {
         throw Exception("❌ Failed to retrieve Firebase ID Token.");
       }
 
-      print("🔥 Firebase ID Token: $idToken");
+      debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
       // final response = await http.post(
       //   Uri.parse("$backendUrl/auth/register"),
@@ -162,7 +161,7 @@ class FirebaseAuthService {
       //   throw Exception("❌ Backend Error: ${response.body}");
       // }
     } catch (e) {
-      print("❌ Error during registration: $e");
+      debugPrint("❌ Error during registration: $e");
       return null;
     }
   }

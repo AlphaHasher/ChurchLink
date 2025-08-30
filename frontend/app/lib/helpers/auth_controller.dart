@@ -1,4 +1,4 @@
-import "BackendHelper.dart";
+import "backend_helper.dart";
 import "../firebase/firebase_auth_service.dart";
 
 class AuthController {

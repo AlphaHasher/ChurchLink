@@ -22,7 +22,6 @@ class _UserSettingsState extends State<UserSettings> {
   final ScrollController _scrollController = ScrollController();
   final FirebaseAuthService authService = FirebaseAuthService();
   File? _profileImage;
-  final _imagePicker = ImagePicker();
   bool _isUploading = false;
 
   @override
@@ -97,17 +96,21 @@ class _UserSettingsState extends State<UserSettings> {
         _isUploading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Profile picture updated!")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Profile picture updated!")),
+        );
+      }
     } catch (e) {
       setState(() {
         _isUploading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Failed to update avatar: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Failed to update avatar: $e")),
+        );
+      }
     }
   }
 
@@ -129,9 +132,9 @@ class _UserSettingsState extends State<UserSettings> {
     );
 
     if (response.statusCode == 200) {
-      print("✅ Old avatar deleted successfully!");
+      debugPrint("✅ Old avatar deleted successfully!");
     } else {
-      print("❌ Failed to delete old avatar: ${response.body}");
+      debugPrint("❌ Failed to delete old avatar: ${response.body}");
     }
   }
 
@@ -238,7 +241,7 @@ class _UserSettingsState extends State<UserSettings> {
                   if (_isUploading)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withOpacity(0.3), // Darken background
+                        color: Colors.black.withValues(alpha: 0.3), // Darken background
                         child: const Center(
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
