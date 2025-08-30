@@ -44,40 +44,48 @@ FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize Firebase Admin SDK if not already initialized
-    if not firebase_admin._apps:
-        from firebase.firebase_credentials import get_firebase_credentials
+    try:
+        # Initialize Firebase Admin SDK if not already initialized
+        if not firebase_admin._apps:
+            from firebase.firebase_credentials import get_firebase_credentials
 
-        cred = credentials.Certificate(get_firebase_credentials())
-        firebase_admin.initialize_app(cred)
+            cred = credentials.Certificate(get_firebase_credentials())
+            firebase_admin.initialize_app(cred)
 
-    # MongoDB connection setup
-    await DatabaseManager.init_db()
+        # MongoDB connection setup - CRITICAL: Will stop app if fails
+        await DatabaseManager.init_db()
 
-    if not BYPASS_FIREBASE_SYNC:
-        # Sync MongoDB to Firebase
-        await FirebaseSyncer.SyncDBToFirebase()
+        if not BYPASS_FIREBASE_SYNC:
+            # Sync MongoDB to Firebase
+            await FirebaseSyncer.SyncDBToFirebase()
 
-    # Verify that an Administrator Role (Mandatory) exists
-    await RoleHandler.verify_admin_role()
+        # Verify that an Administrator Role (Mandatory) exists
+        await RoleHandler.verify_admin_role()
 
-    if not BYPASS_FIREBASE_SYNC:
-        # Sync MongoDB to Firebase
-        await FirebaseSyncer.SyncDBToFirebase()
+        if not BYPASS_FIREBASE_SYNC:
+            # Sync MongoDB to Firebase
+            await FirebaseSyncer.SyncDBToFirebase()
 
-    # Verify that an Administrator Role (Mandatory) exists
-    await RoleHandler.verify_admin_role()
+        # Verify that an Administrator Role (Mandatory) exists
+        await RoleHandler.verify_admin_role()
 
-    # Run Youtube Notification loop
-    youtubeSubscriptionCheck = asyncio.create_task(
-        YoutubeHelper.youtubeSubscriptionLoop()
-    )
+        # Run Youtube Notification loop
+        youtubeSubscriptionCheck = asyncio.create_task(
+            YoutubeHelper.youtubeSubscriptionLoop()
+        )
 
-    yield
+        yield
 
-    # Cleanup
-    youtubeSubscriptionCheck.cancel()
-    DatabaseManager.close_db()
+        # Cleanup
+        youtubeSubscriptionCheck.cancel()
+        DatabaseManager.close_db()
+
+    except Exception as e:
+        print(f"Application startup failed: {str(e)}")
+        print("Make sure MongoDB is running and the MONGODB_URL is correct")
+        # Force exit the application
+        import sys
+        sys.exit(1)
 
 
 app = FastAPI(lifespan=lifespan)

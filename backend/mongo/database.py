@@ -1,6 +1,8 @@
 import os
+import json
 import pymongo
 from motor.motor_asyncio import AsyncIOMotorClient
+from pathlib import Path
 
 # MongoDB connection settings
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -43,12 +45,32 @@ class DB:
 
     @staticmethod
     async def init_db(name=None):
-        DB.client = AsyncIOMotorClient(MONGODB_URL)
-        DB.db = DB.client[name or DB_NAME]
-        # Sanity check
-        await DB.is_connected()
-        # Schema validation and index creation
-        await DB.init_collections()
+        try:
+            print(f"Connecting to MongoDB at: {MONGODB_URL}")
+
+            # Create client with connection timeout
+            DB.client = AsyncIOMotorClient(
+                MONGODB_URL,
+                serverSelectionTimeoutMS=5000,  # 5 second timeout
+                connectTimeoutMS=5000,
+                socketTimeoutMS=5000
+            )
+            DB.db = DB.client[name or DB_NAME]
+
+            # Test the connection
+            connection_success = await DB.is_connected()
+            if not connection_success:
+                raise Exception("Failed to connect to MongoDB - connection test failed")
+
+            # Schema validation and index creation
+            await DB.init_collections()
+            print("Database initialized successfully")
+
+        except Exception as e:
+            error_msg = f"Failed to connect to MongoDB at {MONGODB_URL}: {str(e)}"
+            print(error_msg)
+            print("Make sure MongoDB is running and accessible")
+            raise Exception(error_msg)
 
     @staticmethod
     async def init_collections():
@@ -70,6 +92,41 @@ class DB:
                         )
                     ])
 
+            # Import migration data if collection is empty
+            await DB.import_migration_data(collection_name)
+
+    @staticmethod
+    async def import_migration_data(collection_name: str):
+        """Import migration data from JSON files if collection is empty"""
+        try:
+            # Check if collection has any documents
+            doc_count = await DB.db[collection_name].count_documents({})
+            if doc_count > 0:
+                print(f"Collection '{collection_name}' already has {doc_count} documents, skipping migration")
+                return
+
+            # Look for migration file
+            migration_file = Path(__file__).parent.parent / "migrations" / f"SSBC_DB.{collection_name}.json"
+
+            if not migration_file.exists():
+                print(f"No migration file found for collection '{collection_name}'")
+                return
+
+            # Load and parse migration data
+            with open(migration_file, 'r', encoding='utf-8') as f:
+                migration_data = json.load(f)
+
+            if not migration_data:
+                print(f"Migration file for '{collection_name}' is empty")
+                return
+
+            # Insert migration data
+            result = await DB.db[collection_name].insert_many(migration_data)
+            print(f"Imported {len(result.inserted_ids)} documents into '{collection_name}' collection")
+
+        except Exception as e:
+            print(f"Error importing migration data for '{collection_name}': {e}")
+
     @staticmethod
     def close_db():
         if DB.client:
@@ -86,7 +143,7 @@ class DB:
             print("MongoDB connected successfully")
             return True
         except Exception as e:
-            print(f"Connection error: {e}")
+            print(f"MongoDB connection failed: {e}")
             return False
 
     ##########

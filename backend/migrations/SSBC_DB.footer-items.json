@@ -1,0 +1,104 @@
+[{
+  "_id": {
+    "$oid": "68033ef357757ea17e76f350"
+  },
+  "title": "Contact Us",
+  "russian_title": "Связаться с нами",
+  "items": [
+    {
+      "title": "(916) - 349-1383",
+      "russian_title": "(916) - 349-1383",
+      "url": null,
+      "visible": true
+    },
+    {
+      "title": "6601 Watt Ave",
+      "russian_title": "6601 Watt Ave",
+      "url": null,
+      "visible": true,
+      "type": "link"
+    },
+    {
+      "title": "North Highlands, CA 95660",
+      "russian_title": "North Highlands, CA 95660",
+      "url": null,
+      "visible": true,
+      "type": "link"
+    }
+  ],
+  "visible": true,
+  "index": 1,
+  "updated_at": {
+    "$date": "2025-04-20T03:21:52.274Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "6804646bc55463eafd1858e3"
+  },
+  "title": "Service Times",
+  "russian_title": "Время обслуживания",
+  "items": [
+    {
+      "title": "Sunday Mornings | 9:30am",
+      "russian_title": "Время обслуживания",
+      "url": null,
+      "visible": true
+    },
+    {
+      "title": "Sunday United Service | 12:15pm",
+      "russian_title": "Время обслуживания",
+      "url": null,
+      "visible": true
+    },
+    {
+      "title": "Sunday Evenings | 5:00pm",
+      "russian_title": "Время обслуживания",
+      "url": null,
+      "visible": true
+    },
+    {
+      "title": "Thursday Prayer Service | 7:00pm",
+      "russian_title": "Время обслуживания",
+      "url": null,
+      "visible": true
+    }
+  ],
+  "visible": true,
+  "index": 0,
+  "updated_at": {
+    "$date": "2025-04-20T03:27:51.909Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "680464d3c55463eafd1858e4"
+  },
+  "title": "Social Media",
+  "russian_title": "Социальные сети",
+  "items": [
+    {
+      "title": "Instagram",
+      "russian_title": "Социальные сети",
+      "url": "https://www.instagram.com/ssbc.church/",
+      "visible": true
+    },
+    {
+      "title": "Facebook",
+      "russian_title": "Социальные сети",
+      "url": "https://www.facebook.com/secondslavicbaptistchurch",
+      "visible": true
+    },
+    {
+      "title": "YouTube",
+      "russian_title": "Социальные сети",
+      "url": "https://www.youtube.com/@SecondSlavicBaptistChurch",
+      "visible": true
+    }
+  ],
+  "visible": true,
+  "index": 2,
+  "updated_at": {
+    "$date": "2025-05-06T22:00:26.098Z"
+  }
+}]
