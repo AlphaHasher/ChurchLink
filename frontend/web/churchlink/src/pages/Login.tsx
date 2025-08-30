@@ -48,7 +48,7 @@ function Login() {
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
@@ -65,7 +65,7 @@ function Login() {
   const handleGoogleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
+      await signInWithPopup(auth, provider);
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
