@@ -1,6 +1,6 @@
-import { AccountPermissions, PermMask, PermComp } from "@/types/AccountPermissions";
-import { BaseUserMask, UserInfo, UserPermMask } from "@/types/UserInfo";
-import { ChurchEvent } from "@/types/ChurchEvent";
+import { AccountPermissions, PermMask, PermComp } from "@/shared/types/AccountPermissions";
+import { BaseUserMask, UserInfo, UserPermMask } from "@/shared/types/UserInfo";
+import { ChurchEvent } from "@/shared/types/ChurchEvent";
 
 // Function to transform a UserInfo type object to a UserPermMask
 const transformToUserPermMask = (user: UserInfo, allPerms: AccountPermissions[]): UserPermMask => {

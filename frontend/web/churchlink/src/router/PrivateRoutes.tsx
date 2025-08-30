@@ -1,24 +1,24 @@
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
-import AdminLayout from "@/layouts/AdminLayout";
+import AdminLayout from "../shared/layouts/AdminLayout";
 
 
 // Lazy load admin components
-const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
-const Permissions = lazy(() => import("@/pages/admin/Permissions"));
-const Notification = lazy(() => import("@/pages/admin/Notification"));
-const Finance = lazy(() => import("@/pages/admin/Finance"));
-const WebBuilder = lazy(() => import("@/pages/admin/WebBuilder"));
-const AddPage = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddPage"));
-const EditPage = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditPage"));
-const EditHeader = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditHeader"));
-const EditHeaderItem = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditHeaderItem"));
-const AddHeaderItem = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddHeaderItem"));
-const EditFooter = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditFooter"));
-const EditFooterSection = lazy(() => import("@/components/AdminDashboard/WebBuilder/EditFooterSection.tsx"));
-const AddFooterSection = lazy(() => import("@/components/AdminDashboard/WebBuilder/AddFooterSection"));
-const Users = lazy(() => import("@/pages/admin/Users"));
-const Events = lazy(() => import("@/pages/admin/Events"));
+const AdminDashboard = lazy(() => import("../features/admin/pages/AdminDashboard"));
+const Permissions = lazy(() => import("../features/admin/pages/Permissions"));
+const Notification = lazy(() => import("../features/admin/pages/Notification"));
+const Finance = lazy(() => import("../features/admin/pages/Finance"));
+const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
+const AddPage = lazy(() => import("../features/admin/components/WebBuilder/AddPage"));
+const EditPage = lazy(() => import("../features/admin/components/WebBuilder/EditPage"));
+const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/EditHeader"));
+const EditHeaderItem = lazy(() => import("../features/admin/components/WebBuilder/EditHeaderItem"));
+const AddHeaderItem = lazy(() => import("../features/admin/components/WebBuilder/AddHeaderItem"));
+const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/EditFooter"));
+const EditFooterSection = lazy(() => import("../features/admin/components/WebBuilder/EditFooterSection"));
+const AddFooterSection = lazy(() => import("../features/admin/components/WebBuilder/AddFooterSection"));
+const Users = lazy(() => import("../features/admin/pages/Users"));
+const Events = lazy(() => import("../features/admin/pages/Events"));
 
 export const PrivateRoutes = () => {
   return (

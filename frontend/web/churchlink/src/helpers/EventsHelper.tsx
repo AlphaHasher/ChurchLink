@@ -1,5 +1,5 @@
 import { processFetchedEventData } from "./DataFunctions"
-import { ChurchEvent } from "@/types/ChurchEvent"
+import { ChurchEvent } from "@/shared/types/ChurchEvent"
 import api from "../api/api"
 
 // Fetch all events

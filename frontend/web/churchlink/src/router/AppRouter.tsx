@@ -1,15 +1,15 @@
 // import { LoginPage } from '../features/auth';
 import { Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
-import { PublicRoute } from "./guard/PublicRoute";
+import { PublicRoute } from "../features/auth/guards/PublicRoute";
 import { PublicRoutes } from "./PublicRoutes";
-import PrivateRoute from "./guard/PrivateRoute";
+import PrivateRoute from "../features/auth/guards/PrivateRoute";
 import { PrivateRoutes } from "./PrivateRoutes";
-import DynamicPage from "../components/DynamicPage";
+import DynamicPage from "../shared/components/DynamicPage";
 
 // Lazy load components
-const Login = lazy(() => import("@/pages/Login"));
-const Signup = lazy(() => import("@/pages/Signup"));
+const Login = lazy(() => import("../features/auth/pages/Login"));
+const Signup = lazy(() => import("../features/auth/pages/Signup"));
 
 export const AppRouter = () => {
   return (
