@@ -11,7 +11,7 @@ import { CSS } from "@dnd-kit/utilities";
 interface FooterItem {
     title: string;
     russian_title: string;
-    url: string;
+    url: string | null;
     visible?: boolean;
 }
 

@@ -94,7 +94,7 @@ class PaymentExample extends StatelessWidget {
                       Navigator.pop(context);
                     },
                     onCancel: () {
-                      print('cancelled:');
+                      debugPrint('cancelled:');
                       Navigator.pop(context);
                     },
                   ),

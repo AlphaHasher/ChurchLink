@@ -14,7 +14,7 @@ interface BaseHeaderItem {
 }
 
 interface LinkItem extends BaseHeaderItem {
-    url: string;
+    url: string | null;
     type: "link";
 }
 
@@ -183,7 +183,7 @@ const EditHeaderItem: React.FC = () => {
         const item = dropdownItems[index];
         setTempLinkTitle(item.title);
         setTempLinkRussianTitle(item.russian_title);
-        setTempLinkUrl(item.url);
+        setTempLinkUrl(item.url || "");
         setEditingItemIndex(index);
     };
 

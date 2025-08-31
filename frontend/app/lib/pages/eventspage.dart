@@ -149,11 +149,11 @@ class _EventsPageState extends State<EventsPage> {
           _isLoading = false;
         });
       } else {
-        print("Failed to load events: ${response.statusCode}");
+        debugPrint("Failed to load events: ${response.statusCode}");
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print("Error loading events: $e");
+      debugPrint("Error loading events: $e");
       setState(() => _isLoading = false);
     }
   }
@@ -198,7 +198,7 @@ void _showFilterSheet(BuildContext context) {
 
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "Gender"),
-                  value: tempGender,
+                  initialValue: tempGender,
                   items: [
                     null,              // Show all: no filtering
                     'all',             // Only "All Genders" events
@@ -232,7 +232,7 @@ void _showFilterSheet(BuildContext context) {
 
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "Ministry"),
-                  value: tempMinistry,
+                  initialValue: tempMinistry,
                   items: [
                     null,
                     'Children',

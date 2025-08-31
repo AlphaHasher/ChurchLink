@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
 class BackendHelper {
@@ -26,16 +27,16 @@ class BackendHelper {
       );
 
       if (response.statusCode != 200) {
-        print("❌ Backend response: ${response.body}");
+        debugPrint("❌ Backend response: ${response.body}");
         return false;
       }
 
       final responseData = jsonDecode(response.body);
-      print("✅ Backend verification response: $responseData");
+      debugPrint("✅ Backend verification response: $responseData");
 
       return responseData["verified"] == true;
     } catch (e) {
-      print("❌ Error syncing user with backend: $e");
+      debugPrint("❌ Error syncing user with backend: $e");
       return false;
     }
   }

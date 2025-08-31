@@ -12,7 +12,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Handles notifications received while the app is in the background
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
-  print("Background notification received: ${message.notification?.title}");
+  debugPrint("Background notification received: ${message.notification?.title}");
 }
 
 // Initialize Local Notifications
@@ -26,7 +26,7 @@ Future<void> main() async {
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    print("Failed to load .env file: $e");
+    debugPrint("Failed to load .env file: $e");
   }
 
   // Initialize Firebase
@@ -60,15 +60,15 @@ void setupFirebaseMessaging() async {
   );
 
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-    print("User granted permission");
+    debugPrint("User granted permission");
 
     // Retrieve the FCM device token
     String? token = await messaging.getToken();
-    print("Firebase Token: $token");
+    debugPrint("Firebase Token: $token");
 
     // Handle foreground messages with local notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("Foreground message received: ${message.notification?.title}");
+      debugPrint("Foreground message received: ${message.notification?.title}");
 
       // Show a pop-up notification
       showLocalNotification(message);
@@ -79,11 +79,11 @@ void setupFirebaseMessaging() async {
 
     //  Handle when notification is clicked
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print("Notification clicked!");
+      debugPrint("Notification clicked!");
       navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => DashboardPage()));
     });
   } else {
-    print("User denied permission");
+    debugPrint("User denied permission");
   }
 }
 
