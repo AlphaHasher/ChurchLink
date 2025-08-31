@@ -11,15 +11,15 @@ from datetime import datetime, time, timezone
 from mongo.database import DB
 from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
-from faker import Faker
-import random
 
 
 
 class Event(BaseModel):
     id: str
     name: str
+    ru_name: str
     description: str
+    ru_description: str
     date: datetime
     location: str
     price: float
@@ -31,13 +31,15 @@ class Event(BaseModel):
     max_age: int = Field(default=100, ge=0)
     gender: Literal["all", "male", "female"]
     image_url: Optional[str] = None  # Add optional image URL
-    thumbnail_url: Optional[str] = None  # Add optional thumbnail URL
-    mock: bool = False
+    roles: List[str]
+    published: bool
 
 
 class EventCreate(BaseModel):
     name: str
+    ru_name: str
     description: str
+    ru_description: str
     date: datetime
     location: str
     price: float
@@ -49,12 +51,13 @@ class EventCreate(BaseModel):
     max_age: int = Field(default=100, ge=0)
     gender: Literal["all", "male", "female"]
     image_url: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    mock: bool = False
+    roles: List[str]
+    published: bool
 
 
 class EventOut(Event):
     id: str
+    roles: List[str]
 
 
 # CRUD Operations
@@ -295,82 +298,6 @@ async def get_event_amount() -> int:
         print(f"Error counting events: {e}")
         return 0
 
-
-async def create_mock_events(count: int) -> dict:
-    """
-    Create a specified number of mock events in the database.
-    Uses the updated EventCreate model.
-    """
-    fake = Faker()
-    ministries = [
-        "Children",
-        "Education",
-        "Family",
-        "Music",
-        "Quo Vadis Theater",
-        "Skala Teens",
-        "VBS",
-        "United Service",
-        "Women's Ministries",
-        "Youth"
-    ]
-    genders = ["male", "female", "all"]
-    recurring_options = ["daily", "weekly", "monthly", "yearly", "never"]
-
-    inserted_count = 0
-    try:
-        for _ in range(count):
-            # Generate random date between now and 1 year from now
-            start_date = datetime.now()
-            end_date = datetime.now().replace(year=datetime.now().year + 1)
-            random_date = fake.date_time_between(start_date=start_date, end_date=end_date).replace(tzinfo=None)
-
-            # Generate random age range ensuring min_age <= max_age
-            mock_min_age = random.randint(1, 80) # e.g. min age can be up to 80
-            mock_max_age = random.randint(mock_min_age, 100) # max age is between min_age and 100
-
-            # Decide if event is free or paid
-            is_event_free = random.choice([True, False])
-            mock_price = 0.0 if is_event_free else round(random.uniform(5.0, 150.0), 2)
-
-            # Choose one or more ministries
-            num_ministries = random.randint(1, 3)
-            mock_ministries = random.sample(ministries, num_ministries)
-
-            # Create mock event using EventCreate (no id)
-            mock_event_data = EventCreate(
-                name=fake.catch_phrase(), # Shorter, more event-like names
-                description=fake.paragraph(nb_sentences=random.randint(2, 5)),
-                date=random_date,
-                location=fake.address(),
-                price=mock_price, # Use float price
-                spots=random.randint(10, 200), # Add spots
-                rsvp=random.choice([True, False]), # Add rsvp
-                recurring=random.choice(recurring_options), # Add recurring
-                ministry=mock_ministries, # Use list of ministries
-                min_age=mock_min_age,
-                max_age=mock_max_age, # Add max_age
-                gender=random.choice(genders),
-                image_url=fake.image_url() if random.random() > 0.3 else None, # More likely to have image
-                thumbnail_url=fake.image_url(width=200, height=200) if random.random() > 0.5 else None, # More likely to have thumbnail
-                mock=True, # Mark as mock
-            )
-
-            # Insert into database using the model function's internal logic
-            # This uses DB.insert_document helper implicitly now via create_event, if we used it
-            # Or insert directly as before:
-            result = await DB.db["events"].insert_one(mock_event_data.model_dump())
-            if result.inserted_id is not None:
-                inserted_count += 1
-
-        print(f"Successfully created {inserted_count} mock events out of {count} requested.")
-        return {"message": f"Successfully created {inserted_count} mock events"}
-    except Exception as e:
-        print(f"Error creating mock events: {e}")
-        # Log the exception traceback for detailed debugging if needed
-        import traceback
-        traceback.print_exc()
-        return {"message": f"Error creating mock events after {inserted_count} insertions."}
 
 async def get_all_ministries():
     if DB.db is None:

@@ -66,20 +66,22 @@ const createPermColumn = (accessorKey: keyof UserPermMask): ColumnDef<UserPermMa
     return {
         accessorKey,
         header: ({ column }) => (
-            <Button
-                variant="ghost"
-                className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            >
-                {label}
-                <ArrowUpDown />
-            </Button>
+            <div className={`flex items-center space-x-2 w-full justify-center text-center`}>
+                <Button
+                    variant="ghost"
+                    className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                >
+                    {label}
+                    <ArrowUpDown />
+                </Button>
+            </div>
+
         ),
         cell: ({ row }) => {
             return (
                 <div
-                    className={`flex items-center space-x-2 w-full ${accessorKey === "name" || accessorKey === "email" ? "justify-end=" : "justify-center"
-                        } text-center`}
+                    className={`flex items-center space-x-2 w-full justify-center text-center`}
                 >
                     <div>
                         {typeof row.getValue(accessorKey) === "boolean"

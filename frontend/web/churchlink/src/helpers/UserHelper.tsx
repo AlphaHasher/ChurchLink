@@ -48,3 +48,69 @@ export const fetchUsers = async () => {
         return [];
     }
 };
+
+
+
+export const getMyPermissions = async (options?: MyPermsRequest) => {
+    try {
+
+        // Provide default values if options is not passed
+        const defaultOptions: MyPermsRequest = {
+            user_assignable_roles: false,
+            event_editor_roles: false,
+            user_role_ids: false,
+        };
+
+        const idToken = await confirmAuth();
+
+        const res = await fetch(`${API_BASE}${API_USERS}/get-my-permissions`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${idToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(options ?? defaultOptions),
+        });
+
+        if (!res.ok) throw new Error("Failed to get user perms");
+
+        const data = await res.json();
+        return data;
+    } catch (err) {
+        console.error("Failed to get user perms:", err);
+        return null;
+    }
+};
+
+
+
+export const getMyPermissions = async (options?: MyPermsRequest) => {
+    try {
+
+        // Provide default values if options is not passed
+        const defaultOptions: MyPermsRequest = {
+            user_assignable_roles: false,
+            event_editor_roles: false,
+            user_role_ids: false,
+        };
+
+        const idToken = await confirmAuth();
+
+        const res = await fetch(`${API_BASE}${API_USERS}/get-my-permissions`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${idToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(options ?? defaultOptions),
+        });
+
+        if (!res.ok) throw new Error("Failed to get user perms");
+
+        const data = await res.json();
+        return data;
+    } catch (err) {
+        console.error("Failed to get user perms:", err);
+        return null;
+    }
+};

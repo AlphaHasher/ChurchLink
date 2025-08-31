@@ -27,7 +27,7 @@ import {
 import { AccountPermissions } from "@/shared/types/AccountPermissions"
 import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo"
 import { AssignRolesDialog } from "./AssignRolesDialog"
-import { getRoleOptions, recoverRoleArray } from "@/helpers/DataFunctions"
+import { recoverRoleArray } from "@/helpers/DataFunctions"
 import { useState } from "react"
 
 
@@ -48,20 +48,22 @@ const createColumn = (
   return {
     accessorKey,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        {label}
-        <ArrowUpDown />
-      </Button>
+      <div className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-start" : "justify-center"
+        } text-center`} ><Button
+          variant="ghost"
+          className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {label}
+          <ArrowUpDown />
+        </Button></div>
+
     ),
     cell: ({ row }) => {
 
       return (
         <div
-          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end=" : ""
+          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end" : "justify-center"
             } text-center`}
         >
           <div>
@@ -70,7 +72,7 @@ const createColumn = (
 
           {accessorKey === "name" && (
             <div className="ml-auto flex space-x-2">
-              <AssignRolesDialog userData={row.original} roleList={getRoleOptions(permData)} initialRoles={recoverRoleArray(row.original)} permData={permData} onSave={onSave}></AssignRolesDialog>
+              <AssignRolesDialog userData={row.original} initialRoles={recoverRoleArray(row.original)} permData={permData} onSave={onSave}></AssignRolesDialog>
             </div>
           )}
         </div>

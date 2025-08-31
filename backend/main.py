@@ -1,37 +1,35 @@
 from fastapi import FastAPI, APIRouter, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
-
 from mongo.database import DB as DatabaseManager
-
 import firebase_admin
 from helpers.Firebase_helpers import role_based_access
 from firebase_admin import credentials
-
 from helpers.youtubeHelper import YoutubeHelper
-
 from get_bearer_token import generate_test_token
-from routes.strapi_routes.strapi_routes import strapi_router
-from routes.paypal_routes.paypal_routes import paypal_router
-from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
-from routes.user_routes.user_routes import users_router
-from routes.permissions_routes.permissions_routes import permissions_router
 from add_roles import add_user_role, RoleUpdate
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
-
-
+from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import asyncio
 import os
-from routes.page_management_routes.page_routes import router as page_route
-from routes.page_management_routes.header_routes import header_router as header_route
-from routes.page_management_routes.footer_routes import footer_router as footer_route
-from routes.base_routes.event_routes import event_router
-from routes.base_routes.role_routes import role_router
-from routes.base_routes.user_routes import user_router
-from routes.base_routes.event_routes import public_event_router
+
+# Import routers
+from routes.page_management_routes.page_routes import page_router
+from routes.page_management_routes.header_routes import header_router as header_router
+from routes.page_management_routes.footer_routes import footer_router as footer_router
+from routes.common_routes.event_routes import event_router
+from routes.common_routes.role_routes import role_router
+from routes.common_routes.user_routes import user_router
+from routes.common_routes.event_routes import public_event_router
+from routes.strapi_routes.strapi_routes import strapi_router
+from routes.paypal_routes.paypal_routes import paypal_router
+from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
+from routes.permissions_routes.permissions_routes import permissions_router
+
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -98,6 +96,7 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -131,8 +130,7 @@ async def get_auth_token(credentials: LoginCredentials):
     """Get a Firebase authentication token using email and password"""
     try:
         token = generate_test_token(
-            email=credentials.email,
-            password=credentials.password
+            email=credentials.email, password=credentials.password
         )
         if token:
             return {"access_token": token, "token_type": "Bearer"}
@@ -154,100 +152,49 @@ async def update_user_roles(role_update: RoleUpdate):
         dict: Contains status, message, and current roles
     """
     return add_user_role(
-        uid=role_update.uid,
-        roles=role_update.roles,
-        remove=role_update.remove
+        uid=role_update.uid, roles=role_update.roles, remove=role_update.remove
     )
 
 
-# routes that are public and don't need authentication
 #####################################################
-# Public Router Configuration
+# Declare router middleware/slash permissions for imported routes
 #####################################################
-public_router = APIRouter(prefix="/api/v1")
-public_router.include_router(public_event_router)
+strapi_router.dependencies.append(Depends(role_based_access(["strapi_admin"])))
+# paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
 
 
 #####################################################
-# Base Router Configuration
+# Grouped Router Declarations
 #####################################################
-router_base = APIRouter(prefix="/api/v1")
-# Add Firebase authentication dependency to base router, needs base role
-router_base.include_router(event_router)
-router_base.include_router(role_router)
-router_base.include_router(user_router)
-
-
-#####################################################
-# Admin Router Configuration
-#####################################################
-router_admin = APIRouter(prefix="/api/v1/admin", tags=["admin"])
-router_admin.dependencies.append(Depends(role_based_access(["admin"])))
-# router_admin.include_router("import something from routes/admin_routes/")
-
-#####################################################
-
-#####################################################
-# Finance Router Configuration
-#####################################################
-router_finance = APIRouter(prefix="/api/v1/finance", tags=["finance"])
-router_finance.dependencies.append(Depends(role_based_access(["finance"])))
-# router_finance.include_router("import something from routes/finance_routes/")
-
-#####################################################
-
-#####################################################
-# PayPal Router Configuration
-#####################################################
-
-router_paypal = APIRouter(prefix="/api/v1/paypal", tags=["paypal"])
-router_paypal.include_router(paypal_router)
-# router_paypal.dependencies.append(Depends(role_based_access(["finance"])))
-
-
-#####################################################
-# Webhook Listener Router Config
-#####################################################
-router_webhook_listener = APIRouter(prefix="/api/v1/webhook_listener", tags=["webhook_listener"])
+router_webhook_listener = APIRouter(
+    prefix="/webhook_listener", tags=["webhook_listener"]
+)
 router_webhook_listener.include_router(youtube_router)
 
 
 #####################################################
-# Strapi Router Config
+# Base Router Configuration all routes will have api/v1 prefix
 #####################################################
-router_strapi = APIRouter(prefix="/api/v1/strapi", tags=["strapi"])
-router_strapi.include_router(strapi_router)
-router_strapi.dependencies.append(Depends(role_based_access(["strapi_admin"])))
+base_router = APIRouter(prefix="/api/v1")
+base_router.include_router(paypal_router)
+base_router.include_router(permissions_router)
+base_router.include_router(event_router)
+base_router.include_router(role_router)
+base_router.include_router(user_router)
+base_router.include_router(strapi_router)
+base_router.include_router(public_event_router)
+base_router.include_router(router_webhook_listener)
 
-#####################################################
-# Web Builder Config
-#####################################################
-app.include_router(header_route)
-app.include_router(page_route)
 
-#####################################################
-# Users Router Config
-#####################################################
-router_users = APIRouter(prefix="/api/v1/users", tags=["users"])
-router_users.include_router(users_router)
+non_v1_router = APIRouter(prefix="/api")
+non_v1_router.include_router(page_router)
+non_v1_router.include_router(header_router)
+non_v1_router.include_router(footer_router)
 
-#####################################################
-# Permissions Router Config
-#####################################################
-router_permissions = APIRouter(prefix="/api/v1/permissions", tags=["permissions"])
-router_permissions.include_router(permissions_router)
-app.include_router(footer_route)
 
 # Include routers in main app
-app.include_router(router_base)
-app.include_router(router_admin)
-app.include_router(router_finance)
-app.include_router(router_paypal)
-app.include_router(router_webhook_listener)
-app.include_router(router_strapi)
-app.include_router(public_router)
-app.include_router(router_users)
-app.include_router(router_permissions)
+app.include_router(base_router)
+app.include_router(non_v1_router)
 
 
 if __name__ == "__main__":

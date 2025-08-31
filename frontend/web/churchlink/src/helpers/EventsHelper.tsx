@@ -23,6 +23,9 @@ export const verifyValidEvent = (event: ChurchEvent) => {
     if (!event.ru_description.trim()) missingFields.push("Russian Description")
     if (!event.location.trim()) missingFields.push("Location")
     if (!event.image_url.trim()) missingFields.push("Event Image")
+    if (event.roles.length === 0) missingFields.push("Assigned Roles")
+
+
 
     if (missingFields.length > 0) {
         const formatted = missingFields.join(", ")
@@ -42,7 +45,9 @@ export const handleEventCreation = async (event: ChurchEvent) => {
     try {
         const payload = {
             name: event.name,
+            ru_name: event.ru_name,
             description: event.description,
+            ru_description: event.ru_description,
             date: event.date,
             location: event.location,
             price: event.price,
@@ -54,8 +59,8 @@ export const handleEventCreation = async (event: ChurchEvent) => {
             max_age: event.max_age,
             gender: event.gender,
             image_url: event.image_url,
-            thumbnail_url: event.thumbnail_url,
-            mock: false,
+            roles: event.roles,
+            published: event.published,
         }
 
         await api.post("/v1/events/", payload)
@@ -75,7 +80,9 @@ export const handleEventEdit = async (event: ChurchEvent) => {
     try {
         const payload = {
             name: event.name,
+            ru_name: event.ru_name,
             description: event.description,
+            ru_description: event.ru_description,
             date: event.date,
             location: event.location,
             price: event.price,
@@ -87,8 +94,8 @@ export const handleEventEdit = async (event: ChurchEvent) => {
             max_age: event.max_age,
             gender: event.gender,
             image_url: event.image_url,
-            thumbnail_url: event.thumbnail_url,
-            mock: false,
+            roles: event.roles,
+            published: event.published,
         }
 
         await api.put(`/v1/events/${event.id}`, payload)

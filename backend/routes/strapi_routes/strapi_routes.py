@@ -9,7 +9,7 @@ from helpers.Firebase_helpers import authenticate_uid
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-strapi_router = APIRouter()
+strapi_router = APIRouter(prefix="/strapi", tags=["strapi"])
 
 ###################
 # Article routes

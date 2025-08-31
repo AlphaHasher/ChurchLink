@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Body, Path
 from mongo.database import DB
 from models.header import *
 
-header_router = APIRouter(prefix="/api/header")
+header_router = APIRouter(prefix="/header", tags=["header"])
 
 @header_router.get("", response_model=Header)
 async def get_header_route():

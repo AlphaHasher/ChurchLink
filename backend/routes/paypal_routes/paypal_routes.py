@@ -35,7 +35,7 @@ from paypalserversdk.models.item_category import ItemCategory
 # from paypalserversdk.exceptions.error_exception import ErrorException
 from paypalserversdk.api_helper import ApiHelper
 
-paypal_router = APIRouter()
+paypal_router = APIRouter(prefix="/paypal", tags=["paypal"])
 
 # Initialize the PayPal client with required credentials and logging configuration.
 paypal_client: PaypalServersdkClient = PaypalServersdkClient(

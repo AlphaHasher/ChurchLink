@@ -10,11 +10,14 @@ import EventsTable from "@/features/admin/components/Events/EventsTable";
 
 const Events = () => {
     const [events, setEvents] = useState<ChurchEvent[]>([]);
+    const [perms, setPerms] = useState<AccountPermissions[]>([]);
     const [loading, setLoading] = useState(true);
 
     const loadData = async () => {
         const eventsFromAPI = await fetchEvents();
         setEvents(eventsFromAPI);
+        const permsFromAPI = await fetchPermissions();
+        setPerms(permsFromAPI);
         setLoading(false);
     }
 
@@ -29,7 +32,7 @@ const Events = () => {
     return (
         <div className="p-6">
             <h1 className="text-xl font-bold mb-4">Events Management</h1>
-            <EventsTable data={events} onSave={loadData}></EventsTable>
+            <EventsTable data={events} permData={perms} onSave={loadData}></EventsTable>
         </div>
     );
 };

@@ -17,11 +17,12 @@ import { createPermComps, roleStringListToRoleIdList } from "@/helpers/DataFunct
 import { AccountPermissions } from "@/shared/types/AccountPermissions";
 
 import { updateUserRoles } from "@/helpers/PermissionsHelper";
+import { getMyPermissions } from "@/helpers/UserHelper";
+import { MyPermsRequest } from "@/types/MyPermsRequest";
 
 interface AssignRolesDialogProps {
     userData: BaseUserMask;
     permData: AccountPermissions[];
-    roleList: string[]; // List of available roles
     initialRoles: string[]; // List of initial selected roles
     onSave: () => Promise<void>;
 }
@@ -35,13 +36,20 @@ interface RoleChangeParams {
 export function AssignRolesDialog({
     userData,
     permData,
-    roleList,
     initialRoles,
     onSave
 }: AssignRolesDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedRoles, setSelectedRoles] = useState<string[]>(initialRoles);
     const [saving, setSaving] = useState(false);
+    const [checkingPerms, setCheckingPerms] = useState(false)
+    const [roleList, setRoleList] = useState<string[]>([]);
+
+    const requestOptions: MyPermsRequest = {
+        user_assignable_roles: true,
+        event_editor_roles: false,
+        user_role_ids: false,
+    }
 
     // Update selected roles when initialRoles change
     useEffect(() => {
@@ -93,70 +101,115 @@ export function AssignRolesDialog({
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleDialogCloseChange}>
-            <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    className="!bg-white text-black border shadow-sm hover:bg-blue-600"
-                >
+        <>
+            {/* Physical Manifestation of the Dialog, the Button that opens it */}
+            <Button
+                variant="outline"
+                className="!bg-white text-black border shadow-sm hover:bg-blue-600"
+                onClick={async () => {
+                    setCheckingPerms(true)
+                    try {
+                        const result = await getMyPermissions(requestOptions)
+
+                        if (result?.success) {
+
+                            if (result?.perms.admin || result?.perms.permissions_management) {
+                                try {
+                                    const assignable = getRoleOptions(processFetchedPermData(result?.user_assignable_roles));
+                                    setRoleList(assignable);
+                                    setIsOpen(true);
+                                }
+                                catch {
+                                    alert("Response format invalid: missing assignable permissions.");
+                                }
+                            }
+                            else {
+                                alert("You need to have the Administrator or Permissions Management perms to assign user roles!")
+                            }
+                        }
+                        else {
+                            alert(result?.msg || "You don't have permission to assign roles.")
+                        }
+                    } catch (err) {
+                        alert("An error occurred while checking your permissions.")
+                        console.error(err)
+                    }
+                    setCheckingPerms(false)
+                }}
+                disabled={checkingPerms}
+            >
+                {checkingPerms ? (
+                    <>
+                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                    </>
+                ) : (
                     <ShieldPlus />
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl w-full max-h-screen flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Modify User Roles</DialogTitle>
-                    <DialogDescription>
-                        You are modifying the permission roles of <b>{userData.name}</b> (<i>{userData.email}</i>).
-                        Ensure you have the correct user before making changes. You can only grant or revoke permissions
-                        that your account already has.
-                    </DialogDescription>
-                </DialogHeader>
+                )}
+            </Button>
 
-                {/* Selection Section */}
-                <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-4">
-                        <label className="font-semibold">Assign Roles:</label>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="!bg-white flex items-center gap-2">
-                                    Select Roles <ChevronDown />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start">
-                                {roleList.map((role) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={role}
-                                        onClick={(event) => handleCheckboxClick(event, role)}
-                                        checked={selectedRoles.includes(role)}
-                                    >
-                                        {role}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+            <Dialog open={isOpen} onOpenChange={handleDialogCloseChange}>
+                <DialogContent className="max-w-3xl w-full max-h-screen flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Modify User Roles</DialogTitle>
+                        <DialogDescription>
+                            You are modifying the permission roles of <b>{userData.name}</b> (<i>{userData.email}</i>).
+                            Ensure you have the correct user before making changes. You can only grant or revoke permissions
+                            that your account already has.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Selection Section */}
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-4">
+                            <label className="font-semibold">Assign Roles:</label>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    {roleList.length === 0 ? (
+                                        <Button variant="outline" className="!bg-gray-200 text-gray-500 cursor-not-allowed" disabled>
+                                            No Selectable Roles
+                                        </Button>
+                                    ) : (
+                                        <Button variant="outline" className="!bg-white flex items-center gap-2">
+                                            Select Roles <ChevronDown />
+                                        </Button>
+                                    )}
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    {roleList.map((role) => (
+                                        <DropdownMenuCheckboxItem
+                                            key={role}
+                                            onClick={(event) => handleCheckboxClick(event, role)}
+                                            checked={selectedRoles.includes(role)}
+                                        >
+                                            {role}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+
+                        {/* Permissions Table (Bounded & Scrollable) */}
+                        <div className="border rounded-lg shadow-sm p-4 bg-gray-50 max-h-[40vh] overflow-y-auto">
+                            <PermBeforeAfterTable data={createPermComps(initialRoles, selectedRoles, permData)} />
+                        </div>
                     </div>
 
-                    {/* Permissions Table (Bounded & Scrollable) */}
-                    <div className="border rounded-lg shadow-sm p-4 bg-gray-50 max-h-[40vh] overflow-y-auto">
-                        <PermBeforeAfterTable data={createPermComps(initialRoles, selectedRoles, permData)} />
-                    </div>
-                </div>
-
-                {/* Footer Buttons */}
-                <DialogFooter className="flex justify-end gap-2 mt-4">
-                    <Button variant="outline" className="text-white" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
-                    <Button variant="default" onClick={handleSaveChanges} disabled={saving}>
-                        {saving ? (
-                            <>
-                                <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                                Saving...
-                            </>
-                        ) : (
-                            "Save Changes"
-                        )}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+                    {/* Footer Buttons */}
+                    <DialogFooter className="flex justify-end gap-2 mt-4">
+                        <Button variant="outline" className="text-white" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
+                        <Button variant="default" onClick={handleSaveChanges} disabled={saving}>
+                            {saving ? (
+                                <>
+                                    <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                    Saving...
+                                </>
+                            ) : (
+                                "Save Changes"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    )
 }
