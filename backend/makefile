@@ -1,7 +1,10 @@
-run: mongo-start
+run:
+	@if [ "$$OS" != "Windows_NT" ]; then \
+		$(MAKE) mongo-start; \
+	fi
 	uv run main.py
 
-mongo-run:
+mongo-create:
 	docker run -d --name mongodb-ssbc -p 27017:27017 -v mongodb_data:/data/db mongo:latest
 
 mongo-start:

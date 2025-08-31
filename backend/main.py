@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import asyncio
 import os
+import logging
 
 # Import routers
 from routes.page_management_routes.page_routes import page_router
@@ -33,6 +34,13 @@ from routes.permissions_routes.permissions_routes import permissions_router
 from dotenv import load_dotenv
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
@@ -43,22 +51,32 @@ FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
+        logger.info("Starting application initialization...")
+
         # Initialize Firebase Admin SDK if not already initialized
         if not firebase_admin._apps:
+            logger.info("Initializing Firebase Admin SDK...")
             from firebase.firebase_credentials import get_firebase_credentials
 
             cred = credentials.Certificate(get_firebase_credentials())
             firebase_admin.initialize_app(cred)
+            logger.info("Firebase Admin SDK initialized successfully")
 
         # MongoDB connection setup - CRITICAL: Will stop app if fails
+        logger.info("Initializing MongoDB connection...")
         await DatabaseManager.init_db()
+        logger.info("MongoDB connection established successfully")
 
         if not BYPASS_FIREBASE_SYNC:
             # Sync MongoDB to Firebase
+            logger.info("Starting Firebase synchronization...")
             await FirebaseSyncer.SyncDBToFirebase()
+            logger.info("Firebase synchronization completed")
 
         # Verify that an Administrator Role (Mandatory) exists
+        logger.info("Verifying administrator role exists...")
         await RoleHandler.verify_admin_role()
+        logger.info("Administrator role verification completed")
 
         if not BYPASS_FIREBASE_SYNC:
             # Sync MongoDB to Firebase
@@ -68,19 +86,24 @@ async def lifespan(app: FastAPI):
         await RoleHandler.verify_admin_role()
 
         # Run Youtube Notification loop
+        logger.info("Starting YouTube subscription monitoring...")
         youtubeSubscriptionCheck = asyncio.create_task(
             YoutubeHelper.youtubeSubscriptionLoop()
         )
+        logger.info("YouTube subscription monitoring started")
 
+        logger.info("Application startup completed successfully")
         yield
 
         # Cleanup
+        logger.info("Shutting down application...")
         youtubeSubscriptionCheck.cancel()
         DatabaseManager.close_db()
+        logger.info("Application shutdown completed")
 
     except Exception as e:
-        print(f"Application startup failed: {str(e)}")
-        print("Make sure MongoDB is running and the MONGODB_URL is correct")
+        logger.error(f"Application startup failed: {str(e)}")
+        logger.error("Make sure MongoDB is running and the MONGODB_URL is correct")
         # Force exit the application
         import sys
         sys.exit(1)
