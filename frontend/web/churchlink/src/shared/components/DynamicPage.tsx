@@ -7,10 +7,9 @@ import MenuSection from "@/features/admin/components/WebBuilder/sections/MenuSec
 import ContactInfoSection from "@/features/admin/components/WebBuilder/sections/ContactInfoSection";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import MapSection from "@/features/admin/components/WebBuilder/sections/MapSection";
-import Footer from "@/shared/components/Footer";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
-import NavBar from "@/shared/components/NavBar";
+import Layout from "@/shared/layouts/Layout";
 
 export interface SectionSettings {
   showFilters?: boolean;
@@ -71,9 +70,7 @@ const DynamicPage: React.FC = () => {
   if (pageData.visible === false) return <InConstructionPage />;
 
   return (
-    <>
-      <NavBar />
-      <>
+    <Layout>
       {pageData.sections && pageData.sections.length > 0 ? (
         <>
           {pageData.sections.map((section) => (
@@ -128,9 +125,7 @@ const DynamicPage: React.FC = () => {
       ) : (
         <p>No content available.</p>
       )}
-      </>
-      <Footer/>
-    </>
+    </Layout>
   );
 };
 

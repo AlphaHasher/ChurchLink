@@ -3,6 +3,8 @@ import json
 import pymongo
 from motor.motor_asyncio import AsyncIOMotorClient
 from pathlib import Path
+from datetime import datetime
+from bson import ObjectId
 
 # MongoDB connection settings
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -96,6 +98,34 @@ class DB:
             await DB.import_migration_data(collection_name)
 
     @staticmethod
+    def convert_mongodb_extended_json(data):
+        """Convert MongoDB extended JSON format ($oid, $date) to Python objects"""
+        if isinstance(data, dict):
+            converted = {}
+            for key, value in data.items():
+                if key == "_id" and isinstance(value, dict) and "$oid" in value:
+                    # Convert $oid to ObjectId
+                    converted[key] = ObjectId(value["$oid"])
+                elif isinstance(value, dict) and "$date" in value:
+                    # Convert $date to datetime
+                    if isinstance(value["$date"], str):
+                        # Parse ISO format date string
+                        converted[key] = datetime.fromisoformat(value["$date"].replace('Z', '+00:00'))
+                    else:
+                        converted[key] = value["$date"]
+                elif isinstance(value, dict) and "$oid" in value:
+                    # Convert $oid to ObjectId for any field
+                    converted[key] = ObjectId(value["$oid"])
+                else:
+                    # Recursively convert nested structures
+                    converted[key] = DB.convert_mongodb_extended_json(value)
+            return converted
+        elif isinstance(data, list):
+            return [DB.convert_mongodb_extended_json(item) for item in data]
+        else:
+            return data
+
+    @staticmethod
     async def import_migration_data(collection_name: str):
         """Import migration data from JSON files if collection is empty"""
         try:
@@ -120,8 +150,11 @@ class DB:
                 print(f"Migration file for '{collection_name}' is empty")
                 return
 
+            # Convert MongoDB extended JSON format to Python objects
+            converted_data = DB.convert_mongodb_extended_json(migration_data)
+
             # Insert migration data
-            result = await DB.db[collection_name].insert_many(migration_data)
+            result = await DB.db[collection_name].insert_many(converted_data)
             print(f"Imported {len(result.inserted_ids)} documents into '{collection_name}' collection")
 
         except Exception as e:
