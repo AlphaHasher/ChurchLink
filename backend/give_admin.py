@@ -11,12 +11,20 @@ import curses
 import argparse
 import sys
 import os
+import logging
 from typing import List, Dict, Any
 import firebase_admin
 from firebase_admin import credentials, auth
 
 # Add the current directory to Python path to import local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 from mongo.database import DB as DatabaseManager
 from mongo.churchuser import UserHandler
@@ -37,7 +45,7 @@ class AdminManager:
             # Initialize database
             await DatabaseManager.init_db()
             self.db_initialized = True
-            print("✓ Database connection established")
+            logger.info("Database connection established")
 
             # Initialize Firebase if not already initialized
             if not firebase_admin._apps:
@@ -45,14 +53,14 @@ class AdminManager:
                 cred = credentials.Certificate(get_firebase_credentials())
                 firebase_admin.initialize_app(cred)
                 self.firebase_initialized = True
-                print("✓ Firebase connection established")
+                logger.info("Firebase connection established")
 
             # Verify admin role exists
             await RoleHandler.verify_admin_role()
-            print("✓ Administrator role verified")
+            logger.info("Administrator role verified")
 
         except Exception as e:
-            print(f"✗ Initialization failed: {str(e)}")
+            logger.error(f"Initialization failed: {str(e)}")
             sys.exit(1)
 
     async def search_users(self, email_query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
@@ -74,7 +82,7 @@ class AdminManager:
 
             return users
         except Exception as e:
-            print(f"Error searching users: {str(e)}")
+            logger.error(f"Error searching users: {str(e)}")
             return []
 
     async def get_user_roles_info(self, user: Dict[str, Any]) -> Dict[str, Any]:
@@ -119,13 +127,13 @@ class AdminManager:
             email = user.get('email')
 
             if not uid:
-                print(f"✗ Cannot grant admin: User has no UID")
+                logger.error("Cannot grant admin: User has no UID")
                 return False
 
             # Get admin role ID
             admin_role_id = await RoleHandler.find_role_id("Administrator")
             if not admin_role_id:
-                print("✗ Cannot grant admin: Administrator role not found")
+                logger.error("Cannot grant admin: Administrator role not found")
                 return False
 
             # Check if user already has admin role
@@ -138,7 +146,7 @@ class AdminManager:
             user_role_strings = [str(role) for role in user_roles]
             has_admin = admin_role_id_str in user_role_strings
             if has_admin:
-                print(f"✓ User {email} already has admin privileges")
+                logger.info(f"User {email} already has admin privileges")
                 return True
 
             # Add admin role to user's roles in MongoDB as string
@@ -150,7 +158,7 @@ class AdminManager:
             # Update user roles in MongoDB
             result = await UserHandler.update_roles(uid, new_roles, StrapiHelper.sync_strapi_roles)
             if not result:
-                print(f"✗ Failed to update MongoDB roles for user {email}")
+                logger.error(f"Failed to update MongoDB roles for user {email}")
                 return False
 
             # Update Firebase custom claims
@@ -164,21 +172,21 @@ class AdminManager:
                 new_claims = {**current_claims, 'roles': list(current_firebase_roles)}
                 auth.set_custom_user_claims(uid, new_claims)
 
-                print(f"✓ Successfully granted admin privileges to {email}")
-                print(f"  - Added Administrator role to MongoDB")
-                print(f"  - Added admin role to Firebase claims")
+                logger.info(f"Successfully granted admin privileges to {email}")
+                logger.info("  - Added Administrator role to MongoDB")
+                logger.info("  - Added admin role to Firebase claims")
                 return True
 
             except auth.UserNotFoundError:
-                print(f"⚠ MongoDB updated but Firebase user {uid} not found")
-                print(f"  - Admin role granted in MongoDB only")
+                logger.warning(f"MongoDB updated but Firebase user {uid} not found")
+                logger.warning(f"  - Admin role granted in MongoDB only")
                 return True
             except Exception as e:
-                print(f"⚠ MongoDB updated but Firebase claims update failed: {str(e)}")
+                logger.warning(f"MongoDB updated but Firebase claims update failed: {str(e)}")
                 return True
 
         except Exception as e:
-            print(f"✗ Failed to grant admin privileges: {str(e)}")
+            logger.error(f"Failed to grant admin privileges: {str(e)}")
             return False
 
     async def revoke_admin_privileges(self, user: Dict[str, Any]) -> bool:
@@ -188,13 +196,13 @@ class AdminManager:
             email = user.get('email')
 
             if not uid:
-                print(f"✗ Cannot revoke admin: User has no UID")
+                logger.error("Cannot revoke admin: User has no UID")
                 return False
 
             # Get admin role ID
             admin_role_id = await RoleHandler.find_role_id("Administrator")
             if not admin_role_id:
-                print("✗ Cannot revoke admin: Administrator role not found")
+                logger.error("Cannot revoke admin: Administrator role not found")
                 return False
 
             # Check if user has admin role
@@ -205,7 +213,7 @@ class AdminManager:
             user_role_strings = [str(role) for role in user_roles]
             has_admin = admin_role_id_str in user_role_strings
             if not has_admin:
-                print(f"✓ User {email} doesn't have admin privileges")
+                logger.info(f"User {email} doesn't have admin privileges")
                 return True
 
             # Remove admin role from user's roles in MongoDB
@@ -215,7 +223,7 @@ class AdminManager:
             # Update user roles in MongoDB
             result = await UserHandler.update_roles(uid, new_roles, StrapiHelper.sync_strapi_roles)
             if not result:
-                print(f"✗ Failed to update MongoDB roles for user {email}")
+                logger.error(f"Failed to update MongoDB roles for user {email}")
                 return False
 
             # Update Firebase custom claims
@@ -229,20 +237,20 @@ class AdminManager:
                 new_claims = {**current_claims, 'roles': list(current_firebase_roles)}
                 auth.set_custom_user_claims(uid, new_claims)
 
-                print(f"✓ Successfully revoked admin privileges from {email}")
-                print(f"  - Removed Administrator role from MongoDB")
-                print(f"  - Removed admin role from Firebase claims")
+                logger.info(f"Successfully revoked admin privileges from {email}")
+                logger.info("  - Removed Administrator role from MongoDB")
+                logger.info("  - Removed admin role from Firebase claims")
                 return True
 
             except auth.UserNotFoundError:
-                print(f"⚠ MongoDB updated but Firebase user {uid} not found")
+                logger.warning(f"MongoDB updated but Firebase user {uid} not found")
                 return True
             except Exception as e:
-                print(f"⚠ MongoDB updated but Firebase claims update failed: {str(e)}")
+                logger.warning(f"MongoDB updated but Firebase claims update failed: {str(e)}")
                 return True
 
         except Exception as e:
-            print(f"✗ Failed to revoke admin privileges: {str(e)}")
+            logger.error(f"Failed to revoke admin privileges: {str(e)}")
             return False
 
 
@@ -527,9 +535,9 @@ def interactive_mode():
 
         curses.wrapper(ui.run)
     except KeyboardInterrupt:
-        print("\nGoodbye!")
+        logger.info("Goodbye!")
     except Exception as e:
-        print(f"\nError: {str(e)}")
+        logger.error(f"Error: {str(e)}")
     finally:
         loop.close()
 
@@ -547,15 +555,15 @@ def direct_mode(email: str, grant: bool = True):
         users = loop.run_until_complete(DatabaseManager.find_documents("users", {"email": email}))
 
         if not users:
-            print(f"✗ User with email '{email}' not found")
+            logger.error(f"User with email '{email}' not found")
             return False
 
         if len(users) > 1:
-            print(f"✗ Multiple users found with email '{email}'. Use interactive mode for selection.")
+            logger.error(f"Multiple users found with email '{email}'. Use interactive mode for selection.")
             return False
 
         user = users[0]
-        print(f"Found user: {user.get('email')} ({user.get('first_name')} {user.get('last_name')})")
+        logger.info(f"Found user: {user.get('email')} ({user.get('first_name')} {user.get('last_name')})")
 
         if grant:
             return loop.run_until_complete(admin_manager.grant_admin_privileges(user))
