@@ -7,7 +7,9 @@ enum HighlightColor { none, yellow, green, blue, pink, purple, teal }
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({
     super.key,
-    this.initialTranslation = 'kjv', // change defaults here if you want
+    
+    //The book opens to this by default, 
+    this.initialTranslation = 'kjv', 
     this.initialBook = 'Genesis',
     this.initialChapter = 1,
   });
@@ -30,7 +32,80 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   List<(VerseRef ref, String text)> _verses = [];
   final Map<VerseRef, HighlightColor> _hl = {}; // in-memory MVP
-  final Map<VerseRef, String> _notes = {};      // in-memory MVP
+  final Map<VerseRef, String> _notes = {}; // in-memory MVP
+
+  // maps book names to abbrevated versions
+  final Map<String, String> _bookAbbrev = {
+    // Old Testament
+    "Genesis": "Gen",
+    "Exodus": "Exod",
+    "Leviticus": "Lev",
+    "Numbers": "Num",
+    "Deuteronomy": "Deut",
+    "Joshua": "Josh",
+    "Judges": "Judg",
+    "Ruth": "Ruth",
+    "1 Samuel": "1 Sam",
+    "2 Samuel": "2 Sam",
+    "1 Kings": "1 Kgs",
+    "2 Kings": "2 Kgs",
+    "1 Chronicles": "1 Chr",
+    "2 Chronicles": "2 Chr",
+    "Ezra": "Ezra",
+    "Nehemiah": "Neh",
+    "Esther": "Esth",
+    "Job": "Job",
+    "Psalms": "Ps",
+    "Proverbs": "Prov",
+    "Ecclesiastes": "Eccl",
+    "Song of Solomon": "Song", // or "Cant"
+    "Isaiah": "Isa",
+    "Jeremiah": "Jer",
+    "Lamentations": "Lam",
+    "Ezekiel": "Ezek",
+    "Daniel": "Dan",
+    "Hosea": "Hos",
+    "Joel": "Joel",
+    "Amos": "Amos",
+    "Obadiah": "Obad",
+    "Jonah": "Jonah",
+    "Micah": "Mic",
+    "Nahum": "Nah",
+    "Habakkuk": "Hab",
+    "Zephaniah": "Zeph",
+    "Haggai": "Hag",
+    "Zechariah": "Zech",
+    "Malachi": "Mal",
+
+    // New Testament
+    "Matthew": "Matt",
+    "Mark": "Mark",
+    "Luke": "Luke",
+    "John": "John",
+    "Acts": "Acts",
+    "Romans": "Rom",
+    "1 Corinthians": "1 Cor",
+    "2 Corinthians": "2 Cor",
+    "Galatians": "Gal",
+    "Ephesians": "Eph",
+    "Philippians": "Phil",
+    "Colossians": "Col",
+    "1 Thessalonians": "1 Thess",
+    "2 Thessalonians": "2 Thess",
+    "1 Timothy": "1 Tim",
+    "2 Timothy": "2 Tim",
+    "Titus": "Titus",
+    "Philemon": "Phlm",
+    "Hebrews": "Heb",
+    "James": "Jas",
+    "1 Peter": "1 Pet",
+    "2 Peter": "2 Pet",
+    "1 John": "1 Jn",
+    "2 John": "2 Jn",
+    "3 John": "3 Jn",
+    "Jude": "Jude",
+    "Revelation": "Rev",
+  };
 
   @override
   void initState() {
@@ -48,6 +123,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       chapter: _chapter,
     );
     setState(() => _verses = data);
+  }
+
+  bool get _isAtFirstChapter {
+    final i = _bookIndex(_book);
+    return _chapter == 1 && i == 0;
+  }
+
+  bool get _isAtLastChapter {
+    final i = _bookIndex(_book);
+    final lastBookIndex = _bookNames.length - 1;
+    return _chapter == _chapterCount(_book) && i == lastBookIndex;
   }
 
   // ----- Navigation -----
@@ -93,7 +179,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           return SafeArea(
             child: Padding(
               padding: EdgeInsets.only(
-                left: 16, right: 16, top: 12,
+                left: 16,
+                right: 16,
+                top: 12,
                 bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
               ),
               child: Column(
@@ -201,6 +289,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
 
+    // Responsive width for the Book+Chapter button
+    final w = MediaQuery.of(context).size.width;
+    // Button can use ~38% of screen, but not smaller than 110 or larger than 200.
+    final double bookBtnMax = (w * 0.38).clamp(110.0, 200.0);
+
     return Column(
       children: [
         Padding(
@@ -209,23 +302,34 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             children: [
               IconButton(
                 tooltip: 'Previous chapter',
-                onPressed: _prevChapter,
+                onPressed: _isAtFirstChapter ? null : _prevChapter,
                 icon: const Icon(Icons.chevron_left),
               ),
 
-              // Book + chapter button (opens picker)
-              TextButton(
-                onPressed: _openJumpPicker,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              // Chapter button, widens to fill empty space
+              Expanded(
+                flex: 6,
+                child: SizedBox(
+                  height: 36,
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _openJumpPicker,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(
+                      '${_bookAbbrev[_book] ?? _book} $_chapter',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                    ),
                   ),
                 ),
-                child: Text('$_book $_chapter'),
               ),
               const SizedBox(width: 8),
+
 
               // Translation single button (popup menu)
               PopupMenuButton<String>(
@@ -242,9 +346,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         ))
                     .toList(),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: Theme.of(context).dividerColor,
@@ -262,16 +369,16 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                 ),
               ),
 
-              const Spacer(),
+              const Spacer(flex: 1), // needs to be smaller so that the book name isn't squished
 
-              // Search (nonfunctional placeholder)
+              // Search Placeholder
               IconButton(
                 tooltip: 'Search',
                 onPressed: null, // intentionally disabled
                 icon: const Icon(Icons.search),
               ),
 
-              // Speaker (nonfunctional placeholder)
+              // Speaker Placeholder
               IconButton(
                 tooltip: 'Read aloud',
                 onPressed: null, // intentionally disabled
@@ -280,7 +387,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
               IconButton(
                 tooltip: 'Next chapter',
-                onPressed: _nextChapter,
+                onPressed: _isAtLastChapter ? null : _nextChapter,
                 icon: const Icon(Icons.chevron_right),
               ),
             ],
@@ -308,7 +415,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 }
 
-// ===== Bottom sheet result + actions sheet =====
+// Notetaking and highlighting popup
+
+// What action the user takes
 class _ActionResult {
   final HighlightColor? highlight;
   final String? noteText;
@@ -345,11 +454,14 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
-          left: 16, right: 16, top: 12,
+          left: 16,
+          right: 16,
+          top: 12,
           bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.verseLabel, style: Theme.of(context).textTheme.titleMedium),
+          Text(widget.verseLabel,
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
 
           Align(alignment: Alignment.centerLeft, child: const Text('Highlight')),
@@ -361,21 +473,24 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              for (final c in HighlightColor.values.where((c) => c != HighlightColor.none))
+              for (final c
+                  in HighlightColor.values.where((c) => c != HighlightColor.none))
                 InkWell(
                   onTap: () => setState(() => _pick = c),
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    width: 26, height: 26,
+                    width: 26,
+                    height: 26,
                     decoration: BoxDecoration(
                       color: {
                         HighlightColor.yellow: Colors.yellow,
-                        HighlightColor.green:  Colors.lightGreenAccent,
-                        HighlightColor.blue:   Colors.lightBlueAccent,
-                        HighlightColor.pink:   Colors.pinkAccent,
+                        HighlightColor.green: Colors.lightGreenAccent,
+                        HighlightColor.blue: Colors.lightBlueAccent,
+                        HighlightColor.pink: Colors.pinkAccent,
                         HighlightColor.purple: Colors.purpleAccent,
-                        HighlightColor.teal:   Colors.tealAccent,
-                      }[c]!.withOpacity(.9),
+                        HighlightColor.teal: Colors.tealAccent,
+                      }[c]!
+                          .withOpacity(.9),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: _pick == c ? Colors.black87 : Colors.black26,
@@ -386,7 +501,8 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                 ),
               TextButton.icon(
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   minimumSize: const Size(0, 28),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
@@ -404,7 +520,8 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
           const SizedBox(height: 8),
           TextField(
             controller: _note,
-            minLines: 3, maxLines: 6,
+            minLines: 3,
+            maxLines: 6,
             decoration: const InputDecoration(
               hintText: 'Write a note for this verse…',
               border: OutlineInputBorder(),
@@ -416,7 +533,8 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
             if (widget.existingNote != null)
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context, _ActionResult(noteDelete: true)),
+                  onPressed: () =>
+                      Navigator.pop(context, _ActionResult(noteDelete: true)),
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('Delete note'),
                 ),
@@ -438,26 +556,149 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
   }
 }
 
-// ===== Data for navigation =====
+// Translation and Book UI Elements
 const List<String> _translations = ['kjv', 'rst'];
 
 const List<String> _bookNames = [
-  'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
-  '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles','Ezra','Nehemiah','Esther',
-  'Job','Psalms','Proverbs','Ecclesiastes','Song of Solomon','Isaiah','Jeremiah','Lamentations',
-  'Ezekiel','Daniel','Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk','Zephaniah',
-  'Haggai','Zechariah','Malachi','Matthew','Mark','Luke','John','Acts','Romans','1 Corinthians',
-  '2 Corinthians','Galatians','Ephesians','Philippians','Colossians','1 Thessalonians','2 Thessalonians',
-  '1 Timothy','2 Timothy','Titus','Philemon','Hebrews','James','1 Peter','2 Peter','1 John','2 John','3 John','Jude','Revelation'
+  'Genesis',
+  'Exodus',
+  'Leviticus',
+  'Numbers',
+  'Deuteronomy',
+  'Joshua',
+  'Judges',
+  'Ruth',
+  '1 Samuel',
+  '2 Samuel',
+  '1 Kings',
+  '2 Kings',
+  '1 Chronicles',
+  '2 Chronicles',
+  'Ezra',
+  'Nehemiah',
+  'Esther',
+  'Job',
+  'Psalms',
+  'Proverbs',
+  'Ecclesiastes',
+  'Song of Solomon',
+  'Isaiah',
+  'Jeremiah',
+  'Lamentations',
+  'Ezekiel',
+  'Daniel',
+  'Hosea',
+  'Joel',
+  'Amos',
+  'Obadiah',
+  'Jonah',
+  'Micah',
+  'Nahum',
+  'Habakkuk',
+  'Zephaniah',
+  'Haggai',
+  'Zechariah',
+  'Malachi',
+  'Matthew',
+  'Mark',
+  'Luke',
+  'John',
+  'Acts',
+  'Romans',
+  '1 Corinthians',
+  '2 Corinthians',
+  'Galatians',
+  'Ephesians',
+  'Philippians',
+  'Colossians',
+  '1 Thessalonians',
+  '2 Thessalonians',
+  '1 Timothy',
+  '2 Timothy',
+  'Titus',
+  'Philemon',
+  'Hebrews',
+  'James',
+  '1 Peter',
+  '2 Peter',
+  '1 John',
+  '2 John',
+  '3 John',
+  'Jude',
+  'Revelation'
 ];
 
 const List<int> _chaptersPerBook = [
-  50,40,27,36,34,24,21,4,31,24,22,25,29,36,10,13,10,42,150,31,12,8,66,52,5,48,12,14,3,9,1,4,7,3,3,3,2,14,4,28,16,24,21,28,16,16,13,6,6,4,4,5,3,6,4,3,1,13,5,5,3,5,1,1,1,22
+  50,
+  40,
+  27,
+  36,
+  34,
+  24,
+  21,
+  4,
+  31,
+  24,
+  22,
+  25,
+  29,
+  36,
+  10,
+  13,
+  10,
+  42,
+  150,
+  31,
+  12,
+  8,
+  66,
+  52,
+  5,
+  48,
+  12,
+  14,
+  3,
+  9,
+  1,
+  4,
+  7,
+  3,
+  3,
+  3,
+  2,
+  14,
+  4,
+  28,
+  16,
+  24,
+  21,
+  28,
+  16,
+  16,
+  13,
+  6,
+  6,
+  4,
+  4,
+  5,
+  3,
+  6,
+  4,
+  3,
+  1,
+  13,
+  5,
+  5,
+  3,
+  5,
+  1,
+  1,
+  1,
+  22
 ];
 
-int _bookIndex(String book) => _bookNames.indexWhere(
-      (b) => b.toLowerCase() == book.toLowerCase(),
-    );
+int _bookIndex(String book) =>
+    _bookNames.indexWhere((b) => b.toLowerCase() == book.toLowerCase());
 
 int _chapterCount(String book) {
   final i = _bookIndex(book);
