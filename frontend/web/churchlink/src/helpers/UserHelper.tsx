@@ -2,6 +2,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { processFetchedUserData } from "./DataFunctions";
 import api from "../api/api";
+import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 
 export const processMongoVerification = async () => {
     try {
@@ -53,7 +54,6 @@ export const fetchUsers = async () => {
 
 export const getMyPermissions = async (options?: MyPermsRequest) => {
     try {
-
         // Provide default values if options is not passed
         const defaultOptions: MyPermsRequest = {
             user_assignable_roles: false,
@@ -61,54 +61,9 @@ export const getMyPermissions = async (options?: MyPermsRequest) => {
             user_role_ids: false,
         };
 
-        const idToken = await confirmAuth();
+        const res = await api.post("/v1/users/get-my-permissions", options ?? defaultOptions);
 
-        const res = await fetch(`${API_BASE}${API_USERS}/get-my-permissions`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(options ?? defaultOptions),
-        });
-
-        if (!res.ok) throw new Error("Failed to get user perms");
-
-        const data = await res.json();
-        return data;
-    } catch (err) {
-        console.error("Failed to get user perms:", err);
-        return null;
-    }
-};
-
-
-
-export const getMyPermissions = async (options?: MyPermsRequest) => {
-    try {
-
-        // Provide default values if options is not passed
-        const defaultOptions: MyPermsRequest = {
-            user_assignable_roles: false,
-            event_editor_roles: false,
-            user_role_ids: false,
-        };
-
-        const idToken = await confirmAuth();
-
-        const res = await fetch(`${API_BASE}${API_USERS}/get-my-permissions`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(options ?? defaultOptions),
-        });
-
-        if (!res.ok) throw new Error("Failed to get user perms");
-
-        const data = await res.json();
-        return data;
+        return res.data;
     } catch (err) {
         console.error("Failed to get user perms:", err);
         return null;

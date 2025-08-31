@@ -1,7 +1,7 @@
 // AddFooterItem.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,} from "@dnd-kit/core";
@@ -74,7 +74,7 @@ const AddFooterItem = () => {
         }
 
         try {
-            const res = await axios.post("/api/footer/items", {
+            const res = await api.post("/footer/items", {
                 "title": newSectionTitle,
                 "russian_title": newSectionRussianTitle,
                 "items": sectionItems,

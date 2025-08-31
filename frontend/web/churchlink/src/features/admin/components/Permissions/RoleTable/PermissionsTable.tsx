@@ -40,6 +40,7 @@ import { PermRoleMembersDialog } from "./PermRoleMembersDialog"
 
 import { UserInfo } from "@/shared/types/UserInfo"
 import { useState } from "react"
+import { getDisplayValue } from "@/helpers/DataFunctions"
 
 
 interface PermissionsTableProps {

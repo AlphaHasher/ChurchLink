@@ -1,5 +1,5 @@
 import { Label } from "@/shared/components/ui/label"
-import { AccountPermissions } from "@/shared/types/AccountPermissions"
+import { AccountPermissions, PermMask } from "@/shared/types/AccountPermissions"
 
 type RadioTogglerProps = {
     name: string

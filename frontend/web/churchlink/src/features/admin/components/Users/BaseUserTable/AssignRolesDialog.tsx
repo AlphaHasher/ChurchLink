@@ -8,17 +8,16 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/shared/components/ui/Dialog";
 import { ChevronDown, ShieldPlus, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/shared/components/ui/dropdown-menu';
 import PermBeforeAfterTable from "./PermBeforeAfterTable";
-import { createPermComps, roleStringListToRoleIdList } from "@/helpers/DataFunctions";
+import { createPermComps, roleStringListToRoleIdList, getRoleOptions, processFetchedPermData } from "@/helpers/DataFunctions";
 import { AccountPermissions } from "@/shared/types/AccountPermissions";
 
 import { updateUserRoles } from "@/helpers/PermissionsHelper";
 import { getMyPermissions } from "@/helpers/UserHelper";
-import { MyPermsRequest } from "@/types/MyPermsRequest";
+import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 
 interface AssignRolesDialogProps {
     userData: BaseUserMask;

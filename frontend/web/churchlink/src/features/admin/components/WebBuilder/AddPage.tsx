@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -19,7 +19,7 @@ const AddPage = () => {
 
   const checkSlugExists = async (slug: string): Promise<boolean> => {
     try {
-      const response = await axios.get(`/api/pages/check-slug?slug=${slug}`);
+      const response = await api.get(`/pages/check-slug?slug=${slug}`);
       return response.data.exists;
     } catch (err) {
       console.error("Error checking slug:", err);
@@ -40,7 +40,7 @@ const AddPage = () => {
         return;
       }
 
-      const res = await axios.post("/api/pages", {
+      const res = await api.post("/pages", {
         title,
         slug: newSlug,
         visible: true,

@@ -7,7 +7,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/shared/components/ui/Dialog"
 import { Input } from "@/shared/components/ui/input"
 import { Label } from "@/shared/components/ui/label"
@@ -16,7 +15,7 @@ import { Trash, Loader2 } from "lucide-react"
 import { ChurchEvent } from "@/shared/types/ChurchEvent"
 import { deleteEvent } from "@/helpers/EventsHelper"
 import { getMyPermissions } from "@/helpers/UserHelper"
-import { MyPermsRequest } from "@/types/MyPermsRequest"
+import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
 
 interface DeleteEventDialogProps {
     event: ChurchEvent

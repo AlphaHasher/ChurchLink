@@ -2,7 +2,9 @@
 // import { useAuth } from "@/lib/auth-context";\
 import { useEffect, useState } from "react";
 import { fetchEvents } from "@/helpers/EventsHelper";
+import { fetchPermissions } from "@/helpers/PermissionsHelper";
 import { ChurchEvent } from "@/shared/types/ChurchEvent";
+import { AccountPermissions } from "@/shared/types/AccountPermissions";
 import EventsTable from "@/features/admin/components/Events/EventsTable";
 
 

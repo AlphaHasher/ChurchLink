@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { AccountPermissions } from "@/shared/types/AccountPermissions"
+import { AccountPermissions, PermMask } from "@/shared/types/AccountPermissions"
 import { PermissionTogglers } from "@/features/admin/components/Permissions/RoleTable/PermissionTogglers"
 import { Button } from "@/shared/components/ui/button"
 import {
@@ -9,7 +9,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/shared/components/ui/Dialog"
 import { Input } from "@/shared/components/ui/input"
 import { Label } from "@/shared/components/ui/label"

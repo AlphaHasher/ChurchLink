@@ -7,7 +7,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/shared/components/ui/Dialog"
 import { Loader2, Pencil } from "lucide-react"
 import { ChurchEvent } from "@/shared/types/ChurchEvent"
@@ -19,7 +18,7 @@ import { EventMinistryDropdown } from "./EventMinistryDropdown"
 import { EventImageSelector } from "./EventImageSelector"
 import { handleEventEdit } from "@/helpers/EventsHelper"
 import { EventManagementOptions } from "./EventManagementOptions"
-import { MyPermsRequest } from "@/types/MyPermsRequest"
+import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
 import { getMyPermissions } from "@/helpers/UserHelper"
 
 interface EditEventDialogProps {

@@ -29,7 +29,7 @@ import { CreateEventDialog } from "./CreateEventDialog"
 import { DeleteEventDialog } from "./DeleteEventDialog"
 import { EditEventDialog } from "./EditEventDialog"
 import { getDisplayValue, roleIdListToRoleStringList } from "@/helpers/DataFunctions"
-import { AccountPermissions } from "@/types/AccountPermissions"
+import { AccountPermissions } from "@/shared/types/AccountPermissions"
 
 interface EventsTableProps {
     data: ChurchEvent[];

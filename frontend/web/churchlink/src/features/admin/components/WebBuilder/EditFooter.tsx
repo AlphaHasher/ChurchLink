@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
@@ -84,7 +84,7 @@ const EditFooter = () => {
     const fetchFooter = async () => {
         try {
             setLoading(true);
-            const response = await axios.get("/api/footer/items");
+            const response = await api.get("/footer/items");
             setOriginalFooter(response.data);
             setFooter(response.data);
             // Reset pending changes
@@ -159,17 +159,17 @@ const EditFooter = () => {
 
             // 1. Process removals
             for (const title of pendingChanges.removals) {
-                await axios.delete(`/api/footer/${title}`);
+                await api.delete(`/footer/${title}`);
             }
 
             // 2. Apply visibility changes
             for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                await axios.put(`/api/footer/${title}/visibility`, { visible });
+                await api.put(`/footer/${title}/visibility`, { visible });
             }
 
             // 3. Save reordering last (after removals are processed)
             const currentTitles = footer.items.map(item => item.title);
-            await axios.put("/api/footer/reorder", {titles: currentTitles});
+            await api.put("/footer/reorder", {titles: currentTitles});
             toast.success("Footer changes saved successfully");
 
             // Refresh data from server

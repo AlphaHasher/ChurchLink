@@ -1,7 +1,7 @@
 // AddHeaderItem.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,} from "@dnd-kit/core";
@@ -74,7 +74,7 @@ const AddHeaderItem = () => {
             return;
         }
         try {
-            const res = await axios.post("/api/header/items/links", {
+            const res = await api.post("/header/items/links", {
                 "title": newLinkTitle,
                 "russian_title": newLinkRussianTitle,
                 "url": newLinkUrl,
@@ -103,7 +103,7 @@ const AddHeaderItem = () => {
         }
 
         try {
-            const res = await axios.post("/api/header/items/dropdowns", {
+            const res = await api.post("/header/items/dropdowns", {
                 "title": newDropdownTitle,
                 "russian_title": newDropdownRussianTitle,
                 "items": dropdownLinks,

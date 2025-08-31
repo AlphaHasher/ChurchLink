@@ -1,6 +1,6 @@
 // EditHeader.tsx - Updated to batch changes
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
@@ -87,7 +87,7 @@ const EditHeader = () => {
     const fetchHeader = async () => {
         try {
             setLoading(true);
-            const response = await axios.get("/api/header/items");
+            const response = await api.get("/header/items");
             setOriginalHeader(response.data);
             setHeader(response.data);
             // Reset pending changes
@@ -162,17 +162,17 @@ const EditHeader = () => {
 
             // 1. Process removals
             for (const title of pendingChanges.removals) {
-                await axios.delete(`/api/header/${title}`);
+                await api.delete(`/header/${title}`);
             }
 
             // 2. Apply visibility changes
             for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                await axios.put(`/api/header/${title}/visibility`, { visible });
+                await api.put(`/header/${title}/visibility`, { visible });
             }
 
             // 3. Save reordering last (after removals are processed)
             const currentTitles = header.items.map(item => item.title);
-            await axios.put("/api/header/reorder", {titles: currentTitles});
+            await api.put("/header/reorder", {titles: currentTitles});
             toast.success("Navigation changes saved successfully");
 
             // Refresh data from server

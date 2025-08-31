@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AccountPermissions } from "@/shared/types/AccountPermissions";
 import { PermissionTogglers } from "./PermissionTogglers";
 import { Button } from "@/shared/components/ui/button";
@@ -9,7 +9,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/shared/components/ui/Dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -19,7 +18,7 @@ import { updateRole } from "@/helpers/PermissionsHelper";
 
 import { getMyPermissions } from "@/helpers/UserHelper";
 
-import { PermMask } from "@/types/AccountPermissions";
+import { PermMask } from "@/shared/types/AccountPermissions";
 
 interface EditPermDialogProps {
     permissions: AccountPermissions;

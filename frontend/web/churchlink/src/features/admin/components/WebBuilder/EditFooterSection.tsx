@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/api/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import {DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,} from "@dnd-kit/core";
@@ -76,7 +76,7 @@ const EditHeaderItem: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await axios.get(`/api/footer/${encodeURIComponent(title)}`);
+            const response = await api.get(`/footer/${encodeURIComponent(title)}`);
             setItem(response.data);
             setNewTitle(response.data.title);
             setRussianTitle(response.data.russian_title);
@@ -115,7 +115,7 @@ const EditHeaderItem: React.FC = () => {
                     url,
                 };
 
-            const response = await axios.put(`/api/footer/items/edit/${title}`, updatedItem);
+            const response = await api.put(`/footer/items/edit/${title}`, updatedItem);
 
             if (response.data) {
                 toast.success("Navigation item updated successfully");

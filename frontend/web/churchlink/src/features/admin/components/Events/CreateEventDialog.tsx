@@ -7,7 +7,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/shared/components/ui/Dialog"
 import { Loader2 } from "lucide-react"
 
@@ -20,7 +19,7 @@ import { EventMinistryDropdown } from "./EventMinistryDropdown"
 import { EventImageSelector } from "./EventImageSelector"
 import { handleEventCreation } from "@/helpers/EventsHelper"
 import { getMyPermissions } from "@/helpers/UserHelper"
-import { MyPermsRequest } from "@/types/MyPermsRequest"
+import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
 import { EventManagementOptions } from "./EventManagementOptions"
 
 interface CreateEventProps {

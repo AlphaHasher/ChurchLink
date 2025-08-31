@@ -4,14 +4,14 @@ import {
     DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
+} from "@/shared/components/ui/dropdown-menu"
+import { Button } from "@/shared/components/ui/button"
 import { ChevronDown } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { Switch } from "@/shared/components/ui/switch"
+import { Label } from "@/shared/components/ui/label"
 
-import { ChurchEvent } from "@/types/ChurchEvent"
-import { AccountPermissions } from "@/types/AccountPermissions"
+import { ChurchEvent } from "@/shared/types/ChurchEvent"
+import { AccountPermissions } from "@/shared/types/AccountPermissions"
 import { processFetchedPermData, roleIdListToRoleStringList, roleStringListToRoleIdList } from "@/helpers/DataFunctions"
 
 
