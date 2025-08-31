@@ -22,7 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 interface FooterItem {
     title: string;
     russian_title: string;
-    url: string;
+    url: string | null;
     visible?: boolean;
 }
 
@@ -189,11 +189,11 @@ const EditFooter = () => {
         }
     };
 
-    const getEffectiveVisibility = (item: FooterItem) => {
-        if (item.title in pendingChanges.visibility) {
-            return pendingChanges.visibility[item.title];
+    const getEffectiveSectionVisibility = (section: FooterSection) => {
+        if (section.title in pendingChanges.visibility) {
+            return pendingChanges.visibility[section.title];
         }
-        return item.visible;
+        return section.visible;
     };
 
     if (loading) return <div className="p-6 text-center">Loading footer data...</div>;
@@ -230,16 +230,16 @@ const EditFooter = () => {
                                             <div className="flex flex-1">
                                                 <div>
                                                     <span className="font-medium">{item.title}</span>
-                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{item.url}</span>}
+                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{String(item.url)}</span>}
                                                     {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
-                                                    onClick={() => handleChangeVisibility(item.title, !!getEffectiveVisibility(item))}
-                                                    className={getEffectiveVisibility(item) ? "text-green-500" : "text-red-500"}
+                                                    onClick={() => handleChangeVisibility(item.title, !!getEffectiveSectionVisibility(item))}
+                                                    className={getEffectiveSectionVisibility(item) ? "text-green-500" : "text-red-500"}
                                                 >
-                                                    {getEffectiveVisibility(item) ? "Visible" : "Hidden"}
+                                                    {getEffectiveSectionVisibility(item) ? "Visible" : "Hidden"}
                                                 </button>
                                                 <button
                                                     onClick={() => navigate(`/admin/webbuilder/footer/edit/${item.title}`)}

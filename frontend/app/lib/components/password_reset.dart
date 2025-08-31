@@ -82,19 +82,23 @@ class PasswordReset extends StatelessWidget {
       String email = forgotPasswordEmailController.text.trim();
       try {
         await authService.sendPasswordResetEmail(email);
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'If an account exists, a password reset link has been sent to $email',
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'If an account exists, a password reset link has been sent to $email',
+              ),
             ),
-          ),
-        );
+          );
+        }
       } catch (e) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('An error occurred. Please try again later.')),
-        );
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('An error occurred. Please try again later.')),
+          );
+        }
       }
     }
   }

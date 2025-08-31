@@ -22,7 +22,7 @@ function Signup() {
   const handleGoogleSignup = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
+      await signInWithPopup(auth, provider);
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
@@ -46,7 +46,7 @@ function Signup() {
     }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;

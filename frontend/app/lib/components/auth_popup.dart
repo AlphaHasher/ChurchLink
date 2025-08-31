@@ -1,4 +1,4 @@
-import 'package:app/helpers/AuthController.dart';
+import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
 import '../firebase/firebase_auth_service.dart';
 import '../pages/user/use_email.dart';
@@ -16,8 +16,8 @@ class AuthPopup extends StatelessWidget {
     );
   }
 
-  FirebaseAuthService authService = FirebaseAuthService();
-  AuthController authController = AuthController();
+  final FirebaseAuthService authService = FirebaseAuthService();
+  final AuthController authController = AuthController();
 
   @override
   Widget build(BuildContext context) {
@@ -140,12 +140,14 @@ class AuthPopup extends StatelessWidget {
     bool verified = await authController.loginWithGoogleAndSync((
       String errorMsg,
     ) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMsg)));
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+      }
     });
 
-    if (verified) {
+    if (verified && context.mounted) {
       Navigator.pop(context);
     } else {
       //Verification failed.
