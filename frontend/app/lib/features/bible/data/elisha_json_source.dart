@@ -13,22 +13,55 @@ const List<String> _BOOKS = [
   "1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"
 ];
 
+/// Common aliases → canonical names (lowercased keys)
+const Map<String, String> _BOOK_ALIASES = {
+  // Psalms
+  'psalm': 'Psalms',
+  'psalms': 'Psalms',
+  // Song of Solomon
+  'song': 'Song of Solomon',
+  'song of songs': 'Song of Solomon',
+  'songs of solomon': 'Song of Solomon',
+  'canticles': 'Song of Solomon',
+  // Variations with dots/spaces will be normalized below; add any you encounter.
+};
+
+String _canonBookFromName(String raw) {
+  final s0 = raw.trim();
+  // quick exact hit
+  for (final b in _BOOKS) {
+    if (s0 == b) return b;
+  }
+  // normalized (strip dots, collapse spaces, lowercase)
+  String norm(String x) =>
+      x.replaceAll('.', '').replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+
+  final s = norm(s0);
+  // try aliases
+  if (_BOOK_ALIASES.containsKey(s)) return _BOOK_ALIASES[s]!;
+  // try canonical after normalization
+  for (final b in _BOOKS) {
+    if (norm(b) == s) return b;
+  }
+  // last resort: keep original (prevents crash; mapping may fail if non-canonical)
+  return s0;
+}
+
 String _bookNameFromId(dynamic v) {
-  // Accept int or numeric string; return book name; fallback to string if it already looks like a name
+  // Accept int or numeric string; else normalize string name to canonical.
   if (v is int) {
     final i = v - 1;
     if (i >= 0 && i < _BOOKS.length) return _BOOKS[i];
-  } else {
-    final s = v.toString().trim();
-    final n = int.tryParse(s);
-    if (n != null) {
-      final i = n - 1;
-      if (i >= 0 && i < _BOOKS.length) return _BOOKS[i];
-    }
-    // Already a name
-    return s;
+    throw const FormatException('Invalid book id');
   }
-  throw const FormatException('Invalid book id');
+  final s = v.toString().trim();
+  final n = int.tryParse(s);
+  if (n != null) {
+    final i = n - 1;
+    if (i >= 0 && i < _BOOKS.length) return _BOOKS[i];
+    throw const FormatException('Invalid book id');
+  }
+  return _canonBookFromName(s);
 }
 
 int _toInt(dynamic v) {
@@ -36,14 +69,17 @@ int _toInt(dynamic v) {
   return int.parse(v.toString());
 }
 
+String _toText(dynamic vText, dynamic vAlt) =>
+    (vText ?? vAlt ?? '').toString();
+
+int _toVerse(dynamic vVerse, dynamic vAlt) =>
+    _toInt(vVerse ?? vAlt);
+
 class ElishaJsonSource {
-  /// Tries both new and old asset locations:
-  ///   assets/bibles/<translation>.json
-  ///   assets/bibles/elisha/<translation>.json
   Future<List<Map<String, dynamic>>> load(String translation) async {
     final candidates = <String>[
-      'assets/bibles/$translation.json',          // new outputs (kjv.json, rst.json)
-      'assets/bibles/elisha/$translation.json',   // legacy location
+      'assets/bibles/$translation.json',          // current path
+      'assets/bibles/elisha/$translation.json',   // old path remove later
     ];
 
     Object? decoded;
@@ -53,35 +89,34 @@ class ElishaJsonSource {
       try {
         final raw = await rootBundle.loadString(path);
         decoded = jsonDecode(raw);
-        // success
         final rows = _normalize(decoded);
+        // Debug aid: which file actually loaded
+        // (Remove if too noisy; prints are stripped in release)
+        // ignore: avoid_print
+        print('[ElishaJsonSource] Loaded $path (${rows.length} rows)');
         return rows;
       } on FlutterError {
-        // asset not found; try next
-        continue;
+        continue; // asset not found; try next
       } on FormatException catch (e) {
-        // JSON parse/shape error; record and try next
-        lastErr = e;
+        lastErr = e; // bad JSON/shape; try next
         continue;
       }
     }
 
-    // If we reached here, either assets missing or invalid
     throw lastErr ??
         FlutterError('Bible JSON not found. Tried: ${candidates.join(', ')}');
   }
 
-  /// Normalizes any of the supported shapes to:
+  /// Normalizes to:
   ///   {'book': String, 'chapter': int, 'verse': int, 'text': String}
   List<Map<String, dynamic>> _normalize(Object? decoded) {
     // Case A: flat list of maps
     if (decoded is List && (decoded.isEmpty || decoded.first is Map)) {
       return decoded.cast<Map>().map<Map<String, dynamic>>((m) {
-        final bookVal = m['book'];
-        final book = (bookVal is String) ? bookVal : _bookNameFromId(bookVal);
-        final chapter = _toInt(m['chapter']);
-        final verse = _toInt(m['verse']);
-        final text = (m['text'] ?? m['t']).toString();
+        final book = _bookNameFromId(m['book'] ?? m['b']);
+        final chapter = _toInt(m['chapter'] ?? m['c']);
+        final verse = _toVerse(m['verse'], m['v']);     // <— accept 'v'
+        final text  = _toText(m['text'], m['t']);       // <— accept 't'
         return {'book': book, 'chapter': chapter, 'verse': verse, 'text': text};
       }).toList();
     }
@@ -120,7 +155,7 @@ class ElishaJsonSource {
     if (decoded is Map) {
       final out = <Map<String, dynamic>>[];
       decoded.forEach((bookKey, chapters) {
-        final book = bookKey.toString();
+        final book = _bookNameFromId(bookKey);
         (chapters as Map).forEach((chKey, verses) {
           final ch = _toInt(chKey);
           for (final vv in (verses as List)) {
@@ -128,8 +163,8 @@ class ElishaJsonSource {
             out.add({
               'book': book,
               'chapter': ch,
-              'verse': _toInt(m['verse'] ?? m['v']),
-              'text': (m['text'] ?? m['t']).toString(),
+              'verse': _toVerse(m['verse'], m['v']),
+              'text': _toText(m['text'], m['t']),
             });
           }
         });
