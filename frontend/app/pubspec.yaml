@@ -75,8 +75,11 @@ flutter:
     - .env
     - assets/user/
 
-    # Sample Bibles from Elisha on Github for use with Elisha
+    # Bibles generated from public sources
     - assets/bibles/
+
+    # Translation rules for mismatched RST and KJV bible verse numbering
+    - assets/bibles/verse_matching/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

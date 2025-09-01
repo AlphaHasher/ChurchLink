@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import '../data/bible_repo_elisha.dart';
-import 'flowing_chapter_text.dart';
+import 'flowing_chapter_text.dart'; // affects how verses are displayed
+import '../data/verse_matching.dart'; // handles RST and KJV verse numbering
 
 enum HighlightColor { none, yellow, green, blue, pink, purple, teal }
 
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({
     super.key,
-    
-    //The book opens to this by default, 
-    this.initialTranslation = 'kjv', 
+    // The book opens to this by default
+    this.initialTranslation = 'kjv',
     this.initialBook = 'Genesis',
     this.initialChapter = 1,
   });
@@ -30,11 +30,25 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   late String _book;
   late int _chapter;
 
-  List<(VerseRef ref, String text)> _verses = [];
-  final Map<VerseRef, HighlightColor> _hl = {}; // in-memory MVP
-  final Map<VerseRef, String> _notes = {}; // in-memory MVP
+  VerseMatching? _matcher; // loaded asynchronously
 
-  // maps book names to abbrevated versions
+  List<(VerseRef ref, String text)> _verses = [];
+
+  // ===== Highlight stores =====
+  // Shared across translations (keys are "Book|Chapter|Verse")
+  final Map<String, HighlightColor> _hlShared = {};
+  // Per-translation exclusives
+  final Map<String, Map<String, HighlightColor>> _hlPerTx = {
+    'kjv': <String, HighlightColor>{},
+    'rst': <String, HighlightColor>{},
+  };
+  final Map<VerseRef, String> _notes = {};
+
+  // Stable string keys so lookups survive reloads & translation switches
+  String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
+  String _kFromTriple((String, int, int) t) => '${t.$1}|${t.$2}|${t.$3}';
+
+  // maps book names to abbreviated versions
   final Map<String, String> _bookAbbrev = {
     // Old Testament
     "Genesis": "Gen",
@@ -58,7 +72,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     "Psalms": "Ps",
     "Proverbs": "Prov",
     "Ecclesiastes": "Eccl",
-    "Song of Solomon": "Song", // or "Cant"
+    "Song of Solomon": "Song",
     "Isaiah": "Isa",
     "Jeremiah": "Jer",
     "Lamentations": "Lam",
@@ -76,7 +90,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     "Haggai": "Hag",
     "Zechariah": "Zech",
     "Malachi": "Mal",
-
     // New Testament
     "Matthew": "Matt",
     "Mark": "Mark",
@@ -110,10 +123,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   @override
   void initState() {
     super.initState();
+
     _translation = widget.initialTranslation;
     _book = widget.initialBook;
     _chapter = widget.initialChapter;
-    _load();
+
+    _load(); // load the initial chapter
+
+    // Load the verse matcher asynchronously
+    Future(() async {
+      _matcher = await VerseMatching.load();
+      setState(() {}); // refresh UI when matcher is ready
+    });
   }
 
   Future<void> _load() async {
@@ -123,6 +144,30 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       chapter: _chapter,
     );
     setState(() => _verses = data);
+  }
+
+  // === Verse Matching Helpers ===
+  VerseKey _keyOf(VerseRef r) => (book: r.book, chapter: r.chapter, verse: r.verse);
+
+  bool _existsInOther(VerseRef ref) {
+    final m = _matcher; // local copy for null-safety promotion
+    if (m == null) return false;
+    return m.existsInOther(fromTx: _translation, key: _keyOf(ref));
+  }
+
+  List<VerseKey> _matchToOther(VerseRef ref) {
+    final m = _matcher;
+    if (m == null) return const [];
+    return m.matchToOther(fromTx: _translation, key: _keyOf(ref));
+  }
+
+  // Compute display color for a verse in the CURRENT translation
+  HighlightColor _colorFor(VerseRef ref) {
+    final k = _k(ref);
+    final shared = _hlShared[k];
+    if (shared != null) return shared;
+    final per = _hlPerTx[_translation]?[k];
+    return per ?? HighlightColor.none;
   }
 
   bool get _isAtFirstChapter {
@@ -174,80 +219,114 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       builder: (ctx) {
         String selBook = _book;
         int selChap = _chapter;
+
         return StatefulBuilder(builder: (ctx, setSheet) {
           final total = _chapterCount(selBook);
+
           return SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Jump to', style: Theme.of(ctx).textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: selBook,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Book',
-                      border: OutlineInputBorder(),
+            child: LayoutBuilder(
+              builder: (ctx, constraints) {
+                // Cap height and make content scrollable; keep buttons visible
+                final maxH = constraints.maxHeight * 0.92; // ~92% of screen
+                return ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxH),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 12,
+                      // keep room for keyboard if it appears
+                      bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
                     ),
-                    items: _bookNames
-                        .map((b) => DropdownMenuItem(value: b, child: Text(b)))
-                        .toList(),
-                    onChanged: (b) {
-                      if (b == null) return;
-                      setSheet(() {
-                        selBook = b;
-                        selChap = 1;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Chapter',
-                        style: Theme.of(ctx).textTheme.labelLarge),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: List.generate(total, (i) {
-                      final c = i + 1;
-                      final selected = c == selChap;
-                      return ChoiceChip(
-                        label: Text('$c'),
-                        selected: selected,
-                        onSelected: (_) => setSheet(() => selChap = c),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
+                    child: Column(
+                      children: [
+                        // ---- Scrollable content ----
+                        Expanded(
+                          child: SingleChildScrollView(
+                            physics: const ClampingScrollPhysics(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text('Jump to',
+                                    style: Theme.of(ctx).textTheme.titleMedium),
+                                const SizedBox(height: 12),
+
+                                DropdownButtonFormField<String>(
+                                  value: selBook,
+                                  isExpanded: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Book',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  items: _bookNames
+                                      .map((b) => DropdownMenuItem(
+                                            value: b,
+                                            child: Text(b),
+                                          ))
+                                      .toList(),
+                                  onChanged: (b) {
+                                    if (b == null) return;
+                                    setSheet(() {
+                                      selBook = b;
+                                      selChap = 1;
+                                    });
+                                  },
+                                ),
+
+                                const SizedBox(height: 16),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text('Chapter',
+                                      style:
+                                          Theme.of(ctx).textTheme.labelLarge),
+                                ),
+                                const SizedBox(height: 8),
+
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: List.generate(total, (i) {
+                                    final c = i + 1;
+                                    final selected = c == selChap;
+                                    return ChoiceChip(
+                                      label: Text('$c'),
+                                      selected: selected,
+                                      onSelected: (_) =>
+                                          setSheet(() => selChap = c),
+                                    );
+                                  }),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () =>
-                              Navigator.pop(ctx, (selBook, selChap)),
-                          child: const Text('Go'),
+
+                        const SizedBox(height: 16),
+
+                        // ---- Sticky buttons (always visible) ----
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () =>
+                                    Navigator.pop(ctx, (selBook, selChap)),
+                                child: const Text('Go'),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
           );
         });
@@ -269,17 +348,46 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       isScrollControlled: true,
       builder: (ctx) => _VerseActionsSheet(
         verseLabel: v.$1.toString(),
-        currentHighlight: _hl[v.$1] ?? HighlightColor.none,
+        currentHighlight: _colorFor(v.$1),
         existingNote: _notes[v.$1],
       ),
     );
     if (res == null) return;
 
     setState(() {
-      if (res.highlight != null) _hl[v.$1] = res.highlight!;
+      // Notes
       if (res.noteDelete == true) _notes.remove(v.$1);
       if (res.noteText != null && res.noteText!.trim().isNotEmpty) {
         _notes[v.$1] = res.noteText!.trim();
+      }
+
+      // Highlights (shared vs exclusive)
+      if (res.highlight != null) {
+        final color = res.highlight!;
+        final here = _k(v.$1);
+
+        if (!_existsInOther(v.$1)) {
+          // Exclusive to this translation
+          _hlPerTx[_translation]![here] = color;
+          _hlShared.remove(here);
+        } else {
+          // Shared: mark here + mapped as shared
+          _hlShared[here] = color;
+
+          final mapped = _matchToOther(v.$1);
+          for (final t in mapped) {
+            _hlShared[_kFromTriple((t.book, t.chapter, t.verse))] = color;
+          }
+
+          // Clean any per-tx duplicates for these keys
+          _hlPerTx['kjv']!.remove(here);
+          _hlPerTx['rst']!.remove(here);
+          for (final t in mapped) {
+            final kk = _kFromTriple((t.book, t.chapter, t.verse));
+            _hlPerTx['kjv']!.remove(kk);
+            _hlPerTx['rst']!.remove(kk);
+          }
+        }
       }
     });
   }
@@ -289,9 +397,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
 
-    // Responsive width for the Book+Chapter button
     final w = MediaQuery.of(context).size.width;
-    // Button can use ~38% of screen, but not smaller than 110 or larger than 200.
     final double bookBtnMax = (w * 0.38).clamp(110.0, 200.0);
 
     return Column(
@@ -315,9 +421,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   child: TextButton(
                     onPressed: _openJumpPicker,
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHigh,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: Text(
                       '${_bookAbbrev[_book] ?? _book} $_chapter',
@@ -330,7 +439,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
               ),
               const SizedBox(width: 8),
 
-
               // Translation single button (popup menu)
               PopupMenuButton<String>(
                 tooltip: 'Translation',
@@ -340,10 +448,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   _load();
                 },
                 itemBuilder: (ctx) => _translations
-                    .map((t) => PopupMenuItem(
-                          value: t,
-                          child: Text(t.toUpperCase()),
-                        ))
+                    .map((t) =>
+                        PopupMenuItem(value: t, child: Text(t.toUpperCase())))
                     .toList(),
                 child: Container(
                   padding:
@@ -369,7 +475,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                 ),
               ),
 
-              const Spacer(flex: 1), // needs to be smaller so that the book name isn't squished
+              const Spacer(flex: 1), // keep book name from being squished
 
               // Search Placeholder
               IconButton(
@@ -401,7 +507,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                   child: FlowingChapterText(
                     verses: _verses,
-                    highlights: _hl,
+                    // Compute highlight color per verse at render time
+                    highlights: {
+                      for (final v in _verses) v.$1 : _colorFor(v.$1),
+                    },
                     onTapVerse: (vt) => _openActions(vt),
                     baseStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontSize: 16,
@@ -415,9 +524,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 }
 
-// Notetaking and highlighting popup
+// ===== Notetaking and highlighting popup =====
 
-// What action the user takes
 class _ActionResult {
   final HighlightColor? highlight;
   final String? noteText;
@@ -556,7 +664,8 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
   }
 }
 
-// Translation and Book UI Elements
+// ===== Translation and Book UI Elements =====
+
 const List<String> _translations = ['kjv', 'rst'];
 
 const List<String> _bookNames = [
