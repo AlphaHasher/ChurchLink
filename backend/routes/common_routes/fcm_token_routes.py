@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Body
-from mongo.database import get_db
+from mongo.database import DB
 
 router = APIRouter()
 
 def get_fcm_collection():
-    db = get_db()
-    return db['fcm_tokens']
+    return DB.db['fcm_tokens']
 
 @router.post('/save-fcm-token')
 async def save_fcm_token(user_id: str = Body(...), token: str = Body(...)):

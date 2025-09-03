@@ -2,7 +2,7 @@ from fastapi import APIRouter, Body
 from fastapi import APIRouter, Body
 from firebase_admin import messaging
 from firebase.firebase_credentials import get_firebase_app
-from mongo.database import get_db
+from mongo.database import DB
 from mongo.scheduled_notifications import (
     schedule_notification, get_scheduled_notifications, remove_scheduled_notification,
     log_notification, get_notification_history
@@ -14,8 +14,8 @@ router = APIRouter()
 @router.get('/notification-history')
 async def notification_history(limit: int = 100):
     try:
-        db = get_db()
-        history = await get_notification_history(db, limit)
+        
+        history = await get_notification_history(DB.db, limit)
         # Convert ObjectId to string for each notification
         for n in history:
             if '_id' in n:
@@ -38,7 +38,7 @@ async def send_push_notification(
     get_firebase_app()  # Ensure Firebase is initialized
     responses = []
     logging.info(f"Push notification request: title={title}, body={body}, data={data}, send_to_all={send_to_all}, token={token}")
-    db = get_db()
+    
     # Custom targeting logic
     target = data.get('target', 'all')  # 'all', 'anonymous', 'logged_in'
     query = {}
@@ -48,7 +48,7 @@ async def send_push_notification(
         elif target == 'logged_in':
             query = {'user_id': {'$ne': 'anonymous'}}
         # else: all users
-        tokens_cursor = db['fcm_tokens'].find(query, {'_id': 0, 'token': 1})
+        tokens_cursor = DB.db['fcm_tokens'].find(query, {'_id': 0, 'token': 1})
         tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
         logging.info(f"Sending to tokens: {tokens}")
         for t in tokens:
@@ -69,7 +69,7 @@ async def send_push_notification(
                 responses.append({"token": t, "error": str(e)})
         # Log push notification history
         await log_notification(
-            db,
+            DB.db,
             title,
             body,
             "mobile",
@@ -111,7 +111,6 @@ async def api_schedule_notification(
     token: str = Body(default=None),
     data: dict = Body(default={})
 ):
-    db = get_db()
     payload = {
         "title": title,
         "body": body,
@@ -121,14 +120,13 @@ async def api_schedule_notification(
         "data": data,
         "sent": False
     }
-    notification_id = await schedule_notification(db, payload)
+    notification_id = await schedule_notification(DB.db, payload)
     return {"success": True, "id": notification_id}
 
 # List all scheduled notifications
 @router.get('/scheduled-notifications')
 async def api_get_scheduled_notifications():
-    db = get_db()
-    notifications = await get_scheduled_notifications(db)
+    notifications = await get_scheduled_notifications(DB.db)
     # Convert ObjectId to string for each notification
     for n in notifications:
         if '_id' in n:
@@ -138,6 +136,5 @@ async def api_get_scheduled_notifications():
 # Remove a scheduled notification
 @router.delete('/scheduled-notification/{notification_id}')
 async def api_remove_scheduled_notification(notification_id: str):
-    db = get_db()
-    success = await remove_scheduled_notification(db, notification_id)
+    success = await remove_scheduled_notification(DB.db, notification_id)
     return {"success": success}

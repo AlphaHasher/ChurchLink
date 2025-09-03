@@ -13,6 +13,8 @@ from mongo.roles import RoleHandler
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from mongo.scheduled_notifications import scheduled_notification_loop
+
 
 import asyncio
 import os
@@ -26,7 +28,7 @@ from routes.common_routes.role_routes import role_router
 from routes.common_routes.user_routes import user_router
 from routes.common_routes.event_routes import public_event_router
 from routes.strapi_routes.strapi_routes import strapi_router
-# from routes.paypal_routes.paypal_routes import paypal_router
+from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.permissions_routes.permissions_routes import permissions_router
 from routes.common_routes.notification_settings_routes import router as notification_settings_router
@@ -34,18 +36,7 @@ from routes.common_routes.fcm_token_routes import router as fcm_token_router
 from routes.common_routes.push_notification_routes import router as push_notification_router
 # Scheduled notification sender loop
 from mongo.scheduled_notifications import get_due_notifications, mark_as_sent
-from mongo.database import get_db
-from firebase_admin import messaging
-import traceback
 
-
-import logging
-logging.basicConfig(level=logging.INFO)
-
-import logging
-logging.basicConfig(level=logging.INFO)
-from dotenv import load_dotenv
-load_dotenv()
 
 
 
@@ -60,7 +51,6 @@ async def lifespan(app: FastAPI):
     # Initialize Firebase Admin SDK if not already initialized
     if not firebase_admin._apps:
         from firebase.firebase_credentials import get_firebase_credentials
-
         cred = credentials.Certificate(get_firebase_credentials())
         firebase_admin.initialize_app(cred)
 
@@ -74,82 +64,12 @@ async def lifespan(app: FastAPI):
     # Verify that an Administrator Role (Mandatory) exists
     await RoleHandler.verify_admin_role()
 
-    if not BYPASS_FIREBASE_SYNC:
-        # Sync MongoDB to Firebase
-        await FirebaseSyncer.SyncDBToFirebase()
-
-    # Verify that an Administrator Role (Mandatory) exists
-    await RoleHandler.verify_admin_role()
-
-    # Run Youtube Notification loop
+    # Start background tasks
     youtubeSubscriptionCheck = asyncio.create_task(
         YoutubeHelper.youtubeSubscriptionLoop()
     )
 
-    
-
-    async def scheduled_notification_loop():
-        logging.info("Scheduled notification loop started")
-        while True:
-            try:
-                db = get_db()
-                due_notifications = await get_due_notifications(db)
-                logging.info(f"Found {len(due_notifications)} due notifications.")
-                for notif in due_notifications:
-                    logging.info(f"Processing notification: id={notif.get('_id')}, title={notif.get('title')}, sent={notif.get('sent')}, scheduled_time={notif.get('scheduled_time')}")
-                    if notif.get("sent"):
-                        logging.info("Notification already sent, skipping.")
-                        continue
-                    title = notif.get("title")
-                    body = notif.get("body")
-                    data = notif.get("data", {})
-                    send_to_all = notif.get("send_to_all", True)
-                    token = notif.get("token")
-                    responses = []
-                    if send_to_all:
-                        tokens_cursor = db['fcm_tokens'].find({}, {'_id': 0, 'token': 1})
-                        tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
-                        logging.info(f"Sending to tokens: {tokens}")
-                        for t in tokens:
-                            message = messaging.Message(
-                                notification=messaging.Notification(
-                                    title=title,
-                                    body=body,
-                                ),
-                                token=t,
-                                data=data
-                            )
-                            try:
-                                response = messaging.send(message)
-                                logging.info(f"FCM response for token {t}: {response}")
-                                responses.append({"token": t, "response": response})
-                            except Exception as e:
-                                logging.error(f"FCM error for token {t}: {e}")
-                                responses.append({"token": t, "error": str(e)})
-                    elif token:
-                        message = messaging.Message(
-                            notification=messaging.Notification(
-                                title=title,
-                                body=body,
-                            ),
-                            token=token,
-                            data=data
-                        )
-                        try:
-                            response = messaging.send(message)
-                            logging.info(f"FCM response for token {token}: {response}")
-                            responses.append({"token": token, "response": response})
-                        except Exception as e:
-                            logging.error(f"FCM error for token {token}: {e}")
-                            responses.append({"token": token, "error": str(e)})
-                    # Mark as sent
-                    await mark_as_sent(db, str(notif["_id"]))
-                await asyncio.sleep(10)  # Check every 10 seconds
-            except Exception:
-                logging.error("Scheduled notification loop error:", exc_info=True)
-                await asyncio.sleep(30)
-
-    scheduledNotifTask = asyncio.create_task(scheduled_notification_loop())
+    scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
 
     yield
 
@@ -233,7 +153,7 @@ async def update_user_roles(role_update: RoleUpdate):
 # Declare router middleware/slash permissions for imported routes
 #####################################################
 strapi_router.dependencies.append(Depends(role_based_access(["strapi_admin"])))
-# paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
+paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
 
 
 #####################################################
@@ -249,7 +169,7 @@ router_webhook_listener.include_router(youtube_router)
 # Base Router Configuration all routes will have api/v1 prefix
 #####################################################
 base_router = APIRouter(prefix="/api/v1")
-# base_router.include_router(paypal_router)
+base_router.include_router(paypal_router)
 base_router.include_router(permissions_router)
 base_router.include_router(event_router)
 base_router.include_router(role_router)

@@ -3,43 +3,18 @@ import os
 import httpx
 from googleapiclient.discovery import build
 import asyncio
-
+from datetime import datetime
+from mongo.database import DB
+from firebase_admin import messaging
 
 load_dotenv()
+settings = {
+    "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
+    "PRIMARY_CHANNEL_ID": os.getenv("PRIMARY_CHANNEL_ID"),
+    "PUBLIC_DOMAIN": os.getenv("PUBLIC_DOMAIN"),
+    "STREAM_NOTIFICATION_MESSAGE": os.getenv("STREAM_NOTIFICATION_MESSAGE"),
+}
 
-#Loads Some necessary stuff from the ENV
-#YOUTUBE_API_KEY, is naturally the API key used to handle the requests, based on the project.churchlink@gmail.com email address
-#Each YouTube channel has a more "cryptic" id in a way, think of this like how discord has the integer ID in addition to the usernames, the YouTube API utilizes these IDs, so it's helpful to have the main ID loaded as it is the primarily used channel
-#You can use various websites to get YouTube channel ID from Youtube @ links for testing purposes
-
-# Settings loader: supports .env and dynamic overrides
-def load_youtube_settings():
-    from mongo.database import get_db
-    env_api_key = os.getenv("YOUTUBE_API_KEY")
-    env_channel_id = os.getenv("PRIMARY_CHANNEL_ID")
-    env_public_domain = os.getenv("PUBLIC_DOMAIN")
-    env_stream_message = os.getenv("STREAM_NOTIFICATION_MESSAGE")
-    if env_api_key and env_channel_id and env_public_domain:
-        return {
-            "YOUTUBE_API_KEY": env_api_key,
-            "PRIMARY_CHANNEL_ID": env_channel_id,
-            "PUBLIC_DOMAIN": env_public_domain,
-            "STREAM_NOTIFICATION_MESSAGE": env_stream_message or "A new stream is live!"
-        }
-    # Try to load from DB if not in env
-    db = get_db()
-    settings = db.settings.find_one({"_id": "notification"})
-    return {
-        "YOUTUBE_API_KEY": settings.get("YOUTUBE_API_KEY", ""),
-        "PRIMARY_CHANNEL_ID": settings.get("PRIMARY_CHANNEL_ID", ""),
-        "PUBLIC_DOMAIN": settings.get("PUBLIC_DOMAIN", ""),
-        "STREAM_NOTIFICATION_MESSAGE": settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!")
-    } if settings else {
-        "YOUTUBE_API_KEY": "",
-        "PRIMARY_CHANNEL_ID": "",
-        "PUBLIC_DOMAIN": "",
-        "STREAM_NOTIFICATION_MESSAGE": "A new stream is live!"
-    }
 
 def get_youtube_client(api_key):
     return build("youtube", "v3", developerKey=api_key)
@@ -63,10 +38,8 @@ class YoutubeHelper:
     def pushNotifications():
         # Save notification to MongoDB
         try:
-            from datetime import datetime
-            from mongo.database import DB, get_db
-            from firebase_admin import messaging
-            settings = load_youtube_settings()
+            
+        
             notification = {
                 "isStreaming": YoutubeHelper.isStreaming,
                 "activeStreamIDs": YoutubeHelper.activeStreamIDs,
@@ -77,8 +50,8 @@ class YoutubeHelper:
             asyncio.create_task(DB.insert_document("notifications", notification))
 
             # Send push notification to all users
-            db = get_db()
-            tokens_cursor = db['fcm_tokens'].find({}, {'_id': 0, 'token': 1})
+            
+            tokens_cursor = DB.db['fcm_tokens'].find({}, {'_id': 0, 'token': 1})
             tokens = [doc['token'] for doc in tokens_cursor if doc.get('token')]
             for t in tokens:
                 message = messaging.Message(

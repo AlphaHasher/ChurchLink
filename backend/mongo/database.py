@@ -247,9 +247,3 @@ class DB:
         except Exception as e:
             print(f"Error deleting documents from {collection_name}: {e}")
             return 0
-
-# Models can now use DB helpers or interact directly with DB.db[collection_name]
-
-
-def get_db():
-    return DB.db
