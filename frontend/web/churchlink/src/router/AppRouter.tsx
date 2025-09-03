@@ -6,6 +6,7 @@ import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "./guard/PrivateRoute";
 import { PrivateRoutes } from "./PrivateRoutes";
 import DynamicPage from "../components/DynamicPage";
+import ProfilePage from "@/pages/ProfilePage";
 
 // Lazy load components
 const Login = lazy(() => import("@/pages/Login"));
@@ -28,6 +29,15 @@ export const AppRouter = () => {
           element={
             <PublicRoute>
               <Signup />
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <PublicRoute>
+              <ProfilePage />
             </PublicRoute>
           }
         />
