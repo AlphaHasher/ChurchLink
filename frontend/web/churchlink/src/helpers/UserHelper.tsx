@@ -1,28 +1,14 @@
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { processFetchedUserData } from "./DataFunctions";
-import { confirmAuth } from "./AuthPackaging";
-import { MyPermsRequest } from "@/types/MyPermsRequest";
-
-
-
-const API_BASE = import.meta.env.VITE_API_HOST;
-const API_USERS = "/api/v1/users";
+import api from "../api/api";
+import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 
 export const processMongoVerification = async () => {
     try {
-        const idToken = await confirmAuth()
-        const res = await fetch(`${API_BASE}${API_USERS}/sync-user`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-        });
+        const res = await api.post("/v1/users/sync-user");
 
-        const data = await res.json();
-
-        if (data.verified) {
+        if (res.data.verified) {
             return true;
         }
         else {
@@ -56,21 +42,8 @@ export const verifyAndSyncUser = async (onError: (msg: string) => void) => {
 
 export const fetchUsers = async () => {
     try {
-
-        const idToken = await confirmAuth();
-
-        const res = await fetch(`${API_BASE}${API_USERS}/get-users`, {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!res.ok) throw new Error("Failed to fetch users");
-
-        const data = await res.json();
-        return processFetchedUserData(data.users);
+        const res = await api.get("/v1/users/get-users");
+        return processFetchedUserData(res.data.users);
     } catch (err) {
         console.error("Failed to fetch users:", err);
         return [];
@@ -81,7 +54,6 @@ export const fetchUsers = async () => {
 
 export const getMyPermissions = async (options?: MyPermsRequest) => {
     try {
-
         // Provide default values if options is not passed
         const defaultOptions: MyPermsRequest = {
             user_assignable_roles: false,
@@ -89,21 +61,9 @@ export const getMyPermissions = async (options?: MyPermsRequest) => {
             user_role_ids: false,
         };
 
-        const idToken = await confirmAuth();
+        const res = await api.post("/v1/users/get-my-permissions", options ?? defaultOptions);
 
-        const res = await fetch(`${API_BASE}${API_USERS}/get-my-permissions`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(options ?? defaultOptions),
-        });
-
-        if (!res.ok) throw new Error("Failed to get user perms");
-
-        const data = await res.json();
-        return data;
+        return res.data;
     } catch (err) {
         console.error("Failed to get user perms:", err);
         return null;
