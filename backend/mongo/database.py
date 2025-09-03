@@ -159,3 +159,7 @@ class DB:
             return 0
 
 # Models can now use DB helpers or interact directly with DB.db[collection_name]
+
+
+def get_db():
+    return DB.db

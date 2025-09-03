@@ -9,6 +9,8 @@ import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:app/services/fcm_token_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Handles notifications received while the app is in the background
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
@@ -36,17 +38,72 @@ Future<void> main() async {
   await setupLocalNotifications();
   setupFirebaseMessaging();
 
+  // Handle notification tap on cold start
+  RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    debugPrint("Cold start data: ${initialMessage.data}");
+    final data = initialMessage.data;
+    if (data.containsKey('link')) {
+      final url = data['link'];
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url));
+        debugPrint("$url opened (cold start)");
+      } else {
+        debugPrint("Could not launch $url (cold start)");
+      }
+    } else if (data.containsKey('route')) {
+      final route = data['route'];
+      if (route == '/dashboard') {
+        MyHomePage.setTab(0);
+      } else if (route == '/bible') {
+        MyHomePage.setTab(1);
+      } else if (route == '/sermons') {
+        MyHomePage.setTab(2);
+      } else if (route == '/profile') {
+        MyHomePage.setTab(3);
+      } else {
+        MyHomePage.setTab(0);
+      }
+      debugPrint("Cold start route: $route");
+    }
+  }
+
   runApp(const MyApp());
 }
 
 Future<void> setupLocalNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher'); // Ensure you have an icon in `android/app/src/main/res/mipmap`
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
   const InitializationSettings initializationSettings =
       InitializationSettings(android: initializationSettingsAndroid);
 
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) async {
+      debugPrint("Notification tapped, payload: ${response.payload}");
+      final payload = response.payload;
+      if (payload != null && payload.isNotEmpty) {
+        if (payload.startsWith('http')) {
+          if (await canLaunchUrl(Uri.parse(payload))) {
+            await launchUrl(Uri.parse(payload));
+          }
+        } else if (payload.startsWith('/')) {
+          if (payload == '/dashboard') {
+            MyHomePage.setTab(0);
+          } else if (payload == '/bible') {
+            MyHomePage.setTab(1);
+          } else if (payload == '/sermons') {
+            MyHomePage.setTab(2);
+          } else if (payload == '/profile') {
+            MyHomePage.setTab(3);
+          } else {
+            MyHomePage.setTab(0);
+          }
+        }
+      }
+    },
+  );
 }
 
 void setupFirebaseMessaging() async {
@@ -68,8 +125,7 @@ void setupFirebaseMessaging() async {
 
     // Handle foreground messages with local notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint("Foreground message received: ${message.notification?.title}");
-
+      debugPrint("Foreground message received: "+(message.notification?.title ?? ""));
       // Show a pop-up notification
       showLocalNotification(message);
     });
@@ -78,9 +134,33 @@ void setupFirebaseMessaging() async {
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
 
     //  Handle when notification is clicked
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
       debugPrint("Notification clicked!");
-      navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => DashboardPage()));
+      final data = message.data;
+      if (data.containsKey('link')) {
+        final url = data['link'];
+        if (await canLaunchUrl(Uri.parse(url))) {
+          await launchUrl(Uri.parse(url));
+          debugPrint("$url opened");
+        } else {
+          debugPrint("Could not launch $url");
+        }
+      } else if (data.containsKey('route')) {
+        final route = data['route'];
+        if (route == '/dashboard') {
+          MyHomePage.setTab(0);
+        } else if (route == '/bible') {
+          MyHomePage.setTab(1);
+        } else if (route == '/sermons') {
+          MyHomePage.setTab(2);
+        } else if (route == '/profile') {
+          MyHomePage.setTab(3);
+        } else {
+          MyHomePage.setTab(0);
+        }
+      } else {
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => DashboardPage()));
+      }
     });
   } else {
     debugPrint("User denied permission");
@@ -93,9 +173,15 @@ void showLocalNotification(RemoteMessage message) async {
       AndroidNotificationDetails(
     'high_importance_channel', // Unique channel ID
     'High Importance Notifications',
+    channelDescription: 'This channel is used for important notifications.',
     importance: Importance.max,
     priority: Priority.high,
     ticker: 'ticker',
+    playSound: true,
+    enableVibration: true,
+    icon: '@mipmap/ic_launcher',
+    showWhen: true,
+    enableLights: true,
   );
 
   const NotificationDetails platformChannelSpecifics =
@@ -103,9 +189,10 @@ void showLocalNotification(RemoteMessage message) async {
 
   await flutterLocalNotificationsPlugin.show(
     0, // Notification ID
-    message.notification?.title, // Title
-    message.notification?.body, // Body
+    message.notification?.title ?? 'Notification', // Title
+    message.notification?.body ?? '', // Body
     platformChannelSpecifics,
+    payload: message.data['link'] ?? message.data['route'] ?? '',
   );
 }
 
@@ -131,6 +218,12 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
+  // Static reference to state for external tab switching
+  static _MyHomePageState? _myHomePageState;
+  static void setTab(int index) {
+    _myHomePageState?.setTab(index);
+  }
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -145,8 +238,19 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    MyHomePage._myHomePageState = this;
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
+    // Send FCM token to backend for both logged-in and non-logged-in users
+    final userId = user?.uid ?? "anonymous";
+    print('Calling sendFcmTokenToBackend for userId: $userId');
+    sendFcmTokenToBackend(userId);
+  }
+
+  void setTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
   }
 
   List<Widget> get _screens {
