@@ -75,8 +75,11 @@ flutter:
     - .env
     - assets/user/
 
-    # Bibles generated from public sources
-    - assets/bibles/
+    # Outlines the layout of the Books within the Bible. 
+    - assets/bibles/books.json
+
+    # Bible translations generated from public sources
+    - assets/bibles/translations/
 
     # Translation rules for mismatched RST and KJV bible verse numbering
     - assets/bibles/verse_matching/

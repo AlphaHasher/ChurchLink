@@ -93,7 +93,7 @@ class ElishaJsonSource {
   ///   `{ 'book': String, 'chapter': int, 'verse': int, 'text': String }`
   Future<List<Map<String, dynamic>>> load(String translation) async {
     final candidates = <String>[
-      'assets/bibles/$translation.json',          // current path
+      'assets/bibles/translations/$translation.json',          // current path
       //'assets/bibles/elisha/$translation.json',   // old path remove later
     ];
 
