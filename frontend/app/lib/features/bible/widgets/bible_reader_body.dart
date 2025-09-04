@@ -17,7 +17,7 @@ import '../data/verse_matching.dart'; // handles RST and KJV verse numbering
 /// Establishes the highlighting color choices.
 enum HighlightColor { none, yellow, green, blue, pink, purple, teal }
 
-/// THe main Bible reader as seen by users.
+/// The main Bible reader as seen by users.
 /// - Opens to a given translation/book/chapter.
 /// - Lets users navigate, switch translations, highlight, notetake.
 class BibleReaderBody extends StatefulWidget {
@@ -44,22 +44,20 @@ class BibleReaderBody extends StatefulWidget {
 class _BibleReaderBodyState extends State<BibleReaderBody> {
   final _repo = ElishaBibleRepo();
 
-  // === Reader position state (current translation/book/chapter) ===
+  // Values for the current state of the reader (what's being displayed)
   late String _translation;
   late String _book;
   late int _chapter;
 
-  VerseMatching? _matcher; // loaded asynchronously
+  // loaded asynchronously
+  VerseMatching? _matcher; 
 
   List<(VerseRef ref, String text)> _verses = [];
 
-  // ===== Highlight stores =====
-  // Highlights are stored in two maps:
-  //  - `_hlShared` for highlights that should appear in BOTH translations
-  //  - `_hlPerTx` for highlights that are specific to a translation
-  // Shared across translations (keys are "Book|Chapter|Verse")
+  // Stores highlights in a map:
+  // These highlights are shared by both translations
   final Map<String, HighlightColor> _hlShared = {};
-  // Per-translation exclusives
+  // These highlights are exclusive to a specific translation
   final Map<String, Map<String, HighlightColor>> _hlPerTx = {
     'kjv': <String, HighlightColor>{},
     'rst': <String, HighlightColor>{},
@@ -69,80 +67,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   // Stable string keys so lookups survive reloads & translation switches
   String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
   String _kFromTriple((String, int, int) t) => '${t.$1}|${t.$2}|${t.$3}';
-
-  // Maps book names to abbreviated versions
-  // This is used in the UI, where the header cannot fit the entire book title
-  // Rather than using ellipsis, opt for a generally accepted abbreviation
-  final Map<String, String> _bookAbbrev = {
-    // Old Testament
-    "Genesis": "Gen",
-    "Exodus": "Exod",
-    "Leviticus": "Lev",
-    "Numbers": "Num",
-    "Deuteronomy": "Deut",
-    "Joshua": "Josh",
-    "Judges": "Judg",
-    "Ruth": "Ruth",
-    "1 Samuel": "1 Sam",
-    "2 Samuel": "2 Sam",
-    "1 Kings": "1 Kgs",
-    "2 Kings": "2 Kgs",
-    "1 Chronicles": "1 Chr",
-    "2 Chronicles": "2 Chr",
-    "Ezra": "Ezra",
-    "Nehemiah": "Neh",
-    "Esther": "Esth",
-    "Job": "Job",
-    "Psalms": "Ps",
-    "Proverbs": "Prov",
-    "Ecclesiastes": "Eccl",
-    "Song of Solomon": "Song",
-    "Isaiah": "Isa",
-    "Jeremiah": "Jer",
-    "Lamentations": "Lam",
-    "Ezekiel": "Ezek",
-    "Daniel": "Dan",
-    "Hosea": "Hos",
-    "Joel": "Joel",
-    "Amos": "Amos",
-    "Obadiah": "Obad",
-    "Jonah": "Jonah",
-    "Micah": "Mic",
-    "Nahum": "Nah",
-    "Habakkuk": "Hab",
-    "Zephaniah": "Zeph",
-    "Haggai": "Hag",
-    "Zechariah": "Zech",
-    "Malachi": "Mal",
-    // New Testament
-    "Matthew": "Matt",
-    "Mark": "Mark",
-    "Luke": "Luke",
-    "John": "John",
-    "Acts": "Acts",
-    "Romans": "Rom",
-    "1 Corinthians": "1 Cor",
-    "2 Corinthians": "2 Cor",
-    "Galatians": "Gal",
-    "Ephesians": "Eph",
-    "Philippians": "Phil",
-    "Colossians": "Col",
-    "1 Thessalonians": "1 Thess",
-    "2 Thessalonians": "2 Thess",
-    "1 Timothy": "1 Tim",
-    "2 Timothy": "2 Tim",
-    "Titus": "Titus",
-    "Philemon": "Phlm",
-    "Hebrews": "Heb",
-    "James": "Jas",
-    "1 Peter": "1 Pet",
-    "2 Peter": "2 Pet",
-    "1 John": "1 Jn",
-    "2 John": "2 Jn",
-    "3 John": "3 Jn",
-    "Jude": "Jude",
-    "Revelation": "Rev",
-  };
 
   @override
   void initState() {
@@ -201,18 +125,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return per ?? HighlightColor.none;
   }
 
+  // Greys out the back chapter button if on the first chapter of the whole Bible
   bool get _isAtFirstChapter {
     final i = _bookIndex(_book);
     return _chapter == 1 && i == 0;
   }
 
+  // Greys out the forward chapter button if on the last chapter of the whole Bible
   bool get _isAtLastChapter {
     final i = _bookIndex(_book);
     final lastBookIndex = _bookNames.length - 1;
     return _chapter == _chapterCount(_book) && i == lastBookIndex;
   }
 
-  // ----- Navigation (prev/next, jump) -----
+  /// Navigation functionality for the UI elements
   /// Move forward by one chapter, wrapping into the next book when needed.
   void _nextChapter() {
     final i = _bookIndex(_book);
@@ -244,7 +170,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     _load();
   }
 
-  /// Opens the bottom sheet "Jump" picker (book + chapter selection).
+  /// Opens the book and chapter select popup
   Future<void> _openJumpPicker() async {
     final result = await showModalBottomSheet<(String, int)?>(
       context: context,
@@ -260,7 +186,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           return SafeArea(
             child: LayoutBuilder(
               builder: (ctx, constraints) {
-                // Cap height and make content scrollable; keep buttons visible
+                // Makes list scrollable for Books with many chapters, keeps confirm buttons visible
                 final maxH = constraints.maxHeight * 0.92; // ~92% of screen
                 return ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: maxH),
@@ -274,7 +200,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                     ),
                     child: Column(
                       children: [
-                        // ---- Scrollable content ----
+                        // Scrollable chapter list
                         Expanded(
                           child: SingleChildScrollView(
                             physics: const ClampingScrollPhysics(),
@@ -337,7 +263,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
                         const SizedBox(height: 16),
 
-                        // ---- Sticky buttons (always visible) ----
+                        // Confirmation buttons are always visible
                         Row(
                           children: [
                             Expanded(
@@ -375,8 +301,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
-  // ----- Actions -----
-  /// Opens the verse actions sheet (highlight color + note add/delete).
+  /// ----- Actions -----
+  /// Opens the notetaking and highlighting menu
   Future<void> _openActions((VerseRef ref, String text) v) async {
     final res = await showModalBottomSheet<_ActionResult>(
       context: context,
@@ -428,7 +354,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   // ----- UI (main layout) -----
-  /// Builds the reader UI: navigation row, flowing text, and action sheet.
+  /// Builds the reader UI: top navigation bar, Bible text, and notetaking/highlighting popup.
   @override
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
@@ -476,6 +402,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
               const SizedBox(width: 8),
 
               // Translation single button (popup menu)
+              // TODO: Consider other menu styles for the translation list
               PopupMenuButton<String>(
                 tooltip: 'Translation',
                 initialValue: _translation,
@@ -513,17 +440,19 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
               const Spacer(flex: 1), // keep book name from being squished
 
-              // Search Placeholder
+              // Search Button
+              // TODO: Implement Search Functionality
               IconButton(
                 tooltip: 'Search',
-                onPressed: null, // intentionally disabled
+                onPressed: null, // Currently Disabled
                 icon: const Icon(Icons.search),
               ),
 
               // Speaker Placeholder
+              // TODO: Implement Voiceover
               IconButton(
                 tooltip: 'Read aloud',
-                onPressed: null, // intentionally disabled
+                onPressed: null, // Currently Disabled
                 icon: const Icon(Icons.volume_up_outlined),
               ),
 
@@ -560,7 +489,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 }
 
-// ===== Notetaking and highlighting popup =====
+// ===== Notetaking and Highlighting Popup =====
 
 class _ActionResult {
   final HighlightColor? highlight;
@@ -593,7 +522,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
     super.dispose();
   }
 
-  /// Builds the reader UI: navigation row, flowing text, and action sheet.
+  /// Builds the reader's elements (Text, Navigation Bar, Notetaking/Highlighting Popup)
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -612,7 +541,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
           Align(alignment: Alignment.centerLeft, child: const Text('Highlight')),
           const SizedBox(height: 8),
 
-          // Center the row and shrink the Clear button
+          // Adjust alignment of highlighting buttons
           Wrap(
             spacing: 10,
             runSpacing: 8,
@@ -703,8 +632,10 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
 
 // ===== Translation and Book UI Elements =====
 
+// List which translations should be seleactable
 const List<String> _translations = ['kjv', 'rst'];
 
+// List all book names that should appear in the selector
 const List<String> _bookNames = [
   'Genesis',
   'Exodus',
@@ -774,7 +705,82 @@ const List<String> _bookNames = [
   'Revelation'
 ];
 
-// Contains a list of chapter counts per book. 
+// Maps book names to abbreviated versions
+// This is used in the UI, where the header cannot fit the entire book title
+// Rather than using ellipsis, opt for a generally accepted abbreviation
+// TODO: Possibly condense the list of Book names and Book abbreviations into one entry
+final Map<String, String> _bookAbbrev = {
+  // Old Testament
+  "Genesis": "Gen",
+  "Exodus": "Exod",
+  "Leviticus": "Lev",
+  "Numbers": "Num",
+  "Deuteronomy": "Deut",
+  "Joshua": "Josh",
+  "Judges": "Judg",
+  "Ruth": "Ruth",
+  "1 Samuel": "1 Sam",
+  "2 Samuel": "2 Sam",
+  "1 Kings": "1 Kgs",
+  "2 Kings": "2 Kgs",
+  "1 Chronicles": "1 Chr",
+  "2 Chronicles": "2 Chr",
+  "Ezra": "Ezra",
+  "Nehemiah": "Neh",
+  "Esther": "Esth",
+  "Job": "Job",
+  "Psalms": "Ps",
+  "Proverbs": "Prov",
+  "Ecclesiastes": "Eccl",
+  "Song of Solomon": "Song",
+  "Isaiah": "Isa",
+  "Jeremiah": "Jer",
+  "Lamentations": "Lam",
+  "Ezekiel": "Ezek",
+  "Daniel": "Dan",
+  "Hosea": "Hos",
+  "Joel": "Joel",
+  "Amos": "Amos",
+  "Obadiah": "Obad",
+  "Jonah": "Jonah",
+  "Micah": "Mic",
+  "Nahum": "Nah",
+  "Habakkuk": "Hab",
+  "Zephaniah": "Zeph",
+  "Haggai": "Hag",
+  "Zechariah": "Zech",
+  "Malachi": "Mal",
+  // New Testament
+  "Matthew": "Matt",
+  "Mark": "Mark",
+  "Luke": "Luke",
+  "John": "John",
+  "Acts": "Acts",
+  "Romans": "Rom",
+  "1 Corinthians": "1 Cor",
+  "2 Corinthians": "2 Cor",
+  "Galatians": "Gal",
+  "Ephesians": "Eph",
+  "Philippians": "Phil",
+  "Colossians": "Col",
+  "1 Thessalonians": "1 Thess",
+  "2 Thessalonians": "2 Thess",
+  "1 Timothy": "1 Tim",
+  "2 Timothy": "2 Tim",
+  "Titus": "Titus",
+  "Philemon": "Phlm",
+  "Hebrews": "Heb",
+  "James": "Jas",
+  "1 Peter": "1 Pet",
+  "2 Peter": "2 Pet",
+  "1 John": "1 Jn",
+  "2 John": "2 Jn",
+  "3 John": "3 Jn",
+  "Jude": "Jude",
+  "Revelation": "Rev",
+};
+
+// Contains a list of chapter counts per book. Used in the selector.
 // In our case, RST and KJV have the same chapter counts. 
 // TODO: Unsure about this approach. Chapter counts may change across different translations. 
 const List<int> _chaptersPerBook = [
@@ -846,9 +852,11 @@ const List<int> _chaptersPerBook = [
   22
 ];
 
+// Returns the indexing location of a Book
 int _bookIndex(String book) =>
     _bookNames.indexWhere((b) => b.toLowerCase() == book.toLowerCase());
 
+// Returns the chapter count of a book
 int _chapterCount(String book) {
   final i = _bookIndex(book);
   return i >= 0 ? _chaptersPerBook[i] : 1;
