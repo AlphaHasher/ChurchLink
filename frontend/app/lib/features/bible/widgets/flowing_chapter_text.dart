@@ -1,16 +1,26 @@
+// -----------------------------------------------------------------------------
+// Reformats all of the verses in the bible into a continuous flowing
+// text with verse numbers. Each verse can be tapped, and tapping will
+// bring up a highlighting and notetaking popup menu. 
+// -----------------------------------------------------------------------------
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../data/bible_repo_elisha.dart';
 import 'bible_reader_body.dart' show HighlightColor;
 
-/// Renders a whole chapter as a flowing paragraph.
-/// Each verse is tappable and can show a highlight background.
+/// The following elements are stored in this class:
+/// - verses: Pairs of VerseRef (verse ID) + verse text
+/// - highlights: Places colored highlight on a corresponding VerseRef
+/// - onTapVerse: Executes callback when a verse is tapped
+/// - baseStyle: Optionally defines the text's appearance using the TextStyle format
+/// - lineHeight: Adjust vertical spacing between lines
 class FlowingChapterText extends StatefulWidget {
   const FlowingChapterText({
     super.key,
-    required this.verses,      // List<(VerseRef, String)>
-    required this.highlights,  // Map<VerseRef, HighlightColor?>
-    required this.onTapVerse,  // void Function((VerseRef, String))
+    required this.verses,
+    required this.highlights,
+    required this.onTapVerse,
     this.baseStyle,
     this.lineHeight = 1.6,
   });
@@ -25,8 +35,12 @@ class FlowingChapterText extends StatefulWidget {
   State<FlowingChapterText> createState() => _FlowingChapterTextState();
 }
 
+/// Displays the whole chapter as flowing paragraph text.
+/// This file's main functionality is stored in this class. 
+/// Uses data from the above class.
 class _FlowingChapterTextState extends State<FlowingChapterText> {
-  // One recognizer per verse to avoid leaks.
+  // Places one tap recognizer per each verse.
+  // This makes sure that each highlight/note is paired with the right verse.
   final Map<VerseRef, TapGestureRecognizer> _taps = {};
 
   @override
@@ -40,6 +54,8 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
 
   @override
   Widget build(BuildContext context) {
+    // Determines which TextStyle should be use
+    // Priority is a provided style, then the app's style, then a size 16 default
     final base = (widget.baseStyle ??
             Theme.of(context).textTheme.bodyLarge ??
             const TextStyle(fontSize: 16))
@@ -50,7 +66,8 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
       color: Theme.of(context).colorScheme.secondary.withOpacity(.9),
     );
 
-    // Build spans: [num][space][verse text][space] repeating…
+    // When rendering the chapter, loops the following structure: 
+    // [num][space][verse text][space] 
     final spans = <InlineSpan>[];
     for (final v in widget.verses) {
       final ref = v.$1; // VerseRef
@@ -62,10 +79,12 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
 
       final highlight = widget.highlights[ref];
 
-      // (a) verse number (small)
+      // Displays the verse number by the corresponding verse
       spans.add(TextSpan(text: '${ref.verse} ', style: numberStyle));
 
-      // (b) verse text (with optional highlight background)
+      // Renders the highlight that has been applied by the user
+      // At the moment uses a fixed color set corresponding to the 
+      // notetaking popup menu's set of colors, found elsewhere
       spans.add(TextSpan(
         text: txt.trim() + ' ',
         recognizer: recognizer,
