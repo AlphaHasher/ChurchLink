@@ -3,10 +3,11 @@
 // highlight/notetake specific verses, jump to specific chapters across
 // different books in the bible, and switch translations of the bible. 
 // Additionally, translations with different verse numberings will have
-// those verses matched accordingly so that highlights and notes transfer
+// those verses matched accordingly so that highlights transfer
 // (or in the case of a verse existing in only one translation, stay exclusive
 // to that translation). For this project, this translation is designed around
 // RST and KJV mapping specifically. 
+// TODO: Notes should transfer as well
 // -----------------------------------------------------------------------------
 
 import 'package:flutter/material.dart';
@@ -522,7 +523,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
     super.dispose();
   }
 
-  /// Builds the reader's elements (Text, Navigation Bar, Notetaking/Highlighting Popup)
+  /// Builds the highlighting and notetaking popout
   @override
   Widget build(BuildContext context) {
     return SafeArea(
