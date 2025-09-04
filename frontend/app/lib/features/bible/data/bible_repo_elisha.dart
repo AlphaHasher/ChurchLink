@@ -1,6 +1,15 @@
+// -----------------------------------------------------------------------------
+// This file contains code for interpreting and relaying data from the .JSON
+// bible files to other components as-needed. Essentially a middleman. 
+// -----------------------------------------------------------------------------
+
 // lib/features/bible/data/bible_repo_elisha.dart
+// Uses this to standardize and clean up the formatting from a .JSON Bible file. 
 import 'elisha_json_source.dart';
 
+/// Create an object for every single verse
+/// Stores book, chapter, verse as properties
+/// "book" is stored as a canonical English name (e.g., 'John').
 class VerseRef {
   final String book;  // canonical name (we normalize if the JSON uses an int)
   final int chapter;
@@ -16,11 +25,22 @@ class VerseRef {
   String toString() => '$book $chapter:$verse';
 }
 
+/// Works as a middleman for accessing data from the bibles.
 class ElishaBibleRepo {
   final _src = ElishaJsonSource();
 
-  /// translation: 'kjv' | 'asv' | 'bbe' | 'web' | 'ylt'
-  /// book: canonical English name you want to load, e.g. 'John'
+  /// Returns all verses for the requested chapter as a sorted list.
+  /// Input here is the following:
+  ///   translation: which version of the bible to use
+  ///     (For our use case, Russian Synodial Translation (RST) and King James Version (KJV) are used)
+  ///     (Any other bibles should be compatible so long as they are formatted properly)
+  ///   book: title of the book in the bible 
+  ///     (uses canonical English name at the moment, may opt for handling RST book names)
+  ///   chapter: number of the chapter as an int
+  /// Using these keys the following is returned:
+  ///   VerseRef: a verse's identification
+  ///     (Book, Chapter, Verse)
+  ///   text: a verse's actual contents
   Future<List<(VerseRef ref, String text)>> getChapter({
     required String translation,
     required String book,
@@ -28,11 +48,11 @@ class ElishaBibleRepo {
   }) async {
     final rows = await _src.load(translation);
 
-    // Normalize target book to numeric id (1..66) so we can match either int or string in JSON.
+    // Normalizes the book to its ID number from book name. 
     final targetBookId = _bookIdByName(book);
 
     final filtered = rows.where((r) {
-      final rb = r['book']; // could be int (43) or String ('John')
+      final rb = r['book']; // EX: Accepts int (43) or String ('John')
       final rc = (r['chapter'] as num).toInt();
       final matchesBook = rb is int
           ? rb == targetBookId
@@ -53,7 +73,7 @@ class ElishaBibleRepo {
     return out;
   }
 
-  // 1-based list of canonical book names
+  /// List of canonical book titles
   static const List<String> _bookNames = [
     'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
     '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles','Ezra','Nehemiah','Esther',
@@ -64,6 +84,7 @@ class ElishaBibleRepo {
     '1 Timothy','2 Timothy','Titus','Philemon','Hebrews','James','1 Peter','2 Peter','1 John','2 John','3 John','Jude','Revelation'
   ];
 
+  /// Converts a book's name to its corresponding ID.
   static int _bookIdByName(String name) =>
       _bookNames.indexWhere((n) => n.toLowerCase() == name.toLowerCase()) + 1;
 }
