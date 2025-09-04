@@ -1,19 +1,38 @@
+// -----------------------------------------------------------------------------
+// Main body for the bible reader. Allows users to display a whole chapter,
+// highlight/notetake specific verses, jump to specific chapters across
+// different books in the bible, and switch translations of the bible. 
+// Additionally, translations with different verse numberings will have
+// those verses matched accordingly so that highlights and notes transfer
+// (or in the case of a verse existing in only one translation, stay exclusive
+// to that translation). For this project, this translation is designed around
+// RST and KJV mapping specifically. 
+// -----------------------------------------------------------------------------
+
 import 'package:flutter/material.dart';
 import '../data/bible_repo_elisha.dart';
 import 'flowing_chapter_text.dart'; // affects how verses are displayed
 import '../data/verse_matching.dart'; // handles RST and KJV verse numbering
 
+/// Establishes the highlighting color choices.
 enum HighlightColor { none, yellow, green, blue, pink, purple, teal }
 
+/// THe main Bible reader as seen by users.
+/// - Opens to a given translation/book/chapter.
+/// - Lets users navigate, switch translations, highlight, notetake.
 class BibleReaderBody extends StatefulWidget {
+  /// Builds the Bible reader.
   const BibleReaderBody({
     super.key,
     // The book opens to this by default
+    // At present, this is hardcoded to the start of the bible
+    // TODO: The reader should eventually default to whatever was last open. 
     this.initialTranslation = 'kjv',
     this.initialBook = 'Genesis',
     this.initialChapter = 1,
   });
 
+  //
   final String initialTranslation;
   final String initialBook;
   final int initialChapter;
@@ -25,7 +44,7 @@ class BibleReaderBody extends StatefulWidget {
 class _BibleReaderBodyState extends State<BibleReaderBody> {
   final _repo = ElishaBibleRepo();
 
-  // State
+  // === Reader position state (current translation/book/chapter) ===
   late String _translation;
   late String _book;
   late int _chapter;
@@ -35,6 +54,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   List<(VerseRef ref, String text)> _verses = [];
 
   // ===== Highlight stores =====
+  // Highlights are stored in two maps:
+  //  - `_hlShared` for highlights that should appear in BOTH translations
+  //  - `_hlPerTx` for highlights that are specific to a translation
   // Shared across translations (keys are "Book|Chapter|Verse")
   final Map<String, HighlightColor> _hlShared = {};
   // Per-translation exclusives
@@ -48,7 +70,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
   String _kFromTriple((String, int, int) t) => '${t.$1}|${t.$2}|${t.$3}';
 
-  // maps book names to abbreviated versions
+  // Maps book names to abbreviated versions
+  // This is used in the UI, where the header cannot fit the entire book title
+  // Rather than using ellipsis, opt for a generally accepted abbreviation
   final Map<String, String> _bookAbbrev = {
     // Old Testament
     "Genesis": "Gen",
@@ -137,6 +161,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     });
   }
 
+  /// Loads the current chapter using the repo and updates UI state.
   Future<void> _load() async {
     final data = await _repo.getChapter(
       translation: _translation,
@@ -147,14 +172,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   // === Verse Matching Helpers ===
+  // Helpers that convert VerseRef to the light-weight `VerseKey` record and
+  // consult the VerseMatching engine to see if a verse maps to the other tx.
   VerseKey _keyOf(VerseRef r) => (book: r.book, chapter: r.chapter, verse: r.verse);
 
+  /// Does this verse exist in the other translation? (Used for shared highlights)
   bool _existsInOther(VerseRef ref) {
     final m = _matcher; // local copy for null-safety promotion
     if (m == null) return false;
     return m.existsInOther(fromTx: _translation, key: _keyOf(ref));
   }
 
+  /// Returns the corresponding verses in the other translation.
   List<VerseKey> _matchToOther(VerseRef ref) {
     final m = _matcher;
     if (m == null) return const [];
@@ -162,6 +191,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   // Compute display color for a verse in the CURRENT translation
+  /// Chooses the effective highlight color for `ref`.
+  /// Shared highlights override per-translation ones.
   HighlightColor _colorFor(VerseRef ref) {
     final k = _k(ref);
     final shared = _hlShared[k];
@@ -181,7 +212,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return _chapter == _chapterCount(_book) && i == lastBookIndex;
   }
 
-  // ----- Navigation -----
+  // ----- Navigation (prev/next, jump) -----
+  /// Move forward by one chapter, wrapping into the next book when needed.
   void _nextChapter() {
     final i = _bookIndex(_book);
     final count = _chapterCount(_book);
@@ -197,6 +229,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     _load();
   }
 
+  /// Move backward by one chapter, wrapping into the previous book when needed.
   void _prevChapter() {
     final i = _bookIndex(_book);
     if (_chapter > 1) {
@@ -211,6 +244,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     _load();
   }
 
+  /// Opens the bottom sheet "Jump" picker (book + chapter selection).
   Future<void> _openJumpPicker() async {
     final result = await showModalBottomSheet<(String, int)?>(
       context: context,
@@ -342,6 +376,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   // ----- Actions -----
+  /// Opens the verse actions sheet (highlight color + note add/delete).
   Future<void> _openActions((VerseRef ref, String text) v) async {
     final res = await showModalBottomSheet<_ActionResult>(
       context: context,
@@ -392,7 +427,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     });
   }
 
-  // ----- UI -----
+  // ----- UI (main layout) -----
+  /// Builds the reader UI: navigation row, flowing text, and action sheet.
   @override
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
@@ -557,6 +593,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
     super.dispose();
   }
 
+  /// Builds the reader UI: navigation row, flowing text, and action sheet.
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -737,6 +774,9 @@ const List<String> _bookNames = [
   'Revelation'
 ];
 
+// Contains a list of chapter counts per book. 
+// In our case, RST and KJV have the same chapter counts. 
+// TODO: Unsure about this approach. Chapter counts may change across different translations. 
 const List<int> _chaptersPerBook = [
   50,
   40,
