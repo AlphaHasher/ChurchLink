@@ -167,11 +167,11 @@ const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddT
           
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleImportPlan} className="flex-1">
-              <Upload className="w-4 h-4 mr-2" />
+              <Download className="w-4 h-4 mr-2" />
               Import
             </Button>
             <Button variant="outline" onClick={handleExportPlan} className="flex-1">
-              <Download className="w-4 h-4 mr-2" />
+              <Upload className="w-4 h-4 mr-2" />
               Export
             </Button>
           </div>
