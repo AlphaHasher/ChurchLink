@@ -9,7 +9,6 @@
 // TODO: Switch to the mapping file provided by Daniel
 // TODO: Possibly need to implement One-to-Many verse mapping for edge cases?
 // TODO: Double check the mapping file and the bibles
-// TODO: Implement note transferring when verses need to be mapped
 // TODO: KJV Jonah 1:17 <--> RST Jonah 2:1 is a good test case
 // -----------------------------------------------------------------------------
 
