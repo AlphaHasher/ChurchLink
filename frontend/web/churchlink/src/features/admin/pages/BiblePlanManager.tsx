@@ -15,9 +15,14 @@ const BiblePlanManager = () => {
   
   const [activePassage, setActivePassage] = useState<BiblePassage | null>(null);
   const [passageRemovalCallback, setPassageRemovalCallback] = useState<((passageId: string) => void) | null>(null);
+  const [passageAddCallback, setPassageAddCallback] = useState<((passage: BiblePassage) => void) | null>(null);
 
   const handleRegisterRemoveCallback = (callback: (passageId: string) => void) => {
     setPassageRemovalCallback(() => callback);
+  };
+
+  const handleRegisterAddCallback = (callback: (passage: BiblePassage) => void) => {
+    setPassageAddCallback(() => callback);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -55,6 +60,18 @@ const BiblePlanManager = () => {
         // Remove from selector staging
         passageRemovalCallback(passage.id);
       }
+    } else if (overId === 'selector-bin') {
+      // Move back to selector bin
+      if (sourceDateKey) {
+        setPlan(prev => ({
+          ...prev,
+          readings: {
+            ...prev.readings,
+            [sourceDateKey]: (prev.readings[sourceDateKey] || []).filter(p => p.id !== passage.id),
+          },
+        }));
+      }
+      passageAddCallback?.(passage);
     } else if (overId.startsWith('day-')) {
       const targetDate = overId.replace('day-', '');
       if (sourceDateKey) {
@@ -97,6 +114,7 @@ const BiblePlanManager = () => {
           plan={plan} 
           setPlan={setPlan} 
           onPassageRemoveFromSelector={handleRegisterRemoveCallback}
+          onPassageAddToSelector={handleRegisterAddCallback}
         />
         
         {/* Main Content Area */}

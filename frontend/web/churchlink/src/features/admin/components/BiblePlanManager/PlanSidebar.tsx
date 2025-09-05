@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '../../../../shared/components/ui/button';
 import { Input } from '../../../../shared/components/ui/input';
 import { Label } from '../../../../shared/components/ui/label';
-import { ReadingPlan, READING_PLAN_TEMPLATES } from '../../../../shared/types/BiblePlan';
+import { ReadingPlan, READING_PLAN_TEMPLATES, BiblePassage } from '../../../../shared/types/BiblePlan';
 import BiblePassageSelector from './BiblePassageSelector';
 import { Download, Upload, Save } from 'lucide-react';
 
@@ -10,9 +10,10 @@ interface PlanSidebarProps {
   plan: ReadingPlan;
   setPlan: React.Dispatch<React.SetStateAction<ReadingPlan>>;
   onPassageRemoveFromSelector?: (callback: (passageId: string) => void) => void;
+  onPassageAddToSelector?: (callback: (passage: BiblePassage) => void) => void;
 }
 
-const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector }: PlanSidebarProps) => {
+const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddToSelector }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
 
   const handleDurationChange = (value: string) => {
@@ -87,7 +88,7 @@ const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector }: PlanSidebar
         {/* Bible Passage Selector */}
         <div className="space-y-2">
           <Label>Bible Passage Selector</Label>
-          <BiblePassageSelector onRegisterRemoveCallback={onPassageRemoveFromSelector} />
+          <BiblePassageSelector onRegisterRemoveCallback={onPassageRemoveFromSelector} onRegisterAddCallback={onPassageAddToSelector} />
         </div>
 
         {/* Action Buttons */}

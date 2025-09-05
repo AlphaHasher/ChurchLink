@@ -8,6 +8,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 interface BiblePassageSelectorProps {
   onPassageAdd?: (passage: BiblePassage) => void;
   onRegisterRemoveCallback?: (callback: (passageId: string) => void) => void;
+  onRegisterAddCallback?: (callback: (passage: BiblePassage) => void) => void;
 }
 
 interface PassageChipProps {
@@ -62,7 +63,7 @@ const TrashDropZone = () => {
   );
 };
 
-const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BiblePassageSelectorProps) => {
+const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegisterAddCallback }: BiblePassageSelectorProps) => {
   const [expandedTestament, setExpandedTestament] = useState<'Old' | 'New' | null>(null);
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<{ book: BibleBook; chapter: number } | null>(null);
@@ -181,10 +182,19 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
     setSelectedPassages(prev => prev.filter(p => p.id !== passageId));
   }, []);
 
+  const addPassageToBin = useCallback((passage: BiblePassage) => {
+    setSelectedPassages(prev => (prev.some(p => p.id === passage.id) ? prev : [...prev, passage]));
+  }, []);
+
   // Register the remove callback with the parent
   useEffect(() => {
     onRegisterRemoveCallback?.(removePassage);
   }, [onRegisterRemoveCallback, removePassage]);
+
+  // Register the add callback with the parent (to add back from calendar)
+  useEffect(() => {
+    onRegisterAddCallback?.(addPassageToBin);
+  }, [onRegisterAddCallback, addPassageToBin]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -202,23 +212,30 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [selectedChapter]);
 
+  const { isOver: isOverBin, setNodeRef: setBinRef } = useDroppable({ id: 'selector-bin' });
+
   return (
     <div ref={containerRef} className="space-y-4">
-      {/* Selected Passages */}
-      {selectedPassages.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700">Selected Passages (Drag to Calendar)</div>
-          <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg min-h-[60px]">
-            {selectedPassages.map((passage) => (
-              <PassageChip 
-                key={passage.id} 
-                passage={passage}
-              />
-            ))}
-          </div>
+      {/* Selected Passages Bin */}
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Selected Passages (Drag to Calendar)</div>
+        <div
+          ref={setBinRef}
+          className={`flex flex-wrap gap-2 p-3 rounded-lg min-h-[60px] transition-colors ${
+            isOverBin ? 'bg-blue-50 border border-blue-300' : 'bg-gray-50 border border-gray-200'
+          }`}
+        >
+          {selectedPassages.length > 0 ? (
+            selectedPassages.map((passage) => (
+              <PassageChip key={passage.id} passage={passage} />
+            ))
+          ) : (
+            <span className="text-xs text-gray-400">Drop passages here to stage them</span>
+          )}
         </div>
-      )}
-  <TrashDropZone />
+      </div>
+
+      <TrashDropZone />
 
   {/* Bible Book Selector */}
       <div className="border rounded-lg max-h-64 overflow-y-auto">
