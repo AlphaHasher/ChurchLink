@@ -14,6 +14,11 @@ const BiblePlanManager = () => {
   });
   
   const [activePassage, setActivePassage] = useState<BiblePassage | null>(null);
+  const [passageRemovalCallback, setPassageRemovalCallback] = useState<((passageId: string) => void) | null>(null);
+
+  const handleRegisterRemoveCallback = (callback: (passageId: string) => void) => {
+    setPassageRemovalCallback(() => callback);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -29,10 +34,21 @@ const BiblePlanManager = () => {
       return;
     }
 
-    const passage = active.data.current as BiblePassage;
+    // Get the passage from the active data
+    const passage = active.data?.current as BiblePassage;
     const dayKey = over.id as string;
 
-    if (dayKey.startsWith('day-')) {
+    if (!passage) {
+      setActivePassage(null);
+      return;
+    }
+
+    if (dayKey === 'trash-zone') {
+      // Remove passage from staged passages in selector
+      if (passageRemovalCallback) {
+        passageRemovalCallback(passage.id);
+      }
+    } else if (dayKey.startsWith('day-')) {
       const date = dayKey.replace('day-', '');
       setPlan(prev => ({
         ...prev,
@@ -41,6 +57,11 @@ const BiblePlanManager = () => {
           [date]: [...(prev.readings[date] || []), passage]
         }
       }));
+      
+      // Also remove the passage from the sidebar staging area
+      if (passageRemovalCallback) {
+        passageRemovalCallback(passage.id);
+      }
     }
 
     setActivePassage(null);
@@ -50,7 +71,11 @@ const BiblePlanManager = () => {
     <div className="h-screen flex bg-gray-50">
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* Sidebar */}
-        <PlanSidebar plan={plan} setPlan={setPlan} />
+        <PlanSidebar 
+          plan={plan} 
+          setPlan={setPlan} 
+          onPassageRemoveFromSelector={handleRegisterRemoveCallback}
+        />
         
         {/* Main Content Area */}
         <div className="flex-1 p-6">

@@ -9,9 +9,10 @@ import { Download, Upload, Save } from 'lucide-react';
 interface PlanSidebarProps {
   plan: ReadingPlan;
   setPlan: React.Dispatch<React.SetStateAction<ReadingPlan>>;
+  onPassageRemoveFromSelector?: (callback: (passageId: string) => void) => void;
 }
 
-const PlanSidebar = ({ plan, setPlan }: PlanSidebarProps) => {
+const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
 
   const handleDurationChange = (value: string) => {
@@ -86,7 +87,7 @@ const PlanSidebar = ({ plan, setPlan }: PlanSidebarProps) => {
         {/* Bible Passage Selector */}
         <div className="space-y-2">
           <Label>Bible Passage Selector</Label>
-          <BiblePassageSelector />
+          <BiblePassageSelector onRegisterRemoveCallback={onPassageRemoveFromSelector} />
         </div>
 
         {/* Action Buttons */}

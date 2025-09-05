@@ -1,23 +1,23 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { BIBLE_BOOKS, BibleBook, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
 import { Input } from '../../../../shared/components/ui/input';
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 
 interface BiblePassageSelectorProps {
   onPassageAdd?: (passage: BiblePassage) => void;
+  onRegisterRemoveCallback?: (callback: (passageId: string) => void) => void;
 }
 
 interface PassageChipProps {
   passage: BiblePassage;
-  onRemove?: () => void;
 }
 
-const PassageChip = ({ passage, onRemove }: PassageChipProps) => {
+const PassageChip = ({ passage }: PassageChipProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: passage.id,
-    data: passage
+    data: { current: passage }
   });
 
   const style = transform ? {
@@ -37,19 +37,34 @@ const PassageChip = ({ passage, onRemove }: PassageChipProps) => {
       `}
     >
       <span>{passage.reference}</span>
-      {onRemove && (
-        <button 
-          onClick={onRemove}
-          className="text-blue-600 hover:text-blue-800 text-xs"
-        >
-          ×
-        </button>
-      )}
     </div>
   );
 };
 
-const BiblePassageSelector = ({ onPassageAdd }: BiblePassageSelectorProps) => {
+const TrashDropZone = () => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: 'trash-zone',
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`
+        flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg text-sm
+        transition-colors duration-200 min-h-[50px]
+        ${isOver 
+          ? 'border-red-400 bg-red-50 text-red-700' 
+          : 'border-gray-300 bg-gray-50 text-gray-500 hover:border-gray-400'
+        }
+      `}
+    >
+      <Trash2 className={`w-4 h-4 ${isOver ? 'text-red-600' : 'text-gray-400'}`} />
+      <span>Drop here to remove</span>
+    </div>
+  );
+};
+
+const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BiblePassageSelectorProps) => {
   const [expandedTestament, setExpandedTestament] = useState<'Old' | 'New' | null>(null);
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<{ book: BibleBook; chapter: number } | null>(null);
@@ -109,9 +124,14 @@ const BiblePassageSelector = ({ onPassageAdd }: BiblePassageSelectorProps) => {
     setVerseRange({ start: '', end: '' });
   };
 
-  const removePassage = (passageId: string) => {
+  const removePassage = useCallback((passageId: string) => {
     setSelectedPassages(prev => prev.filter(p => p.id !== passageId));
-  };
+  }, []);
+
+  // Register the remove callback with the parent
+  useEffect(() => {
+    onRegisterRemoveCallback?.(removePassage);
+  }, [onRegisterRemoveCallback, removePassage]);
 
   return (
     <div className="space-y-4">
@@ -123,11 +143,13 @@ const BiblePassageSelector = ({ onPassageAdd }: BiblePassageSelectorProps) => {
             {selectedPassages.map((passage) => (
               <PassageChip 
                 key={passage.id} 
-                passage={passage} 
-                onRemove={() => removePassage(passage.id)}
+                passage={passage}
               />
             ))}
           </div>
+          
+          {/* Trash Drop Zone */}
+          <TrashDropZone />
         </div>
       )}
 
