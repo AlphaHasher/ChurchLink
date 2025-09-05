@@ -15,15 +15,13 @@ interface PassageChipProps {
 }
 
 const PassageChip = ({ passage }: PassageChipProps) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: passage.id,
-    data: { current: passage }
+    data: passage,
   });
 
-  const style = transform ? {
-    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    opacity: isDragging ? 0.5 : 1,
-  } : undefined;
+  // When using a DragOverlay, hide the original while dragging to avoid duplicate render
+  const style = isDragging ? { opacity: 0 } : undefined;
 
   return (
     <div
