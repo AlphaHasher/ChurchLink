@@ -33,7 +33,6 @@ class BibleReaderBody extends StatefulWidget {
     this.initialChapter = 1,
   });
 
-  //
   final String initialTranslation;
   final String initialBook;
   final int initialChapter;
@@ -316,11 +315,26 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     );
     if (res == null) return;
 
+    // Transfers notes between different verse mappings
+    // TODO: Elaborate on mechanics here
     setState(() {
-      // Notes
-      if (res.noteDelete == true) _notes.remove(v.$1);
-      if (res.noteText != null && res.noteText!.trim().isNotEmpty) {
-        _notes[v.$1] = res.noteText!.trim();
+      if (res.noteDelete == true) {
+        _notes.remove(v.$1);
+        if (_existsInOther(v.$1)) {
+          for (final t in _matchToOther(v.$1)) {
+            _notes.remove(VerseRef(t.book, t.chapter, t.verse));
+          }
+        }
+      } else if (res.noteText != null) {
+        final txt = res.noteText!.trim();
+        if (txt.isNotEmpty) {
+          _notes[v.$1] = txt;
+          if (_existsInOther(v.$1)) {
+            for (final t in _matchToOther(v.$1)) {
+              _notes[VerseRef(t.book, t.chapter, t.verse)] = txt;
+            }
+          }
+        }
       }
 
       // Highlights (shared vs exclusive)

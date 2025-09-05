@@ -390,7 +390,8 @@ static Future<VerseMatching> load() async {
       }
     }
     
-    return const [];
+    // If no mapping occurs, default to 1:1
+    return [normKey];
   }
 
   bool existsInOther({required String fromTx, required VerseKey key}) =>
