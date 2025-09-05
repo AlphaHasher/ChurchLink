@@ -68,6 +68,7 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
   const [selectedChapter, setSelectedChapter] = useState<{ book: BibleBook; chapter: number } | null>(null);
   const [selectedPassages, setSelectedPassages] = useState<BiblePassage[]>([]);
   const [verseRange, setVerseRange] = useState({ start: '', end: '' });
+  const [selectedChaptersSet, setSelectedChaptersSet] = useState<Set<string>>(new Set());
 
   const oldTestamentBooks = BIBLE_BOOKS.filter(book => book.testament === 'Old');
   const newTestamentBooks = BIBLE_BOOKS.filter(book => book.testament === 'New');
@@ -86,6 +87,60 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
   const selectChapter = (book: BibleBook, chapter: number) => {
     setSelectedChapter({ book, chapter });
     setVerseRange({ start: '', end: '' });
+  };
+
+  const keyFor = (bookId: string, chapter: number) => `${bookId}-${chapter}`;
+  const isChapterSelected = (bookId: string, chapter: number) => selectedChaptersSet.has(keyFor(bookId, chapter));
+  const toggleChapterSelected = (bookId: string, chapter: number) => {
+    setSelectedChaptersSet(prev => {
+      const next = new Set(prev);
+      const k = keyFor(bookId, chapter);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
+
+  const clearSelectedChapters = () => setSelectedChaptersSet(new Set());
+
+  const addSelectedChapters = () => {
+    if (selectedChaptersSet.size === 0) return;
+    // Group by book, collect chapters, sort, and merge contiguous sequences
+    const chaptersByBook = new Map<string, number[]>();
+    selectedChaptersSet.forEach((k) => {
+      const [bookId, chapterStr] = k.split('-');
+      const chapter = parseInt(chapterStr, 10);
+      if (Number.isNaN(chapter)) return;
+      const arr = chaptersByBook.get(bookId) ?? [];
+      arr.push(chapter);
+      chaptersByBook.set(bookId, arr);
+    });
+
+    const toAdd: BiblePassage[] = [];
+    const now = Date.now();
+
+    chaptersByBook.forEach((chapters, bookId) => {
+      const book = BIBLE_BOOKS.find((b) => b.id === bookId);
+      if (!book) return;
+      chapters.sort((a, b) => a - b);
+      let start = chapters[0];
+      let prev = chapters[0];
+      for (let i = 1; i <= chapters.length; i++) {
+        const curr = chapters[i];
+        if (curr !== prev + 1) {
+          // finalize range [start..prev]
+          const id = `${book.id}-${start}-${prev}-${now}-${Math.random().toString(36).slice(2, 8)}`;
+          const reference = start === prev ? `${book.name} ${start}` : `${book.name} ${start}-${prev}`;
+          toAdd.push({ id, book: book.name, chapter: start, reference });
+          start = curr;
+        }
+        prev = curr;
+      }
+    });
+
+    if (toAdd.length === 0) return;
+    setSelectedPassages((prev) => [...prev, ...toAdd]);
+    toAdd.forEach((p) => onPassageAdd?.(p));
+    clearSelectedChapters();
   };
 
   const addWholeChapter = (book: BibleBook, chapter: number) => {
@@ -192,17 +247,26 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
                   {expandedBook === book.id && (
                     <div className="pl-4 space-y-1">
                       {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
-                        <div key={chapter} className="flex items-center justify-between text-xs">
-                          <button
-                            onClick={() => selectChapter(book, chapter)}
-                            className={`flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                              selectedChapter?.book.id === book.id && selectedChapter?.chapter === chapter 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : ''
-                            }`}
-                          >
-                            Chapter {chapter}
-                          </button>
+                        <div key={chapter} className="flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={isChapterSelected(book.id, chapter)}
+                              onChange={() => toggleChapterSelected(book.id, chapter)}
+                              className="h-3 w-3 accent-blue-600"
+                              aria-label={`Select chapter ${chapter}`}
+                            />
+                            <button
+                              onClick={() => selectChapter(book, chapter)}
+                              className={`flex-1 text-left p-1 hover:bg-gray-100 rounded ${
+                                selectedChapter?.book.id === book.id && selectedChapter?.chapter === chapter 
+                                  ? 'bg-blue-100 text-blue-800' 
+                                  : ''
+                              }`}
+                            >
+                              Chapter {chapter}
+                            </button>
+                          </div>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -246,17 +310,26 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
                   {expandedBook === book.id && (
                     <div className="pl-4 space-y-1">
                       {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
-                        <div key={chapter} className="flex items-center justify-between text-xs">
-                          <button
-                            onClick={() => selectChapter(book, chapter)}
-                            className={`flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                              selectedChapter?.book.id === book.id && selectedChapter?.chapter === chapter 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : ''
-                            }`}
-                          >
-                            Chapter {chapter}
-                          </button>
+                        <div key={chapter} className="flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={isChapterSelected(book.id, chapter)}
+                              onChange={() => toggleChapterSelected(book.id, chapter)}
+                              className="h-3 w-3 accent-blue-600"
+                              aria-label={`Select chapter ${chapter}`}
+                            />
+                            <button
+                              onClick={() => selectChapter(book, chapter)}
+                              className={`flex-1 text-left p-1 hover:bg-gray-100 rounded ${
+                                selectedChapter?.book.id === book.id && selectedChapter?.chapter === chapter 
+                                  ? 'bg-blue-100 text-blue-800' 
+                                  : ''
+                              }`}
+                            >
+                              Chapter {chapter}
+                            </button>
+                          </div>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -275,6 +348,23 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
           )}
         </div>
       </div>
+
+      {/* Selected chapters bulk actions */}
+      {selectedChaptersSet.size > 0 && (
+        <div className="sticky bottom-0 z-10 p-2 bg-blue-50 border border-blue-200 rounded">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-blue-800">{selectedChaptersSet.size} chapter(s) selected</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={addSelectedChapters} className="h-7 whitespace-nowrap text-xs">
+                Add Selected Chapters
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearSelectedChapters} className="h-7 whitespace-nowrap text-xs">
+                Clear
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Verse Selector */}
       {selectedChapter && (
