@@ -27,14 +27,14 @@ const BiblePlanManager = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const data = active.data.current as unknown as BiblePassage | { passage: BiblePassage; sourceDateKey?: string };
+  const data = active.data.current as unknown as BiblePassage | { passage: BiblePassage; sourceDayKey?: string };
     const passage = (data as any)?.passage ? (data as any).passage as BiblePassage : (data as BiblePassage);
     setActivePassage(passage);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    const data = active.data?.current as unknown as BiblePassage | { passage: BiblePassage; sourceDateKey?: string } | undefined;
+  const data = active.data?.current as unknown as BiblePassage | { passage: BiblePassage; sourceDayKey?: string } | undefined;
 
     if (!over || !data) {
       setActivePassage(null);
@@ -42,18 +42,18 @@ const BiblePlanManager = () => {
     }
 
     const overId = over.id as string;
-    const isFromCalendar = (data as any)?.passage !== undefined;
+  const isFromCalendar = (data as any)?.passage !== undefined;
     const passage = isFromCalendar ? (data as any).passage as BiblePassage : (data as BiblePassage);
-    const sourceDateKey: string | undefined = isFromCalendar ? (data as any).sourceDateKey : undefined;
+  const sourceDayKey: string | undefined = isFromCalendar ? (data as any).sourceDayKey : undefined;
 
     if (overId === 'trash-zone') {
-      if (sourceDateKey) {
+  if (sourceDayKey) {
         // Remove from the calendar day
         setPlan(prev => ({
           ...prev,
           readings: {
-            ...prev.readings,
-            [sourceDateKey]: (prev.readings[sourceDateKey] || []).filter(p => p.id !== passage.id),
+    ...prev.readings,
+    [sourceDayKey]: (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id),
           },
         }));
       } else if (passageRemovalCallback) {
@@ -62,30 +62,30 @@ const BiblePlanManager = () => {
       }
     } else if (overId === 'selector-bin') {
       // Move back to selector bin
-      if (sourceDateKey) {
+  if (sourceDayKey) {
         setPlan(prev => ({
           ...prev,
           readings: {
-            ...prev.readings,
-            [sourceDateKey]: (prev.readings[sourceDateKey] || []).filter(p => p.id !== passage.id),
+    ...prev.readings,
+    [sourceDayKey]: (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id),
           },
         }));
       }
       passageAddCallback?.(passage);
     } else if (overId.startsWith('day-')) {
-      const targetDate = overId.replace('day-', '');
-      if (sourceDateKey) {
+  const targetDay = overId.replace('day-', '');
+  if (sourceDayKey) {
         // Move between days if different
-        if (sourceDateKey !== targetDate) {
+    if (sourceDayKey !== targetDay) {
           setPlan(prev => {
-            const source = (prev.readings[sourceDateKey] || []).filter(p => p.id !== passage.id);
-            const target = [...(prev.readings[targetDate] || []), passage];
+    const source = (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id);
+    const target = [...(prev.readings[targetDay] || []), passage];
             return {
               ...prev,
               readings: {
                 ...prev.readings,
-                [sourceDateKey]: source,
-                [targetDate]: target,
+        [sourceDayKey]: source,
+        [targetDay]: target,
               },
             };
           });
@@ -96,7 +96,7 @@ const BiblePlanManager = () => {
           ...prev,
           readings: {
             ...prev.readings,
-            [targetDate]: [...(prev.readings[targetDate] || []), passage],
+    [targetDay]: [...(prev.readings[targetDay] || []), passage],
           },
         }));
         if (passageRemovalCallback) passageRemovalCallback(passage.id);

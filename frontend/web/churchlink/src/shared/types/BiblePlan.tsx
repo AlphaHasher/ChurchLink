@@ -12,7 +12,7 @@ export interface ReadingPlan {
   name: string;
   duration: number;
   template: string;
-  readings: { [date: string]: BiblePassage[] };
+  readings: { [day: string]: BiblePassage[] };
 }
 
 export interface BibleBook {
@@ -99,5 +99,4 @@ export const READING_PLAN_TEMPLATES = [
   { id: 'navigators', name: 'Navigators Bible Reading Plan', description: 'Popular systematic reading plan' },
   { id: 'canonical', name: 'Canonical (Straight Through)', description: 'Read from Genesis to Revelation' },
   { id: '90day-nt', name: '90-Day New Testament', description: 'Complete the New Testament in 90 days' },
-  { id: 'custom', name: 'Custom Plan', description: 'Build your own reading plan from scratch' }
 ];

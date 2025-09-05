@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from '../../../../shared/components/ui/button';
 import { Input } from '../../../../shared/components/ui/input';
 import { Label } from '../../../../shared/components/ui/label';
@@ -15,6 +15,10 @@ interface PlanSidebarProps {
 
 const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddToSelector }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // keep plan name wired to parent for persistence
+  const commitName = (name: string) => setPlan(prev => ({ ...prev, name }));
 
   const handleDurationChange = (value: string) => {
     setPlan(prev => ({ ...prev, duration: parseInt(value) }));
@@ -25,19 +29,76 @@ const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddT
     // TODO: Auto-populate readings based on template
   };
 
+  const normalizedPlan = useMemo(() => {
+    const days = Array.from({ length: plan.duration }, (_, i) => {
+      const dayKey = String(i + 1);
+      return {
+        dayNumber: i + 1,
+        passages: plan.readings[dayKey] || [],
+      };
+    });
+    return {
+      id: plan.id,
+      name: plan.name,
+      duration: plan.duration,
+      template: plan.template,
+      days,
+    };
+  }, [plan]);
+
+  const planJson = useMemo(() => JSON.stringify(normalizedPlan, null, 2), [normalizedPlan]);
+
   const handleSavePlan = () => {
-    // TODO
-    console.log('Saving plan:', plan);
+    // For now just log; backend integration can POST `plan`
+  console.log('Saving plan (payload):', normalizedPlan);
   };
 
   const handleImportPlan = () => {
-    // TODO
-    console.log('Importing plan');
+    fileInputRef.current?.click();
+  };
+
+  const onFileSelected: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as any;
+      // Accept either full ReadingPlan shape or normalized { days: [...] }
+      if (data && Array.isArray(data.days)) {
+        const readings: Record<string, BiblePassage[]> = {};
+        for (const d of data.days) {
+          if (!d || typeof d.dayNumber !== 'number') continue;
+          readings[String(d.dayNumber)] = Array.isArray(d.passages) ? d.passages : [];
+        }
+        setPlan({
+          id: data.id ?? '',
+          name: data.name ?? '',
+          duration: data.duration ?? data.days.length ?? 0,
+          template: data.template ?? '',
+          readings,
+        });
+      } else if (data && typeof data === 'object' && data.duration != null && data.readings) {
+        setPlan(data as ReadingPlan);
+      } else {
+        throw new Error('Invalid plan file');
+      }
+    } catch (err) {
+      console.error('Failed to import plan:', err);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleExportPlan = () => {
-    // TODO
-    console.log('Exporting plan');
+    const blob = new Blob([planJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${plan.name || 'reading-plan'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -49,7 +110,10 @@ const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddT
           <Input
             id="plan-name"
             value={planName}
-            onChange={(e) => setPlanName(e.target.value)}
+            onChange={(e) => {
+              setPlanName(e.target.value);
+              commitName(e.target.value);
+            }}
             placeholder="Enter plan name"
           />
         </div>
@@ -66,6 +130,8 @@ const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddT
             onChange={(e) => handleDurationChange(e.target.value)}
           />
         </div>
+
+  {/* No real-world dates: plan uses numbered days only */}
 
         {/* Template Selector */}
         <div className="space-y-2">
@@ -93,6 +159,7 @@ const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddT
 
         {/* Action Buttons */}
         <div className="space-y-3 pt-6 border-t border-gray-200">
+          <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileSelected} />
           <Button onClick={handleSavePlan} className="w-full">
             <Save className="w-4 h-4 mr-2" />
             Save Plan
