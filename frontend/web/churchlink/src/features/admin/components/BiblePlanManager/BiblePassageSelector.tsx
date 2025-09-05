@@ -285,24 +285,24 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
           <div className="space-y-3">
             <div className="flex gap-2">
               <Input
-                placeholder="Start verse"
-                value={verseRange.start}
-                onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
-                className="w-24 h-8 text-sm"
+              placeholder="Start"
+              value={verseRange.start}
+              onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
+              className="w-24 h-8 text-sm"
               />
               <Input
-                placeholder="End verse (optional)"
-                value={verseRange.end}
-                onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
-                className="w-32 h-8 text-sm"
+              placeholder="End"
+              value={verseRange.end}
+              onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
+              className="w-24 h-8 text-sm"
               />
               <Button
-                size="sm"
-                onClick={addVerseRange}
-                disabled={!verseRange.start}
-                className="h-8"
+              size="sm"
+              onClick={addVerseRange}
+              disabled={!verseRange.start}
+              className="w-24 h-8"
               >
-                Add Verses
+              Add Verses
               </Button>
             </div>
             <div className="text-xs text-gray-500">
