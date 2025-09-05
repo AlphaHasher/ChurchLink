@@ -7,7 +7,6 @@
 // (or in the case of a verse existing in only one translation, stay exclusive
 // to that translation). For this project, this translation is designed around
 // RST and KJV mapping specifically. 
-// TODO: Notes should transfer as well
 // -----------------------------------------------------------------------------
 
 import 'package:flutter/material.dart';
