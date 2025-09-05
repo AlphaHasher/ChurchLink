@@ -18,7 +18,7 @@ interface PassageChipProps {
 const PassageChip = ({ passage }: PassageChipProps) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: passage.id,
-    data: passage,
+    data: { type: 'passage', passage },
   });
 
   // When using a DragOverlay, hide the original while dragging to avoid duplicate render

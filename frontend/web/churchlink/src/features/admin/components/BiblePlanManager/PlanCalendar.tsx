@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, addDays, startOfToday } from 'date-fns';
-import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { useDraggable, useDroppable, useDndContext } from '@dnd-kit/core';
 import { ReadingPlan, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -18,7 +18,7 @@ interface CalendarDayProps {
 const CalendarPassageChip = ({ passage, dateKey }: { passage: BiblePassage; dateKey: string }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `cal-${dateKey}-${passage.id}`,
-    data: { passage, sourceDateKey: dateKey },
+    data: { type: 'passage', passage, sourceDateKey: dateKey },
   });
 
   const style = isDragging ? { opacity: 0 } : undefined;
@@ -41,14 +41,17 @@ const CalendarDay = ({ date, dayNumber, passages }: CalendarDayProps) => {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dateKey}`,
   });
+  const { active } = useDndContext();
+  const isPassageOver = isOver && (active?.data?.current as any)?.type === 'passage';
 
   return (
     <div
       ref={setNodeRef}
       className={`
-        min-h-[120px] border border-gray-200 p-2 bg-white rounded-lg
-        ${isOver ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}
-        transition-colors duration-200
+        min-h-[120px] p-2 rounded-lg transition-colors duration-200
+        ${isPassageOver
+          ? 'border-2 border-dashed border-green-400 bg-green-50'
+          : 'border border-gray-200 bg-white hover:bg-gray-50'}
       `}
     >
       <div className="flex items-center justify-between mb-2">
