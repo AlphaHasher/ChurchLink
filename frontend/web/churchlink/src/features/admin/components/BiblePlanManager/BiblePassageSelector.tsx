@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { BIBLE_BOOKS, BibleBook, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
@@ -131,8 +131,24 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
     onRegisterRemoveCallback?.(removePassage);
   }, [onRegisterRemoveCallback, removePassage]);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Hide verse selector when clicking outside this component
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        if (selectedChapter) {
+          setSelectedChapter(null);
+          setVerseRange({ start: '', end: '' });
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [selectedChapter]);
+
   return (
-    <div className="space-y-4">
+    <div ref={containerRef} className="space-y-4">
       {/* Selected Passages */}
       {selectedPassages.length > 0 && (
         <div className="space-y-2">
