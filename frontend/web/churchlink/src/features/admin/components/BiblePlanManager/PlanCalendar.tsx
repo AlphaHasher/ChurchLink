@@ -1,23 +1,42 @@
 import { useState } from 'react';
 import { format, addDays, startOfToday } from 'date-fns';
-import { useDroppable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { ReadingPlan, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PlanCalendarProps {
   plan: ReadingPlan;
-  setPlan: React.Dispatch<React.SetStateAction<ReadingPlan>>;
 }
 
 interface CalendarDayProps {
   date: Date;
   dayNumber: number;
   passages: BiblePassage[];
-  onRemovePassage: (passageId: string) => void;
 }
 
-const CalendarDay = ({ date, dayNumber, passages, onRemovePassage }: CalendarDayProps) => {
+const CalendarPassageChip = ({ passage, dateKey }: { passage: BiblePassage; dateKey: string }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `cal-${dateKey}-${passage.id}`,
+    data: { passage, sourceDateKey: dateKey },
+  });
+
+  const style = isDragging ? { opacity: 0 } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium cursor-grab hover:bg-blue-200 transition-colors whitespace-nowrap"
+    >
+      <span className="truncate">{passage.reference}</span>
+    </div>
+  );
+};
+
+const CalendarDay = ({ date, dayNumber, passages }: CalendarDayProps) => {
   const dateKey = format(date, 'yyyy-MM-dd');
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dateKey}`,
@@ -37,20 +56,9 @@ const CalendarDay = ({ date, dayNumber, passages, onRemovePassage }: CalendarDay
         <div className="text-xs text-gray-500">{format(date, 'MMM d')}</div>
       </div>
       
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         {passages.map((passage) => (
-          <div
-            key={passage.id}
-            className="group flex items-center justify-between bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs"
-          >
-            <span className="truncate">{passage.reference}</span>
-            <button
-              onClick={() => onRemovePassage(passage.id)}
-              className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-800 ml-1"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
+          <CalendarPassageChip key={passage.id} passage={passage} dateKey={dateKey} />
         ))}
         
         {passages.length === 0 && (
@@ -63,22 +71,14 @@ const CalendarDay = ({ date, dayNumber, passages, onRemovePassage }: CalendarDay
   );
 };
 
-const PlanCalendar = ({ plan, setPlan }: PlanCalendarProps) => {
+const PlanCalendar = ({ plan }: PlanCalendarProps) => {
   const [startDate] = useState(startOfToday());
   const [currentPage, setCurrentPage] = useState(0);
   
   const daysPerPage = 28; // 4 weeks at a time
   const totalPages = Math.ceil(plan.duration / daysPerPage);
 
-  const removePassageFromDay = (dateKey: string, passageId: string) => {
-    setPlan(prev => ({
-      ...prev,
-      readings: {
-        ...prev.readings,
-        [dateKey]: (prev.readings[dateKey] || []).filter(p => p.id !== passageId)
-      }
-    }));
-  };
+  // Removal is now handled via drag to trash in the manager
 
   const getCurrentPageDays = () => {
     const startDay = currentPage * daysPerPage;
@@ -157,7 +157,6 @@ const PlanCalendar = ({ plan, setPlan }: PlanCalendarProps) => {
             date={day.date}
             dayNumber={day.dayNumber}
             passages={day.passages}
-            onRemovePassage={(passageId) => removePassageFromDay(day.dateKey, passageId)}
           />
         ))}
       </div>

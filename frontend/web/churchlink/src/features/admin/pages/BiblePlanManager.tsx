@@ -22,45 +22,67 @@ const BiblePlanManager = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const passage = active.data.current as BiblePassage;
+    const data = active.data.current as unknown as BiblePassage | { passage: BiblePassage; sourceDateKey?: string };
+    const passage = (data as any)?.passage ? (data as any).passage as BiblePassage : (data as BiblePassage);
     setActivePassage(passage);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    if (!over) {
+    const data = active.data?.current as unknown as BiblePassage | { passage: BiblePassage; sourceDateKey?: string } | undefined;
+
+    if (!over || !data) {
       setActivePassage(null);
       return;
     }
 
-    // Get the passage from the active data
-    const passage = active.data?.current as BiblePassage;
-    const dayKey = over.id as string;
+    const overId = over.id as string;
+    const isFromCalendar = (data as any)?.passage !== undefined;
+    const passage = isFromCalendar ? (data as any).passage as BiblePassage : (data as BiblePassage);
+    const sourceDateKey: string | undefined = isFromCalendar ? (data as any).sourceDateKey : undefined;
 
-    if (!passage) {
-      setActivePassage(null);
-      return;
-    }
-
-    if (dayKey === 'trash-zone') {
-      // Remove passage from staged passages in selector
-      if (passageRemovalCallback) {
+    if (overId === 'trash-zone') {
+      if (sourceDateKey) {
+        // Remove from the calendar day
+        setPlan(prev => ({
+          ...prev,
+          readings: {
+            ...prev.readings,
+            [sourceDateKey]: (prev.readings[sourceDateKey] || []).filter(p => p.id !== passage.id),
+          },
+        }));
+      } else if (passageRemovalCallback) {
+        // Remove from selector staging
         passageRemovalCallback(passage.id);
       }
-    } else if (dayKey.startsWith('day-')) {
-      const date = dayKey.replace('day-', '');
-      setPlan(prev => ({
-        ...prev,
-        readings: {
-          ...prev.readings,
-          [date]: [...(prev.readings[date] || []), passage]
+    } else if (overId.startsWith('day-')) {
+      const targetDate = overId.replace('day-', '');
+      if (sourceDateKey) {
+        // Move between days if different
+        if (sourceDateKey !== targetDate) {
+          setPlan(prev => {
+            const source = (prev.readings[sourceDateKey] || []).filter(p => p.id !== passage.id);
+            const target = [...(prev.readings[targetDate] || []), passage];
+            return {
+              ...prev,
+              readings: {
+                ...prev.readings,
+                [sourceDateKey]: source,
+                [targetDate]: target,
+              },
+            };
+          });
         }
-      }));
-      
-      // Also remove the passage from the sidebar staging area
-      if (passageRemovalCallback) {
-        passageRemovalCallback(passage.id);
+      } else {
+        // From selector to day
+        setPlan(prev => ({
+          ...prev,
+          readings: {
+            ...prev.readings,
+            [targetDate]: [...(prev.readings[targetDate] || []), passage],
+          },
+        }));
+        if (passageRemovalCallback) passageRemovalCallback(passage.id);
       }
     }
 
@@ -84,13 +106,13 @@ const BiblePlanManager = () => {
             <p className="text-gray-600 mt-2">Create and manage Bible reading plans for your congregation</p>
           </div>
           
-          <PlanCalendar plan={plan} setPlan={setPlan} />
+          <PlanCalendar plan={plan} />
         </div>
 
         {/* Drag Overlay */}
-        <DragOverlay>
+    <DragOverlay>
           {activePassage ? (
-            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium shadow-lg border border-blue-200">
+      <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium shadow-lg border border-blue-200 whitespace-nowrap">
               {activePassage.reference}
             </div>
           ) : null}

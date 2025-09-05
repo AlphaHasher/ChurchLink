@@ -30,7 +30,7 @@ const PassageChip = ({ passage }: PassageChipProps) => {
       {...listeners}
       {...attributes}
       className={`
-        inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium cursor-grab
+        inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium cursor-grab whitespace-nowrap
         hover:bg-blue-200 transition-colors ${isDragging ? 'opacity-50' : ''}
       `}
     >
@@ -145,13 +145,11 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback }: BibleP
               />
             ))}
           </div>
-          
-          {/* Trash Drop Zone */}
-          <TrashDropZone />
         </div>
       )}
+  <TrashDropZone />
 
-      {/* Bible Book Selector */}
+  {/* Bible Book Selector */}
       <div className="border rounded-lg max-h-64 overflow-y-auto">
         {/* Old Testament */}
         <div className="border-b">
