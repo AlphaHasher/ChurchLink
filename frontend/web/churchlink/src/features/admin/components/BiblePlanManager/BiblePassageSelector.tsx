@@ -156,23 +156,37 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
     onPassageAdd?.(passage);
   };
 
+  const startNum = verseRange.start.trim() === '' ? undefined : parseInt(verseRange.start, 10);
+  const endNum = verseRange.end.trim() === '' ? undefined : parseInt(verseRange.end, 10);
+  const isInvalidVerseRange =
+    (startNum !== undefined && (Number.isNaN(startNum) || startNum < 1)) ||
+    (endNum !== undefined && (Number.isNaN(endNum) || endNum < 1)) ||
+    (startNum !== undefined && endNum !== undefined && endNum <= startNum);
+
   const addVerseRange = () => {
-    if (!selectedChapter || !verseRange.start) return;
-    
+    if (!selectedChapter || verseRange.start.trim() === '') return;
+
+    const start = parseInt(verseRange.start, 10);
+    const end = verseRange.end.trim() === '' ? undefined : parseInt(verseRange.end, 10);
+
+    // Enforce minimum of 1 and ordering
+    if (Number.isNaN(start) || start < 1) return;
+    if (end !== undefined && (Number.isNaN(end) || end < 1 || end <= start)) return;
+
     const { book, chapter } = selectedChapter;
-    const reference = verseRange.end 
-      ? `${book.name} ${chapter}:${verseRange.start}-${verseRange.end}`
-      : `${book.name} ${chapter}:${verseRange.start}`;
-    
+    const reference = end !== undefined
+      ? `${book.name} ${chapter}:${start}-${end}`
+      : `${book.name} ${chapter}:${start}`;
+
     const passage: BiblePassage = {
-      id: `${book.id}-${chapter}-${verseRange.start}-${verseRange.end || verseRange.start}-${Date.now()}`,
+      id: `${book.id}-${chapter}-${start}-${end ?? start}-${Date.now()}`,
       book: book.name,
       chapter,
-      startVerse: parseInt(verseRange.start),
-      endVerse: verseRange.end ? parseInt(verseRange.end) : parseInt(verseRange.start),
+      startVerse: start,
+      endVerse: end ?? start,
       reference
     };
-    
+
     setSelectedPassages(prev => [...prev, passage]);
     onPassageAdd?.(passage);
     setVerseRange({ start: '', end: '' });
@@ -392,26 +406,31 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
           <div className="space-y-3">
             <div className="flex gap-2">
               <Input
-              placeholder="Start"
-              value={verseRange.start}
-              onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
-              className="w-24 h-8 text-sm"
+                placeholder="Start"
+                value={verseRange.start}
+                onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
+                className="w-24 h-8 text-sm"
               />
               <Input
-              placeholder="End"
-              value={verseRange.end}
-              onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
-              className="w-24 h-8 text-sm"
+                placeholder="End"
+                value={verseRange.end}
+                onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
+                className="w-24 h-8 text-sm"
               />
               <Button
-              size="sm"
-              onClick={addVerseRange}
-              disabled={!verseRange.start}
-              className="w-24 h-8"
+                size="sm"
+                onClick={addVerseRange}
+                disabled={!verseRange.start || isInvalidVerseRange}
+                className="w-24 h-8"
               >
-              Add Verses
+                Add Verses
               </Button>
             </div>
+            {isInvalidVerseRange && (
+              <div className="text-xs text-red-600">
+                Verses must be at least 1, and end must be greater than start.
+              </div>
+            )}
             <div className="text-xs text-gray-500">
               Leave end verse empty to select a single verse, or enter both to select a range.
             </div>
