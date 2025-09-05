@@ -185,7 +185,6 @@ class _SpanCrossChapterRule extends _Rule {
 
 /// Remaps an entire chapter to another chapter.
 /// Applies when an entire chapter is shifted to another number but its contents are identical. 
-/// TODO: Possibly remove this since our Bibles at the moment do not utilize this.
 class _ChapterRemapRule extends _Rule {
   final int fromChapter;
   final int toChapter;
@@ -227,7 +226,9 @@ class _OffsetRangeRule extends _Rule {
 
   @override
   bool applies(String fromTx, VerseKey k) =>
-      _canonBook(k.book) == 'Psalms' && psalms.contains(k.chapter);
+      _dirOk(fromTx, direction) && // Restricts shifting by direction
+      _canonBook(k.book) == 'Psalms' &&
+      psalms.contains(k.chapter);
 
   @override
   List<VerseKey> map(String fromTx, VerseKey k) {
@@ -361,12 +362,13 @@ static Future<VerseMatching> load() async {
 
       // Special section for remapping Psalms by an offset
       // Could be done individually, but would be massive in the .json
+      // Should only be performed when translating in one direction
+      // Despite 'both', directionality is enforced later
       if (decoded['psalms_title_offsets'] is Map) {
         final p = decoded['psalms_title_offsets'] as Map<String, dynamic>;
-        final dir = _dirFromTxs(p['tx_from'] as String, p['tx_to'] as String);
         final ps = (p['psalms'] as List).map((e) => (e as num).toInt()).toList();
-        // +1 offset is hardcoded
-        parsed.add(_OffsetRangeRule('Psalms', dir, ps, 1));
+        final offset = (p['offset'] is num) ? (p['offset'] as num).toInt() : 1;
+        parsed.add(_OffsetRangeRule('Psalms', 'both', ps, offset));
       }
     } else {
       throw StateError('Unrecognized verse-matching rules format in $rulePathUsed');
