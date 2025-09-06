@@ -235,26 +235,21 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                   </button>
                   
                   {expandedBook === book.id && (
-                    <div className="pl-4 space-y-1">
+                    <div className="pl-4">
                       {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
                         <div key={chapter} className="flex items-center justify-between text-xs gap-2">
                           <div className="flex items-center gap-2 flex-1">
-                            <input
-                              type="checkbox"
-                              checked={isChapterSelected(book.id, chapter)}
-                              onChange={() => toggleChapterSelected(book.id, chapter)}
-                              className="h-3 w-3 accent-blue-600"
-                              aria-label={`Select chapter ${chapter}`}
-                            />
                             <button
-                              onClick={() => selectChapter(book, chapter)}
-                              className={`flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                                selectedChapter?.book.id === book.id && selectedChapter?.chapter === chapter 
-                                  ? 'bg-blue-100 text-blue-800' 
-                                  : ''
+                              onClick={() => { toggleChapterSelected(book.id, chapter); selectChapter(book, chapter); }}
+                              className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
+                                isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
                               }`}
+                              aria-pressed={isChapterSelected(book.id, chapter)}
+                              aria-label={`Chapter ${chapter}`}
                             >
-                              Chapter {chapter}
+                              {/* selection indicator */}
+                              <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
+                              <span className="ml-4">Chapter {chapter}</span>
                             </button>
                           </div>
                           <Button
@@ -299,26 +294,20 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                   </button>
                   
                   {expandedBook === book.id && (
-                    <div className="pl-4 space-y-1">
+                    <div className="pl-4">
                       {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
                         <div key={chapter} className="flex items-center justify-between text-xs gap-2">
                           <div className="flex items-center gap-2 flex-1">
-                            <input
-                              type="checkbox"
-                              checked={isChapterSelected(book.id, chapter)}
-                              onChange={() => toggleChapterSelected(book.id, chapter)}
-                              className="h-3 w-3 accent-blue-600"
-                              aria-label={`Select chapter ${chapter}`}
-                            />
                             <button
-                              onClick={() => selectChapter(book, chapter)}
-                              className={`flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                                selectedChapter?.book.id === book.id && selectedChapter?.chapter === chapter 
-                                  ? 'bg-blue-100 text-blue-800' 
-                                  : ''
+                              onClick={() => { toggleChapterSelected(book.id, chapter); selectChapter(book, chapter); }}
+                              className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
+                                isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
                               }`}
+                              aria-pressed={isChapterSelected(book.id, chapter)}
+                              aria-label={`Chapter ${chapter}`}
                             >
-                              Chapter {chapter}
+                              <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
+                              <span className="ml-4">Chapter {chapter}</span>
                             </button>
                           </div>
                           <Button
@@ -367,7 +356,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                     else if (!hasS && hasE) preview = `${range.start}-${range.end}:${e}`;
                     else preview = `${range.start}:${s}-${range.end}:${e}`;
                   }
-                  return <span className="block w-full">Select Verse Range From {book.name} {preview}</span>;
+                  return <span className="block w-full">Select Verse Range From:<br /> {book.name} {preview}</span>;
                 }
                 if (selectedChapter) {
                   const s = verseRange.start.trim();
@@ -376,7 +365,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                   if (s && !e) preview = `${selectedChapter.chapter}:${s}`;
                   else if (!s && e) preview = `${selectedChapter.chapter}:${e}`;
                   else if (s && e) preview = s === e ? `${selectedChapter.chapter}:${s}` : `${selectedChapter.chapter}:${s}-${e}`;
-                  return <span className="block w-full">Select Verses from {selectedChapter.book.name} {preview}</span>;
+                  return <span className="block w-full">Select Verses from <br /> {selectedChapter.book.name} {preview}</span>;
                 }
                 return <span className="block w-full">Chapter Selection</span>;
               })()}
