@@ -13,7 +13,6 @@ import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// Global navigator key for handling navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Map<String, dynamic>? initialNotificationData;
@@ -67,9 +66,6 @@ class MyApp extends StatelessWidget {
         '/bible': (context) => const BiblePage(),
         '/sermons': (context) => const SermonsPage(),
         '/profile': (context) => const UserSettings(),
-        // Add other pages as needed
-        // Example event page: '/events': (context) => const EventsPage(),
-        // Add more routes below as you add pages
       },
     );
   }
