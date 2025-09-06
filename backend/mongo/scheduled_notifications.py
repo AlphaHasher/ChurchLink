@@ -105,3 +105,24 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
         except Exception:
             logging.error("Scheduled notification loop error:", exc_info=True)
             await asyncio.sleep(30)
+
+
+# Return sent notification history for admin UI
+async def get_notification_history(db: AsyncIOMotorDatabase, limit=100) -> list:
+    cursor = db[NOTIFICATIONS_COLLECTION].find({"sent": True}).sort("sent_at", -1).limit(limit)
+    return await cursor.to_list(length=limit)
+
+# Log a sent notification to history (for live/instant notifications)
+async def log_notification(db: AsyncIOMotorDatabase, title, body, platform, tokens, actionType=None, link=None, route=None):
+    doc = {
+        "title": title,
+        "body": body,
+        "platform": platform,
+        "recipients": tokens,
+        "actionType": actionType,
+        "link": link,
+        "route": route,
+        "sent": True,
+        "sent_at": datetime.utcnow().isoformat(),
+    }
+    await db[NOTIFICATIONS_COLLECTION].insert_one(doc)

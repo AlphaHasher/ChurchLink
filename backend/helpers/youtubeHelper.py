@@ -6,14 +6,28 @@ import asyncio
 from datetime import datetime
 from mongo.database import DB
 from firebase_admin import messaging
+import logging
 
-load_dotenv()
-settings = {
-    "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
-    "PRIMARY_CHANNEL_ID": os.getenv("PRIMARY_CHANNEL_ID"),
-    "PUBLIC_DOMAIN": os.getenv("PUBLIC_DOMAIN"),
-    "STREAM_NOTIFICATION_MESSAGE": os.getenv("STREAM_NOTIFICATION_MESSAGE"),
-}
+
+async def load_youtube_settings():
+    load_dotenv()
+    # Load from .env
+    settings = {
+        "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
+        "PRIMARY_CHANNEL_ID": os.getenv("PRIMARY_CHANNEL_ID"),
+        "PUBLIC_DOMAIN": os.getenv("PUBLIC_DOMAIN"),
+        "YOUTUBE_TIMEZONE": os.getenv("YOUTUBE_TIMEZONE"),
+    }
+    # Notification message/title only from DB (with defaults)
+    try:
+        db_settings = await DB.db["settings"].find_one({"type": "youtube"})
+        settings["STREAM_NOTIFICATION_MESSAGE"] = db_settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!") if db_settings else "A new stream is live!"
+        settings["STREAM_NOTIFICATION_TITLE"] = db_settings.get("STREAM_NOTIFICATION_TITLE", "YouTube Live Stream") if db_settings else "YouTube Live Stream"
+    except Exception as e:
+        logging.error(f"Could not load YouTube notification message/title from DB: {e}")
+        settings["STREAM_NOTIFICATION_MESSAGE"] = "A new stream is live!"
+        settings["STREAM_NOTIFICATION_TITLE"] = "YouTube Live Stream"
+    return settings
 
 
 def get_youtube_client(api_key):
@@ -35,16 +49,14 @@ class YoutubeHelper:
 
     #Currently does nothing, but this function is where we could send the notifications to the frontend
     @staticmethod
-    def pushNotifications():
-        # Save notification to MongoDB
+    async def pushNotifications():
         try:
-            
-        
+            yt_settings = await load_youtube_settings()
             notification = {
                 "isStreaming": YoutubeHelper.isStreaming,
                 "activeStreamIDs": YoutubeHelper.activeStreamIDs,
                 "timestamp": datetime.utcnow(),
-                "message": settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!")
+                "message": yt_settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!")
             }
             # Use asyncio.create_task for async insert
             asyncio.create_task(DB.insert_document("notifications", notification))
@@ -52,7 +64,7 @@ class YoutubeHelper:
             # Send push notification to all users
             
             tokens_cursor = DB.db['fcm_tokens'].find({}, {'_id': 0, 'token': 1})
-            tokens = [doc['token'] for doc in tokens_cursor if doc.get('token')]
+            tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
             for t in tokens:
                 message = messaging.Message(
                     notification=messaging.Notification(
@@ -66,19 +78,20 @@ class YoutubeHelper:
                 )
                 try:
                     response = messaging.send(message)
-                    print(f"FCM response for token {t}: {response}")
+                    logging.info(f"FCM response for token {t}: {response}")
                 except Exception as e:
-                    print(f"FCM error for token {t}: {e}")
+                    logging.error(f"FCM error for token {t}: {e}")
         except Exception as e:
-            print(f"Error saving notification to MongoDB or sending push: {e}")
+            logging.error(f"Error saving notification to MongoDB or sending push: {e}")
 
         # Trigger frontend updates (placeholder)
-        print(f"NOTIFICATIONS PUSHED\nisStreaming: {YoutubeHelper.isStreaming}\nactiveStreamIDs: {YoutubeHelper.activeStreamIDs}")
-        print(f"Notification message: {load_youtube_settings().get('STREAM_NOTIFICATION_MESSAGE', 'A new stream is live!')}")
+        logging.info(f"NOTIFICATIONS PUSHED\nisStreaming: {YoutubeHelper.isStreaming}\nactiveStreamIDs: {YoutubeHelper.activeStreamIDs}")
+        yt_settings = await load_youtube_settings()
+        logging.info(f"Notification message: {yt_settings.get('STREAM_NOTIFICATION_MESSAGE', 'A new stream is live!')}")
 
     @staticmethod
     async def updateMainChannel():
-        settings = load_youtube_settings()
+        settings = await load_youtube_settings()
         api_key = settings["YOUTUBE_API_KEY"]
         channel_id = settings["PRIMARY_CHANNEL_ID"]
         youtubeClient = get_youtube_client(api_key)
@@ -95,7 +108,7 @@ class YoutubeHelper:
                 notificationsNeeded = True
         YoutubeHelper.isStreaming = streamInfo['isStreaming']
         if notificationsNeeded:
-            YoutubeHelper.pushNotifications()
+            await YoutubeHelper.pushNotifications()
 
     #The function checkYoutubeChannel returns a dictionary with 2 keys.
     #isStreaming is a boolean, a simple true/false that will tell you if your requested channel is currently streaming
@@ -119,7 +132,7 @@ class YoutubeHelper:
     #This function sends the request to subscribe to the pubsubhub notifications.
     @staticmethod
     async def subscribeToMainNotifications():
-        settings = load_youtube_settings()
+        settings = await load_youtube_settings()
         channel_id = settings["PRIMARY_CHANNEL_ID"]
         callback_url = get_callback_url(settings["PUBLIC_DOMAIN"])
         async with httpx.AsyncClient() as client:
@@ -131,10 +144,10 @@ class YoutubeHelper:
             }
             try:
                 response = await client.post(HUB_URL, data=data)
-                print("Sent request to subscribe to YouTube Notifications")
+                logging.info("Sent request to subscribe to YouTube Notifications")
                 return True
             except Exception as e:
-                print(f"Error subscribing to notifications: {e}")
+                logging.error(f"Error subscribing to notifications: {e}")
                 return False
 
     #This function will run continuously to ensure that we are always subscribed to YouTube notifications

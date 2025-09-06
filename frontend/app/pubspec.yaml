@@ -37,7 +37,9 @@ dependencies:
   firebase_core: ^3.12.1
   firebase_auth: ^5.5.1
   firebase_messaging: ^15.2.4
+  firebase_analytics: ^11.4.4
   url_launcher: ^6.2.5
+  provider: ^6.0.5
 
   #avatar
   image_picker: ^1.1.2

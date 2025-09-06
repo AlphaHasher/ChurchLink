@@ -16,6 +16,8 @@ from pydantic import BaseModel
 from mongo.scheduled_notifications import scheduled_notification_loop
 
 
+
+
 import asyncio
 import os
 
@@ -31,9 +33,8 @@ from routes.strapi_routes.strapi_routes import strapi_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.permissions_routes.permissions_routes import permissions_router
-from routes.common_routes.notification_settings_routes import router as notification_settings_router
-from routes.common_routes.fcm_token_routes import router as fcm_token_router
-from routes.common_routes.push_notification_routes import router as push_notification_router
+## cleaned up unused notification route imports
+from routes.common_routes.notification_routes import notification_router
 # Scheduled notification sender loop
 from mongo.scheduled_notifications import get_due_notifications, mark_as_sent
 
@@ -48,7 +49,9 @@ FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize Firebase Admin SDK if not already initialized
+    # Initialize Firebase Admin SDK if not already 
+    
+    
     if not firebase_admin._apps:
         from firebase.firebase_credentials import get_firebase_credentials
         cred = credentials.Certificate(get_firebase_credentials())
@@ -177,6 +180,7 @@ base_router.include_router(user_router)
 base_router.include_router(strapi_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
+base_router.include_router(notification_router)
 
 
 
@@ -184,9 +188,7 @@ non_v1_router = APIRouter(prefix="/api")
 non_v1_router.include_router(page_router)
 non_v1_router.include_router(header_router)
 non_v1_router.include_router(footer_router)
-non_v1_router.include_router(notification_settings_router)
-non_v1_router.include_router(fcm_token_router)
-non_v1_router.include_router(push_notification_router)
+## cleaned up unused notification router includes
 
 
 # Include routers in main app
