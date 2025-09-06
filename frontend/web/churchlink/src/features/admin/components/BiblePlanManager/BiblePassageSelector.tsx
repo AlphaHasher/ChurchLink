@@ -54,10 +54,6 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     setSelectedChapter(null);
   };
 
-  const selectChapter = (book: BibleBook, chapter: number) => {
-  setSelectedChapter({ book, chapter });
-  };
-
   const keyFor = (bookId: string, chapter: number) => `${bookId}-${chapter}`;
   const isChapterSelected = (bookId: string, chapter: number) => selectedChaptersSet.has(keyFor(bookId, chapter));
   const toggleChapterSelected = (bookId: string, chapter: number) => {
@@ -194,6 +190,66 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Render a list of books and their chapters
+  const renderBooks = (books: BibleBook[]) => (
+    <>
+      {books.map((book) => (
+        <div key={book.id}>
+          <button
+            onClick={() => toggleBook(book.id)}
+            className="w-full flex items-center justify-between p-2 text-left hover:bg-gray-50 text-sm"
+          >
+            <span>{book.name}</span>
+            {expandedBook === book.id ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+
+          {expandedBook === book.id && (
+            <div className="pl-4">
+              {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
+                <div key={chapter} className="flex items-center justify-between text-xs gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <button
+                      onClick={() => {
+                        const currentlySelected = isChapterSelected(book.id, chapter);
+                        if (currentlySelected) {
+                          toggleChapterSelected(book.id, chapter);
+                          if (selectedChapter?.book.id === book.id && selectedChapter.chapter === chapter) {
+                            setSelectedChapter(null);
+                            setVerseRange({ start: '', end: '' });
+                          }
+                        } else {
+                          toggleChapterSelected(book.id, chapter);
+                          setSelectedChapter({ book, chapter });
+                        }
+                      }}
+                      className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
+                        isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
+                      }`}
+                      aria-pressed={isChapterSelected(book.id, chapter)}
+                      aria-label={`Chapter ${chapter}`}
+                    >
+                      <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
+                      <span className="ml-4">Chapter {chapter}</span>
+                    </button>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => addWholeChapter(book, chapter)}
+                    disabled={!selectedDay}
+                    className="h-6 w-6 p-0"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </>
+  );
+
   return (
     <div ref={containerRef} className="space-y-4">
 
@@ -212,62 +268,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
           </button>
           
           {expandedTestament === 'Old' && (
-            <div className="pl-4 pb-2">
-              {oldTestamentBooks.map((book) => (
-                <div key={book.id}>
-                  <button
-                    onClick={() => toggleBook(book.id)}
-                    className="w-full flex items-center justify-between p-2 text-left hover:bg-gray-50 text-sm"
-                  >
-                    <span>{book.name}</span>
-                    {expandedBook === book.id ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  </button>
-                  
-                  {expandedBook === book.id && (
-                    <div className="pl-4">
-                      {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
-                        <div key={chapter} className="flex items-center justify-between text-xs gap-2">
-                          <div className="flex items-center gap-2 flex-1">
-                            <button
-                              onClick={() => {
-                                const currentlySelected = isChapterSelected(book.id, chapter);
-                                if (currentlySelected) {
-                                  toggleChapterSelected(book.id, chapter);
-                                  if (selectedChapter?.book.id === book.id && selectedChapter.chapter === chapter) {
-                                    setSelectedChapter(null);
-                                    setVerseRange({ start: '', end: '' });
-                                  }
-                                } else {
-                                  toggleChapterSelected(book.id, chapter);
-                                  setSelectedChapter({ book, chapter });
-                                }
-                              }}
-                              className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                                isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
-                              }`}
-                              aria-pressed={isChapterSelected(book.id, chapter)}
-                              aria-label={`Chapter ${chapter}`}
-                            >
-                              <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
-                              <span className="ml-4">Chapter {chapter}</span>
-                            </button>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => addWholeChapter(book, chapter)}
-                            disabled={!selectedDay}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            <div className="pl-4 pb-2">{renderBooks(oldTestamentBooks)}</div>
           )}
         </div>
 
@@ -282,60 +283,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
           </button>
           
           {expandedTestament === 'New' && (
-            <div className="pl-4 pb-2">
-              {newTestamentBooks.map((book) => (
-                <div key={book.id}>
-                  <button
-                    onClick={() => toggleBook(book.id)}
-                    className="w-full flex items-center justify-between p-2 text-left hover:bg-gray-50 text-sm"
-                  >
-                    <span>{book.name}</span>
-                    {expandedBook === book.id ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  </button>
-                  
-                  {expandedBook === book.id && (
-                    <div className="pl-4">
-                      {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
-                        <div key={chapter} className="flex items-center justify-between text-xs gap-2">
-                          <div className="flex items-center gap-2 flex-1">
-                            <button
-                              onClick={() => {
-                                const currentlySelected = isChapterSelected(book.id, chapter);
-                                if (currentlySelected) {
-                                  toggleChapterSelected(book.id, chapter);
-                                  setSelectedChapter(null);
-                                  setVerseRange({ start: '', end: '' });
-                                } else {
-                                  toggleChapterSelected(book.id, chapter);
-                                  selectChapter(book, chapter);
-                                }
-                              }}
-                              className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                                isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
-                              }`}
-                              aria-pressed={isChapterSelected(book.id, chapter)}
-                              aria-label={`Chapter ${chapter}`}
-                            >
-                              <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
-                              <span className="ml-4">Chapter {chapter}</span>
-                            </button>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => addWholeChapter(book, chapter)}
-                            disabled={!selectedDay}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            <div className="pl-4 pb-2">{renderBooks(newTestamentBooks)}</div>
           )}
         </div>
       </div>
