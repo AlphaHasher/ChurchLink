@@ -4,7 +4,7 @@ import { ReadingPlan, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-interface PlanCalendarProps { plan: ReadingPlan }
+interface PlanCalendarProps { plan: ReadingPlan; selectedDay: number | null; onSelectDay: (day: number) => void; }
 
 interface CalendarDayProps { dayNumber: number; passages: BiblePassage[] }
 
@@ -29,7 +29,7 @@ const CalendarPassageChip = ({ passage, dayKey }: { passage: BiblePassage; dayKe
   );
 };
 
-const CalendarDay = ({ dayNumber, passages }: CalendarDayProps) => {
+const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: CalendarDayProps & { isSelected: boolean; onSelect: (day: number) => void }) => {
   const dayKey = String(dayNumber);
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dayKey}`,
@@ -40,15 +40,19 @@ const CalendarDay = ({ dayNumber, passages }: CalendarDayProps) => {
   return (
     <div
       ref={setNodeRef}
+      onClick={() => onSelect(dayNumber)}
       className={`
-        min-h-[120px] p-2 rounded-lg transition-colors duration-200
+        min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
         ${isPassageOver
           ? 'border-2 border-dashed border-green-400 bg-green-50'
-          : 'border border-gray-200 bg-white hover:bg-gray-50'}
+          : isSelected
+            ? 'border-2 border-blue-500 bg-blue-50'
+            : 'border border-gray-200 bg-white hover:bg-gray-50'}
       `}
     >
       <div className="flex items-center mb-2">
-        <div className="text-sm font-medium text-gray-900">Day {dayNumber}</div>
+        <div className="text-sm font-medium text-gray-900 flex-1">Day {dayNumber}</div>
+        {isSelected && <span className="text-[10px] uppercase tracking-wide text-blue-600 font-semibold">Selected</span>}
       </div>
       
       <div className="flex flex-col gap-1">
@@ -66,7 +70,7 @@ const CalendarDay = ({ dayNumber, passages }: CalendarDayProps) => {
   );
 };
 
-const PlanCalendar = ({ plan }: PlanCalendarProps) => {
+const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => {
   const [currentPage, setCurrentPage] = useState(0);
   
   const daysPerPage = 31;
@@ -139,9 +143,12 @@ const PlanCalendar = ({ plan }: PlanCalendarProps) => {
   <div className="grid grid-cols-4 gap-3 lg:grid-cols-7">
         {days.map((day) => (
           <CalendarDay
-              key={day.dayNumber}
-              dayNumber={day.dayNumber}
-              passages={day.passages} />
+            key={day.dayNumber}
+            dayNumber={day.dayNumber}
+            passages={day.passages}
+            isSelected={selectedDay === day.dayNumber}
+            onSelect={onSelectDay}
+          />
         ))}
       </div>
       

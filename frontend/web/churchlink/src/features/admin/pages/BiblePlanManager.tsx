@@ -14,16 +14,7 @@ const BiblePlanManager = () => {
   });
   
   const [activePassage, setActivePassage] = useState<BiblePassage | null>(null);
-  const [passageRemovalCallback, setPassageRemovalCallback] = useState<((passageId: string) => void) | null>(null);
-  const [passageAddCallback, setPassageAddCallback] = useState<((passage: BiblePassage) => void) | null>(null);
-
-  const handleRegisterRemoveCallback = (callback: (passageId: string) => void) => {
-    setPassageRemovalCallback(() => callback);
-  };
-
-  const handleRegisterAddCallback = (callback: (passage: BiblePassage) => void) => {
-    setPassageAddCallback(() => callback);
-  };
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -41,65 +32,40 @@ const BiblePlanManager = () => {
       return;
     }
 
-    const overId = over.id as string;
+  const overId = over.id as string;
   const isFromCalendar = (data as any)?.passage !== undefined;
     const passage = isFromCalendar ? (data as any).passage as BiblePassage : (data as BiblePassage);
   const sourceDayKey: string | undefined = isFromCalendar ? (data as any).sourceDayKey : undefined;
 
     if (overId === 'trash-zone') {
-  if (sourceDayKey) {
+      if (sourceDayKey) {
         // Remove from the calendar day
         setPlan(prev => ({
           ...prev,
           readings: {
-    ...prev.readings,
-    [sourceDayKey]: (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id),
-          },
-        }));
-      } else if (passageRemovalCallback) {
-        // Remove from selector staging
-        passageRemovalCallback(passage.id);
-      }
-    } else if (overId === 'selector-bin') {
-      // Move back to selector bin
-  if (sourceDayKey) {
-        setPlan(prev => ({
-          ...prev,
-          readings: {
-    ...prev.readings,
-    [sourceDayKey]: (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id),
+            ...prev.readings,
+            [sourceDayKey]: (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id),
           },
         }));
       }
-      passageAddCallback?.(passage);
     } else if (overId.startsWith('day-')) {
-  const targetDay = overId.replace('day-', '');
-  if (sourceDayKey) {
+      const targetDay = overId.replace('day-', '');
+      if (sourceDayKey) {
         // Move between days if different
-    if (sourceDayKey !== targetDay) {
+        if (sourceDayKey !== targetDay) {
           setPlan(prev => {
-    const source = (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id);
-    const target = [...(prev.readings[targetDay] || []), passage];
+            const source = (prev.readings[sourceDayKey] || []).filter(p => p.id !== passage.id);
+            const target = [...(prev.readings[targetDay] || []), passage];
             return {
               ...prev,
               readings: {
                 ...prev.readings,
-        [sourceDayKey]: source,
-        [targetDay]: target,
+                [sourceDayKey]: source,
+                [targetDay]: target,
               },
             };
           });
         }
-      } else {
-        // From selector to day
-        setPlan(prev => ({
-          ...prev,
-          readings: {
-            ...prev.readings,
-    [targetDay]: [...(prev.readings[targetDay] || []), passage],
-          },
-        }));
-        if (passageRemovalCallback) passageRemovalCallback(passage.id);
       }
     }
 
@@ -112,9 +78,17 @@ const BiblePlanManager = () => {
         {/* Sidebar */}
         <PlanSidebar 
           plan={plan} 
-          setPlan={setPlan} 
-          onPassageRemoveFromSelector={handleRegisterRemoveCallback}
-          onPassageAddToSelector={handleRegisterAddCallback}
+          setPlan={setPlan}
+          selectedDay={selectedDay}
+          onCreatePassageForDay={(day, passage) => {
+            setPlan(prev => ({
+              ...prev,
+              readings: {
+                ...prev.readings,
+                [String(day)]: [...(prev.readings[String(day)] || []), passage]
+              }
+            }));
+          }}
         />
         
         {/* Main Content Area */}
@@ -124,7 +98,11 @@ const BiblePlanManager = () => {
             <p className="text-gray-600 mt-2">Create and manage Bible reading plans for your congregation</p>
           </div>
           
-          <PlanCalendar plan={plan} />
+          <PlanCalendar 
+            plan={plan} 
+            selectedDay={selectedDay}
+            onSelectDay={(d) => setSelectedDay(d)}
+          />
         </div>
 
         {/* Drag Overlay */}

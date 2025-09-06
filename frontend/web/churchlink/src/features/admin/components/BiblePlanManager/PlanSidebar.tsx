@@ -9,11 +9,11 @@ import { Download, Upload, Save } from 'lucide-react';
 interface PlanSidebarProps {
   plan: ReadingPlan;
   setPlan: React.Dispatch<React.SetStateAction<ReadingPlan>>;
-  onPassageRemoveFromSelector?: (callback: (passageId: string) => void) => void;
-  onPassageAddToSelector?: (callback: (passage: BiblePassage) => void) => void;
+  selectedDay?: number | null;
+  onCreatePassageForDay?: (day: number, passage: BiblePassage) => void;
 }
 
-const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddToSelector }: PlanSidebarProps) => {
+const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -154,7 +154,23 @@ const PlanSidebar = ({ plan, setPlan, onPassageRemoveFromSelector, onPassageAddT
         {/* Bible Passage Selector */}
         <div className="space-y-2">
           <Label>Bible Passage Selector</Label>
-          <BiblePassageSelector onRegisterRemoveCallback={onPassageRemoveFromSelector} onRegisterAddCallback={onPassageAddToSelector} />
+          <BiblePassageSelector
+            selectedDay={selectedDay}
+            onCreatePassage={(p) => {
+              if (!selectedDay) return;
+              if (onCreatePassageForDay) {
+                onCreatePassageForDay(selectedDay, p);
+                return;
+              }
+              setPlan(prev => ({
+                ...prev,
+                readings: {
+                  ...prev.readings,
+                  [String(selectedDay)]: [...(prev.readings[String(selectedDay)] || []), p]
+                }
+              }));
+            }}
+          />
         </div>
 
         {/* Action Buttons */}

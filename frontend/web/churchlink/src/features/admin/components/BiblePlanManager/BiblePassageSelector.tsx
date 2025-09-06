@@ -1,44 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { BIBLE_BOOKS, BibleBook, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
 import { Input } from '../../../../shared/components/ui/input';
-import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
 
 interface BiblePassageSelectorProps {
-  onPassageAdd?: (passage: BiblePassage) => void;
-  onRegisterRemoveCallback?: (callback: (passageId: string) => void) => void;
-  onRegisterAddCallback?: (callback: (passage: BiblePassage) => void) => void;
+  selectedDay?: number | null;           // Day currently selected in the calendar
+  onCreatePassage?: (passage: BiblePassage) => void; // Notify parent to add passage directly to that day
 }
-
-interface PassageChipProps {
-  passage: BiblePassage;
-}
-
-const PassageChip = ({ passage }: PassageChipProps) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: passage.id,
-    data: { type: 'passage', passage },
-  });
-
-  // When using a DragOverlay, hide the original while dragging to avoid duplicate render
-  const style = isDragging ? { opacity: 0 } : undefined;
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      className={`
-        inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium cursor-grab whitespace-nowrap
-        hover:bg-blue-200 transition-colors ${isDragging ? 'opacity-50' : ''}
-      `}
-    >
-      <span>{passage.reference}</span>
-    </div>
-  );
-};
 
 const TrashDropZone = () => {
   const { isOver, setNodeRef } = useDroppable({
@@ -63,11 +33,10 @@ const TrashDropZone = () => {
   );
 };
 
-const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegisterAddCallback }: BiblePassageSelectorProps) => {
+const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSelectorProps) => {
   const [expandedTestament, setExpandedTestament] = useState<'Old' | 'New' | null>(null);
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<{ book: BibleBook; chapter: number } | null>(null);
-  const [selectedPassages, setSelectedPassages] = useState<BiblePassage[]>([]);
   const [verseRange, setVerseRange] = useState({ start: '', end: '' });
   const [selectedChaptersSet, setSelectedChaptersSet] = useState<Set<string>>(new Set());
 
@@ -105,6 +74,7 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
 
   const addSelectedChapters = () => {
     if (selectedChaptersSet.size === 0) return;
+    if (!selectedDay) return; // Must have a day selected
     // Group by book, collect chapters, sort, and merge contiguous sequences
     const chaptersByBook = new Map<string, number[]>();
     selectedChaptersSet.forEach((k) => {
@@ -138,22 +108,20 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
       }
     });
 
-    if (toAdd.length === 0) return;
-    setSelectedPassages((prev) => [...prev, ...toAdd]);
-    toAdd.forEach((p) => onPassageAdd?.(p));
+  if (toAdd.length === 0) return;
+  toAdd.forEach((p) => onCreatePassage?.(p));
     clearSelectedChapters();
   };
 
   const addWholeChapter = (book: BibleBook, chapter: number) => {
+  if (!selectedDay) return; // Must have a day selected
     const passage: BiblePassage = {
       id: `${book.id}-${chapter}-${Date.now()}`,
       book: book.name,
       chapter,
       reference: `${book.name} ${chapter}`
     };
-    
-    setSelectedPassages(prev => [...prev, passage]);
-    onPassageAdd?.(passage);
+  onCreatePassage?.(passage);
   };
 
   const startNum = verseRange.start.trim() === '' ? undefined : parseInt(verseRange.start, 10);
@@ -165,6 +133,7 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
 
   const addVerseRange = () => {
     if (!selectedChapter || verseRange.start.trim() === '') return;
+    if (!selectedDay) return; // Must have a day selected
 
     const start = parseInt(verseRange.start, 10);
     const end = verseRange.end.trim() === '' ? undefined : parseInt(verseRange.end, 10);
@@ -187,28 +156,9 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
       reference
     };
 
-    setSelectedPassages(prev => [...prev, passage]);
-    onPassageAdd?.(passage);
+  onCreatePassage?.(passage);
     setVerseRange({ start: '', end: '' });
   };
-
-  const removePassage = useCallback((passageId: string) => {
-    setSelectedPassages(prev => prev.filter(p => p.id !== passageId));
-  }, []);
-
-  const addPassageToBin = useCallback((passage: BiblePassage) => {
-    setSelectedPassages(prev => (prev.some(p => p.id === passage.id) ? prev : [...prev, passage]));
-  }, []);
-
-  // Register the remove callback with the parent
-  useEffect(() => {
-    onRegisterRemoveCallback?.(removePassage);
-  }, [onRegisterRemoveCallback, removePassage]);
-
-  // Register the add callback with the parent (to add back from calendar)
-  useEffect(() => {
-    onRegisterAddCallback?.(addPassageToBin);
-  }, [onRegisterAddCallback, addPassageToBin]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -226,33 +176,19 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [selectedChapter]);
 
-  const { isOver: isOverBin, setNodeRef: setBinRef } = useDroppable({ id: 'selector-bin' });
-
   return (
     <div ref={containerRef} className="space-y-4">
-      {/* Selected Passages Bin */}
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-gray-700">Selected Passages (Drag to Calendar)</div>
-        <div
-          ref={setBinRef}
-          className={`flex flex-wrap gap-2 p-3 rounded-lg min-h-[60px] transition-colors ${
-            isOverBin ? 'bg-blue-50 border border-blue-300' : 'bg-gray-50 border border-gray-200'
-          }`}
-        >
-          {selectedPassages.length > 0 ? (
-            selectedPassages.map((passage) => (
-              <PassageChip key={passage.id} passage={passage} />
-            ))
-          ) : (
-            <span className="text-xs text-gray-400">Drop passages here to stage them</span>
-          )}
-        </div>
+      <div className="text-sm font-medium text-gray-700">
+        {selectedDay ? (
+          <span>Adding passages to Day {selectedDay}</span>
+        ) : (
+          <span className="text-red-600">Select a day in the calendar to add passages</span>
+        )}
       </div>
-
       <TrashDropZone />
 
   {/* Bible Book Selector */}
-      <div className="border rounded-lg max-h-64 overflow-y-auto">
+  <div className="border rounded-lg max-h-64 overflow-y-auto">
         {/* Old Testament */}
         <div className="border-b">
           <button
@@ -302,6 +238,7 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
                             size="sm"
                             variant="ghost"
                             onClick={() => addWholeChapter(book, chapter)}
+                            disabled={!selectedDay}
                             className="h-6 w-6 p-0"
                           >
                             <Plus className="w-3 h-3" />
@@ -365,6 +302,7 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
                             size="sm"
                             variant="ghost"
                             onClick={() => addWholeChapter(book, chapter)}
+                            disabled={!selectedDay}
                             className="h-6 w-6 p-0"
                           >
                             <Plus className="w-3 h-3" />
@@ -386,7 +324,7 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs text-blue-800">{selectedChaptersSet.size} chapter(s) selected</span>
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={addSelectedChapters} className="h-7 whitespace-nowrap text-xs">
+              <Button size="sm" onClick={addSelectedChapters} disabled={!selectedDay} className="h-7 whitespace-nowrap text-xs">
                 Add Selected Chapters
               </Button>
               <Button size="sm" variant="outline" onClick={clearSelectedChapters} className="h-7 whitespace-nowrap text-xs">
@@ -420,7 +358,7 @@ const BiblePassageSelector = ({ onPassageAdd, onRegisterRemoveCallback, onRegist
               <Button
                 size="sm"
                 onClick={addVerseRange}
-                disabled={!verseRange.start || isInvalidVerseRange}
+                disabled={!verseRange.start || isInvalidVerseRange || !selectedDay}
                 className="w-24 h-8"
               >
                 Add Verses
