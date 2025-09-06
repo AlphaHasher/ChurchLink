@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 
 const String backendHost = '10.0.2.2:8000';
 
-
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
 
@@ -54,7 +53,6 @@ class Event {
   }
 }
 
-
 class _EventsPageState extends State<EventsPage> {
   List<Event> _events = [];
   bool _isLoading = true;
@@ -74,14 +72,15 @@ class _EventsPageState extends State<EventsPage> {
   late TextEditingController _maxPriceController;
   late TextEditingController _ageController;
 
-
   @override
   void initState() {
     super.initState();
 
     //Utilized for entering text into filters
     _nameController = TextEditingController(text: _nameQuery ?? '');
-    _maxPriceController = TextEditingController(text: _maxPrice?.toString() ?? '');
+    _maxPriceController = TextEditingController(
+      text: _maxPrice?.toString() ?? '',
+    );
     _ageController = TextEditingController(text: _age?.toString() ?? '');
 
     //Adjust the date slider so that it only shows one year in advance from the current date
@@ -119,20 +118,22 @@ class _EventsPageState extends State<EventsPage> {
     };
 
     // Always include upcoming-only events
-    queryParams['date_after'] = _minDate
-        .add(Duration(days: _dateRange.start.round()))
-        .toIso8601String()
-        .split('T')
-        .first;
+    queryParams['date_after'] =
+        _minDate
+            .add(Duration(days: _dateRange.start.round()))
+            .toIso8601String()
+            .split('T')
+            .first;
 
     if (_dateRange.end < totalDays) {
-      queryParams['date_before'] = _minDate
-          .add(Duration(days: _dateRange.end.round()))
-          .toIso8601String()
-          .split('T')
-          .first;
+      queryParams['date_before'] =
+          _minDate
+              .add(Duration(days: _dateRange.end.round()))
+              .toIso8601String()
+              .split('T')
+              .first;
     }
-    
+
     // Free events shortcut (max_price == 0)
     if (_maxPrice == 0) {
       queryParams['is_free'] = 'true';
@@ -158,172 +159,199 @@ class _EventsPageState extends State<EventsPage> {
     }
   }
 
-void _showFilterSheet(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (context) {
-      
-      String? tempGender = _gender;
-      String? tempMinistry = _ministry;
-      String? tempName = _nameQuery;
-      double? tempMaxPrice = _maxPrice;
-      int? tempAge = _age;
-      RangeValues tempDateRange = _dateRange;
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        String? tempGender = _gender;
+        String? tempMinistry = _ministry;
+        String? tempName = _nameQuery;
+        double? tempMaxPrice = _maxPrice;
+        int? tempAge = _age;
+        RangeValues tempDateRange = _dateRange;
 
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setModalState) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Wrap(
-              runSpacing: 12,
-              children: [
-                const Text("Filter Events", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                runSpacing: 12,
+                children: [
+                  const Text(
+                    "Filter Events",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
 
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: "Search by Name"),
-                  onChanged: (value) => setModalState(() => tempName = value),
-                ),
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: "Search by Name",
+                    ),
+                    onChanged: (value) => setModalState(() => tempName = value),
+                  ),
 
-                TextField(
-                  controller: _maxPriceController,
-                  decoration: const InputDecoration(labelText: "Max Price"),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) => setModalState(() => tempMaxPrice = double.tryParse(value)),
-                ),
+                  TextField(
+                    controller: _maxPriceController,
+                    decoration: const InputDecoration(labelText: "Max Price"),
+                    keyboardType: TextInputType.number,
+                    onChanged:
+                        (value) => setModalState(
+                          () => tempMaxPrice = double.tryParse(value),
+                        ),
+                  ),
 
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: "Gender"),
-                  initialValue: tempGender,
-                  items: [
-                    null,              // Show all: no filtering
-                    'all',             // Only "All Genders" events
-                    'male',
-                    'female',
-                  ].map((g) {
-                    String label;
-                    if (g == null) {
-                      label = 'Show All';
-                    }
-                    else if (g == 'all') {
-                      label = 'All Genders Allowed';
-                    }
-                    else {
-                      label = '${g[0].toUpperCase()}${g.substring(1)} Only';
-                    }
-                    return DropdownMenuItem<String>(
-                      value: g,
-                      child: Text(label),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setModalState(() => tempGender = value),
-                ),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: "Gender"),
+                    value: tempGender,
+                    items:
+                        [
+                          null, // Show all: no filtering
+                          'all', // Only "All Genders" events
+                          'male',
+                          'female',
+                        ].map((g) {
+                          String label;
+                          if (g == null) {
+                            label = 'Show All';
+                          } else if (g == 'all') {
+                            label = 'All Genders Allowed';
+                          } else {
+                            label =
+                                '${g[0].toUpperCase()}${g.substring(1)} Only';
+                          }
+                          return DropdownMenuItem<String>(
+                            value: g,
+                            child: Text(label),
+                          );
+                        }).toList(),
+                    onChanged:
+                        (value) => setModalState(() => tempGender = value),
+                  ),
 
-                TextField(
-                  controller: _ageController,
-                  decoration: const InputDecoration(labelText: "Age"),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) => setModalState(() => tempAge = int.tryParse(value)),
-                ),
+                  TextField(
+                    controller: _ageController,
+                    decoration: const InputDecoration(labelText: "Age"),
+                    keyboardType: TextInputType.number,
+                    onChanged:
+                        (value) =>
+                            setModalState(() => tempAge = int.tryParse(value)),
+                  ),
 
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: "Ministry"),
-                  initialValue: tempMinistry,
-                  items: [
-                    null,
-                    'Children',
-                    'Education',
-                    'Family',
-                    'Music',
-                    'Quo Vadis Theater',
-                    'Skala Teens',
-                    'VBS',
-                    'United Service',
-                    'Women\'s Ministries',
-                    'Youth',
-                  ].map((m) {
-                    return DropdownMenuItem<String>(
-                      value: m,
-                      child: Text(m ?? 'All Ministries'),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setModalState(() => tempMinistry = value),
-                ),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: "Ministry"),
+                    value: tempMinistry,
+                    items:
+                        [
+                          null,
+                          'Children',
+                          'Education',
+                          'Family',
+                          'Music',
+                          'Quo Vadis Theater',
+                          'Skala Teens',
+                          'VBS',
+                          'United Service',
+                          'Women\'s Ministries',
+                          'Youth',
+                        ].map((m) {
+                          return DropdownMenuItem<String>(
+                            value: m,
+                            child: Text(m ?? 'All Ministries'),
+                          );
+                        }).toList(),
+                    onChanged:
+                        (value) => setModalState(() => tempMinistry = value),
+                  ),
 
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Date Range", style: TextStyle(fontWeight: FontWeight.w500)),
-                    RangeSlider(
-                      values: tempDateRange,
-                      min: 0,
-                      max: _maxDate.difference(_minDate).inDays.toDouble(),
-                      divisions: 20,
-                      labels: RangeLabels(
-                        _minDate.add(Duration(days: _dateRange.start.round())).toString().split(' ')[0],
-                        _minDate.add(Duration(days: _dateRange.end.round())).toString().split(' ')[0],
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Date Range",
+                        style: TextStyle(fontWeight: FontWeight.w500),
                       ),
-                    onChanged: (values) => setModalState(() => tempDateRange = values),
-                    ),
-                  ],
-                ),
-                
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        setModalState(() {
-                          tempGender = null;
-                          tempMinistry = null;
-                          tempName = null;
-                          tempMaxPrice = null;
-                          tempAge = null;
-                          tempDateRange = RangeValues(0, _maxDate.difference(_minDate).inDays.toDouble());
-
-                          _nameController.clear();
-                          _maxPriceController.clear();
-                          _ageController.clear();
-                        });
-                      },
-                      child: const Text(
-                        "Reset Filters",
-                        style: TextStyle(color: Colors.red),
+                      RangeSlider(
+                        values: tempDateRange,
+                        min: 0,
+                        max: _maxDate.difference(_minDate).inDays.toDouble(),
+                        divisions: 20,
+                        labels: RangeLabels(
+                          _minDate
+                              .add(Duration(days: _dateRange.start.round()))
+                              .toString()
+                              .split(' ')[0],
+                          _minDate
+                              .add(Duration(days: _dateRange.end.round()))
+                              .toString()
+                              .split(' ')[0],
+                        ),
+                        onChanged:
+                            (values) =>
+                                setModalState(() => tempDateRange = values),
                       ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _gender = tempGender;
-                          _ministry = tempMinistry;
-                          _nameQuery = tempName;
-                          _maxPrice = tempMaxPrice;
-                          _age = tempAge;
-                          _dateRange = tempDateRange;
+                    ],
+                  ),
 
-                          _nameController.text = _nameQuery ?? '';
-                          _maxPriceController.text = _maxPrice?.toString() ?? '';
-                          _ageController.text = _age?.toString() ?? '';
-                        });
-                        Navigator.pop(context);
-                        _loadEvents();
-                      },
-                      child: const Text("Apply Filters"),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            tempGender = null;
+                            tempMinistry = null;
+                            tempName = null;
+                            tempMaxPrice = null;
+                            tempAge = null;
+                            tempDateRange = RangeValues(
+                              0,
+                              _maxDate.difference(_minDate).inDays.toDouble(),
+                            );
+
+                            _nameController.clear();
+                            _maxPriceController.clear();
+                            _ageController.clear();
+                          });
+                        },
+                        child: const Text(
+                          "Reset Filters",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _gender = tempGender;
+                            _ministry = tempMinistry;
+                            _nameQuery = tempName;
+                            _maxPrice = tempMaxPrice;
+                            _age = tempAge;
+                            _dateRange = tempDateRange;
+
+                            _nameController.text = _nameQuery ?? '';
+                            _maxPriceController.text =
+                                _maxPrice?.toString() ?? '';
+                            _ageController.text = _age?.toString() ?? '';
+                          });
+                          Navigator.pop(context);
+                          _loadEvents();
+                        },
+                        child: const Text("Apply Filters"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -333,10 +361,7 @@ void _showFilterSheet(BuildContext context) {
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Padding(
           padding: EdgeInsets.only(left: 100),
-          child: Text(
-            "Events",
-            style: TextStyle(color: Colors.white),
-          ),
+          child: Text("Events", style: TextStyle(color: Colors.white)),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -353,45 +378,43 @@ void _showFilterSheet(BuildContext context) {
             children: [
               _isLoading
                   ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 50),
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
+                    padding: EdgeInsets.symmetric(vertical: 50),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
                   : _events.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 50),
-                          child: Text("No events found."),
-                        )
-                      : ListView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: _events.length,
-                          itemBuilder: (context, index) {
-                            final event = _events[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 8),
-                              child: ListTile(
-                                title: Text(event.name),
-                                subtitle: Text(event.description),
-                                trailing: Text(
-                                  event.price == 0
-                                      ? "Free"
-                                      : "\$${event.price.toStringAsFixed(2)}",
-                                ),
-                              ),
-                            );
-                          },
+                  ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 50),
+                    child: Text("No events found."),
+                  )
+                  : ListView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: _events.length,
+                    itemBuilder: (context, index) {
+                      final event = _events[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          title: Text(event.name),
+                          subtitle: Text(event.description),
+                          trailing: Text(
+                            event.price == 0
+                                ? "Free"
+                                : "\$${event.price.toStringAsFixed(2)}",
+                          ),
                         ),
+                      );
+                    },
+                  ),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-      backgroundColor: Colors.deepPurple,
-      child: const Icon(Icons.filter_list),
-      onPressed: () => _showFilterSheet(context),
-),
+        backgroundColor: Colors.deepPurple,
+        child: const Icon(Icons.filter_list),
+        onPressed: () => _showFilterSheet(context),
+      ),
     );
   }
 }

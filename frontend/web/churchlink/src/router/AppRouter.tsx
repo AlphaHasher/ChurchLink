@@ -6,7 +6,7 @@ import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "../features/auth/guards/PrivateRoute";
 import { PrivateRoutes } from "./PrivateRoutes";
 import DynamicPage from "../shared/components/DynamicPage";
-import ProfilePage from "@/pages/ProfilePage";
+import ProfilePage from "../features/users/pages/ProfilePage";
 
 // Lazy load components
 const Login = lazy(() => import("../features/auth/pages/Login"));

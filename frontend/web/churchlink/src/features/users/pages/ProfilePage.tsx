@@ -1,8 +1,8 @@
 import * as React from "react";
-import { ProfileCard } from "@/components/Main/Profile/ProfileCard";
-import { PersonRail } from "@/components/Main/Profile/PersonRail";
-import { PersonDetails } from "@/types/Person";
-import { ProfileEditDialog } from "@/components/Main/Profile/ProfileEditDialog";
+import { ProfileCard } from "@/features/admin/components/Profile/ProfileCard";
+import { PersonRail } from "@/features/admin/components/Profile/PersonRail";
+import { PersonDetails } from "@/shared/types/Person";
+import { ProfileEditDialog } from "@/features/admin/components/Profile/ProfileEditDialog";
 
 const MOCK_PEOPLE: PersonDetails[] = [
     {
