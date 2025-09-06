@@ -26,6 +26,7 @@ from routes.common_routes.role_routes import role_router
 from routes.common_routes.user_routes import user_router
 from routes.common_routes.event_routes import public_event_router
 from routes.common_routes.bible_note_routes import bible_note_router
+from routes.common_routes.event_person_routes import event_person_router, public_event_person_router
 from routes.strapi_routes.strapi_routes import strapi_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
@@ -209,6 +210,8 @@ base_router.include_router(bible_note_router)
 base_router.include_router(strapi_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
+base_router.include_router(event_person_router)
+base_router.include_router(public_event_person_router)
 
 
 non_v1_router = APIRouter(prefix="/api")
