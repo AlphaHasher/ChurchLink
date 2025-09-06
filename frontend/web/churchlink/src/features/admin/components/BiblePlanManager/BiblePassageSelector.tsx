@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { BIBLE_BOOKS, BibleBook, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
@@ -55,8 +55,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
   };
 
   const selectChapter = (book: BibleBook, chapter: number) => {
-    setSelectedChapter({ book, chapter });
-    setVerseRange({ start: '', end: '' });
+  setSelectedChapter({ book, chapter });
   };
 
   const keyFor = (bookId: string, chapter: number) => `${bookId}-${chapter}`;
@@ -191,20 +190,6 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Hide verse selector when clicking outside this component
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        if (selectedChapter) {
-          setSelectedChapter(null);
-          setVerseRange({ start: '', end: '' });
-        }
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedChapter]);
-
   return (
     <div ref={containerRef} className="space-y-4">
 
@@ -240,14 +225,25 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                         <div key={chapter} className="flex items-center justify-between text-xs gap-2">
                           <div className="flex items-center gap-2 flex-1">
                             <button
-                              onClick={() => { toggleChapterSelected(book.id, chapter); selectChapter(book, chapter); }}
+                              onClick={() => {
+                                const currentlySelected = isChapterSelected(book.id, chapter);
+                                if (currentlySelected) {
+                                  toggleChapterSelected(book.id, chapter);
+                                  if (selectedChapter?.book.id === book.id && selectedChapter.chapter === chapter) {
+                                    setSelectedChapter(null);
+                                    setVerseRange({ start: '', end: '' });
+                                  }
+                                } else {
+                                  toggleChapterSelected(book.id, chapter);
+                                  setSelectedChapter({ book, chapter });
+                                }
+                              }}
                               className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
                                 isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
                               }`}
                               aria-pressed={isChapterSelected(book.id, chapter)}
                               aria-label={`Chapter ${chapter}`}
                             >
-                              {/* selection indicator */}
                               <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
                               <span className="ml-4">Chapter {chapter}</span>
                             </button>
@@ -299,7 +295,17 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                         <div key={chapter} className="flex items-center justify-between text-xs gap-2">
                           <div className="flex items-center gap-2 flex-1">
                             <button
-                              onClick={() => { toggleChapterSelected(book.id, chapter); selectChapter(book, chapter); }}
+                              onClick={() => {
+                                const currentlySelected = isChapterSelected(book.id, chapter);
+                                if (currentlySelected) {
+                                  toggleChapterSelected(book.id, chapter);
+                                  setSelectedChapter(null);
+                                  setVerseRange({ start: '', end: '' });
+                                } else {
+                                  toggleChapterSelected(book.id, chapter);
+                                  selectChapter(book, chapter);
+                                }
+                              }}
                               className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
                                 isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
                               }`}
@@ -375,7 +381,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
             <div className="text-xs text-red-600">Select a day to add passages.</div>
           )}
           {/* Warning for non-contiguous multi-book or multi-range selection */}
-          {selectedChaptersSet.size > 0 && !multiChapterSelectionMeta && !selectedChapter && (
+          {selectedChaptersSet.size > 0 && !multiChapterSelectionMeta && (
             <div className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 p-2 rounded">
               Select a single contiguous range within one book to enable verse-level range across chapters.
             </div>
