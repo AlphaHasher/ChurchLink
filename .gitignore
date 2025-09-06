@@ -71,5 +71,4 @@ frontend/app/ios/Flutter/Debug.xcconfig
 frontend/app/.env
 /venv/
 backend/strapi/churchlink/.testData.db
-frontend/app/android/app/build.gradle.kts
-frontend/app/pubspec.lock
+bearer.txt

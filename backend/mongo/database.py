@@ -38,6 +38,10 @@ class DB:
         {
             "name": "footer-items",
             "indexes": ["title"]
+        },
+        {
+            "name": "bible_notes",
+            "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
         }
     ]
 
@@ -91,6 +95,18 @@ class DB:
                             [(index, pymongo.ASCENDING)],
                             unique=True,
                             name="unique_" + index + "_index"
+                        )
+                    ])
+            
+            # Create compound indexes (non-unique)
+            if "compound_indexes" in collection:
+                for compound_index in collection["compound_indexes"]:
+                    index_fields = [(field, pymongo.ASCENDING) for field in compound_index]
+                    await DB.db[collection_name].create_indexes([
+                        pymongo.IndexModel(
+                            index_fields,
+                            unique=False,
+                            name="_".join(compound_index) + "_compound_index"
                         )
                     ])
 
