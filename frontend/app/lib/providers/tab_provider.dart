@@ -5,13 +5,9 @@ class TabProvider extends ChangeNotifier {
 
   final Map<String, int> tabNameToIndex = {
     'home': 0,
-    '/home': 0,
     'bible': 1,
-    '/bible': 1,
     'sermons': 2,
-    '/sermons': 2,
     'profile': 3,
-    '/profile': 3,
   };
 
   int _currentIndex = 0;
