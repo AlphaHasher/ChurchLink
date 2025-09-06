@@ -22,11 +22,8 @@ interface Notification {
 
 const Notification = () => {
   const [youtubeLiveTitle, setYoutubeLiveTitle] = useState<string>("");
-  // ...existing code...
   const [activeTab, setActiveTab] = useState<'scheduled' | 'history'>('scheduled');
-  // const { role } = useAuth();
-  //   if (role !== "admin") return <p>Access Denied</p>; // Restrict to admins only
-
+  
   // Scheduled notifications from backend
   const [scheduledNotifications, setScheduledNotifications] = useState<any[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -236,12 +233,8 @@ const Notification = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          YOUTUBE_API_KEY: youtubeAPIKey,
-          PRIMARY_CHANNEL_ID: youtubeChannelId,
-          PUBLIC_DOMAIN: youtubePublicDomain,
           STREAM_NOTIFICATION_TITLE: youtubeLiveTitle,
           STREAM_NOTIFICATION_MESSAGE: streamNotificationMessage,
-          YOUTUBE_TIMEZONE: selectedTimezone,
         }),
       });
       if (res.ok) {
