@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core';
 import PlanSidebar from '../components/BiblePlanManager/PlanSidebar';
 import PlanCalendar from '../components/BiblePlanManager/PlanCalendar';
+import PassageBadge from '../components/BiblePlanManager/PassageBadge';
 import { BiblePassage, ReadingPlan } from '../../../shared/types/BiblePlan';
 
 const BiblePlanManager = () => {
@@ -106,12 +107,8 @@ const BiblePlanManager = () => {
         </div>
 
         {/* Drag Overlay */}
-    <DragOverlay>
-          {activePassage ? (
-      <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium shadow-lg border border-blue-200 whitespace-nowrap">
-              {activePassage.reference}
-            </div>
-          ) : null}
+        <DragOverlay>
+          {activePassage ? <PassageBadge passage={activePassage} /> : null}
         </DragOverlay>
       </DndContext>
     </div>

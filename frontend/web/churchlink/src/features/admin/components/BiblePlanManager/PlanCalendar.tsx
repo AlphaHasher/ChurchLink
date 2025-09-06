@@ -3,33 +3,26 @@ import { useDraggable, useDroppable, useDndContext } from '@dnd-kit/core';
 import { ReadingPlan, BiblePassage } from '../../../../shared/types/BiblePlan';
 import { Button } from '../../../../shared/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import PassageBadge from './PassageBadge';
 
 interface PlanCalendarProps { plan: ReadingPlan; selectedDay: number | null; onSelectDay: (day: number) => void; }
 
-interface CalendarDayProps { dayNumber: number; passages: BiblePassage[] }
-
 const CalendarPassageChip = ({ passage, dayKey }: { passage: BiblePassage; dayKey: string }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-  id: `cal-${dayKey}-${passage.id}`,
-  data: { type: 'passage', passage, sourceDayKey: dayKey },
+    id: `cal-${dayKey}-${passage.id}`,
+    data: { type: 'passage', passage, sourceDayKey: dayKey },
   });
 
   const style = isDragging ? { opacity: 0 } : undefined;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium cursor-grab hover:bg-blue-200 transition-colors whitespace-nowrap"
-    >
-      <span className="truncate">{passage.reference}</span>
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <PassageBadge passage={passage} />
     </div>
   );
 };
 
-const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: CalendarDayProps & { isSelected: boolean; onSelect: (day: number) => void }) => {
+const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber: number; passages: BiblePassage[]; isSelected: boolean; onSelect: (day: number) => void }) => {
   const dayKey = String(dayNumber);
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dayKey}`,
@@ -56,7 +49,7 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: CalendarDayP
       </div>
       
       <div className="flex flex-col gap-1">
-        {passages.map((passage) => (
+        {passages.map((passage: BiblePassage) => (
           <CalendarPassageChip key={passage.id} passage={passage} dayKey={dayKey} />
         ))}
         
