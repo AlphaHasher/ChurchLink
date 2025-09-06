@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PersonDetails } from "@/types/Person";
+import { PersonDetails } from "@/shared/types/Person";
 import { PersonTile } from "./PersonTile";
 import { AddPersonDialog } from "./AddPersonDialog";
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -9,9 +9,9 @@ import {
     DialogTrigger,
     DialogFooter,
     DialogClose,
-} from "@/components/ui/Dialog";
+} from "@/shared/components/ui/dialog";
 import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";
-import { PersonDetails } from "@/types/Person";
+import { PersonDetails } from "@/shared/types/Person";
 
 type AddPersonDialogProps = {
     /** Optional callback so the parent can add the new person to its list */

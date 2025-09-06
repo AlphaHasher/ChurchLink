@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/ui/card";
+import { Separator } from "@/shared/components/ui/separator";
 
 type ProfileCardProps = {
     displayName?: string;

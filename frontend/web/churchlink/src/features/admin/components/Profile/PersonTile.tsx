@@ -1,7 +1,7 @@
 import * as React from "react";
-import { EditPersonDialog } from "@/components/Main/Profile/EditPersonDialog";
-import { DeletePersonDialog } from "@/components/Main/Profile/DeletePersonDialog";
-import { PersonDetails } from "@/types/Person";
+import { EditPersonDialog } from "./EditPersonDialog";
+import { DeletePersonDialog } from "./DeletePersonDialog";
+import { PersonDetails } from "@/shared/types/Person";
 
 type Props = {
     person: PersonDetails;

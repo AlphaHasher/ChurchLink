@@ -8,11 +8,11 @@ import {
     DialogTrigger,
     DialogFooter,
     DialogClose,
-} from "@/components/ui/Dialog";
-import { Button } from "@/components/ui/button";
+} from "@/shared/components/ui/dialog";
+import { Button } from "@/shared/components/ui/button";
 import { Pencil } from "lucide-react";
 import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";
-import { PersonDetails } from "@/types/Person";
+import { PersonDetails } from "@/shared/types/Person";
 
 type EditPersonDialogProps = {
     person: PersonDetails;
