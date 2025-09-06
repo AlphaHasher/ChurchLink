@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+xe from dotenv import load_dotenv
 import os
 import httpx
 from googleapiclient.discovery import build
@@ -11,14 +11,14 @@ import logging
 
 async def load_youtube_settings():
     load_dotenv()
-    # Load from .env
+    
     settings = {
         "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
         "PRIMARY_CHANNEL_ID": os.getenv("PRIMARY_CHANNEL_ID"),
         "PUBLIC_DOMAIN": os.getenv("PUBLIC_DOMAIN"),
         "YOUTUBE_TIMEZONE": os.getenv("YOUTUBE_TIMEZONE"),
     }
-    # Notification message/title only from DB (with defaults)
+    
     try:
         db_settings = await DB.db["settings"].find_one({"type": "youtube"})
         settings["STREAM_NOTIFICATION_MESSAGE"] = db_settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!") if db_settings else "A new stream is live!"
@@ -47,7 +47,7 @@ class YoutubeHelper:
     isStreaming = False
     activeStreamIDs = []
 
-    #Currently does nothing, but this function is where we could send the notifications to the frontend
+  
     @staticmethod
     async def pushNotifications():
         try:
@@ -58,7 +58,7 @@ class YoutubeHelper:
                 "timestamp": datetime.utcnow(),
                 "message": yt_settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!")
             }
-            # Use asyncio.create_task for async insert
+            
             asyncio.create_task(DB.insert_document("notifications", notification))
 
             # Send push notification to all users
