@@ -6,6 +6,7 @@ import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "../features/auth/guards/PrivateRoute";
 import { PrivateRoutes } from "./PrivateRoutes";
 import DynamicPage from "../shared/components/DynamicPage";
+import ProfilePage from "@/pages/ProfilePage";
 
 // Lazy load components
 const Login = lazy(() => import("../features/auth/pages/Login"));
@@ -28,6 +29,15 @@ export const AppRouter = () => {
           element={
             <PublicRoute>
               <Signup />
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <PublicRoute>
+              <ProfilePage />
             </PublicRoute>
           }
         />
