@@ -354,10 +354,19 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                   const hasS = s !== '';
                   const hasE = e !== '';
                   let preview: string;
-                  if (!hasS && !hasE) preview = `${range.start}-${range.end}`;
-                  else if (hasS && !hasE) preview = `${range.start}:${s}-${range.end}`;
-                  else if (!hasS && hasE) preview = `${range.start}-${range.end}:${e}`;
-                  else preview = `${range.start}:${s}-${range.end}:${e}`;
+                  // If the range covers only a single chapter (start === end) show it as a single chapter
+                  if (range.start === range.end) {
+                    const chap = range.start;
+                    if (!hasS && !hasE) preview = `${chap}`;
+                    else if (hasS && !hasE) preview = `${chap}:${s}`;
+                    else if (!hasS && hasE) preview = `${chap}:${e}`;
+                    else preview = hasS && hasE && s === e ? `${chap}:${s}` : `${chap}:${s}-${e}`;
+                  } else {
+                    if (!hasS && !hasE) preview = `${range.start}-${range.end}`;
+                    else if (hasS && !hasE) preview = `${range.start}:${s}-${range.end}`;
+                    else if (!hasS && hasE) preview = `${range.start}-${range.end}:${e}`;
+                    else preview = `${range.start}:${s}-${range.end}:${e}`;
+                  }
                   return <span className="block w-full">Select Verse Range From {book.name} {preview}</span>;
                 }
                 if (selectedChapter) {
@@ -367,7 +376,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                   if (s && !e) preview = `${selectedChapter.chapter}:${s}`;
                   else if (!s && e) preview = `${selectedChapter.chapter}:${e}`;
                   else if (s && e) preview = s === e ? `${selectedChapter.chapter}:${s}` : `${selectedChapter.chapter}:${s}-${e}`;
-                  return <span className="block w-full">Select Verses from \n{selectedChapter.book.name} {preview}</span>;
+                  return <span className="block w-full">Select Verses from {selectedChapter.book.name} {preview}</span>;
                 }
                 return <span className="block w-full">Chapter Selection</span>;
               })()}
