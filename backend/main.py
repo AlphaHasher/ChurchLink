@@ -188,7 +188,6 @@ non_v1_router = APIRouter(prefix="/api")
 non_v1_router.include_router(page_router)
 non_v1_router.include_router(header_router)
 non_v1_router.include_router(footer_router)
-## cleaned up unused notification router includes
 
 
 # Include routers in main app
