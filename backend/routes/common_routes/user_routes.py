@@ -15,6 +15,9 @@ from models.user import (
 )
 from models.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, MyPermsRequest
 
+# Basic user function helpers
+from backend.helpers.RouteParameterHelper import validate_route_ids, validate_family_member_data
+
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
 
@@ -181,3 +184,81 @@ async def process_get_users(uid: str = Depends(authenticate_uid)):
 @user_router.post("/get-my-permissions")
 async def process_get_my_permissions(payload: MyPermsRequest, uid: str = Depends(authenticate_uid)):
     return await get_my_permissions(payload, uid)
+
+#
+# --- Family Member Routes  ---
+#
+
+# Add family member
+@user_router.post("/{user_id}/family-members", response_model=dict, status_code=status.HTTP_201_CREATED, summary="Add a new family member to user account")
+async def add_family_member_to_user_route(user_id: str, family_member_data: dict = Body(...), uid: str = Depends(authenticate_uid)):
+    try: # throws any errors raised during validation
+        
+        # validate id's
+        validate_route_ids(user_id=user_id, uid=uid)
+        # validate data
+        validated_data = validate_family_member_data(family_member_data)
+
+        # TODO: Add member to database with family member valid data
+        family_member = None
+        return {"success": True, "family_member": family_member}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding family member: {str(e)}")
+
+# Get ALL family members
+@user_router.get("/{user_id}/family-members", response_model=dict, summary="Get all family members associated with user account")
+async def get_user_family_members_route(user_id: str, uid: str = Depends(authenticate_uid)):
+    try: 
+        from backend.helpers.RouteParameterHelper import validate_route_ids
+        # validate id's
+        validate_route_ids(user_id=user_id, uid=uid)
+
+        # TODO:
+        family_members = [] # Get family members from database
+        return {"success": True, "family_members": family_members}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family members: {str(e)}")
+
+# Get specific family member
+@user_router.get("/{user_id}/family-members/{family_member_id}", response_model=dict, summary="Get specific family member details")
+async def get_user_family_member_route(user_id: str, family_member_id: str, uid: str = Depends(authenticate_uid)):
+    try: 
+        from backend.helpers.RouteParameterHelper import validate_route_ids
+        # validate id's
+        validate_route_ids(user_id=user_id, family_member_id=family_member_id, uid=uid)
+
+        # TODO: Get specific family member from database
+        family_member = None
+        return {"success": True, "family_member": family_member}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member: {str(e)}")
+
+# Update family member
+@user_router.put("/{user_id}/family-members/{family_member_id}", response_model=dict, summary="Update family member information")
+async def update_user_family_member_route(user_id: str, family_member_id: str, family_member_data: dict = Body(...), uid: str = Depends(authenticate_uid)):
+    try: 
+        from backend.helpers.RouteParameterHelper import validate_route_ids, validate_family_member_data
+        # validate id's
+        validate_route_ids(user_id=user_id, family_member_id=family_member_id, uid=uid)
+        # validate data
+        validated_data = validate_family_member_data(family_member_data)
+
+        # TODO: Update member in database with validated data
+        success = True
+        return {"success": success, "message": "Family member updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error updating family member: {str(e)}")
+
+# Remove family member
+@user_router.delete("/{user_id}/family-members/{family_member_id}", response_model=dict, summary="Remove family member from account")
+async def delete_user_family_member_route(user_id: str, family_member_id: str, uid: str = Depends(authenticate_uid)):
+    try: 
+        from backend.helpers.RouteParameterHelper import validate_route_ids
+        # validate id's
+        validate_route_ids(user_id=user_id, family_member_id=family_member_id, uid=uid)
+
+        # TODO: Delete family member from database
+        success = True
+        return {"success": success, "message": "Family member deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error deleting family member: {str(e)}")
