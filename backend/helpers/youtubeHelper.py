@@ -62,18 +62,21 @@ class YoutubeHelper:
             asyncio.create_task(DB.insert_document("notifications", notification))
 
             # Send push notification to all users
-            
             tokens_cursor = DB.db['fcm_tokens'].find({}, {'_id': 0, 'token': 1})
             tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
             for t in tokens:
                 message = messaging.Message(
                     notification=messaging.Notification(
-                        title="YouTube Live Stream",
+                        title=yt_settings.get("STREAM_NOTIFICATION_TITLE", "YouTube Live Stream"),
                         body=notification["message"],
                     ),
                     token=t,
                     data={
-                        "link": f"https://www.youtube.com/watch?v={YoutubeHelper.activeStreamIDs[-1]}" if YoutubeHelper.activeStreamIDs else ""
+                        "link": f"https://www.youtube.com/watch?v={YoutubeHelper.activeStreamIDs[-1]}" if YoutubeHelper.activeStreamIDs else "",
+                        "actionType": "link",
+                        "isStreaming": str(YoutubeHelper.isStreaming),
+                        "streamIDs": ",".join(YoutubeHelper.activeStreamIDs),
+                        "timestamp": notification["timestamp"].isoformat() if hasattr(notification["timestamp"], "isoformat") else str(notification["timestamp"]),
                     }
                 )
                 try:
