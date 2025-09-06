@@ -36,16 +36,3 @@ def save_temp_credentials_file():
         json.dump(credentials, f, indent=2)
     
     return temp_file_path
-
-def get_firebase_app():
-    """
-    Initialize and return the Firebase app instance for use in push notifications and other Firebase features.
-    
-    Returns:
-        firebase_admin.App: The Firebase app instance
-    """
-    if not firebase_admin._apps:
-        cred_dict = get_firebase_credentials()
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
-    return firebase_admin.get_app()
