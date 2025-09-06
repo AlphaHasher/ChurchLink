@@ -2,6 +2,7 @@ export interface BiblePassage {
   id: string;
   book: string;
   chapter: number;
+  endChapter?: number;
   startVerse?: number;
   endVerse?: number;
   reference: string;

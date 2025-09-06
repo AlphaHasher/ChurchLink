@@ -72,12 +72,10 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
   const clearSelectedChapters = () => setSelectedChaptersSet(new Set());
 
-  const addSelectedChapters = () => {
-    if (selectedChaptersSet.size === 0) return;
-    if (!selectedDay) return; // Must have a day selected
-    // Group by book, collect chapters, sort, and merge contiguous sequences
+  // Returns structure for contiguous ranges per book
+  const groupSelectedChaptersByBook = () => {
     const chaptersByBook = new Map<string, number[]>();
-    selectedChaptersSet.forEach((k) => {
+    selectedChaptersSet.forEach(k => {
       const [bookId, chapterStr] = k.split('-');
       const chapter = parseInt(chapterStr, 10);
       if (Number.isNaN(chapter)) return;
@@ -85,33 +83,42 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
       arr.push(chapter);
       chaptersByBook.set(bookId, arr);
     });
-
-    const toAdd: BiblePassage[] = [];
-    const now = Date.now();
-
+    const result: { book: BibleBook; ranges: { start: number; end: number }[] }[] = [];
     chaptersByBook.forEach((chapters, bookId) => {
-      const book = BIBLE_BOOKS.find((b) => b.id === bookId);
+      const book = BIBLE_BOOKS.find(b => b.id === bookId);
       if (!book) return;
-      chapters.sort((a, b) => a - b);
+      chapters.sort((a,b)=> a-b);
       let start = chapters[0];
       let prev = chapters[0];
-      for (let i = 1; i <= chapters.length; i++) {
+      const ranges: { start: number; end: number }[] = [];
+      for (let i=1;i<=chapters.length;i++) {
         const curr = chapters[i];
         if (curr !== prev + 1) {
-          // finalize range [start..prev]
-          const id = `${book.id}-${start}-${prev}-${now}-${Math.random().toString(36).slice(2, 8)}`;
-          const reference = start === prev ? `${book.name} ${start}` : `${book.name} ${start}-${prev}`;
-          toAdd.push({ id, book: book.name, chapter: start, reference });
+          ranges.push({ start, end: prev });
           start = curr;
         }
         prev = curr;
       }
+      result.push({ book, ranges });
     });
-
-  if (toAdd.length === 0) return;
-  toAdd.forEach((p) => onCreatePassage?.(p));
-    clearSelectedChapters();
+    return result;
   };
+
+  // Determine if user has selected a multi-chapter contiguous range within a single book for verse-level selection
+  const multiChapterSelectionMeta = (() => {
+    if (selectedChaptersSet.size === 0) return null;
+    const grouped = groupSelectedChaptersByBook();
+    if (grouped.length !== 1) return null; // must be single book
+    const { book, ranges } = grouped[0];
+    if (ranges.length !== 1) return null; // must be single contiguous range
+    const range = ranges[0];
+    // If also a specific chapter is clicked, ensure it resides in range; keep single-chapter reference UI else
+    if (range.start === range.end && !selectedChapter) {
+      // treat as single-chapter selection
+      return { type: 'single', book, range } as const;
+    }
+    return { type: 'multi', book, range } as const;
+  })();
 
   const addWholeChapter = (book: BibleBook, chapter: number) => {
   if (!selectedDay) return; // Must have a day selected
@@ -124,39 +131,61 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
   onCreatePassage?.(passage);
   };
 
-  const startNum = verseRange.start.trim() === '' ? undefined : parseInt(verseRange.start, 10);
-  const endNum = verseRange.end.trim() === '' ? undefined : parseInt(verseRange.end, 10);
-  const isInvalidVerseRange =
-    (startNum !== undefined && (Number.isNaN(startNum) || startNum < 1)) ||
-    (endNum !== undefined && (Number.isNaN(endNum) || endNum < 1)) ||
-    (startNum !== undefined && endNum !== undefined && endNum <= startNum);
+  let isInvalidVerseRange = false;
 
   const addVerseRange = () => {
-    if (!selectedChapter || verseRange.start.trim() === '') return;
-    if (!selectedDay) return; // Must have a day selected
+    if (!selectedDay) return;
+    const meta = multiChapterSelectionMeta;
+    if (!selectedChapter && !meta) return;
+    const useMulti = !!(meta && meta.type === 'multi' && meta.range.start !== meta.range.end);
+    const book = useMulti ? meta!.book : (selectedChapter?.book as BibleBook);
+    const baseChapter = useMulti ? meta!.range.start : (selectedChapter?.chapter || 1);
+    const endChapter = useMulti ? meta!.range.end : undefined;
 
-    const start = parseInt(verseRange.start, 10);
-    const end = verseRange.end.trim() === '' ? undefined : parseInt(verseRange.end, 10);
+    const startTxt = verseRange.start.trim();
+    const endTxt = verseRange.end.trim();
+    const hasStart = startTxt !== '';
+    const hasEnd = endTxt !== '';
+    let startVerseNum: number | undefined = undefined;
+    let endVerseNum: number | undefined = undefined;
+    if (hasStart) {
+      startVerseNum = parseInt(startTxt, 10);
+      if (Number.isNaN(startVerseNum) || startVerseNum < 1) return;
+    }
+    if (hasEnd) {
+      endVerseNum = parseInt(endTxt, 10);
+      if (Number.isNaN(endVerseNum) || endVerseNum < 1) return;
+    }
+    // Only enforce ordering if both verses are in SAME chapter context
+    if (!useMulti && hasStart && hasEnd && startVerseNum! >= endVerseNum!) return;
+    if (isInvalidVerseRange) return;
 
-    // Enforce minimum of 1 and ordering
-    if (Number.isNaN(start) || start < 1) return;
-    if (end !== undefined && (Number.isNaN(end) || end < 1 || end <= start)) return;
-
-    const { book, chapter } = selectedChapter;
-    const reference = end !== undefined
-      ? `${book.name} ${chapter}:${start}-${end}`
-      : `${book.name} ${chapter}:${start}`;
+    // Build reference with new formatting rules
+    let reference: string;
+    if (useMulti) {
+      if (!hasStart && !hasEnd) reference = `${book.name} ${baseChapter}-${endChapter}`;
+      else if (hasStart && !hasEnd) reference = `${book.name} ${baseChapter}:${startVerseNum}-${endChapter}`;
+      else if (!hasStart && hasEnd) reference = `${book.name} ${baseChapter}-${endChapter}:${endVerseNum}`;
+      else reference = `${book.name} ${baseChapter}:${startVerseNum}-${endChapter}:${endVerseNum}`;
+    } else { // single chapter
+      if (!hasStart && !hasEnd) reference = `${book.name} ${baseChapter}`;
+      else if (hasStart && !hasEnd) reference = `${book.name} ${baseChapter}:${startVerseNum}`;
+      else if (!hasStart && hasEnd) reference = `${book.name} ${baseChapter}:${endVerseNum}`;
+      else reference = startVerseNum === endVerseNum
+        ? `${book.name} ${baseChapter}:${startVerseNum}`
+        : `${book.name} ${baseChapter}:${startVerseNum}-${endVerseNum}`;
+    }
 
     const passage: BiblePassage = {
-      id: `${book.id}-${chapter}-${start}-${end ?? start}-${Date.now()}`,
+      id: `${book.id}-${baseChapter}-${endChapter ?? baseChapter}-${startVerseNum ?? 'x'}-${endVerseNum ?? 'x'}-${Date.now()}`,
       book: book.name,
-      chapter,
-      startVerse: start,
-      endVerse: end ?? start,
+      chapter: baseChapter,
+      endChapter,
+      startVerse: hasStart ? startVerseNum : undefined,
+      endVerse: hasEnd ? (hasStart ? endVerseNum : endVerseNum) : (hasStart ? startVerseNum : undefined),
       reference
     };
-
-  onCreatePassage?.(passage);
+    onCreatePassage?.(passage);
     setVerseRange({ start: '', end: '' });
   };
 
@@ -318,60 +347,83 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
         </div>
       </div>
 
-      {/* Selected chapters bulk actions */}
-      {selectedChaptersSet.size > 0 && (
-        <div className="sticky bottom-0 z-10 p-2 bg-blue-50 border border-blue-200 rounded">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-blue-800">{selectedChaptersSet.size} chapter(s) selected</span>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={addSelectedChapters} disabled={!selectedDay} className="h-7 whitespace-nowrap text-xs">
-                Add Selected Chapters
-              </Button>
-              <Button size="sm" variant="outline" onClick={clearSelectedChapters} className="h-7 whitespace-nowrap text-xs">
-                Clear
-              </Button>
+      {/* Chapter & Verse Selection */}
+      {(selectedChapter || selectedChaptersSet.size > 0) && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg border space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="text-sm font-medium text-gray-700">
+              {(() => {
+                if (multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi') {
+                  const { book, range } = multiChapterSelectionMeta;
+                  const s = verseRange.start.trim();
+                  const e = verseRange.end.trim();
+                  const hasS = s !== '';
+                  const hasE = e !== '';
+                  let preview: string;
+                  if (!hasS && !hasE) preview = `${range.start}-${range.end}`;
+                  else if (hasS && !hasE) preview = `${range.start}:${s}-${range.end}`;
+                  else if (!hasS && hasE) preview = `${range.start}-${range.end}:${e}`;
+                  else preview = `${range.start}:${s}-${range.end}:${e}`;
+                  return <span>Select Verse Range From {book.name} {preview}</span>;
+                }
+                if (selectedChapter) {
+                  const s = verseRange.start.trim();
+                  const e = verseRange.end.trim();
+                  let preview = `${selectedChapter.chapter}`;
+                  if (s && !e) preview = `${selectedChapter.chapter}:${s}`;
+                  else if (!s && e) preview = `${selectedChapter.chapter}:${e}`;
+                  else if (s && e) preview = s === e ? `${selectedChapter.chapter}:${s}` : `${selectedChapter.chapter}:${s}-${e}`;
+                  return <span>Select Verses from {selectedChapter.book.name} {preview}</span>;
+                }
+                return <span>Chapter Selection</span>;
+              })()}
+            </div>
+            <div className="flex gap-2">
+              {selectedChaptersSet.size > 0 && (
+                <Button size="sm" variant="outline" onClick={clearSelectedChapters} className="h-7 text-xs">Clear Chapters</Button>
+              )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Verse Selector */}
-      {selectedChapter && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-          <div className="text-sm font-medium text-gray-700 mb-3">
-            Select Verses from {selectedChapter.book.name} {selectedChapter.chapter}
-          </div>
-          <div className="space-y-3">
+          {multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi' && !selectedDay && (
+            <div className="text-xs text-red-600">Select a day to add passages.</div>
+          )}
+          {/* Warning for non-contiguous multi-book or multi-range selection */}
+          {selectedChaptersSet.size > 0 && !multiChapterSelectionMeta && !selectedChapter && (
+            <div className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 p-2 rounded">
+              Select a single contiguous range within one book to enable verse-level range across chapters.
+            </div>
+          )}
+          <div className="flex flex-wrap items-end gap-2">
             <div className="flex gap-2">
               <Input
-                placeholder="Start"
+                placeholder="Start Verse"
                 value={verseRange.start}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
-                className="w-24 h-8 text-sm"
+                className="w-28 h-8 text-sm"
+                disabled={(!selectedChapter && !(multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi')) || !selectedDay}
               />
               <Input
-                placeholder="End"
+                placeholder="End Verse"
                 value={verseRange.end}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
-                className="w-24 h-8 text-sm"
+                className="w-28 h-8 text-sm"
+                disabled={(!selectedChapter && !(multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi')) || !selectedDay}
               />
-              <Button
-                size="sm"
-                onClick={addVerseRange}
-                disabled={!verseRange.start || isInvalidVerseRange || !selectedDay}
-                className="w-24 h-8"
-              >
-                Add Verses
-              </Button>
             </div>
-            {isInvalidVerseRange && (
-              <div className="text-xs text-red-600">
-                Verses must be at least 1, and end must be greater than start.
-              </div>
-            )}
-            <div className="text-xs text-gray-500">
-              Leave end verse empty to select a single verse, or enter both to select a range.
-            </div>
+            <Button
+              size="sm"
+              onClick={addVerseRange}
+              disabled={!selectedDay || isInvalidVerseRange || (!selectedChapter && !multiChapterSelectionMeta)}
+              className="h-8 text-xs"
+            >
+              Add
+            </Button>
+          </div>
+          {isInvalidVerseRange && (verseRange.start || verseRange.end) && (
+            <div className="text-xs text-red-600">Verses must be at least 1 and end greater than start (only enforced within a single chapter).</div>
+          )}
+          <div className="text-xs text-gray-500">
+            Leave verse inputs blank to include entire chapter(s). For multi-chapter contiguous selections you can specify verses spanning start of first to end of last chapter.
           </div>
         </div>
       )}
