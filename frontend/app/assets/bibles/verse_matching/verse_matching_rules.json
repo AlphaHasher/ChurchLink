@@ -1,81 +1,206 @@
 {
+  "tx": ["kjv", "rst"],
+  "policy": {
+    "auto_reverse": true,
+    "normalize_books": true
+  },
   "pairs": [
-    {
-      "book": "Jonah",
-      "type": "one_to_one",
-      "from": {"tx": "kjv", "chapter": 1, "verse": 17},
-      "to":   {"tx": "rst", "chapter": 2, "verse": 1}
-    },
-    {
-      "book": "Jonah",
-      "type": "one_to_one",
-      "from": {"tx": "rst", "chapter": 2, "verse": 1},
-      "to":   {"tx": "kjv", "chapter": 1, "verse": 17}
-    },
+    { "book": "Numbers", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 12, "verse": 16 },
+      "to":   { "tx": "rst", "chapter": 13, "verse": 1 },
+      "note": "KJV 12:16 == RST 13:1" },
 
-    {
-      "book": "Daniel",
-      "type": "range_shift",
-      "note": "RST 3:31-33 == KJV 4:1-3",
-      "from": {"tx": "kjv", "chapter": 4, "start": 1, "end": 3},
-      "to":   {"tx": "rst", "chapter": 3, "start": 31, "end": 33}
-    },
-    {
-      "book": "Daniel",
-      "type": "range_shift",
-      "from": {"tx": "rst", "chapter": 3, "start": 31, "end": 33},
-      "to":   {"tx": "kjv", "chapter": 4, "start": 1, "end": 3}
-    },
+    { "book": "Numbers", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 13, "start": 1, "end": 33 },
+      "to":   { "tx": "rst", "chapter": 13, "start": 2, "end": 34 },
+      "note": "KJV 13:1–33 == RST 13:2–34 (+1)" },
 
-    {
-      "book": "Hosea",
-      "type": "one_to_one",
-      "from": {"tx": "kjv", "chapter": 14, "verse": 1},
-      "to":   {"tx": "rst", "chapter": 13, "verse": 16}
-    },
-    {
-      "book": "Hosea",
-      "type": "one_to_one",
-      "from": {"tx": "rst", "chapter": 13, "verse": 16},
-      "to":   {"tx": "kjv", "chapter": 14, "verse": 1}
-    },
+    { "book": "Joshua", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 6, "verse": 1 },
+      "to":   { "tx": "rst", "chapter": 5, "verse": 16 },
+      "note": "KJV 6:1 == RST 5:16" },
 
-    {
-      "book": "Joel",
-      "type": "range_shift",
-      "note": "KJV 2:28-32 == RST 3:1-5",
-      "from": {"tx": "kjv", "chapter": 2, "start": 28, "end": 32},
-      "to":   {"tx": "rst", "chapter": 3, "start": 1,  "end": 5}
-    },
-    {
-      "book": "Joel",
-      "type": "chapter_remap",
-      "note": "KJV ch.3 maps to RST ch.4 (same verses)",
-      "map": [
-        {"from": {"tx": "kjv", "chapter": 3}, "to": {"tx": "rst", "chapter": 4}},
-        {"from": {"tx": "rst", "chapter": 4}, "to": {"tx": "kjv", "chapter": 3}}
-      ]
-    },
+    { "book": "Joshua", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 6, "start": 2, "end": 27 },
+      "to":   { "tx": "rst", "chapter": 6, "start": 1, "end": 26 },
+      "note": "KJV 6:2–27 == RST 6:1–26 (−1)" },
 
-    {
-      "book": "Malachi",
-      "type": "range_shift",
-      "note": "KJV 4:1-6 == RST 3:19-24",
-      "from": {"tx": "kjv", "chapter": 4, "start": 1, "end": 6},
-      "to":   {"tx": "rst", "chapter": 3, "start": 19, "end": 24}
-    },
-    {
-      "book": "Malachi",
-      "type": "range_shift",
-      "from": {"tx": "rst", "chapter": 3, "start": 19, "end": 24},
-      "to":   {"tx": "kjv", "chapter": 4, "start": 1,  "end": 6}
-    }
+    { "book": "1 Samuel", "type": "split",
+      "from": { "tx": "kjv", "chapter": 20, "verse": 42 },
+      "to":   { "tx": "rst", "chapter": 20, "start": 42, "end": 43 },
+      "note": "KJV 20:42 splits into RST 20:42–43" },
+
+    { "book": "1 Samuel", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 23, "verse": 29 },
+      "to":   { "tx": "rst", "chapter": 24, "verse": 1 },
+      "note": "KJV 23:29 == RST 24:1" },
+
+    { "book": "1 Samuel", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 24, "start": 1, "end": 22 },
+      "to":   { "tx": "rst", "chapter": 24, "start": 2, "end": 23 },
+      "note": "KJV 24:1–22 == RST 24:2–23 (+1)" },
+
+    { "book": "Job", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 40, "start": 1, "end": 5 },
+      "to":   { "tx": "rst", "chapter": 39, "start": 31, "end": 35 },
+      "note": "KJV 40:1–5 == RST 39:31–35" },
+
+    { "book": "Job", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 40, "start": 6, "end": 24 },
+      "to":   { "tx": "rst", "chapter": 40, "start": 1, "end": 19 },
+      "note": "KJV 40:6–24 == RST 40:1–19 (−5)" },
+
+    { "book": "Job", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 41, "start": 1, "end": 8 },
+      "to":   { "tx": "rst", "chapter": 40, "start": 20, "end": 27 },
+      "note": "KJV 41:1–8 == RST 40:20–27" },
+
+    { "book": "Job", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 41, "start": 9, "end": 34 },
+      "to":   { "tx": "rst", "chapter": 41, "start": 1, "end": 26 },
+      "note": "KJV 41:9–34 == RST 41:1–26 (−8)" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 9, "start": 1, "end": 20 },
+      "to":   { "tx": "rst", "chapter": 9, "start": 2, "end": 21 },
+      "note": "Psa 9: KJV 9:1–20 == RST 9:2–21 (+1)" },
+
+    { "book": "Psalms", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 10, "verse": 1 },
+      "to":   { "tx": "rst", "chapter": 9, "verse": 22 },
+      "note": "Psa 10→9: KJV 10:1 == RST 9:22" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 10, "start": 2, "end": 18 },
+      "to":   { "tx": "rst", "chapter": 9, "start": 23, "end": 39 },
+      "note": "Psa 10→9: KJV 10:2–18 == RST 9:23–39 (+21)" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 115, "start": 1, "end": 18 },
+      "to":   { "tx": "rst", "chapter": 113, "start": 9, "end": 26 },
+      "note": "KJV 115 == tail of RST 113 (9–26)" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 116, "start": 1, "end": 9 },
+      "to":   { "tx": "rst", "chapter": 114, "start": 1, "end": 9 },
+      "note": "KJV 116:1–9 == RST 114:1–9" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 116, "start": 10, "end": 19 },
+      "to":   { "tx": "rst", "chapter": 115, "start": 1, "end": 10 },
+      "note": "KJV 116:10–19 == RST 115:1–10" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 147, "start": 12, "end": 20 },
+      "to":   { "tx": "rst", "chapter": 147, "start": 1, "end": 9 },
+      "note": "KJV 147:12–20 == RST 147:1–9 (−11)" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 50, "start": 1, "end": 23 },
+      "to":   { "tx": "rst", "chapter": 49, "start": 1, "end": 23 },
+      "note": "KJV 50:1–23 == RST 49:1–23 (chapter −1, no title offset)" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 51, "start": 1, "end": 19 },
+      "to":   { "tx": "rst", "chapter": 50, "start": 3, "end": 21 },
+      "note": "KJV 51:1–19 == RST 50:3–21 (chapter −1, +2 title lines)" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 53, "start": 1, "end": 6 },
+      "to":   { "tx": "rst", "chapter": 52, "start": 2, "end": 7 },
+      "note": "KJV 53:1–6 == RST 52:2–7 (chapter −1, +1 title line)" },
+
+    { "book": "Psalms", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 59, "start": 1, "end": 17 },
+      "to":   { "tx": "rst", "chapter": 58, "start": 2, "end": 18 },
+      "note": "KJV 59:1–17 == RST 58:2–18 (chapter −1, +1 title line)" },
+
+    { "book": "Song of Solomon", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 1, "start": 2, "end": 17 },
+      "to":   { "tx": "rst", "chapter": 1, "start": 1, "end": 16 },
+      "note": "KJV 1:2–17 == RST 1:1–16 (title counted as 1)" },
+
+    { "book": "Song of Solomon", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 6, "verse": 13 },
+      "to":   { "tx": "rst", "chapter": 7, "verse": 1 },
+      "note": "KJV 6:13 == RST 7:1" },
+
+    { "book": "Song of Solomon", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 7, "start": 1, "end": 13 },
+      "to":   { "tx": "rst", "chapter": 7, "start": 2, "end": 14 },
+      "note": "KJV 7:1–13 == RST 7:2–14 (+1)" },
+
+    { "book": "Isaiah", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 3, "verse": 21 },
+      "to":   { "tx": "rst", "chapter": 3, "verse": 20 },
+      "note": "Minor local −1 shift after 3:19–20 split" },
+
+    { "book": "Daniel", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 4, "start": 1, "end": 3 },
+      "to":   { "tx": "rst", "chapter": 3, "start": 31, "end": 33 },
+      "note": "KJV 4:1–3 == RST 3:31–33" },
+
+    { "book": "Daniel", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 4, "start": 4, "end": 37 },
+      "to":   { "tx": "rst", "chapter": 4, "start": 1, "end": 34 },
+      "note": "KJV 4:4–37 == RST 4:1–34 (−3)" },
+
+    { "book": "Hosea", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 13, "verse": 16 },
+      "to":   { "tx": "rst", "chapter": 14, "verse": 1 },
+      "note": "KJV 13:16 == RST 14:1" },
+
+    { "book": "Hosea", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 14, "start": 1, "end": 9 },
+      "to":   { "tx": "rst", "chapter": 14, "start": 2, "end": 10 },
+      "note": "KJV 14:1–9 == RST 14:2–10 (+1)" },
+
+    { "book": "Jonah", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 1, "verse": 17 },
+      "to":   { "tx": "rst", "chapter": 2, "verse": 1 },
+      "note": "KJV 1:17 == RST 2:1" },
+
+    { "book": "Jonah", "type": "range_shift",
+      "from": { "tx": "kjv", "chapter": 2, "start": 1, "end": 10 },
+      "to":   { "tx": "rst", "chapter": 2, "start": 2, "end": 11 },
+      "note": "KJV 2:1–10 == RST 2:2–11 (+1)" },
+
+    { "book": "Acts", "type": "split",
+      "from": { "tx": "kjv", "chapter": 1, "verse": 15 },
+      "to":   { "tx": "rst", "chapter": 1, "start": 15, "end": 16 },
+      "note": "KJV 1:15 ≈ RST 1:15–16 (split)" },
+
+    { "book": "Romans", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 16, "verse": 25 },
+      "to":   { "tx": "rst", "chapter": 14, "verse": 24 },
+      "note": "KJV 16:25 == RST 14:24 (doxology placement)" },
+
+    { "book": "Romans", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 16, "verse": 26 },
+      "to":   { "tx": "rst", "chapter": 14, "verse": 25 },
+      "note": "KJV 16:26 == RST 14:25" },
+
+    { "book": "Romans", "type": "one_to_one",
+      "from": { "tx": "kjv", "chapter": 16, "verse": 27 },
+      "to":   { "tx": "rst", "chapter": 14, "verse": 26 },
+      "note": "KJV 16:27 == RST 14:26" },
+
+    { "book": "2 Corinthians", "type": "merge",
+      "from": { "tx": "kjv", "chapter": 11, "start": 32, "end": 33 },
+      "to":   { "tx": "rst", "chapter": 11, "verse": 32 },
+      "note": "KJV 11:32–33 == RST 11:32 (merged in RST)" },
+
+    { "book": "Ephesians", "type": "split",
+      "from": { "tx": "kjv", "chapter": 3, "verse": 17 },
+      "to":   { "tx": "rst", "chapter": 3, "start": 17, "end": 18 },
+      "note": "KJV 3:17 ≈ RST 3:17–18 (split)" }
   ],
 
   "psalms_title_offsets": {
-    "tx_from": "kjv",
-    "tx_to": "rst",
-    "rule": "toVerse = (fromVerse == 1 ? 2 : fromVerse + 1)",
-    "psalms": [3,4,5,6,7,8,9,12,13,18,19,20,21,22,30,31,34,36,38,39,40,41,42,44,45,46,47,48,49,53,55,56,57,58,59,61,62,63,64,65,67,68,69,70,75,76,77,80,81,83,84,85,88,89,92,102,140,142]
+    "from_tx": "kjv",
+    "to_tx": "rst",
+    "verse1_extra": 1,
+    "rest_offset": 1,
+    "psalms": [3,4,5,6,7,8,11,12,18,19,20,21,29,30,33,35,37,38,39,40,41,43,44,45,46,47,48,52,54,55,56,57,58,60,61,62,63,64,66,67,68,69,75,76,79,80,82,83,84,87,88,91,101,107,139]
   }
 }

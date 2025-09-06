@@ -1,35 +1,30 @@
 // -----------------------------------------------------------------------------
-// Maps verse numbers between translations. Necessary for when a verse's 
-// chapter and numbering differs between two different translations. (At 
-// present, only two translations are being considered). When a verse 
-// matches another, its highlights and notes should transfer. When a verse
-// has no pair, its notes and highlights should only be accessable when using
-// the corresponding translation. Relies on verse_matching_mapping.json and
-// verse_matching_rules.json. 
-// TODO: Switch to the mapping file provided by Daniel
-// TODO: Possibly need to implement One-to-Many verse mapping for edge cases?
-// TODO: Double check the mapping file and the bibles
-// TODO: KJV Jonah 1:17 <--> RST Jonah 2:1 is a good test case
+// Verse matching (KJV <-> RST)
+// -----------------------------------------------------------------------------
+// - Supports: one_to_one, range_shift, chapter_remap, merge (many->one),
+//             split (one->many), and Psalms title offsets.
+// - Identity fallback: if no rule applies (and not blocked), a verse maps to
+//   itself across translations.
+// - Cluster IDs: verses that should share highlights/notes produce the same ID.
+//   The traversal crosses real (non-identity) edges, includes identity co-
+//   targets for membership, and only crosses identity when it's the *only* edge
+//   (identity-only pairs like Gen 1:1).
 // -----------------------------------------------------------------------------
 
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
-/// Record type alias used app-wide
 /// Simple record representing a verse location.
 typedef VerseKey = ({String book, int chapter, int verse});
 String _k(VerseKey k) => '${k.book}|${k.chapter}|${k.verse}';
 
 /// -------- Canonicalization helpers --------
 
-/// Normalizes a book name (handles dots, extra spaces, common aliases).
 String _canonBook(String raw) {
   String norm(String x) =>
       x.replaceAll('.', '').replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
   final s = norm(raw);
 
-  // Common aliases
-  // TODO: Migrate this into a separate file
   const aliases = {
     'psalm': 'Psalms',
     'psalms': 'Psalms',
@@ -40,8 +35,6 @@ String _canonBook(String raw) {
   };
   if (aliases.containsKey(s)) return aliases[s]!;
 
-  // Canonical set (normalized compare)
-  // TODO: Migrate this into a separate file
   const canon = [
     "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","Judges","Ruth","1 Samuel","2 Samuel",
     "1 Kings","2 Kings","1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job","Psalms","Proverbs",
@@ -54,10 +47,9 @@ String _canonBook(String raw) {
   for (final b in canon) {
     if (norm(b) == s) return b;
   }
-  return raw.trim(); // last resort
+  return raw.trim();
 }
 
-// Determines mapping direction and if a rule should apply given that direction
 bool _dirOk(String fromTx, String direction) {
   final t = fromTx.trim().toLowerCase();
   final d = direction.trim().toLowerCase()
@@ -71,7 +63,6 @@ bool _dirOk(String fromTx, String direction) {
   return false;
 }
 
-// Provides a standardized label for mapping direction
 String _dirFromTxs(String fromTx, String toTx) {
   final f = fromTx.trim().toLowerCase();
   final t = toTx.trim().toLowerCase();
@@ -81,30 +72,20 @@ String _dirFromTxs(String fromTx, String toTx) {
 }
 
 /// -------- Rule framework --------
-/// Relevant data needed to perform a remap (point, ranges, chapter remaps, etc.).
 abstract class _Rule {
-  final String book;       // Which book a rule applies to
-  final String direction;  // Mapping direction of the rule (From which book to which book)
+  final String book;      // book name
+  final String direction; // 'EN→RU', 'RU→EN', or 'both'
   _Rule(this.book, this.direction);
-  
-  /// Returns true if this rule applies to the input.
+
   bool applies(String fromTx, VerseKey k);
-  /// Returns the equivalent verse to an inputted verse.
   List<VerseKey> map(String fromTx, VerseKey k);
 }
 
-/// One-To-One Verse Mapping. Applies to individual verses. 
+/// 1-to-1 single verse
 class _PointRule extends _Rule {
   final int fromChapter, fromVerse;
   final int toChapter, toVerse;
-  _PointRule(
-    super.book,
-    super.direction,
-    this.fromChapter,
-    this.fromVerse,
-    this.toChapter,
-    this.toVerse,
-  );
+  _PointRule(super.book, super.direction, this.fromChapter, this.fromVerse, this.toChapter, this.toVerse);
 
   @override
   bool applies(String fromTx, VerseKey k) =>
@@ -115,10 +96,10 @@ class _PointRule extends _Rule {
 
   @override
   List<VerseKey> map(String fromTx, VerseKey k) {
-    if (_dirOk(fromTx, direction) && applies(fromTx, k)) {
+    if (applies(fromTx, k)) {
       return [(book: _canonBook(book), chapter: toChapter, verse: toVerse)];
     }
-    // Invert for opposite tx
+    // invert
     final sameBook = _canonBook(k.book) == _canonBook(book);
     final t = fromTx.trim().toLowerCase();
     final d = direction.trim().toUpperCase();
@@ -132,21 +113,12 @@ class _PointRule extends _Rule {
   }
 }
 
-/// One-to-One range of verses mapping.
-/// Applies to a set of contiguous verses. 
+/// 1-to-1 contiguous span (with a chapter number change allowed)
 class _SpanCrossChapterRule extends _Rule {
   final int fromChapter, start, end;
   final int toChapter, toStart, toEnd;
-  _SpanCrossChapterRule(
-    super.book,
-    super.direction,
-    this.fromChapter,
-    this.start,
-    this.end,
-    this.toChapter,
-    this.toStart,
-    this.toEnd,
-  );
+  _SpanCrossChapterRule(super.book, super.direction, this.fromChapter, this.start, this.end,
+      this.toChapter, this.toStart, this.toEnd);
 
   @override
   bool applies(String fromTx, VerseKey k) =>
@@ -158,13 +130,13 @@ class _SpanCrossChapterRule extends _Rule {
 
   @override
   List<VerseKey> map(String fromTx, VerseKey k) {
-    if (_dirOk(fromTx, direction) && applies(fromTx, k)) {
+    if (applies(fromTx, k)) {
       final idx = k.verse - start; // 0-based
       final mapped = toStart + idx;
       if (mapped < toStart || mapped > toEnd) return const [];
       return [(book: _canonBook(book), chapter: toChapter, verse: mapped)];
     }
-    // Invert
+    // invert
     final isOpposite =
         (direction.trim().toUpperCase() == 'EN→RU' && fromTx.trim().toLowerCase() == 'rst') ||
         (direction.trim().toUpperCase() == 'RU→EN' && fromTx.trim().toLowerCase() == 'kjv');
@@ -182,8 +154,7 @@ class _SpanCrossChapterRule extends _Rule {
   }
 }
 
-/// Remaps an entire chapter to another chapter.
-/// Applies when an entire chapter is shifted to another number but its contents are identical. 
+/// Whole-chapter renumbering
 class _ChapterRemapRule extends _Rule {
   final int fromChapter;
   final int toChapter;
@@ -197,7 +168,7 @@ class _ChapterRemapRule extends _Rule {
 
   @override
   List<VerseKey> map(String fromTx, VerseKey k) {
-    if (_dirOk(fromTx, direction) && applies(fromTx, k)) {
+    if (applies(fromTx, k)) {
       return [(book: _canonBook(book), chapter: toChapter, verse: k.verse)];
     }
     // invert
@@ -214,46 +185,133 @@ class _ChapterRemapRule extends _Rule {
   }
 }
 
-/// Designed specifically for Psalms in RST and KJV
-/// In RST, Psalms counts the title of a chapter as its own verse.
-/// This offsets the verse numbering between RST and KJV by 1. 
-/// In RST, verse 1 of each chapter has no KJV equivalent
-class _OffsetRangeRule extends _Rule {
-  final List<int> psalms;
-  final int ruVerseOffset; // RU = EN + offset (for headings)
-  _OffsetRangeRule(super.book, super.direction, this.psalms, this.ruVerseOffset);
+/// Merge: many source verses -> one target verse
+class _MergeRule extends _Rule {
+  final int fromChapter, start, end;
+  final int toChapter, toVerse;
+  _MergeRule(super.book, super.direction, this.fromChapter, this.start, this.end, this.toChapter, this.toVerse);
 
   @override
   bool applies(String fromTx, VerseKey k) =>
-      _dirOk(fromTx, direction) && // Restricts shifting by direction
-      _canonBook(k.book) == 'Psalms' &&
-      psalms.contains(k.chapter);
+      _dirOk(fromTx, direction) &&
+      _canonBook(k.book) == _canonBook(book) &&
+      k.chapter == fromChapter &&
+      k.verse >= start && k.verse <= end;
 
   @override
   List<VerseKey> map(String fromTx, VerseKey k) {
-    if (!applies(fromTx, k)) return const [];
-    if (fromTx.trim().toLowerCase() == 'kjv') {
-      final v = k.verse + ruVerseOffset;
-      return v < 1 ? const [] : [(book: 'Psalms', chapter: k.chapter, verse: v)];
-    } else {
-      final v = k.verse - ruVerseOffset;
-      return v < 1 ? const [] : [(book: 'Psalms', chapter: k.chapter, verse: v)];
+    if (applies(fromTx, k)) {
+      return [(book: _canonBook(book), chapter: toChapter, verse: toVerse)];
     }
+    // reverse: target -> all originals (when called from opposite tx)
+    final t = fromTx.trim().toLowerCase();
+    final d = direction.trim().toUpperCase();
+    final sameBook = _canonBook(k.book) == _canonBook(book);
+
+    if (d == 'EN→RU' && t == 'rst' && sameBook && k.chapter == toChapter && k.verse == toVerse) {
+      return [for (var v = start; v <= end; v++) (book: _canonBook(book), chapter: fromChapter, verse: v)];
+    }
+    if (d == 'RU→EN' && t == 'kjv' && sameBook && k.chapter == toChapter && k.verse == toVerse) {
+      return [for (var v = start; v <= end; v++) (book: _canonBook(book), chapter: fromChapter, verse: v)];
+    }
+    return const [];
+  }
+}
+
+/// Split: one source verse -> many target verses
+class _SplitRule extends _Rule {
+  final int fromChapter, fromVerse;
+  final int toChapter, toStart, toEnd;
+  _SplitRule(super.book, super.direction, this.fromChapter, this.fromVerse, this.toChapter, this.toStart, this.toEnd);
+
+  @override
+  bool applies(String fromTx, VerseKey k) =>
+      _dirOk(fromTx, direction) &&
+      _canonBook(k.book) == _canonBook(book) &&
+      k.chapter == fromChapter &&
+      k.verse == fromVerse;
+
+  @override
+  List<VerseKey> map(String fromTx, VerseKey k) {
+    if (applies(fromTx, k)) {
+      return [for (var v = toStart; v <= toEnd; v++) (book: _canonBook(book), chapter: toChapter, verse: v)];
+    }
+    // reverse: any member of the split range -> the singleton source
+    final t = fromTx.trim().toLowerCase();
+    final d = direction.trim().toUpperCase();
+    final sameBook = _canonBook(k.book) == _canonBook(book);
+
+    if (d == 'EN→RU' && t == 'rst' && sameBook && k.chapter == toChapter && k.verse >= toStart && k.verse <= toEnd) {
+      return [(book: _canonBook(book), chapter: fromChapter, verse: fromVerse)];
+    }
+    if (d == 'RU→EN' && t == 'kjv' && sameBook && k.chapter == toChapter && k.verse >= toStart && k.verse <= toEnd) {
+      return [(book: _canonBook(book), chapter: fromChapter, verse: fromVerse)];
+    }
+    return const [];
+  }
+}
+
+/// Psalms title offset (RST counts titles as v1)
+class _PsalmsTitleOffsetRule extends _Rule {
+  final List<int> psalms;
+  final int verse1Extra;  // typically +1
+  final int restOffset;   // typically +1
+
+  _PsalmsTitleOffsetRule(super.book, super.direction, this.psalms, this.verse1Extra, this.restOffset);
+
+  bool _isPsalms(VerseKey k) => _canonBook(k.book) == 'Psalms';
+  bool _appliesChapter(VerseKey k) => psalms.contains(k.chapter);
+
+  @override
+  bool applies(String fromTx, VerseKey k) =>
+      _dirOk(fromTx, direction) && _isPsalms(k) && _appliesChapter(k);
+
+  int _forward(int v) => v == 1 ? 1 + verse1Extra : v + restOffset; // KJV -> RST
+  int _backward(int v) {
+    final special = 1 + verse1Extra;
+    return v == special ? 1 : v - restOffset; // RST -> KJV
+  }
+
+  @override
+  List<VerseKey> map(String fromTx, VerseKey k) {
+    final sameBook = _canonBook(k.book) == 'Psalms';
+    if (!sameBook || !psalms.contains(k.chapter)) return const [];
+
+    final t = fromTx.trim().toLowerCase();
+    final d = direction.trim().toUpperCase();
+
+    int toVerse;
+    if (_dirOk(fromTx, direction)) {
+      if (d == 'EN→RU') {
+        toVerse = (t == 'kjv') ? _forward(k.verse) : _backward(k.verse);
+      } else if (d == 'RU→EN') {
+        toVerse = (t == 'rst') ? _backward(k.verse) : _forward(k.verse);
+      } else {
+        toVerse = (t == 'kjv') ? _forward(k.verse) : _backward(k.verse);
+      }
+    } else {
+      if (d == 'EN→RU' && t == 'rst') {
+        toVerse = _backward(k.verse);
+      } else if (d == 'RU→EN' && t == 'kjv') {
+        toVerse = _forward(k.verse);
+      } else {
+        return const [];
+      }
+    }
+
+    if (toVerse < 1) return const [];
+    return [(book: 'Psalms', chapter: k.chapter, verse: toVerse)];
   }
 }
 
 /// -------- Matching engine --------
-
-/// Uses the functions outlined earlier to map out the verse 
-/// translations for the different bibles. 
 class VerseMatching {
   final List<_Rule> _rules;
 
   VerseMatching._(this._rules);
 
-/// Loads mapping tables and optional rules from /assets/bibles/verse_mapping.
-static Future<VerseMatching> load() async {
-    // Open the matching rules file
+  /// Load rules from /assets/bibles/verse_matching/verse_matching_rules.json
+  static Future<VerseMatching> load() async {
     final ruleCandidates = <String>[
       'assets/bibles/verse_matching/verse_matching_rules.json',
     ];
@@ -261,9 +319,6 @@ static Future<VerseMatching> load() async {
     String? rulePathUsed;
     dynamic decoded;
 
-    // Attempts to open the rules file.
-    // TODO: Originally designed for searching multiple files
-    // TODO: Might have redundant code for checking this
     for (final p in ruleCandidates) {
       try {
         final s = await rootBundle.loadString(p);
@@ -278,33 +333,6 @@ static Future<VerseMatching> load() async {
 
     final parsed = <_Rule>[];
 
-    /// Parses the mapping file. Requires a specific format.
-    /// Mapping rules are stored in verse_matching_rules.json
-    /// The JSON should look like the following example:
-    /// 
-    /// {
-    ///   "pairs": [
-    ///     { "type":"one_to_one",
-    ///       "book":"Jonah",
-    ///       "from":{"tx":"kjv","chapter":1,"verse":17},
-    ///       "to":  {"tx":"rst","chapter":2,"verse":1} },
-    ///     { "type":"range_shift",
-    ///       "book":"Daniel",
-    ///       "from":{"tx":"kjv","chapter":4,"start":1,"end":3},
-    ///       "to":  {"tx":"rst","chapter":3,"start":31,"end":33} },
-    ///     { "type":"chapter_remap",
-    ///       "book":"Joel",
-    ///       "map":[{"from":{"tx":"kjv","chapter":3},
-    ///               "to":  {"tx":"rst","chapter":4}}] }
-    ///   ],
-    ///   "psalms_title_offsets": {
-    ///     "tx_from":"kjv","tx_to":"rst","psalms":[3,4,5]
-    ///   }
-    /// }
-    /// 
-    /// The last section is optional and should be used when Psalms
-    /// are offset by one specifically between translations.
-    /// 
     if (decoded is Map && decoded['pairs'] is List) {
       final pairs = decoded['pairs'] as List;
       for (final p in pairs) {
@@ -356,18 +384,48 @@ static Future<VerseMatching> load() async {
             }
             break;
           }
+          case 'merge': {
+            final from = m['from'] as Map<String, dynamic>;
+            final to   = m['to']   as Map<String, dynamic>;
+            final dir  = _dirFromTxs(from['tx'] as String, to['tx'] as String);
+            parsed.add(_MergeRule(
+              book, dir,
+              (from['chapter'] as num).toInt(),
+              (from['start']   as num).toInt(),
+              (from['end']     as num).toInt(),
+              (to['chapter']   as num).toInt(),
+              (to['verse']     as num).toInt(),
+            ));
+            break;
+          }
+          case 'split': {
+            final from = m['from'] as Map<String, dynamic>;
+            final to   = m['to']   as Map<String, dynamic>;
+            final dir  = _dirFromTxs(from['tx'] as String, to['tx'] as String);
+            parsed.add(_SplitRule(
+              book, dir,
+              (from['chapter'] as num).toInt(),
+              (from['verse']   as num).toInt(),
+              (to['chapter']   as num).toInt(),
+              (to['start']     as num).toInt(),
+              (to['end']       as num).toInt(),
+            ));
+            break;
+          }
         }
       }
 
-      // Special section for remapping Psalms by an offset
-      // Could be done individually, but would be massive in the .json
-      // Should only be performed when translating in one direction
-      // Despite 'both', directionality is enforced later
+      // Psalms title offsets (optional)
       if (decoded['psalms_title_offsets'] is Map) {
         final p = decoded['psalms_title_offsets'] as Map<String, dynamic>;
-        final ps = (p['psalms'] as List).map((e) => (e as num).toInt()).toList();
-        final offset = (p['offset'] is num) ? (p['offset'] as num).toInt() : 1;
-        parsed.add(_OffsetRangeRule('Psalms', 'both', ps, offset));
+        final fromTx = (p['from_tx'] as String).trim();
+        final toTx   = (p['to_tx']   as String).trim();
+        final dir    = _dirFromTxs(fromTx, toTx);
+        final ps     = (p['psalms'] as List).map((e) => (e as num).toInt()).toList();
+        final v1x    = (p['verse1_extra'] is num) ? (p['verse1_extra'] as num).toInt() : 1;
+        final rest   = (p['rest_offset']  is num) ? (p['rest_offset']  as num).toInt() : 1;
+
+        parsed.add(_PsalmsTitleOffsetRule('Psalms', dir, ps, v1x, rest));
       }
     } else {
       throw StateError('Unrecognized verse-matching rules format in $rulePathUsed');
@@ -376,23 +434,99 @@ static Future<VerseMatching> load() async {
     return VerseMatching._(parsed);
   }
 
-  /// Returns the verse(s) that correspond to a given key. 
+  /// Core mapping: KJV<->RST according to rules, else identity fallback (unless blocked).
   List<VerseKey> matchToOther({required String fromTx, required VerseKey key}) {
-    // Normalize incoming key for rule matching
-    final normKey = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
+    final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
+    bool blockIdentity = false;
 
-    // Handles verses that are mapped to other chapters
     for (final r in _rules) {
-      if (r.applies(fromTx, normKey)) {
-        final mapped = r.map(fromTx, normKey);
-        if (mapped.isNotEmpty) return mapped;
+      final mapped = r.map(fromTx, nk);
+      if (mapped.isNotEmpty) return mapped;
+
+      // Title verse in Psalms has no counterpart in the other tx.
+      if (r is _PsalmsTitleOffsetRule &&
+          nk.book == 'Psalms' &&
+          nk.verse == 1 &&
+          r.psalms.contains(nk.chapter)) {
+        blockIdentity = true;
       }
     }
-    
-    // If no mapping occurs, default to 1:1
-    return [normKey];
+
+    return blockIdentity ? const [] : [nk];
   }
 
-  bool existsInOther({required String fromTx, required VerseKey key}) =>
-      matchToOther(fromTx: fromTx, key: key).isNotEmpty;
+  /// True if *any* counterpart exists (identity counts). Use this in the UI to decide shared behavior.
+  bool existsInOther({required String fromTx, required VerseKey key}) {
+    return matchToOther(fromTx: fromTx, key: key).isNotEmpty;
+  }
+
+  /// Deterministic cluster id for all equivalents of (tx, key).
+  /// Traversal rules:
+  /// - Follow non-identity edges (actual remaps) normally.
+  /// - If the only edge is identity, cross it so identity-only pairs share.
+  /// - If non-identity edges exist (e.g., split), also include the identity
+  ///   co-target in the *membership* (but do not expand from it) so
+  ///   KJV 3:17 <-> RST 3:17 & 3:18 stay together without pulling KJV 3:18.
+  String clusterId(String tx, VerseKey key) {
+    final canonKey = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
+    final start = (tx.trim().toLowerCase(), canonKey);
+
+    final seen = <(String, VerseKey)>{};
+    final q = <(String, VerseKey)>[start];
+
+    while (q.isNotEmpty) {
+      final cur = q.removeLast();
+      if (!seen.add(cur)) continue;
+
+      final curTx = cur.$1;
+      final otherTx = (curTx == 'kjv') ? 'rst' : 'kjv';
+
+      final targets = matchToOther(fromTx: curTx, key: cur.$2);
+
+      bool hasNonIdentity = false;
+      for (final m in targets) {
+        final isIdentity =
+            _canonBook(m.book) == _canonBook(cur.$2.book) &&
+            m.chapter == cur.$2.chapter &&
+            m.verse == cur.$2.verse;
+        if (!isIdentity) {
+          hasNonIdentity = true;
+          q.add((otherTx, m));           // traverse real edges
+        }
+      }
+
+      if (!hasNonIdentity) {
+        // identity-only: cross so the opposite side can reveal merges/splits.
+        for (final m in targets) {
+          q.add((otherTx, m));           // identity here
+        }
+      } else {
+        // include identity co-target for membership (do not expand from it)
+        for (final m in targets) {
+          final isIdentity =
+              _canonBook(m.book) == _canonBook(cur.$2.book) &&
+              m.chapter == cur.$2.chapter &&
+              m.verse == cur.$2.verse;
+          if (isIdentity) seen.add((otherTx, m));
+        }
+      }
+    }
+
+    int txOrder(String t) => t == 'kjv' ? 0 : 1;
+
+    final list = seen.toList();
+    list.sort((a, b) {
+      final c = txOrder(a.$1).compareTo(txOrder(b.$1));
+      if (c != 0) return c;
+      final ak = a.$2, bk = b.$2;
+      final bc = _canonBook(ak.book).compareTo(_canonBook(bk.book));
+      if (bc != 0) return bc;
+      final cc = ak.chapter.compareTo(bk.chapter);
+      if (cc != 0) return cc;
+      return ak.verse.compareTo(bk.verse);
+    });
+
+    final (repTx, rep) = list.first;
+    return '${repTx}|${_canonBook(rep.book)}|${rep.chapter}|${rep.verse}';
+  }
 }

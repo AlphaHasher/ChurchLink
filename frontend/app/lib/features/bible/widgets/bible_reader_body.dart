@@ -61,11 +61,29 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     'kjv': <String, HighlightColor>{},
     'rst': <String, HighlightColor>{},
   };
-  final Map<VerseRef, String> _notes = {};
+
+  // Notes that apply across translations (keyed by clusterId)
+  final Map<String, String> _notesShared = {};
+
+  // Notes that are translation-local (keyed by book|chapter|verse)
+  final Map<String, Map<String, String>> _notesPerTx = {
+    'kjv': <String, String>{},
+    'rst': <String, String>{},
+  };
 
   // Stable string keys so lookups survive reloads & translation switches
   String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
   String _kFromTriple((String, int, int) t) => '${t.$1}|${t.$2}|${t.$3}';
+
+  // TODO: NEW: “cluster-ish” IDs for SHARED state (prefix with tx)
+  String _cid(VerseRef r, [String? tx]) {
+    final t = (tx ?? _translation).toLowerCase();
+    return '$t|${r.book}|${r.chapter}|${r.verse}';
+  }
+  String _cidFromTriple(String tx, (String, int, int) t) =>
+    '${tx.toLowerCase()}|${t.$1}|${t.$2}|${t.$3}';
+
+  String get _otherTx => _translation.toLowerCase() == 'kjv' ? 'rst' : 'kjv';
 
   @override
   void initState() {
@@ -117,12 +135,26 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   /// Chooses the effective highlight color for `ref`.
   /// Shared highlights override per-translation ones.
   HighlightColor _colorFor(VerseRef ref) {
-    final k = _k(ref);
-    final shared = _hlShared[k];
-    if (shared != null) return shared;
-    final per = _hlPerTx[_translation]?[k];
-    return per ?? HighlightColor.none;
+    final m = _matcher;
+    if (m != null) {
+      final cid = m.clusterId(_translation, _keyOf(ref));
+      final c = _hlShared[cid];
+      if (c != null) return c;
+    }
+    return _hlPerTx[_translation]?[_k(ref)] ?? HighlightColor.none;
   }
+
+  String? _noteFor(VerseRef ref) {
+  final m = _matcher;
+  // If this verse maps across translations, prefer the shared (cluster) note
+  if (m != null && _existsInOther(ref)) {
+    final cid = m.clusterId(_translation, _keyOf(ref));
+    final s = _notesShared[cid];
+    if (s != null && s.isNotEmpty) return s;
+  }
+  // Otherwise fall back to the translation-local note
+  return _notesPerTx[_translation]?[_k(ref)];
+}
 
   // Greys out the back chapter button if on the first chapter of the whole Bible
   bool get _isAtFirstChapter {
@@ -309,59 +341,74 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       builder: (ctx) => _VerseActionsSheet(
         verseLabel: v.$1.toString(),
         currentHighlight: _colorFor(v.$1),
-        existingNote: _notes[v.$1],
-      ),
+        existingNote: _noteFor(v.$1),      ),
     );
     if (res == null) return;
 
     // Transfers notes between different verse mappings
     // TODO: Elaborate on mechanics here
     setState(() {
+      // NOTES (shared by cluster when verse maps across; else per-translation)
       if (res.noteDelete == true) {
-        _notes.remove(v.$1);
-        if (_existsInOther(v.$1)) {
-          for (final t in _matchToOther(v.$1)) {
-            _notes.remove(VerseRef(t.book, t.chapter, t.verse));
-          }
+        final m = _matcher;
+        if (m != null && _existsInOther(v.$1)) {
+          final cid = m.clusterId(_translation, _keyOf(v.$1));
+          _notesShared.remove(cid);
+        } else {
+          final key = _k(v.$1);
+          _notesPerTx[_translation]!.remove(key);
         }
       } else if (res.noteText != null) {
         final txt = res.noteText!.trim();
-        if (txt.isNotEmpty) {
-          _notes[v.$1] = txt;
-          if (_existsInOther(v.$1)) {
-            for (final t in _matchToOther(v.$1)) {
-              _notes[VerseRef(t.book, t.chapter, t.verse)] = txt;
-            }
+        final m = _matcher;
+
+        if (txt.isEmpty) {
+          // treat empty as delete for convenience
+          if (m != null && _existsInOther(v.$1)) {
+            final cid = m.clusterId(_translation, _keyOf(v.$1));
+            _notesShared.remove(cid);
+          } else {
+            final key = _k(v.$1);
+            _notesPerTx[_translation]!.remove(key);
+          }
+        } else {
+          if (m != null && _existsInOther(v.$1)) {
+            final cid = m.clusterId(_translation, _keyOf(v.$1));
+            _notesShared[cid] = txt;
+          } else {
+            final key = _k(v.$1);
+            _notesPerTx[_translation]![key] = txt;
           }
         }
       }
 
-      // Highlights (shared vs exclusive)
+      // Highlights (shared vs exclusive, by cluster)
       if (res.highlight != null) {
         final color = res.highlight!;
-        final here = _k(v.$1);
+        final hereK = _k(v.$1);  // for translation-local fallback
 
-        if (!_existsInOther(v.$1)) {
-          // Exclusive to this translation
-          _hlPerTx[_translation]![here] = color;
-          _hlShared.remove(here);
+        final m = _matcher;
+        final mapsAcross = m != null && _existsInOther(v.$1);
+
+        if (!mapsAcross || m == null) {
+          // translation-local
+          if (color == HighlightColor.none) {
+            _hlPerTx['kjv']!.remove(hereK);
+            _hlPerTx['rst']!.remove(hereK);
+          } else {
+            _hlPerTx[_translation]![hereK] = color;
+          }
         } else {
-          // Shared: mark here + mapped as shared
-          _hlShared[here] = color;
-
-          final mapped = _matchToOther(v.$1);
-          for (final t in mapped) {
-            _hlShared[_kFromTriple((t.book, t.chapter, t.verse))] = color;
+          // shared by cluster
+          final cid = m.clusterId(_translation, _keyOf(v.$1));
+          if (color == HighlightColor.none) {
+            _hlShared.remove(cid);
+          } else {
+            _hlShared[cid] = color;
           }
-
-          // Clean any per-tx duplicates for these keys
-          _hlPerTx['kjv']!.remove(here);
-          _hlPerTx['rst']!.remove(here);
-          for (final t in mapped) {
-            final kk = _kFromTriple((t.book, t.chapter, t.verse));
-            _hlPerTx['kjv']!.remove(kk);
-            _hlPerTx['rst']!.remove(kk);
-          }
+          // optional hygiene: ensure no per-tx dup for this verse
+          _hlPerTx['kjv']!.remove(hereK);
+          _hlPerTx['rst']!.remove(hereK);
         }
       }
     });
