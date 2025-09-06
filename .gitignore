@@ -70,3 +70,5 @@ frontend/app/ios/Flutter/Debug.xcconfig
 frontend/app/ios/Flutter/Debug.xcconfig
 frontend/app/.env
 /venv/
+backend/strapi/churchlink/.testData.db
+bearer.txt

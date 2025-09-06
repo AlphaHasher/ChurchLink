@@ -13,6 +13,11 @@ from mongo.roles import RoleHandler
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from mongo.scheduled_notifications import scheduled_notification_loop
+
+
+
+
 import asyncio
 import os
 
@@ -24,14 +29,17 @@ from routes.common_routes.event_routes import event_router
 from routes.common_routes.role_routes import role_router
 from routes.common_routes.user_routes import user_router
 from routes.common_routes.event_routes import public_event_router
+from routes.common_routes.bible_note_routes import bible_note_router
 from routes.strapi_routes.strapi_routes import strapi_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.permissions_routes.permissions_routes import permissions_router
+## cleaned up unused notification route imports
+from routes.common_routes.notification_routes import notification_router
+# Scheduled notification sender loop
+from mongo.scheduled_notifications import get_due_notifications, mark_as_sent
 
 
-from dotenv import load_dotenv
-load_dotenv()
 
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
@@ -42,10 +50,11 @@ FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize Firebase Admin SDK if not already initialized
+    # Initialize Firebase Admin SDK if not already 
+    
+    
     if not firebase_admin._apps:
         from firebase.firebase_credentials import get_firebase_credentials
-
         cred = credentials.Certificate(get_firebase_credentials())
         firebase_admin.initialize_app(cred)
 
@@ -59,22 +68,18 @@ async def lifespan(app: FastAPI):
     # Verify that an Administrator Role (Mandatory) exists
     await RoleHandler.verify_admin_role()
 
-    if not BYPASS_FIREBASE_SYNC:
-        # Sync MongoDB to Firebase
-        await FirebaseSyncer.SyncDBToFirebase()
-
-    # Verify that an Administrator Role (Mandatory) exists
-    await RoleHandler.verify_admin_role()
-
-    # Run Youtube Notification loop
+    # Start background tasks
     youtubeSubscriptionCheck = asyncio.create_task(
         YoutubeHelper.youtubeSubscriptionLoop()
     )
+
+    scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
 
     yield
 
     # Cleanup
     youtubeSubscriptionCheck.cancel()
+    scheduledNotifTask.cancel()
     DatabaseManager.close_db()
 
 
@@ -152,7 +157,7 @@ async def update_user_roles(role_update: RoleUpdate):
 # Declare router middleware/slash permissions for imported routes
 #####################################################
 strapi_router.dependencies.append(Depends(role_based_access(["strapi_admin"])))
-# paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
+paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
 
 
 #####################################################
@@ -173,15 +178,19 @@ base_router.include_router(permissions_router)
 base_router.include_router(event_router)
 base_router.include_router(role_router)
 base_router.include_router(user_router)
+base_router.include_router(bible_note_router)
 base_router.include_router(strapi_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
+base_router.include_router(notification_router)
+
 
 
 non_v1_router = APIRouter(prefix="/api")
 non_v1_router.include_router(page_router)
 non_v1_router.include_router(header_router)
 non_v1_router.include_router(footer_router)
+## cleaned up unused notification router includes
 
 
 # Include routers in main app

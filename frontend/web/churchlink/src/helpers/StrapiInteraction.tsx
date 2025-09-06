@@ -1,25 +1,11 @@
-import { confirmAuth } from "./AuthPackaging"
-
-const API_BASE = import.meta.env.VITE_API_HOST
-const API_REDIRECT = "/api/v1/strapi"
+import api from "../api/api"
 
 export const processStrapiRedirect = async () => {
     try {
-        const idToken = await confirmAuth()
-        const res = await fetch(`${API_BASE}${API_REDIRECT}/strapi-redirect`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-        })
+        const res = await api.post("/v1/strapi/strapi-redirect")
 
-        if (!res.ok) throw new Error("Failed to contact redirect service")
-
-        const data = await res.json()
-
-        if (data.redirect) {
-            window.open(data.redirect, "_blank")
+        if (res.data.redirect) {
+            window.open(res.data.redirect, "_blank")
         } else {
             alert("User does not exist or no redirect available.")
         }
@@ -31,21 +17,8 @@ export const processStrapiRedirect = async () => {
 
 export const fetchStrapiImages = async (query: string) => {
     try {
-        const idToken = await confirmAuth()
-
-        const res = await fetch(
-            `${API_BASE}/api/v1/strapi/uploads/search?query=${encodeURIComponent(query)}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${idToken}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        )
-
-        if (!res.ok) throw new Error("Failed to fetch images from Strapi")
-
-        return await res.json()
+        const res = await api.get(`/v1/strapi/uploads/search?query=${encodeURIComponent(query)}`)
+        return res.data
     } catch (err) {
         console.error("Strapi search error:", err)
         return []

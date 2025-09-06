@@ -1,21 +1,12 @@
-import { confirmAuth } from "./AuthPackaging"
 import { processFetchedEventData } from "./DataFunctions"
-import { ChurchEvent } from "@/types/ChurchEvent"
-
-const API_BASE = import.meta.env.VITE_API_HOST
-const API_EVENTS = "/api/v1/events"
+import { ChurchEvent } from "@/shared/types/ChurchEvent"
+import api from "../api/api"
 
 // Fetch all events
 export const fetchEvents = async () => {
     try {
-        const res = await fetch(`${API_BASE}${API_EVENTS}/`, {
-            method: "GET",
-        })
-
-        if (!res.ok) throw new Error("Failed to fetch events")
-
-        const data = await res.json()
-        return processFetchedEventData(data)
+        const res = await api.get("/v1/events/")
+        return processFetchedEventData(res.data)
     } catch (err) {
         console.error("Failed to fetch events:", err)
         return []
@@ -52,8 +43,6 @@ export const handleEventCreation = async (event: ChurchEvent) => {
     event.image_url = parts[parts.length - 1]
 
     try {
-        const idToken = await confirmAuth()
-
         const payload = {
             name: event.name,
             ru_name: event.ru_name,
@@ -74,25 +63,11 @@ export const handleEventCreation = async (event: ChurchEvent) => {
             published: event.published,
         }
 
-        const res = await fetch(`${API_BASE}${API_EVENTS}/`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        })
-
-        if (!res.ok) {
-            const error = await res.json()
-            console.error("❌ Failed to create event:", error)
-            alert("Event creation failed. Please check for duplicate name or invalid fields.")
-        }
+        await api.post("/v1/events/", payload)
     } catch (err) {
-        console.error("Unexpected error creating event:", err)
-        alert("Something went wrong while creating the event.")
+        console.error("❌ Failed to create event:", err)
+        alert("Event creation failed. Please check for duplicate name or invalid fields.")
     }
-
 };
 
 export const handleEventEdit = async (event: ChurchEvent) => {
@@ -103,8 +78,6 @@ export const handleEventEdit = async (event: ChurchEvent) => {
     event.image_url = parts[parts.length - 1]
 
     try {
-        const idToken = await confirmAuth()
-
         const payload = {
             name: event.name,
             ru_name: event.ru_name,
@@ -125,46 +98,18 @@ export const handleEventEdit = async (event: ChurchEvent) => {
             published: event.published,
         }
 
-        const res = await fetch(`${API_BASE}${API_EVENTS}/${event.id}`, {
-            method: "PUT",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        })
-
-        if (!res.ok) {
-            const error = await res.json()
-            console.error("❌ Failed to edit event:", error)
-            alert("Event edit failed. Please check for duplicate name or invalid fields.")
-        }
+        await api.put(`/v1/events/${event.id}`, payload)
     } catch (err) {
-        console.error("Unexpected error editing event:", err)
-        alert("Something went wrong while editing the event.")
+        console.error("❌ Failed to edit event:", err)
+        alert("Event edit failed. Please check for duplicate name or invalid fields.")
     }
-
 };
 
 export const deleteEvent = async (eventID: string) => {
     try {
-        const idToken = await confirmAuth()
-
-        const res = await fetch(`${API_BASE}${API_EVENTS}/${eventID}`, {
-            method: "DELETE",
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                "Content-Type": "application/json",
-            },
-        })
-
-        if (!res.ok) {
-            const error = await res.json()
-            console.error("❌ Failed to delete event:", error)
-            alert("Event creation failed. Please check for duplicate name or invalid fields.")
-        }
+        await api.delete(`/v1/events/${eventID}`)
     } catch (err) {
-        console.error("Unexpected error deleting event:", err)
+        console.error("❌ Failed to delete event:", err)
         alert("Something went wrong while deleting the event.")
     }
 }

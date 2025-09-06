@@ -198,7 +198,7 @@ void _showFilterSheet(BuildContext context) {
 
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "Gender"),
-                  initialValue: tempGender,
+                  value: tempGender,
                   items: [
                     null,              // Show all: no filtering
                     'all',             // Only "All Genders" events
@@ -232,7 +232,7 @@ void _showFilterSheet(BuildContext context) {
 
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "Ministry"),
-                  initialValue: tempMinistry,
+                  value: tempMinistry,
                   items: [
                     null,
                     'Children',

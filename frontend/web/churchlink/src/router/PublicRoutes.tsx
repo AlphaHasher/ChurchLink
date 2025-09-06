@@ -1,14 +1,14 @@
 import { lazy } from "react";
 import { Route, Routes, useParams } from "react-router-dom";
-import MainLayout from "../layouts/MainLayout";
-import Payment from "@/pages/PaymentExample";
+import Layout from "../shared/layouts/Layout";
+import Payment from "../shared/components/PaymentExample";
 
 // Lazy load components
-const ArticlesListPage = lazy(() => import("@/pages/ArticlesListPage"));
-const ArticlePage = lazy(() => import("@/pages/ArticlePage"));
-const General = lazy(() => import("@/pages/General"));
-const Giving = lazy(() => import("@/pages/Giving"));
-const EventViewer = lazy(() => import("@/pages/EventViewer"));
+const ArticlesListPage = lazy(() => import("../features/articles/pages/ArticlesListPage"));
+const ArticlePage = lazy(() => import("../features/articles/pages/ArticlePage"));
+const General = lazy(() => import("../shared/components/General"));
+const Giving = lazy(() => import("../shared/components/Giving"));
+const EventViewer = lazy(() => import("../features/events/pages/EventViewer"));
 
 function GeneralWrapper() {
   const { name } = useParams();
@@ -18,7 +18,7 @@ function GeneralWrapper() {
 export const PublicRoutes = () => {
   return (
     <>
-      <MainLayout>
+      <Layout>
         <Routes>
           <Route path="/events" element={<EventViewer />} />
           <Route path="/articles" element={<ArticlesListPage />} />
@@ -27,7 +27,7 @@ export const PublicRoutes = () => {
           <Route path="/PaymentExample" element={<Payment />} />
           <Route path="/:name?" element={<GeneralWrapper />} />
         </Routes>
-      </MainLayout>
+      </Layout>
     </>
   );
 };

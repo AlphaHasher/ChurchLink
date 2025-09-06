@@ -1,11 +1,16 @@
 import httpx
 import os
+import logging
 from dotenv import load_dotenv
 from fastapi import HTTPException
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 STRAPI_URL = os.getenv("STRAPI_URL", "")
 STRAPI_API_KEY = os.getenv("STRAPI_API_KEY", "")
@@ -19,11 +24,14 @@ class StrapiHelper:
 
     async def get_admin_token() -> str:
         global cached_admin_token
+        logger.debug("Attempting to get Strapi admin token")
 
         # If we already have a token, validate it
         if cached_admin_token:
+            logger.debug("Validating cached admin token")
             is_valid = await StrapiHelper.is_token_valid(cached_admin_token)
             if is_valid:
+                logger.debug("Cached token is valid, reusing")
                 return cached_admin_token
 
         # Otherwise, log in again
@@ -34,15 +42,52 @@ class StrapiHelper:
         }
         headers = { "Content-Type": "application/json" }
 
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=payload, headers=headers)
+        logger.debug(f"Authenticating with Strapi admin at: {url}")
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res = await client.post(url, json=payload, headers=headers)
 
-        if res.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to authenticate with Strapi Admin")
+            logger.debug(f"Strapi login response status: {res.status_code}")
 
-        data = res.json()
-        cached_admin_token = data["data"]["token"]
-        return cached_admin_token
+            if res.status_code != 200:
+                logger.error(f"Strapi admin login failed with status {res.status_code}")
+                logger.error(f"Response body: {res.text}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Strapi authentication failed (status {res.status_code}): {res.text}"
+                )
+
+            data = res.json()
+            if "data" not in data or "token" not in data["data"]:
+                logger.error("Strapi login response missing token data")
+                logger.error(f"Response: {data}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid Strapi authentication response: missing token data"
+                )
+
+            cached_admin_token = data["data"]["token"]
+            logger.info("Successfully obtained new Strapi admin token")
+            return cached_admin_token
+
+        except httpx.TimeoutException:
+            logger.error("Timeout while connecting to Strapi admin login")
+            raise HTTPException(
+                status_code=500,
+                detail="Timeout connecting to Strapi admin service"
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"Connection error to Strapi: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Cannot connect to Strapi admin service: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error during Strapi authentication: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error during Strapi authentication: {str(e)}"
+            )
     
     # Test to see if token valid
     async def is_token_valid(token: str) -> bool:
@@ -60,6 +105,7 @@ class StrapiHelper:
             return False
 
     async def does_strapi_user_exist(email: str, token: str, skipInvite :bool=False) -> dict:
+        logger.debug(f"Checking if Strapi user exists: {email}")
         retDict = {
             'exists': False,
             'active': False,
@@ -74,13 +120,40 @@ class StrapiHelper:
             "Content-Type": "application/json"
         }
 
-        async with httpx.AsyncClient() as client:
-            res = await client.get(url, headers=headers)
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res = await client.get(url, headers=headers)
 
-        if res.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to query Strapi users")
+            logger.debug(f"Strapi users query response status: {res.status_code}")
 
-        users = res.json()
+            if res.status_code != 200:
+                logger.error(f"Failed to query Strapi users (status {res.status_code}): {res.text}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to query Strapi users (status {res.status_code}): {res.text}"
+                )
+
+            users = res.json()
+            logger.debug(f"Retrieved {len(users.get('data', {}).get('results', []))} users from Strapi")
+
+        except httpx.TimeoutException:
+            logger.error("Timeout while querying Strapi users")
+            raise HTTPException(
+                status_code=500,
+                detail="Timeout connecting to Strapi while querying users"
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"Connection error to Strapi: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Cannot connect to Strapi service: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error querying Strapi users: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error while querying Strapi users: {str(e)}"
+            )
 
         for user in users['data']['results']:
             if user['email'].lower() == email.lower():
@@ -130,7 +203,13 @@ class StrapiHelper:
             )
 
     async def invite_strapi_user(email: str, first_name: str, last_name: str, uid:str) -> str:
-        token = await StrapiHelper.get_admin_token()
+        logger.info(f"Creating Strapi invitation for user: {email} (UID: {uid})")
+
+        try:
+            token = await StrapiHelper.get_admin_token()
+        except Exception as e:
+            logger.error(f"Failed to get admin token for user invitation: {str(e)}")
+            raise
 
         url = f"{STRAPI_URL}/admin/users"
         headers = {
@@ -138,33 +217,70 @@ class StrapiHelper:
             "Content-Type": "application/json"
         }
 
-        # Choose your Strapi role ID or name
-        role_ids = await StrapiHelper.get_admin_role_ids(token)
-        roles = await StrapiHelper.gather_proper_permissions(role_ids, uid)
+        try:
+            # Choose your Strapi role ID or name
+            logger.debug(f"Getting role IDs for user {email}")
+            role_ids = await StrapiHelper.get_admin_role_ids(token)
+            roles = await StrapiHelper.gather_proper_permissions(role_ids, uid)
+            logger.debug(f"Assigned roles for {email}: {roles}")
 
-        payload = {
-            "email": email,
-            "firstname": first_name,
-            "lastname": last_name,
-            "roles": roles,
-        }
+            payload = {
+                "email": email,
+                "firstname": first_name,
+                "lastname": last_name,
+                "roles": roles,
+            }
 
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=payload, headers=headers)
+            logger.debug(f"Creating Strapi user invitation with payload: {payload}")
 
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res = await client.post(url, json=payload, headers=headers)
 
-        if res.status_code not in (200, 201):
-            raise HTTPException(status_code=500, detail="Failed to invite Strapi user")
+            logger.debug(f"Strapi user creation response status: {res.status_code}")
 
-        data = res.json()
-        invitation_token = data.get("data", {}).get("registrationToken")
+            if res.status_code not in (200, 201):
+                logger.error(f"Failed to create Strapi user (status {res.status_code}): {res.text}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to create Strapi user invitation (status {res.status_code}): {res.text}"
+                )
 
-        if not invitation_token:
-            raise HTTPException(status_code=500, detail="Strapi did not return invitation token")
+            data = res.json()
+            logger.debug(f"Strapi user creation response: {data}")
 
-        # Build the redirect URL (this is the default path for admin invites)
-        invite_url = f"{STRAPI_URL}/admin/auth/register?registrationToken={invitation_token}"
-        return invite_url
+            invitation_token = data.get("data", {}).get("registrationToken")
+
+            if not invitation_token:
+                logger.error("Strapi user creation response missing registration token")
+                logger.error(f"Full response: {data}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Strapi user creation succeeded but no registration token was returned"
+                )
+
+            # Build the redirect URL (this is the default path for admin invites)
+            invite_url = f"{STRAPI_URL}/admin/auth/register?registrationToken={invitation_token}"
+            logger.info(f"Successfully created invitation URL for {email}: {invite_url}")
+            return invite_url
+
+        except httpx.TimeoutException:
+            logger.error(f"Timeout while creating Strapi user invitation for {email}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Timeout creating Strapi user invitation for {email}"
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"Connection error while creating Strapi user for {email}: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Cannot connect to Strapi while creating user invitation: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error creating Strapi user invitation for {email}: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error while creating Strapi user invitation for {email}: {str(e)}"
+            )
 
     async def get_admin_role_ids(token: str) -> dict:
         url = f"{STRAPI_URL}/admin/roles"
@@ -187,7 +303,7 @@ class StrapiHelper:
 
     async def gather_proper_permissions(admin_roles, uid):
         mongo_user = await UserHandler.find_by_uid(uid)
-        if mongo_user == None:
+        if mongo_user is None:
             raise HTTPException(status_code=500, detail="Failed to identify mongo user")
 
         returned_roles = [admin_roles['default-role']]
@@ -202,7 +318,7 @@ class StrapiHelper:
     
     async def sync_strapi_roles(uid):
         mongo_user = await UserHandler.find_by_uid(uid)
-        if mongo_user == None:
+        if mongo_user is None:
             return False
 
         email = mongo_user['email']
