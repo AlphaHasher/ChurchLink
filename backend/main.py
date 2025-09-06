@@ -34,9 +34,7 @@ from routes.strapi_routes.strapi_routes import strapi_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.permissions_routes.permissions_routes import permissions_router
-## cleaned up unused notification route imports
 from routes.common_routes.notification_routes import notification_router
-# Scheduled notification sender loop
 from mongo.scheduled_notifications import get_due_notifications, mark_as_sent
 
 
