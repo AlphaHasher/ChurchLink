@@ -4,8 +4,8 @@ import 'dart:convert';
 
 Future<void> sendFcmTokenToBackend(String userId) async {
   final token = await FirebaseMessaging.instance.getToken();
-  print('sendFcmTokenToBackend called for userId: $userId');
-  print('FCM token: $token');
+  debugPrint('sendFcmTokenToBackend called for userId: $userId');
+  debugPrint('FCM token: $token');
   if (token != null) {
     try {
       final response = await http.post(
@@ -13,11 +13,11 @@ Future<void> sendFcmTokenToBackend(String userId) async {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'user_id': userId, 'token': token}),
       );
-      print('FCM token save response: ${response.statusCode} ${response.body}');
+      debugPrint('FCM token save response: ${response.statusCode} ${response.body}');
     } catch (e) {
-      print('Error sending FCM token to backend: $e');
+      debugPrint('Error sending FCM token to backend: $e');
     }
   } else {
-    print('FCM token is null, not sending to backend');
+    debugPrint('FCM token is null, not sending to backend');
   }
 }
