@@ -69,7 +69,11 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     });
   };
 
-  const clearSelectedChapters = () => setSelectedChaptersSet(new Set());
+  const clearSelectedChapters = () => {
+    setSelectedChaptersSet(new Set());
+    setSelectedChapter(null);
+    setVerseRange({ start: '', end: '' });
+  };
 
   // Returns structure for contiguous ranges per book
   const groupSelectedChaptersByBook = () => {
