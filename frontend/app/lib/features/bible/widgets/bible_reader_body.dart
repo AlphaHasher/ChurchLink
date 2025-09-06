@@ -21,12 +21,8 @@ enum HighlightColor { none, yellow, green, blue, pink, purple, teal }
 /// - Opens to a given translation/book/chapter.
 /// - Lets users navigate, switch translations, highlight, notetake.
 class BibleReaderBody extends StatefulWidget {
-  /// Builds the Bible reader.
   const BibleReaderBody({
     super.key,
-    // The book opens to this by default
-    // At present, this is hardcoded to the start of the bible
-    // TODO: The reader should eventually default to whatever was last open. 
     this.initialTranslation = 'kjv',
     this.initialBook = 'Genesis',
     this.initialChapter = 1,
@@ -43,7 +39,7 @@ class BibleReaderBody extends StatefulWidget {
 class _BibleReaderBodyState extends State<BibleReaderBody> {
   final _repo = ElishaBibleRepo();
 
-  // Values for the current state of the reader (what's being displayed)
+  // Current view
   late String _translation;
   late String _book;
   late int _chapter;
@@ -53,19 +49,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   List<(VerseRef ref, String text)> _verses = [];
 
-  // Stores highlights in a map:
-  // These highlights are shared by both translations
+  // Shared highlights across translations, keyed by clusterId from VerseMatching
   final Map<String, HighlightColor> _hlShared = {};
-  // These highlights are exclusive to a specific translation
+  // Translation-local highlights (only when a verse has no counterpart)
   final Map<String, Map<String, HighlightColor>> _hlPerTx = {
     'kjv': <String, HighlightColor>{},
     'rst': <String, HighlightColor>{},
   };
 
-  // Notes that apply across translations (keyed by clusterId)
+  // Notes shared across translations (keyed by clusterId)
   final Map<String, String> _notesShared = {};
-
-  // Notes that are translation-local (keyed by book|chapter|verse)
+  // Translation-local notes (keyed by book|chapter|verse)
   final Map<String, Map<String, String>> _notesPerTx = {
     'kjv': <String, String>{},
     'rst': <String, String>{},
@@ -73,15 +67,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   // Stable string keys so lookups survive reloads & translation switches
   String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
-  String _kFromTriple((String, int, int) t) => '${t.$1}|${t.$2}|${t.$3}';
-
-  // TODO: NEW: “cluster-ish” IDs for SHARED state (prefix with tx)
-  String _cid(VerseRef r, [String? tx]) {
-    final t = (tx ?? _translation).toLowerCase();
-    return '$t|${r.book}|${r.chapter}|${r.verse}';
-  }
-  String _cidFromTriple(String tx, (String, int, int) t) =>
-    '${tx.toLowerCase()}|${t.$1}|${t.$2}|${t.$3}';
 
   String get _otherTx => _translation.toLowerCase() == 'kjv' ? 'rst' : 'kjv';
 
@@ -113,27 +98,24 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   // === Verse Matching Helpers ===
-  // Helpers that convert VerseRef to the light-weight `VerseKey` record and
-  // consult the VerseMatching engine to see if a verse maps to the other tx.
   VerseKey _keyOf(VerseRef r) => (book: r.book, chapter: r.chapter, verse: r.verse);
 
-  /// Does this verse exist in the other translation? (Used for shared highlights)
+  /// Does this verse exist in the other translation? (Used for shared state)
   bool _existsInOther(VerseRef ref) {
     final m = _matcher; // local copy for null-safety promotion
     if (m == null) return false;
     return m.existsInOther(fromTx: _translation, key: _keyOf(ref));
   }
 
-  /// Returns the corresponding verses in the other translation.
+  /// Returns the corresponding verses in the other translation (not used for mirroring).
   List<VerseKey> _matchToOther(VerseRef ref) {
     final m = _matcher;
     if (m == null) return const [];
     return m.matchToOther(fromTx: _translation, key: _keyOf(ref));
   }
 
-  // Compute display color for a verse in the CURRENT translation
   /// Chooses the effective highlight color for `ref`.
-  /// Shared highlights override per-translation ones.
+  /// Shared (cluster) highlights override per-translation ones.
   HighlightColor _colorFor(VerseRef ref) {
     final m = _matcher;
     if (m != null) {
@@ -144,17 +126,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return _hlPerTx[_translation]?[_k(ref)] ?? HighlightColor.none;
   }
 
+  /// Returns the effective note for `ref`.
+  /// If the verse maps across, prefer the shared (cluster) note; else per-translation.
   String? _noteFor(VerseRef ref) {
-  final m = _matcher;
-  // If this verse maps across translations, prefer the shared (cluster) note
-  if (m != null && _existsInOther(ref)) {
-    final cid = m.clusterId(_translation, _keyOf(ref));
-    final s = _notesShared[cid];
-    if (s != null && s.isNotEmpty) return s;
+    final m = _matcher;
+    if (m != null && _existsInOther(ref)) {
+      final cid = m.clusterId(_translation, _keyOf(ref));
+      final s = _notesShared[cid];
+      if (s != null && s.isNotEmpty) return s;
+    }
+    return _notesPerTx[_translation]?[_k(ref)];
   }
-  // Otherwise fall back to the translation-local note
-  return _notesPerTx[_translation]?[_k(ref)];
-}
 
   // Greys out the back chapter button if on the first chapter of the whole Bible
   bool get _isAtFirstChapter {
@@ -169,7 +151,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return _chapter == _chapterCount(_book) && i == lastBookIndex;
   }
 
-  /// Navigation functionality for the UI elements
   /// Move forward by one chapter, wrapping into the next book when needed.
   void _nextChapter() {
     final i = _bookIndex(_book);
@@ -217,7 +198,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           return SafeArea(
             child: LayoutBuilder(
               builder: (ctx, constraints) {
-                // Makes list scrollable for Books with many chapters, keeps confirm buttons visible
                 final maxH = constraints.maxHeight * 0.92; // ~92% of screen
                 return ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: maxH),
@@ -226,7 +206,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       left: 16,
                       right: 16,
                       top: 12,
-                      // keep room for keyboard if it appears
                       bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
                     ),
                     child: Column(
@@ -333,7 +312,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   /// ----- Actions -----
-  /// Opens the notetaking and highlighting menu
   Future<void> _openActions((VerseRef ref, String text) v) async {
     final res = await showModalBottomSheet<_ActionResult>(
       context: context,
@@ -341,14 +319,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       builder: (ctx) => _VerseActionsSheet(
         verseLabel: v.$1.toString(),
         currentHighlight: _colorFor(v.$1),
-        existingNote: _noteFor(v.$1),      ),
+        existingNote: _noteFor(v.$1),
+      ),
     );
     if (res == null) return;
 
-    // Transfers notes between different verse mappings
-    // TODO: Elaborate on mechanics here
     setState(() {
-      // NOTES (shared by cluster when verse maps across; else per-translation)
+      // NOTES
       if (res.noteDelete == true) {
         final m = _matcher;
         if (m != null && _existsInOther(v.$1)) {
@@ -363,7 +340,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         final m = _matcher;
 
         if (txt.isEmpty) {
-          // treat empty as delete for convenience
           if (m != null && _existsInOther(v.$1)) {
             final cid = m.clusterId(_translation, _keyOf(v.$1));
             _notesShared.remove(cid);
@@ -382,31 +358,27 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         }
       }
 
-      // Highlights (shared vs exclusive, by cluster)
+      // HIGHLIGHTS
       if (res.highlight != null) {
         final color = res.highlight!;
-        final hereK = _k(v.$1);  // for translation-local fallback
+        final hereK = _k(v.$1);
 
         final m = _matcher;
         final mapsAcross = m != null && _existsInOther(v.$1);
 
         if (!mapsAcross || m == null) {
-          // translation-local
           if (color == HighlightColor.none) {
-            _hlPerTx['kjv']!.remove(hereK);
-            _hlPerTx['rst']!.remove(hereK);
+            _hlPerTx[_translation]!.remove(hereK);
           } else {
             _hlPerTx[_translation]![hereK] = color;
           }
         } else {
-          // shared by cluster
           final cid = m.clusterId(_translation, _keyOf(v.$1));
           if (color == HighlightColor.none) {
             _hlShared.remove(cid);
           } else {
             _hlShared[cid] = color;
           }
-          // optional hygiene: ensure no per-tx dup for this verse
           _hlPerTx['kjv']!.remove(hereK);
           _hlPerTx['rst']!.remove(hereK);
         }
@@ -415,7 +387,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   // ----- UI (main layout) -----
-  /// Builds the reader UI: top navigation bar, Bible text, and notetaking/highlighting popup.
   @override
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
@@ -434,8 +405,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                 onPressed: _isAtFirstChapter ? null : _prevChapter,
                 icon: const Icon(Icons.chevron_left),
               ),
-
-              // Chapter button, widens to fill empty space
               Expanded(
                 flex: 6,
                 child: SizedBox(
@@ -444,12 +413,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   child: TextButton(
                     onPressed: _openJumpPicker,
                     style: TextButton.styleFrom(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHigh,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     child: Text(
                       '${_bookAbbrev[_book] ?? _book} $_chapter',
@@ -461,9 +429,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                 ),
               ),
               const SizedBox(width: 8),
-
-              // Translation single button (popup menu)
-              // TODO: Consider other menu styles for the translation list
               PopupMenuButton<String>(
                 tooltip: 'Translation',
                 initialValue: _translation,
@@ -472,16 +437,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   _load();
                 },
                 itemBuilder: (ctx) => _translations
-                    .map((t) =>
-                        PopupMenuItem(value: t, child: Text(t.toUpperCase())))
+                    .map((t) => PopupMenuItem(value: t, child: Text(t.toUpperCase())))
                     .toList(),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: Theme.of(context).dividerColor,
@@ -498,25 +459,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   ),
                 ),
               ),
-
-              const Spacer(flex: 1), // keep book name from being squished
-
-              // Search Button
-              // TODO: Implement Search Functionality
+              const Spacer(flex: 1),
               IconButton(
                 tooltip: 'Search',
                 onPressed: null, // Currently Disabled
                 icon: const Icon(Icons.search),
               ),
-
-              // Speaker Placeholder
-              // TODO: Implement Voiceover
               IconButton(
                 tooltip: 'Read aloud',
                 onPressed: null, // Currently Disabled
                 icon: const Icon(Icons.volume_up_outlined),
               ),
-
               IconButton(
                 tooltip: 'Next chapter',
                 onPressed: _isAtLastChapter ? null : _nextChapter,
@@ -533,10 +486,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                   child: FlowingChapterText(
                     verses: _verses,
-                    // Compute highlight color per verse at render time
-                    highlights: {
-                      for (final v in _verses) v.$1 : _colorFor(v.$1),
-                    },
+                    highlights: { for (final v in _verses) v.$1 : _colorFor(v.$1) },
                     onTapVerse: (vt) => _openActions(vt),
                     baseStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontSize: 16,
@@ -583,7 +533,6 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
     super.dispose();
   }
 
-  /// Builds the highlighting and notetaking popout
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -595,21 +544,18 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
           bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.verseLabel,
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(widget.verseLabel, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
 
           Align(alignment: Alignment.centerLeft, child: const Text('Highlight')),
           const SizedBox(height: 8),
 
-          // Adjust alignment of highlighting buttons
           Wrap(
             spacing: 10,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              for (final c
-                  in HighlightColor.values.where((c) => c != HighlightColor.none))
+              for (final c in HighlightColor.values.where((c) => c != HighlightColor.none))
                 InkWell(
                   onTap: () => setState(() => _pick = c),
                   borderRadius: BorderRadius.circular(16),
@@ -624,8 +570,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                         HighlightColor.pink: Colors.pinkAccent,
                         HighlightColor.purple: Colors.purpleAccent,
                         HighlightColor.teal: Colors.tealAccent,
-                      }[c]!
-                          .withOpacity(.9),
+                      }[c]!.withOpacity(.9),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: _pick == c ? Colors.black87 : Colors.black26,
@@ -636,8 +581,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                 ),
               TextButton.icon(
                 style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   minimumSize: const Size(0, 28),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
@@ -668,8 +612,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
             if (widget.existingNote != null)
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () =>
-                      Navigator.pop(context, _ActionResult(noteDelete: true)),
+                  onPressed: () => Navigator.pop(context, _ActionResult(noteDelete: true)),
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('Delete note'),
                 ),
@@ -693,224 +636,51 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
 
 // ===== Translation and Book UI Elements =====
 
-// List which translations should be seleactable
+// List which translations should be selectable
 const List<String> _translations = ['kjv', 'rst'];
 
 // List all book names that should appear in the selector
 const List<String> _bookNames = [
-  'Genesis',
-  'Exodus',
-  'Leviticus',
-  'Numbers',
-  'Deuteronomy',
-  'Joshua',
-  'Judges',
-  'Ruth',
-  '1 Samuel',
-  '2 Samuel',
-  '1 Kings',
-  '2 Kings',
-  '1 Chronicles',
-  '2 Chronicles',
-  'Ezra',
-  'Nehemiah',
-  'Esther',
-  'Job',
-  'Psalms',
-  'Proverbs',
-  'Ecclesiastes',
-  'Song of Solomon',
-  'Isaiah',
-  'Jeremiah',
-  'Lamentations',
-  'Ezekiel',
-  'Daniel',
-  'Hosea',
-  'Joel',
-  'Amos',
-  'Obadiah',
-  'Jonah',
-  'Micah',
-  'Nahum',
-  'Habakkuk',
-  'Zephaniah',
-  'Haggai',
-  'Zechariah',
-  'Malachi',
-  'Matthew',
-  'Mark',
-  'Luke',
-  'John',
-  'Acts',
-  'Romans',
-  '1 Corinthians',
-  '2 Corinthians',
-  'Galatians',
-  'Ephesians',
-  'Philippians',
-  'Colossians',
-  '1 Thessalonians',
-  '2 Thessalonians',
-  '1 Timothy',
-  '2 Timothy',
-  'Titus',
-  'Philemon',
-  'Hebrews',
-  'James',
-  '1 Peter',
-  '2 Peter',
-  '1 John',
-  '2 John',
-  '3 John',
-  'Jude',
-  'Revelation'
+  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua',
+  'Judges', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings',
+  '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job',
+  'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Solomon', 'Isaiah',
+  'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
+  'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai',
+  'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans',
+  '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians',
+  'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy',
+  'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John',
+  '2 John', '3 John', 'Jude', 'Revelation'
 ];
 
-// Maps book names to abbreviated versions
-// This is used in the UI, where the header cannot fit the entire book title
-// Rather than using ellipsis, opt for a generally accepted abbreviation
-// TODO: Possibly condense the list of Book names and Book abbreviations into one entry
+// Book abbreviations (UI header)
 final Map<String, String> _bookAbbrev = {
-  // Old Testament
-  "Genesis": "Gen",
-  "Exodus": "Exod",
-  "Leviticus": "Lev",
-  "Numbers": "Num",
-  "Deuteronomy": "Deut",
-  "Joshua": "Josh",
-  "Judges": "Judg",
-  "Ruth": "Ruth",
-  "1 Samuel": "1 Sam",
-  "2 Samuel": "2 Sam",
-  "1 Kings": "1 Kgs",
-  "2 Kings": "2 Kgs",
-  "1 Chronicles": "1 Chr",
-  "2 Chronicles": "2 Chr",
-  "Ezra": "Ezra",
-  "Nehemiah": "Neh",
-  "Esther": "Esth",
-  "Job": "Job",
-  "Psalms": "Ps",
-  "Proverbs": "Prov",
-  "Ecclesiastes": "Eccl",
-  "Song of Solomon": "Song",
-  "Isaiah": "Isa",
-  "Jeremiah": "Jer",
-  "Lamentations": "Lam",
-  "Ezekiel": "Ezek",
-  "Daniel": "Dan",
-  "Hosea": "Hos",
-  "Joel": "Joel",
-  "Amos": "Amos",
-  "Obadiah": "Obad",
-  "Jonah": "Jonah",
-  "Micah": "Mic",
-  "Nahum": "Nah",
-  "Habakkuk": "Hab",
-  "Zephaniah": "Zeph",
-  "Haggai": "Hag",
-  "Zechariah": "Zech",
-  "Malachi": "Mal",
-  // New Testament
-  "Matthew": "Matt",
-  "Mark": "Mark",
-  "Luke": "Luke",
-  "John": "John",
-  "Acts": "Acts",
-  "Romans": "Rom",
-  "1 Corinthians": "1 Cor",
-  "2 Corinthians": "2 Cor",
-  "Galatians": "Gal",
-  "Ephesians": "Eph",
-  "Philippians": "Phil",
-  "Colossians": "Col",
-  "1 Thessalonians": "1 Thess",
-  "2 Thessalonians": "2 Thess",
-  "1 Timothy": "1 Tim",
-  "2 Timothy": "2 Tim",
-  "Titus": "Titus",
-  "Philemon": "Phlm",
-  "Hebrews": "Heb",
-  "James": "Jas",
-  "1 Peter": "1 Pet",
-  "2 Peter": "2 Pet",
-  "1 John": "1 Jn",
-  "2 John": "2 Jn",
-  "3 John": "3 Jn",
-  "Jude": "Jude",
-  "Revelation": "Rev",
+  "Genesis": "Gen", "Exodus": "Exod", "Leviticus": "Lev", "Numbers": "Num",
+  "Deuteronomy": "Deut", "Joshua": "Josh", "Judges": "Judg", "Ruth": "Ruth",
+  "1 Samuel": "1 Sam", "2 Samuel": "2 Sam", "1 Kings": "1 Kgs", "2 Kings": "2 Kgs",
+  "1 Chronicles": "1 Chr", "2 Chronicles": "2 Chr", "Ezra": "Ezra", "Nehemiah": "Neh",
+  "Esther": "Esth", "Job": "Job", "Psalms": "Ps", "Proverbs": "Prov",
+  "Ecclesiastes": "Eccl", "Song of Solomon": "Song", "Isaiah": "Isa",
+  "Jeremiah": "Jer", "Lamentations": "Lam", "Ezekiel": "Ezek", "Daniel": "Dan",
+  "Hosea": "Hos", "Joel": "Joel", "Amos": "Amos", "Obadiah": "Obad",
+  "Jonah": "Jonah", "Micah": "Mic", "Nahum": "Nah", "Habakkuk": "Hab",
+  "Zephaniah": "Zeph", "Haggai": "Hag", "Zechariah": "Zech", "Malachi": "Mal",
+  "Matthew": "Matt", "Mark": "Mark", "Luke": "Luke", "John": "John",
+  "Acts": "Acts", "Romans": "Rom", "1 Corinthians": "1 Cor", "2 Corinthians": "2 Cor",
+  "Galatians": "Gal", "Ephesians": "Eph", "Philippians": "Phil", "Colossians": "Col",
+  "1 Thessalonians": "1 Thess", "2 Thessalonians": "2 Thess", "1 Timothy": "1 Tim",
+  "2 Timothy": "2 Tim", "Titus": "Titus", "Philemon": "Phlm", "Hebrews": "Heb",
+  "James": "Jas", "1 Peter": "1 Pet", "2 Peter": "2 Pet", "1 John": "1 Jn",
+  "2 John": "2 Jn", "3 John": "3 Jn", "Jude": "Jude", "Revelation": "Rev",
 };
 
 // Contains a list of chapter counts per book. Used in the selector.
 // In our case, RST and KJV have the same chapter counts. 
-// TODO: Unsure about this approach. Chapter counts may change across different translations. 
 const List<int> _chaptersPerBook = [
-  50,
-  40,
-  27,
-  36,
-  34,
-  24,
-  21,
-  4,
-  31,
-  24,
-  22,
-  25,
-  29,
-  36,
-  10,
-  13,
-  10,
-  42,
-  150,
-  31,
-  12,
-  8,
-  66,
-  52,
-  5,
-  48,
-  12,
-  14,
-  3,
-  9,
-  1,
-  4,
-  7,
-  3,
-  3,
-  3,
-  2,
-  14,
-  4,
-  28,
-  16,
-  24,
-  21,
-  28,
-  16,
-  16,
-  13,
-  6,
-  6,
-  4,
-  4,
-  5,
-  3,
-  6,
-  4,
-  3,
-  1,
-  13,
-  5,
-  5,
-  3,
-  5,
-  1,
-  1,
-  1,
-  22
+  50, 40, 27, 36, 34, 24, 21, 4, 31, 24, 22, 25, 29, 36, 10, 13, 10, 42, 150,
+  31, 12, 8, 66, 52, 5, 48, 12, 14, 3, 9, 1, 4, 7, 3, 3, 3, 2, 14, 4, 28, 16,
+  24, 21, 28, 16, 16, 13, 6, 6, 4, 4, 5, 3, 6, 4, 3, 1, 13, 5, 5, 3, 5, 1, 1, 1, 22
 ];
 
 // Returns the indexing location of a Book
