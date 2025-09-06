@@ -207,13 +207,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
   return (
     <div ref={containerRef} className="space-y-4">
-      <div className="text-sm font-medium text-gray-700">
-        {selectedDay ? (
-          <span>Adding passages to Day {selectedDay}</span>
-        ) : (
-          <span className="text-red-600">Select a day in the calendar to add passages</span>
-        )}
-      </div>
+
       <TrashDropZone />
 
   {/* Bible Book Selector */}
@@ -350,8 +344,8 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
       {/* Chapter & Verse Selection */}
       {(selectedChapter || selectedChaptersSet.size > 0) && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="text-sm font-medium text-gray-700">
+          <div className="mb-2">
+            <div className="text-sm font-medium text-gray-700 w-full">
               {(() => {
                 if (multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi') {
                   const { book, range } = multiChapterSelectionMeta;
@@ -364,7 +358,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                   else if (hasS && !hasE) preview = `${range.start}:${s}-${range.end}`;
                   else if (!hasS && hasE) preview = `${range.start}-${range.end}:${e}`;
                   else preview = `${range.start}:${s}-${range.end}:${e}`;
-                  return <span>Select Verse Range From {book.name} {preview}</span>;
+                  return <span className="block w-full">Select Verse Range From {book.name} {preview}</span>;
                 }
                 if (selectedChapter) {
                   const s = verseRange.start.trim();
@@ -373,15 +367,10 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                   if (s && !e) preview = `${selectedChapter.chapter}:${s}`;
                   else if (!s && e) preview = `${selectedChapter.chapter}:${e}`;
                   else if (s && e) preview = s === e ? `${selectedChapter.chapter}:${s}` : `${selectedChapter.chapter}:${s}-${e}`;
-                  return <span>Select Verses from {selectedChapter.book.name} {preview}</span>;
+                  return <span className="block w-full">Select Verses from \n{selectedChapter.book.name} {preview}</span>;
                 }
-                return <span>Chapter Selection</span>;
+                return <span className="block w-full">Chapter Selection</span>;
               })()}
-            </div>
-            <div className="flex gap-2">
-              {selectedChaptersSet.size > 0 && (
-                <Button size="sm" variant="outline" onClick={clearSelectedChapters} className="h-7 text-xs">Clear Chapters</Button>
-              )}
             </div>
           </div>
           {multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi' && !selectedDay && (
@@ -425,6 +414,13 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
           <div className="text-xs text-gray-500">
             Leave verse inputs blank to include entire chapter(s). For multi-chapter contiguous selections you can specify verses spanning start of first to end of last chapter.
           </div>
+          {selectedChaptersSet.size > 0 && (
+            <div className="pt-2">
+              <Button size="sm" variant="ghost" onClick={clearSelectedChapters} className="text-xs">
+                Clear Chapters
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
