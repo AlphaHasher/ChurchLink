@@ -554,29 +554,29 @@ class VerseMatching {
       }
 
       if (hasNonIdentity) {
-        // Include identity co-targets in membership (don’t expand from them).
-        for (final m in ruleTargets) {
-          final isIdentity =
-              _canonBook(m.book) == _canonBook(curKey.book) &&
-              m.chapter == curKey.chapter &&
-              m.verse == curKey.verse;
-          if (isIdentity) seen.add((otherTx, m));  // membership-only
-        }
-        // Only identity neighbor. Always include the identity co-target in MEMBERSHIP.
-        seen.add((otherTx, curKey));  // membership only
-
-        if (_canonBook(curKey.book) == 'Psalms') {
-          // Keep strict in Psalms to avoid title-bridging.
-          if (!_psalmsTitleBlocked(curKey)) {
-            final otherHasRules = _ruleEdgesOnly(otherTx, curKey).isNotEmpty;
-            if (!otherHasRules) {
-              q.add((otherTx, curKey)); // safe identity hop only if BOTH sides rule-free
+        // When rule edges exist:
+        // - Outside Psalms: include identity co-targets in MEMBERSHIP (for symmetric clusters).
+        // - In Psalms: never add identity co-targets.
+        if (_canonBook(curKey.book) != 'Psalms') {
+          for (final m in ruleTargets) {
+            final isIdentity =
+                _canonBook(m.book) == _canonBook(curKey.book) &&
+                m.chapter == curKey.chapter &&
+                m.verse == curKey.verse;
+            if (isIdentity) {
+              seen.add((otherTx, m)); // membership only
             }
           }
+        }
+      } else {
+        // Only identity neighbor:
+        if (_canonBook(curKey.book) != 'Psalms') {
+          // Outside Psalms: include and traverse identity so overlaps (e.g., Eph 3:17) cluster fully.
+          seen.add((otherTx, curKey));   // membership
+          q.add((otherTx, curKey));      // traverse
         } else {
-          // Outside Psalms, allow the identity hop even if other side has rule edges.
-          // This lets overlaps like KJV Eph 3:17 ↔ RST 3:17–18 also pull in KJV 3:18.
-          q.add((otherTx, curKey));
+          // In Psalms: never include/cross identity (prevents KJV 59:1 → KJV 58:2).
+          // (Do nothing.)
         }
       }
     }
