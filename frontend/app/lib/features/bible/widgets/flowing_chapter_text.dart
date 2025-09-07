@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------------
 // Reformats all of the verses in the bible into a continuous flowing
 // text with verse numbers. Each verse can be tapped, and tapping will
-// bring up a highlighting and notetaking popup menu. 
+// bring up a highlighting and notetaking popup menu.
 // -----------------------------------------------------------------------------
 
 import 'package:flutter/gestures.dart';
@@ -36,11 +36,8 @@ class FlowingChapterText extends StatefulWidget {
 }
 
 /// Displays the whole chapter as flowing paragraph text.
-/// This file's main functionality is stored in this class. 
-/// Uses data from the above class.
 class _FlowingChapterTextState extends State<FlowingChapterText> {
   // Places one tap recognizer per each verse.
-  // This makes sure that each highlight/note is paired with the right verse.
   final Map<VerseRef, TapGestureRecognizer> _taps = {};
 
   @override
@@ -54,8 +51,7 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
 
   @override
   Widget build(BuildContext context) {
-    // Determines which TextStyle should be use
-    // Priority is a provided style, then the app's style, then a size 16 default
+    // Base style (caller’s style > theme > default), with consistent line height.
     final base = (widget.baseStyle ??
             Theme.of(context).textTheme.bodyLarge ??
             const TextStyle(fontSize: 16))
@@ -66,8 +62,7 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
       color: Theme.of(context).colorScheme.secondary.withOpacity(.9),
     );
 
-    // When rendering the chapter, loops the following structure: 
-    // [num][space][verse text][space] 
+    // Build a single rich paragraph: [num][space][verse text][space]...
     final spans = <InlineSpan>[];
     for (final v in widget.verses) {
       final ref = v.$1; // VerseRef
@@ -79,14 +74,14 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
 
       final highlight = widget.highlights[ref];
 
-      // Displays the verse number by the corresponding verse
+      // Verse number (never highlighted)
       spans.add(TextSpan(text: '${ref.verse} ', style: numberStyle));
 
-      // Renders the highlight that has been applied by the user
-      // At the moment uses a fixed color set corresponding to the 
-      // notetaking popup menu's set of colors, found elsewhere
+      // ---- IMPORTANT FIX ----
+      // Put ONLY the verse glyphs in the highlighted span,
+      // and add the trailing space as its own unhighlighted span.
       spans.add(TextSpan(
-        text: txt.trim() + ' ',
+        text: txt.trim(),
         recognizer: recognizer,
         style: base.copyWith(
           backgroundColor: switch (highlight) {
@@ -100,6 +95,9 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
           },
         ),
       ));
+      // Unhighlighted spacer between verses keeps the paragraph flowing and
+      // prevents “bleed” into the next verse number on the same line.
+      spans.add(const TextSpan(text: ' '));
     }
 
     return RichText(text: TextSpan(children: spans, style: base));

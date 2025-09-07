@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../data/bible_repo_elisha.dart';
 import 'flowing_chapter_text.dart'; // affects how verses are displayed
 import '../data/verse_matching.dart'; // handles RST and KJV verse numbering
+import '../data/verse_matching.dart' show VerseMatching, VerseKey;
 
 /// Establishes the highlighting color choices.
 enum HighlightColor { none, yellow, green, blue, pink, purple, teal }
@@ -102,7 +103,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Does this verse exist in the other translation? (Used for shared state)
   bool _existsInOther(VerseRef ref) {
-    final m = _matcher; // local copy for null-safety promotion
+    final m = _matcher;
     if (m == null) return false;
     return m.existsInOther(fromTx: _translation, key: _keyOf(ref));
   }
@@ -118,11 +119,40 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   /// Shared (cluster) highlights override per-translation ones.
   HighlightColor _colorFor(VerseRef ref) {
     final m = _matcher;
+
+    // 1) Try this verse’s own cluster id.
     if (m != null) {
-      final cid = m.clusterId(_translation, _keyOf(ref));
-      final c = _hlShared[cid];
-      if (c != null) return c;
+      final selfCid = m.clusterId(_translation, _keyOf(ref));
+      final cSelf = _hlShared[selfCid];
+      if (cSelf != null) return cSelf;
+
+      // 2) Also honor highlights keyed by any counterpart’s cluster id.
+      //    This makes RST Ps 58:2 show the highlight from KJV Ps 59:1
+      //    without merging KJV 59:1 and KJV 58:1 into one cluster.
+      final me = _keyOf(ref);
+      final bool isPsalms = me.book == 'Psalms';
+
+      List<VerseKey> counterparts;
+      if (isPsalms) {
+        // Rule-only to avoid identity; then ONLY mirror if it’s a cross-chapter hop.
+        final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+        final hasCross = ro.any((x) => x.chapter != me.chapter);
+        counterparts = hasCross
+            ? ro.where((x) => x.chapter != me.chapter).toList()
+            : const <VerseKey>[]; // same-chapter counterparts: don't mirror
+      } else {
+        // Non-Psalms: normal mapping (identity allowed), so Gen 1:1 still mirrors.
+        counterparts = m.matchToOther(fromTx: _translation, key: me);
+      }
+
+      for (final other in counterparts) {
+        final otherCid = m.clusterId(_otherTx, other);
+        final cOther = _hlShared[otherCid];
+        if (cOther != null) return cOther;
+      }
     }
+
+    // 3) Fall back to translation-local highlight.
     return _hlPerTx[_translation]?[_k(ref)] ?? HighlightColor.none;
   }
 

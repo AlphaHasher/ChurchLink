@@ -458,6 +458,11 @@ class VerseMatching {
     return blockIdentity ? const [] : [nk];
   }
 
+  List<VerseKey> matchToOtherRuleOnly({required String fromTx, required VerseKey key}) {
+    final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
+    return _ruleEdgesOnly(fromTx, nk);
+  }
+
   /// Does this verse exist in the other translation in any form?
   /// NOTE: We count identities as "exists" so 1:1 verses share highlights.
   bool existsInOther({required String fromTx, required VerseKey key}) {
@@ -471,23 +476,38 @@ class VerseMatching {
     final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
     final out = <String, VerseKey>{}; // de-dup via canonical key
     for (final r in _rules) {
-      final mapped = r.map(fromTx, nk);           // <-- NOTE: use map(), not applies()
+      final mapped = r.map(fromTx, nk); // rule-only; no identity fallback
       for (final m in mapped) {
         final mk = (book: _canonBook(m.book), chapter: m.chapter, verse: m.verse);
         out['${mk.book}|${mk.chapter}|${mk.verse}'] = mk;
       }
     }
-    return out.values.toList();
+
+    // --- Psalms anti-bridging guard ---
+    // If any cross-chapter edge exists for this source,
+    // drop same-chapter edges (title-offset hops) to prevent bridging.
+    var neighbors = out.values.toList();
+
+    // 1) Drop identity edges entirely. Identity is handled as a fallback elsewhere.
+    neighbors = neighbors.where((mk) =>
+      !(_canonBook(mk.book) == _canonBook(nk.book) &&
+        mk.chapter == nk.chapter &&
+        mk.verse == nk.verse)
+    ).toList();
+
+    // 2) Psalms anti-bridging: if any cross-chapter edge exists, drop same-chapter edges.
+    if (_canonBook(nk.book) == 'Psalms') {
+      final hasCrossChapter = neighbors.any((mk) => mk.chapter != nk.chapter);
+      if (hasCrossChapter) {
+        neighbors = neighbors.where((mk) => mk.chapter != nk.chapter).toList();
+      }
+    }
+    return neighbors;
   }
 
   bool _psalmsTitleBlocked(VerseKey nk) {
-    if (_canonBook(nk.book) != 'Psalms' || nk.verse != 1) return false;
-    for (final r in _rules) {
-      if (r is _PsalmsTitleOffsetRule && r.psalms.contains(nk.chapter)) {
-        return true;
-      }
-    }
-    return false;
+    // Block identity crossing for ALL Psalms verse 1 (regardless of JSON).
+    return _canonBook(nk.book) == 'Psalms' && nk.verse == 1;
   }
 
   /// Deterministic cluster id for all equivalents of (tx, key).
@@ -509,7 +529,16 @@ class VerseMatching {
       final curKey = (book: _canonBook(cur.$2.book), chapter: cur.$2.chapter, verse: cur.$2.verse);
 
       // RULE EDGES (primary traversal)
-      final ruleTargets = _ruleEdgesOnly(curTx, curKey);
+      final _rt = _ruleEdgesOnly(curTx, curKey);
+
+      // --- Psalms anti-bridging guard (per-expansion) ---
+      // If any cross-chapter edge exists for this source, drop same-chapter edges
+      // for THIS expansion step. Prevents hops like RST 58:2 → KJV 58:1 sneaking in.
+      final ruleTargets = (_canonBook(curKey.book) == 'Psalms')
+          ? (_rt.any((mk) => mk.chapter != curKey.chapter)
+              ? _rt.where((mk) => mk.chapter != curKey.chapter).toList()
+              : _rt)
+          : _rt;
 
       // Enqueue non-identity rule edges. (Identity co-target handled below)
       bool hasNonIdentity = false;
@@ -525,23 +554,13 @@ class VerseMatching {
       }
 
       if (hasNonIdentity) {
-        // Include any identity co-targets in membership, but don't expand from them.
-        for (final m in ruleTargets) {
-          final isIdentity =
-              _canonBook(m.book) == _canonBook(curKey.book) &&
-              m.chapter == curKey.chapter &&
-              m.verse == curKey.verse;
-          if (isIdentity) {
-            seen.add((otherTx, m));
-          }
-        }
+        // When any non-identity rule edges exist, do NOT add identity co-targets.
       } else {
-        // Only identity neighbor. Always include the identity co-target in MEMBERSHIP
-        // so both starts (KJV curKey, RST curKey) produce the same cluster id.
-        // Do NOT expand from it unless both sides have no rule edges.
-        seen.add((otherTx, curKey));  // membership only, no traversal yet
-
+        // Only identity neighbor.
         if (!_psalmsTitleBlocked(curKey)) {
+          // Include identity membership for true 1:1 cases (e.g., Gen 1:1).
+          seen.add((otherTx, curKey));  // membership only, no traversal yet
+
           final otherHasRules = _ruleEdgesOnly(otherTx, curKey).isNotEmpty;
           if (!otherHasRules) {
             q.add((otherTx, curKey)); // safe identity crossing for pure 1:1 cases
