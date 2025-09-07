@@ -35,6 +35,12 @@ class RoleHandler:
                     continue
                 permissions[key] = permissions[key] or value
 
+        if permissions['admin']:
+            for key,value in permissions.items():
+                permissions[key] = True
+        
+        if permissions['event_management']:
+            permissions['event_editing'] = True
         return permissions
 
     @staticmethod

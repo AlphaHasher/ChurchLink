@@ -22,14 +22,13 @@ from routes.page_management_routes.page_routes import page_router
 from routes.page_management_routes.header_routes import header_router as header_router
 from routes.page_management_routes.footer_routes import footer_router as footer_router
 from routes.common_routes.event_routes import event_router
-from routes.common_routes.role_routes import role_router
-from routes.common_routes.user_routes import user_router
+from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
 from routes.common_routes.event_routes import public_event_router
 from routes.common_routes.bible_note_routes import bible_note_router
-from routes.strapi_routes.strapi_routes import strapi_router
+from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
-from routes.permissions_routes.permissions_routes import permissions_router
+from routes.permissions_routes.permissions_routes import permissions_view_router, permissions_protected_router
 
 
 from dotenv import load_dotenv
@@ -201,12 +200,15 @@ router_webhook_listener.include_router(youtube_router)
 #####################################################
 base_router = APIRouter(prefix="/api/v1")
 base_router.include_router(paypal_router)
-base_router.include_router(permissions_router)
+base_router.include_router(permissions_view_router)
+base_router.include_router(permissions_protected_router)
 base_router.include_router(event_router)
-base_router.include_router(role_router)
 base_router.include_router(user_router)
+base_router.include_router(user_private_router)
+base_router.include_router(user_mod_router)
 base_router.include_router(bible_note_router)
 base_router.include_router(strapi_router)
+base_router.include_router(strapi_protected_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
 

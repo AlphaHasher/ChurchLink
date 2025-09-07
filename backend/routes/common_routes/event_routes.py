@@ -1,15 +1,17 @@
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Request
 from models.event import sort_events, create_event, get_event_by_id, EventCreate, update_event, delete_event, search_events, delete_events, EventOut
-from models.event_functions import process_create_event, process_edit_event, process_delete_event
+from controllers.event_functions import process_create_event, process_edit_event, process_delete_event
 from typing import Literal, List
 from bson import ObjectId
 from typing import Optional
 from datetime import date
 from helpers.Firebase_helpers import authenticate_uid
+from protected_routers.perm_protected_router import PermProtectedRouter
 
 
-event_router = APIRouter(prefix="/events", tags=["Events"])
+
+event_router = PermProtectedRouter(prefix="/events", tags=["Events"], required_perms=["event_editing"])
 public_event_router = APIRouter(prefix="/events", tags=["Events Public Routes"])
 
 
@@ -22,6 +24,29 @@ async def get_events(skip: int = 0, limit: int = 100, ministry: str = None, age:
 async def search_events_route(query: str, skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Optional[Literal["male", "female", "all"]] = None, is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date"):
     return await search_events(query, skip, limit, ministry, age, gender, is_free, sort, sort_by)
 
+@public_event_router.get("/upcoming", summary="Alias: Get upcoming events")
+async def get_upcoming_events_alias(
+    skip: int = 0,
+    limit: int = 100,
+    ministry: str = None,
+    age: Optional[int] = None,
+    gender: Literal["male", "female", "all"] = "all",
+    is_free: bool = None,
+    sort: Literal["asc", "desc"] = "asc",
+    sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date",
+    name: Optional[str] = None,
+    max_price: Optional[float] = None,
+    date_after: Optional[date] = None,
+    date_before: Optional[date] = None,
+):
+    return await sort_events(skip, limit, ministry, age, gender, is_free, sort, sort_by, name=name, max_price=max_price, date_after=date_after, date_before=date_before)
+
+from models.event import get_all_ministries  # ensure this is imported
+
+@public_event_router.get("/ministries", summary="Get all unique ministries")
+async def get_ministries_route():
+    return await get_all_ministries()
+
 # This route catches all paths under /api/v1/events/...
 # @public_event_router.get("/{event_id}", summary="Get event by id")
 # async def get_event_by_id_route(event_id: str):
@@ -32,22 +57,22 @@ async def search_events_route(query: str, skip: int = 0, limit: int = 100, minis
 
 
 @event_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
-async def create_event_route(event: EventCreate, uid:str = Depends(authenticate_uid)):
-    await process_create_event(event, uid)
+async def create_event_route(event: EventCreate, request: Request):
+    return await process_create_event(event, request)
 
 
 @event_router.put("/{event_id}", summary="Update event")
-async def update_event_route(event_id: str, event: EventCreate, uid:str = Depends(authenticate_uid)):
-    await process_edit_event(event_id, event, uid)
+async def update_event_route(event_id: str, event: EventCreate, request: Request):
+    return await process_edit_event(event_id, event, request)
     
 
 
 @event_router.delete("/{event_id}", summary="Delete event")
-async def delete_event_route(event_id: str, uid:str = Depends(authenticate_uid)):
-    await process_delete_event(event_id, uid)
+async def delete_event_route(event_id: str, request: Request):
+    return await process_delete_event(event_id, request)
 
 @event_router.delete("/", summary="Delete multiple events by ID")
-async def delete_events_route(event_ids: List[str], uid:str = Depends(authenticate_uid)):
+async def delete_events_route(event_ids: List[str], request: Request):
     """
     Deletes multiple events based on a list of provided string ObjectIds.
     """
@@ -74,27 +99,4 @@ async def delete_events_route(event_ids: List[str], uid:str = Depends(authentica
 
     return {"message": f"Attempted deletion for {len(event_ids)} IDs.", "deleted_count": deleted_count}
 
-
-@public_event_router.get("/upcoming", summary="Alias: Get upcoming events")
-async def get_upcoming_events_alias(
-    skip: int = 0,
-    limit: int = 100,
-    ministry: str = None,
-    age: Optional[int] = None,
-    gender: Literal["male", "female", "all"] = "all",
-    is_free: bool = None,
-    sort: Literal["asc", "desc"] = "asc",
-    sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date",
-    name: Optional[str] = None,
-    max_price: Optional[float] = None,
-    date_after: Optional[date] = None,
-    date_before: Optional[date] = None,
-):
-    return await sort_events(skip, limit, ministry, age, gender, is_free, sort, sort_by, name=name, max_price=max_price, date_after=date_after, date_before=date_before)
-
-from models.event import get_all_ministries  # ensure this is imported
-
-@public_event_router.get("/ministries", summary="Get all unique ministries")
-async def get_ministries_route():
-    return await get_all_ministries()
 
