@@ -29,6 +29,7 @@
 
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import 'books.dart';
 
 /// Keys for locating a verse
 typedef VerseKey = ({String book, int chapter, int verse});
@@ -37,36 +38,9 @@ typedef VerseKey = ({String book, int chapter, int verse});
 /// Standardize formatting on book names. 
 /// Trims extra characters and makes all characters lowercase. 
 /// Also accepts some common aliases.
+// TODO: Delegate canonicalization to Books catalog (localization-aware).
 String _canonBook(String raw) {
-  String norm(String x) =>
-      x.replaceAll('.', '').replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
-  final s = norm(raw);
-
-  // Accepted aliases
-  const aliases = {
-    'psalm': 'Psalms',
-    'psalms': 'Psalms',
-    'song': 'Song of Solomon',
-    'songofsongs': 'Song of Solomon',
-    'songs of songs': 'Song of Solomon',
-    'canticles': 'Song of Solomon',
-  };
-  if (aliases.containsKey(s)) return aliases[s]!;
-
-  // Book titles
-  const canon = [
-    "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","Judges","Ruth","1 Samuel","2 Samuel",
-    "1 Kings","2 Kings","1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job","Psalms","Proverbs",
-    "Ecclesiastes","Song of Solomon","Isaiah","Jeremiah","Lamentations","Ezekiel","Daniel","Hosea","Joel","Amos",
-    "Obadiah","Jonah","Micah","Nahum","Habakkuk","Zephaniah","Haggai","Zechariah","Malachi",
-    "Matthew","Mark","Luke","John","Acts","Romans","1 Corinthians","2 Corinthians","Galatians","Ephesians",
-    "Philippians","Colossians","1 Thessalonians","2 Thessalonians","1 Timothy","2 Timothy","Titus","Philemon","Hebrews","James",
-    "1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"
-  ];
-  for (final b in canon) {
-    if (norm(b) == s) return b;
-  }
-  return raw.trim(); 
+  return Books.instance.canonEnglishName(raw);
 }
 
 /// Restricts rules to only apply in certain directions
@@ -343,6 +317,9 @@ class VerseMatching {
   VerseMatching._(this._rules);
 
   static Future<VerseMatching> load() async {
+    // TODO: Ensure the Books catalog is ready before using canonicalization.
+    await Books.instance.ensureLoaded();
+
     const path = 'assets/bibles/verse_matching/verse_matching_rules.json';
     dynamic decoded;
     try {

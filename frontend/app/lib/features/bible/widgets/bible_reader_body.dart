@@ -14,6 +14,7 @@ import '../data/bible_repo_elisha.dart';
 import 'flowing_chapter_text.dart'; // affects how verses are displayed
 import '../data/verse_matching.dart'; // handles RST and KJV verse numbering
 import '../data/verse_matching.dart' show VerseMatching, VerseKey;
+import '../data/books.dart';
 
 /// Establishes the highlighting color choices.
 enum HighlightColor { none, yellow, green, blue, pink, purple, teal }
@@ -71,9 +72,41 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   String get _otherTx => _translation.toLowerCase() == 'kjv' ? 'rst' : 'kjv';
 
+  // TODO: Books catalog readiness flag to avoid late-init crashes.
+  bool _booksReady = false;
+
+  // TODO: Map translation to catalog locale (KJV→en, RST→ru).
+  String _localeForTx(String tx) => tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
+
+  // ===== Catalog-backed wrappers (guarded) =====
+  // TODO: These were moved inside the State so they can read `_booksReady`.
+  List<String> get _bookNames =>
+      _booksReady ? Books.instance.names() : const <String>[];
+
+  // Localized abbreviation for headers.
+  // Falls back to raw book name if catalog isn't ready yet.
+  String _abbr(String book) =>
+      _booksReady ? Books.instance.abbrev(book) : book;
+
+  // Chapter count lookup (catalog-backed).
+  int _chapterCount(String book) =>
+      _booksReady ? Books.instance.chapterCount(book) : 1;
+
+  // 0-based index for UI ordering (catalog is 1-based).
+  int _bookIndex(String book) =>
+      _booksReady ? (Books.instance.orderIndex(book) - 1) : 0;
+
   @override
   void initState() {
     super.initState();
+
+    // TODO: Load the books catalog once; set locale based on initial translation and mark ready.
+    Books.instance.ensureLoaded().then((_) {
+      if (!mounted) return;
+      Books.instance.setLocaleCode(_localeForTx(widget.initialTranslation));
+      _booksReady = true;
+      setState(() {});
+    });
 
     _translation = widget.initialTranslation;
     _book = widget.initialBook;
@@ -85,6 +118,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     Future(() async {
       _matcher = await VerseMatching.load();
       setState(() {}); // refresh UI when matcher is ready
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // TODO: Only touch Books after it is loaded; keep locale tied to translation, not device.
+    Books.instance.ensureLoaded().then((_) {
+      if (!mounted) return;
+      _booksReady = true;
+      Books.instance.setLocaleCode(_localeForTx(_translation));
+      setState(() {}); // repaint headers/menus with localized strings
     });
   }
 
@@ -170,12 +215,16 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   // Greys out the back chapter button if on the first chapter of the whole Bible
   bool get _isAtFirstChapter {
+    // TODO: While catalog loads, disable nav to avoid calling into it.
+    if (!_booksReady) return true;
     final i = _bookIndex(_book);
     return _chapter == 1 && i == 0;
   }
 
   // Greys out the forward chapter button if on the last chapter of the whole Bible
   bool get _isAtLastChapter {
+    // TODO: While catalog loads, disable nav to avoid calling into it.
+    if (!_booksReady) return true;
     final i = _bookIndex(_book);
     final lastBookIndex = _bookNames.length - 1;
     return _chapter == _chapterCount(_book) && i == lastBookIndex;
@@ -183,14 +232,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Move forward by one chapter, wrapping into the next book when needed.
   void _nextChapter() {
+    // TODO: Guard while catalog loads.
+    if (!_booksReady) return;
     final i = _bookIndex(_book);
     final count = _chapterCount(_book);
     if (_chapter < count) {
       setState(() => _chapter += 1);
     } else {
       final ni = (i + 1) % _bookNames.length;
+      // TODO: Set canonical English name using catalog rather than localized display name.
       setState(() {
-        _book = _bookNames[ni];
+        _book = Books.instance.englishByOrder(ni + 1);
         _chapter = 1;
       });
     }
@@ -199,13 +251,16 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Move backward by one chapter, wrapping into the previous book when needed.
   void _prevChapter() {
+    // TODO: Guard while catalog loads.
+    if (!_booksReady) return;
     final i = _bookIndex(_book);
     if (_chapter > 1) {
       setState(() => _chapter -= 1);
     } else {
       final pi = (i - 1 + _bookNames.length) % _bookNames.length;
+      // TODO: Set canonical English name using catalog rather than localized display name.
       setState(() {
-        _book = _bookNames[pi];
+        _book = Books.instance.englishByOrder(pi + 1);
         _chapter = _chapterCount(_book);
       });
     }
@@ -214,12 +269,16 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Opens the book and chapter select popup
   Future<void> _openJumpPicker() async {
+    // TODO: Do not open while catalog loads.
+    if (!_booksReady) return;
+
     final result = await showModalBottomSheet<(String, int)?>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
-        String selBook = _book;
+        // TODO: Start with the *localized* name in the picker; keep canonical in state.
+        String selBook = _bookNames[_bookIndex(_book)];
         int selChap = _chapter;
 
         return StatefulBuilder(builder: (ctx, setSheet) {
@@ -333,8 +392,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       },
     );
     if (result != null) {
+      // TODO: Convert localized selection back to canonical English for Repo calls.
       setState(() {
-        _book = result.$1;
+        _book = Books.instance.canonEnglishName(result.$1);
         _chapter = result.$2;
       });
       _load();
@@ -449,8 +509,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
+                    // TODO: Use localized abbreviation once catalog is ready; fall back to raw while loading.
                     child: Text(
-                      '${_bookAbbrev[_book] ?? _book} $_chapter',
+                      '${_booksReady ? _abbr(_book) : _book} $_chapter',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       softWrap: false,
@@ -463,7 +524,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                 tooltip: 'Translation',
                 initialValue: _translation,
                 onSelected: (val) {
-                  setState(() => _translation = val);
+                  // TODO: Switch catalog locale when translation changes (KJV↔RST).
+                  setState(() {
+                    _translation = val;
+                    if (_booksReady) {
+                      Books.instance.setLocaleCode(_localeForTx(_translation));
+                    }
+                  });
                   _load();
                 },
                 itemBuilder: (ctx) => _translations
@@ -670,55 +737,14 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
 const List<String> _translations = ['kjv', 'rst'];
 
 // List all book names that should appear in the selector
-const List<String> _bookNames = [
-  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua',
-  'Judges', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings',
-  '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job',
-  'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Solomon', 'Isaiah',
-  'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
-  'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai',
-  'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans',
-  '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians',
-  'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy',
-  'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John',
-  '2 John', '3 John', 'Jude', 'Revelation'
-];
+// TODO: Migrated to Books catalog (localized list). Moved into State as guarded getter: `_bookNames`.
 
 // Book abbreviations (UI header)
-final Map<String, String> _bookAbbrev = {
-  "Genesis": "Gen", "Exodus": "Exod", "Leviticus": "Lev", "Numbers": "Num",
-  "Deuteronomy": "Deut", "Joshua": "Josh", "Judges": "Judg", "Ruth": "Ruth",
-  "1 Samuel": "1 Sam", "2 Samuel": "2 Sam", "1 Kings": "1 Kgs", "2 Kings": "2 Kgs",
-  "1 Chronicles": "1 Chr", "2 Chronicles": "2 Chr", "Ezra": "Ezra", "Nehemiah": "Neh",
-  "Esther": "Esth", "Job": "Job", "Psalms": "Ps", "Proverbs": "Prov",
-  "Ecclesiastes": "Eccl", "Song of Solomon": "Song", "Isaiah": "Isa",
-  "Jeremiah": "Jer", "Lamentations": "Lam", "Ezekiel": "Ezek", "Daniel": "Dan",
-  "Hosea": "Hos", "Joel": "Joel", "Amos": "Amos", "Obadiah": "Obad",
-  "Jonah": "Jonah", "Micah": "Mic", "Nahum": "Nah", "Habakkuk": "Hab",
-  "Zephaniah": "Zeph", "Haggai": "Hag", "Zechariah": "Zech", "Malachi": "Mal",
-  "Matthew": "Matt", "Mark": "Mark", "Luke": "Luke", "John": "John",
-  "Acts": "Acts", "Romans": "Rom", "1 Corinthians": "1 Cor", "2 Corinthians": "2 Cor",
-  "Galatians": "Gal", "Ephesians": "Eph", "Philippians": "Phil", "Colossians": "Col",
-  "1 Thessalonians": "1 Thess", "2 Thessalonians": "2 Thess", "1 Timothy": "1 Tim",
-  "2 Timothy": "2 Tim", "Titus": "Titus", "Philemon": "Phlm", "Hebrews": "Heb",
-  "James": "Jas", "1 Peter": "1 Pet", "2 Peter": "2 Pet", "1 John": "1 Jn",
-  "2 John": "2 Jn", "3 John": "3 Jn", "Jude": "Jude", "Revelation": "Rev",
-};
+// TODO: Migrated to Books catalog (localized abbreviation). Moved into State as guarded method: `_abbr(...)`.
 
 // Contains a list of chapter counts per book. Used in the selector.
 // In our case, RST and KJV have the same chapter counts. 
-const List<int> _chaptersPerBook = [
-  50, 40, 27, 36, 34, 24, 21, 4, 31, 24, 22, 25, 29, 36, 10, 13, 10, 42, 150,
-  31, 12, 8, 66, 52, 5, 48, 12, 14, 3, 9, 1, 4, 7, 3, 3, 3, 2, 14, 4, 28, 16,
-  24, 21, 28, 16, 16, 13, 6, 6, 4, 4, 5, 3, 6, 4, 3, 1, 13, 5, 5, 3, 5, 1, 1, 1, 22
-];
+// TODO: Migrated to Books catalog (chapter count lookup). Moved into State as guarded method: `_chapterCount(...)`.
 
 // Returns the indexing location of a Book
-int _bookIndex(String book) =>
-    _bookNames.indexWhere((b) => b.toLowerCase() == book.toLowerCase());
-
-// Returns the chapter count of a book
-int _chapterCount(String book) {
-  final i = _bookIndex(book);
-  return i >= 0 ? _chaptersPerBook[i] : 1;
-}
+// TODO: Use catalog order (1-based) then convert to 0-based index. Moved into State as guarded method: `_bookIndex(...)`.

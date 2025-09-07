@@ -7,71 +7,7 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show FlutterError;
-
-/// Canonical order of Books present in the bible. 
-/// The Bible file's JSON can use numbers or titles for its Book entry. 
-/// This list is ordered to establish numbering and naming pairs. 
-const List<String> _BOOKS = [
-  "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","Judges","Ruth","1 Samuel","2 Samuel",
-  "1 Kings","2 Kings","1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job","Psalms","Proverbs",
-  "Ecclesiastes","Song of Solomon","Isaiah","Jeremiah","Lamentations","Ezekiel","Daniel","Hosea","Joel","Amos",
-  "Obadiah","Jonah","Micah","Nahum","Habakkuk","Zephaniah","Haggai","Zechariah","Malachi",
-  "Matthew","Mark","Luke","John","Acts","Romans","1 Corinthians","2 Corinthians","Galatians","Ephesians",
-  "Philippians","Colossians","1 Thessalonians","2 Thessalonians","1 Timothy","2 Timothy","Titus","Philemon","Hebrews","James",
-  "1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"
-];
-
-/// List of common aliases for book titles, should Bible JSONs opt to use a different Book title. 
-const Map<String, String> _BOOK_ALIASES = {
-  // Psalms
-  'psalm': 'Psalms',
-  'psalms': 'Psalms',
-  // Song of Solomon
-  'song': 'Song of Solomon',
-  'song of songs': 'Song of Solomon',
-  'songs of solomon': 'Song of Solomon',
-  'canticles': 'Song of Solomon',
-};
-
-/// Performs additional cleaning on the Book titles pulled from a Bible JSON file. 
-String _canonBookFromName(String raw) {
-  final s0 = raw.trim();
-  // Returns immediately if it is 1 to 1.
-  for (final b in _BOOKS) {
-    if (s0 == b) return b;
-  }
-  // Remove periods, collapse multiple spaces into one space, convert all characters to lowercase
-  String norm(String x) =>
-      x.replaceAll('.', '').replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
-
-  final s = norm(s0);
-  // Checks if an alias matches. 
-  if (_BOOK_ALIASES.containsKey(s)) return _BOOK_ALIASES[s]!;
-  // As a safety measure, normalizes the book titles from the list above then compares it again. 
-  for (final b in _BOOKS) {
-    if (norm(b) == s) return b;
-  }
-  // Returns the original value, as a last resort
-  return s0;
-}
-
-/// Converts an inputted Book number value to its matching Book.
-String _bookNameFromId(dynamic v) {
-  // Accepts int values, and converts a numerical String to int if needed. 
-  if (v is int) {
-    final i = v - 1;
-    if (i >= 0 && i < _BOOKS.length) return _BOOKS[i];
-    throw const FormatException('Invalid book id');
-  }
-  final s = v.toString().trim();
-  final n = int.tryParse(s);
-  if (n != null) {
-    final i = n - 1;
-    if (i >= 0 && i < _BOOKS.length) return _BOOKS[i];
-    throw const FormatException('Invalid book id');
-  }
-  return _canonBookFromName(s);
-}
+import 'books.dart';
 
 /// Converts values to int.
 int _toInt(dynamic v) {
@@ -92,6 +28,7 @@ class ElishaJsonSource {
   /// Opens a Bible JSON file. The contents of that JSON are returned as follows:
   ///   `{ 'book': String, 'chapter': int, 'verse': int, 'text': String }`
   Future<List<Map<String, dynamic>>> load(String translation) async {
+    await Books.instance.ensureLoaded();
     final candidates = <String>[
       'assets/bibles/translations/$translation.json',          // current path
       //'assets/bibles/elisha/$translation.json',   // old path remove later
@@ -129,7 +66,10 @@ class ElishaJsonSource {
     // Letters b, c, v, t can be used in place of book, chapter, verse, text. 
     if (decoded is List && (decoded.isEmpty || decoded.first is Map)) {
       return decoded.cast<Map>().map<Map<String, dynamic>>((m) {
-        final book = _bookNameFromId(m['book'] ?? m['b']);
+        final bookRaw = m['book'] ?? m['b'];
+        final book = (bookRaw is int)
+            ? Books.instance.englishByOrder(bookRaw)
+            : Books.instance.canonEnglishName(bookRaw.toString());
         final chapter = _toInt(m['chapter'] ?? m['c']);
         final verse = _toVerse(m['verse'], m['v']);
         final text  = _toText(m['text'], m['t']);
@@ -144,7 +84,10 @@ class ElishaJsonSource {
         if (r.length < 5) {
           throw const FormatException('Tuple row must have at least 5 elements');
         }
-        final book = _bookNameFromId(r[1]);
+        final bookRaw = r[1];
+        final book = (bookRaw is int)
+            ? Books.instance.englishByOrder(bookRaw)
+            : Books.instance.canonEnglishName(bookRaw.toString());
         final chapter = _toInt(r[2]);
         final verse = _toInt(r[3]);
         final text = r[4].toString();
