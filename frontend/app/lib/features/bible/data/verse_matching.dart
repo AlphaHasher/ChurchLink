@@ -554,17 +554,29 @@ class VerseMatching {
       }
 
       if (hasNonIdentity) {
-        // When any non-identity rule edges exist, do NOT add identity co-targets.
-      } else {
-        // Only identity neighbor.
-        if (!_psalmsTitleBlocked(curKey)) {
-          // Include identity membership for true 1:1 cases (e.g., Gen 1:1).
-          seen.add((otherTx, curKey));  // membership only, no traversal yet
+        // Include identity co-targets in membership (don’t expand from them).
+        for (final m in ruleTargets) {
+          final isIdentity =
+              _canonBook(m.book) == _canonBook(curKey.book) &&
+              m.chapter == curKey.chapter &&
+              m.verse == curKey.verse;
+          if (isIdentity) seen.add((otherTx, m));  // membership-only
+        }
+        // Only identity neighbor. Always include the identity co-target in MEMBERSHIP.
+        seen.add((otherTx, curKey));  // membership only
 
-          final otherHasRules = _ruleEdgesOnly(otherTx, curKey).isNotEmpty;
-          if (!otherHasRules) {
-            q.add((otherTx, curKey)); // safe identity crossing for pure 1:1 cases
+        if (_canonBook(curKey.book) == 'Psalms') {
+          // Keep strict in Psalms to avoid title-bridging.
+          if (!_psalmsTitleBlocked(curKey)) {
+            final otherHasRules = _ruleEdgesOnly(otherTx, curKey).isNotEmpty;
+            if (!otherHasRules) {
+              q.add((otherTx, curKey)); // safe identity hop only if BOTH sides rule-free
+            }
           }
+        } else {
+          // Outside Psalms, allow the identity hop even if other side has rule edges.
+          // This lets overlaps like KJV Eph 3:17 ↔ RST 3:17–18 also pull in KJV 3:18.
+          q.add((otherTx, curKey));
         }
       }
     }
