@@ -3,6 +3,7 @@ import { ProfileCard } from "@/features/admin/components/Profile/ProfileCard";
 import { PersonRail } from "@/features/admin/components/Profile/PersonRail";
 import { PersonDetails } from "@/shared/types/Person";
 import { ProfileEditDialog } from "@/features/admin/components/Profile/ProfileEditDialog";
+import Layout from "@/shared/layouts/Layout";
 
 const MOCK_PEOPLE: PersonDetails[] = [
     {
@@ -30,14 +31,15 @@ const MOCK_PEOPLE: PersonDetails[] = [
 
 const ProfilePage: React.FC = () => {
     return (
-        <div className="min-h-screen bg-gray-100">
+        <Layout>
             <div className="mx-auto max-w-5xl p-6">
                 <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
                     <ProfileCard footer={<ProfileEditDialog />} />
                     <PersonRail className="lg:ml-6" people={MOCK_PEOPLE} />
                 </div>
             </div>
-        </div>
+        </Layout>
+
     );
 };
 
