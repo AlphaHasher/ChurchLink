@@ -1,35 +1,48 @@
-// features/bible/data/verse_matching.dart
 // -----------------------------------------------------------------------------
-// Maps verse numbers between translations (KJV <-> RST).
-// When a verse maps across, notes/highlights should transfer.
-// Relies on /assets/bibles/verse_matching/verse_matching_rules.json
+// Contains rules for handling the mapping of verses between different
+// translations of the bible. This code was designed with KJV and RST mapping
+// in mind, but these rules should work for mapping different bibles. This has
+// only been tested for mapping between two bibles though. 
+// 
+// Rules stored here: assets/bibles/verse_matching/verse_matching_rules.json
+// Currently modeled after this: https://www.ph4.org/btraduk_ruennum.php
 //
-// This version:
-//  • Supports: one_to_one, range_shift, chapter_remap, merge (many→one),
-//              split (one→many), and Psalms title offsets.
-//  • Identity fallback: if no rule applies (and not blocked), a verse maps to
-//    itself across translations.
-//  • Cluster IDs: traverse only rule edges; include identity co-target in the
-//    cluster membership (but don’t expand from it); cross identity only when
-//    there are no rule edges on either side (identity-only pairs like Gen 1:1).
-//    This prevents bridges like KJV 3:18 → RST 3:18 → KJV 3:17.
+// Supported the following rule types
+// - one_to_one          : maps one verse to another, can be across chapters
+// - range_shift         : shifts a range of verses to another range
+// - chapter_remap       : keep verse numbering but change numbers
+// - merge               : many verses map to one verse
+// - split               : one verse maps to many verses
+//    - ((Merge and Split can overlap and create a cluster. EX: 
+//        For Eph, KJV 3:17 maps to RST 3:17 and half of 3:18, and 
+//        KJV 3:18 maps to the other half of RST 3:18. Interacting
+//        with any of these individually applies to all of them.))
+// - psalms_title_offset : shifts all verses by 1
+//    - ((Used in RST where the title is the first verse in Psalms))
+//
+// Identity fallback
+// - If no explicit mapping rule is found, maps 1:1 to the verse with the
+//   same numbering. 
+// - Some verses are explicitly blacklisted, like some RST Psalms #:1 verses.
+//   these are exclusive to RST and should not map to KJV. 
 // -----------------------------------------------------------------------------
 
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
-/// Simple record representing a verse location.
+/// Keys for locating a verse
 typedef VerseKey = ({String book, int chapter, int verse});
-String _k(VerseKey k) => '${k.book}|${k.chapter}|${k.verse}';
 
 /// -------- Canonicalization helpers --------
-
+/// Standardize formatting on book names. 
+/// Trims extra characters and makes all characters lowercase. 
+/// Also accepts some common aliases.
 String _canonBook(String raw) {
   String norm(String x) =>
       x.replaceAll('.', '').replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
   final s = norm(raw);
 
-  // Common aliases
+  // Accepted aliases
   const aliases = {
     'psalm': 'Psalms',
     'psalms': 'Psalms',
@@ -40,7 +53,7 @@ String _canonBook(String raw) {
   };
   if (aliases.containsKey(s)) return aliases[s]!;
 
-  // Canonical set (normalized compare)
+  // Book titles
   const canon = [
     "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","Judges","Ruth","1 Samuel","2 Samuel",
     "1 Kings","2 Kings","1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job","Psalms","Proverbs",
@@ -53,10 +66,10 @@ String _canonBook(String raw) {
   for (final b in canon) {
     if (norm(b) == s) return b;
   }
-  return raw.trim(); // last resort
+  return raw.trim(); 
 }
 
-// Determines whether a rule is allowed to apply from the given tx.
+/// Restricts rules to only apply in certain directions
 bool _dirOk(String fromTx, String direction) {
   final t = fromTx.trim().toLowerCase();
   final d = direction.trim().toLowerCase()
@@ -70,7 +83,7 @@ bool _dirOk(String fromTx, String direction) {
   return false;
 }
 
-// Normalized label for direction given from/to tx tags.
+/// Standardizes the directional labeling.
 String _dirFromTxs(String fromTx, String toTx) {
   final f = fromTx.trim().toLowerCase();
   final t = toTx.trim().toLowerCase();
@@ -81,6 +94,8 @@ String _dirFromTxs(String fromTx, String toTx) {
 
 /// -------- Rule framework --------
 
+/// Base template for rules.
+/// At minimum, rules have a book and a direction. 
 abstract class _Rule {
   final String book;
   final String direction;
@@ -90,7 +105,7 @@ abstract class _Rule {
   List<VerseKey> map(String fromTx, VerseKey k);
 }
 
-/// One-to-one single verse.
+/// One-to-one verse mapping.
 class _PointRule extends _Rule {
   final int fromChapter, fromVerse;
   final int toChapter, toVerse;
@@ -108,7 +123,7 @@ class _PointRule extends _Rule {
     if (applies(fromTx, k)) {
       return [(book: _canonBook(book), chapter: toChapter, verse: toVerse)];
     }
-    // invert for opposite tx:
+    // Allow mapping from the opposite side.
     final sameBook = _canonBook(k.book) == _canonBook(book);
     final t = fromTx.trim().toLowerCase();
     final d = direction.trim().toUpperCase();
@@ -122,7 +137,7 @@ class _PointRule extends _Rule {
   }
 }
 
-/// One-to-one range (may cross chapters).
+/// Range shift
 class _SpanCrossChapterRule extends _Rule {
   final int fromChapter, start, end;
   final int toChapter, toStart, toEnd;
@@ -148,7 +163,7 @@ class _SpanCrossChapterRule extends _Rule {
       if (mapped < toStart || mapped > toEnd) return const [];
       return [(book: _canonBook(book), chapter: toChapter, verse: mapped)];
     }
-    // invert
+    // Inversion from the opposite side.
     final isOpposite =
         (direction.trim().toUpperCase() == 'EN→RU' && fromTx.trim().toLowerCase() == 'rst') ||
         (direction.trim().toUpperCase() == 'RU→EN' && fromTx.trim().toLowerCase() == 'kjv');
@@ -166,7 +181,8 @@ class _SpanCrossChapterRule extends _Rule {
   }
 }
 
-/// Whole-chapter renumbering.
+/// Chapter Remap
+/// Moves a whole chapter to another chapter number, maintains verse numbering
 class _ChapterRemapRule extends _Rule {
   final int fromChapter;
   final int toChapter;
@@ -183,7 +199,7 @@ class _ChapterRemapRule extends _Rule {
     if (applies(fromTx, k)) {
       return [(book: _canonBook(book), chapter: toChapter, verse: k.verse)];
     }
-    // invert
+    // Inversion from the opposite side.
     final sameBook = _canonBook(k.book) == _canonBook(book);
     final t = fromTx.trim().toLowerCase();
     final d = direction.trim().toUpperCase();
@@ -197,7 +213,7 @@ class _ChapterRemapRule extends _Rule {
   }
 }
 
-/// Merge: many source verses -> one target verse.
+/// Many-to-one mapping
 class _MergeRule extends _Rule {
   final int fromChapter, start, end;
   final int toChapter, toVerse;
@@ -215,7 +231,7 @@ class _MergeRule extends _Rule {
     if (applies(fromTx, k)) {
       return [(book: _canonBook(book), chapter: toChapter, verse: toVerse)];
     }
-    // reverse: single target -> all originals (when called from opposite tx)
+    // Reverse: from the target side, return all originals.
     final t = fromTx.trim().toLowerCase();
     final d = direction.trim().toUpperCase();
     final sameBook = _canonBook(k.book) == _canonBook(book);
@@ -229,7 +245,7 @@ class _MergeRule extends _Rule {
   }
 }
 
-/// Split: one source verse -> many target verses.
+/// One-to-many mapping.
 class _SplitRule extends _Rule {
   final int fromChapter, fromVerse;
   final int toChapter, toStart, toEnd;
@@ -247,7 +263,7 @@ class _SplitRule extends _Rule {
     if (applies(fromTx, k)) {
       return [for (var v = toStart; v <= toEnd; v++) (book: _canonBook(book), chapter: toChapter, verse: v)];
     }
-    // reverse: any member of the split range -> singleton source
+    // Reverse: any member maps back to the singleton source.
     final t = fromTx.trim().toLowerCase();
     final d = direction.trim().toUpperCase();
     final sameBook = _canonBook(k.book) == _canonBook(book);
@@ -262,7 +278,10 @@ class _SplitRule extends _Rule {
   }
 }
 
-/// Psalms title offset (RST has an extra title verse).
+/// Psalms offset
+/// Shifts verses by 1  
+/// (Further down, prevents mapping of the exclusive title verse)
+/// RST places titles as verse 1 in Psalms, so it's offset by 1 from KJV
 class _PsalmsTitleOffsetRule extends _Rule {
   final List<int> psalms;
   final int verse1Extra;  // extra added to verse 1
@@ -291,7 +310,7 @@ class _PsalmsTitleOffsetRule extends _Rule {
     final d = direction.trim().toUpperCase();
     int toVerse;
 
-    // Semantics: forward = KJV -> RST (adds title), backward = RST -> KJV.
+    // Forward = KJV → RST (adds title); Backward = RST → KJV.
     if (_dirOk(fromTx, direction)) {
       if (d == 'EN→RU') {
         toVerse = (t == 'kjv') ? _forward(k.verse) : _backward(k.verse);
@@ -301,7 +320,7 @@ class _PsalmsTitleOffsetRule extends _Rule {
         toVerse = (t == 'kjv') ? _forward(k.verse) : _backward(k.verse);
       }
     } else {
-      // explicitly invert when asked from the opposite side
+      // Explicit inversion when mapping from the opposite side.
       if (d == 'EN→RU' && t == 'rst') {
         toVerse = _backward(k.verse); // RST -> KJV
       } else if (d == 'RU→EN' && t == 'kjv') {
@@ -318,11 +337,11 @@ class _PsalmsTitleOffsetRule extends _Rule {
 
 /// -------- Matching engine --------
 
+/// Parses the rules from the JSON file 
 class VerseMatching {
   final List<_Rule> _rules;
   VerseMatching._(this._rules);
 
-  /// Load mapping rules from the asset.
   static Future<VerseMatching> load() async {
     const path = 'assets/bibles/verse_matching/verse_matching_rules.json';
     dynamic decoded;
@@ -420,7 +439,7 @@ class VerseMatching {
       }
     }
 
-    // Psalms title offsets (optional)
+    // Psalms title offsets (optional).
     if (decoded['psalms_title_offsets'] is Map) {
       final p = decoded['psalms_title_offsets'] as Map<String, dynamic>;
       final fromTx = (p['from_tx'] as String).trim();
@@ -436,7 +455,9 @@ class VerseMatching {
     return VerseMatching._(parsed);
   }
 
-  /// Map a verse to its equivalent(s) in the other translation.
+  /// Maps verses to their pairs according to rules
+  /// If no rules are present, falls back to same book/chapter/verse
+  /// For Psalms where RST has exclusive titles, do not map them
   List<VerseKey> matchToOther({required String fromTx, required VerseKey key}) {
     final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
     bool blockIdentity = false;
@@ -458,20 +479,22 @@ class VerseMatching {
     return blockIdentity ? const [] : [nk];
   }
 
+  /// Rule-only mapping (no identity fallback). Useful for cluster traversal.
   List<VerseKey> matchToOtherRuleOnly({required String fromTx, required VerseKey key}) {
     final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
     return _ruleEdgesOnly(fromTx, nk);
   }
 
-  /// Does this verse exist in the other translation in any form?
-  /// NOTE: We count identities as "exists" so 1:1 verses share highlights.
+  /// Whether this verse exists in the other translation in *any* form.
+  /// Identity counts as “exists” so 1:1 verses share highlights.
   bool existsInOther({required String fromTx, required VerseKey key}) {
     final mapped = matchToOther(fromTx: fromTx, key: key);
     return mapped.isNotEmpty;
   }
 
   /// ---- Helpers for cluster traversal ----
-  /// Return *rule-based* neighbors only (no identity fallback).
+
+  /// Helps generate clusters and prevent accidental rule overlaps. 
   List<VerseKey> _ruleEdgesOnly(String fromTx, VerseKey key) {
     final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
     final out = <String, VerseKey>{}; // de-dup via canonical key
@@ -483,19 +506,14 @@ class VerseMatching {
       }
     }
 
-    // --- Psalms anti-bridging guard ---
-    // If any cross-chapter edge exists for this source,
-    // drop same-chapter edges (title-offset hops) to prevent bridging.
     var neighbors = out.values.toList();
 
-    // 1) Drop identity edges entirely. Identity is handled as a fallback elsewhere.
     neighbors = neighbors.where((mk) =>
       !(_canonBook(mk.book) == _canonBook(nk.book) &&
         mk.chapter == nk.chapter &&
         mk.verse == nk.verse)
     ).toList();
 
-    // 2) Psalms anti-bridging: if any cross-chapter edge exists, drop same-chapter edges.
     if (_canonBook(nk.book) == 'Psalms') {
       final hasCrossChapter = neighbors.any((mk) => mk.chapter != nk.chapter);
       if (hasCrossChapter) {
@@ -505,14 +523,15 @@ class VerseMatching {
     return neighbors;
   }
 
-  bool _psalmsTitleBlocked(VerseKey nk) {
-    // Block identity crossing for ALL Psalms verse 1 (regardless of JSON).
-    return _canonBook(nk.book) == 'Psalms' && nk.verse == 1;
-  }
-
-  /// Deterministic cluster id for all equivalents of (tx, key).
-  /// Cluster contains ONLY the verses that should share state, e.g.:
-  ///   KJV Eph 3:17 <-> {RST 3:17, RST 3:18}   (but NOT KJV 3:18)
+  /// Creates identification for clusters of verses.
+  /// Allows for clusters to share highlights/notes.
+  /// Designed to avoid accidental mapping due to psalm rules. 
+  ///
+  /// Traversal rules:
+  /// - Expand via *rule edges only*; if rule edges exist, include the identity
+  ///   co-target in membership (for symmetry) but do not expand from it.
+  /// - If no rule edges exist on either side, cross identity (identity-only pairs).
+  /// - Psalms: never include/cross identity during expansion (prevents bridges).
   String clusterId(String tx, VerseKey key) {
     final canonKey = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
     final start = (tx.trim().toLowerCase(), canonKey);
@@ -569,14 +588,13 @@ class VerseMatching {
           }
         }
       } else {
-        // Only identity neighbor:
+        // Only identity neighbor.
         if (_canonBook(curKey.book) != 'Psalms') {
           // Outside Psalms: include and traverse identity so overlaps (e.g., Eph 3:17) cluster fully.
           seen.add((otherTx, curKey));   // membership
           q.add((otherTx, curKey));      // traverse
         } else {
           // In Psalms: never include/cross identity (prevents KJV 59:1 → KJV 58:2).
-          // (Do nothing.)
         }
       }
     }
