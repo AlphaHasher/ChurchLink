@@ -284,16 +284,43 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   /// Returns the effective note for `ref`.
-  /// If the verse maps across, prefer the shared (cluster) note; else per-translation.
-  String? _noteFor(VerseRef ref) {
-    final m = _matcher;
-    if (m != null && _existsInOther(ref)) {
-      final cid = m.clusterId(_translation, _keyOf(ref));
-      final s = _notesShared[cid];
-      if (s != null && s.isNotEmpty) return s;
+/// Returns the effective note for `ref`.
+/// If the verse maps across, prefer the shared (cluster) note; else per-translation.
+// TODO: parity with highlights — also check counterpart cluster ids
+String? _noteFor(VerseRef ref) {
+  final m = _matcher;
+  if (m != null) {
+    // 1) Try this verse’s own cluster id first (works for merges/splits/range shifts)
+    final selfCid = m.clusterId(_translation, _keyOf(ref)); // uses current tx
+    final sSelf = _notesShared[selfCid];
+    if (sSelf != null && sSelf.isNotEmpty) return sSelf;
+
+    // 2) Also honor notes keyed by any counterpart’s cluster id (same logic as _colorFor)
+    final me = _keyOf(ref);
+    final bool isPsalms = me.book == 'Psalms';
+
+    List<VerseKey> counterparts;
+    if (isPsalms) {
+      // Rule-only + cross-chapter only to preserve your Psalms anti-bridge behavior
+      final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+      final hasCross = ro.any((x) => x.chapter != me.chapter);
+      counterparts = hasCross
+          ? ro.where((x) => x.chapter != me.chapter).toList()
+          : const <VerseKey>[];
+    } else {
+      counterparts = m.matchToOther(fromTx: _translation, key: me);
     }
-    return _notesPerTx[_translation]?[_k(ref)];
+
+    for (final other in counterparts) {
+      final otherCid = m.clusterId(_otherTx, other);
+      final sOther = _notesShared[otherCid];
+      if (sOther != null && sOther.isNotEmpty) return sOther;
+    }
   }
+
+  // 3) Fall back to translation-local note.
+  return _notesPerTx[_translation]?[_k(ref)];
+}
 
   // Greys out the back chapter button if on the first chapter of the whole Bible
   bool get _isAtFirstChapter {
