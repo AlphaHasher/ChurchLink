@@ -4,11 +4,10 @@
 // TODO: Implementation. Move away from individually listed Bible books
 // TODO: in separate files and consolidate it. 
 // TODO: Implement the Bible revisions
-// TODO: KJV: "1769 Blayney (public domain)"
+// TODO: KJV: "King James Version (1769)"
 // TODO: RST: "1876 (modern orthography)"
 // -----------------------------------------------------------------------------
 
-// lib/features/bible/data/books.dart
 // -----------------------------------------------------------------------------
 // Localized Bible book catalog backed by assets/bibles/books.json
 //  • UI: localized names/abbreviations via current locale
