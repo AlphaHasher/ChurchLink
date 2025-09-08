@@ -4,15 +4,20 @@ from firebase_admin import messaging
 from mongo.scheduled_notifications import (
     schedule_notification, get_scheduled_notifications, remove_scheduled_notification, get_notification_history, log_notification
 )
+from pydantic import BaseModel
+
+class FCMTokenRequest(BaseModel):
+    user_id: str
+    token: str
 
 notification_router = APIRouter(prefix="/notification", tags=["notification"])
 
 # --- FCM Token Management ---
 @notification_router.post('/save-fcm-token')
-async def save_fcm_token(user_id: str = Body(...), token: str = Body(...)):
+async def save_fcm_token(request: FCMTokenRequest):
     result = await DB.db['fcm_tokens'].update_one(
-        {'user_id': user_id},
-        {'$set': {'token': token}},
+        {'user_id': request.user_id},
+        {'$set': {'token': request.token}},
         upsert=True
     )
     return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
