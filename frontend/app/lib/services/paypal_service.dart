@@ -39,7 +39,7 @@ class PaypalService {
             Navigator.pop(context);
           },
           onCancel: () {
-            print('cancelled:');
+            debugPrint('cancelled:');
             Navigator.pop(context);
           },
         ),

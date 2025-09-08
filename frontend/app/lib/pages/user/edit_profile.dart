@@ -297,16 +297,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
           await user.reload();
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Profile updated successfully!")),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Profile updated successfully!")),
+            );
 
-          Navigator.pop(context);
+            Navigator.pop(context);
+          }
         }
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+        }
       } finally {
         setState(() => _isLoading = false);
       }

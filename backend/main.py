@@ -15,23 +15,31 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import asyncio
 import os
+import logging
 
 # Import routers
 from routes.page_management_routes.page_routes import page_router
 from routes.page_management_routes.header_routes import header_router as header_router
 from routes.page_management_routes.footer_routes import footer_router as footer_router
 from routes.common_routes.event_routes import event_router
-from routes.common_routes.role_routes import role_router
-from routes.common_routes.user_routes import user_router
+from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
 from routes.common_routes.event_routes import public_event_router
-from routes.strapi_routes.strapi_routes import strapi_router
+from routes.common_routes.bible_note_routes import bible_note_router
+from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
-from routes.permissions_routes.permissions_routes import permissions_router
+from routes.permissions_routes.permissions_routes import permissions_view_router, permissions_protected_router
 
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
@@ -42,40 +50,63 @@ FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize Firebase Admin SDK if not already initialized
-    if not firebase_admin._apps:
-        from firebase.firebase_credentials import get_firebase_credentials
+    try:
+        logger.info("Starting application initialization...")
 
-        cred = credentials.Certificate(get_firebase_credentials())
-        firebase_admin.initialize_app(cred)
+        # Initialize Firebase Admin SDK if not already initialized
+        if not firebase_admin._apps:
+            logger.info("Initializing Firebase Admin SDK...")
+            from firebase.firebase_credentials import get_firebase_credentials
 
-    # MongoDB connection setup
-    await DatabaseManager.init_db()
+            cred = credentials.Certificate(get_firebase_credentials())
+            firebase_admin.initialize_app(cred)
+            logger.info("Firebase Admin SDK initialized successfully")
 
-    if not BYPASS_FIREBASE_SYNC:
-        # Sync MongoDB to Firebase
-        await FirebaseSyncer.SyncDBToFirebase()
+        # MongoDB connection setup - CRITICAL: Will stop app if fails
+        logger.info("Initializing MongoDB connection...")
+        await DatabaseManager.init_db()
+        logger.info("MongoDB connection established successfully")
 
-    # Verify that an Administrator Role (Mandatory) exists
-    await RoleHandler.verify_admin_role()
+        if not BYPASS_FIREBASE_SYNC:
+            # Sync MongoDB to Firebase
+            logger.info("Starting Firebase synchronization...")
+            await FirebaseSyncer.SyncDBToFirebase()
+            logger.info("Firebase synchronization completed")
 
-    if not BYPASS_FIREBASE_SYNC:
-        # Sync MongoDB to Firebase
-        await FirebaseSyncer.SyncDBToFirebase()
+        # Verify that an Administrator Role (Mandatory) exists
+        logger.info("Verifying administrator role exists...")
+        await RoleHandler.verify_admin_role()
+        logger.info("Administrator role verification completed")
 
-    # Verify that an Administrator Role (Mandatory) exists
-    await RoleHandler.verify_admin_role()
+        if not BYPASS_FIREBASE_SYNC:
+            # Sync MongoDB to Firebase
+            await FirebaseSyncer.SyncDBToFirebase()
 
-    # Run Youtube Notification loop
-    youtubeSubscriptionCheck = asyncio.create_task(
-        YoutubeHelper.youtubeSubscriptionLoop()
-    )
+        # Verify that an Administrator Role (Mandatory) exists
+        await RoleHandler.verify_admin_role()
 
-    yield
+        # Run Youtube Notification loop
+        logger.info("Starting YouTube subscription monitoring...")
+        youtubeSubscriptionCheck = asyncio.create_task(
+            YoutubeHelper.youtubeSubscriptionLoop()
+        )
+        logger.info("YouTube subscription monitoring started")
 
-    # Cleanup
-    youtubeSubscriptionCheck.cancel()
-    DatabaseManager.close_db()
+        logger.info("Application startup completed successfully")
+        yield
+
+        # Cleanup
+        logger.info("Shutting down application...")
+        youtubeSubscriptionCheck.cancel()
+        DatabaseManager.close_db()
+        logger.info("Application shutdown completed")
+
+    except Exception as e:
+        logger.error(f"Application startup failed: {str(e)}")
+        logger.error("Make sure MongoDB is running and the MONGODB_URL is correct")
+        # Force exit the application
+        import sys
+        sys.exit(1)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -169,11 +200,15 @@ router_webhook_listener.include_router(youtube_router)
 #####################################################
 base_router = APIRouter(prefix="/api/v1")
 base_router.include_router(paypal_router)
-base_router.include_router(permissions_router)
+base_router.include_router(permissions_view_router)
+base_router.include_router(permissions_protected_router)
 base_router.include_router(event_router)
-base_router.include_router(role_router)
 base_router.include_router(user_router)
+base_router.include_router(user_private_router)
+base_router.include_router(user_mod_router)
+base_router.include_router(bible_note_router)
 base_router.include_router(strapi_router)
+base_router.include_router(strapi_protected_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
 
