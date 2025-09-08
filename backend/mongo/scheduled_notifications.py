@@ -64,25 +64,42 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                 token = notif.get("token")
                 responses = []
                 if send_to_all:
-                    tokens_cursor = db['fcm_tokens'].find({}, {'_id': 0, 'token': 1})
-                    tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
-                    logging.info(f"Sending to tokens: {tokens}")
-                    for t in tokens:
-                        message = messaging.Message(
-                            notification=messaging.Notification(
-                                title=title,
-                                body=body,
-                            ),
-                            token=t,
-                            data=data
-                        )
-                        try:
-                            response = messaging.send(message)
-                            logging.info(f"FCM response for token {t}: {response}")
-                            responses.append({"token": t, "response": response})
-                        except Exception as e:
-                            logging.error(f"FCM error for token {t}: {e}")
-                            responses.append({"token": t, "error": str(e)})
+                    # Optional: filter tokens based on notification's target audience
+                    token_query = {}
+                    target_audience = notif.get("target_audience", "all")
+                    if target_audience == "logged_in":
+                        token_query["user_id"] = {"$exists": True}
+                    elif target_audience == "anonymous":
+                        token_query["user_id"] = {"$exists": False}
+                    projection = {'_id': 0, 'token': 1}
+                    batch_size = 1000
+                    tokens_cursor = db['fcm_tokens'].find(token_query, projection)
+                    sent_count = 0
+                    while True:
+                        batch = [doc['token'] for doc in await tokens_cursor.to_list(length=batch_size) if doc.get('token')]
+                        if not batch:
+                            break
+                        logging.info(f"Sending to tokens batch: {batch}")
+                        for t in batch:
+                            message = messaging.Message(
+                                notification=messaging.Notification(
+                                    title=title,
+                                    body=body,
+                                ),
+                                token=t,
+                                data=data
+                            )
+                            try:
+                                response = messaging.send(message)
+                                logging.info(f"FCM response for token {t}: {response}")
+                                responses.append({"token": t, "response": response})
+                            except Exception as e:
+                                logging.error(f"FCM error for token {t}: {e}")
+                                responses.append({"token": t, "error": str(e)})
+                        sent_count += len(batch)
+                        # If less than batch_size, we're done
+                        if len(batch) < batch_size:
+                            break
                 elif token:
                     message = messaging.Message(
                         notification=messaging.Notification(
