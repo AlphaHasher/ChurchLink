@@ -23,8 +23,6 @@ class UserRoleUpdateInput(BaseModel):
     uid: str
     role_ids: list
 
-boolKeys = ['admin', 'permissions_management', 'event_editing', 'event_management', 'media_management']
-
 async def fetch_perms():
     perms = await RoleHandler.find_all_roles()
 
@@ -54,7 +52,7 @@ async def create_role(payload: RoleCreateInput, request: Request):
             if getattr(payload, key) and not value:
                 return {"success":False, "msg":f"You do not have the necessary permissions to create a role with permission: {key}!"}
     permStr = []
-    for key in boolKeys:
+    for key, value in permission_template.items():
         if getattr(payload, key):
             permStr.append(key)
     if payload.name.strip() == '':
@@ -96,7 +94,7 @@ async def update_role(payload: RoleUpdateInput, request:Request):
                 return {"success":False, "msg":f"You do not have the necessary permissions to enable or disable the permission: {key}!"}
                 
     permStr = []
-    for key in boolKeys:
+    for key, value in permission_template.items():
         if getattr(payload, key):
             permStr.append(key)
     try:
