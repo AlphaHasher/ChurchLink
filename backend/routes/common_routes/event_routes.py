@@ -1,13 +1,13 @@
 
 from fastapi import APIRouter, HTTPException, status, Request
-from models.event import sort_events, create_event, get_event_by_id, EventCreate, update_event, delete_event, search_events, delete_events, EventOut
+from models.event import sort_events, EventCreate, search_events, delete_events
 from controllers.event_functions import process_create_event, process_edit_event, process_delete_event
 from typing import Literal, List
 from bson import ObjectId
 from typing import Optional
 from datetime import date
-from helpers.Firebase_helpers import authenticate_uid
 from protected_routers.perm_protected_router import PermProtectedRouter
+from models.event import get_all_ministries
 
 
 
@@ -40,8 +40,6 @@ async def get_upcoming_events_alias(
     date_before: Optional[date] = None,
 ):
     return await sort_events(skip, limit, ministry, age, gender, is_free, sort, sort_by, name=name, max_price=max_price, date_after=date_after, date_before=date_before)
-
-from models.event import get_all_ministries  # ensure this is imported
 
 @public_event_router.get("/ministries", summary="Get all unique ministries")
 async def get_ministries_route():
