@@ -75,11 +75,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   // Prevents a crash if loading occurs out-of-order.
   bool _booksReady = false;
 
-  // TODO: Map translation to catalog locale (KJV→en, RST→ru).
+  // Map translation to catalog locale (KJV→en, RST→ru).
   String _localeForTx(String tx) => tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
 
   // ===== Catalog-backed wrappers (guarded) =====
-  // TODO: These were moved inside the State so they can read `_booksReady`.
+  // These were moved inside the State so they can read `_booksReady`.
   List<String> get _bookNames =>
       _booksReady ? Books.instance.names() : const <String>[];
 
@@ -100,7 +100,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   void initState() {
     super.initState();
 
-    // TODO: Load the books catalog once; set locale based on initial translation and mark ready.
+    // Load the books catalog once; set locale based on initial translation and mark ready.
     Books.instance.ensureLoaded().then((_) {
       if (!mounted) return;
       Books.instance.setLocaleCode(_localeForTx(widget.initialTranslation));
@@ -117,7 +117,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     // Load the verse matcher asynchronously
     Future(() async {
       _matcher = await VerseMatching.load();
-      // TODO: promote local marks to shared clusters now that matcher is ready
+      // promote local marks to shared clusters now that matcher is ready
       _promoteLocalToShared();
       setState(() {}); // refresh UI when matcher is ready
     });
@@ -126,7 +126,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // TODO: Only touch Books after it is loaded; keep locale tied to translation, not device.
+    // Only touch Books after it is loaded; keep locale tied to translation, not device.
     Books.instance.ensureLoaded().then((_) {
       if (!mounted) return;
       _booksReady = true;
@@ -162,7 +162,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return m.matchToOther(fromTx: _translation, key: _keyOf(ref));
   }
 
-  // TODO: symmetric same-translation siblings via there-and-back RULE edges
+  // symmetric same-translation siblings via there-and-back RULE edges
   Iterable<VerseKey> _sameTxSiblingsFor(VerseRef ref) {
     final m = _matcher;
     if (m == null) return const <VerseKey>[];
@@ -197,7 +197,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return siblings.values;
   }
 
-  // TODO: once matcher arrives, lift any existing per-translation marks into shared clusters
+  // once matcher arrives, lift any existing per-translation marks into shared clusters
   void _promoteLocalToShared() {
     final m = _matcher;
     if (m == null) return;
@@ -271,7 +271,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
 
     // 3) Fall back to translation-local highlight.
-    // TODO: symmetry glue — mirror any SAME-translation sibling's local color
+    // symmetry glue — mirror any SAME-translation sibling's local color
     final local = _hlPerTx[_translation]?[_k(ref)];
     if (local != null && local != HighlightColor.none) return local;
     for (final s in _sameTxSiblingsFor(ref)) {
@@ -319,7 +319,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       setState(() => _chapter += 1);
     } else {
       final ni = (i + 1) % _bookNames.length;
-      // TODO: Set canonical English name using catalog rather than localized display name.
+      // Set canonical English name using catalog rather than localized display name.
       setState(() {
         _book = Books.instance.englishByOrder(ni + 1);
         _chapter = 1;
@@ -336,7 +336,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       setState(() => _chapter -= 1);
     } else {
       final pi = (i - 1 + _bookNames.length) % _bookNames.length;
-      // TODO: Set canonical English name using catalog rather than localized display name.
+      // Set canonical English name using catalog rather than localized display name.
       setState(() {
         _book = Books.instance.englishByOrder(pi + 1);
         _chapter = _chapterCount(_book);
@@ -354,7 +354,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
-        // TODO: Start with the *localized* name in the picker; keep canonical in state.
+        // Start with the *localized* name in the picker; keep canonical in state.
         String selBook = _bookNames[_bookIndex(_book)];
         int selChap = _chapter;
 
@@ -469,7 +469,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       },
     );
     if (result != null) {
-      // TODO: Convert localized selection back to canonical English for Repo calls.
+      // Convert localized selection back to canonical English for Repo calls.
       setState(() {
         _book = Books.instance.canonEnglishName(result.$1);
         _chapter = result.$2;
@@ -549,7 +549,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           _hlPerTx['kjv']!.remove(hereK);
           _hlPerTx['rst']!.remove(hereK);
 
-          // TODO: ensure same-translation siblings repaint immediately in this translation
+          // ensure same-translation siblings repaint immediately in this translation
           for (final s in _sameTxSiblingsFor(v.$1)) {
             final kStr = '${s.book}|${s.chapter}|${s.verse}';
             if (color == HighlightColor.none) {
@@ -596,7 +596,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    // TODO: Use localized abbreviation once catalog is ready; fall back to raw while loading.
+                    // Use localized abbreviation once catalog is ready; fall back to raw while loading.
                     child: Text(
                       '${_booksReady ? _abbr(_book) : _book} $_chapter',
                       maxLines: 1,
@@ -611,7 +611,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                 tooltip: 'Translation',
                 initialValue: _translation,
                 onSelected: (val) {
-                  // TODO: Switch catalog locale when translation changes (KJV↔RST).
+                  // Switch catalog locale when translation changes (KJV↔RST).
                   setState(() {
                     _translation = val;
                     if (_booksReady) {
@@ -823,15 +823,4 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
 // List which translations should be selectable
 const List<String> _translations = ['kjv', 'rst'];
 
-// List all book names that should appear in the selector
-// TODO: Migrated to Books catalog (localized list). Moved into State as guarded getter: `_bookNames`.
-
-// Book abbreviations (UI header)
-// TODO: Migrated to Books catalog (localized abbreviation). Moved into State as guarded method: `_abbr(...)`.
-
-// Contains a list of chapter counts per book. Used in the selector.
-// In our case, RST and KJV have the same chapter counts. 
-// TODO: Migrated to Books catalog (chapter count lookup). Moved into State as guarded method: `_chapterCount(...)`.
-
-// Returns the indexing location of a Book
-// TODO: Use catalog order (1-based) then convert to 0-based index. Moved into State as guarded method: `_bookIndex(...)`.
+//Other info about the bibles has been moved to books.json

@@ -10,7 +10,7 @@
 // Supported the following rule types
 // - one_to_one          : maps one verse to another, can be across chapters
 // - range_shift         : shifts verse ranges or whole chapters
-// - chapter_remap       : keep verse numbering but change numbers
+// - chapter_remap       : keep verse numbering but change chapters
 // - merge               : many verses map to one verse
 // - split               : one verse maps to many verses
 //    - ((Merge and Split can overlap and create a cluster. EX: 
@@ -21,8 +21,6 @@
 // Identity fallback
 // - If no explicit mapping rule is found, maps 1:1 to the verse with the
 //   same numbering. 
-// - Some verses are explicitly blacklisted, like some RST Psalms #:1 verses.
-//   these are exclusive to RST and should not map to KJV. 
 // -----------------------------------------------------------------------------
 
 import 'dart:convert';
@@ -36,7 +34,6 @@ typedef VerseKey = ({String book, int chapter, int verse});
 /// Standardize formatting on book names. 
 /// Trims extra characters and makes all characters lowercase. 
 /// Also accepts some common aliases.
-// TODO: Delegate canonicalization to Books catalog (localization-aware).
 String _canonBook(String raw) {
   return Books.instance.canonEnglishName(raw);
 }
@@ -156,6 +153,7 @@ class _SpanCrossChapterRule extends _Rule {
 
 /// Chapter Remap
 /// Moves a whole chapter to another chapter number, maintains verse numbering
+/// TODO: Redundant with range_shift, potentially remove. Simpler interface though. Unused in current mapping ruleset.
 class _ChapterRemapRule extends _Rule {
   final int fromChapter;
   final int toChapter;
@@ -257,6 +255,12 @@ class _SplitRule extends _Rule {
 /// Adds functionality to range shifting to support whole chapters.
 /// Falls back to the previously set up range shifting rules if not
 /// doing whole chapter. Replaces the previous psalm shifting rule. 
+/// 
+/// - to
+///   "Chapter Delta" indicates how the chapter's number should be offset. 
+///   "Verse Offset" indicates by how much should a verse be offset. 
+/// - from
+///   Setting "end" to -1 indicates that it applies through the last verse.
 /// ---------------------------------------------------------------------------
 class _SpanOffsetRule extends _Rule {
   final int fromChapter, start, end;     // end == -1 => to end of chapter
@@ -363,9 +367,6 @@ class VerseMatching {
           final dir  = _dirFromTxs(from['tx'] as String, to['tx'] as String);
 
           // -------------------------------------------------------------------
-          // TODO: Support compact offset form:
-          //   "to": { "chapter_delta": -1, "verse_offset": 1 }
-          // and "from.end": -1 meaning "to end of chapter".
           // If present, use the new _SpanOffsetRule; otherwise, fall back to
           // the original cross-chapter form.
           // -------------------------------------------------------------------
@@ -443,7 +444,6 @@ class VerseMatching {
 
   /// Maps verses to their pairs according to rules
   /// If no rules are present, falls back to same book/chapter/verse
-  /// For Psalms where RST has exclusive titles, do not map them
   List<VerseKey> matchToOther({required String fromTx, required VerseKey key}) {
     final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
     bool blockIdentity = false;
@@ -453,7 +453,6 @@ class VerseMatching {
       if (mapped.isNotEmpty) return mapped;
     }
 
-    // Identity mapping by default unless explicitly blocked (e.g., Psalms titles).
     return blockIdentity ? const [] : [nk];
   }
 
