@@ -309,6 +309,66 @@ class _PsalmsTitleOffsetRule extends _Rule {
   }
 }
 
+/// ---------------------------------------------------------------------------
+/// TODO: NEW compact offset rule for Psalms-style shifts
+/// This supports `range_shift` entries using `to.chapter_delta` and
+/// `to.verse_offset`, and allows `from.end = -1` to mean "to end of chapter".
+/// Works for any book, not just Psalms.
+/// ---------------------------------------------------------------------------
+class _SpanOffsetRule extends _Rule {
+  final int fromChapter, start, end;     // end == -1 => to end of chapter
+  final int chapterDelta, verseOffset;   // e.g., -1:+1
+
+  _SpanOffsetRule(
+    super.book,
+    super.direction,
+    this.fromChapter,
+    this.start,
+    this.end,
+    this.chapterDelta,
+    this.verseOffset,
+  );
+
+  @override
+  bool applies(String fromTx, VerseKey k) =>
+      _dirOk(fromTx, direction) &&
+      _canonBook(k.book) == _canonBook(book) &&
+      k.chapter == fromChapter &&
+      k.verse >= start &&
+      (end == -1 || k.verse <= end);
+
+  @override
+  List<VerseKey> map(String fromTx, VerseKey k) {
+    // Forward mapping: FROM side → TO side
+    if (applies(fromTx, k)) {
+      final toChap = fromChapter + chapterDelta;
+      final toVerse = k.verse + verseOffset;
+      if (toVerse < 1) return const [];
+      return [(book: _canonBook(book), chapter: toChap, verse: toVerse)];
+    }
+
+    // Reverse mapping: TO side → FROM side (implicit inversion)
+    final t = fromTx.trim().toLowerCase();
+    final d = direction.trim().toUpperCase();
+    final isOpposite =
+        (d == 'EN→RU' && t == 'rst') || (d == 'RU→EN' && t == 'kjv');
+    if (isOpposite && _canonBook(k.book) == _canonBook(book)) {
+      final toChap = fromChapter + chapterDelta;
+      if (k.chapter == toChap) {
+        final srcVerse = k.verse - verseOffset;
+        if (srcVerse < 1) return const [];
+        // Validate source verse is within the declared source range.
+        final inRange = srcVerse >= start && (end == -1 || srcVerse <= end);
+        if (inRange) {
+          return [(book: _canonBook(book), chapter: fromChapter, verse: srcVerse)];
+        }
+      }
+    }
+
+    return const [];
+  }
+}
+
 /// -------- Matching engine --------
 
 /// Parses the rules from the JSON file 
@@ -359,15 +419,35 @@ class VerseMatching {
           final from = m['from'] as Map<String, dynamic>;
           final to   = m['to']   as Map<String, dynamic>;
           final dir  = _dirFromTxs(from['tx'] as String, to['tx'] as String);
-          parsed.add(_SpanCrossChapterRule(
-            book, dir,
-            (from['chapter'] as num).toInt(),
-            (from['start'] as num).toInt(),
-            (from['end'] as num).toInt(),
-            (to['chapter'] as num).toInt(),
-            (to['start'] as num).toInt(),
-            (to['end'] as num).toInt(),
-          ));
+
+          // -------------------------------------------------------------------
+          // TODO: Support compact offset form:
+          //   "to": { "chapter_delta": -1, "verse_offset": 1 }
+          // and "from.end": -1 meaning "to end of chapter".
+          // If present, use the new _SpanOffsetRule; otherwise, fall back to
+          // the original cross-chapter form.
+          // -------------------------------------------------------------------
+          final hasOffsetForm = to.containsKey('chapter_delta') && to.containsKey('verse_offset');
+          if (hasOffsetForm) {
+            parsed.add(_SpanOffsetRule(
+              book, dir,
+              (from['chapter'] as num).toInt(),
+              (from['start'] as num).toInt(),
+              ((from['end'] as num?) ?? -1).toInt(), // allow sentinel -1 (= to end)
+              (to['chapter_delta'] as num).toInt(),
+              (to['verse_offset']  as num).toInt(),
+            ));
+          } else {
+            parsed.add(_SpanCrossChapterRule(
+              book, dir,
+              (from['chapter'] as num).toInt(),
+              (from['start'] as num).toInt(),
+              (from['end']   as num).toInt(),
+              (to['chapter'] as num).toInt(),
+              (to['start']   as num).toInt(),
+              (to['end']     as num).toInt(),
+            ));
+          }
           break;
         }
         case 'chapter_remap': {
@@ -592,5 +672,84 @@ class VerseMatching {
 
     final (repTx, rep) = list.first;
     return '${repTx}|${_canonBook(rep.book)}|${rep.chapter}|${rep.verse}';
+  }
+
+  // TODO: NEW — return full cluster membership (tx + verse) for mirroring.
+  // Mirrors clusterId() traversal exactly but returns members instead of an ID.
+  List<(String, VerseKey)> clusterMembers({required String tx, required VerseKey key}) {
+    final canonKey = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
+    final start = (tx.trim().toLowerCase(), canonKey);
+
+    final seen = <(String, VerseKey)>{};
+    final q = <(String, VerseKey)>[start];
+
+    while (q.isNotEmpty) {
+      final cur = q.removeLast();
+      if (!seen.add(cur)) continue;
+
+      final curTx = cur.$1;
+      final otherTx = (curTx == 'kjv') ? 'rst' : 'kjv';
+      final curKey = (book: _canonBook(cur.$2.book), chapter: cur.$2.chapter, verse: cur.$2.verse);
+
+      // RULE EDGES (same logic as in clusterId)
+      final _rt = _ruleEdgesOnly(curTx, curKey);
+
+      // Psalms anti-bridging guard (per-expansion)
+      final ruleTargets = (_canonBook(curKey.book) == 'Psalms')
+          ? (_rt.any((mk) => mk.chapter != curKey.chapter)
+              ? _rt.where((mk) => mk.chapter != curKey.chapter).toList()
+              : _rt)
+          : _rt;
+
+      bool hasNonIdentity = false;
+      for (final m in ruleTargets) {
+        final isIdentity =
+            _canonBook(m.book) == _canonBook(curKey.book) &&
+            m.chapter == curKey.chapter &&
+            m.verse == curKey.verse;
+        if (!isIdentity) {
+          hasNonIdentity = true;
+          q.add((otherTx, m));
+        }
+      }
+
+      if (hasNonIdentity) {
+        // Outside Psalms: include identity co-targets in membership (no enqueue)
+        if (_canonBook(curKey.book) != 'Psalms') {
+          for (final m in ruleTargets) {
+            final isIdentity =
+                _canonBook(m.book) == _canonBook(curKey.book) &&
+                m.chapter == curKey.chapter &&
+                m.verse == curKey.verse;
+            if (isIdentity) {
+              seen.add((otherTx, m));
+            }
+          }
+        }
+      } else {
+        // Identity-only neighbor case
+        if (_canonBook(curKey.book) != 'Psalms') {
+          seen.add((otherTx, curKey));  // membership
+          q.add((otherTx, curKey));     // traverse
+        }
+      }
+    }
+
+    return seen.toList();
+  }
+
+  // TODO: NEW — convenience: list same-translation siblings in the cluster (excludes the seed).
+  List<VerseKey> sameTxSiblings({required String tx, required VerseKey key}) {
+    final all = clusterMembers(tx: tx, key: key);
+    final t = tx.trim().toLowerCase();
+    final canon = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
+    return [
+      for (final e in all)
+        if (e.$1 == t &&
+            !(_canonBook(e.$2.book) == canon.book &&
+              e.$2.chapter == canon.chapter &&
+              e.$2.verse == canon.verse))
+          (book: _canonBook(e.$2.book), chapter: e.$2.chapter, verse: e.$2.verse)
+    ];
   }
 }

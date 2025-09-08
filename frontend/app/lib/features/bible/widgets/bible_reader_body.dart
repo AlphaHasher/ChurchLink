@@ -117,6 +117,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     // Load the verse matcher asynchronously
     Future(() async {
       _matcher = await VerseMatching.load();
+      // TODO: promote local marks to shared clusters now that matcher is ready
+      _promoteLocalToShared();
       setState(() {}); // refresh UI when matcher is ready
     });
   }
@@ -160,6 +162,77 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return m.matchToOther(fromTx: _translation, key: _keyOf(ref));
   }
 
+  // TODO: symmetric same-translation siblings via there-and-back RULE edges
+  Iterable<VerseKey> _sameTxSiblingsFor(VerseRef ref) {
+    final m = _matcher;
+    if (m == null) return const <VerseKey>[];
+
+    final me = _keyOf(ref);
+    final fromTx = _translation.toLowerCase();
+    final otherTx = _otherTx.toLowerCase();
+
+    // Forward: to the other translation
+    List<VerseKey> toOther;
+    if (me.book == 'Psalms') {
+      // Rule-only + cross-chapter only to keep your Psalms anti-bridge behavior
+      final ro = m.matchToOtherRuleOnly(fromTx: fromTx, key: me);
+      toOther = ro.where((x) => x.chapter != me.chapter).toList();
+    } else {
+      toOther = m.matchToOther(fromTx: fromTx, key: me);
+    }
+
+    // Back: from each target, bounce back into this translation
+    final siblings = <String, VerseKey>{};
+    for (final t in toOther) {
+      final back = (me.book == 'Psalms')
+          ? m.matchToOtherRuleOnly(fromTx: otherTx, key: t)
+          : m.matchToOther(fromTx: otherTx, key: t);
+      for (final s in back) {
+        if (s.book == me.book &&
+            !(s.chapter == me.chapter && s.verse == me.verse)) {
+          siblings['${s.book}|${s.chapter}|${s.verse}'] = s;
+        }
+      }
+    }
+    return siblings.values;
+  }
+
+  // TODO: once matcher arrives, lift any existing per-translation marks into shared clusters
+  void _promoteLocalToShared() {
+    final m = _matcher;
+    if (m == null) return;
+
+    // Highlights
+    for (final tx in ['kjv', 'rst']) {
+      final per = _hlPerTx[tx]!;
+      for (final e in per.entries.toList()) {
+        final p = e.key.split('|');
+        if (p.length != 3) continue;
+        final k = (book: p[0], chapter: int.tryParse(p[1]) ?? 0, verse: int.tryParse(p[2]) ?? 0);
+        if (m.existsInOther(fromTx: tx, key: k)) {
+          final cid = m.clusterId(tx, k);
+          _hlShared[cid] = e.value;
+          per.remove(e.key); // shared replaces the local copy
+        }
+      }
+    }
+
+    // Notes
+    for (final tx in ['kjv', 'rst']) {
+      final per = _notesPerTx[tx]!;
+      for (final e in per.entries.toList()) {
+        final p = e.key.split('|');
+        if (p.length != 3) continue;
+        final k = (book: p[0], chapter: int.tryParse(p[1]) ?? 0, verse: int.tryParse(p[2]) ?? 0);
+        if (m.existsInOther(fromTx: tx, key: k)) {
+          final cid = m.clusterId(tx, k);
+          _notesShared[cid] = e.value;
+          per.remove(e.key);
+        }
+      }
+    }
+  }
+
   /// Chooses the effective highlight color for `ref`.
   /// Shared (cluster) highlights override per-translation ones.
   HighlightColor _colorFor(VerseRef ref) {
@@ -198,7 +271,16 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
 
     // 3) Fall back to translation-local highlight.
-    return _hlPerTx[_translation]?[_k(ref)] ?? HighlightColor.none;
+    // TODO: symmetry glue — mirror any SAME-translation sibling's local color
+    final local = _hlPerTx[_translation]?[_k(ref)];
+    if (local != null && local != HighlightColor.none) return local;
+    for (final s in _sameTxSiblingsFor(ref)) {
+      final kStr = '${s.book}|${s.chapter}|${s.verse}';
+      final c = _hlPerTx[_translation]?[kStr];
+      if (c != null && c != HighlightColor.none) return c;
+    }
+
+    return HighlightColor.none;
   }
 
   /// Returns the effective note for `ref`.
@@ -471,6 +553,16 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           }
           _hlPerTx['kjv']!.remove(hereK);
           _hlPerTx['rst']!.remove(hereK);
+
+          // TODO: ensure same-translation siblings repaint immediately in this translation
+          for (final s in _sameTxSiblingsFor(v.$1)) {
+            final kStr = '${s.book}|${s.chapter}|${s.verse}';
+            if (color == HighlightColor.none) {
+              _hlPerTx[_translation]?.remove(kStr);
+            } else {
+              _hlPerTx[_translation]?[kStr] = color;
+            }
+          }
         }
       }
     });
