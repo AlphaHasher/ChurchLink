@@ -31,7 +31,7 @@ async def process_edit_event(event_id: str, event: EventCreate, request:Request)
     if len(event.roles) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error editing event: No Roles Attached to Event")
     
-   # Gather user perms and roles
+    # Gather user perms and roles
     user_perms = request.state.perms
     user_roles = request.state.roles
 
