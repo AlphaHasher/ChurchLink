@@ -64,7 +64,6 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                 token = notif.get("token")
                 responses = []
                 if send_to_all:
-                    # Optional: filter tokens based on notification's target audience
                     token_query = {}
                     target_audience = notif.get("target_audience", "all")
                     if target_audience == "logged_in":
