@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import asyncio
 import os
 import logging
+from protected_routers.auth_protected_router import AuthProtectedRouter
 
 # Import routers
 from routes.page_management_routes.page_routes import page_router
@@ -24,7 +25,7 @@ from routes.page_management_routes.footer_routes import footer_router as footer_
 from routes.common_routes.event_routes import event_router
 from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
 from routes.common_routes.event_routes import public_event_router
-from routes.common_routes.bible_note_routes import bible_note_router
+from routes.bible_routes.bible_note_routes import bible_note_router
 from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
@@ -198,7 +199,8 @@ router_webhook_listener.include_router(youtube_router)
 #####################################################
 # Base Router Configuration all routes will have api/v1 prefix
 #####################################################
-base_router = APIRouter(prefix="/api/v1")
+##changed base router to use auth protected router
+base_router = AuthProtectedRouter(prefix="/api/v1")
 base_router.include_router(paypal_router)
 base_router.include_router(permissions_view_router)
 base_router.include_router(permissions_protected_router)
