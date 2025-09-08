@@ -31,10 +31,5 @@ async def get_upload_by_id(upload_id: str):
 
         return response.json()
     
-async def search_uploads(uid:str, query: str):
-    if not await UserHandler.does_user_have_permissions(uid):
-        raise HTTPException(
-                status_code=500,
-                detail="Proper Permissions not present!"
-            )
+async def search_uploads(query: str):
     return await StrapiHelper.search_uploads_by_name(query)
