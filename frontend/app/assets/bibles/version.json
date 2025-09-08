@@ -1,0 +1,18 @@
+{
+  "translations": [
+    {
+      "id": "kjv",
+      "name": "King James Version (1769)",
+      "lang": "en",
+      "source": "CrossWire SWORD module KJV or your existing KJV JSON",
+      "edition_note": "English side assumed by the mapping PDF."
+    },
+    {
+      "id": "rst",
+      "name": "Russian Synodal (Synodal tradition, includes 2Cor 11:33)",
+      "lang": "ru",
+      "source": "CrossWire SWORD module in the Synodal tradition (e.g., RST/RusSynodal)",
+      "edition_note": "Matches RUSV/RST numbering evidenced by Jonah 1:17→2:1, Dan 3:31–33, Song 7:1, Rom 14:24–26, 2Cor 11:33."
+    }
+  ]
+}
