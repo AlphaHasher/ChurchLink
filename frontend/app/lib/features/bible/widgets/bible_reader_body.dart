@@ -284,43 +284,49 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 
   /// Returns the effective note for `ref`.
-/// Returns the effective note for `ref`.
-/// If the verse maps across, prefer the shared (cluster) note; else per-translation.
-// TODO: parity with highlights — also check counterpart cluster ids
-String? _noteFor(VerseRef ref) {
-  final m = _matcher;
-  if (m != null) {
-    // 1) Try this verse’s own cluster id first (works for merges/splits/range shifts)
-    final selfCid = m.clusterId(_translation, _keyOf(ref)); // uses current tx
-    final sSelf = _notesShared[selfCid];
-    if (sSelf != null && sSelf.isNotEmpty) return sSelf;
+  /// If the verse maps across, prefer the shared (cluster) note; else per-translation.
+  // TODO: parity with highlights — also check counterpart cluster ids AND same-translation sibling cluster ids
+  String? _noteFor(VerseRef ref) {
+    final m = _matcher;
+    if (m != null) {
+      // 1) Try this verse’s own cluster id first (works for merges/splits/range shifts)
+      final selfCid = m.clusterId(_translation, _keyOf(ref)); // uses current tx
+      final sSelf = _notesShared[selfCid];
+      if (sSelf != null && sSelf.isNotEmpty) return sSelf;
 
-    // 2) Also honor notes keyed by any counterpart’s cluster id (same logic as _colorFor)
-    final me = _keyOf(ref);
-    final bool isPsalms = me.book == 'Psalms';
+      // 2) Also honor notes keyed by any counterpart’s cluster id (same logic as _colorFor)
+      final me = _keyOf(ref);
+      final bool isPsalms = me.book == 'Psalms';
 
-    List<VerseKey> counterparts;
-    if (isPsalms) {
-      // Rule-only + cross-chapter only to preserve your Psalms anti-bridge behavior
-      final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
-      final hasCross = ro.any((x) => x.chapter != me.chapter);
-      counterparts = hasCross
-          ? ro.where((x) => x.chapter != me.chapter).toList()
-          : const <VerseKey>[];
-    } else {
-      counterparts = m.matchToOther(fromTx: _translation, key: me);
+      List<VerseKey> counterparts;
+      if (isPsalms) {
+        // Rule-only + cross-chapter only to preserve your Psalms anti-bridge behavior
+        final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+        final hasCross = ro.any((x) => x.chapter != me.chapter);
+        counterparts = hasCross
+            ? ro.where((x) => x.chapter != me.chapter).toList()
+            : const <VerseKey>[];
+      } else {
+        counterparts = m.matchToOther(fromTx: _translation, key: me);
+      }
+
+      for (final other in counterparts) {
+        final otherCid = m.clusterId(_otherTx, other);
+        final sOther = _notesShared[otherCid];
+        if (sOther != null && sOther.isNotEmpty) return sOther;
+      }
+
+      // TODO: NEW — honor notes keyed by same-translation siblings' cluster ids (fixes KJV 11:32 → KJV 11:33)
+      for (final sib in _sameTxSiblingsFor(ref)) {
+        final sibCid = m.clusterId(_translation, sib);
+        final sSib = _notesShared[sibCid];
+        if (sSib != null && sSib.isNotEmpty) return sSib;
+      }
     }
 
-    for (final other in counterparts) {
-      final otherCid = m.clusterId(_otherTx, other);
-      final sOther = _notesShared[otherCid];
-      if (sOther != null && sOther.isNotEmpty) return sOther;
-    }
+    // 3) Fall back to translation-local note.
+    return _notesPerTx[_translation]?[_k(ref)];
   }
-
-  // 3) Fall back to translation-local note.
-  return _notesPerTx[_translation]?[_k(ref)];
-}
 
   // Greys out the back chapter button if on the first chapter of the whole Bible
   bool get _isAtFirstChapter {
@@ -523,8 +529,39 @@ String? _noteFor(VerseRef ref) {
       if (res.noteDelete == true) {
         final m = _matcher;
         if (m != null && _existsInOther(v.$1)) {
-          final cid = m.clusterId(_translation, _keyOf(v.$1));
-          _notesShared.remove(cid);
+          // TODO: remove any shared note saved under self, counterpart, or same-tx sibling clusterIds
+          final me = _keyOf(v.$1);
+          final selfCid = m.clusterId(_translation, me);
+
+          // counterparts (respect Psalms guard)
+          final bool isPsalms = me.book == 'Psalms';
+          List<VerseKey> counterparts;
+          if (isPsalms) {
+            final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+            final hasCross = ro.any((x) => x.chapter != me.chapter);
+            counterparts = hasCross
+                ? ro.where((x) => x.chapter != me.chapter).toList()
+                : const <VerseKey>[];
+          } else {
+            counterparts = m.matchToOther(fromTx: _translation, key: me);
+          }
+
+          final cids = <String>{selfCid};
+          for (final o in counterparts) {
+            cids.add(m.clusterId(_otherTx, o));
+          }
+          for (final s in _sameTxSiblingsFor(v.$1)) {
+            cids.add(m.clusterId(_translation, s));
+          }
+          for (final cid in cids) {
+            _notesShared.remove(cid);
+          }
+
+          // also clear any leftover per-translation copies
+          _notesPerTx[_translation]?.remove(_k(v.$1));
+          for (final s in _sameTxSiblingsFor(v.$1)) {
+            _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
+          }
         } else {
           final key = _k(v.$1);
           _notesPerTx[_translation]!.remove(key);
@@ -535,16 +572,52 @@ String? _noteFor(VerseRef ref) {
 
         if (txt.isEmpty) {
           if (m != null && _existsInOther(v.$1)) {
-            final cid = m.clusterId(_translation, _keyOf(v.$1));
-            _notesShared.remove(cid);
+            // TODO: empty note == delete shared across all relevant clusterIds
+            final me = _keyOf(v.$1);
+            final selfCid = m.clusterId(_translation, me);
+
+            final bool isPsalms = me.book == 'Psalms';
+            List<VerseKey> counterparts;
+            if (isPsalms) {
+              final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+              final hasCross = ro.any((x) => x.chapter != me.chapter);
+              counterparts = hasCross
+                  ? ro.where((x) => x.chapter != me.chapter).toList()
+                  : const <VerseKey>[];
+            } else {
+              counterparts = m.matchToOther(fromTx: _translation, key: me);
+            }
+
+            final cids = <String>{selfCid};
+            for (final o in counterparts) {
+              cids.add(m.clusterId(_otherTx, o));
+            }
+            for (final s in _sameTxSiblingsFor(v.$1)) {
+              cids.add(m.clusterId(_translation, s));
+            }
+            for (final cid in cids) {
+              _notesShared.remove(cid);
+            }
+
+            _notesPerTx[_translation]?.remove(_k(v.$1));
+            for (final s in _sameTxSiblingsFor(v.$1)) {
+              _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
+            }
           } else {
             final key = _k(v.$1);
             _notesPerTx[_translation]!.remove(key);
           }
         } else {
           if (m != null && _existsInOther(v.$1)) {
+            // TODO: save shared note under self clusterId; clean any leftover per-translation copies (self + siblings)
             final cid = m.clusterId(_translation, _keyOf(v.$1));
             _notesShared[cid] = txt;
+
+            _notesPerTx['kjv']?.remove(_k(v.$1));
+            _notesPerTx['rst']?.remove(_k(v.$1));
+            for (final s in _sameTxSiblingsFor(v.$1)) {
+              _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
+            }
           } else {
             final key = _k(v.$1);
             _notesPerTx[_translation]![key] = txt;
