@@ -9,7 +9,7 @@
 //
 // Supported the following rule types
 // - one_to_one          : maps one verse to another, can be across chapters
-// - range_shift         : shifts a range of verses to another range
+// - range_shift         : shifts verse ranges or whole chapters
 // - chapter_remap       : keep verse numbering but change numbers
 // - merge               : many verses map to one verse
 // - split               : one verse maps to many verses
@@ -17,8 +17,6 @@
 //        For Eph, KJV 3:17 maps to RST 3:17 and half of 3:18, and 
 //        KJV 3:18 maps to the other half of RST 3:18. Interacting
 //        with any of these individually applies to all of them.))
-// - psalms_title_offset : shifts all verses by 1
-//    - ((Used in RST where the title is the first verse in Psalms))
 //
 // Identity fallback
 // - If no explicit mapping rule is found, maps 1:1 to the verse with the
@@ -112,6 +110,7 @@ class _PointRule extends _Rule {
 }
 
 /// Range shift
+/// Falls back to this if not trying to offset a whole chapter
 class _SpanCrossChapterRule extends _Rule {
   final int fromChapter, start, end;
   final int toChapter, toStart, toEnd;
@@ -252,68 +251,12 @@ class _SplitRule extends _Rule {
   }
 }
 
-/// Psalms offset
-/// Shifts verses by 1  
-/// (Further down, prevents mapping of the exclusive title verse)
-/// RST places titles as verse 1 in Psalms, so it's offset by 1 from KJV
-class _PsalmsTitleOffsetRule extends _Rule {
-  final List<int> psalms;
-  final int verse1Extra;  // extra added to verse 1
-  final int restOffset;   // offset for verses >= 2
-
-  _PsalmsTitleOffsetRule(super.book, super.direction, this.psalms, this.verse1Extra, this.restOffset);
-
-  bool _isPsalms(VerseKey k) => _canonBook(k.book) == 'Psalms';
-  bool _appliesChapter(VerseKey k) => psalms.contains(k.chapter);
-
-  @override
-  bool applies(String fromTx, VerseKey k) =>
-      _dirOk(fromTx, direction) && _isPsalms(k) && _appliesChapter(k);
-
-  int _forward(int v) => v == 1 ? 1 + verse1Extra : v + restOffset;
-  int _backward(int v) {
-    final special = 1 + verse1Extra;
-    return v == special ? 1 : v - restOffset;
-  }
-
-  @override
-  List<VerseKey> map(String fromTx, VerseKey k) {
-    if (!_isPsalms(k) || !psalms.contains(k.chapter)) return const [];
-
-    final t = fromTx.trim().toLowerCase();
-    final d = direction.trim().toUpperCase();
-    int toVerse;
-
-    // Forward = KJV → RST (adds title); Backward = RST → KJV.
-    if (_dirOk(fromTx, direction)) {
-      if (d == 'EN→RU') {
-        toVerse = (t == 'kjv') ? _forward(k.verse) : _backward(k.verse);
-      } else if (d == 'RU→EN') {
-        toVerse = (t == 'rst') ? _backward(k.verse) : _forward(k.verse);
-      } else {
-        toVerse = (t == 'kjv') ? _forward(k.verse) : _backward(k.verse);
-      }
-    } else {
-      // Explicit inversion when mapping from the opposite side.
-      if (d == 'EN→RU' && t == 'rst') {
-        toVerse = _backward(k.verse); // RST -> KJV
-      } else if (d == 'RU→EN' && t == 'kjv') {
-        toVerse = _forward(k.verse);  // KJV <- RST
-      } else {
-        return const [];
-      }
-    }
-
-    if (toVerse < 1) return const [];
-    return [(book: 'Psalms', chapter: k.chapter, verse: toVerse)];
-  }
-}
-
 /// ---------------------------------------------------------------------------
-/// TODO: NEW compact offset rule for Psalms-style shifts
-/// This supports `range_shift` entries using `to.chapter_delta` and
-/// `to.verse_offset`, and allows `from.end = -1` to mean "to end of chapter".
-/// Works for any book, not just Psalms.
+/// Range Shift
+/// 
+/// Adds functionality to range shifting to support whole chapters.
+/// Falls back to the previously set up range shifting rules if not
+/// doing whole chapter. Replaces the previous psalm shifting rule. 
 /// ---------------------------------------------------------------------------
 class _SpanOffsetRule extends _Rule {
   final int fromChapter, start, end;     // end == -1 => to end of chapter
@@ -377,7 +320,6 @@ class VerseMatching {
   VerseMatching._(this._rules);
 
   static Future<VerseMatching> load() async {
-    // TODO: Ensure the Books catalog is ready before using canonicalization.
     await Books.instance.ensureLoaded();
 
     const path = 'assets/bibles/verse_matching/verse_matching_rules.json';
@@ -496,19 +438,6 @@ class VerseMatching {
       }
     }
 
-    // Psalms title offsets (optional).
-    if (decoded['psalms_title_offsets'] is Map) {
-      final p = decoded['psalms_title_offsets'] as Map<String, dynamic>;
-      final fromTx = (p['from_tx'] as String).trim();
-      final toTx   = (p['to_tx']   as String).trim();
-      final dir    = _dirFromTxs(fromTx, toTx);
-      final ps     = (p['psalms'] as List).map((e) => (e as num).toInt()).toList();
-      final v1x    = (p['verse1_extra'] is num) ? (p['verse1_extra'] as num).toInt() : 1;
-      final rest   = (p['rest_offset']  is num) ? (p['rest_offset']  as num).toInt() : 1;
-
-      parsed.add(_PsalmsTitleOffsetRule('Psalms', dir, ps, v1x, rest));
-    }
-
     return VerseMatching._(parsed);
   }
 
@@ -522,14 +451,6 @@ class VerseMatching {
     for (final r in _rules) {
       final mapped = r.map(fromTx, nk);
       if (mapped.isNotEmpty) return mapped;
-
-      // Block identity fallback for Psalms title verses (no counterpart).
-      if (r is _PsalmsTitleOffsetRule &&
-          nk.book == 'Psalms' &&
-          nk.verse == 1 &&
-          r.psalms.contains(nk.chapter)) {
-        blockIdentity = true;
-      }
     }
 
     // Identity mapping by default unless explicitly blocked (e.g., Psalms titles).
@@ -674,7 +595,6 @@ class VerseMatching {
     return '${repTx}|${_canonBook(rep.book)}|${rep.chapter}|${rep.verse}';
   }
 
-  // TODO: NEW — return full cluster membership (tx + verse) for mirroring.
   // Mirrors clusterId() traversal exactly but returns members instead of an ID.
   List<(String, VerseKey)> clusterMembers({required String tx, required VerseKey key}) {
     final canonKey = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);

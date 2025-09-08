@@ -72,7 +72,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   String get _otherTx => _translation.toLowerCase() == 'kjv' ? 'rst' : 'kjv';
 
-  // TODO: Books catalog readiness flag to avoid late-init crashes.
+  // Prevents a crash if loading occurs out-of-order.
   bool _booksReady = false;
 
   // TODO: Map translation to catalog locale (KJV→en, RST→ru).
@@ -297,7 +297,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   // Greys out the back chapter button if on the first chapter of the whole Bible
   bool get _isAtFirstChapter {
-    // TODO: While catalog loads, disable nav to avoid calling into it.
     if (!_booksReady) return true;
     final i = _bookIndex(_book);
     return _chapter == 1 && i == 0;
@@ -305,7 +304,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   // Greys out the forward chapter button if on the last chapter of the whole Bible
   bool get _isAtLastChapter {
-    // TODO: While catalog loads, disable nav to avoid calling into it.
     if (!_booksReady) return true;
     final i = _bookIndex(_book);
     final lastBookIndex = _bookNames.length - 1;
@@ -314,7 +312,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Move forward by one chapter, wrapping into the next book when needed.
   void _nextChapter() {
-    // TODO: Guard while catalog loads.
     if (!_booksReady) return;
     final i = _bookIndex(_book);
     final count = _chapterCount(_book);
@@ -333,7 +330,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Move backward by one chapter, wrapping into the previous book when needed.
   void _prevChapter() {
-    // TODO: Guard while catalog loads.
     if (!_booksReady) return;
     final i = _bookIndex(_book);
     if (_chapter > 1) {
@@ -351,7 +347,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Opens the book and chapter select popup
   Future<void> _openJumpPicker() async {
-    // TODO: Do not open while catalog loads.
     if (!_booksReady) return;
 
     final result = await showModalBottomSheet<(String, int)?>(
