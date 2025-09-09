@@ -31,6 +31,7 @@ class UserHandler:
                 "postal_code": None
             },
 
+            "people": [],
             "my_events": [],
             "bible_notes": [],
             "createdOn": datetime.now(),
@@ -58,6 +59,21 @@ class UserHandler:
             ))
         except Exception as e:
             print(f"An error occurred:\n {e}")
+
+    @staticmethod
+    def create_person_schema(first_name: str, last_name: str, gender: str, date_of_birth):
+        """
+        date_of_birth: a datetime (or date) object you pass in.
+        gender: consider normalizing/validating to an allowed set, e.g. {"male","female","nonbinary","unspecified"}.
+        """
+        return {
+            "_id": ObjectId(),       # local id for this embedded person
+            "first_name": first_name,
+            "last_name": last_name,
+            "gender": gender,
+            "date_of_birth": date_of_birth,   # (aka DOB)
+            "createdOn": datetime.now(),
+        }
 
     @staticmethod
     def create_event_ref_schema(
@@ -163,6 +179,16 @@ class UserHandler:
         })
     
     @staticmethod
+    async def get_person(uid: str, person_id: ObjectId):
+        doc = await DB.db["users"].find_one(
+            {"uid": uid, "people._id": person_id},
+            {"people.$": 1}  # project only the matched element
+        )
+        if not doc or "people" not in doc or not doc["people"]:
+            return None
+        return doc["people"][0]
+    
+    @staticmethod
     async def list_my_events(uid: str, expand: bool = False):
         """
         If expand=True, join with 'events' to return full event docs alongside refs.
@@ -192,6 +218,11 @@ class UserHandler:
         return [doc async for doc in cursor]
     
     @staticmethod
+    async def list_people(uid: str):
+        doc = await DB.db["users"].find_one({"uid": uid}, {"people": 1, "_id": 0})
+        return doc.get("people", []) if doc else []
+    
+    @staticmethod
     async def update_user(filterQuery, updateData):
         return await DB.update_document("users", filterQuery, updateData)
 
@@ -209,6 +240,21 @@ class UserHandler:
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False
+        
+    @staticmethod
+    async def update_person(uid: str, person_id: ObjectId, updates: dict):
+        """
+        Updates specific fields on an embedded Person by _id.
+        Example 'updates': {"first_name": "New", "gender": "nonbinary"}
+        """
+        # Build a $set mapping like {"people.$[p].first_name": "New", ...}
+        set_fields = {f"people.$[p].{k}": v for k, v in updates.items()}
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$set": set_fields},
+            array_filters=[{"p._id": person_id}]
+        )
+        return result.modified_count == 1
         
     @staticmethod
     async def add_to_my_events(
@@ -243,6 +289,19 @@ class UserHandler:
             upsert=False
         )
         return ref if result.matched_count == 1 else None
+    
+    @staticmethod
+    async def add_person_to_user(uid: str, first_name: str, last_name: str, gender: str, date_of_birth):
+        """
+        Appends a Person to a user's embedded 'people' array.
+        Returns the embedded person's _id if successful, or None if user not found.
+        """
+        person = UserHandler.create_person_schema(first_name, last_name, gender, date_of_birth)
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$push": {"people": person}}
+        )
+        return person["_id"] if result.modified_count == 1 else None
 
     @staticmethod
     async def delete_user(email):
@@ -280,3 +339,13 @@ class UserHandler:
             {"$pull": {"my_events": criteria}}
         )
         return result.modified_count == 1
+    
+    @staticmethod
+    async def remove_person(uid: str, person_id: ObjectId):
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$pull": {"people": {"_id": person_id}}}
+        )
+        return result.modified_count == 1
+    
+    
