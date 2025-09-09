@@ -98,6 +98,7 @@ async def lifespan(app: FastAPI):
         
         #Run Push Notification Scheduler loop
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
+        logger.info("Push notification scheduler started")
 
         logger.info("Application startup completed successfully")
         yield
