@@ -78,8 +78,8 @@ const Notification = () => {
   setYoutubeAPIKey(data.YOUTUBE_API_KEY || "");
   setYoutubeChannelId(data.PRIMARY_CHANNEL_ID || "");
   setYoutubePublicDomain(data.PUBLIC_DOMAIN || "");
-  setStreamNotificationMessage(data.STREAM_NOTIFICATION_MESSAGE || "A new stream is live!");
-  setYoutubeLiveTitle(data.STREAM_NOTIFICATION_TITLE || "Live Stream Started");
+  setStreamNotificationMessage(data.streamNotificationMessage || "A new stream is live!");
+  setYoutubeLiveTitle(data.streamNotificationTitle || "Live Stream Started");
   setSelectedTimezone(data.YOUTUBE_TIMEZONE || 'America/Los_Angeles');
   setEnvOverride(!!data.envOverride);
       })
@@ -233,8 +233,8 @@ const Notification = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          STREAM_NOTIFICATION_TITLE: youtubeLiveTitle,
-          STREAM_NOTIFICATION_MESSAGE: streamNotificationMessage,
+          streamNotificationTitle: youtubeLiveTitle,
+          streamNotificationMessage: streamNotificationMessage,
         }),
       });
       if (res.ok) {
