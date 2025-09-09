@@ -14,12 +14,9 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from mongo.scheduled_notifications import scheduled_notification_loop
-
-
-
-
 import asyncio
 import os
+import logging
 
 # Import routers
 from routes.page_management_routes.page_routes import page_router
@@ -37,6 +34,15 @@ from routes.permissions_routes.permissions_routes import permissions_router
 from routes.common_routes.notification_routes import notification_router
 from mongo.scheduled_notifications import get_due_notifications, mark_as_sent
 
+from dotenv import load_dotenv
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 
@@ -48,37 +54,67 @@ FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize Firebase Admin SDK if not already 
-    
-    
-    if not firebase_admin._apps:
-        from firebase.firebase_credentials import get_firebase_credentials
-        cred = credentials.Certificate(get_firebase_credentials())
-        firebase_admin.initialize_app(cred)
+    try:
+        logger.info("Starting application initialization...")
 
-    # MongoDB connection setup
-    await DatabaseManager.init_db()
+        # Initialize Firebase Admin SDK if not already initialized
+        if not firebase_admin._apps:
+            logger.info("Initializing Firebase Admin SDK...")
+            from firebase.firebase_credentials import get_firebase_credentials
 
-    if not BYPASS_FIREBASE_SYNC:
-        # Sync MongoDB to Firebase
-        await FirebaseSyncer.SyncDBToFirebase()
+            cred = credentials.Certificate(get_firebase_credentials())
+            firebase_admin.initialize_app(cred)
+            logger.info("Firebase Admin SDK initialized successfully")
 
-    # Verify that an Administrator Role (Mandatory) exists
-    await RoleHandler.verify_admin_role()
+        # MongoDB connection setup - CRITICAL: Will stop app if fails
+        logger.info("Initializing MongoDB connection...")
+        await DatabaseManager.init_db()
+        logger.info("MongoDB connection established successfully")
 
-    # Start background tasks
-    youtubeSubscriptionCheck = asyncio.create_task(
-        YoutubeHelper.youtubeSubscriptionLoop()
-    )
+        if not BYPASS_FIREBASE_SYNC:
+            # Sync MongoDB to Firebase
+            logger.info("Starting Firebase synchronization...")
+            await FirebaseSyncer.SyncDBToFirebase()
+            logger.info("Firebase synchronization completed")
 
-    scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
+        # Verify that an Administrator Role (Mandatory) exists
+        logger.info("Verifying administrator role exists...")
+        await RoleHandler.verify_admin_role()
+        logger.info("Administrator role verification completed")
 
-    yield
+        if not BYPASS_FIREBASE_SYNC:
+            # Sync MongoDB to Firebase
+            await FirebaseSyncer.SyncDBToFirebase()
 
-    # Cleanup
-    youtubeSubscriptionCheck.cancel()
-    scheduledNotifTask.cancel()
-    DatabaseManager.close_db()
+        # Verify that an Administrator Role (Mandatory) exists
+        await RoleHandler.verify_admin_role()
+
+        # Run Youtube Notification loop
+        logger.info("Starting YouTube subscription monitoring...")
+        youtubeSubscriptionCheck = asyncio.create_task(
+            YoutubeHelper.youtubeSubscriptionLoop()
+        )
+        logger.info("YouTube subscription monitoring started")
+        
+        #Run Push Notification Scheduler loop
+        scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
+
+        logger.info("Application startup completed successfully")
+        yield
+
+        # Cleanup
+        logger.info("Shutting down application...")
+        youtubeSubscriptionCheck.cancel()
+        scheduledNotifTask.cancel()
+        DatabaseManager.close_db()
+        logger.info("Application shutdown completed")
+
+    except Exception as e:
+        logger.error(f"Application startup failed: {str(e)}")
+        logger.error("Make sure MongoDB is running and the MONGODB_URL is correct")
+        # Force exit the application
+        import sys
+        sys.exit(1)
 
 
 app = FastAPI(lifespan=lifespan)
