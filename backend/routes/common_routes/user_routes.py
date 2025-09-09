@@ -173,7 +173,6 @@ async def delete_user_route(user_id: str):
 # This would likely require a new Pydantic model for partial updates (e.g., UserUpdate)
 # and a corresponding model function (e.g., update_user_profile).
 
-
 @user_private_router.post("/sync-user")
 async def process_sync_request(request:Request):
     return await process_sync_by_uid(request)
@@ -186,3 +185,62 @@ async def process_get_users(request:Request):
 @user_mod_router.post("/get-my-permissions")
 async def process_get_my_permissions(payload: MyPermsRequest, request:Request):
     return await get_my_permissions(payload, request)
+
+#
+# --- Family Member Routes ---
+#
+
+# Add family member
+@user_private_router.post("/{user_id}/family-members", response_model=dict, status_code=status.HTTP_201_CREATED, summary="Add a new family member to user account")
+async def add_family_member_to_user_route(user_id: str, request: Request, family_member_data: dict = Body(...)):
+    try:
+        # TODO: Add family member to database with validated data
+        
+        family_member = None  # Placeholder for database operation
+        return {"success": True, "family_member": family_member}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding family member: {str(e)}")
+
+# Get all family members
+@user_private_router.get("/{user_id}/family-members", response_model=dict, summary="Get all family members associated with user account")
+async def get_user_family_members_route(user_id: str, request: Request):
+    try:
+        # TODO: Get family members from database for the specified user
+        
+        family_members = []  # Placeholder for database query
+        return {"success": True, "family_members": family_members}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family members: {str(e)}")
+
+# Get specific family member
+@user_private_router.get("/{user_id}/family-members/{family_member_id}", response_model=dict, summary="Get specific family member details")
+async def get_user_family_member_route(user_id: str, family_member_id: str, request: Request):
+    try:
+        # TODO: Get specific family member from database
+        
+        family_member = None  # Placeholder for database query
+        return {"success": True, "family_member": family_member}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member: {str(e)}")
+
+# Update family member
+@user_private_router.put("/{user_id}/family-members/{family_member_id}", response_model=dict, summary="Update family member information")
+async def update_user_family_member_route(user_id: str, family_member_id: str, request: Request, family_member_data: dict = Body(...)):
+    try:
+        # TODO: Update family member in database with validated data
+        
+        success = True  # Placeholder for database operation
+        return {"success": success, "message": "Family member updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error updating family member: {str(e)}")
+
+# Remove family member
+@user_private_router.delete("/{user_id}/family-members/{family_member_id}", response_model=dict, summary="Remove family member from account")
+async def delete_user_family_member_route(user_id: str, family_member_id: str, request: Request):
+    try:
+        # TODO: Delete family member from database
+        
+        success = True  # Placeholder for database operation
+        return {"success": success, "message": "Family member deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error deleting family member: {str(e)}")

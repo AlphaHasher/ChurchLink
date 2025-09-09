@@ -1,11 +1,10 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Query, Body, Depends
-from helpers.Firebase_helpers import authenticate_uid
+from fastapi import APIRouter, HTTPException, status, Query, Body, Depends, Request
 
-from backend.helpers.RouteParameterHelper import validate_route_ids, UserRouteHelper
+from protected_routers.auth_protected_router import AuthProtectedRouter
 
-public_event_person_router = APIRouter(prefix="/event-people", tags=["Event Registration"])
-event_person_router = APIRouter(prefix="/event-people", tags=["Event People Management"])
+public_event_person_router = AuthProtectedRouter(prefix="/event-people", tags=["Event Registration"])
+event_person_router = AuthProtectedRouter(prefix="/event-people", tags=["Event People Management"])
 
 #
 # --- Protected routes --- 
@@ -13,7 +12,7 @@ event_person_router = APIRouter(prefix="/event-people", tags=["Event People Mana
 
 # Update an event person registration's
 @event_person_router.put("/{registration_id}", response_model=dict, summary="Modify event person registration")
-async def modify_event_person(registration_id: str, update_data: dict = Body(...), uid: str = Depends(authenticate_uid)):
+async def modify_event_person(registration_id: str, request: Request, update_data: dict = Body(...)):
     try: 
         # TODO: validate update data and modify registration
         success = True 
@@ -23,7 +22,7 @@ async def modify_event_person(registration_id: str, update_data: dict = Body(...
 
 # Delete an event person registration
 @event_person_router.delete("/{registration_id}", response_model=dict, summary="Remove person from event")
-async def remove_event_person(registration_id: str, uid: str = Depends(authenticate_uid)):
+async def remove_event_person(registration_id: str, request: Request):
     try: 
         # TODO: validate and delete registration
         success = True
@@ -33,12 +32,10 @@ async def remove_event_person(registration_id: str, uid: str = Depends(authentic
 
 # Get all events for a user
 @event_person_router.get("/user/{user_id}", response_model=dict, summary="Get all events for a user")
-async def get_user_events_route(user_id: str, skip: int = Query(0, ge=0), limit: int = Query(100, ge=1), uid: str = Depends(authenticate_uid)):
+async def get_user_events_route(user_id: str, request: Request, filters: Optional[dict] = Query(None)):
     try: 
-        # validate id's
-        validate_route_ids(user_id=user_id, uid=uid)
-
         # TODO: get user events and summary from database
+        # Parse filters for pagination (skip, limit) and other filtering options
         events = []
         return {"success": True, "events": events}
     except Exception as e:
@@ -46,7 +43,7 @@ async def get_user_events_route(user_id: str, skip: int = Query(0, ge=0), limit:
 
 # Get specific event person registration
 @event_person_router.get("/{registration_id}", response_model=dict, summary="Get specific event person registration")
-async def get_event_person_route(registration_id: str, uid: str = Depends(authenticate_uid)):
+async def get_event_person_route(registration_id: str, request: Request):
     try: 
         # TODO: get specific registration from database
         registration = None
@@ -55,12 +52,10 @@ async def get_event_person_route(registration_id: str, uid: str = Depends(authen
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching event person: {str(e)}")
 
 @event_person_router.get("/status/{event_id}/{user_id}", response_model=dict, summary="Get registration status for event and user")
-async def get_registration_status_route(event_id: str, user_id: str, family_member_id: Optional[str] = Query(None), uid: str = Depends(authenticate_uid)):
+async def get_registration_status_route(event_id: str, user_id: str, request: Request, filters: Optional[dict] = Query(None)):
     try: 
-        # validate id's
-        validate_route_ids(user_id=user_id, family_member_id=family_member_id, uid=uid)
-
         # TODO: get registration status from database
+        # Parse filters for family_member_id and other filtering options
         status_info = {}
         return {"success": True, "status": status_info}
     except Exception as e:
@@ -72,7 +67,7 @@ async def get_registration_status_route(event_id: str, user_id: str, family_memb
 
 # Add user to event
 @public_event_person_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED, summary="Register current user for an event")
-async def register_user_for_event(event_id: str, uid: str = Depends(authenticate_uid)):
+async def register_user_for_event(event_id: str, request: Request):
     try: 
         # TODO: validate parameters and register user for event
         registration_data = None # Register user for event in database
@@ -82,7 +77,7 @@ async def register_user_for_event(event_id: str, uid: str = Depends(authenticate
 
 # Remove user from event
 @public_event_person_router.delete("/unregister/{event_id}", response_model=dict, summary="Unregister current user from an event")
-async def unregister_user_from_event(event_id: str, uid: str = Depends(authenticate_uid)):
+async def unregister_user_from_event(event_id: str, request: Request):
     try: 
         # TODO: validate parameters and unregister user from event
         success = True 
@@ -92,9 +87,10 @@ async def unregister_user_from_event(event_id: str, uid: str = Depends(authentic
 
 # Get user's events
 @public_event_person_router.get("/my-events", response_model=dict, summary="Get current user's event registrations")
-async def get_my_events(uid: str = Depends(authenticate_uid)):
+async def get_my_events(request: Request, filters: Optional[dict] = Query(None)):
     try: 
         # TODO: get user's events from database
+        # Parse filters for pagination and other filtering options
         events = [] 
         return {"success": True, "events": events}
     except Exception as e:
@@ -106,9 +102,9 @@ async def get_my_events(uid: str = Depends(authenticate_uid)):
 
 # Register a family member for an event
 @public_event_person_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED, summary="Register a family member for an event")
-async def register_family_member_for_event(event_id: str, family_member_id: str, uid: str = Depends(authenticate_uid)):
+async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
     try: 
-        UserRouteHelper.validate_family_member_id(family_member_id)
+        # TODO: validate family member ID and parameters, then register family member for event
         
         # TODO: validate parameters and register family member for event
         registration_data = None 
@@ -118,9 +114,9 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
 
 # Unregister a family member from an event
 @public_event_person_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict, summary="Unregister a family member from an event")
-async def unregister_family_member_from_event(event_id: str, family_member_id: str, uid: str = Depends(authenticate_uid)):
+async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
     try: 
-        UserRouteHelper.validate_family_member_id(family_member_id)
+        # TODO: validate family member ID and parameters, then unregister family member from event
         
         # TODO: validate parameters and unregister family member from event
         success = True 
@@ -130,9 +126,10 @@ async def unregister_family_member_from_event(event_id: str, family_member_id: s
 
 # Get all events for user's family members
 @public_event_person_router.get("/my-family-members-events", response_model=dict, summary="Get all event registrations for user's family members")
-async def get_my_family_members_events(uid: str = Depends(authenticate_uid)):
+async def get_my_family_members_events(request: Request, filters: Optional[dict] = Query(None)):
     try: 
         # TODO: get family member events from database
+        # Parse filters for pagination and other filtering options
         events = [] 
         return {"success": True, "events": events}
     except Exception as e:
