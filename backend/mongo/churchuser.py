@@ -31,6 +31,7 @@ class UserHandler:
                 "postal_code": None
             },
 
+            "my_events": [],
             "bible_notes": [],
             "createdOn": datetime.now(),
         }
@@ -57,6 +58,45 @@ class UserHandler:
             ))
         except Exception as e:
             print(f"An error occurred:\n {e}")
+
+    @staticmethod
+    def create_event_ref_schema(
+        event_id: ObjectId,
+        reason: str,            # "watch" | "rsvp"  (RSVP not implemented here, but future-proof)
+        scope: str,             # "series" | "occurrence"
+        series_id: ObjectId = None,   # optional: if your model separates series vs instances
+        occurrence_id: ObjectId = None,  # optional: if occurrences are stored as docs
+        occurrence_start=None,  # optional: datetime for the chosen occurrence time
+        meta: dict | None = None
+    ):
+        """
+        A normalized reference to an event the user is 'involved in'.
+
+        Uniqueness key ensures add/remove is easy and duplicates are prevented.
+        """
+        # Build a stable “composite key” to enforce uniqueness inside the array
+        parts = [
+            str(event_id),
+            scope,
+            str(series_id) if series_id else "",
+            str(occurrence_id) if occurrence_id else "",
+            occurrence_start.isoformat() if occurrence_start else "",
+            reason
+        ]
+        unique_key = "|".join(parts)
+
+        return {
+            "_id": ObjectId(),          # local id of the embedded record
+            "event_id": event_id,       # required
+            "reason": reason,           # "watch" or (later) "rsvp"
+            "scope": scope,             # "series" or "occurrence"
+            "series_id": series_id,     # optional
+            "occurrence_id": occurrence_id,   # optional
+            "occurrence_start": occurrence_start,  # optional datetime
+            "key": unique_key,          # used with $addToSet / $pull
+            "meta": meta or {},         # room for notification prefs, etc.
+            "addedOn": datetime.now(),
+        }
 
     @staticmethod
     async def find_all_users():
@@ -123,6 +163,35 @@ class UserHandler:
         })
     
     @staticmethod
+    async def list_my_events(uid: str, expand: bool = False):
+        """
+        If expand=True, join with 'events' to return full event docs alongside refs.
+        """
+        if not expand:
+            user = await DB.db["users"].find_one({"uid": uid}, {"_id": 0, "my_events": 1})
+            return (user or {}).get("my_events", [])
+
+        pipeline = [
+            {"$match": {"uid": uid}},
+            {"$unwind": {"path": "$my_events", "preserveNullAndEmptyArrays": False}},
+            {"$lookup": {
+                "from": "events",
+                "localField": "my_events.event_id",
+                "foreignField": "_id",
+                "as": "event"
+            }},
+            {"$unwind": "$event"},
+            {"$replaceRoot": {"newRoot": {
+                "$mergeObjects": [
+                    "$my_events",
+                    {"event": "$event"}
+                ]
+            }}}
+        ]
+        cursor = DB.db["users"].aggregate(pipeline)
+        return [doc async for doc in cursor]
+    
+    @staticmethod
     async def update_user(filterQuery, updateData):
         return await DB.update_document("users", filterQuery, updateData)
 
@@ -140,6 +209,40 @@ class UserHandler:
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False
+        
+    @staticmethod
+    async def add_to_my_events(
+        uid: str,
+        event_id: ObjectId,
+        *,
+        reason: str = "watch",            # "watch" now; "rsvp" later if needed
+        scope: str = "series",            # "series" or "occurrence"
+        series_id: ObjectId | None = None,
+        occurrence_id: ObjectId | None = None,
+        occurrence_start=None,
+        meta: dict | None = None
+    ):
+        ref = UserHandler.create_event_ref_schema(
+            event_id=event_id,
+            reason=reason,
+            scope=scope,
+            series_id=series_id,
+            occurrence_id=occurrence_id,
+            occurrence_start=occurrence_start,
+            meta=meta
+        )
+
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {
+                # ensure an array exists; harmless if already present
+                "$setOnInsert": {"my_events": []},
+                # add by unique key (composite) to avoid duplicates
+                "$addToSet": {"my_events": ref}
+            },
+            upsert=False
+        )
+        return ref if result.matched_count == 1 else None
 
     @staticmethod
     async def delete_user(email):
@@ -147,3 +250,33 @@ class UserHandler:
             await DB.delete_documents("users", {"email": email})
         except Exception as e:
             print(f"An error occurred:\n {e}")
+
+    @staticmethod
+    async def remove_from_my_events(uid: str, *, key: str = None, event_id: ObjectId = None,
+                                    reason: str = None, scope: str = None,
+                                    occurrence_id: ObjectId = None, occurrence_start=None,
+                                    series_id: ObjectId = None):
+        """
+        Remove by the stable 'key' (recommended) OR by matching fields.
+        """
+        if key:
+            criteria = {"key": key}
+        else:
+            # build a precise matcher
+            criteria = {"event_id": event_id}
+            if reason is not None:
+                criteria["reason"] = reason
+            if scope is not None:
+                criteria["scope"] = scope
+            if series_id is not None:
+                criteria["series_id"] = series_id
+            if occurrence_id is not None:
+                criteria["occurrence_id"] = occurrence_id
+            if occurrence_start is not None:
+                criteria["occurrence_start"] = occurrence_start
+
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$pull": {"my_events": criteria}}
+        )
+        return result.modified_count == 1
