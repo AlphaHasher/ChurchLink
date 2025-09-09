@@ -1,7 +1,7 @@
 import os
 import logging
 from dotenv import load_dotenv
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from mongo.churchuser import UserHandler
 from helpers.StrapiHelper import StrapiHelper
 
@@ -17,7 +17,9 @@ SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD", "")
 
 MEDIA_LIBRARY_PATH = "/admin/plugins/upload"
 
-async def process_redirect(uid: str):
+async def process_redirect(request:Request):
+    uid = request.state.uid
+
     logger.info(f"Processing Strapi redirect for user UID: {uid}")
 
     try:
@@ -45,9 +47,7 @@ async def process_redirect(uid: str):
                 detail="Server configuration error: Strapi admin credentials are not configured"
             )
 
-        # Find user in MongoDB
-        logger.debug(f"Looking up user in MongoDB for UID: {uid}")
-        mongo_user = await UserHandler.find_by_uid(uid)
+        mongo_user = request.state.user
 
         if mongo_user is None:
             logger.warning(f"User not found in MongoDB: UID {uid}")

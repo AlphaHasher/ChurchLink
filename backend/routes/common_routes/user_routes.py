@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Query, Body, Depends
+from fastapi import APIRouter, HTTPException, status, Query, Body, Depends, Request
 from pydantic import EmailStr
 from bson import ObjectId
 from datetime import datetime # Import datetime if needed for birthday query
@@ -13,12 +13,17 @@ from models.user import (
     find_users_with_permissions,
     update_user_roles, delete_user
 )
-from models.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, MyPermsRequest
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, MyPermsRequest
+from protected_routers.auth_protected_router import AuthProtectedRouter
+from protected_routers.mod_protected_router import ModProtectedRouter
 
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
 
 user_router = APIRouter(prefix="/users", tags=["Users"])
+
+user_private_router = AuthProtectedRouter(prefix="/users", tags=["Users"])
+user_mod_router = ModProtectedRouter(prefix="/users", tags=["Users"])
 
 # --- User Creation ---
 @user_router.post(
@@ -169,15 +174,15 @@ async def delete_user_route(user_id: str):
 # and a corresponding model function (e.g., update_user_profile).
 
 
-@user_router.post("/sync-user")
-async def process_sync_request(uid: str = Depends(authenticate_uid)):
-    return await process_sync_by_uid(uid)
+@user_private_router.post("/sync-user")
+async def process_sync_request(request:Request):
+    return await process_sync_by_uid(request)
     
 
-@user_router.get("/get-users")
-async def process_get_users(uid: str = Depends(authenticate_uid)):
-    return await fetch_users(uid)
+@user_mod_router.get("/get-users")
+async def process_get_users(request:Request):
+    return await fetch_users()
 
-@user_router.post("/get-my-permissions")
-async def process_get_my_permissions(payload: MyPermsRequest, uid: str = Depends(authenticate_uid)):
-    return await get_my_permissions(payload, uid)
+@user_mod_router.post("/get-my-permissions")
+async def process_get_my_permissions(payload: MyPermsRequest, request:Request):
+    return await get_my_permissions(payload, request)
