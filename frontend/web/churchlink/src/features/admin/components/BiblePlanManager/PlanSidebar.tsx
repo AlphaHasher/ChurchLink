@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import api from '@/api/api';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -50,6 +50,14 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   }, [plan]);
 
   const planJson = useMemo(() => JSON.stringify(normalizedPlan, null, 2), [normalizedPlan]);
+
+  // Auto-dismiss success alerts after a short delay
+  useEffect(() => {
+    if (status?.type === 'success') {
+      const timeoutId = setTimeout(() => setStatus(null), 10000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [status]);
 
   const handleSavePlan = async () => {
     // Frontend validation
