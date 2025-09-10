@@ -204,9 +204,9 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
           </button>
 
           {expandedBook === book.id && (
-            <div className="pl-4">
+            <div className="pl-4 pr-2">
               {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
-                <div key={chapter} className="flex items-center justify-between text-xs gap-2">
+                <div key={chapter} className="flex items-center justify-between text-xs gap-2 mr-2">
                   <div className="flex items-center gap-2 flex-1">
                     <button
                       onClick={() => {
@@ -259,7 +259,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
       <TrashDropZone />
 
   {/* Bible Book Selector */}
-  <div className="border rounded-lg max-h-64 overflow-y-auto">
+  <div className="border rounded-lg max-h-64 overflow-y-auto pr-2">
         {/* Old Testament */}
         <div className="border-b">
           <button
@@ -271,7 +271,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
           </button>
           
           {expandedTestament === 'Old' && (
-            <div className="pl-4 pb-2">{renderBooks(oldTestamentBooks)}</div>
+            <div className="pl-4 pb-2 pr-2">{renderBooks(oldTestamentBooks)}</div>
           )}
         </div>
 
@@ -286,7 +286,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
           </button>
           
           {expandedTestament === 'New' && (
-            <div className="pl-4 pb-2">{renderBooks(newTestamentBooks)}</div>
+            <div className="pl-4 pb-2 pr-2">{renderBooks(newTestamentBooks)}</div>
           )}
         </div>
       </div>
