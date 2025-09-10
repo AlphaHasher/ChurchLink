@@ -30,6 +30,10 @@ Future<void> main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
+  // Setup messaging and notifications BEFORE checking for initial message
+  setupFirebaseMessaging();
+  await setupLocalNotifications();
+
   RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
     initialNotificationData = initialMessage.data;

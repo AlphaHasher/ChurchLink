@@ -4,15 +4,20 @@ from firebase_admin import messaging
 from mongo.scheduled_notifications import (
     schedule_notification, get_scheduled_notifications, remove_scheduled_notification, get_notification_history, log_notification
 )
+from pydantic import BaseModel
+
+class FCMTokenRequest(BaseModel):
+    user_id: str
+    token: str
 
 notification_router = APIRouter(prefix="/notification", tags=["notification"])
 
 # --- FCM Token Management ---
 @notification_router.post('/save-fcm-token')
-async def save_fcm_token(user_id: str = Body(...), token: str = Body(...)):
+async def save_fcm_token(request: FCMTokenRequest):
     result = await DB.db['fcm_tokens'].update_one(
-        {'user_id': user_id},
-        {'$set': {'token': token}},
+        {'user_id': request.user_id},
+        {'$set': {'token': request.token}},
         upsert=True
     )
     return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
@@ -28,21 +33,21 @@ async def get_fcm_tokens():
 async def get_notification_settings():
     doc = await DB.db["settings"].find_one({"type": "youtube"})
     return {
-        "STREAM_NOTIFICATION_MESSAGE": doc.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!") if doc else "A new stream is live!",
-        "STREAM_NOTIFICATION_TITLE": doc.get("STREAM_NOTIFICATION_TITLE", "YouTube Live Stream") if doc else "YouTube Live Stream"
+        "streamNotificationMessage": doc.get("streamNotificationMessage", "A new stream is live!") if doc else "A new stream is live!",
+        "streamNotificationTitle": doc.get("streamNotificationTitle", "YouTube Live Stream") if doc else "YouTube Live Stream"
     }
 
 # Add POST endpoint to update notification settings
 @notification_router.post('/settings')
 async def update_notification_settings(
-    STREAM_NOTIFICATION_MESSAGE: str = Body(...),
-    STREAM_NOTIFICATION_TITLE: str = Body(...)
+    streamNotificationMessage: str = Body(...),
+    streamNotificationTitle: str = Body(...)
 ):
     result = await DB.db["settings"].update_one(
         {"type": "youtube"},
         {"$set": {
-            "STREAM_NOTIFICATION_MESSAGE": STREAM_NOTIFICATION_MESSAGE,
-            "STREAM_NOTIFICATION_TITLE": STREAM_NOTIFICATION_TITLE
+            "streamNotificationMessage": streamNotificationMessage,
+            "streamNotificationTitle": streamNotificationTitle
         }},
         upsert=True
     )

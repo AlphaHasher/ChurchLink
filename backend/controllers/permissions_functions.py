@@ -1,53 +1,45 @@
 from mongo.roles import RoleHandler
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 from mongo.roles import RoleHandler
 from mongo.churchuser import UserHandler
 from helpers.StrapiHelper import StrapiHelper
+from fastapi import Request
 
+permission_template = RoleHandler.permission_template
 
-class RoleCreateInput(BaseModel):
+PermissionsMixin = create_model(
+    "PermissionsMixin",
+    **{k: (bool, Field(default=v)) for k, v in permission_template.items()},
+)
+
+class RoleCreateInput(PermissionsMixin):
     name: str
-    admin: bool
-    permissions_management: bool
-    event_editing: bool
-    event_management: bool
-    media_management: bool
 
-class RoleUpdateInput(BaseModel):
+class RoleUpdateInput(PermissionsMixin):
     id: str = Field(alias="_id")
     name: str
-    admin: bool
-    permissions_management: bool
-    event_editing: bool
-    event_management: bool
-    media_management: bool
 
 class UserRoleUpdateInput(BaseModel):
     uid: str
     role_ids: list
 
-boolKeys = ['admin', 'permissions_management', 'event_editing', 'event_management', 'media_management']
+async def fetch_perms():
+    perms = await RoleHandler.find_all_roles()
 
-async def fetch_perms(uid):
-    if await UserHandler.does_user_have_permissions(uid):
-        perms = await RoleHandler.find_all_roles()
+    for role in perms:
+        if "_id" in role:
+            role["_id"] = str(role["_id"])
 
-        for role in perms:
-            if "_id" in role:
-                role["_id"] = str(role["_id"])
+    return {"Success":True, "permissions": perms}
 
-        return {"Success":True, "permissions": perms}
-    else:
-        return {"success":False, "permissions":[]}
+async def create_role(payload: RoleCreateInput, request: Request):
+    user = request.state.user
+    user_perms = request.state.perms
 
-async def create_role(payload: RoleCreateInput, uid: str):
-    # Find user in mongo
-    user = await UserHandler.find_by_uid(uid)
     # Return failure if no user found
     if user is None:
         return {"success": False, "msg":"User not found!"}
-    # Gather user permissions
-    user_perms = await RoleHandler.infer_permissions(user['roles'])
+    
     # If user is not an Admin or Permissions manager, refuse
     if not user_perms['admin'] and not user_perms['permissions_management']:
         return {"success":False, "msg":"You do not have the necessary permissions to create roles!"}
@@ -60,7 +52,7 @@ async def create_role(payload: RoleCreateInput, uid: str):
             if getattr(payload, key) and not value:
                 return {"success":False, "msg":f"You do not have the necessary permissions to create a role with permission: {key}!"}
     permStr = []
-    for key in boolKeys:
+    for key, value in permission_template.items():
         if getattr(payload, key):
             permStr.append(key)
     if payload.name.strip() == '':
@@ -73,9 +65,10 @@ async def create_role(payload: RoleCreateInput, uid: str):
     except:
         return {"success": False, "msg":"Your role could not be created due to an unknown critical error!"}
     
-async def update_role(payload: RoleUpdateInput, uid: str):
-    # Find user in mongo
-    user = await UserHandler.find_by_uid(uid)
+async def update_role(payload: RoleUpdateInput, request:Request):
+    user = request.state.user
+    user_perms = request.state.perms
+
     # Find role in mongo
     role = await RoleHandler.find_role_by_id(payload.id)
     # Return failure if no user found
@@ -84,8 +77,6 @@ async def update_role(payload: RoleUpdateInput, uid: str):
     # Return failure if no role found
     if role is None:
         return {"success": False, "msg":"Role not found!"}
-    # Gather user permissions
-    user_perms = await RoleHandler.infer_permissions(user['roles'])
     # If user is not an Admin or Permissions manager, refuse
     if not user_perms['admin'] and not user_perms['permissions_management']:
         return {"success":False, "msg":"You do not have the necessary permissions to edit roles!"}
@@ -103,7 +94,7 @@ async def update_role(payload: RoleUpdateInput, uid: str):
                 return {"success":False, "msg":f"You do not have the necessary permissions to enable or disable the permission: {key}!"}
                 
     permStr = []
-    for key in boolKeys:
+    for key, value in permission_template.items():
         if getattr(payload, key):
             permStr.append(key)
     try:
@@ -116,14 +107,13 @@ async def update_role(payload: RoleUpdateInput, uid: str):
         print(e)
         return {"success": False, "msg":"Your role could not be updated due to an unknown critical error!"}
     
-async def delete_role(payload: RoleUpdateInput, uid:str):
-    # Find user in mongo
-    user = await UserHandler.find_by_uid(uid)
+async def delete_role(payload: RoleUpdateInput, request:Request):
+    user = request.state.user
+    user_perms = request.state.perms
+
     # Return failure if no user found
     if user is None:
         return {"success": False, "msg":"User not found!"}
-    # Gather user permissions
-    user_perms = await RoleHandler.infer_permissions(user['roles'])
     # If user is not an Admin or Permissions manager, refuse
     if not user_perms['admin'] and not user_perms['permissions_management']:
         return {"success":False, "msg":"You do not have the necessary permissions to delete roles!"}
@@ -155,14 +145,13 @@ async def strip_users_of_role(id: str):
         updated_roles = [rid for rid in user.get("roles", []) if rid != id]
         await UserHandler.update_roles(user['uid'], updated_roles, StrapiHelper.sync_strapi_roles)
 
-async def update_user_roles(payload: UserRoleUpdateInput, uid:str):
-    # Find user in mongo
-    user = await UserHandler.find_by_uid(uid)
+async def update_user_roles(payload: UserRoleUpdateInput, request:Request):
+    user = request.state.user
+    user_perms = request.state.perms
+
     # Return failure if no user found
     if user is None:
         return {"success": False, "msg":"User not found!"}
-    # Gather user permissions
-    user_perms = await RoleHandler.infer_permissions(user['roles'])
     # If user is not an Admin or Permissions manager, refuse
     if not user_perms['admin'] and not user_perms['permissions_management']:
         return {"success":False, "msg":"You do not have the necessary permissions to assign roles!"}

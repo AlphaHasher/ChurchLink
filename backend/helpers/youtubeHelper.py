@@ -8,25 +8,22 @@ from mongo.database import DB
 from firebase_admin import messaging
 import logging
 
-
-async def load_youtube_settings():
-    load_dotenv()
-    
-    settings = {
+load_dotenv()
+settings = {
         "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
         "PRIMARY_CHANNEL_ID": os.getenv("PRIMARY_CHANNEL_ID"),
         "PUBLIC_DOMAIN": os.getenv("PUBLIC_DOMAIN"),
         "YOUTUBE_TIMEZONE": os.getenv("YOUTUBE_TIMEZONE"),
     }
-    
+async def load_youtube_settings():
     try:
         db_settings = await DB.db["settings"].find_one({"type": "youtube"})
-        settings["STREAM_NOTIFICATION_MESSAGE"] = db_settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!") if db_settings else "A new stream is live!"
-        settings["STREAM_NOTIFICATION_TITLE"] = db_settings.get("STREAM_NOTIFICATION_TITLE", "YouTube Live Stream") if db_settings else "YouTube Live Stream"
+        settings["streamNotificationMessage"] = db_settings.get("streamNotificationMessage", "A new stream is live!") if db_settings else "A new stream is live!"
+        settings["streamNotificationTitle"] = db_settings.get("streamNotificationTitle", "YouTube Live Stream") if db_settings else "YouTube Live Stream"
     except Exception as e:
         logging.error(f"Could not load YouTube notification message/title from DB: {e}")
-        settings["STREAM_NOTIFICATION_MESSAGE"] = "A new stream is live!"
-        settings["STREAM_NOTIFICATION_TITLE"] = "YouTube Live Stream"
+        settings["streamNotificationMessage"] = "A new stream is live!"
+        settings["streamNotificationTitle"] = "YouTube Live Stream"
     return settings
 
 
@@ -46,6 +43,7 @@ class YoutubeHelper:
 
     isStreaming = False
     activeStreamIDs = []
+    youtubeClient = None
 
   
     @staticmethod
@@ -56,7 +54,7 @@ class YoutubeHelper:
                 "isStreaming": YoutubeHelper.isStreaming,
                 "activeStreamIDs": YoutubeHelper.activeStreamIDs,
                 "timestamp": datetime.utcnow(),
-                "message": yt_settings.get("STREAM_NOTIFICATION_MESSAGE", "A new stream is live!")
+                "message": yt_settings.get("streamNotificationMessage", "A new stream is live!")
             }
             
             asyncio.create_task(DB.insert_document("notifications", notification))
@@ -67,7 +65,7 @@ class YoutubeHelper:
             for t in tokens:
                 message = messaging.Message(
                     notification=messaging.Notification(
-                        title=yt_settings.get("STREAM_NOTIFICATION_TITLE", "YouTube Live Stream"),
+                        title=yt_settings.get("streamNotificationTitle", "YouTube Live Stream"),
                         body=notification["message"],
                     ),
                     token=t,
@@ -90,7 +88,7 @@ class YoutubeHelper:
         # Trigger frontend updates (placeholder)
         logging.info(f"NOTIFICATIONS PUSHED\nisStreaming: {YoutubeHelper.isStreaming}\nactiveStreamIDs: {YoutubeHelper.activeStreamIDs}")
         yt_settings = await load_youtube_settings()
-        logging.info(f"Notification message: {yt_settings.get('STREAM_NOTIFICATION_MESSAGE', 'A new stream is live!')}")
+        logging.info(f"Notification message: {yt_settings.get('streamNotificationMessage', 'A new stream is live!')}")
 
     @staticmethod
     async def updateMainChannel():
