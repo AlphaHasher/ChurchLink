@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
-import { Button } from '../../../../shared/components/ui/button';
-import { Input } from '../../../../shared/components/ui/input';
-import { Label } from '../../../../shared/components/ui/label';
-import { ReadingPlan, READING_PLAN_TEMPLATES, BiblePassage } from '../../../../shared/types/BiblePlan';
+import api from '@/api/api';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
+import { ReadingPlan, READING_PLAN_TEMPLATES, BiblePassage } from '@/shared/types/BiblePlan';
 import BiblePassageSelector from './BiblePassageSelector';
 import { Download, Upload, Save } from 'lucide-react';
 
@@ -15,6 +17,7 @@ interface PlanSidebarProps {
 
 const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
+  const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | null; title?: string; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // keep plan name wired to parent for persistence
@@ -48,9 +51,30 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
 
   const planJson = useMemo(() => JSON.stringify(normalizedPlan, null, 2), [normalizedPlan]);
 
-  const handleSavePlan = () => {
-    // For now just log; backend integration can POST `plan`
-  console.log('Saving plan (payload):', normalizedPlan);
+  const handleSavePlan = async () => {
+    // Frontend validation
+    const trimmedName = (planName || '').trim();
+    const hasAnyPassages = Object.values(normalizedPlan.days).some((d: any) => (d.passages || []).length > 0);
+    if (!trimmedName) {
+      setStatus({ type: 'warning' as any, title: 'Name required', message: 'Please enter a plan name before saving.' });
+      return;
+    }
+    if (!hasAnyPassages) {
+      setStatus({ type: 'warning' as any, title: 'No passages', message: 'Add at least one passage to save this plan.' });
+      return;
+    }
+    try {
+      const { data } = await api.post('/v1/bible-plans', normalizedPlan);
+      console.log('Saved plan:', data);
+      // Optionally set returned id/name
+      if (data?.id) {
+        setPlan(prev => ({ ...prev, id: data.id }));
+      }
+      setStatus({ type: 'success', title: 'Saved', message: 'Reading plan saved successfully.' });
+    } catch (err) {
+      console.error('Failed to save plan', err);
+      setStatus({ type: 'error', title: 'Save failed', message: 'We could not save your plan. Please try again.' });
+    }
   };
 
   const handleImportPlan = () => {
@@ -172,6 +196,14 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
             }}
           />
         </div>
+
+        {/* Alerts */}
+        {status?.type && (
+          <Alert variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'} className="mt-2">
+            <AlertTitle>{status.title}</AlertTitle>
+            {status.message && <AlertDescription>{status.message}</AlertDescription>}
+          </Alert>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-3 pt-6 border-t border-gray-200">

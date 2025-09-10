@@ -3,7 +3,7 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/
 import PlanSidebar from '../components/BiblePlanManager/PlanSidebar';
 import PlanCalendar from '../components/BiblePlanManager/PlanCalendar';
 import PassageBadge from '../components/BiblePlanManager/PassageBadge';
-import { BiblePassage, ReadingPlan } from '../../../shared/types/BiblePlan';
+import { BiblePassage, ReadingPlan } from '@/shared/types/BiblePlan';
 
 const BiblePlanManager = () => {
   const [plan, setPlan] = useState<ReadingPlan>({

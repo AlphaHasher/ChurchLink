@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDraggable, useDroppable, useDndContext } from '@dnd-kit/core';
-import { ReadingPlan, BiblePassage } from '../../../../shared/types/BiblePlan';
-import { Button } from '../../../../shared/components/ui/button';
+import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
+import { Button } from '@/shared/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import PassageBadge from './PassageBadge';
 
@@ -16,7 +16,7 @@ const CalendarPassageChip = ({ passage, dayKey }: { passage: BiblePassage; dayKe
   const style = isDragging ? { opacity: 0 } : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="min-w-0">
       <PassageBadge passage={passage} />
     </div>
   );
@@ -35,7 +35,7 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
       ref={setNodeRef}
       onClick={() => onSelect(dayNumber)}
       className={`
-        min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
+        min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer min-w-0
         ${isPassageOver
           ? 'border-2 border-dashed border-green-400 bg-green-50'
           : isSelected
@@ -48,7 +48,7 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
         {isSelected && <span className="text-[10px] uppercase tracking-wide text-blue-600 font-semibold">Selected</span>}
       </div>
       
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-0">
         {passages.map((passage: BiblePassage) => (
           <CalendarPassageChip key={passage.id} passage={passage} dayKey={dayKey} />
         ))}

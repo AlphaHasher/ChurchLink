@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { BIBLE_BOOKS, BibleBook, BiblePassage } from '../../../../shared/types/BiblePlan';
-import { Button } from '../../../../shared/components/ui/button';
-import { Input } from '../../../../shared/components/ui/input';
+import { BIBLE_BOOKS, BibleBook, BiblePassage } from '@/shared/types/BiblePlan';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
 import { useDroppable } from '@dnd-kit/core';
 
 interface BiblePassageSelectorProps {

@@ -13,7 +13,7 @@ const WebBuilderLayout = ({ children }: WebBuilderLayoutProps) => {
     <div className="flex h-screen">
       <nav className="w-64 bg-gray-100 p-4">
         <button
-          className="text-sm font-medium text-blue-600 hover:underline mb-4"
+          className="mb-4 rounded-lg border border-transparent px-3 py-2 text-sm font-medium bg-gray-900 text-white hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
           onClick={() => navigate(-1)}
         >
           ← Back to Admin
