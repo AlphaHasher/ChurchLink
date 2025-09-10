@@ -137,8 +137,8 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     const meta = multiChapterSelectionMeta;
     if (!selectedChapter && !meta) return;
     const useMulti = !!(meta && meta.type === 'multi' && meta.range.start !== meta.range.end);
-    const book = useMulti ? meta!.book : (selectedChapter?.book as BibleBook);
-    const baseChapter = useMulti ? meta!.range.start : (selectedChapter?.chapter || 1);
+    const book = useMulti ? meta!.book : (selectedChapter?.book || meta?.book as BibleBook);
+    const baseChapter = useMulti ? meta!.range.start : (selectedChapter?.chapter || meta?.range.start || 1);
     const endChapter = useMulti ? meta!.range.end : undefined;
 
     const startTxt = verseRange.start.trim();
@@ -214,8 +214,11 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                         if (currentlySelected) {
                           toggleChapterSelected(book.id, chapter);
                           if (selectedChapter?.book.id === book.id && selectedChapter.chapter === chapter) {
-                            setSelectedChapter(null);
-                            setVerseRange({ start: '', end: '' });
+                            const willStillBeSelected = selectedChaptersSet.size > 1;
+                            if (!willStillBeSelected) {
+                              setSelectedChapter(null);
+                              setVerseRange({ start: '', end: '' });
+                            }
                           }
                         } else {
                           toggleChapterSelected(book.id, chapter);
@@ -345,20 +348,20 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                 value={verseRange.start}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
                 className="w-28 h-8 text-sm"
-                disabled={(!selectedChapter && !(multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi')) || !selectedDay}
+                disabled={(!selectedChapter && !multiChapterSelectionMeta) || !selectedDay || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               />
               <Input
                 placeholder="End Verse"
                 value={verseRange.end}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
                 className="w-28 h-8 text-sm"
-                disabled={(!selectedChapter && !(multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi')) || !selectedDay}
+                disabled={(!selectedChapter && !multiChapterSelectionMeta) || !selectedDay || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               />
             </div>
             <Button
               size="sm"
               onClick={addVerseRange}
-              disabled={!selectedDay || isInvalidVerseRange || (!selectedChapter && !multiChapterSelectionMeta)}
+              disabled={!selectedDay || isInvalidVerseRange || (!selectedChapter && !multiChapterSelectionMeta) || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               className="h-8 text-xs"
             >
               Add
