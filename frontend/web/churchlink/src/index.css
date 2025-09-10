@@ -111,8 +111,6 @@ h1 {
   line-height: 1.1;
 }
 
-/* Remove Vite template button element styles to avoid conflicting with Tailwind button utilities */
-
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

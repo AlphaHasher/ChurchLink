@@ -200,7 +200,6 @@ router_webhook_listener.include_router(youtube_router)
 #####################################################
 # Base Router Configuration all routes will have api/v1 prefix
 #####################################################
-##changed base router to use auth protected router
 base_router = AuthProtectedRouter(prefix="/api/v1")
 base_router.include_router(paypal_router)
 base_router.include_router(permissions_view_router)
