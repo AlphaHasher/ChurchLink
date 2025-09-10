@@ -42,6 +42,14 @@ class DB:
         {
             "name": "bible_notes",
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
+        },
+        {
+            "name": "donations_subscriptions",
+            "indexes": ["subscription_id"]
+        },
+        {
+            "name": "transactions",
+            "indexes": ["transaction_id"]
         }
     ]
 

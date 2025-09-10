@@ -1,0 +1,73 @@
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+from mongo.database import DB
+
+class Transaction(BaseModel):
+    id: Optional[str] = None
+    transaction_id: str  # Unique for each payment event
+    user_email: str
+    amount: float
+    status: str
+    type: str  # 'one-time' or 'subscription'
+    order_id: Optional[str] = None  # For one-time payments
+    subscription_id: Optional[str] = None  # For subscriptions
+    plan_id: Optional[str] = None
+    payment_method: Optional[str] = "paypal"
+    time: Optional[str] = None
+    start_time: Optional[str] = None
+    next_billing_time: Optional[str] = None
+    user_id: Optional[str] = None
+    note: Optional[str] = None
+    currency: Optional[str] = "USD"
+    event_type: Optional[str] = None
+    created_on: Optional[str] = None
+
+    # CRUD Operations
+    @staticmethod
+    async def create_transaction(transaction: 'Transaction'):
+        """
+        Creates a new transaction using DB.insert_document.
+        """
+        doc = transaction.model_dump(exclude_unset=True)
+        doc["created_on"] = transaction.created_on or datetime.now().isoformat()
+        inserted_id = await DB.insert_document("transactions", doc)
+        if inserted_id is not None:
+            tx_data = await DB.db["transactions"].find_one({"_id": inserted_id})
+            if tx_data is not None:
+                tx_data["id"] = str(tx_data.pop("_id"))
+                return Transaction(**tx_data)
+        return None
+
+    async def get_transaction_by_id(transaction_id: str):
+        """
+        Retrieves a transaction by its transaction_id.
+        """
+        tx_doc = await DB.db["transactions"].find_one({"transaction_id": transaction_id})
+        if tx_doc is not None:
+            tx_doc["id"] = str(tx_doc.pop("_id"))
+            return Transaction(**tx_doc)
+        return None
+
+    async def get_transactions_by_email(user_email: str, limit: int = None):
+        """
+        Retrieves transactions by user_email.
+        """
+        tx_docs = await DB.find_documents("transactions", {"user_email": user_email}, limit=limit)
+        for tx in tx_docs:
+            tx["id"] = str(tx.pop("_id"))
+        return [Transaction(**tx) for tx in tx_docs]
+
+    async def update_transaction_status(transaction_id: str, status: str):
+        """
+        Updates the status of a transaction.
+        """
+        result = await DB.update_document("transactions", {"transaction_id": transaction_id}, {"status": status})
+        return result > 0
+
+    async def delete_transaction(transaction_id: str):
+        """
+        Deletes a transaction by transaction_id.
+        """
+        result = await DB.delete_documents("transactions", {"transaction_id": transaction_id})
+        return result > 0

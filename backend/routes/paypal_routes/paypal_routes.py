@@ -1,121 +1,153 @@
 import os
 import logging
-
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
-from paypalserversdk.http.auth.o_auth_2 import ClientCredentialsAuthCredentials
-from paypalserversdk.logging.configuration.api_logging_configuration import (
-    LoggingConfiguration,
-    RequestLoggingConfiguration,
-    ResponseLoggingConfiguration,
-)
-from paypalserversdk.paypal_serversdk_client import PaypalServersdkClient
-from paypalserversdk.controllers.orders_controller import OrdersController
-from paypalserversdk.controllers.payments_controller import PaymentsController
-from paypalserversdk.models.amount_breakdown import AmountBreakdown
-from paypalserversdk.models.amount_with_breakdown import AmountWithBreakdown
-from paypalserversdk.models.checkout_payment_intent import CheckoutPaymentIntent
-from paypalserversdk.models.order_request import OrderRequest
-# from paypalserversdk.models.capture_request import CaptureRequest
-from paypalserversdk.models.money import Money
-# from paypalserversdk.models.shipping_details import ShippingDetails
-# from paypalserversdk.models.shipping_option import ShippingOption
-# from paypalserversdk.models.shipping_type import ShippingType
-from paypalserversdk.models.purchase_unit_request import PurchaseUnitRequest
-# from paypalserversdk.models.payment_source import PaymentSource
-# from paypalserversdk.models.card_request import CardRequest
-# from paypalserversdk.models.card_attributes import CardAttributes
-from paypalserversdk.models.item import Item
-from paypalserversdk.models.item_category import ItemCategory
-# from paypalserversdk.models.paypal_wallet import PaypalWallet
-# from paypalserversdk.models.paypal_wallet_experience_context import PaypalWalletExperienceContext
-# from paypalserversdk.models.shipping_preference import ShippingPreference
-# from paypalserversdk.models.paypal_experience_landing_page import PaypalExperienceLandingPage
-# from paypalserversdk.models.paypal_experience_user_action import PaypalExperienceUserAction
-# from paypalserversdk.exceptions.error_exception import ErrorException
-from paypalserversdk.api_helper import ApiHelper
+from models.transaction import Transaction
+from bson import ObjectId
+import paypalrestsdk
+import logging
 
 paypal_router = APIRouter(prefix="/paypal", tags=["paypal"])
 
-# Initialize the PayPal client with required credentials and logging configuration.
-paypal_client: PaypalServersdkClient = PaypalServersdkClient(
-    client_credentials_auth_credentials=ClientCredentialsAuthCredentials(
-        o_auth_client_id=os.getenv("PAYPAL_CLIENT_ID"),
-        o_auth_client_secret=os.getenv("PAYPAL_CLIENT_SECRET"),
-    ),
-    logging_configuration=LoggingConfiguration(
-        log_level=logging.INFO,
-        # Disable masking of sensitive headers for Sandbox testing.
-        # This should be set to True (the default if unset)in production.
-        mask_sensitive_headers=False,
-        request_logging_config=RequestLoggingConfiguration(
-            log_headers=True, log_body=True
-        ),
-        response_logging_config=ResponseLoggingConfiguration(
-            log_headers=True, log_body=True
-        ),
-    ),
-)
-
-orders_controller: OrdersController = paypal_client.orders
-payments_controller: PaymentsController = paypal_client.payments
+paypalrestsdk.configure({
+    "mode": os.getenv("PAYPAL_MODE", "sandbox"),
+    "client_id": os.getenv("PAYPAL_CLIENT_ID"),
+    "client_secret": os.getenv("PAYPAL_CLIENT_SECRET"),
+})
 
 # ------------------------------------------------------------------------------
 # Endpoint to Create an Order
 # ------------------------------------------------------------------------------
 @paypal_router.post("/orders", status_code=200)
 async def create_order(request: Request):
-    request_body = await request.json()
+    try:
+        request_body = await request.json()
+        donation = request_body.get("donation")
+        if not donation or not isinstance(donation, dict):
+            return JSONResponse(status_code=400, content={"error": "Missing or invalid donation object."})
 
-    cart = request_body.get("cart")
+        fund_name = donation.get("fund_name")
+        donor_name = donation.get("donor_name")
+        amount = donation.get("amount")
+        message = donation.get("message", "")
 
-    # Build the order request
-    order = orders_controller.create_order({
-        "body": OrderRequest(
-            intent=CheckoutPaymentIntent.CAPTURE,
-            purchase_units=[
-                PurchaseUnitRequest(
-                    amount=AmountWithBreakdown(
-                        currency_code="USD",
-                        value="100",
-                        breakdown=AmountBreakdown(
-                            item_total=Money(currency_code="USD", value="100")
-                        ),
-                    ),
-                    items=[
-                        Item(
-                            name="T-Shirt",
-                            unit_amount=Money(currency_code="USD", value="100"),
-                            quantity="1",
-                            description="Super Fresh Shirt",
-                            sku="sku01",
-                            category=ItemCategory.PHYSICAL_GOODS,
-                        )
-                    ],
-                )
+        if not fund_name or not amount:
+            return JSONResponse(status_code=400, content={"error": "fund_name and amount are required."})
+        try:
+            amount = float(amount)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"error": "Amount must be a number."})
+        if amount <= 0:
+            return JSONResponse(status_code=400, content={"error": "Amount must be greater than zero."})
+
+        payment = paypalrestsdk.Payment({
+            "intent": "sale",
+            "payer": {
+                "payment_method": "paypal"
+            },
+            "transactions": [
+                {
+                    "amount": {
+                        "total": str(amount),
+                        "currency": "USD"
+                    },
+                    "description": f"Donation to {fund_name} by {donor_name}. Message: {message}",
+                    "item_list": {
+                        "items": [
+                            {
+                                "name": f"Donation: {fund_name}",
+                                "sku": "donation",
+                                "price": str(amount),
+                                "currency": "USD",
+                                "quantity": 1
+                            }
+                        ]
+                    }
+                }
             ],
-        )
-    })
-
-    # Return the order details as JSON.
-    return JSONResponse(
-        content=ApiHelper.json_serialize(order.body)
-    )
+            "redirect_urls": {
+                "cancel_url": donation.get("cancel_url", "https://yourchurch.org/donation/cancel"),
+                "return_url": donation.get("return_url", "https://yourchurch.org/donation/success"),
+            }
+        })
+        if payment.create():
+            approval_url = next((link.href for link in payment.links if link.rel == "approval_url"), None)
+            return JSONResponse(content={"approval_url": approval_url, "payment_id": payment.id})
+        else:
+            logging.error(payment.error)
+            return JSONResponse(status_code=500, content={"error": "Failed to create PayPal payment.", "details": payment.error})
+    except Exception as e:
+        logging.exception("Error creating PayPal payment")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ------------------------------------------------------------------------------
 # Endpoint to Capture the Payment for an Order
 # ------------------------------------------------------------------------------
-@paypal_router.post("/orders/{order_id}/capture", status_code=200)
-async def capture_order(order_id: str):
-    # Capture the order payment.
-    order = orders_controller.capture_order(
-        {
-            "id": order_id,
-            "prefer": "return=representation"
-        }
-    )
+@paypal_router.post("/orders/{payment_id}/capture", status_code=200)
+async def capture_order(payment_id: str, payer_id: str = Query(...)):
+    try:
+        if not payment_id or not payer_id:
+            logging.error(f"[capture_order] Missing payment_id or payer_id: payment_id={payment_id}, payer_id={payer_id}")
+            return JSONResponse(status_code=400, content={"error": "Missing payment_id or payer_id."})
+        payment = paypalrestsdk.Payment.find(payment_id)
+        if payment.execute({"payer_id": payer_id}):
+            transaction = payment.to_dict()
+            payer_info = transaction.get("payer", {}).get("payer_info", {})
+            funding_instruments = transaction.get("payer", {}).get("funding_instruments", [{}])
+            address = payer_info.get("shipping_address", {})
+            card_type = funding_instruments[0].get("credit_card", {}).get("type", "")
+            user_email = payer_info.get("email", None)
+            if not user_email:
+                original = await Transaction.get_transactions_by_email(user_email)
+                donor_name = None
+                for d in original:
+                    if d.order_id == payment_id:
+                        donor_name = d.user_email
+                        break
+                user_email = donor_name or ""
+            transaction_data = {
+                "transaction_id": payment_id,
+                "user_email": user_email,
+                "amount": transaction.get("transactions", [{}])[0].get("amount", {}).get("total", 0),
+                "status": transaction.get("state", "completed"),
+                "time": transaction.get("create_time", ""),
+                "payment_method": "paypal",
+                "type": "one-time",
+                "order_id": payment_id,
+                "payer_name": payer_info.get("first_name", "") + " " + payer_info.get("last_name", ""),
+                "address": address,
+                "card_type": card_type,
+                "user_id": transaction.get("user_id"),
+            }
+            await Transaction.create_transaction(Transaction(**transaction_data))
+            return JSONResponse(content={"status": "success", "payment": transaction})
+        else:
+            logging.error(f"[capture_order] PayPal payment execution failed. payment_id={payment_id}, payer_id={payer_id}, error={payment.error}")
+            return JSONResponse(status_code=422, content={"error": "Unprocessable Content", "details": payment.error})
+    except Exception as e:
+        logging.exception("Error executing PayPal payment")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    
+# ------------------------------------------------------------------------------
+# Endpoint to Update Transaction Status (refund/cancel/etc)
+# ------------------------------------------------------------------------------
+@paypal_router.post("/transaction/{transaction_id}/status", status_code=200)
+async def update_transaction_status_api(transaction_id: str, status: str):
+    result = await Transaction.update_transaction_status(transaction_id, status)
+    if result:
+        return JSONResponse(content={"success": True, "transaction_id": transaction_id, "status": status})
+    return JSONResponse(status_code=404, content={"error": "Transaction not found"})
 
-    # Return the captured order details as JSON.
-    return JSONResponse(
-        content=ApiHelper.json_serialize(order.body),
-    )
+# ------------------------------------------------------------------------------
+# Admin Dashboard: List All Transactions
+# ------------------------------------------------------------------------------
+@paypal_router.get("/admin/transactions", status_code=200)
+async def list_all_transactions():
+    transactions = await Transaction.get_transactions_by_email("")  # Get all transactions
+    result = []
+    for t in transactions:
+        # Ensure created_on is a string
+        if hasattr(t.created_on, "isoformat"):
+            t.created_on = t.created_on.isoformat()
+        result.append(t)
+    return {"transactions": [tx.model_dump() for tx in result]}
