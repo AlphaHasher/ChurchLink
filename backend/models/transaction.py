@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from mongo.database import DB
+import logging
 
 class Transaction(BaseModel):
     id: Optional[str] = None
@@ -29,14 +30,21 @@ class Transaction(BaseModel):
         """
         Creates a new transaction using DB.insert_document.
         """
-        doc = transaction.model_dump(exclude_unset=True)
-        doc["created_on"] = transaction.created_on or datetime.now().isoformat()
-        inserted_id = await DB.insert_document("transactions", doc)
-        if inserted_id is not None:
-            tx_data = await DB.db["transactions"].find_one({"_id": inserted_id})
-            if tx_data is not None:
-                tx_data["id"] = str(tx_data.pop("_id"))
-                return Transaction(**tx_data)
+        try:
+            doc = transaction.model_dump(exclude_unset=True)
+            doc["created_on"] = transaction.created_on or datetime.now().isoformat()
+            inserted_id = await DB.insert_document("transactions", doc)
+            if inserted_id is not None:
+                tx_data = await DB.db["transactions"].find_one({"_id": inserted_id})
+                if tx_data is not None:
+                    tx_data["id"] = str(tx_data.pop("_id"))
+                    return Transaction(**tx_data)
+                else:
+                    logging.error(f"Transaction inserted but not found: {inserted_id}")
+            else:
+                logging.error(f"Failed to insert transaction: {doc}")
+        except Exception as e:
+            logging.exception(f"Error creating transaction: {e}")
         return None
 
     async def get_transaction_by_id(transaction_id: str):
@@ -49,11 +57,12 @@ class Transaction(BaseModel):
             return Transaction(**tx_doc)
         return None
 
-    async def get_transactions_by_email(user_email: str, limit: int = None):
+    async def get_transactions_by_email(user_email: str = None, limit: int = None):
         """
-        Retrieves transactions by user_email.
+        Retrieves transactions by user_email, or all if user_email is None.
         """
-        tx_docs = await DB.find_documents("transactions", {"user_email": user_email}, limit=limit)
+        query = {"user_email": user_email} if user_email else {}
+        tx_docs = await DB.find_documents("transactions", query, limit=limit)
         for tx in tx_docs:
             tx["id"] = str(tx.pop("_id"))
         return [Transaction(**tx) for tx in tx_docs]

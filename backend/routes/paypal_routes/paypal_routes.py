@@ -143,7 +143,10 @@ async def update_transaction_status_api(transaction_id: str, status: str):
 # ------------------------------------------------------------------------------
 @paypal_router.get("/admin/transactions", status_code=200)
 async def list_all_transactions():
-    transactions = await Transaction.get_transactions_by_email("")  # Get all transactions
+    transactions = await Transaction.get_transactions_by_email()  # Get all transactions
+    logging.info(f"Fetched {len(transactions)} transactions from DB")
+    for t in transactions:
+        logging.info(f"Transaction: {t.model_dump()}")
     result = []
     for t in transactions:
         # Ensure created_on is a string
@@ -151,3 +154,16 @@ async def list_all_transactions():
             t.created_on = t.created_on.isoformat()
         result.append(t)
     return {"transactions": [tx.model_dump() for tx in result]}
+
+# ------------------------------------------------------------------------------
+# Endpoint to Get Transaction by transaction_id
+# ------------------------------------------------------------------------------
+@paypal_router.get("/transaction/{transaction_id}", status_code=200)
+async def get_transaction_by_id(transaction_id: str):
+    tx = await Transaction.get_transaction_by_id(transaction_id)
+    if tx:
+        # Ensure created_on is a string
+        if hasattr(tx.created_on, "isoformat"):
+            tx.created_on = tx.created_on.isoformat()
+        return {"transaction": tx.model_dump()}
+    return JSONResponse(status_code=404, content={"error": "Transaction not found"})

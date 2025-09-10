@@ -20,6 +20,9 @@ class DonationSubscription(BaseModel):
     currency: Optional[str] = "USD"
     event_type: Optional[str] = None
     created_on: Optional[str] = None
+    recurrence: Optional[str] = None  # Subscription interval (e.g., monthly)
+    cycles: Optional[int] = None      # Number of payment cycles
+    start_date: Optional[str] = None # Subscription start date
 
     # CRUD Operations
     async def create_donation_subscription(subscription: 'DonationSubscription'):
