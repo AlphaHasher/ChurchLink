@@ -1,29 +1,34 @@
-from fastapi import APIRouter, Depends
-from models.permissions_functions import fetch_perms, create_role, RoleCreateInput, RoleUpdateInput, UserRoleUpdateInput, update_role, delete_role, update_user_roles
-from helpers.Firebase_helpers import authenticate_uid
+from fastapi import APIRouter, Depends, Request
+from controllers.permissions_functions import fetch_perms, create_role, RoleCreateInput, RoleUpdateInput, UserRoleUpdateInput, update_role, delete_role, update_user_roles
 
-permissions_router = APIRouter(prefix="/permissions", tags=["permissions"])
+from protected_routers.mod_protected_router import ModProtectedRouter
+from protected_routers.perm_protected_router import PermProtectedRouter
+
+permissions_view_router = ModProtectedRouter(prefix="/permissions", tags=["permissions"])
+
+permissions_protected_router = PermProtectedRouter(prefix="/permissions", tags=["permissions"], required_perms=['permissions_management'])
+
 
 ###################
 # Update Request
 
 
-@permissions_router.get("/get-permissions")
-async def process_get_permissions(uid: str = Depends(authenticate_uid)):
-    return await fetch_perms(uid)
+@permissions_view_router.get("/get-permissions")
+async def process_get_permissions(request:Request):
+    return await fetch_perms()
 
-@permissions_router.post("/create-role")
-async def process_role_creation(payload: RoleCreateInput, uid: str = Depends(authenticate_uid)):
-    return await create_role(payload, uid)
+@permissions_protected_router.post("/create-role")
+async def process_role_creation(payload: RoleCreateInput, request:Request):
+    return await create_role(payload, request)
 
-@permissions_router.patch("/update-role")
-async def process_role_update(payload: RoleUpdateInput, uid: str = Depends(authenticate_uid)):
-    return await update_role(payload, uid)
+@permissions_protected_router.patch("/update-role")
+async def process_role_update(payload: RoleUpdateInput, request:Request):
+    return await update_role(payload, request)
 
-@permissions_router.delete("/delete-role")
-async def process_role_delete(payload: RoleUpdateInput, uid: str = Depends(authenticate_uid)):
-    return await delete_role(payload, uid)
+@permissions_protected_router.delete("/delete-role")
+async def process_role_delete(payload: RoleUpdateInput, request:Request):
+    return await delete_role(payload, request)
 
-@permissions_router.patch("/update-user-roles")
-async def process_user_role_update(payload: UserRoleUpdateInput, uid: str = Depends(authenticate_uid)):
-    return await update_user_roles(payload, uid)
+@permissions_protected_router.patch("/update-user-roles")
+async def process_user_role_update(payload: UserRoleUpdateInput, request:Request):
+    return await update_user_roles(payload, request)
