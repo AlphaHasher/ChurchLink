@@ -22,8 +22,8 @@ const TrashDropZone = () => {
       className={`
         flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg text-sm
         transition-colors duration-200 min-h-[50px]
-        ${isOver 
-          ? 'border-red-400 bg-red-50 text-red-700' 
+        ${isOver
+          ? 'border-red-400 bg-red-50 text-red-700'
           : 'border-gray-300 bg-gray-50 text-gray-500 hover:border-gray-400'
         }
       `}
@@ -76,11 +76,11 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     chaptersByBook.forEach((chapters, bookId) => {
       const book = BIBLE_BOOKS.find(b => b.id === bookId);
       if (!book) return;
-      chapters.sort((a,b)=> a-b);
+      chapters.sort((a, b) => a - b);
       let start = chapters[0];
       let prev = chapters[0];
       const ranges: { start: number; end: number }[] = [];
-      for (let i=1;i<=chapters.length;i++) {
+      for (let i = 1; i <= chapters.length; i++) {
         const curr = chapters[i];
         if (curr !== prev + 1) {
           ranges.push({ start, end: prev });
@@ -110,14 +110,14 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
   })();
 
   const addWholeChapter = (book: BibleBook, chapter: number) => {
-  if (!selectedDay) return; // Must have a day selected
+    if (!selectedDay) return; // Must have a day selected
     const passage: BiblePassage = {
       id: `${book.id}-${chapter}-${Date.now()}`,
       book: book.name,
       chapter,
       reference: `${book.name} ${chapter}`
     };
-  onCreatePassage?.(passage);
+    onCreatePassage?.(passage);
   };
 
   let isInvalidVerseRange = false;
@@ -180,7 +180,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Render a list of books and their chapters using shadcn Accordions
+  // Render a list of books and their chapters
   const renderBooks = (books: BibleBook[]) => (
     <Accordion type="multiple" className="w-full">
       {books.map((book) => (
@@ -206,9 +206,8 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                         setSelectedChapter({ book, chapter });
                       }
                     }}
-                    className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                      isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
-                    }`}
+                    className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
+                      }`}
                     aria-pressed={isChapterSelected(book.id, chapter)}
                     aria-label={`Chapter ${chapter}`}
                   >
@@ -216,16 +215,16 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                     <span className="ml-3">Chapter {chapter}</span>
                   </button>
                   <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => addWholeChapter(book, chapter)}
-                  disabled={!selectedDay}
-                  className="h-6 w-6 p-0 mr-1"
-                >
-                  <Plus className="w-3 h-3" />
-                </Button>
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => addWholeChapter(book, chapter)}
+                    disabled={!selectedDay}
+                    className="h-6 w-6 p-0 mr-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
                 </div>
-                
+
               </div>
             ))}
           </AccordionContent>
@@ -239,8 +238,8 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
       <TrashDropZone />
 
-  {/* Bible Book Selector */}
-  <div className="border rounded-lg max-h-64 overflow-y-auto pr-3" style={{ scrollbarGutter: 'stable' }}>
+      {/* Bible Book Selector */}
+      <div className="border rounded-lg max-h-64 overflow-y-auto pr-3" style={{ scrollbarGutter: 'stable' }}>
         <Accordion type="multiple" className="w-full">
           <AccordionItem value="old">
             <AccordionTrigger className="px-3 py-3 font-medium">Old Testament</AccordionTrigger>
