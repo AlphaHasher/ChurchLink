@@ -43,6 +43,11 @@ class DB:
             "name": "bible_notes",
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
         }
+        ,
+        {
+            "name": "bible_plans",
+            "compound_indexes": [["user_id", "created_at"]],
+        }
     ]
 
     ###########
