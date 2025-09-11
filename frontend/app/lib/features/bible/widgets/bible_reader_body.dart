@@ -137,11 +137,15 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Loads the current chapter using the repo and updates UI state.
   Future<void> _load() async {
+    await ElishaBibleRepo.ensureInitialized();
+
     final data = await _repo.getChapter(
       translation: _translation,
       book: _book,
       chapter: _chapter,
     );
+
+    if (!mounted) return;
     setState(() => _verses = data);
   }
 
@@ -285,7 +289,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Returns the effective note for `ref`.
   /// If the verse maps across, prefer the shared (cluster) note; else per-translation.
-  // TODO: parity with highlights — also check counterpart cluster ids AND same-translation sibling cluster ids
+  /// parity with highlights — also check counterpart cluster ids AND same-translation sibling cluster ids
   String? _noteFor(VerseRef ref) {
     final m = _matcher;
     if (m != null) {
@@ -316,7 +320,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         if (sOther != null && sOther.isNotEmpty) return sOther;
       }
 
-      // TODO: NEW — honor notes keyed by same-translation siblings' cluster ids (fixes KJV 11:32 → KJV 11:33)
+      // honor notes keyed by same-translation siblings' cluster ids (fixes KJV 11:32 → KJV 11:33)
       for (final sib in _sameTxSiblingsFor(ref)) {
         final sibCid = m.clusterId(_translation, sib);
         final sSib = _notesShared[sibCid];
@@ -609,7 +613,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           }
         } else {
           if (m != null && _existsInOther(v.$1)) {
-            // TODO: save shared note under self clusterId; clean any leftover per-translation copies (self + siblings)
+            // save shared note under self clusterId; clean any leftover per-translation copies
             final cid = m.clusterId(_translation, _keyOf(v.$1));
             _notesShared[cid] = txt;
 

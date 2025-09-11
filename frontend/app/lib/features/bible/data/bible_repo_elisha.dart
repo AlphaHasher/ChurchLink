@@ -29,6 +29,18 @@ class VerseRef {
 class ElishaBibleRepo {
   final _src = ElishaJsonSource();
 
+  // Fixes the infinite loading when opening the Bible initially
+  static Future<void>? _init;
+
+  static Future<void> ensureInitialized() {
+    return _init ??= _loadAll();
+  }
+
+  static Future<void> _loadAll() async {
+    await ElishaJsonSource().load('kjv');
+    await ElishaJsonSource().load('rst');
+  }
+
   /// Returns all verses for the requested chapter as a sorted list.
   /// Input here is the following:
   ///   translation: which version of the bible to use
