@@ -3,6 +3,7 @@ from models.event import create_event, EventCreate, get_event_by_id, update_even
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 from bson import ObjectId
+from typing import Optional
 
 async def process_create_event(event: EventCreate, request:Request):
     # Verify Event has Roles Attached
