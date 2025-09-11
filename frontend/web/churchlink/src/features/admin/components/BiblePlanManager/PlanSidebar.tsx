@@ -39,10 +39,10 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | null; title?: string; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [templates, setTemplates] = useState<ReadingPlanWithId[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<ReadingPlanWithId | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [userPlans, setUserPlans] = useState<ReadingPlanWithId[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<{ plan: ReadingPlanWithId; type: 'template' | 'userPlan' } | null>(null);
   const [showNameConflictDialog, setShowNameConflictDialog] = useState(false);
   const [overrideTargetId, setOverrideTargetId] = useState<string | null>(null);
 
@@ -103,33 +103,84 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     return Object.values(plan.readings).some(dayReadings => dayReadings.length > 0);
   }, [plan.readings]);
 
-  const handleTemplateSelect = (template: ReadingPlanWithId) => {
-    setSelectedTemplate(template);
+  // Unified plan selection handler
+  const handlePlanSelect = (planToSelect: ReadingPlanWithId, type: 'template' | 'userPlan') => {
+    setSelectedPlan({ plan: planToSelect, type });
     if (planHasReadings) {
       setShowConfirmDialog(true);
     } else {
-      applyTemplate(template);
+      applyPlan(planToSelect, type);
     }
   };
 
-  const applyTemplate = (template: ReadingPlanWithId) => {
+  // Unified plan application
+  const applyPlan = (planToApply: ReadingPlanWithId, type: 'template' | 'userPlan') => {
     setPlan(prev => ({
       ...prev,
-      name: template.name,
-      duration: template.duration,
-      readings: template.readings,
+      name: planToApply.name,
+      duration: planToApply.duration,
+      readings: planToApply.readings,
     }));
 
-    setPlanName(template.name);
+    setPlanName(planToApply.name);
+
+    if (type === 'userPlan') {
+      setPlanId(planToApply.id);
+    } else {
+      setPlanId(null);
+    }
+    
     setShowConfirmDialog(false);
-    setSelectedTemplate(null);
+    setSelectedPlan(null);
+    
+    const actionName = type === 'template' ? 'Template Applied' : 'Plan Loaded';
+    const itemType = type === 'template' ? 'template' : 'plan';
     
     setStatus({ 
       type: 'success', 
-      title: 'Template Applied', 
-      message: `Successfully applied "${template.name}" template.` 
+      title: actionName, 
+      message: `Successfully ${type === 'template' ? 'applied' : 'loaded'} "${planToApply.name}" ${itemType}.` 
     });
   };
+
+  const renderPlanDropdown = (
+    label: string,
+    plans: ReadingPlanWithId[],
+    type: 'template' | 'userPlan',
+    isLoading = false,
+    emptyMessage = 'No items available'
+  ) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="outline" 
+            className="w-full justify-between"
+            disabled={isLoading || plans.length === 0}
+          >
+            {isLoading ? 'Loading...' : plans.length === 0 ? emptyMessage : `Choose a ${type === 'template' ? 'template' : 'saved plan'}`}
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-full">
+          {plans.map((planItem) => (
+            <DropdownMenuItem
+              key={planItem.id || planItem.name}
+              onClick={() => handlePlanSelect(planItem, type)}
+              className="flex flex-col items-start"
+            >
+              <div className="font-medium">{planItem.name}</div>
+              <div className="text-xs text-gray-400">{planItem.duration} days</div>
+            </DropdownMenuItem>
+          ))}
+          {plans.length === 0 && !isLoading && (
+            <DropdownMenuItem disabled>{emptyMessage}</DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 
   const handleSavePlan = async () => {
     const trimmedName = (planName || '').trim();
@@ -184,6 +235,13 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       }
       const data = resp.data;
       if (data?.id) setPlanId(data.id);
+      
+      // Refresh the user plans list
+      try {
+        const { data: refreshedPlans } = await api.get('/v1/bible-plans');
+        setUserPlans(refreshedPlans || []);
+      } catch (e) {  }
+      
       setStatus({ type: 'success', title: shouldUpdate ? 'Updated' : 'Saved', message: `Reading plan ${shouldUpdate ? 'updated' : 'saved'} successfully.` });
     } catch (err) {
       console.error('Failed to save/update plan', err);
@@ -282,37 +340,23 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
           />
         </div>
 
+        {/* User Plans Selector */}
+        {renderPlanDropdown(
+          'My Reading Plans',
+          userPlans,
+          'userPlan',
+          false,
+          'No saved plans'
+        )}
+
         {/* Template Selector */}
-        <div className="space-y-2">
-          <Label>Bible Plan Templates</Label>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="w-full justify-between"
-                disabled={loadingTemplates}
-              >
-                {loadingTemplates ? 'Loading templates...' : 'Choose a template'}
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-full">
-              {templates.map((template) => (
-                <DropdownMenuItem
-                  key={template.id || template.name}
-                  onClick={() => handleTemplateSelect(template)}
-                  className="flex flex-col items-start"
-                >
-                  <div className="font-medium">{template.name}</div>
-                  <div className="text-xs text-gray-400">{template.duration} days</div>
-                </DropdownMenuItem>
-              ))}
-              {templates.length === 0 && !loadingTemplates && (
-                <DropdownMenuItem disabled>No templates available</DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {renderPlanDropdown(
+          'Bible Plan Templates',
+          templates,
+          'template',
+          loadingTemplates,
+          'No templates available'
+        )}
 
         {/* Bible Passage Selector */}
         <div className="space-y-2">
@@ -371,7 +415,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
           <AlertDialogHeader>
             <AlertDialogTitle>Replace Current Plan?</AlertDialogTitle>
             <AlertDialogDescription>
-              You already have readings in your current plan. Applying the template "{selectedTemplate?.name}" 
+              You already have readings in your current plan. Applying {selectedPlan ? `the ${selectedPlan.type === 'template' ? 'template' : 'plan'} "${selectedPlan.plan.name}"` : 'this selection'}
               will replace all existing readings and settings. This action cannot be undone.
               <br /><br />
               Are you sure you want to continue?
@@ -380,12 +424,16 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
               setShowConfirmDialog(false);
-              setSelectedTemplate(null);
+              setSelectedPlan(null);
             }}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => selectedTemplate && applyTemplate(selectedTemplate)}
+              onClick={() => {
+                if (selectedPlan) {
+                  applyPlan(selectedPlan.plan, selectedPlan.type);
+                }
+              }}
               className="bg-red-600 hover:bg-red-700"
             >
               Yes, Replace Plan
