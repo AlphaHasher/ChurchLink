@@ -19,6 +19,7 @@ const EditFooterSection = lazy(() => import("../features/admin/components/WebBui
 const AddFooterSection = lazy(() => import("../features/admin/components/WebBuilder/AddFooterSection"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
+const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
 
 export const PrivateRoutes = () => {
   return (
@@ -31,6 +32,7 @@ export const PrivateRoutes = () => {
         <Route path="/notifications" element={<Notification />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/events" element={<Events />} />
+        <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/header" element={<EditHeader />} />

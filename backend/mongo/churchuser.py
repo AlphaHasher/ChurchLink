@@ -31,6 +31,8 @@ class UserHandler:
                 "postal_code": None
             },
 
+            "people": [],
+            "my_events": [],
             "bible_notes": [],
             "createdOn": datetime.now(),
         }
@@ -57,6 +59,60 @@ class UserHandler:
             ))
         except Exception as e:
             print(f"An error occurred:\n {e}")
+
+    @staticmethod
+    def create_person_schema(first_name: str, last_name: str, gender: str, date_of_birth):
+        """
+        date_of_birth: a datetime (or date) object you pass in.
+        gender: consider normalizing/validating to an allowed set, e.g. {"male","female","nonbinary","unspecified"}.
+        """
+        return {
+            "_id": ObjectId(),       # local id for this embedded person
+            "first_name": first_name,
+            "last_name": last_name,
+            "gender": gender,
+            "date_of_birth": date_of_birth,   # (aka DOB)
+            "createdOn": datetime.now(),
+        }
+
+    @staticmethod
+    def create_event_ref_schema(
+        event_id: ObjectId,
+        reason: str,            # "watch" | "rsvp"  (RSVP not implemented here, but future-proof)
+        scope: str,             # "series" | "occurrence"
+        series_id: ObjectId = None,   # optional: if your model separates series vs instances
+        occurrence_id: ObjectId = None,  # optional: if occurrences are stored as docs
+        occurrence_start=None,  # optional: datetime for the chosen occurrence time
+        meta: dict | None = None
+    ):
+        """
+        A normalized reference to an event the user is 'involved in'.
+
+        Uniqueness key ensures add/remove is easy and duplicates are prevented.
+        """
+        # Build a stable “composite key” to enforce uniqueness inside the array
+        parts = [
+            str(event_id),
+            scope,
+            str(series_id) if series_id else "",
+            str(occurrence_id) if occurrence_id else "",
+            occurrence_start.isoformat() if occurrence_start else "",
+            reason
+        ]
+        unique_key = "|".join(parts)
+
+        return {
+            "_id": ObjectId(),          # local id of the embedded record
+            "event_id": event_id,       # required
+            "reason": reason,           # "watch" or (later) "rsvp"
+            "scope": scope,             # "series" or "occurrence"
+            "series_id": series_id,     # optional
+            "occurrence_id": occurrence_id,   # optional
+            "occurrence_start": occurrence_start,  # optional datetime
+            "key": unique_key,          # used with $addToSet / $pull
+            "meta": meta or {},         # room for notification prefs, etc.
+            "addedOn": datetime.now(),
+        }
 
     @staticmethod
     async def find_all_users():
@@ -123,6 +179,50 @@ class UserHandler:
         })
     
     @staticmethod
+    async def get_person(uid: str, person_id: ObjectId):
+        doc = await DB.db["users"].find_one(
+            {"uid": uid, "people._id": person_id},
+            {"people.$": 1}  # project only the matched element
+        )
+        if not doc or "people" not in doc or not doc["people"]:
+            return None
+        return doc["people"][0]
+    
+    @staticmethod
+    async def list_my_events(uid: str, expand: bool = False):
+        """
+        If expand=True, join with 'events' to return full event docs alongside refs.
+        """
+        if not expand:
+            user = await DB.db["users"].find_one({"uid": uid}, {"_id": 0, "my_events": 1})
+            return (user or {}).get("my_events", [])
+
+        pipeline = [
+            {"$match": {"uid": uid}},
+            {"$unwind": {"path": "$my_events", "preserveNullAndEmptyArrays": False}},
+            {"$lookup": {
+                "from": "events",
+                "localField": "my_events.event_id",
+                "foreignField": "_id",
+                "as": "event"
+            }},
+            {"$unwind": "$event"},
+            {"$replaceRoot": {"newRoot": {
+                "$mergeObjects": [
+                    "$my_events",
+                    {"event": "$event"}
+                ]
+            }}}
+        ]
+        cursor = DB.db["users"].aggregate(pipeline)
+        return [doc async for doc in cursor]
+    
+    @staticmethod
+    async def list_people(uid: str):
+        doc = await DB.db["users"].find_one({"uid": uid}, {"people": 1, "_id": 0})
+        return doc.get("people", []) if doc else []
+    
+    @staticmethod
     async def update_user(filterQuery, updateData):
         return await DB.update_document("users", filterQuery, updateData)
 
@@ -140,6 +240,68 @@ class UserHandler:
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False
+        
+    @staticmethod
+    async def update_person(uid: str, person_id: ObjectId, updates: dict):
+        """
+        Updates specific fields on an embedded Person by _id.
+        Example 'updates': {"first_name": "New", "gender": "nonbinary"}
+        """
+        # Build a $set mapping like {"people.$[p].first_name": "New", ...}
+        set_fields = {f"people.$[p].{k}": v for k, v in updates.items()}
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$set": set_fields},
+            array_filters=[{"p._id": person_id}]
+        )
+        return result.modified_count == 1
+        
+    @staticmethod
+    async def add_to_my_events(
+        uid: str,
+        event_id: ObjectId,
+        *,
+        reason: str = "watch",            # "watch" now; "rsvp" later if needed
+        scope: str = "series",            # "series" or "occurrence"
+        series_id: ObjectId | None = None,
+        occurrence_id: ObjectId | None = None,
+        occurrence_start=None,
+        meta: dict | None = None
+    ):
+        ref = UserHandler.create_event_ref_schema(
+            event_id=event_id,
+            reason=reason,
+            scope=scope,
+            series_id=series_id,
+            occurrence_id=occurrence_id,
+            occurrence_start=occurrence_start,
+            meta=meta
+        )
+
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {
+                # ensure an array exists; harmless if already present
+                "$setOnInsert": {"my_events": []},
+                # add by unique key (composite) to avoid duplicates
+                "$addToSet": {"my_events": ref}
+            },
+            upsert=False
+        )
+        return ref if result.matched_count == 1 else None
+    
+    @staticmethod
+    async def add_person_to_user(uid: str, first_name: str, last_name: str, gender: str, date_of_birth):
+        """
+        Appends a Person to a user's embedded 'people' array.
+        Returns the embedded person's _id if successful, or None if user not found.
+        """
+        person = UserHandler.create_person_schema(first_name, last_name, gender, date_of_birth)
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$push": {"people": person}}
+        )
+        return person["_id"] if result.modified_count == 1 else None
 
     @staticmethod
     async def delete_user(email):
@@ -147,3 +309,43 @@ class UserHandler:
             await DB.delete_documents("users", {"email": email})
         except Exception as e:
             print(f"An error occurred:\n {e}")
+
+    @staticmethod
+    async def remove_from_my_events(uid: str, *, key: str = None, event_id: ObjectId = None,
+                                    reason: str = None, scope: str = None,
+                                    occurrence_id: ObjectId = None, occurrence_start=None,
+                                    series_id: ObjectId = None):
+        """
+        Remove by the stable 'key' (recommended) OR by matching fields.
+        """
+        if key:
+            criteria = {"key": key}
+        else:
+            # build a precise matcher
+            criteria = {"event_id": event_id}
+            if reason is not None:
+                criteria["reason"] = reason
+            if scope is not None:
+                criteria["scope"] = scope
+            if series_id is not None:
+                criteria["series_id"] = series_id
+            if occurrence_id is not None:
+                criteria["occurrence_id"] = occurrence_id
+            if occurrence_start is not None:
+                criteria["occurrence_start"] = occurrence_start
+
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$pull": {"my_events": criteria}}
+        )
+        return result.modified_count == 1
+    
+    @staticmethod
+    async def remove_person(uid: str, person_id: ObjectId):
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$pull": {"people": {"_id": person_id}}}
+        )
+        return result.modified_count == 1
+    
+    

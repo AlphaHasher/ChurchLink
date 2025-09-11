@@ -70,4 +70,6 @@ frontend/app/ios/Flutter/Debug.xcconfig
 frontend/app/ios/Flutter/Debug.xcconfig
 frontend/app/.env
 /venv/
+backend/strapi/churchlink/.testData.db
 bearer.txt
+backend/strapi/churchlink/.testData.db # tmp db for local dev only. TODO: remove before prod

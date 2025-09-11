@@ -1,0 +1,152 @@
+from fastapi import APIRouter, Body
+from mongo.database import DB
+from firebase_admin import messaging
+from mongo.scheduled_notifications import (
+    schedule_notification, get_scheduled_notifications, remove_scheduled_notification, get_notification_history, log_notification
+)
+from pydantic import BaseModel
+
+class FCMTokenRequest(BaseModel):
+    user_id: str
+    token: str
+
+notification_router = APIRouter(prefix="/notification", tags=["notification"])
+
+# --- FCM Token Management ---
+@notification_router.post('/save-fcm-token')
+async def save_fcm_token(request: FCMTokenRequest):
+    result = await DB.db['fcm_tokens'].update_one(
+        {'user_id': request.user_id},
+        {'$set': {'token': request.token}},
+        upsert=True
+    )
+    return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
+
+@notification_router.get('/get-fcm-tokens')
+async def get_fcm_tokens():
+    tokens = await DB.db['fcm_tokens'].find({}, {'_id': 0, 'token': 1, 'user_id': 1}).to_list(length=1000)
+    return tokens
+
+# --- Notification Settings ---
+
+@notification_router.get('/settings')
+async def get_notification_settings():
+    doc = await DB.db["settings"].find_one({"type": "youtube"})
+    return {
+        "streamNotificationMessage": doc.get("streamNotificationMessage", "A new stream is live!") if doc else "A new stream is live!",
+        "streamNotificationTitle": doc.get("streamNotificationTitle", "YouTube Live Stream") if doc else "YouTube Live Stream"
+    }
+
+# Add POST endpoint to update notification settings
+@notification_router.post('/settings')
+async def update_notification_settings(
+    streamNotificationMessage: str = Body(...),
+    streamNotificationTitle: str = Body(...)
+):
+    result = await DB.db["settings"].update_one(
+        {"type": "youtube"},
+        {"$set": {
+            "streamNotificationMessage": streamNotificationMessage,
+            "streamNotificationTitle": streamNotificationTitle
+        }},
+        upsert=True
+    )
+    return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
+
+# --- Notification History ---
+@notification_router.get('/history')
+async def notification_history(limit: int = 100):
+    history = await get_notification_history(DB.db, limit)
+    for n in history:
+        if '_id' in n:
+            n['_id'] = str(n['_id'])
+    return history
+
+# --- Send Push Notification (Instant) ---
+@notification_router.post('/send')
+async def send_push_notification(
+    title: str = Body(...),
+    body: str = Body(...),
+    data: dict = Body(default={}),
+    send_to_all: bool = Body(default=True),
+    token: str = Body(default=None)
+):
+    responses = []
+    target = data.get('target', 'all')
+    query = {}
+    if send_to_all:
+        if target == 'anonymous':
+            query = {'user_id': 'anonymous'}
+        elif target == 'logged_in':
+            query = {'user_id': {'$ne': 'anonymous'}}
+        tokens_cursor = DB.db['fcm_tokens'].find(query, {'_id': 0, 'token': 1})
+        tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
+        for t in tokens:
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                token=t,
+                data=data
+            )
+            try:
+                response = messaging.send(message)
+                responses.append({"token": t, "response": response})
+            except Exception as e:
+                responses.append({"token": t, "error": str(e)})
+        await log_notification(DB.db, title, body, "mobile", tokens, data.get("actionType"), data.get("link"), data.get("route"))
+        return {"success": True, "results": responses, "count": len(tokens)}
+    elif token:
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            token=token,
+            data=data
+        )
+        try:
+            response = messaging.send(message)
+            return {"success": True, "response": response}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    else:
+        return {"success": False, "error": "No token provided and send_to_all is False."}
+
+# --- Schedule Notification ---
+@notification_router.post('/schedule')
+async def api_schedule_notification(
+    title: str = Body(...),
+    body: str = Body(...),
+    scheduled_time: str = Body(...),
+    send_to_all: bool = Body(default=True),
+    token: str = Body(default=None),
+    data: dict = Body(default={})
+):
+    payload = {
+        "title": title,
+        "body": body,
+        "scheduled_time": scheduled_time,
+        "send_to_all": send_to_all,
+        "token": token,
+        "data": data,
+        "sent": False
+    }
+    notification_id = await schedule_notification(DB.db, payload)
+    return {"success": True, "id": notification_id}
+
+# --- List Scheduled Notifications ---
+@notification_router.get('/scheduled')
+async def api_get_scheduled_notifications():
+    notifications = await get_scheduled_notifications(DB.db)
+    for n in notifications:
+        if '_id' in n:
+            n['_id'] = str(n['_id'])
+    return notifications
+
+# --- Remove Scheduled Notification ---
+@notification_router.delete('/scheduled/{notification_id}')
+async def api_remove_scheduled_notification(notification_id: str):
+    success = await remove_scheduled_notification(DB.db, notification_id)
+    return {"success": success}
