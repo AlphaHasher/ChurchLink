@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from bson import ObjectId
@@ -45,53 +45,49 @@ class BiblePassage(BaseModel):
         return self
 
 
-class PlanDay(BaseModel):
-    dayNumber: int = Field(..., ge=1)
-    passages: List[BiblePassage] = Field(default_factory=list)
-
-
 class ReadingPlanBase(BaseModel):
     name: str = Field('', min_length=0)
     duration: int = Field(..., ge=1)
-    template: Optional[str] = ""
-    # Allow extra fields like `id` from the frontend without failing validation
-    model_config = ConfigDict(extra='ignore')
-
 
 class ReadingPlanCreate(ReadingPlanBase):
-    days: List[PlanDay] = Field(default_factory=list)
-
+    readings: Dict[str, List[BiblePassage]] = Field(default_factory=dict)
 
 class ReadingPlanUpdate(BaseModel):
     name: Optional[str] = None
     duration: Optional[int] = Field(None, ge=1)
-    template: Optional[str] = None
-    days: Optional[List[PlanDay]] = None
-
+    readings: Optional[Dict[str, List[BiblePassage]]] = None
 
 class ReadingPlan(MongoBaseModel, ReadingPlanBase):
     user_id: str
-    days: List[PlanDay] = Field(default_factory=list)
+    readings: Dict[str, List[BiblePassage]] = Field(default_factory=dict)
 
 
 class ReadingPlanOut(BaseModel):
     id: str
     name: str
     duration: int
-    template: Optional[str]
-    days: List[PlanDay]
+    readings: Dict[str, List[BiblePassage]]
     user_id: str
     created_at: datetime
     updated_at: datetime
 
+class ReadingPlanTemplateOut(BaseModel):
+    id: Optional[str] = None
+    name: str
+    duration: int
+    readings: Dict[str, List[BiblePassage]] = Field(default_factory=dict)
+
 
 def _convert_plan_doc_to_out(doc: dict) -> ReadingPlanOut:
+    raw_readings = doc.get("readings", {})
+    readings: Dict[str, List[BiblePassage]] = {}
+    for k, v in raw_readings.items():
+        readings[str(k)] = [BiblePassage(**p) if not isinstance(p, BiblePassage) else p for p in (v or [])]
     return ReadingPlanOut(
         id=str(doc["_id"]),
         name=doc["name"],
         duration=doc["duration"],
-        template=doc.get("template", ""),
-        days=[PlanDay(**d) for d in doc.get("days", [])],
+        readings=readings,
         user_id=doc["user_id"],
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
@@ -108,8 +104,7 @@ async def create_reading_plan(plan: ReadingPlanCreate, user_id: str) -> Optional
         doc = {
             "name": name,
             "duration": plan.duration,
-            "template": plan.template or "",
-            "days": [d.model_dump() for d in plan.days],
+            "readings": {k: [p.model_dump() for p in v] for k, v in plan.readings.items()},
             "user_id": user_id,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
@@ -157,10 +152,8 @@ async def update_reading_plan(plan_id: str, user_id: str, update: ReadingPlanUpd
             update_doc["name"] = update.name
         if update.duration is not None:
             update_doc["duration"] = update.duration
-        if update.template is not None:
-            update_doc["template"] = update.template
-        if update.days is not None:
-            update_doc["days"] = [d.model_dump() for d in update.days]
+        if update.readings is not None:
+            update_doc["readings"] = {k: [p.model_dump() for p in v] for k, v in update.readings.items()}
 
         result = await DB.db.bible_plans.update_one(
             {"_id": ObjectId(plan_id), "user_id": user_id},
@@ -184,3 +177,25 @@ async def delete_reading_plan(plan_id: str, user_id: str) -> bool:
         return False
 
 
+async def get_all_bible_plan_templates() -> List[ReadingPlanTemplateOut]:
+    try:
+        result = await DB.db.bible_plan_templates.find({}).to_list(length=None)
+        out: List[ReadingPlanTemplateOut] = []
+        for doc in result:
+            readings = {k: [BiblePassage(**p) for p in v] for k, v in doc.get("readings", {}).items()}
+            out.append(ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings))
+        return out
+    except Exception as e:
+        print(f"Error fetching bible plan templates: {e}")
+        return []
+
+async def get_bible_plan_template_by_id(template_id: str) -> Optional[ReadingPlanTemplateOut]:
+    try:
+        doc = await DB.db.bible_plan_templates.find_one({"_id": ObjectId(template_id)})
+        if not doc:
+            return None
+        readings = {k: [BiblePassage(**p) for p in v] for k, v in doc.get("readings", {}).items()}
+        return ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings)
+    except Exception as e:
+        print(f"Error fetching bible plan template by ID: {e}")
+        return None

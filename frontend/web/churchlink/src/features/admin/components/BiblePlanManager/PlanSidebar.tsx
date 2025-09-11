@@ -4,9 +4,25 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
-import { ReadingPlan, READING_PLAN_TEMPLATES, BiblePassage } from '@/shared/types/BiblePlan';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/shared/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
+import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
 import BiblePassageSelector from './BiblePassageSelector';
-import { Download, Upload, Save } from 'lucide-react';
+import { Download, Upload, Save, ChevronDown } from 'lucide-react';
 
 interface PlanSidebarProps {
   plan: ReadingPlan;
@@ -19,6 +35,12 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   const [planName, setPlanName] = useState(plan.name);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | null; title?: string; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Template selection state
+  const [templates, setTemplates] = useState<ReadingPlan[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<ReadingPlan | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // keep plan name wired to parent for persistence
   const commitName = (name: string) => setPlan(prev => ({ ...prev, name }));
@@ -27,42 +49,85 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     setPlan(prev => ({ ...prev, duration: parseInt(value) }));
   };
 
-  const handleTemplateChange = (value: string) => {
-    setPlan(prev => ({ ...prev, template: value }));
-    // TODO: Auto-populate readings based on template
-  };
-
-  const normalizedPlan = useMemo(() => {
-    const days = Array.from({ length: plan.duration }, (_, i) => {
-      const dayKey = String(i + 1);
-      return {
-        dayNumber: i + 1,
-        passages: plan.readings[dayKey] || [],
-      };
-    });
-    return {
-      id: plan.id,
-      name: plan.name,
-      duration: plan.duration,
-      template: plan.template,
-      days,
-    };
-  }, [plan]);
+  const normalizedPlan = useMemo(() => ({
+    id: plan.id,
+    name: plan.name,
+    duration: plan.duration,
+    readings: plan.readings,
+  }), [plan]);
 
   const planJson = useMemo(() => JSON.stringify(normalizedPlan, null, 2), [normalizedPlan]);
 
   // Auto-dismiss success alerts after a short delay
   useEffect(() => {
     if (status?.type === 'success') {
-      const timeoutId = setTimeout(() => setStatus(null), 10000);
+      const timeoutId = setTimeout(() => setStatus(null), 5000);
       return () => clearTimeout(timeoutId);
     }
   }, [status]);
 
+  // Load templates on component mount
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        setLoadingTemplates(true);
+        const response = await api.get('/v1/bible-plans/templates');
+        setTemplates(response.data);
+      } catch (error) {
+        console.error('Failed to load templates:', error);
+        setStatus({ 
+          type: 'error', 
+          title: 'Failed to load templates', 
+          message: 'Could not load Bible plan templates. Please try again.' 
+        });
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+
+    loadTemplates();
+  }, []);
+
+  // Check if plan has any readings
+  const planHasReadings = useMemo(() => {
+    return Object.values(plan.readings).some(dayReadings => dayReadings.length > 0);
+  }, [plan.readings]);
+
+  // Handle template selection
+  const handleTemplateSelect = (template: ReadingPlan) => {
+    setSelectedTemplate(template);
+    if (planHasReadings) {
+      setShowConfirmDialog(true);
+    } else {
+      applyTemplate(template);
+    }
+  };
+
+  // Apply template to plan
+  const applyTemplate = (template: ReadingPlan) => {
+    // Template already has readings in the correct format
+    setPlan(prev => ({
+      ...prev,
+      name: template.name,
+      duration: template.duration,
+      readings: template.readings,
+    }));
+
+    setPlanName(template.name);
+    setShowConfirmDialog(false);
+    setSelectedTemplate(null);
+    
+    setStatus({ 
+      type: 'success', 
+      title: 'Template Applied', 
+      message: `Successfully applied "${template.name}" template.` 
+    });
+  };
+
   const handleSavePlan = async () => {
     // Frontend validation
     const trimmedName = (planName || '').trim();
-    const hasAnyPassages = Object.values(normalizedPlan.days).some((d: any) => (d.passages || []).length > 0);
+  const hasAnyPassages = Object.values(plan.readings).some((d: any) => (d || []).length > 0);
     if (!trimmedName) {
       setStatus({ type: 'warning' as any, title: 'Name required', message: 'Please enter a plan name before saving.' });
       return;
@@ -72,7 +137,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       return;
     }
     try {
-      const { data } = await api.post('/v1/bible-plans', normalizedPlan);
+  const { data } = await api.post('/v1/bible-plans', normalizedPlan);
       console.log('Saved plan:', data);
       // Optionally set returned id/name
       if (data?.id) {
@@ -95,22 +160,9 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     try {
       const text = await file.text();
       const data = JSON.parse(text) as any;
-      // Accept either full ReadingPlan shape or normalized { days: [...] }
-      if (data && Array.isArray(data.days)) {
-        const readings: Record<string, BiblePassage[]> = {};
-        for (const d of data.days) {
-          if (!d || typeof d.dayNumber !== 'number') continue;
-          readings[String(d.dayNumber)] = Array.isArray(d.passages) ? d.passages : [];
-        }
-        setPlan({
-          id: data.id ?? '',
-          name: data.name ?? '',
-          duration: data.duration ?? data.days.length ?? 0,
-          template: data.template ?? '',
-          readings,
-        });
-      } else if (data && typeof data === 'object' && data.duration != null && data.readings) {
+      if (data && typeof data === 'object' && data.duration != null && data.readings) {
         setPlan(data as ReadingPlan);
+        setPlanName(data.name ?? '');
       } else {
         throw new Error('Invalid plan file');
       }
@@ -167,20 +219,34 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
 
         {/* Template Selector */}
         <div className="space-y-2">
-          <Label htmlFor="template">Select a Template</Label>
-          <select
-            id="template"
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            onChange={(e) => handleTemplateChange(e.target.value)}
-            value={plan.template}
-          >
-            <option value="">Choose a reading plan template</option>
-            {READING_PLAN_TEMPLATES.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name} - {template.description}
-              </option>
-            ))}
-          </select>
+          <Label>Bible Plan Templates</Label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="w-full justify-between"
+                disabled={loadingTemplates}
+              >
+                {loadingTemplates ? 'Loading templates...' : 'Choose a template'}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-full">
+              {templates.map((template) => (
+                <DropdownMenuItem
+                  key={template.id}
+                  onClick={() => handleTemplateSelect(template)}
+                  className="flex flex-col items-start"
+                >
+                  <div className="font-medium">{template.name}</div>
+                  <div className="text-xs text-gray-400">{template.duration} days</div>
+                </DropdownMenuItem>
+              ))}
+              {templates.length === 0 && !loadingTemplates && (
+                <DropdownMenuItem disabled>No templates available</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Bible Passage Selector */}
@@ -233,6 +299,35 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace Current Plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You already have readings in your current plan. Applying the template "{selectedTemplate?.name}" 
+              will replace all existing readings and settings. This action cannot be undone.
+              <br /><br />
+              Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowConfirmDialog(false);
+              setSelectedTemplate(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => selectedTemplate && applyTemplate(selectedTemplate)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Yes, Replace Plan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

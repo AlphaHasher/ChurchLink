@@ -12,7 +12,6 @@ export interface ReadingPlan {
   id: string;
   name: string;
   duration: number;
-  template: string;
   readings: { [day: string]: BiblePassage[] };
 }
 
@@ -93,11 +92,4 @@ export const BIBLE_BOOKS: BibleBook[] = [
   { id: '3john', name: '3 John', chapters: 1, testament: 'New' },
   { id: 'jude', name: 'Jude', chapters: 1, testament: 'New' },
   { id: 'revelation', name: 'Revelation', chapters: 22, testament: 'New' }
-];
-
-export const READING_PLAN_TEMPLATES = [
-  { id: 'chronological', name: 'Chronological', description: 'Read the Bible in chronological order' },
-  { id: 'navigators', name: 'Navigators Bible Reading Plan', description: 'Popular systematic reading plan' },
-  { id: 'canonical', name: 'Canonical (Straight Through)', description: 'Read from Genesis to Revelation' },
-  { id: '90day-nt', name: '90-Day New Testament', description: 'Complete the New Testament in 90 days' },
 ];

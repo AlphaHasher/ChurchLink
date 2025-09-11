@@ -10,7 +10,6 @@ const BiblePlanManager = () => {
     id: '',
     name: '',
     duration: 30,
-    template: '',
     readings: {}
   });
   
