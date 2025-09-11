@@ -22,7 +22,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
 import BiblePassageSelector from './BiblePassageSelector';
-import { Download, Upload, Save, ChevronDown } from 'lucide-react';
+import { Download, Upload, Save, ChevronDown, Trash2 } from 'lucide-react';
 
 interface PlanSidebarProps {
   plan: ReadingPlan;
@@ -45,6 +45,8 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   const [selectedPlan, setSelectedPlan] = useState<{ plan: ReadingPlanWithId; type: 'template' | 'userPlan' } | null>(null);
   const [showNameConflictDialog, setShowNameConflictDialog] = useState(false);
   const [overrideTargetId, setOverrideTargetId] = useState<string | null>(null);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<ReadingPlanWithId | null>(null);
 
   // keep plan name wired to parent for persistence
   const commitName = (name: string) => setPlan(prev => ({ ...prev, name }));
@@ -143,6 +145,51 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     });
   };
 
+  const handleDeletePlan = async (planToDelete: ReadingPlanWithId, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering the dropdown item click
+    setPlanToDelete(planToDelete);
+    setShowDeleteConfirmDialog(true);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!planToDelete) return;
+    
+    try {
+      await api.delete(`/v1/bible-plans/${planToDelete.id}`);
+      
+      // Update the user plans list
+      const { data: refreshedPlans } = await api.get('/v1/bible-plans');
+      setUserPlans(refreshedPlans || []);
+      
+      // If the deleted plan is currently loaded, clear the current plan
+      if (planId === planToDelete.id) {
+        setPlanId(null);
+        setPlan({
+          name: '',
+          duration: 1,
+          readings: {},
+        });
+        setPlanName('');
+      }
+      
+      setStatus({
+        type: 'success',
+        title: 'Plan Deleted',
+        message: `Successfully deleted "${planToDelete.name}" plan.`
+      });
+    } catch (error) {
+      console.error('Failed to delete plan:', error);
+      setStatus({
+        type: 'error',
+        title: 'Delete Failed',
+        message: 'Could not delete the plan. Please try again.'
+      });
+    } finally {
+      setShowDeleteConfirmDialog(false);
+      setPlanToDelete(null);
+    }
+  };
+
   const renderPlanDropdown = (
     label: string,
     plans: ReadingPlanWithId[],
@@ -168,10 +215,22 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
             <DropdownMenuItem
               key={planItem.id || planItem.name}
               onClick={() => handlePlanSelect(planItem, type)}
-              className="flex flex-col items-start"
+              className="flex justify-between items-start p-3"
             >
-              <div className="font-medium">{planItem.name}</div>
-              <div className="text-xs text-gray-400">{planItem.duration} days</div>
+              <div className="flex flex-col">
+                <div className="font-medium">{planItem.name}</div>
+                <div className="text-xs text-gray-400">{planItem.duration} days</div>
+              </div>
+              {type === 'userPlan' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleDeletePlan(planItem, e)}
+                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
             </DropdownMenuItem>
           ))}
           {plans.length === 0 && !isLoading && (
@@ -453,6 +512,21 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowNameConflictDialog(false); setOverrideTargetId(null); }}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmOverride} className="bg-red-600 hover:bg-red-700">Override</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Reading Plan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{planToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setPlanToDelete(null); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeletePlan} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
