@@ -12,7 +12,7 @@ from models.bible_plan import (
     update_reading_plan,
     delete_reading_plan,
     get_all_bible_plan_templates,
-    get_bible_plan_template_by_id,
+    get_bible_plan_template_by_name,
 )
 
 
@@ -44,13 +44,13 @@ async def list_bible_plan_templates():
         raise HTTPException(status_code=500, detail=f"Failed to fetch templates: {str(e)}")
 
 
-@bible_plan_router.get("/templates/{template_id}", response_model=ReadingPlanTemplateOut)
-async def get_bible_plan_template(template_id: str):
-    """Get a specific Bible plan template by ID"""
+@bible_plan_router.get("/templates/{template_name}", response_model=ReadingPlanTemplateOut)
+async def get_bible_plan_template(template_name: str):
+    """Get a specific Bible plan template by name"""
     try:
-        template = await get_bible_plan_template_by_id(template_id)
+        template = await get_bible_plan_template_by_name(template_name)
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template with ID '{template_id}' not found")
+            raise HTTPException(status_code=404, detail=f"Template with name '{template_name}' not found")
         return template
     except HTTPException:
         raise

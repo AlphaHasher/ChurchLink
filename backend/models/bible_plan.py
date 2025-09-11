@@ -189,13 +189,13 @@ async def get_all_bible_plan_templates() -> List[ReadingPlanTemplateOut]:
         print(f"Error fetching bible plan templates: {e}")
         return []
 
-async def get_bible_plan_template_by_id(template_id: str) -> Optional[ReadingPlanTemplateOut]:
+async def get_bible_plan_template_by_name(template_name: str) -> Optional[ReadingPlanTemplateOut]:
     try:
-        doc = await DB.db.bible_plan_templates.find_one({"_id": ObjectId(template_id)})
+        doc = await DB.db.bible_plan_templates.find_one({"name": template_name})
         if not doc:
             return None
         readings = {k: [BiblePassage(**p) for p in v] for k, v in doc.get("readings", {}).items()}
         return ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings)
     except Exception as e:
-        print(f"Error fetching bible plan template by ID: {e}")
+        print(f"Error fetching bible plan template by name: {e}")
         return None
