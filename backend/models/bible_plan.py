@@ -4,6 +4,7 @@ from typing import List, Optional, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
@@ -100,6 +101,13 @@ def _convert_plan_doc_to_out(doc: dict) -> ReadingPlanOut:
 
 async def create_reading_plan(plan: ReadingPlanCreate, user_id: str) -> Optional[ReadingPlanOut]:
     try:
+        # Ensure composite uniqueness index (user_id + name)
+        try:
+            await DB.db.bible_plans.create_index([
+                ("user_id", 1), ("name", 1)
+            ], unique=True, name="uniq_user_plan_name")
+        except Exception:
+            pass  # index already exists or cannot be created now
         name = (plan.name or "").strip() or "Untitled Plan"
         doc = {
             "name": name,
@@ -109,7 +117,11 @@ async def create_reading_plan(plan: ReadingPlanCreate, user_id: str) -> Optional
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
         }
-        result = await DB.db.bible_plans.insert_one(doc)
+        try:
+            result = await DB.db.bible_plans.insert_one(doc)
+        except DuplicateKeyError:
+            print("Duplicate reading plan name for user")
+            return None
         if result.inserted_id:
             created = await DB.db.bible_plans.find_one({"_id": result.inserted_id})
             if created:
@@ -144,8 +156,25 @@ async def get_reading_plan_by_id(plan_id: str, user_id: str) -> Optional[Reading
         print(f"Error fetching reading plan: {e}")
         return None
 
+async def get_reading_plans_from_user(user_id: str) -> List[ReadingPlanOut]:
+    try:
+        cursor = DB.db.bible_plans.find({"user_id": user_id}).sort([("created_at", -1)])
+        docs = await cursor.to_list(length=None)
+        return [_convert_plan_doc_to_out(d) for d in docs]
+    except Exception as e:
+        print(f"Error fetching reading plans for user: {e}")
+        return []
+
 
 async def update_reading_plan(plan_id: str, user_id: str, update: ReadingPlanUpdate) -> Optional[ReadingPlanOut]:
+    try:
+        # Ensure composite uniqueness index (user_id + name)
+        await DB.db.bible_plans.create_index([
+            ("user_id", 1), ("name", 1)
+        ], unique=True, name="uniq_user_plan_name")
+    except Exception:
+        pass  # index already exists or cannot be created now
+    
     try:
         update_doc: dict = {"updated_at": datetime.now()}
         if update.name is not None:
@@ -154,14 +183,18 @@ async def update_reading_plan(plan_id: str, user_id: str, update: ReadingPlanUpd
             update_doc["duration"] = update.duration
         if update.readings is not None:
             update_doc["readings"] = {k: [p.model_dump() for p in v] for k, v in update.readings.items()}
-
+        
         result = await DB.db.bible_plans.update_one(
             {"_id": ObjectId(plan_id), "user_id": user_id},
             {"$set": update_doc},
         )
+        
         if result.matched_count:
             doc = await DB.db.bible_plans.find_one({"_id": ObjectId(plan_id)})
             return _convert_plan_doc_to_out(doc) if doc else None
+        return None
+    except DuplicateKeyError:
+        print("Duplicate reading plan name for user on update")
         return None
     except Exception as e:
         print(f"Error updating reading plan: {e}")
@@ -198,4 +231,15 @@ async def get_bible_plan_template_by_name(template_name: str) -> Optional[Readin
         return ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings)
     except Exception as e:
         print(f"Error fetching bible plan template by name: {e}")
+        return None
+
+async def get_bible_plan_template_by_id(template_id: str) -> Optional[ReadingPlanTemplateOut]:
+    try:
+        doc = await DB.db.bible_plan_templates.find_one({"_id": ObjectId(template_id)})
+        if not doc:
+            return None
+        readings = {k: [BiblePassage(**p) for p in v] for k, v in doc.get("readings", {}).items()}
+        return ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings)
+    except Exception as e:
+        print(f"Error fetching bible plan template by id: {e}")
         return None

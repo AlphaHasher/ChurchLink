@@ -9,10 +9,12 @@ from models.bible_plan import (
     create_reading_plan,
     list_reading_plans,
     get_reading_plan_by_id,
+    get_reading_plans_from_user,
     update_reading_plan,
     delete_reading_plan,
     get_all_bible_plan_templates,
     get_bible_plan_template_by_name,
+    get_bible_plan_template_by_id,
 )
 
 
@@ -44,6 +46,14 @@ async def list_bible_plan_templates():
         raise HTTPException(status_code=500, detail=f"Failed to fetch templates: {str(e)}")
 
 
+@bible_plan_router.get("/templates/id/{template_id}", response_model=ReadingPlanTemplateOut)
+async def get_bible_plan_template_by_id_endpoint(template_id: str):
+    template = await get_bible_plan_template_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template with id '{template_id}' not found")
+    return template
+
+
 @bible_plan_router.get("/templates/{template_name}", response_model=ReadingPlanTemplateOut)
 async def get_bible_plan_template(template_name: str):
     """Get a specific Bible plan template by name"""
@@ -56,6 +66,12 @@ async def get_bible_plan_template(template_name: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch template: {str(e)}")
+
+
+@bible_plan_router.get("/user/{user_id}", response_model=List[ReadingPlanOut])
+async def get_user_plans(user_id: str) -> List[ReadingPlanOut]:
+    plans = await get_reading_plans_from_user(user_id)
+    return plans
 
 
 @bible_plan_router.get("/{plan_id}", response_model=ReadingPlanOut)
@@ -83,3 +99,4 @@ async def remove_plan(plan_id: str, request: Request) -> dict:
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     return {"message": "Plan deleted"}
+

@@ -31,16 +31,20 @@ interface PlanSidebarProps {
   onCreatePassageForDay?: (day: number, passage: BiblePassage) => void;
 }
 
+type ReadingPlanWithId = ReadingPlan & { id: string };
+
 const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
+  const [planId, setPlanId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | null; title?: string; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Template selection state
-  const [templates, setTemplates] = useState<ReadingPlan[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<ReadingPlan | null>(null);
+  const [templates, setTemplates] = useState<ReadingPlanWithId[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<ReadingPlanWithId | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [userPlans, setUserPlans] = useState<ReadingPlanWithId[]>([]);
+  const [showNameConflictDialog, setShowNameConflictDialog] = useState(false);
+  const [overrideTargetId, setOverrideTargetId] = useState<string | null>(null);
 
   // keep plan name wired to parent for persistence
   const commitName = (name: string) => setPlan(prev => ({ ...prev, name }));
@@ -49,15 +53,12 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     setPlan(prev => ({ ...prev, duration: parseInt(value) }));
   };
 
-  const normalizedPlan = useMemo(() => ({
+  const planJson = useMemo(() => JSON.stringify({
     name: plan.name,
     duration: plan.duration,
     readings: plan.readings,
-  }), [plan]);
+  }, null, 2), [plan]);
 
-  const planJson = useMemo(() => JSON.stringify(normalizedPlan, null, 2), [normalizedPlan]);
-
-  // Auto-dismiss success alerts after a short delay
   useEffect(() => {
     if (status?.type === 'success') {
       const timeoutId = setTimeout(() => setStatus(null), 5000);
@@ -87,13 +88,22 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     loadTemplates();
   }, []);
 
+  useEffect(() => {
+    const loadUserPlans = async () => {
+      try {
+        const { data } = await api.get('/v1/bible-plans');
+        setUserPlans(data || []);
+      } catch (e) { }
+    };
+    loadUserPlans();
+  }, []);
+
   // Check if plan has any readings
   const planHasReadings = useMemo(() => {
     return Object.values(plan.readings).some(dayReadings => dayReadings.length > 0);
   }, [plan.readings]);
 
-  // Handle template selection
-  const handleTemplateSelect = (template: ReadingPlan) => {
+  const handleTemplateSelect = (template: ReadingPlanWithId) => {
     setSelectedTemplate(template);
     if (planHasReadings) {
       setShowConfirmDialog(true);
@@ -102,9 +112,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     }
   };
 
-  // Apply template to plan
-  const applyTemplate = (template: ReadingPlan) => {
-    // Template already has readings in the correct format
+  const applyTemplate = (template: ReadingPlanWithId) => {
     setPlan(prev => ({
       ...prev,
       name: template.name,
@@ -124,9 +132,8 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   };
 
   const handleSavePlan = async () => {
-    // Frontend validation
     const trimmedName = (planName || '').trim();
-  const hasAnyPassages = Object.values(plan.readings).some((d: any) => (d || []).length > 0);
+    const hasAnyPassages = Object.values(plan.readings).some((d: any) => (d || []).length > 0);
     if (!trimmedName) {
       setStatus({ type: 'warning' as any, title: 'Name required', message: 'Please enter a plan name before saving.' });
       return;
@@ -135,17 +142,78 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       setStatus({ type: 'warning' as any, title: 'No passages', message: 'Add at least one passage to save this plan.' });
       return;
     }
+    let currentPlans = userPlans;
     try {
-  const { data } = await api.post('/v1/bible-plans', normalizedPlan);
-      console.log('Saved plan:', data);
-      // Optionally set returned id/name
-      if (data?.id) {
-        setPlan(prev => ({ ...prev, id: data.id }));
+      const { data } = await api.get('/v1/bible-plans');
+      currentPlans = data || [];
+      setUserPlans(currentPlans);
+    } catch {  }
+
+    // Check for duplicate names
+    const duplicate = currentPlans.find(p => p.name && p.name.trim().toLowerCase() === trimmedName.toLowerCase());
+    if (duplicate) {
+      setOverrideTargetId(duplicate.id);
+      setShowNameConflictDialog(true);
+      return;
+    }
+    
+    try {
+      // Determine if we should update an existing plan or create a new one
+      // Only update if:
+      // 1. We have a planId (indicating we're working with an existing plan)
+      // 2. The plan still exists in the current plans list
+      // 3. The original plan name matches the current plan name (no name change)
+      const existingPlan = planId && currentPlans.find(p => p.id === planId);
+      const shouldUpdate = existingPlan && existingPlan.name.trim().toLowerCase() === trimmedName.toLowerCase();
+      
+      let resp;
+      if (shouldUpdate) {
+        resp = await api.put(`/v1/bible-plans/${planId}`, { 
+          name: trimmedName, 
+          duration: plan.duration, 
+          readings: plan.readings 
+        });
+      } else {
+        // Create a new plan
+        setPlanId(null);
+        resp = await api.post('/v1/bible-plans', {
+          name: trimmedName,
+          duration: plan.duration,
+          readings: plan.readings
+        });
       }
-      setStatus({ type: 'success', title: 'Saved', message: 'Reading plan saved successfully.' });
+      const data = resp.data;
+      if (data?.id) setPlanId(data.id);
+      setStatus({ type: 'success', title: shouldUpdate ? 'Updated' : 'Saved', message: `Reading plan ${shouldUpdate ? 'updated' : 'saved'} successfully.` });
     } catch (err) {
-      console.error('Failed to save plan', err);
+      console.error('Failed to save/update plan', err);
       setStatus({ type: 'error', title: 'Save failed', message: 'We could not save your plan. Please try again.' });
+    }
+  };
+
+  const confirmOverride = async () => {
+    if (!overrideTargetId) return;
+    try {
+      const trimmedName = (planName || '').trim();
+      const resp = await api.put(`/v1/bible-plans/${overrideTargetId}`, { 
+        name: trimmedName, 
+        duration: plan.duration, 
+        readings: plan.readings 
+      });
+      const data = resp.data;
+      setPlanId(data.id);
+      setPlan(prev => ({ ...prev, name: data.name }));
+      setStatus({ type: 'success', title: 'Overridden', message: 'Existing plan overridden.' });
+
+      try {
+        const { data: refreshed } = await api.get('/v1/bible-plans');
+        setUserPlans(refreshed || []);
+      } catch {}
+    } catch (e) {
+      setStatus({ type: 'error', title: 'Override failed', message: 'Could not override existing plan.' });
+    } finally {
+      setShowNameConflictDialog(false);
+      setOverrideTargetId(null);
     }
   };
 
@@ -214,8 +282,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
           />
         </div>
 
-  {/* No real-world dates: plan uses numbered days only */}
-
         {/* Template Selector */}
         <div className="space-y-2">
           <Label>Bible Plan Templates</Label>
@@ -233,6 +299,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
             <DropdownMenuContent className="w-full">
               {templates.map((template) => (
                 <DropdownMenuItem
+                  key={template.id || template.name}
                   onClick={() => handleTemplateSelect(template)}
                   className="flex flex-col items-start"
                 >
@@ -323,6 +390,21 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
             >
               Yes, Replace Plan
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showNameConflictDialog} onOpenChange={setShowNameConflictDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Plan Name Already Exists</AlertDialogTitle>
+            <AlertDialogDescription>
+              You already have a reading plan named "{planName}". Do you want to override it?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowNameConflictDialog(false); setOverrideTargetId(null); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmOverride} className="bg-red-600 hover:bg-red-700">Override</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
