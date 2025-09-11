@@ -9,7 +9,6 @@ export interface BiblePassage {
 }
 
 export interface ReadingPlan {
-  id: string;
   name: string;
   duration: number;
   readings: { [day: string]: BiblePassage[] };

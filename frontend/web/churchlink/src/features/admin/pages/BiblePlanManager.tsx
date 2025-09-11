@@ -7,7 +7,6 @@ import { BiblePassage, ReadingPlan } from '@/shared/types/BiblePlan';
 
 const BiblePlanManager = () => {
   const [plan, setPlan] = useState<ReadingPlan>({
-    id: '',
     name: '',
     duration: 30,
     readings: {}

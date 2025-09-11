@@ -50,7 +50,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   };
 
   const normalizedPlan = useMemo(() => ({
-    id: plan.id,
     name: plan.name,
     duration: plan.duration,
     readings: plan.readings,
@@ -234,7 +233,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
             <DropdownMenuContent className="w-full">
               {templates.map((template) => (
                 <DropdownMenuItem
-                  key={template.id}
                   onClick={() => handleTemplateSelect(template)}
                   className="flex flex-col items-start"
                 >
