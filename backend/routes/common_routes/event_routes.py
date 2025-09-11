@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, HTTPException, status, Request
 from models.event import sort_events, EventCreate, search_events, delete_events
-from controllers.event_functions import process_create_event, process_edit_event, process_delete_event
+from controllers.event_functions import process_create_event, process_edit_event, process_delete_event, register_rsvp, cancel_rsvp
 from typing import Literal, List
 from bson import ObjectId
 from typing import Optional
@@ -44,6 +44,20 @@ async def get_upcoming_events_alias(
 @public_event_router.get("/ministries", summary="Get all unique ministries")
 async def get_ministries_route():
     return await get_all_ministries()
+
+@public_event_router.post("/events/{event_id}/rsvp")
+async def rsvp_event(event_id: str, uid: str):
+    ok = await register_rsvp(event_id, uid)
+    if not ok:
+        return {"success": False, "error": "Event full or already RSVP'd"}
+    return {"success": True}
+
+@public_event_router.delete("/events/{event_id}/rsvp")
+async def unrsvp_event(event_id: str, uid: str):
+    ok = await cancel_rsvp(event_id, uid)
+    if not ok:
+        return {"success": False, "error": "RSVP not found"}
+    return {"success": True}
 
 # This route catches all paths under /api/v1/events/...
 # @public_event_router.get("/{event_id}", summary="Get event by id")
