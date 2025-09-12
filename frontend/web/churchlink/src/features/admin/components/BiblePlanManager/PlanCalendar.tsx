@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { useDraggable, useDroppable, useDndContext } from '@dnd-kit/core';
 import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
-import { Button } from '@/shared/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React from 'react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/shared/components/ui/pagination';
 import PassageBadge from './PassageBadge';
 
 interface PlanCalendarProps { plan: ReadingPlan; selectedDay: number | null; onSelectDay: (day: number) => void; }
@@ -102,36 +110,10 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">
-            {plan.duration}-Day Reading Plan
-          </h2>
-  </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={prevPage}
-            disabled={currentPage === 0}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          
-          <span className="text-sm text-gray-600 px-3">
-            Page {currentPage + 1} of {totalPages}
-          </span>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={nextPage}
-            disabled={currentPage === totalPages - 1}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">
+          {plan.duration}-Day Reading Plan
+        </h2>
       </div>
 
       <div
@@ -152,8 +134,86 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
       </div>
       
       {plan.duration > daysPerPage && (
-        <div className="mt-4 text-center text-sm text-gray-500">
-          Showing days {currentPage * daysPerPage + 1} - {Math.min((currentPage + 1) * daysPerPage, plan.duration)} of {plan.duration}
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Pagination className="w-full">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={(e: any) => { e.preventDefault(); prevPage(); }}
+                  href="#"
+                  className={currentPage === 0 ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+              {(() => {
+                const items: React.ReactNode[] = [];
+                const maxNumbersToShow = 5; // center window size
+                let start = Math.max(0, currentPage - 2);
+                let end = Math.min(totalPages - 1, start + maxNumbersToShow - 1);
+                if (end - start < maxNumbersToShow - 1) {
+                  start = Math.max(0, end - (maxNumbersToShow - 1));
+                }
+                // Always show first page link
+                if (start > 0) {
+                  items.push(
+                    <PaginationItem key={0}>
+                      <PaginationLink
+                        href="#"
+                        isActive={currentPage === 0}
+                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(0); }}
+                      >1</PaginationLink>
+                    </PaginationItem>
+                  );
+                  if (start > 1) {
+                    items.push(
+                      <PaginationItem key="start-ellipsis">
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                }
+                for (let p = start; p <= end; p++) {
+                  items.push(
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(p); }}
+                      >{p + 1}</PaginationLink>
+                    </PaginationItem>
+                  );
+                }
+                if (end < totalPages - 1) {
+                  if (end < totalPages - 2) {
+                    items.push(
+                      <PaginationItem key="end-ellipsis">
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  items.push(
+                    <PaginationItem key={totalPages - 1}>
+                      <PaginationLink
+                        href="#"
+                        isActive={currentPage === totalPages - 1}
+                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(totalPages - 1); }}
+                      >{totalPages}</PaginationLink>
+                    </PaginationItem>
+                  );
+                }
+                return items;
+              })()}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={(e: any) => { e.preventDefault(); nextPage(); }}
+                  href="#"
+                  className={currentPage === totalPages - 1 ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+          <div className="text-xs text-gray-500">
+            Showing days {currentPage * daysPerPage + 1}-{Math.min((currentPage + 1) * daysPerPage, plan.duration)} of {plan.duration}
+          </div>
         </div>
       )}
     </div>
