@@ -9,6 +9,7 @@ const ArticlePage = lazy(() => import("../features/articles/pages/ArticlePage"))
 const General = lazy(() => import("../shared/components/General"));
 const Giving = lazy(() => import("../shared/components/Giving"));
 const EventViewer = lazy(() => import("../features/events/pages/EventViewer"));
+const Streams = lazy(() => import("../features/misc/pages/Streams"));
 
 function GeneralWrapper() {
   const { name } = useParams();
@@ -26,6 +27,7 @@ export const PublicRoutes = () => {
           <Route path="/giving" element={<Giving />} />
           <Route path="/PaymentExample" element={<Payment />} />
           <Route path="/:name?" element={<GeneralWrapper />} />
+          <Route path="/live" element={<Streams />} />
         </Routes>
       </Layout>
     </>
