@@ -8,7 +8,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/shared/components/ui/Dialog";
+} from "@/shared/components/ui/dialog";
 import RoleMembersTable from "./RoleMembersTable";
 import { applyRoleMemberMask } from "@/helpers/DataFunctions";
 import { UserInfo } from "@/shared/types/UserInfo";
