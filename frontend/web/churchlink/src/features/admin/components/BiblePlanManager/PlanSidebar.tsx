@@ -33,6 +33,12 @@ interface PlanSidebarProps {
 
 type ReadingPlanWithId = ReadingPlan & { id: string };
 
+// Module-level caches
+let templatesCache: ReadingPlanWithId[] | null = null;
+let templatesInFlight: Promise<ReadingPlanWithId[]> | null = null;
+let userPlansCache: ReadingPlanWithId[] | null = null;
+let userPlansInFlight: Promise<ReadingPlanWithId[]> | null = null;
+
 const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
   const [planId, setPlanId] = useState<string | null>(null);
@@ -68,36 +74,58 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     }
   }, [status]);
 
-  // Load templates on component mount
+  // Load templates using cache/in-flight promise
   useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        setLoadingTemplates(true);
-        const response = await api.get('/v1/bible-plans/templates');
-        setTemplates(response.data);
-      } catch (error) {
-        console.error('Failed to load templates:', error);
-        setStatus({ 
-          type: 'error', 
-          title: 'Failed to load templates', 
-          message: 'Could not load Bible plan templates. Please try again.' 
+    let cancelled = false;
+    if (templatesCache) {
+      setTemplates(templatesCache);
+      return; // Already have data
+    }
+    setLoadingTemplates(true);
+    if (!templatesInFlight) {
+      templatesInFlight = api.get('/v1/bible-plans/templates')
+        .then(r => r.data as ReadingPlanWithId[])
+        .then(data => {
+          templatesCache = data;
+          return data;
+        })
+        .finally(() => {
+          templatesInFlight = null;
         });
-      } finally {
-        setLoadingTemplates(false);
-      }
-    };
-
-    loadTemplates();
+    }
+    templatesInFlight
+      .then(data => { if (!cancelled) setTemplates(data); })
+      .catch(error => {
+        if (!cancelled) {
+          console.error('Failed to load templates:', error);
+          setStatus({
+            type: 'error',
+            title: 'Failed to load templates',
+            message: 'Could not load Bible plan templates. Please try again.'
+          });
+        }
+      })
+      .finally(() => { if (!cancelled) setLoadingTemplates(false); });
+    return () => { cancelled = true; };
   }, []);
 
+  // Load user plans using cache/in-flight promise
   useEffect(() => {
-    const loadUserPlans = async () => {
-      try {
-        const { data } = await api.get('/v1/bible-plans/');
-        setUserPlans(data || []);
-      } catch (e) { }
-    };
-    loadUserPlans();
+    let cancelled = false;
+    if (userPlansCache) {
+      setUserPlans(userPlansCache || []);
+      return;
+    }
+    if (!userPlansInFlight) {
+      userPlansInFlight = api.get('/v1/bible-plans/')
+        .then(r => r.data as ReadingPlanWithId[])
+        .then(data => { userPlansCache = data || []; return userPlansCache; })
+        .finally(() => { userPlansInFlight = null; });
+    }
+    userPlansInFlight
+      .then(data => { if (!cancelled) setUserPlans(data || []); })
+      .catch(() => { });
+    return () => { cancelled = true; };
   }, []);
 
   // Check if plan has any readings
@@ -131,17 +159,17 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     } else {
       setPlanId(null);
     }
-    
+
     setShowConfirmDialog(false);
     setSelectedPlan(null);
-    
+
     const actionName = type === 'template' ? 'Template Applied' : 'Plan Loaded';
     const itemType = type === 'template' ? 'template' : 'plan';
-    
-    setStatus({ 
-      type: 'success', 
-      title: actionName, 
-      message: `Successfully ${type === 'template' ? 'applied' : 'loaded'} "${planToApply.name}" ${itemType}.` 
+
+    setStatus({
+      type: 'success',
+      title: actionName,
+      message: `Successfully ${type === 'template' ? 'applied' : 'loaded'} "${planToApply.name}" ${itemType}.`
     });
   };
 
@@ -153,14 +181,15 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
 
   const confirmDeletePlan = async () => {
     if (!planToDelete) return;
-    
+
     try {
       await api.delete(`/v1/bible-plans/${planToDelete.id}`);
-      
-      // Update the user plans list
+
+      // Update the user plans list + cache
       const { data: refreshedPlans } = await api.get('/v1/bible-plans/');
-      setUserPlans(refreshedPlans || []);
-      
+      userPlansCache = refreshedPlans || [];
+      setUserPlans(userPlansCache || []);
+
       // If the deleted plan is currently loaded, clear the current plan
       if (planId === planToDelete.id) {
         setPlanId(null);
@@ -171,7 +200,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
         });
         setPlanName('');
       }
-      
+
       setStatus({
         type: 'success',
         title: 'Plan Deleted',
@@ -201,8 +230,8 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       <Label>{label}</Label>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full justify-between"
             disabled={isLoading || plans.length === 0}
           >
@@ -257,7 +286,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       const { data } = await api.get('/v1/bible-plans/');
       currentPlans = data || [];
       setUserPlans(currentPlans);
-    } catch {  }
+    } catch { }
 
     // Check for duplicate names
     const duplicate = currentPlans.find(p => p.name && p.name.trim().toLowerCase() === trimmedName.toLowerCase());
@@ -266,7 +295,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       setShowNameConflictDialog(true);
       return;
     }
-    
+
     try {
       // Determine if we should update an existing plan or create a new one
       // Only update if:
@@ -275,13 +304,13 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       // 3. The original plan name matches the current plan name (no name change)
       const existingPlan = planId && currentPlans.find(p => p.id === planId);
       const shouldUpdate = existingPlan && existingPlan.name.trim().toLowerCase() === trimmedName.toLowerCase();
-      
+
       let resp;
       if (shouldUpdate) {
-        resp = await api.put(`/v1/bible-plans/${planId}`, { 
-          name: trimmedName, 
-          duration: plan.duration, 
-          readings: plan.readings 
+        resp = await api.put(`/v1/bible-plans/${planId}`, {
+          name: trimmedName,
+          duration: plan.duration,
+          readings: plan.readings
         });
       } else {
         // Create a new plan
@@ -294,13 +323,14 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       }
       const data = resp.data;
       if (data?.id) setPlanId(data.id);
-      
+
       // Refresh the user plans list
       try {
         const { data: refreshedPlans } = await api.get('/v1/bible-plans/');
-        setUserPlans(refreshedPlans || []);
-      } catch (e) {  }
-      
+        userPlansCache = refreshedPlans || [];
+        setUserPlans(userPlansCache || []);
+      } catch (e) { }
+
       setStatus({ type: 'success', title: shouldUpdate ? 'Updated' : 'Saved', message: `Reading plan ${shouldUpdate ? 'updated' : 'saved'} successfully.` });
     } catch (err) {
       console.error('Failed to save/update plan', err);
@@ -312,10 +342,10 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     if (!overrideTargetId) return;
     try {
       const trimmedName = (planName || '').trim();
-      const resp = await api.put(`/v1/bible-plans/${overrideTargetId}`, { 
-        name: trimmedName, 
-        duration: plan.duration, 
-        readings: plan.readings 
+      const resp = await api.put(`/v1/bible-plans/${overrideTargetId}`, {
+        name: trimmedName,
+        duration: plan.duration,
+        readings: plan.readings
       });
       const data = resp.data;
       setPlanId(data.id);
@@ -324,8 +354,9 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
 
       try {
         const { data: refreshed } = await api.get('/v1/bible-plans/');
-        setUserPlans(refreshed || []);
-      } catch {}
+        userPlansCache = refreshed || [];
+        setUserPlans(userPlansCache || []);
+      } catch { }
     } catch (e) {
       setStatus({ type: 'error', title: 'Override failed', message: 'Could not override existing plan.' });
     } finally {
@@ -454,7 +485,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
             <Save className="w-4 h-4 mr-2" />
             Save Plan
           </Button>
-          
+
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleImportPlan} className="flex-1">
               <Download className="w-4 h-4 mr-2" />
@@ -487,7 +518,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
             }}>
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => {
                 if (selectedPlan) {
                   applyPlan(selectedPlan.plan, selectedPlan.type);
