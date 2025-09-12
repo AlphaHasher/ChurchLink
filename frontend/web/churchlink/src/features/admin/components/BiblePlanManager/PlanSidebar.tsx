@@ -93,7 +93,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   useEffect(() => {
     const loadUserPlans = async () => {
       try {
-        const { data } = await api.get('/v1/bible-plans');
+        const { data } = await api.get('/v1/bible-plans/');
         setUserPlans(data || []);
       } catch (e) { }
     };
@@ -158,7 +158,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       await api.delete(`/v1/bible-plans/${planToDelete.id}`);
       
       // Update the user plans list
-      const { data: refreshedPlans } = await api.get('/v1/bible-plans');
+      const { data: refreshedPlans } = await api.get('/v1/bible-plans/');
       setUserPlans(refreshedPlans || []);
       
       // If the deleted plan is currently loaded, clear the current plan
@@ -254,7 +254,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
     }
     let currentPlans = userPlans;
     try {
-      const { data } = await api.get('/v1/bible-plans');
+      const { data } = await api.get('/v1/bible-plans/');
       currentPlans = data || [];
       setUserPlans(currentPlans);
     } catch {  }
@@ -286,7 +286,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       } else {
         // Create a new plan
         setPlanId(null);
-        resp = await api.post('/v1/bible-plans', {
+        resp = await api.post('/v1/bible-plans/', {
           name: trimmedName,
           duration: plan.duration,
           readings: plan.readings
@@ -297,7 +297,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       
       // Refresh the user plans list
       try {
-        const { data: refreshedPlans } = await api.get('/v1/bible-plans');
+        const { data: refreshedPlans } = await api.get('/v1/bible-plans/');
         setUserPlans(refreshedPlans || []);
       } catch (e) {  }
       
@@ -323,7 +323,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
       setStatus({ type: 'success', title: 'Overridden', message: 'Existing plan overridden.' });
 
       try {
-        const { data: refreshed } = await api.get('/v1/bible-plans');
+        const { data: refreshed } = await api.get('/v1/bible-plans/');
         setUserPlans(refreshed || []);
       } catch {}
     } catch (e) {
