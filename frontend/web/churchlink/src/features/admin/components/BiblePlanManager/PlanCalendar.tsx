@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { cn } from '@/lib/utils';
 import { useDraggable, useDroppable, useDndContext } from '@dnd-kit/core';
 import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
 import React from 'react';
@@ -12,8 +13,16 @@ import {
   PaginationPrevious,
 } from '@/shared/components/ui/pagination';
 import PassageBadge from './PassageBadge';
+import { Calendar } from '@/shared/components/ui/calendar';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button';
 
-interface PlanCalendarProps { plan: ReadingPlan; selectedDay: number | null; onSelectDay: (day: number) => void; }
+interface PlanCalendarProps { 
+  plan: ReadingPlan; 
+  selectedDay: number | null; 
+  onSelectDay: (day: number) => void; 
+  className?: string;
+}
 
 const CalendarPassageChip = ({ passage, dayKey }: { passage: BiblePassage; dayKey: string }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -30,7 +39,7 @@ const CalendarPassageChip = ({ passage, dayKey }: { passage: BiblePassage; dayKe
   );
 };
 
-const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber: number; passages: BiblePassage[]; isSelected: boolean; onSelect: (day: number) => void }) => {
+const CalendarDay = React.memo(({ dayNumber, passages, isSelected, onSelect, dateLabel }: { dayNumber: number; passages: BiblePassage[]; isSelected: boolean; onSelect: (day: number) => void; dateLabel?: string | null }) => {
   const dayKey = String(dayNumber);
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dayKey}`,
@@ -43,7 +52,7 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
       ref={setNodeRef}
       onClick={() => onSelect(dayNumber)}
       className={`
-        min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
+        relative min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
         min-w-[150px] max-w-full flex flex-col
         ${isPassageOver
           ? 'border-2 border-dashed border-green-400 bg-green-50'
@@ -54,8 +63,12 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
     >
       <div className="flex items-center mb-2">
         <div className="text-sm font-medium text-gray-900 flex-1">Day {dayNumber}</div>
-        {isSelected && <span className="text-[10px] uppercase tracking-wide text-blue-600 font-semibold">Selected</span>}
       </div>
+      {dateLabel && (
+        <div className="absolute top-1 right-1 text-[10px] font-semibold text-gray-600 bg-white/80 backdrop-blur px-1.5 py-0.5 rounded shadow-sm pointer-events-none">
+          {dateLabel}
+        </div>
+      )}
       
       <div className="flex flex-col gap-1 min-w-0">
         {passages.map((passage: BiblePassage) => (
@@ -68,12 +81,40 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
           </div>
         )}
       </div>
+      {isSelected && (
+        <span className="pointer-events-none absolute bottom-1 right-1 text-[10px] uppercase tracking-wide text-blue-600 font-semibold">
+          Selected
+        </span>
+      )}
     </div>
   );
-};
+}, (prev, next) => {
+  // Re-render only if selection state, date label, day number, or passages list identity/length/ids change.
+  if (prev.dayNumber !== next.dayNumber) return false;
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.dateLabel !== next.dateLabel) return false;
+  if (prev.passages.length !== next.passages.length) return false;
+  for (let i = 0; i < prev.passages.length; i++) {
+    if (prev.passages[i].id !== next.passages[i].id) return false;
+  }
+  return true;
+});
 
-const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => {
+const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalendarProps) => {
   const [currentPage, setCurrentPage] = useState(0);
+  const [showDayOverlay, setShowDayOverlay] = useState(false);
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+  const [baseDate, setBaseDate] = useState<Date | undefined>(new Date());
+  
+  const __DEBUG = false; // flip to true for verbose diagnostics
+  if (__DEBUG) {
+    console.log('🔄 PlanCalendar render:', { 
+      showDayOverlay, 
+      baseDate: baseDate?.toDateString(), 
+      currentPage,
+      selectedDay 
+    });
+  }
   
   const daysPerPage = 31;
   const totalPages = Math.ceil(plan.duration / daysPerPage);
@@ -94,7 +135,18 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
     });
   };
 
-  const days = getCurrentPageDays();
+  const days = useMemo(() => getCurrentPageDays(), [currentPage, plan.duration, plan.readings]);
+
+  const dateLabels = useMemo(() => {
+    if (!showDayOverlay || !baseDate) return {} as Record<number, string>;
+    const startTime = baseDate.getTime();
+    const map: Record<number, string> = {};
+    for (const d of days) {
+      const date = new Date(startTime + (d.dayNumber - 1) * 86400000);
+      map[d.dayNumber] = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    return map;
+  }, [showDayOverlay, baseDate, days]);
 
   const nextPage = () => {
     if (currentPage < totalPages - 1) {
@@ -109,12 +161,37 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <div className="mb-4">
+    <div className={cn('relative', className)}>
+      <div className="mb-4 flex items-start justify-between gap-4 px-1">
         <h2 className="text-lg font-semibold text-gray-900">
           {plan.duration}-Day Reading Plan
         </h2>
+        <div className="flex items-center gap-2">
+          <Button variant={showDayOverlay ? 'secondary' : 'outline'} size="sm" onClick={() => {
+            setShowDayOverlay(o => !o);
+          }}>
+            {showDayOverlay ? 'Hide Day Overlay' : 'Show Day Overlay'}
+          </Button>
+          {showDayOverlay && (
+            <Button variant={showCalendarPicker ? 'default' : 'outline'} size="sm" onClick={() => {
+              setShowCalendarPicker(p => !p);
+            }} aria-label="Select Start Date">
+              <CalendarIcon className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
+      {showDayOverlay && showCalendarPicker && (
+        <div className="absolute z-20 top-16 right-4">
+          <Calendar
+            mode="single"
+            selected={baseDate}
+            onSelect={(d) => { if (d) setBaseDate(d); }}
+            captionLayout="dropdown"
+            className="rounded-md border shadow-sm"
+          />
+        </div>
+      )}
 
       <div
         className="grid gap-3"
@@ -129,6 +206,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
             passages={day.passages}
             isSelected={selectedDay === day.dayNumber}
             onSelect={onSelectDay}
+            dateLabel={dateLabels[day.dayNumber]}
           />
         ))}
       </div>
