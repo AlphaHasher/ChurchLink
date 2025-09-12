@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useDraggable, useDroppable, useDndContext } from '@dnd-kit/core';
 import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
@@ -105,6 +105,8 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
   const [showDayOverlay, setShowDayOverlay] = useState(false);
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [baseDate, setBaseDate] = useState<Date | undefined>(new Date());
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const calendarToggleRef = useRef<HTMLButtonElement | null>(null);
   
   const __DEBUG = false; // flip to true for verbose diagnostics
   if (__DEBUG) {
@@ -141,9 +143,12 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
     if (!showDayOverlay || !baseDate) return {} as Record<number, string>;
     const startTime = baseDate.getTime();
     const map: Record<number, string> = {};
+    const weekday = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     for (const d of days) {
       const date = new Date(startTime + (d.dayNumber - 1) * 86400000);
-      map[d.dayNumber] = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dow = weekday[date.getDay()];
+      const md = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      map[d.dayNumber] = `${md}, ${dow}`; // e.g., Jan 5, Mon
     }
     return map;
   }, [showDayOverlay, baseDate, days]);
@@ -160,6 +165,33 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
     }
   };
 
+  // Close calendar picker on outside click or Escape
+  useEffect(() => {
+    if (!(showDayOverlay && showCalendarPicker)) return;
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        overlayRef.current &&
+        !overlayRef.current.contains(target) &&
+        calendarToggleRef.current &&
+        !calendarToggleRef.current.contains(target)
+      ) {
+        setShowCalendarPicker(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowCalendarPicker(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true });
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [showDayOverlay, showCalendarPicker]);
+
   return (
     <div className={cn('relative', className)}>
       <div className="mb-4 flex items-start justify-between gap-4 px-1">
@@ -173,7 +205,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
             {showDayOverlay ? 'Hide Day Overlay' : 'Show Day Overlay'}
           </Button>
           {showDayOverlay && (
-            <Button variant={showCalendarPicker ? 'default' : 'outline'} size="sm" onClick={() => {
+            <Button ref={calendarToggleRef} variant={showCalendarPicker ? 'default' : 'outline'} size="sm" onClick={() => {
               setShowCalendarPicker(p => !p);
             }} aria-label="Select Start Date">
               <CalendarIcon className="w-4 h-4" />
@@ -182,7 +214,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
         </div>
       </div>
       {showDayOverlay && showCalendarPicker && (
-        <div className="absolute z-20 top-16 right-4">
+        <div ref={overlayRef} className="absolute z-20 top-16 right-4">
           <Calendar
             mode="single"
             selected={baseDate}
