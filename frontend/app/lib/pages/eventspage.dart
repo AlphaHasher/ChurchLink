@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 // Gets the backend address from the .env file, currently set to Flutter
 const String backendHost = String.fromEnvironment(
   'API_BASE_URL',
+  //Fallback address uses Flutter Android Emulator's default
   defaultValue: 'http://10.0.0.2:8000',
 );
 
