@@ -35,7 +35,8 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
       ref={setNodeRef}
       onClick={() => onSelect(dayNumber)}
       className={`
-        min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer min-w-0
+        min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
+        min-w-[150px] max-w-full flex flex-col
         ${isPassageOver
           ? 'border-2 border-dashed border-green-400 bg-green-50'
           : isSelected
@@ -133,7 +134,12 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
         </div>
       </div>
 
-  <div className="grid grid-cols-4 gap-3 lg:grid-cols-7">
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))'
+        }}
+      >
         {days.map((day) => (
           <CalendarDay
             key={day.dayNumber}
