@@ -10,10 +10,12 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "npm"
-    directory: "/backend/strapi/churchlink"
+    directories:
+      - "/backend/strapi/churchlink"
+      - "/frontend/web/churchlink"
     schedule:
       interval: "weekly"
   - package-ecosystem: "pub"
-    directory: "/frontend/app/churchlink"
+    directory: "/frontend/app"
     schedule:
       interval: "weekly"    
