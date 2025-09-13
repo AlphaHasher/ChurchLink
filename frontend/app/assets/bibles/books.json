@@ -1,0 +1,674 @@
+{
+  "locales": ["en", "ru"],
+  "books": [
+    {
+      "order": 1,
+      "key": "GEN",
+      "chapters": 50,
+      "names": { "en": "Genesis", "ru": "Бытие" },
+      "abbr":  { "en": "Gen",     "ru": "Быт" },
+      "extra_aliases": ["Gn", "Ge", "Gen."]
+    },
+    {
+      "order": 2,
+      "key": "EXO",
+      "chapters": 40,
+      "names": { "en": "Exodus", "ru": "Исход" },
+      "abbr":  { "en": "Exod",   "ru": "Исх" },
+      "extra_aliases": ["Ex", "Exod."]
+    },
+    {
+      "order": 3,
+      "key": "LEV",
+      "chapters": 27,
+      "names": { "en": "Leviticus", "ru": "Левит" },
+      "abbr":  { "en": "Lev",       "ru": "Лев" },
+      "extra_aliases": ["Lv", "Levit."]
+    },
+    {
+      "order": 4,
+      "key": "NUM",
+      "chapters": 36,
+      "names": { "en": "Numbers", "ru": "Числа" },
+      "abbr":  { "en": "Num",     "ru": "Чис" },
+      "extra_aliases": ["Nm", "Numb."]
+    },
+    {
+      "order": 5,
+      "key": "DEU",
+      "chapters": 34,
+      "names": { "en": "Deuteronomy", "ru": "Второзаконие" },
+      "abbr":  { "en": "Deut",        "ru": "Втор" },
+      "extra_aliases": ["Dt", "Deut."]
+    },
+    {
+      "order": 6,
+      "key": "JOS",
+      "chapters": 24,
+      "names": { "en": "Joshua", "ru": "Иисус Навин" },
+      "abbr":  { "en": "Josh",   "ru": "Нав" },
+      "extra_aliases": ["Jos", "И.Нав."]
+    },
+    {
+      "order": 7,
+      "key": "JDG",
+      "chapters": 21,
+      "names": { "en": "Judges", "ru": "Судьи" },
+      "abbr":  { "en": "Judg",   "ru": "Суд" },
+      "extra_aliases": ["Jdg", "Jud."]
+    },
+    {
+      "order": 8,
+      "key": "RUT",
+      "chapters": 4,
+      "names": { "en": "Ruth", "ru": "Руфь" },
+      "abbr":  { "en": "Ruth", "ru": "Руф" },
+      "extra_aliases": ["Ru"]
+    },
+    {
+      "order": 9,
+      "key": "1SA",
+      "chapters": 31,
+      "names": { "en": "1 Samuel", "ru": "1 Царств" },
+      "abbr":  { "en": "1 Sam",    "ru": "1Цар" },
+      "extra_aliases": ["I Samuel", "1Sa", "1Sam"]
+    },
+    {
+      "order": 10,
+      "key": "2SA",
+      "chapters": 24,
+      "names": { "en": "2 Samuel", "ru": "2 Царств" },
+      "abbr":  { "en": "2 Sam",    "ru": "2Цар" },
+      "extra_aliases": ["II Samuel", "2Sa", "2Sam"]
+    },
+    {
+      "order": 11,
+      "key": "1KI",
+      "chapters": 22,
+      "names": { "en": "1 Kings", "ru": "3 Царств" },
+      "abbr":  { "en": "1 Kgs",   "ru": "3Цар" },
+      "extra_aliases": ["I Kings", "1Ki", "3 Цар."]
+    },
+    {
+      "order": 12,
+      "key": "2KI",
+      "chapters": 25,
+      "names": { "en": "2 Kings", "ru": "4 Царств" },
+      "abbr":  { "en": "2 Kgs",   "ru": "4Цар" },
+      "extra_aliases": ["II Kings", "2Ki", "4 Цар."]
+    },
+    {
+      "order": 13,
+      "key": "1CH",
+      "chapters": 29,
+      "names": { "en": "1 Chronicles", "ru": "1 Паралипоменон" },
+      "abbr":  { "en": "1 Chr",        "ru": "1Пар" },
+      "extra_aliases": ["I Chronicles", "1Ch", "1 Chron"]
+    },
+    {
+      "order": 14,
+      "key": "2CH",
+      "chapters": 36,
+      "names": { "en": "2 Chronicles", "ru": "2 Паралипоменон" },
+      "abbr":  { "en": "2 Chr",        "ru": "2Пар" },
+      "extra_aliases": ["II Chronicles", "2Ch", "2 Chron"]
+    },
+    {
+      "order": 15,
+      "key": "EZR",
+      "chapters": 10,
+      "names": { "en": "Ezra", "ru": "Ездра" },
+      "abbr":  { "en": "Ezra", "ru": "Езд" },
+      "extra_aliases": ["Ezr"]
+    },
+    {
+      "order": 16,
+      "key": "NEH",
+      "chapters": 13,
+      "names": { "en": "Nehemiah", "ru": "Неемия" },
+      "abbr":  { "en": "Neh",      "ru": "Неем" },
+      "extra_aliases": []
+    },
+    {
+      "order": 17,
+      "key": "EST",
+      "chapters": 10,
+      "names": { "en": "Esther", "ru": "Есфирь" },
+      "abbr":  { "en": "Esth",   "ru": "Есф" },
+      "extra_aliases": ["Est"]
+    },
+    {
+      "order": 18,
+      "key": "JOB",
+      "chapters": 42,
+      "names": { "en": "Job", "ru": "Иов" },
+      "abbr":  { "en": "Job", "ru": "Иов" },
+      "extra_aliases": []
+    },
+    {
+      "order": 19,
+      "key": "PSA",
+      "chapters": 150,
+      "names": { "en": "Psalms", "ru": "Псалтирь" },
+      "abbr":  { "en": "Ps",     "ru": "Пс" },
+      "extra_aliases": ["Psa", "Psalm", "Psalms", "Псалом", "Псалт."]
+    },
+    {
+      "order": 20,
+      "key": "PRO",
+      "chapters": 31,
+      "names": { "en": "Proverbs", "ru": "Притчи" },
+      "abbr":  { "en": "Prov",     "ru": "Прит" },
+      "extra_aliases": ["Prv", "Prov."]
+    },
+    {
+      "order": 21,
+      "key": "ECC",
+      "chapters": 12,
+      "names": { "en": "Ecclesiastes", "ru": "Екклесиаст" },
+      "abbr":  { "en": "Eccl",         "ru": "Еккл" },
+      "extra_aliases": ["Qoheleth", "Ecc"]
+    },
+    {
+      "order": 22,
+      "key": "SNG",
+      "chapters": 8,
+      "names": { "en": "Song of Solomon", "ru": "Песнь Песней" },
+      "abbr":  { "en": "Song",            "ru": "Песн" },
+      "extra_aliases": ["Song of Songs", "Canticles", "Cant", "Песня Песней", "Песн. Песн."]
+    },
+    {
+      "order": 23,
+      "key": "ISA",
+      "chapters": 66,
+      "names": { "en": "Isaiah", "ru": "Исаия" },
+      "abbr":  { "en": "Isa",    "ru": "Ис" },
+      "extra_aliases": []
+    },
+    {
+      "order": 24,
+      "key": "JER",
+      "chapters": 52,
+      "names": { "en": "Jeremiah", "ru": "Иеремия" },
+      "abbr":  { "en": "Jer",      "ru": "Иер" },
+      "extra_aliases": []
+    },
+    {
+      "order": 25,
+      "key": "LAM",
+      "chapters": 5,
+      "names": { "en": "Lamentations", "ru": "Плач Иеремии" },
+      "abbr":  { "en": "Lam",          "ru": "Плач" },
+      "extra_aliases": []
+    },
+    {
+      "order": 26,
+      "key": "EZK",
+      "chapters": 48,
+      "names": { "en": "Ezekiel", "ru": "Иезекииль" },
+      "abbr":  { "en": "Ezek",    "ru": "Иез" },
+      "extra_aliases": ["Ezk", "Eze"]
+    },
+    {
+      "order": 27,
+      "key": "DAN",
+      "chapters": 12,
+      "names": { "en": "Daniel", "ru": "Даниил" },
+      "abbr":  { "en": "Dan",    "ru": "Дан" },
+      "extra_aliases": ["Dn"]
+    },
+    {
+      "order": 28,
+      "key": "HOS",
+      "chapters": 14,
+      "names": { "en": "Hosea", "ru": "Осия" },
+      "abbr":  { "en": "Hos",   "ru": "Ос" },
+      "extra_aliases": []
+    },
+    {
+      "order": 29,
+      "key": "JOL",
+      "chapters": 3,
+      "names": { "en": "Joel", "ru": "Иоиль" },
+      "abbr":  { "en": "Joel", "ru": "Иоил" },
+      "extra_aliases": ["Jl"]
+    },
+    {
+      "order": 30,
+      "key": "AMO",
+      "chapters": 9,
+      "names": { "en": "Amos", "ru": "Амос" },
+      "abbr":  { "en": "Amos", "ru": "Ам" },
+      "extra_aliases": ["Am"]
+    },
+    {
+      "order": 31,
+      "key": "OBA",
+      "chapters": 1,
+      "names": { "en": "Obadiah", "ru": "Авдий" },
+      "abbr":  { "en": "Obad",    "ru": "Авд" },
+      "extra_aliases": ["Ob"]
+    },
+    {
+      "order": 32,
+      "key": "JON",
+      "chapters": 4,
+      "names": { "en": "Jonah", "ru": "Иона" },
+      "abbr":  { "en": "Jonah", "ru": "Ион" },
+      "extra_aliases": ["Jon"]
+    },
+    {
+      "order": 33,
+      "key": "MIC",
+      "chapters": 7,
+      "names": { "en": "Micah", "ru": "Михей" },
+      "abbr":  { "en": "Mic",   "ru": "Мих" },
+      "extra_aliases": []
+    },
+    {
+      "order": 34,
+      "key": "NAM",
+      "chapters": 3,
+      "names": { "en": "Nahum", "ru": "Наум" },
+      "abbr":  { "en": "Nah",   "ru": "Наум" },
+      "extra_aliases": ["Na"]
+    },
+    {
+      "order": 35,
+      "key": "HAB",
+      "chapters": 3,
+      "names": { "en": "Habakkuk", "ru": "Аввакум" },
+      "abbr":  { "en": "Hab",      "ru": "Авв" },
+      "extra_aliases": []
+    },
+    {
+      "order": 36,
+      "key": "ZEP",
+      "chapters": 3,
+      "names": { "en": "Zephaniah", "ru": "Софония" },
+      "abbr":  { "en": "Zeph",      "ru": "Соф" },
+      "extra_aliases": ["Zep"]
+    },
+    {
+      "order": 37,
+      "key": "HAG",
+      "chapters": 2,
+      "names": { "en": "Haggai", "ru": "Аггей" },
+      "abbr":  { "en": "Hag",    "ru": "Агг" },
+      "extra_aliases": []
+    },
+    {
+      "order": 38,
+      "key": "ZEC",
+      "chapters": 14,
+      "names": { "en": "Zechariah", "ru": "Захария" },
+      "abbr":  { "en": "Zech",      "ru": "Зах" },
+      "extra_aliases": ["Zec"]
+    },
+    {
+      "order": 39,
+      "key": "MAL",
+      "chapters": 4,
+      "names": { "en": "Malachi", "ru": "Малахия" },
+      "abbr":  { "en": "Mal",     "ru": "Мал" },
+      "extra_aliases": []
+    },
+    {
+      "order": 40,
+      "key": "MAT",
+      "chapters": 28,
+      "names": { "en": "Matthew", "ru": "Матфея" },
+      "abbr":  { "en": "Matt",    "ru": "Мф" },
+      "extra_aliases": ["Mt"]
+    },
+    {
+      "order": 41,
+      "key": "MRK",
+      "chapters": 16,
+      "names": { "en": "Mark", "ru": "Марка" },
+      "abbr":  { "en": "Mark", "ru": "Мк" },
+      "extra_aliases": ["Mk"]
+    },
+    {
+      "order": 42,
+      "key": "LUK",
+      "chapters": 24,
+      "names": { "en": "Luke", "ru": "Луки" },
+      "abbr":  { "en": "Luke", "ru": "Лк" },
+      "extra_aliases": ["Lk"]
+    },
+    {
+      "order": 43,
+      "key": "JHN",
+      "chapters": 21,
+      "names": { "en": "John", "ru": "Иоанна" },
+      "abbr":  { "en": "John", "ru": "Ин" },
+      "extra_aliases": ["Jn", "Иоан."]
+    },
+    {
+      "order": 44,
+      "key": "ACT",
+      "chapters": 28,
+      "names": { "en": "Acts", "ru": "Деяния" },
+      "abbr":  { "en": "Acts", "ru": "Деян" },
+      "extra_aliases": ["Ac", "Деяния Апостолов"]
+    },
+    {
+      "order": 45,
+      "key": "ROM",
+      "chapters": 16,
+      "names": { "en": "Romans", "ru": "Римлянам" },
+      "abbr":  { "en": "Rom",     "ru": "Рим" },
+      "extra_aliases": ["Ro"]
+    },
+    {
+      "order": 46,
+      "key": "1CO",
+      "chapters": 16,
+      "names": { "en": "1 Corinthians", "ru": "1 Коринфянам" },
+      "abbr":  { "en": "1 Cor",         "ru": "1Кор" },
+      "extra_aliases": ["I Corinthians", "1Co"]
+    },
+    {
+      "order": 47,
+      "key": "2CO",
+      "chapters": 13,
+      "names": { "en": "2 Corinthians", "ru": "2 Коринфянам" },
+      "abbr":  { "en": "2 Cor",         "ru": "2Кор" },
+      "extra_aliases": ["II Corinthians", "2Co"]
+    },
+    {
+      "order": 48,
+      "key": "GAL",
+      "chapters": 6,
+      "names": { "en": "Galatians", "ru": "Галатам" },
+      "abbr":  { "en": "Gal",       "ru": "Гал" },
+      "extra_aliases": []
+    },
+    {
+      "order": 49,
+      "key": "EPH",
+      "chapters": 6,
+      "names": { "en": "Ephesians", "ru": "Ефесянам" },
+      "abbr":  { "en": "Eph",       "ru": "Еф" },
+      "extra_aliases": []
+    },
+    {
+      "order": 50,
+      "key": "PHP",
+      "chapters": 4,
+      "names": { "en": "Philippians", "ru": "Филиппийцам" },
+      "abbr":  { "en": "Phil",        "ru": "Флп" },
+      "extra_aliases": ["Php", "Phil."]
+    },
+    {
+      "order": 51,
+      "key": "COL",
+      "chapters": 4,
+      "names": { "en": "Colossians", "ru": "Колосянам" },
+      "abbr":  { "en": "Col",        "ru": "Кол" },
+      "extra_aliases": []
+    },
+    {
+      "order": 52,
+      "key": "1TH",
+      "chapters": 5,
+      "names": { "en": "1 Thessalonians", "ru": "1 Фессалоникийцам" },
+      "abbr":  { "en": "1 Thess",         "ru": "1Фесс" },
+      "extra_aliases": ["I Thessalonians", "1Th"]
+    },
+    {
+      "order": 53,
+      "key": "2TH",
+      "chapters": 3,
+      "names": { "en": "2 Thessalonians", "ru": "2 Фессалоникийцам" },
+      "abbr":  { "en": "2 Thess",         "ru": "2Фесс" },
+      "extra_aliases": ["II Thessalonians", "2Th"]
+    },
+    {
+      "order": 54,
+      "key": "1TI",
+      "chapters": 6,
+      "names": { "en": "1 Timothy", "ru": "1 Тимофею" },
+      "abbr":  { "en": "1 Tim",     "ru": "1Тим" },
+      "extra_aliases": ["I Timothy", "1Ti"]
+    },
+    {
+      "order": 55,
+      "key": "2TI",
+      "chapters": 4,
+      "names": { "en": "2 Timothy", "ru": "2 Тимофею" },
+      "abbr":  { "en": "2 Tim",     "ru": "2Тим" },
+      "extra_aliases": ["II Timothy", "2Ti"]
+    },
+    {
+      "order": 56,
+      "key": "TIT",
+      "chapters": 3,
+      "names": { "en": "Titus", "ru": "Титу" },
+      "abbr":  { "en": "Titus", "ru": "Тит" },
+      "extra_aliases": ["Ti"]
+    },
+    {
+      "order": 57,
+      "key": "PHM",
+      "chapters": 1,
+      "names": { "en": "Philemon", "ru": "Филимону" },
+      "abbr":  { "en": "Phlm",     "ru": "Флм" },
+      "extra_aliases": ["Phm"]
+    },
+    {
+      "order": 58,
+      "key": "HEB",
+      "chapters": 13,
+      "names": { "en": "Hebrews", "ru": "Евреям" },
+      "abbr":  { "en": "Heb",     "ru": "Евр" },
+      "extra_aliases": []
+    },
+    {
+      "order": 59,
+      "key": "JAS",
+      "chapters": 5,
+      "names": { "en": "James", "ru": "Иакова" },
+      "abbr":  { "en": "Jas",   "ru": "Иак" },
+      "extra_aliases": ["Jam"]
+    },
+    {
+      "order": 60,
+      "key": "1PE",
+      "chapters": 5,
+      "names": { "en": "1 Peter", "ru": "1 Петра" },
+      "abbr":  { "en": "1 Pet",   "ru": "1Пет" },
+      "extra_aliases": ["I Peter", "1Pe"]
+    },
+    {
+      "order": 61,
+      "key": "2PE",
+      "chapters": 3,
+      "names": { "en": "2 Peter", "ru": "2 Петра" },
+      "abbr":  { "en": "2 Pet",   "ru": "2Пет" },
+      "extra_aliases": ["II Peter", "2Pe"]
+    },
+    {
+      "order": 62,
+      "key": "1JN",
+      "chapters": 5,
+      "names": { "en": "1 John", "ru": "1 Иоанна" },
+      "abbr":  { "en": "1 John", "ru": "1Ин" },
+      "extra_aliases": ["I John", "1Jn"]
+    },
+    {
+      "order": 63,
+      "key": "2JN",
+      "chapters": 1,
+      "names": { "en": "2 John", "ru": "2 Иоанна" },
+      "abbr":  { "en": "2 John", "ru": "2Ин" },
+      "extra_aliases": ["II John", "2Jn"]
+    },
+    {
+      "order": 64,
+      "key": "3JN",
+      "chapters": 1,
+      "names": { "en": "3 John", "ru": "3 Иоанна" },
+      "abbr":  { "en": "3 John", "ru": "3Ин" },
+      "extra_aliases": ["III John", "3Jn"]
+    },
+    {
+      "order": 65,
+      "key": "JUD",
+      "chapters": 1,
+      "names": { "en": "Jude", "ru": "Иуды" },
+      "abbr":  { "en": "Jude", "ru": "Иуд" },
+      "extra_aliases": ["Jud"]
+    },
+    {
+      "order": 66,
+      "key": "REV",
+      "chapters": 22,
+      "names": { "en": "Revelation", "ru": "Откровение" },
+      "abbr":  { "en": "Rev",        "ru": "Откр" },
+      "extra_aliases": ["Apocalypse", "Откровение Иоанна"]
+    }
+  ],
+  "aliases": {
+    "gen": "GEN",
+    "gn": "GEN",
+    "ge": "GEN",
+    "ex": "EXO",
+    "exod": "EXO",
+    "lev": "LEV",
+    "num": "NUM",
+    "deut": "DEU",
+    "jos": "JOS",
+    "judg": "JDG",
+    "jud": "JDG",
+    "ruth": "RUT",
+    "1 samuel": "1SA",
+    "2 samuel": "2SA",
+    "1 kings": "1KI",
+    "2 kings": "2KI",
+    "1 chronicles": "1CH",
+    "2 chronicles": "2CH",
+    "ezra": "EZR",
+    "nehemiah": "NEH",
+    "esther": "EST",
+    "job": "JOB",
+    "psalm": "PSA",
+    "psalms": "PSA",
+    "proverbs": "PRO",
+    "ecclesiastes": "ECC",
+    "song of songs": "SNG",
+    "song of solomon": "SNG",
+    "canticles": "SNG",
+    "isaiah": "ISA",
+    "jeremiah": "JER",
+    "lamentations": "LAM",
+    "ezekiel": "EZK",
+    "daniel": "DAN",
+    "hosea": "HOS",
+    "joel": "JOL",
+    "amos": "AMO",
+    "obadiah": "OBA",
+    "jonah": "JON",
+    "micah": "MIC",
+    "nahum": "NAM",
+    "habakkuk": "HAB",
+    "zephaniah": "ZEP",
+    "haggai": "HAG",
+    "zechariah": "ZEC",
+    "malachi": "MAL",
+    "matthew": "MAT",
+    "mark": "MRK",
+    "luke": "LUK",
+    "john": "JHN",
+    "acts": "ACT",
+    "romans": "ROM",
+    "1 corinthians": "1CO",
+    "2 corinthians": "2CO",
+    "galatians": "GAL",
+    "ephesians": "EPH",
+    "philippians": "PHP",
+    "colossians": "COL",
+    "1 thessalonians": "1TH",
+    "2 thessalonians": "2TH",
+    "1 timothy": "1TI",
+    "2 timothy": "2TI",
+    "titus": "TIT",
+    "philemon": "PHM",
+    "hebrews": "HEB",
+    "james": "JAS",
+    "1 peter": "1PE",
+    "2 peter": "2PE",
+    "1 john": "1JN",
+    "2 john": "2JN",
+    "3 john": "3JN",
+    "jude": "JUD",
+    "revelation": "REV",
+    "бытие": "GEN",
+    "исход": "EXO",
+    "левит": "LEV",
+    "числа": "NUM",
+    "второзаконие": "DEU",
+    "иисус навин": "JOS",
+    "судьи": "JDG",
+    "руфь": "RUT",
+    "1 царств": "1SA",
+    "2 царств": "2SA",
+    "3 царств": "1KI",
+    "4 царств": "2KI",
+    "1 паралипоменон": "1CH",
+    "2 паралипоменон": "2CH",
+    "ездра": "EZR",
+    "неемия": "NEH",
+    "есфирь": "EST",
+    "иов": "JOB",
+    "псалтирь": "PSA",
+    "притчи": "PRO",
+    "екклесиаст": "ECC",
+    "песнь песней": "SNG",
+    "исаия": "ISA",
+    "иеремия": "JER",
+    "плач иеремии": "LAM",
+    "иезекииль": "EZK",
+    "даниил": "DAN",
+    "осия": "HOS",
+    "иоиль": "JOL",
+    "амос": "AMO",
+    "авдий": "OBA",
+    "иона": "JON",
+    "михей": "MIC",
+    "наум": "NAM",
+    "аввакум": "HAB",
+    "софония": "ZEP",
+    "аггей": "HAG",
+    "захария": "ZEC",
+    "малахия": "MAL",
+    "матфея": "MAT",
+    "марка": "MRK",
+    "луки": "LUK",
+    "иоанна": "JHN",
+    "деяния": "ACT",
+    "римлянам": "ROM",
+    "1 коринфянам": "1CO",
+    "2 коринфянам": "2CO",
+    "галатам": "GAL",
+    "ефесянам": "EPH",
+    "филиппийцам": "PHP",
+    "колосянам": "COL",
+    "1 фессалоникийцам": "1TH",
+    "2 фессалоникийцам": "2TH",
+    "1 тимофею": "1TI",
+    "2 тимофею": "2TI",
+    "титу": "TIT",
+    "филимону": "PHM",
+    "евреям": "HEB",
+    "иакова": "JAS",
+    "1 петра": "1PE",
+    "2 петра": "2PE",
+    "1 иоанна": "1JN",
+    "2 иоанна": "2JN",
+    "3 иоанна": "3JN",
+    "иуды": "JUD",
+    "откровение": "REV"
+  }
+}

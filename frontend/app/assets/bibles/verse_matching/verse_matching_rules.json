@@ -1,0 +1,2913 @@
+{
+  "tx": [
+    "kjv",
+    "rst"
+  ],
+  "policy": {
+    "auto_reverse": true,
+    "normalize_books": true
+  },
+  "pairs": [
+    {
+      "book": "Numbers",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 12,
+        "verse": 16
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 13,
+        "verse": 1
+      },
+      "note": "Num 12:16 → 13:1"
+    },
+    {
+      "book": "Numbers",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 13,
+        "start": 1,
+        "end": 33
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Num 13:1–33 → 13:+1"
+    },
+    {
+      "book": "Joshua",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 6,
+        "verse": 1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 5,
+        "verse": 16
+      },
+      "note": "Josh 6:1 → 5:16"
+    },
+    {
+      "book": "Joshua",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 6,
+        "start": 2,
+        "end": 27
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": -1
+      },
+      "note": "Josh 6:2–27 → 6:-1"
+    },
+    {
+      "book": "1 Samuel",
+      "type": "split",
+      "from": {
+        "tx": "kjv",
+        "chapter": 20,
+        "verse": 42
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 20,
+        "start": 42,
+        "end": 43
+      },
+      "note": "1Sam 20:42 splits across RST 20:42–43"
+    },
+    {
+      "book": "1 Samuel",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 23,
+        "verse": 29
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 24,
+        "verse": 1
+      },
+      "note": "1Sam 23:29 → 24:1"
+    },
+    {
+      "book": "1 Samuel",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 24,
+        "start": 1,
+        "end": 22
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "1Sam 24:1–22 → 24:+1"
+    },
+    {
+      "book": "Job",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 40,
+        "start": 1,
+        "end": 5
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 30
+      },
+      "note": "Job 40:1–5 → 39:31–35 (-1 chapter, +30 verses)"
+    },
+    {
+      "book": "Job",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 40,
+        "start": 6,
+        "end": 24
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": -5
+      },
+      "note": "Job 40:6–24 → 40:1–19 (0, -5)"
+    },
+    {
+      "book": "Job",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 41,
+        "start": 1,
+        "end": 8
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 19
+      },
+      "note": "Job 41:1–8 → 40:20–27 (-1, +19)"
+    },
+    {
+      "book": "Job",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 41,
+        "start": 9,
+        "end": 34
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": -8
+      },
+      "note": "Job 41:9–34 → 41:1–26 (0, -8)"
+    },
+    {
+      "book": "Song of Solomon",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 1,
+        "start": 2,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": -1
+      },
+      "note": "Song 1:2–end → 1:-1 (title as v1 in RST)"
+    },
+    {
+      "book": "Song of Solomon",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 6,
+        "verse": 13
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 7,
+        "verse": 1
+      },
+      "note": "Song 6:13 → 7:1"
+    },
+    {
+      "book": "Song of Solomon",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 7,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Song 7:1–end → 7:+1"
+    },
+    {
+      "book": "Isaiah",
+      "type": "merge",
+      "from": {
+        "tx": "kjv",
+        "chapter": 3,
+        "start": 19,
+        "end": 20
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 3,
+        "verse": 19
+      },
+      "note": "Isa 3:19–20 collapse to RST 3:19 (a/b)"
+    },
+    {
+      "book": "Isaiah",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 3,
+        "start": 21,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": -1
+      },
+      "note": "Isa 3:21–end → 3:-1"
+    },
+    {
+      "book": "Daniel",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 4,
+        "start": 1,
+        "end": 3
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 30
+      },
+      "note": "Dan 4:1–3 → 3:31–33 (-1, +30)"
+    },
+    {
+      "book": "Daniel",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 4,
+        "start": 4,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": -3
+      },
+      "note": "Dan 4:4–end → 4:-3"
+    },
+    {
+      "book": "Hosea",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 13,
+        "verse": 16
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 14,
+        "verse": 1
+      },
+      "note": "Hos 13:16 → 14:1"
+    },
+    {
+      "book": "Hosea",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 14,
+        "start": 1,
+        "end": 9
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Hos 14:1–9 → 14:+1"
+    },
+    {
+      "book": "Jonah",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 1,
+        "verse": 17
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 2,
+        "verse": 1
+      },
+      "note": "Jonah 1:17 → 2:1"
+    },
+    {
+      "book": "Jonah",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 2,
+        "start": 1,
+        "end": 10
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Jonah 2:1–10 → 2:+1"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 3,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 3 KJV → Ps 3 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 4,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 4 KJV → Ps 4 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 5,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 5 KJV → Ps 5 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 6,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 6 KJV → Ps 6 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 7,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 7 KJV → Ps 7 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 8,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 8 KJV → Ps 8 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 9,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 9 KJV → Ps 9 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 10,
+        "verse": 1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 9,
+        "verse": 22
+      },
+      "note": "Ps 10:1 → Ps 9:22"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 10,
+        "start": 2,
+        "end": 18
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 21
+      },
+      "note": "Ps 10:2–18 → Ps 9:+21"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 11,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 11 KJV → Ps 10 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 12,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 12 KJV → Ps 11 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 13,
+        "start": 1,
+        "end": 4
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 13:1–4 → Ps 12:+1"
+    },
+    {
+      "book": "Psalms",
+      "type": "merge",
+      "from": {
+        "tx": "kjv",
+        "chapter": 13,
+        "start": 5,
+        "end": 6
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 12,
+        "verse": 6
+      },
+      "note": "Ps 13:5–6 (a/b) → Ps 12:6"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 14,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 14 KJV → Ps 13 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 15,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 15 KJV → Ps 14 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 16,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 16 KJV → Ps 15 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 17,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 17 KJV → Ps 16 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 18,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 18 KJV → Ps 17 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 19,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 19 KJV → Ps 18 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 20,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 20 KJV → Ps 19 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 21,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 21 KJV → Ps 20 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 22,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 22 KJV → Ps 21 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 23,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 23 KJV → Ps 22 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 24,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 24 KJV → Ps 23 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 25,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 25 KJV → Ps 24 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 26,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 26 KJV → Ps 25 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 27,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 27 KJV → Ps 26 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 28,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 28 KJV → Ps 27 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 29,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 29 KJV → Ps 28 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 30,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 30 KJV → Ps 29 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 31,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 31 KJV → Ps 30 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 32,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 32 KJV → Ps 31 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 33,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 33 KJV → Ps 32 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 34,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": 1
+      },
+      "note": "Ps 34 KJV → Ps 34 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 35,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 35 KJV → Ps 34 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 36,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 36 KJV → Ps 35 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 37,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 37 KJV → Ps 36 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 38,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 38 KJV → Ps 37 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 39,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 39 KJV → Ps 38 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 40,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 40 KJV → Ps 39 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 41,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 41 KJV → Ps 40 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 42,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 42 KJV → Ps 41 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 43,
+        "start": 1,
+        "end": 5
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 43:1–5 → Ps 42 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 44,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 44 KJV → Ps 43 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 45,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 45 KJV → Ps 44 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 46,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 46 KJV → Ps 45 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 47,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 47 KJV → Ps 46 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 48,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 48 KJV → Ps 47 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 49,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 49 KJV → Ps 48 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 50,
+        "start": 1,
+        "end": 23
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 50:1–23 → Ps 49 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 51,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 2
+      },
+      "note": "Ps 51 KJV → Ps 50 RST (+2)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 52,
+        "start": 1,
+        "end": 9
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 2
+      },
+      "note": "Ps 52:1–9 → Ps 51:+2"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 53,
+        "start": 1,
+        "end": 6
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 53:1–6 → Ps 52:+1"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 54,
+        "start": 1,
+        "end": 7
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 2
+      },
+      "note": "Ps 54:1–7 → Ps 53:+2"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 55,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 55 KJV → Ps 54 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 56,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 56 KJV → Ps 55 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 57,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 57 KJV → Ps 56 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 58,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 58 KJV → Ps 57 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 59,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 59 KJV → Ps 58 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 60,
+        "start": 1,
+        "end": 12
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 2
+      },
+      "note": "Ps 60:1–12 → Ps 59:+2"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 61,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 61 KJV → Ps 60 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 62,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 62 KJV → Ps 61 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 63,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 63 KJV → Ps 62 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 64,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 64 KJV → Ps 63 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 65,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 65 KJV → Ps 64 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 66,
+        "start": 1,
+        "end": 20
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 66:1–20 → Ps 65 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 67,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 67 KJV → Ps 66 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 68,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 68 KJV → Ps 67 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 69,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 69 KJV → Ps 68 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 70,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 70 KJV → Ps 69 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 71,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 71 KJV → Ps 70 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 72,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 72 KJV → Ps 71 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 73,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 73 KJV → Ps 72 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 74,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 74 KJV → Ps 73 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 75,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 75 KJV → Ps 74 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 76,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 76 KJV → Ps 75 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 77,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 77 KJV → Ps 76 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 78,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 78 KJV → Ps 77 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 79,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 79 KJV → Ps 78 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 80,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 80 KJV → Ps 79 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 81,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 81 KJV → Ps 80 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 82,
+        "start": 1,
+        "end": 8
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 82:1–8 → Ps 81 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 83,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 83 KJV → Ps 82 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 84,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 84 KJV → Ps 83 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 85,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 85 KJV → Ps 84 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 86,
+        "start": 1,
+        "end": 17
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 86:1–17 → Ps 85 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "merge",
+      "from": {
+        "tx": "kjv",
+        "chapter": 87,
+        "start": 1,
+        "end": 2
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 86,
+        "verse": 2
+      },
+      "note": "Ps 87:1–2 (a/b) → RST 86:2"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 87,
+        "start": 3,
+        "end": 7
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 87:3–7 → Ps 86 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 88,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 88 KJV → Ps 87 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 89,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 89 KJV → Ps 88 RST (+1)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 90,
+        "start": 1,
+        "end": 4
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 90:1–4 → Ps 89:+1"
+    },
+    {
+      "book": "Psalms",
+      "type": "merge",
+      "from": {
+        "tx": "kjv",
+        "chapter": 90,
+        "start": 5,
+        "end": 6
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 89,
+        "verse": 6
+      },
+      "note": "Ps 90:5–6 (a/b) → RST 89:6"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 90,
+        "start": 7,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 90:7–end → Ps 89 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 91,
+        "start": 1,
+        "end": 16
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 91:1–16 → Ps 90 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 92,
+        "start": 1,
+        "end": 15
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 92:1–15 → Ps 91:+1"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 93,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 93 KJV → Ps 92 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 94,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 94 KJV → Ps 93 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 95,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 95 KJV → Ps 94 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 96,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 96 KJV → Ps 95 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 97,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 97 KJV → Ps 96 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 98,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 98 KJV → Ps 97 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 99,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 99 KJV → Ps 98 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 100,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 100 KJV → Ps 99 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 101,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 101 KJV → Ps 100 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 102,
+        "start": 1,
+        "end": 28
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 102:1–28 → Ps 101:+1"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 103,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 103 KJV → Ps 102 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 104,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 104 KJV → Ps 103 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 105,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 105 KJV → Ps 104 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 106,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 106 KJV → Ps 105 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 107,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 107 KJV → Ps 106 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 108,
+        "start": 1,
+        "end": 13
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 1
+      },
+      "note": "Ps 108:1–13 → Ps 107:+1"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 109,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 109 KJV → Ps 108 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 110,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 110 KJV → Ps 109 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 111,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 111 KJV → Ps 110 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 112,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 112 KJV → Ps 111 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 113,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 113 KJV → Ps 112 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 114,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 114 KJV → Ps 113 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 115,
+        "start": 1,
+        "end": 18
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -2,
+        "verse_offset": 8
+      },
+      "note": "Ps 115:1–18 → Ps 113:+8"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 116,
+        "start": 1,
+        "end": 9
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -2,
+        "verse_offset": 0
+      },
+      "note": "Ps 116:1–9 → Ps 114 (same verse numbers)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 116,
+        "start": 10,
+        "end": 19
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": -9
+      },
+      "note": "Ps 116:10–19 → Ps 115:-9"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 117,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 117 KJV → Ps 116 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 118,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 118 KJV → Ps 117 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 119,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 119 KJV → Ps 118 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 120,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 120 KJV → Ps 119 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 121,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 121 KJV → Ps 120 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 122,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 122 KJV → Ps 121 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 123,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 123 KJV → Ps 122 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 124,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 124 KJV → Ps 123 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 125,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 125 KJV → Ps 124 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 126,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 126 KJV → Ps 125 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 127,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 127 KJV → Ps 126 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 128,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 128 KJV → Ps 127 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 129,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 129 KJV → Ps 128 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 130,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 130 KJV → Ps 129 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 131,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 131 KJV → Ps 130 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 132,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 132 KJV → Ps 131 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 133,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 133 KJV → Ps 132 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 134,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 134 KJV → Ps 133 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 135,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 135 KJV → Ps 134 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 136,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 136 KJV → Ps 135 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 137,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 137 KJV → Ps 136 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 138,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 138 KJV → Ps 137 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 139,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 139 KJV → Ps 138 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 140,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 140 KJV → Ps 139 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 141,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 141 KJV → Ps 140 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 142,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 142 KJV → Ps 141 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 143,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 143 KJV → Ps 142 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 144,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 144 KJV → Ps 143 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 145,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 145 KJV → Ps 144 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 146,
+        "start": 1,
+        "end": -1
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 146 KJV → Ps 145 RST (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 147,
+        "start": 1,
+        "end": 11
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -1,
+        "verse_offset": 0
+      },
+      "note": "Ps 147:1–11 → Ps 146 (same verses)"
+    },
+    {
+      "book": "Psalms",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 147,
+        "start": 12,
+        "end": 20
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": 0,
+        "verse_offset": -11
+      },
+      "note": "Ps 147:12–20 → Ps 147:-11"
+    },
+    {
+      "book": "Romans",
+      "type": "range_shift",
+      "from": {
+        "tx": "kjv",
+        "chapter": 16,
+        "start": 25,
+        "end": 27
+      },
+      "to": {
+        "tx": "rst",
+        "chapter_delta": -2,
+        "verse_offset": -1
+      },
+      "note": "Rom 16:25–27 → RST 14:24–26 (-2 chapters, -1 verse)"
+    },
+    {
+      "book": "Acts",
+      "type": "split",
+      "from": {
+        "tx": "kjv",
+        "chapter": 1,
+        "verse": 15
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 1,
+        "start": 15,
+        "end": 16
+      },
+      "note": "Acts 1:15 ≈ RST 1:15–16 (split)"
+    },
+    {
+      "book": "Acts",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 1,
+        "verse": 16
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 1,
+        "verse": 16
+      },
+      "note": "Acts 1:16 → RST 1:16 (sub-verse detail ignored)"
+    },
+    {
+      "book": "2 Corinthians",
+      "type": "merge",
+      "from": {
+        "tx": "kjv",
+        "chapter": 13,
+        "start": 12,
+        "end": 13
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 13,
+        "verse": 12
+      },
+      "note": "2Cor 13:12–13 → RST 13:12 (merge; a/b)"
+    },
+    {
+      "book": "2 Corinthians",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 13,
+        "verse": 14
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 13,
+        "verse": 13
+      },
+      "note": "2Cor 13:14 → RST 13:13"
+    },
+    {
+      "book": "Ephesians",
+      "type": "split",
+      "from": {
+        "tx": "kjv",
+        "chapter": 3,
+        "verse": 17
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 3,
+        "start": 17,
+        "end": 18
+      },
+      "note": "Eph 3:17 spans RST 3:17–18 (split due to a/b in table)"
+    },
+    {
+      "book": "Ephesians",
+      "type": "one_to_one",
+      "from": {
+        "tx": "kjv",
+        "chapter": 3,
+        "verse": 18
+      },
+      "to": {
+        "tx": "rst",
+        "chapter": 3,
+        "verse": 18
+      },
+      "note": "Eph 3:18 → RST 3:18 (sub-verse 'b' ignored)"
+    },
+    { 
+      "book": "2 Corinthians", 
+      "type": "merge",
+      "from": { 
+        "tx": "kjv", 
+        "chapter": 11, 
+        "start": 32, 
+        "end": 33 },
+      "to":   { 
+        "tx": 
+        "rst", 
+        "chapter": 11, 
+        "verse": 32 },
+      "note": "Your RusSynodal VPL merges v.33 into v.32; map both KJV 11:32–33 → RST 11:32" 
+    }
+  ]
+}
