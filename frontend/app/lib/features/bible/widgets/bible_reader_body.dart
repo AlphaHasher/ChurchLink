@@ -1018,9 +1018,9 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                   ? 'Write a note for this verse…'
                   : 'Pick a highlight to enable notes',
               border: const OutlineInputBorder(),
-              helperText: _canEditNote
-                  // ? 'Notes must be cleared to remove highlight.'
-                  : null,
+              // helperText: _canEditNote
+              //     ? ''
+              //     : null,
             ),
           ),
           const SizedBox(height: 12),
