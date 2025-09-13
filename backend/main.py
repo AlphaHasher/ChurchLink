@@ -13,6 +13,7 @@ from mongo.roles import RoleHandler
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from mongo.scheduled_notifications import scheduled_notification_loop
 import asyncio
 import os
 import logging
@@ -30,6 +31,7 @@ from routes.bible_routes.bible_plan_routes import bible_plan_router
 from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
 from routes.paypal_routes.paypal_routes import paypal_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
+from routes.common_routes.notification_routes import notification_router
 from routes.permissions_routes.permissions_routes import permissions_view_router, permissions_protected_router
 
 
@@ -42,6 +44,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
@@ -93,6 +96,10 @@ async def lifespan(app: FastAPI):
             YoutubeHelper.youtubeSubscriptionLoop()
         )
         logger.info("YouTube subscription monitoring started")
+        
+        #Run Push Notification Scheduler loop
+        scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
+        logger.info("Push notification scheduler started")
 
         logger.info("Application startup completed successfully")
         yield
@@ -100,6 +107,7 @@ async def lifespan(app: FastAPI):
         # Cleanup
         logger.info("Shutting down application...")
         youtubeSubscriptionCheck.cancel()
+        scheduledNotifTask.cancel()
         DatabaseManager.close_db()
         logger.info("Application shutdown completed")
 
@@ -185,7 +193,7 @@ async def update_user_roles(role_update: RoleUpdate):
 # Declare router middleware/slash permissions for imported routes
 #####################################################
 strapi_router.dependencies.append(Depends(role_based_access(["strapi_admin"])))
-# paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
+paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
 
 
 #####################################################
@@ -214,6 +222,8 @@ base_router.include_router(strapi_router)
 base_router.include_router(strapi_protected_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
+base_router.include_router(notification_router)
+
 
 
 non_v1_router = APIRouter(prefix="/api")
