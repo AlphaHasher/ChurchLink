@@ -6,17 +6,14 @@
 version: 2
 updates:
   - package-ecosystem: "uv"
-    directory:
-      - "/backend"
+    directory: "/backend"
     schedule:
       interval: "weekly"
   - package-ecosystem: "npm"
-    directory:
-      - "/backend/strapi/churchlink"
+    directory: "/backend/strapi/churchlink"
     schedule:
       interval: "weekly"
   - package-ecosystem: "pub"
-    directory:
-      - "/frontend/app/churchlink"
+    directory: "/frontend/app/churchlink"
     schedule:
       interval: "weekly"    
