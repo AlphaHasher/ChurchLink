@@ -16,6 +16,9 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 // Server syncing client
 import '../data/notes_api.dart';
 
+// TODO: add
+import 'package:firebase_auth/firebase_auth.dart';
+
 /// List of possible highlight colors, matching what the API supports
 enum HighlightColor { none, blue, red, yellow, green, purple }
 
@@ -140,6 +143,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       _promoteLocalToShared();
       if (mounted) setState(() {});
     });
+
+    // TODO: kick a drain when the Bible page opens (if already signed in)
+    final u = FirebaseAuth.instance.currentUser;
+    if (u != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        NotesApi.drainOutbox(); // TODO: non-blocking offline outbox replay
+      });
+    }
+
+    // TODO: also drain once when the user signs in while this page is open
+    FirebaseAuth.instance
+        .authStateChanges()
+        .firstWhere((user) => user != null)
+        .then((_) => NotesApi.drainOutbox());
   }
 
   @override
