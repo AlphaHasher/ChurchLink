@@ -107,17 +107,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
   const [baseDate, setBaseDate] = useState<Date | undefined>(new Date());
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const calendarToggleRef = useRef<HTMLButtonElement | null>(null);
-  
-  const __DEBUG = false; // flip to true for verbose diagnostics
-  if (__DEBUG) {
-    console.log('🔄 PlanCalendar render:', { 
-      showDayOverlay, 
-      baseDate: baseDate?.toDateString(), 
-      currentPage,
-      selectedDay 
-    });
-  }
-  
+
   const daysPerPage = 31;
   const totalPages = Math.ceil(plan.duration / daysPerPage);
 
