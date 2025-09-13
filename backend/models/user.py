@@ -1,67 +1,15 @@
-from typing import Optional, List, Any, Annotated
+from typing import Optional, List
 from datetime import datetime
 from pydantic import (
-    BaseModel, Field, EmailStr, ConfigDict, 
-    GetCoreSchemaHandler, GetJsonSchemaHandler
+    BaseModel, Field, EmailStr, ConfigDict
 )
-from pydantic_core import core_schema
 from bson import ObjectId
 from mongo.database import DB
 # Import the refactored roles functions
 from models.roles import get_role_ids_from_names, get_roles_with_permissions
+from models.base.ssbc_base_model import PydanticObjectId
 
-# Custom Pydantic type for handling BSON ObjectId
-class _ObjectIdPydanticAnnotation:
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls,
-        _source_type: Any,
-        _handler: GetCoreSchemaHandler,
-    ) -> core_schema.CoreSchema:
-        """
-        Defines how to validate the ObjectId. 
-        Accepts ObjectId instances directly or attempts to validate from a string.
-        """
-        def validate_from_str(v: str) -> ObjectId:
-            try:
-                return ObjectId(v)
-            except Exception:
-                # Catch specific exceptions if needed (e.g., bson.errors.InvalidId)
-                raise ValueError(f"Invalid ObjectId string format: '{v}'")
-
-        # Schema for validating from a string input
-        from_str_schema = core_schema.chain_schema(
-            [
-                core_schema.str_schema(),
-                core_schema.no_info_plain_validator_function(validate_from_str),
-            ]
-        )
-
-        return core_schema.union_schema(
-            [
-                # Allow ObjectId instances directly during model creation/validation
-                core_schema.is_instance_schema(ObjectId),
-                # Allow validation from string input
-                from_str_schema,
-            ],
-            # Always serialize to string representation
-            serialization=core_schema.plain_serializer_function_ser_schema(lambda x: str(x)),
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> dict:
-        """
-        Defines the JSON schema representation for ObjectId as a string.
-        """
-        # Use the existing string schema handler and add the 'objectid' format
-        json_schema = handler(core_schema.str_schema())
-        json_schema.update({'type': 'string', 'format': 'objectid'})
-        return json_schema
-
-# Annotated type using the custom class
-PydanticObjectId = Annotated[ObjectId, _ObjectIdPydanticAnnotation]
+# Use shared PydanticObjectId from base model
 
 # Pydantic Models for User Data
 class AddressSchema(BaseModel):

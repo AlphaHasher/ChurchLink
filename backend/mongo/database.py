@@ -43,6 +43,15 @@ class DB:
             "name": "bible_notes",
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
         }
+        ,
+        {
+            "name": "bible_plans",
+            "compound_indexes": [["user_id", "created_at"]],
+        },
+        {
+            "name": "bible_plan_templates",
+            "indexes": ["name"]
+        }
     ]
 
     ###########
@@ -263,5 +272,3 @@ class DB:
         except Exception as e:
             print(f"Error deleting documents from {collection_name}: {e}")
             return 0
-
-# Models can now use DB helpers or interact directly with DB.db[collection_name]
