@@ -88,7 +88,7 @@ const ServiceTimesSection: React.FC<Props> = ({ data, isEditing = false, onChang
       </div>
       {isEditing && (
         <div className="mt-2 text-center">
-          <button className="text-blue-500" onClick={handleAddTime}>
+          <button className="px-3 py-1 rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors" onClick={handleAddTime}>
             ➕ Add Time
           </button>
         </div>

@@ -32,7 +32,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ data, isEditing, onChange }) 
         <div className="text-right max-w-6xl mx-auto mb-4">
           <button
             onClick={() => setIsPreview(!isPreview)}
-            className="px-4 py-1 text-sm bg-white text-white rounded hover:bg-gray-200"
+            className="px-4 py-1 text-sm rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
           >
             {isPreview ? "Edit" : "Preview"}
           </button>
