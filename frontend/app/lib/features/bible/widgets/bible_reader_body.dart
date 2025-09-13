@@ -15,6 +15,8 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 // Server syncing client
 import '../data/notes_api.dart';
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Server-supported highlight colors (plus 'none' for UI-only).
 enum HighlightColor { none, blue, red, yellow, green, purple }
@@ -64,6 +66,8 @@ class BibleReaderBody extends StatefulWidget {
 }
 
 class _BibleReaderBodyState extends State<BibleReaderBody> {
+  StreamSubscription<ConnectivityResult>? _netSub; // connectivity listener
+
   final _repo = ElishaBibleRepo();
 
   // Current view
@@ -128,6 +132,19 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
 
     _load();
+
+    // Kick once on open as you already do elsewhere
+    NotesApi.trySyncOutbox();
+
+    // Sync whenever network returns
+    _netSub = Connectivity().onConnectivityChanged.listen((r) {
+      if (!mounted) return;
+      if (r != ConnectivityResult.none) {
+        NotesApi.trySyncOutbox();
+      }
+    });
+
+    
 
     // Verse matcher
     Future(() async {
@@ -768,9 +785,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             ));
             _noteIdByKey[_k(v.$1)] = created.id;
             if (cid2 != null) _noteIdByCluster[cid2] = created.id;
-          } else {
-            if (kDebugMode) {
-              debugPrint('[WriteThrough] UPDATE highlight id=$id2 -> ${sc?.name}');
+            } else {
+              final existingTxt = ( /* read note text */ ).trim();
+              if (id2 != null) {
+                if (existingTxt.isEmpty) {
+                  // No text: delete row entirely
+                  await NotesApi.delete(id2);
+                  if (cid2 != null) _noteIdByCluster.remove(cid2);
+                  _noteIdByKey.remove(_k(v.$1));
+                } else {
+                  // Text present: clear only the highlight on server
+                  await NotesApi.clearHighlight(id2);
+                  // IDs unchanged; local UI already removed the color above
+                }
+              }
             }
             await NotesApi.update(id2, color: sc);
           }
@@ -938,6 +966,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
   @override
   void dispose() {
     _note.dispose();
+    // _netSub?.cancel();
     super.dispose();
   }
 
@@ -997,7 +1026,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                 ),
-                onPressed: noteHasText ? null : () => setState(() => _pick = HighlightColor.none),
+                onPressed: () => setState(() => _pick = HighlightColor.none),
                 icon: const Icon(Icons.format_color_reset, size: 18),
                 label: const Text('Clear'),
               ),
