@@ -786,18 +786,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             _noteIdByKey[_k(v.$1)] = created.id;
             if (cid2 != null) _noteIdByCluster[cid2] = created.id;
             } else {
-              final existingTxt = ( /* read note text */ ).trim();
-              if (id2 != null) {
-                if (existingTxt.isEmpty) {
-                  // No text: delete row entirely
-                  await NotesApi.delete(id2);
-                  if (cid2 != null) _noteIdByCluster.remove(cid2);
-                  _noteIdByKey.remove(_k(v.$1));
-                } else {
-                  // Text present: clear only the highlight on server
-                  await NotesApi.clearHighlight(id2);
-                  // IDs unchanged; local UI already removed the color above
-                }
+              // Clearing highlight:
+              // If there is NO note text, delete the row; otherwise do nothing
+              final existingTxt =
+                  (_notesPerTx[_translation]?[_k(v.$1)] ?? _notesShared[cid2 ?? ''] ?? '')
+                      .trim();
+
+              if (existingTxt.isEmpty && id2 != null) {
+                if (kDebugMode) debugPrint('[WriteThrough] DELETE row (clear highlight) id=$id2');
+                await NotesApi.delete(id2);
+                if (cid2 != null) _noteIdByCluster.remove(cid2);
+                _noteIdByKey.remove(_k(v.$1));
               }
             }
             await NotesApi.update(id2, color: sc);
