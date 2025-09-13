@@ -1019,7 +1019,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                   : 'Pick a highlight to enable notes',
               border: const OutlineInputBorder(),
               helperText: _canEditNote
-                  ? 'Notes must be cleared to remove highlight.'
+                  // ? 'Notes must be cleared to remove highlight.'
                   : null,
             ),
           ),
