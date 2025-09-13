@@ -16,9 +16,10 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 // Server syncing client
 import '../data/notes_api.dart';
 
-/// Server-supported highlight colors (plus 'none' for UI-only).
+/// List of possible highlight colors, matching what the API supports
 enum HighlightColor { none, blue, red, yellow, green, purple }
 
+/// Converts colors between different formats
 extension HighlightColorServerCodec on HighlightColor {
   String? get apiValue => switch (this) {
         HighlightColor.none => null,
@@ -47,6 +48,8 @@ extension HighlightColorServerCodec on HighlightColor {
   }
 }
 
+/// Stores information for what should be displayed in the reader
+/// Translation, Book, and Chapter are needed to display the correct verses
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({
     super.key,
@@ -63,6 +66,8 @@ class BibleReaderBody extends StatefulWidget {
   State<BibleReaderBody> createState() => _BibleReaderBodyState();
 }
 
+/// Stores more necessary information for the reader
+/// Visible Verses, Translation Remapping, Notes/Highlights
 class _BibleReaderBodyState extends State<BibleReaderBody> {
   final _repo = ElishaBibleRepo();
 
@@ -253,7 +258,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
-  // ===== Server sync (read) =====
+  /// Code for retreiving note information from the backend
+  /// ===== Server sync (read) =====
   Future<void> _syncFetchChapterNotes() async {
     _noteIdByKey.clear();
     _noteIdByCluster.clear();
@@ -311,6 +317,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
+  /// Sends selected color values to the backend API
   ServerHighlight? _serverFromUi(HighlightColor c) => switch (c) {
         HighlightColor.blue => ServerHighlight.blue,
         HighlightColor.red => ServerHighlight.red,
@@ -321,6 +328,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       };
 
   // ===== Effective lookups =====
+  /// Handles lookups for use in clustering
   HighlightColor _colorFor(VerseRef ref) {
     final m = _matcher;
 
@@ -389,12 +397,14 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return _notesPerTx[_translation]?[_k(ref)];
   }
 
+  /// Used for disabling back button when at first chapter
   bool get _isAtFirstChapter {
     if (!_booksReady) return true;
     final i = _bookIndex(_book);
     return _chapter == 1 && i == 0;
   }
 
+  /// Used for disabling forward button when at first chapter
   bool get _isAtLastChapter {
     if (!_booksReady) return true;
     final i = _bookIndex(_book);
@@ -402,6 +412,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return _chapter == _chapterCount(_book) && i == lastBookIndex;
   }
 
+  /// Traverses chapters in a book
+  /// Wraps around chapters when entering a new book
   void _nextChapter() {
     if (!_booksReady) return;
     final i = _bookIndex(_book);
@@ -433,6 +445,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     _load();
   }
 
+  /// Opens the popup for selecting books/chapters
   Future<void> _openJumpPicker() async {
     if (!_booksReady) return;
 
@@ -560,6 +573,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
+  /// Opens the note taking popup and handles interactions
   Future<void> _openActions((VerseRef ref, String text) v) async {
     final res = await showModalBottomSheet<_ActionResult>(
       context: context,
@@ -801,6 +815,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
+  /// 
   @override
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
