@@ -9,13 +9,28 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
   - package-ecosystem: "npm"
     directories:
       - "/backend/strapi/churchlink"
       - "/frontend/web/churchlink"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"      
     schedule:
       interval: "weekly"
   - package-ecosystem: "pub"
     directory: "/frontend/app"
     schedule:
       interval: "weekly"    
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
