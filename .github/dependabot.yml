@@ -13,7 +13,6 @@ updates:
   - package-ecosystem: "npm"
     directory:
       - "/backend/strapi/churchlink"
-      - "/frontend/web/churchlink"
     schedule:
       interval: "weekly"
   - package-ecosystem: "pub"
