@@ -13,7 +13,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:async';
+
+// offline/backoff utilities
+import 'dart:async'; 
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
@@ -101,6 +103,10 @@ class RemoteNote {
 
 /// Handles communication with the backend
 class NotesApi {
+  // TODO: Announce server reconnect
+  static final StreamController<void> _syncedCtr = StreamController<void>.broadcast();
+  static Stream<void> get onSynced => _syncedCtr.stream;
+
   static Future<String> _token() async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) {
@@ -125,11 +131,11 @@ class NotesApi {
   static Uri _u(String path, [Map<String, String>? qp]) =>
       Uri.parse('${NotesApiConfig.baseUrl}$path').replace(queryParameters: qp);
 
-  // Detect offline errors
+  // detect offline
   static bool _isOffline(Object e) =>
       e is SocketException || e is HttpException || e is TimeoutException;
 
-  // TODO: small backoff timer to retry draining shortly after we enqueue
+  // small retry timer after a failure
   static Timer? _retryTimer; // TODO
   static void _scheduleRetry() { // TODO
     _retryTimer?.cancel();
@@ -171,10 +177,10 @@ class NotesApi {
           .map((e) => RemoteNote.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      // TODO: write fresh server data into cache so offline has it
+      // cache fresh server data
       await _Cache.upsertMany(notes);
 
-      // TODO: keep offline temps visible until they sync
+      // keep local temps visible until they sync
       final cachedForRange = await _Cache.getRange(
         book,
         chapterStart: chapterStart,
@@ -212,7 +218,7 @@ class NotesApi {
     }
   }
 
-  // TODO: keep raw online paths so the outbox can call them directly
+  // Raw online paths (used by outbox)
   static Future<RemoteNote> _createOnline(RemoteNote draft) async {
     final t = await _token();
     final uri = _u('/api/v1/bible-notes/');
@@ -231,13 +237,12 @@ class NotesApi {
     final created =
         RemoteNote.fromJson(json.decode(r.body) as Map<String, dynamic>);
 
-    // TODO: reflect server success into cache
     await _Cache.upsert(created);
+    _syncedCtr.add(null);
 
     return created;
   }
 
-  // TODO: keep raw online paths so the outbox can call them directly
   static Future<RemoteNote> _updateOnline(
     String id, {
     String? note,
@@ -261,13 +266,12 @@ class NotesApi {
     final updated =
         RemoteNote.fromJson(json.decode(r.body) as Map<String, dynamic>);
 
-    // TODO: reflect server success into cache
     await _Cache.upsert(updated);
+    _syncedCtr.add(null);
 
     return updated;
   }
 
-  // TODO: keep raw online paths so the outbox can call them directly
   static Future<void> _deleteOnline(String id) async {
     final t = await _token();
     final uri = _u('/api/v1/bible-notes/$id');
@@ -280,18 +284,16 @@ class NotesApi {
       throw StateError('DELETE note failed: ${r.statusCode} ${r.body}');
     }
 
-    // TODO: reflect server success into cache
     await _Cache.removeById(id);
+    _syncedCtr.add(null);
   }
 
   /// Create a note/highlight row. (Highlights are required to add notes).
   static Future<RemoteNote> create(RemoteNote draft) async {
     try {
-      // primary online path
       return await _createOnline(draft);
     } catch (e) {
       if (_isOffline(e)) {
-        // TODO: enqueue + cache optimistic temp item
         final tempId = 'temp_${DateTime.now().microsecondsSinceEpoch}';
         await _Outbox.enqueueCreate(tempId, draft.toCreateJson());
         final optimistic = RemoteNote(
@@ -305,8 +307,8 @@ class NotesApi {
           createdAt: DateTime.now(),
           updatedAt: null,
         );
-        await _Cache.upsert(optimistic); // TODO
-        _scheduleRetry(); // TODO
+        await _Cache.upsert(optimistic);       // TODO
+        _scheduleRetry();                      // TODO
         return optimistic;
       }
       rethrow;
@@ -321,15 +323,12 @@ class NotesApi {
     ServerHighlight? color,
   }) async {
     try {
-      // primary online path
       return await _updateOnline(id, note: note, color: color);
     } catch (e) {
       if (_isOffline(e)) {
-        // TODO: enqueue; also mutate cache if note exists locally
-        await _Outbox.enqueueUpdate(id, note: note, color: color);
-        await _Cache.updatePartial(id, note: note, color: color); // TODO
-        _scheduleRetry(); // TODO
-        // Return a stub; most callers ignore the value.
+        await _Outbox.enqueueUpdate(id, note: note, color: color);       // TODO
+        await _Cache.updatePartial(id, note: note, color: color);        // TODO
+        _scheduleRetry();                                                // TODO
         return RemoteNote(
           id: id,
           book: '',
@@ -349,27 +348,24 @@ class NotesApi {
   /// Delete a note row (removes both note text and highlight).
   static Future<void> delete(String id) async {
     try {
-      // primary online path
       await _deleteOnline(id);
     } catch (e) {
       if (_isOffline(e)) {
-        // TODO: enqueue; also remove from cache so UI hides it offline
-        await _Outbox.enqueueDelete(id);
-        await _Cache.removeById(id); // TODO
-        _scheduleRetry(); // TODO
+        await _Outbox.enqueueDelete(id);       // TODO
+        await _Cache.removeById(id);           // TODO
+        _scheduleRetry();                      // TODO
         return;
       }
       rethrow;
     }
   }
 
-  // TODO: expose a public drain so you can call this at boot/resume
-  static Future<void> drainOutbox() => _Outbox.drain(); // TODO
+  // Public drain at boot/resume/reconnect
+  static Future<void> drainOutbox() => _Outbox.drain();
 }
 
 // -----------------------------------------------------------------------------
-// TODO: Minimal file cache for notes so offline reads show recent edits.
-// Stores an array of note JSONs, upserts on writes, and filters by range.
+// Store notes locally for offline access
 // -----------------------------------------------------------------------------
 class _Cache {
   static const _fileName = 'notes_cache.json';
@@ -393,7 +389,6 @@ class _Cache {
             .toList();
       }
       if (raw is List) {
-        // legacy shape
         return raw
             .cast<Map>()
             .map((e) => Map<String, dynamic>.from(e as Map))
@@ -500,7 +495,6 @@ class _Cache {
     final all = await _readAll();
     final i = all.indexWhere((m) => (m['id']?.toString() ?? '') == oldId);
     if (i < 0) return;
-    // If an entry already exists with newId, drop the old one.
     final j = all.indexWhere((m) => (m['id']?.toString() ?? '') == newId);
     if (j >= 0) {
       all.removeAt(i);
@@ -512,8 +506,7 @@ class _Cache {
 }
 
 // -----------------------------------------------------------------------------
-// TODO: Minimal file-backed outbox for offline writes (FIFO JSON file).
-// Replays queued jobs on reconnect and keeps the cache in sync.
+// Store offline note changes until connection can be established
 // -----------------------------------------------------------------------------
 class _Outbox {
   static const _fileName = 'notes_outbox.json';
@@ -588,7 +581,7 @@ class _Outbox {
     if (kDebugMode) debugPrint('[Outbox] queued delete id=$id');
   }
 
-  // TODO: robust int conversion from dynamic
+  // robust int conversion from dynamic
   static int _asInt(dynamic v, {int? or}) { // TODO
     if (v == null) return or ?? 0;
     if (v is int) return v;
@@ -597,12 +590,12 @@ class _Outbox {
   }
 
   static Future<void> drain() async {
-    // TODO: single-flight guard
     if (_draining) {
       if (kDebugMode) debugPrint('[Outbox] drain already running; skip');
       return;
     }
-    _draining = true; // TODO
+    _draining = true;
+    var processedAny = false; 
     try {
       var jobs = await _read();
       if (jobs.isEmpty) {
@@ -656,6 +649,7 @@ class _Outbox {
             }
             jobs.removeAt(i);
             await _write(jobs);
+            processedAny = true;
             if (kDebugMode) debugPrint('[Outbox] create OK $localId -> ${created.id}');
             continue;
           }
@@ -675,6 +669,7 @@ class _Outbox {
             await _Cache.upsert(updated);
             jobs.removeAt(i);
             await _write(jobs);
+            processedAny = true;
             if (kDebugMode) debugPrint('[Outbox] update OK id=$id');
             continue;
           }
@@ -692,22 +687,23 @@ class _Outbox {
             await _Cache.removeById(id);
             jobs.removeAt(i);
             await _write(jobs);
+            processedAny = true; 
             if (kDebugMode) debugPrint('[Outbox] delete OK id=$id');
             continue;
           }
 
-          // Unknown op
           if (kDebugMode) debugPrint('[Outbox] drop unknown op: $job');
           jobs.removeAt(i);
           await _write(jobs);
         } catch (e) {
           if (kDebugMode) debugPrint('[Outbox] flush error: $e');
-          NotesApi._scheduleRetry(); // TODO: try again later
-          break; // stop; leave remaining jobs for next attempt
+          NotesApi._scheduleRetry();
+          break;
         }
       }
     } finally {
-      _draining = false; // TODO
+      _draining = false;
+      if (processedAny) NotesApi._syncedCtr.add(null);
     }
   }
 }

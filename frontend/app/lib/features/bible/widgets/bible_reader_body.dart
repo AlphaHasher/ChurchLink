@@ -15,9 +15,8 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 // Server syncing client
 import '../data/notes_api.dart';
-
-// TODO: add
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async'; 
 
 /// List of possible highlight colors, matching what the API supports
 enum HighlightColor { none, blue, red, yellow, green, purple }
@@ -100,6 +99,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   final Map<String, String> _noteIdByKey = <String, String>{}; // "Book|C|V" -> id
   final Map<String, String> _noteIdByCluster = <String, String>{}; // clusterId -> id
 
+  // TODO: listen for server-sync events + auth changes
+  StreamSubscription? _notesSyncSub; // TODO
+  StreamSubscription<User?>? _authSub; // TODO
+
   String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
   String get _otherTx => _translation.toLowerCase() == 'kjv' ? 'rst' : 'kjv';
 
@@ -145,29 +148,30 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     });
 
     // TODO: kick a drain when the Bible page opens (if already signed in)
-    final u = FirebaseAuth.instance.currentUser;
+    final u = FirebaseAuth.instance.currentUser; // TODO
     if (u != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        NotesApi.drainOutbox(); // TODO: non-blocking offline outbox replay
+      WidgetsBinding.instance.addPostFrameCallback((_) { // TODO
+        NotesApi.drainOutbox(); // TODO
       });
     }
 
-    // TODO: also drain once when the user signs in while this page is open
-    FirebaseAuth.instance
-        .authStateChanges()
-        .firstWhere((user) => user != null)
-        .then((_) => NotesApi.drainOutbox());
+    // TODO: also drain if the user signs in while this page is open
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) { // TODO
+      if (user != null) NotesApi.drainOutbox();                          // TODO
+    });                                                                   // TODO
+
+    // TODO: refresh indices automatically when outbox/direct writes finish
+    _notesSyncSub = NotesApi.onSynced.listen((_) async { // TODO
+      await _syncFetchChapterNotes();                    // TODO
+      if (mounted) setState(() {});                      // TODO
+    });                                                  // TODO
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    Books.instance.ensureLoaded().then((_) {
-      if (!mounted) return;
-      _booksReady = true;
-      Books.instance.setLocaleCode(_localeForTx(_translation));
-      setState(() {});
-    });
+  void dispose() {
+    _notesSyncSub?.cancel(); // TODO
+    _authSub?.cancel();      // TODO
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -275,7 +279,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
-  /// Code for retreiving note information from the backend
   /// ===== Server sync (read) =====
   Future<void> _syncFetchChapterNotes() async {
     _noteIdByKey.clear();
@@ -345,7 +348,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       };
 
   // ===== Effective lookups =====
-  /// Handles lookups for use in clustering
   HighlightColor _colorFor(VerseRef ref) {
     final m = _matcher;
 
@@ -605,7 +607,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
     // ----- Local state updates -----
     setState(() {
-      // NOTES (and ensure highlights are also cleared when notes are removed)
       if (res.noteDelete == true) {
         final m = _matcher;
         final hereK = _k(v.$1);
@@ -636,13 +637,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           // Clear shared note + highlight for all related clusters
           for (final cid in cids) {
             _notesShared.remove(cid);
-            _hlShared.remove(cid); // IMPORTANT: clear highlight locally
+            _hlShared.remove(cid);
           }
           // Clear per-tx at the tapped verse
           _notesPerTx[_translation]?.remove(hereK);
           _hlPerTx[_translation]?.remove(hereK);
         } else {
-          // No matcher / no cross-map: just clear local note + highlight for this verse
           _notesPerTx[_translation]?.remove(hereK);
           _hlPerTx[_translation]?.remove(hereK);
         }
@@ -678,7 +678,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
             for (final cid in cids) {
               _notesShared.remove(cid);
-              _hlShared.remove(cid); // IMPORTANT: clear highlight locally
+              _hlShared.remove(cid);
             }
             _notesPerTx[_translation]?.remove(hereK);
             _hlPerTx[_translation]?.remove(hereK);
@@ -701,7 +701,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         }
       }
 
-      // HIGHLIGHTS (normal path when a chip is selected)
+      // HIGHLIGHTS
       if (res.highlight != null) {
         final color = res.highlight!;
         final hereK = _k(v.$1);
@@ -740,7 +740,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     try {
       final m = _matcher;
       final cid = m?.clusterId(_translation, _keyOf(v.$1));
-      final id = (cid != null ? _noteIdByCluster[cid] : null) ?? _noteIdByKey[_k(v.$1)];
+      String? id = (cid != null ? _noteIdByCluster[cid] : null) ?? _noteIdByKey[_k(v.$1)];
 
       if (kDebugMode) {
         debugPrint('[WriteThrough] ref=${_k(v.$1)} cid=${cid ?? "-"} id=${id ?? "-"} '
@@ -748,8 +748,14 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             'hl=${res.highlight?.name}');
       }
 
-      // Note delete / upsert
       if (res.noteDelete == true) {
+        if (id != null && id.startsWith('temp_')) {
+          await NotesApi.drainOutbox();
+          await _syncFetchChapterNotes();
+          id = (cid != null ? _noteIdByCluster[cid] : null)
+              ?? _noteIdByKey[_k(v.$1)];
+        }
+
         if (id != null) {
           if (kDebugMode) debugPrint('[WriteThrough] DELETE note id=$id');
           await NotesApi.delete(id);
@@ -777,7 +783,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             await NotesApi.update(id, note: txt);
           }
         } else {
-          // empty text => remove the note row (this also clears highlight on server)
           if (id != null) {
             if (kDebugMode) debugPrint('[WriteThrough] DELETE note (empty text) id=$id');
             await NotesApi.delete(id);
@@ -787,7 +792,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         }
       }
 
-      // Highlight upsert/clear (UI no longer exposes "clear" alone, but keep logic safe)
+      // Highlight upsert/clear
       if (res.highlight != null) {
         final color = res.highlight!;
         final sc = _serverFromUi(color);
@@ -815,7 +820,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             await NotesApi.update(id2, color: sc);
           }
         } else {
-          // If highlight were ever cleared while text exists, we no-op (UI doesn't allow it).
           final existingTxt =
               (_notesPerTx[_translation]?[_k(v.$1)] ?? _notesShared[cid2 ?? ''] ?? '').trim();
           if (existingTxt.isEmpty && id2 != null) {
