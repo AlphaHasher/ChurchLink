@@ -10,19 +10,50 @@ updates:
     schedule:
       interval: "weekly"
     groups:
-      production-dependencies:
+      production-major:
         dependency-type: "production"
-      development-dependencies:
+        update-types: ["version-update:semver-major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      development-major:
         dependency-type: "development"
+        update-types: ["version-update:semver-major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
   - package-ecosystem: "npm"
-    directories:
-      - "/backend/strapi/churchlink"
-      - "/frontend/web/churchlink"
+    directory: "/backend/strapi/churchlink"
     groups:
-      production-dependencies:
+      production-major:
         dependency-type: "production"
-      development-dependencies:
-        dependency-type: "development"      
+        update-types: ["version-update:semver-major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      development-major:
+        dependency-type: "development"
+        update-types: ["version-update:semver-major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/frontend/web/churchlink"
+    groups:
+      production-major:
+        dependency-type: "production"
+        update-types: ["version-update:semver-major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      development-major:
+        dependency-type: "development"
+        update-types: ["version-update:semver-major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
     schedule:
       interval: "weekly"
   - package-ecosystem: "pub"
@@ -30,7 +61,15 @@ updates:
     schedule:
       interval: "weekly"    
     groups:
-      production-dependencies:
+      production-major:
         dependency-type: "production"
-      development-dependencies:
+        update-types: ["version-update:semver-major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      development-major:
         dependency-type: "development"
+        update-types: ["version-update:semver-major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
