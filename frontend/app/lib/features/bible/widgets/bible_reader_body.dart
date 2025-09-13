@@ -815,7 +815,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
-  /// 
+  /// Renders the header bar and its elements
+  /// Chapter Jump, Navigation, Voice, Search
   @override
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
@@ -932,8 +933,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 }
 
-// ===== Bottom Sheet =====
-
+/// Stores whatever actions the user takes while in the notetaking menu
 class _ActionResult {
   final HighlightColor? highlight;
   final String? noteText;
@@ -941,6 +941,7 @@ class _ActionResult {
   _ActionResult({this.highlight, this.noteText, this.noteDelete});
 }
 
+/// UI Elements for the note taking menu
 class _VerseActionsSheet extends StatefulWidget {
   const _VerseActionsSheet({
     required this.verseLabel,
@@ -1033,9 +1034,6 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                   ? 'Write a note for this verse…'
                   : 'Pick a highlight to enable notes',
               border: const OutlineInputBorder(),
-              // helperText: _canEditNote
-              //     ? ''
-              //     : null,
             ),
           ),
           const SizedBox(height: 12),
