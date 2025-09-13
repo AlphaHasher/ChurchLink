@@ -3,6 +3,7 @@ import { auth } from "@/lib/firebase";
 import { processFetchedUserData } from "./DataFunctions";
 import api from "../api/api";
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
+import { toProfileInfo, ProfileInfo } from "@/shared/types/ProfileInfo";
 
 export const processMongoVerification = async () => {
     try {
@@ -67,5 +68,41 @@ export const getMyPermissions = async (options?: MyPermsRequest) => {
     } catch (err) {
         console.error("Failed to get user perms:", err);
         return null;
+    }
+};
+
+export const getMyProfileInfo = async () => {
+    try {
+        const res = await api.get("/v1/users/get-profile");
+        return toProfileInfo(res.data.profile_info);
+    }
+    catch (err) {
+        console.error("Failed to get profile info:", err);
+        return null;
+    }
+}
+
+export const updateProfileInfo = async (profile: ProfileInfo) => {
+    try {
+        const payload = {
+            first_name: profile.first_name,
+            last_name: profile.last_name,
+            email: profile.email,
+            birthday: profile.birthday ? profile.birthday.toISOString() : null,
+            gender: profile.gender ?? null,
+        };
+
+        const res = await api.patch("/v1/users/update-profile", payload);
+
+        return {
+            success: res.data?.success === true,
+            msg: res.data?.msg ?? "",
+            profile: res.data?.profile_info
+                ? toProfileInfo(res.data.profile_info)
+                : null,
+        };
+    } catch (err) {
+        console.error("Failed to update profile info:", err);
+        return { success: false, msg: "Failed to update profile info.", profile: null };
     }
 };

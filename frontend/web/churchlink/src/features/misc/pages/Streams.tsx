@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { getLivestreamUrls } from "@/helpers/YoutubeHelper";
+import { getStreamIDs } from "@/helpers/YoutubeHelper";
+import { NoStreams } from "../components/NoStreams";
+import { StreamViewer } from "../components/StreamViewer";
 
 const Streams = () => {
     const [streams, setStreams] = useState<string[]>([]);
@@ -8,8 +10,8 @@ const Streams = () => {
     useEffect(() => {
         const fetchStreams = async () => {
             try {
-                const urls = await getLivestreamUrls();
-                setStreams(urls);
+                const stream_ids = await getStreamIDs();
+                setStreams(stream_ids);
             } catch (err) {
                 console.error("Error fetching streams:", err);
             } finally {
@@ -26,7 +28,11 @@ const Streams = () => {
 
     return (
         <div>
-            {streams.length === 0 ? "Stream not found" : "Streams found"}
+            {streams.length === 0 ? (
+                <NoStreams />
+            ) : (
+                <StreamViewer stream_ids={streams} />
+            )}
         </div>
     );
 };

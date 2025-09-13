@@ -17,7 +17,6 @@ import { PersonDetails } from "@/shared/types/Person";
 type EditPersonDialogProps = {
     person: PersonDetails;
     className?: string;
-    /** Called with the updated person when the user saves */
     onUpdate?: (next: PersonDetails) => void;
 };
 
@@ -26,7 +25,6 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
     className,
     onUpdate,
 }) => {
-    // Convert incoming details -> form state
     const toInfo = (p: PersonDetails): PersonInfo => ({
         firstName: p.firstName ?? "",
         lastName: p.lastName ?? "",
@@ -34,7 +32,6 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
         gender: (p.gender ?? "") as PersonInfo["gender"],
     });
 
-    // Convert form state -> outgoing details
     const toDetails = (base: PersonDetails, info: PersonInfo): PersonDetails => ({
         ...base,
         firstName: info.firstName.trim(),
@@ -45,10 +42,9 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
 
     const [info, setInfo] = React.useState<PersonInfo>(toInfo(person));
 
-    // If a different person is edited, refresh defaults
     React.useEffect(() => {
         setInfo(toInfo(person));
-    }, [person.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [person.id]);
 
     const isValid =
         info.firstName.trim().length > 0 &&
@@ -89,7 +85,6 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Prefilled, reusable form block */}
                 <PersonInfoInput value={info} onChange={setInfo} idPrefix={`edit-${person.id}`} />
 
                 <DialogFooter>

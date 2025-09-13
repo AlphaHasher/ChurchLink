@@ -47,7 +47,6 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
     const updateDob = (patch: Partial<PersonInfo["dob"]>) =>
         onChange({ ...value, dob: { ...value.dob, ...patch } });
 
-    // Adjust DD when MM or YYYY changes to keep it in a valid range
     React.useEffect(() => {
         const mmNum = parseInt(value.dob.mm || "0", 10);
         const yyNum = parseInt(value.dob.yyyy || "2000", 10);
@@ -59,7 +58,7 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
         if (ddNum > max) {
             updateDob({ dd: pad2(String(max)) });
         }
-    }, [value.dob.mm, value.dob.yyyy]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [value.dob.mm, value.dob.yyyy]);
 
     const onChangeMM = (raw: string) => {
         let s = onlyDigits(raw).slice(0, 2);
@@ -114,7 +113,6 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
 
     return (
         <div className={["space-y-6", className].filter(Boolean).join(" ")}>
-            {/* Full Name */}
             <div className="space-y-2">
                 <Label>Full Name</Label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -145,7 +143,6 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
                 </div>
             </div>
 
-            {/* Date of Birth */}
             <div className="space-y-2">
                 <Label>Date of Birth</Label>
                 <div className="grid grid-cols-3 gap-3">
@@ -200,7 +197,6 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
                 </div>
             </div>
 
-            {/* Gender */}
             <div className="space-y-2">
                 <Label htmlFor={`${idPrefix}-gender`}>Gender</Label>
                 <Select

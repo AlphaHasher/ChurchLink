@@ -13,7 +13,7 @@ from models.user import (
     find_users_with_permissions,
     update_user_roles, delete_user
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, MyPermsRequest
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, MyPermsRequest, PersonalInfo
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
 
@@ -173,12 +173,25 @@ async def delete_user_route(user_id: str):
 # This would likely require a new Pydantic model for partial updates (e.g., UserUpdate)
 # and a corresponding model function (e.g., update_user_profile).
 
-
 @user_private_router.post("/sync-user")
 async def process_sync_request(request:Request):
     return await process_sync_by_uid(request)
-    
 
+@user_private_router.get("/get-profile")
+async def process_get_profile(request:Request):
+    return await fetch_profile_info(request)
+
+@user_private_router.patch("/update-profile")
+async def process_update_profile(request:Request, profile_data: PersonalInfo = Body(...)):
+    return await update_profile(request, profile_data)
+
+@user_mod_router.get("/check-mod")
+async def process_check_mod(request:Request):
+    if type(request.state.roles) == list and len(request.state.roles) > 0:
+        return {'success':True}
+    else:
+        return {'success':False}
+    
 @user_mod_router.get("/get-users")
 async def process_get_users(request:Request):
     return await fetch_users()

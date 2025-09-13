@@ -18,7 +18,6 @@ type PersonLite = { id: string; firstName: string; lastName: string };
 type DeletePersonDialogProps = {
     person: PersonLite;
     className?: string;
-    /** Called when the user confirms delete (do your API call here). Close on resolve. */
     onDelete?: (personId: string) => Promise<void> | void;
 };
 
@@ -34,7 +33,6 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
     const fullName = `${person.firstName} ${person.lastName}`.trim();
     const isDeleteEnabled = userInput.trim() === fullName;
 
-    // reset on open/close
     React.useEffect(() => {
         if (isOpen) {
             setUserInput("");
@@ -60,7 +58,6 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
 
     return (
         <>
-            {/* Trigger button (keeps your small square icon style) */}
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogTrigger asChild>
                     <Button

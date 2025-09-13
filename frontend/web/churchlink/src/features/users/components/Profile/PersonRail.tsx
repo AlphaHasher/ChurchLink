@@ -19,7 +19,6 @@ export const PersonRail: React.FC<PersonRailProps> = ({
     return (
         <aside className={["w-full lg:flex-1", className].filter(Boolean).join(" ")}>
             <div className="rounded-xl border bg-white p-4 shadow-sm">
-                {/* Header: title + Add button on the right */}
                 <div className="mb-3 flex items-center gap-2">
                     <h3 className="text-base font-semibold flex-1">{heading}</h3>
                     <AddPersonDialog />

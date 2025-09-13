@@ -18,22 +18,19 @@ export const PersonTile: React.FC<Props> = ({ person, className }) => {
                 .filter(Boolean)
                 .join(" ")}
         >
-            {/* Avatar/initials */}
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-300 text-sm font-semibold text-gray-700">
                 {initials(person.firstName, person.lastName)}
             </div>
 
-            {/* Name + meta */}
-            <div className="flex-1">
-                <div className="text-sm font-medium leading-5">
+            <div className="flex-1 min-w-0">
+                <div className="truncate text-sm font-medium leading-5">
                     {person.firstName} {person.lastName}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="truncate text-xs text-muted-foreground">
                     DOB: {formatDob(person.dob)}, Gender: {person.gender}
                 </div>
             </div>
 
-            {/* Actions */}
             <div className="flex items-center gap-2">
                 <EditPersonDialog person={person} />
                 <DeletePersonDialog person={person} />
@@ -42,7 +39,6 @@ export const PersonTile: React.FC<Props> = ({ person, className }) => {
     );
 };
 
-/* local helpers */
 function initials(first: string, last: string) {
     const f = first?.trim()?.[0] ?? "";
     const l = last?.trim()?.[0] ?? "";

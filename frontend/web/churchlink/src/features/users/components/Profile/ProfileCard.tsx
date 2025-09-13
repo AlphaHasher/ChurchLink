@@ -3,30 +3,43 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/u
 import { Separator } from "@/shared/components/ui/separator";
 
 type ProfileCardProps = {
-    displayName?: string;
-    email?: string;
-    accountName?: string;
-    dob?: string;
-    gender?: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    birthday?: Date | null;
+    gender?: string | null;
     className?: string;
-    /** Optional footer content (e.g., action buttons) */
     footer?: React.ReactNode;
 };
 
 export const ProfileCard: React.FC<ProfileCardProps> = ({
-    displayName = "Fake Name",
-    email = "example@example.com",
-    accountName = "First Last",
-    dob = "1/1/2000",
-    gender = "M",
+    firstName,
+    lastName,
+    email,
+    birthday,
+    gender,
     className,
     footer,
 }) => {
+    const displayName = `${firstName} ${lastName}`.trim();
+
+    const dob = birthday
+        ? birthday.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        })
+        : "—";
+
+    const genderDisplay = gender ?? "—";
+
     return (
-        <Card className={["w-80 shadow-lg", className].filter(Boolean).join(" ")}>
+        <Card className={["w-96 shadow-lg", className].filter(Boolean).join(" ")}>
             <CardHeader className="flex flex-col items-center">
-                <div className="mb-4 h-24 w-24 rounded-full bg-gray-300" />
-                <h2 className="text-xl font-semibold">{displayName}</h2>
+                <div className="mb-4 h-24 w-24 rounded-full bg-gray-300"></div>
+                <h2 className="px-4 text-center text-xl font-semibold break-words">
+                    {displayName}
+                </h2>
             </CardHeader>
 
             <CardContent>
@@ -37,11 +50,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                     <dl className="cursor-not-allowed">
                         <OverviewRow label="Account email" value={email} />
                         <Separator />
-                        <OverviewRow label="Account name" value={accountName} />
+                        <OverviewRow label="Account name" value={displayName} />
                         <Separator />
                         <OverviewRow label="DOB" value={dob} />
                         <Separator />
-                        <OverviewRow label="Gender" value={gender} />
+                        <OverviewRow label="Gender" value={genderDisplay} />
                     </dl>
                 </div>
             </CardContent>
@@ -57,7 +70,9 @@ function OverviewRow({ label, value }: { label: string; value: string }) {
             <dt className="col-span-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
                 {label}
             </dt>
-            <dd className="col-span-2 text-sm text-muted-foreground">{value}</dd>
+            <dd className="col-span-2 min-w-0 whitespace-normal break-all text-sm text-muted-foreground">
+                {value}
+            </dd>
         </div>
     );
 }

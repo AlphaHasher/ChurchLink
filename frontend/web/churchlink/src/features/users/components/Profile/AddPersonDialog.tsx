@@ -14,7 +14,6 @@ import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";
 import { PersonDetails } from "@/shared/types/Person";
 
 type AddPersonDialogProps = {
-    /** Optional callback so the parent can add the new person to its list */
     onCreate?: (person: PersonDetails) => void;
 };
 
@@ -26,7 +25,6 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreate }) =>
         gender: "",
     });
 
-    // basic guardrails so the primary action feels right
     const isValid =
         info.firstName.trim().length > 0 &&
         info.lastName.trim().length > 0 &&
@@ -46,7 +44,6 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreate }) =>
     const handleCreate = () => {
         if (!isValid) return;
         onCreate?.(toDetails(info));
-        // reset for next open
         setInfo({
             firstName: "",
             lastName: "",
@@ -58,7 +55,6 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreate }) =>
     return (
         <Dialog>
             <DialogTrigger asChild>
-                {/* Primary button (blue/white), with strong overrides if a global style leaks in */}
                 <Button
                     variant="outline"
                     className="!bg-blue-600 !text-white border border-blue-600 shadow-sm hover:!bg-blue-600"
@@ -75,7 +71,6 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreate }) =>
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Re-usable person form block */}
                 <PersonInfoInput value={info} onChange={setInfo} idPrefix="create" />
 
                 <DialogFooter>
