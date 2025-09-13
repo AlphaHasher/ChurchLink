@@ -1,0 +1,75 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      production-major:
+        dependency-type: "production"
+        update-types: ["major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-major:
+        dependency-type: "development"
+        update-types: ["major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "npm"
+    directory: "/backend/strapi/churchlink"
+    groups:
+      production-major:
+        dependency-type: "production"
+        update-types: ["major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-major:
+        dependency-type: "development"
+        update-types: ["major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/frontend/web/churchlink"
+    groups:
+      production-major:
+        dependency-type: "production"
+        update-types: ["major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-major:
+        dependency-type: "development"
+        update-types: ["major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pub"
+    directory: "/frontend/app"
+    schedule:
+      interval: "weekly"    
+    groups:
+      production-major:
+        dependency-type: "production"
+        update-types: ["major"]
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-major:
+        dependency-type: "development"
+        update-types: ["major"]
+      development-minor-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]

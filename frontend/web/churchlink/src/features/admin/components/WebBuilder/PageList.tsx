@@ -66,7 +66,7 @@ const WebBuilderPageList = () => {
             <h1 className="text-2xl font-semibold">Website Pages</h1>
             <button
                 onClick={() => navigate("/admin/webbuilder/add")}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center"
+                className="px-4 py-2 rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors flex items-center"
             >
                 <span className="mr-1">+</span> Add Page
             </button>

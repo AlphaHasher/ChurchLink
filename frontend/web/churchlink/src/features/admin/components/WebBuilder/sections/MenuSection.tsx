@@ -112,7 +112,7 @@ const MenuSection: React.FC<MenuSectionProps> = ({ data, isEditing, onChange }) 
         {!isEditing && data.items.length > visibleCount && (
           <div className="text-center mt-6">
             <button
-              className="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded"
+              className="px-4 py-2 rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
               onClick={() => setVisibleCount(visibleCount + 6)}
             >
               View More
@@ -123,7 +123,7 @@ const MenuSection: React.FC<MenuSectionProps> = ({ data, isEditing, onChange }) 
         {isEditing && (
           <div className="text-center mt-6">
             <button
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+              className="px-4 py-2 rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
               onClick={addItem}
             >
               + Add Item
