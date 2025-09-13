@@ -188,7 +188,26 @@ ChurchLink supports permissions implemented by the means of **user-defined permi
 
 - media_management: Allows this user to be able to upload/edit/delete media content in the Strapi Dashboard
 
+Instructions for navigating permissions can be found in this document: https://docs.google.com/document/d/1I6OJN2s7TUy-fC78cdqbxUsnFF2vKqp7zPtiqSy6sJg/edit?usp=sharing
+
 ---
+## REQUIRED ROLES SETUP FOR STRAPI
+
+Strapi's functionality requires the existence of a couple of roles packaged into the db.
+
+Firstly, default-role which requires only these permisisons for the purpose of viewing the media library.
+
+<img width="2060" height="964" alt="image" src="https://github.com/user-attachments/assets/c0ed870f-734d-4566-aaa0-16e41e1ad63b" />
+
+Secondly, media-management which requires these permissions for managing the media library and making uploads
+
+<img width="2030" height="986" alt="image" src="https://github.com/user-attachments/assets/4e508e01-0f94-4c86-84ab-62012754121f" />
+
+<img width="1982" height="826" alt="image" src="https://github.com/user-attachments/assets/b8ad9f4e-b455-473c-a155-fa0d94bc0ce0" />
+
+
+
+--- 
 
 ## 📊 Database Design
 
