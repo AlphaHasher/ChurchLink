@@ -1,7 +1,6 @@
-// lib/features/bible/data/notes_api.dart
 // Lightweight client for Bible Note routes.
 //
-// Routes (from your backend):
+// Routes defined in backend\routes\bible_routes\bible_note_routes.py:
 //   GET  /api/v1/bible-notes/reference/{book}
 //   GET  /api/v1/bible-notes/reference/{book}/{chapter}
 //   POST /api/v1/bible-notes/
@@ -15,16 +14,18 @@ import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 
+/// Defines the URL for the backend. 
+/// Uses the Android Flutter default if API_BASE_URL is not in .env
 class NotesApiConfig {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    // Default to Android emulator host. Override with --dart-define.
     defaultValue: 'http://10.0.2.2:8000',
   );
 }
 
 enum ServerHighlight { blue, red, yellow, green, purple }
 
+/// Convert between possible formats for Highlight colors
 ServerHighlight? serverHighlightFrom(String? s) {
   switch ((s ?? '').toLowerCase()) {
     case 'blue':
@@ -44,6 +45,7 @@ ServerHighlight? serverHighlightFrom(String? s) {
 
 String? serverHighlightToString(ServerHighlight? c) => c?.name;
 
+/// Reformats information for use with the server
 class RemoteNote {
   final String id;
   final String book; // canonical English name
@@ -94,6 +96,7 @@ class RemoteNote {
       };
 }
 
+/// Handles communication with the backend
 class NotesApi {
   static Future<String> _token() async {
     final u = FirebaseAuth.instance.currentUser;
@@ -151,7 +154,7 @@ class NotesApi {
         .toList();
   }
 
-  /// Create a note/highlight row.
+  /// Create a note/highlight row. (Highlights are required to add notes).
   static Future<RemoteNote> create(RemoteNote draft) async {
     final t = await _token();
     final uri = _u('/api/v1/bible-notes/');
