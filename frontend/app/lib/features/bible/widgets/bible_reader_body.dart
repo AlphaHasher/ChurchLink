@@ -15,8 +15,6 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 // Server syncing client
 import '../data/notes_api.dart';
-import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Server-supported highlight colors (plus 'none' for UI-only).
 enum HighlightColor { none, blue, red, yellow, green, purple }
@@ -66,8 +64,6 @@ class BibleReaderBody extends StatefulWidget {
 }
 
 class _BibleReaderBodyState extends State<BibleReaderBody> {
-  StreamSubscription<ConnectivityResult>? _netSub; // connectivity listener
-
   final _repo = ElishaBibleRepo();
 
   // Current view
@@ -132,19 +128,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
 
     _load();
-
-    // Kick once on open as you already do elsewhere
-    NotesApi.trySyncOutbox();
-
-    // Sync whenever network returns
-    _netSub = Connectivity().onConnectivityChanged.listen((r) {
-      if (!mounted) return;
-      if (r != ConnectivityResult.none) {
-        NotesApi.trySyncOutbox();
-      }
-    });
-
-    
 
     // Verse matcher
     Future(() async {
@@ -591,9 +574,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
     // ----- Local state updates -----
     setState(() {
-      // NOTES
+      // NOTES (and ensure highlights are also cleared when notes are removed)
       if (res.noteDelete == true) {
         final m = _matcher;
+        final hereK = _k(v.$1);
+
         if (m != null && _existsInOther(v.$1)) {
           final me = _keyOf(v.$1);
           final selfCid = m.clusterId(_translation, me);
@@ -615,22 +600,27 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           }
           for (final s in _sameTxSiblingsFor(v.$1)) {
             cids.add(m.clusterId(_translation, s));
+            _hlPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
           }
+          // Clear shared note + highlight for all related clusters
           for (final cid in cids) {
             _notesShared.remove(cid);
+            _hlShared.remove(cid); // IMPORTANT: clear highlight locally
           }
-          _notesPerTx[_translation]?.remove(_k(v.$1));
-          for (final s in _sameTxSiblingsFor(v.$1)) {
-            _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
-          }
+          // Clear per-tx at the tapped verse
+          _notesPerTx[_translation]?.remove(hereK);
+          _hlPerTx[_translation]?.remove(hereK);
         } else {
-          _notesPerTx[_translation]?.remove(_k(v.$1));
+          // No matcher / no cross-map: just clear local note + highlight for this verse
+          _notesPerTx[_translation]?.remove(hereK);
+          _hlPerTx[_translation]?.remove(hereK);
         }
       } else if (res.noteText != null) {
         final txt = res.noteText!.trim();
         final m = _matcher;
 
         if (txt.isEmpty) {
+          final hereK = _k(v.$1);
           if (m != null && _existsInOther(v.$1)) {
             final me = _keyOf(v.$1);
             final selfCid = m.clusterId(_translation, me);
@@ -652,16 +642,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             }
             for (final s in _sameTxSiblingsFor(v.$1)) {
               cids.add(m.clusterId(_translation, s));
+              _hlPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
             }
+
             for (final cid in cids) {
               _notesShared.remove(cid);
+              _hlShared.remove(cid); // IMPORTANT: clear highlight locally
             }
-            _notesPerTx[_translation]?.remove(_k(v.$1));
-            for (final s in _sameTxSiblingsFor(v.$1)) {
-              _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
-            }
+            _notesPerTx[_translation]?.remove(hereK);
+            _hlPerTx[_translation]?.remove(hereK);
           } else {
-            _notesPerTx[_translation]?.remove(_k(v.$1));
+            _notesPerTx[_translation]?.remove(hereK);
+            _hlPerTx[_translation]?.remove(hereK);
           }
         } else {
           if (m != null && _existsInOther(v.$1)) {
@@ -678,7 +670,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         }
       }
 
-      // HIGHLIGHTS
+      // HIGHLIGHTS (normal path when a chip is selected)
       if (res.highlight != null) {
         final color = res.highlight!;
         final hereK = _k(v.$1);
@@ -764,7 +756,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         }
       }
 
-      // Highlight upsert/clear
+      // Highlight upsert/clear (UI no longer exposes "clear" alone, but keep logic safe)
       if (res.highlight != null) {
         final color = res.highlight!;
         final sc = _serverFromUi(color);
@@ -785,23 +777,14 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             ));
             _noteIdByKey[_k(v.$1)] = created.id;
             if (cid2 != null) _noteIdByCluster[cid2] = created.id;
-            } else {
-              // Clearing highlight:
-              // If there is NO note text, delete the row; otherwise do nothing
-              final existingTxt =
-                  (_notesPerTx[_translation]?[_k(v.$1)] ?? _notesShared[cid2 ?? ''] ?? '')
-                      .trim();
-
-              if (existingTxt.isEmpty && id2 != null) {
-                if (kDebugMode) debugPrint('[WriteThrough] DELETE row (clear highlight) id=$id2');
-                await NotesApi.delete(id2);
-                if (cid2 != null) _noteIdByCluster.remove(cid2);
-                _noteIdByKey.remove(_k(v.$1));
-              }
+          } else {
+            if (kDebugMode) {
+              debugPrint('[WriteThrough] UPDATE highlight id=$id2 -> ${sc?.name}');
             }
             await NotesApi.update(id2, color: sc);
           }
         } else {
+          // If highlight were ever cleared while text exists, we no-op (UI doesn't allow it).
           final existingTxt =
               (_notesPerTx[_translation]?[_k(v.$1)] ?? _notesShared[cid2 ?? ''] ?? '').trim();
           if (existingTxt.isEmpty && id2 != null) {
@@ -821,7 +804,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   @override
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
-    // final w = MediaQuery.of(context).size.width; // kept if you need width later
 
     return Column(
       children: [
@@ -962,17 +944,17 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
   late HighlightColor _pick = widget.currentHighlight;
   late final _note = TextEditingController(text: widget.existingNote ?? '');
 
+  bool get _noteHasText => _note.text.trim().isNotEmpty;
+  bool get _canEditNote => _pick != HighlightColor.none;
+
   @override
   void dispose() {
     _note.dispose();
-    // _netSub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final noteHasText = _note.text.trim().isNotEmpty;
-
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -985,6 +967,7 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
           Text(widget.verseLabel, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
 
+          // ---- Highlight picker ----
           Align(alignment: Alignment.centerLeft, child: const Text('Highlight')),
           const SizedBox(height: 8),
 
@@ -1016,55 +999,57 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
                     ),
                   ),
                 ),
-              // Backend constraint: cannot clear highlight to null if note has text.
-              // Disable the Clear button when note text is present.
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  minimumSize: const Size(0, 28),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: () => setState(() => _pick = HighlightColor.none),
-                icon: const Icon(Icons.format_color_reset, size: 18),
-                label: const Text('Clear'),
-              ),
             ],
           ),
 
           const Divider(height: 24),
 
+          // ---- Note field (gated by highlight) ----
           Align(alignment: Alignment.centerLeft, child: const Text('Note')),
           const SizedBox(height: 8),
           TextField(
             controller: _note,
+            enabled: _canEditNote, // greyed out until a color is picked
             minLines: 3,
             maxLines: 6,
-            onChanged: (_) => setState(() {}), // re-evaluate noteHasText to enable/disable Clear
-            decoration: const InputDecoration(
-              hintText: 'Write a note for this verse…',
-              border: OutlineInputBorder(),
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: _canEditNote
+                  ? 'Write a note for this verse…'
+                  : 'Pick a highlight to enable notes',
+              border: const OutlineInputBorder(),
+              helperText: _canEditNote
+                  ? 'Notes must be cleared to remove highlight.'
+                  : null,
             ),
           ),
           const SizedBox(height: 12),
 
           Row(children: [
-            if (widget.existingNote != null)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      Navigator.pop(context, _ActionResult(noteDelete: true)),
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Delete note'),
-                ),
+            // Delete All is always visible now
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    Navigator.pop(context, _ActionResult(noteDelete: true)),
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete All'),
               ),
-            if (widget.existingNote != null) const SizedBox(width: 10),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: FilledButton(
-                onPressed: () => Navigator.pop(
-                  context,
-                  _ActionResult(highlight: _pick, noteText: _note.text),
-                ),
+                onPressed: () {
+                  // If text editing is disabled, ignore any controller text
+                  final String? textToSend = _canEditNote ? _note.text : null;
+
+                  Navigator.pop(
+                    context,
+                    _ActionResult(
+                      highlight: _pick,
+                      noteText: textToSend,
+                    ),
+                  );
+                },
                 child: const Text('Save'),
               ),
             ),
