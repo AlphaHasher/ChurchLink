@@ -2,7 +2,6 @@ import * as React from "react";
 import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/ui/card";
 import { TvMinimalPlay } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { channel } from "diagnostics_channel";
 
 type NoStreamProps = {
     channel_link: string;
