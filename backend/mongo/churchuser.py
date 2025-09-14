@@ -191,7 +191,7 @@ class UserHandler:
         return doc["people"][0]
     
     @staticmethod
-    async def list_my_events(uid: str, expand: bool = False):
+    async def list_my_events(uid: str, expand: bool = False, person_id: ObjectId = None):
         """
         If expand=True, join with 'events' to return full event docs alongside refs.
         If person_id is provided, filter events for specific family member.
