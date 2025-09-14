@@ -109,6 +109,7 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[ObjectId] =
             event_id=ObjectId(event_id),
             reason="rsvp",
             scope="series",  # or "occurrence" depending on your model
+            person_id=person_id
         )
     except Exception as e:
         # Event RSVP succeeded, but user record failed.
@@ -132,6 +133,7 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[ObjectId] = N
             event_id=ObjectId(event_id),
             reason="rsvp",
             scope="series",
+            person_id=person_id
         )
     except Exception as e:
         print(f"Warning: user my_events cleanup failed: {e}")

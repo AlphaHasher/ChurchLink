@@ -152,3 +152,24 @@ async def get_my_family_members_events(request: Request, filters: Optional[str] 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member events: {str(e)}")
 
+# Get events for specific family member
+@public_event_person_router.get("/family-member/{family_member_id}/events", response_model=dict)
+async def get_family_member_events(family_member_id: str, request: Request):
+    try:
+        from mongo.churchuser import UserHandler
+        
+        # Validate family member ownership
+        member = await get_family_member_by_id(request.state.uid, family_member_id)
+        if not member:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
+        
+        # Get events for specific family member
+        events = await UserHandler.list_my_events(request.state.uid, expand=True, person_id=ObjectId(family_member_id))
+        events_serialized = serialize_objectid(events)
+        
+        return {"success": True, "events": events_serialized, "family_member_id": family_member_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member events: {str(e)}")
+
