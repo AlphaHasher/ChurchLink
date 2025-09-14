@@ -323,7 +323,7 @@ async def get_all_ministries():
             status_code=500,
             detail={"error": "Failed to fetch ministries", "reason": str(e)}
         )
-    
+
 def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp") -> str:
     # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
     return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}"

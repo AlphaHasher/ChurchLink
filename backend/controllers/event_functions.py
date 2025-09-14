@@ -117,7 +117,7 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
         # Event RSVP succeeded, but user record failed.
         # Log this for reconciliation later.
         print(f"Warning: user my_events update failed: {e}")
-        
+
     return True
 
 

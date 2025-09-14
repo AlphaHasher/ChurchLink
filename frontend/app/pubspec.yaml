@@ -50,6 +50,9 @@ dependencies:
   intl: ^0.20.2
   flutter_local_notifications: ^19.0.0
   flutter_paypal_payment: ^1.0.7
+
+  connectivity_plus: ^5.0.2
+  path_provider: ^2.1.3
   
 dev_dependencies:
   flutter_test:
@@ -77,6 +80,15 @@ flutter:
   assets:
     - .env
     - assets/user/
+
+    # Outlines the layout of the Books within the Bible. 
+    - assets/bibles/books.json
+
+    # Bible translations generated from public sources
+    - assets/bibles/translations/
+
+    # Translation rules for mismatched RST and KJV bible verse numbering
+    - assets/bibles/verse_matching/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
