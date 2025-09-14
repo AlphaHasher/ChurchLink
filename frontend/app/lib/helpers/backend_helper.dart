@@ -4,8 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
 class BackendHelper {
-  static const String apiBase =
-      "http://10.0.2.2:8000"; // Emulator-safe localhost
+  // Emulator safe localhost
+  static const String apiBase = "http://10.0.2.2:8000";
+
+  // Physical device using adb reverse tcp:8000 tcp:8000
+  //static const String apiBase = "http://127.0.0.1:8000";
+
   static const String syncEndpoint = "/api/v1/users/sync-user";
 
   static Future<bool> syncFirebaseUserWithBackend() async {
