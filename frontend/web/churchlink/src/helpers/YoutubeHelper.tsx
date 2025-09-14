@@ -11,6 +11,34 @@ export const getStreamIDs = async (): Promise<string[]> => {
     }
 };
 
+export const getYTChannelID = async () => {
+    try {
+        const res = await api.get("/v1/youtube/channel_id");
+        return res.data.channel_id;
+    }
+    catch (err) {
+        console.error("Failed to get Channel ID:", err);
+        return null;
+    }
+}
+
+export const getYTChannelLink = async (): Promise<string> => {
+    try {
+        const id = await getYTChannelID();
+        const link = getYTChannelFromID(id);
+        return link;
+    }
+    catch (err) {
+        console.error("Failed to get Channel Link:", err);
+        return "";
+    }
+}
+
+export const getYTChannelFromID = (id: string): string => {
+    const safeId = encodeURIComponent(id)
+    return `https://www.youtube.com/channel/${safeId}`;
+}
+
 
 // Converts stream ID to embed url
 export const getEmbedURLFromStreamID = (id: string): string => {

@@ -2,8 +2,13 @@ import * as React from "react";
 import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/ui/card";
 import { TvMinimalPlay } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { channel } from "diagnostics_channel";
 
-export const NoStreams: React.FC = () => {
+type NoStreamProps = {
+    channel_link: string;
+};
+
+export const NoStreams: React.FC<NoStreamProps> = ({ channel_link }) => {
     return (
         <div className="flex w-full items-start justify-center pt-24 pb-24">
             <Card className="w-[28rem] shadow-lg p-6">
@@ -26,9 +31,10 @@ export const NoStreams: React.FC = () => {
                         className="px-6 py-3 text-base font-semibold bg-red-600"
                     >
                         <a
-                            href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                            href={channel_link}
                             target="_blank"
                             rel="noopener noreferrer"
+                            aria-label="Visit our YouTube Channel"
                         >
                             Go to Channel
                         </a>
