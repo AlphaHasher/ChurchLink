@@ -34,7 +34,7 @@ async def get_registration_status_route(event_id: str, user_id: str, request: Re
         # Simple implementation using existing rsvp_list
         from models.event import rsvp_list
         
-        rsvp_data = await rsvp_list(ObjectId(event_id))
+        rsvp_data = await rsvp_list(event_id)
         user_registered = any(r.get('uid') == user_id for r in rsvp_data.get('rsvp_list', []))
         
         return {"success": True, "status": {"event_id": event_id, "user_id": user_id, "registered": user_registered}}
@@ -51,7 +51,7 @@ async def register_user_for_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
         
-        result = await register_rsvp(ObjectId(event_id), request.state.uid)
+        result = await register_rsvp(event_id, request.state.uid)
         if not result:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration failed")
         
@@ -67,7 +67,7 @@ async def unregister_user_from_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
         
-        result = await cancel_rsvp(ObjectId(event_id), request.state.uid)
+        result = await cancel_rsvp(event_id, request.state.uid)
         if not result:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unregistration failed")
         
@@ -124,7 +124,7 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
         if not member:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
         
-        result = await register_rsvp(ObjectId(event_id), request.state.uid, ObjectId(family_member_id))
+        result = await register_rsvp(event_id, request.state.uid, family_member_id)
         if not result:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration failed")
         
@@ -145,7 +145,7 @@ async def unregister_family_member_from_event(event_id: str, family_member_id: s
         if not member:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
         
-        result = await cancel_rsvp(ObjectId(event_id), request.state.uid, ObjectId(family_member_id))
+        result = await cancel_rsvp(event_id, request.state.uid, family_member_id)
         if not result:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unregistration failed")
         

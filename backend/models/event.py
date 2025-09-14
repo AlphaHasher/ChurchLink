@@ -380,16 +380,16 @@ async def rsvp_remove_person(
     key = _attendee_key(uid, person_id, kind)
 
     result = await DB.db["events"].find_one_and_update(
-    {"_id": ev_oid, "attendee_keys": key},
-    {
-        "$inc": {"seats_taken": -1},
-        "$pull": {
-            "attendees": {"key": key},
-            "attendee_keys": key
+        {"_id": ev_oid, "attendee_keys": key},
+        {
+            "$inc": {"seats_taken": -1},
+            "$pull": {
+                "attendees": {"key": key},
+                "attendee_keys": key
+            },
         },
-    },
-    return_document=False,
-)
+        return_document=False,
+    )
     return result is not None
 
 async def rsvp_add_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:

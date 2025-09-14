@@ -26,7 +26,7 @@ from routes.page_management_routes.footer_routes import footer_router as footer_
 from routes.common_routes.event_routes import event_router
 from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
 from routes.common_routes.event_person_routes import event_person_router, public_event_person_router
-from routes.common_routes.event_routes import public_event_router
+from routes.common_routes.event_routes import public_event_router, auth_event_router
 from routes.bible_routes.bible_note_routes import bible_note_router
 from routes.bible_routes.bible_plan_routes import bible_plan_router
 from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
@@ -214,6 +214,7 @@ base_router.include_router(paypal_router)
 base_router.include_router(permissions_view_router)
 base_router.include_router(permissions_protected_router)
 base_router.include_router(event_router)
+base_router.include_router(auth_event_router)
 base_router.include_router(user_router)
 base_router.include_router(user_private_router)
 base_router.include_router(user_mod_router)
