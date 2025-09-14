@@ -191,7 +191,7 @@ class UserHandler:
         return doc["people"][0]
     
     @staticmethod
-    async def list_my_events(uid: str, expand: bool = False, person_id: ObjectId = None):
+    async def list_my_events(uid: str, expand: bool = False):
         """
         If expand=True, join with 'events' to return full event docs alongside refs.
         If person_id is provided, filter events for specific family member.
@@ -207,11 +207,11 @@ class UserHandler:
             {"$match": {"uid": uid}},
             {"$unwind": {"path": "$my_events", "preserveNullAndEmptyArrays": False}},
         ]
-        
+
         # Add person_id filter if specified
         if person_id:
             pipeline.append({"$match": {"my_events.person_id": person_id}})
-        
+
         pipeline.extend([
             {"$lookup": {
                 "from": "events",
@@ -294,9 +294,10 @@ class UserHandler:
         )
 
         result = await DB.db["users"].update_one(
-            {"uid": uid},
-            {"$addToSet": {"my_events": ref}}
+           {"uid": uid},
+           {"$addToSet": {"my_events": ref}}
         )
+        # Only return ref if we actually added it (not when it was a duplicate)
         return ref if result.modified_count == 1 else None
     
     @staticmethod
@@ -362,7 +363,7 @@ class UserHandler:
                 {"uid": uid},
                 {"$pull": {"people": {"_id": person_id}}}
             )
-            
+
             if result.modified_count == 1:
                 # Also remove any event registrations for this family member
                 cleanup_result = await DB.db["users"].update_one(
@@ -370,7 +371,7 @@ class UserHandler:
                     {"$pull": {"my_events": {"person_id": person_id}}}
                 )
                 print(f"Cleaned up {cleanup_result.modified_count} event registrations for family member {person_id}")
-                
+
             return result.modified_count == 1
         except Exception as e:
             print(f"Error removing person {person_id}: {e}")
