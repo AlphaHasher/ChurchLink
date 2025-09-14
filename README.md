@@ -6,8 +6,6 @@
 
 **ChurchLink** is a web and mobile platform designed to help churches manage their content, events, and community interactions. The project includes a **web builder** that allows church staff to create and update pages, add banners, post announcements, and engage with members through an easy-to-use interface.
 
-So far, most of our work has been done on web and admin tools, but by the completion of CSC-191, a full suite for Admin-Web-Mobile will be completed.
-
 ## 🎯 Features
 
 - **Simple Page Template System** – Create and edit church pages using pre-designed templates.
@@ -16,12 +14,10 @@ So far, most of our work has been done on web and admin tools, but by the comple
 - **User Roles & Permissions** – Secure access control for admins, editors, and members.
 - **Mobile App Support** – Native mobile app built with Flutter.
 - **Mobile Notifications** – Send push notifications for announcements, events, and updates.
-- **Bible on Mobile** – Access and read the Bible within the app (future integration).
+- **Bible on Mobile** – Access and read the Bible within the app with an admin manadged Bible reading plan and note taking/highlighting captabilties.
 - **Announcements & Banners** – Display church updates and messages.
 - **Donation & Payment Integration** – Support for online giving via **PayPal**.
 - **Multilingual Support** – Accessibility for diverse church communities.
-
-
 
 ### 📋 Admin Interface, Users View
 <p align="center">
@@ -82,13 +78,13 @@ So far, most of our work has been done on web and admin tools, but by the comple
   - **MongoDB** (Main Database)  
   - **SQLite** (For CMS)  
 
-- **Notifications:** Firebase Cloud Messaging (FCM)  
+- **Notifications:** Firebase Cloud Messaging (FCM)
 
-- **Bible Integration:** *(To be determined)*  
+- **Bible Integration:** [Elisha](https://github.com/31Carlton7/elisha)
 
-- **Authentication:** Firebase Auth  
+- **Authentication:** Firebase Auth
 
-- **Payments:** PayPal  
+- **Payments:** PayPal
 
 ## 🚀 Installation
 
@@ -98,6 +94,7 @@ Ensure you have the following installed:
 
 - [Node.js](https://nodejs.org/) (v16+)
 - [Yarn](https://yarnpkg.com/) or npm
+- [uv](https://docs.astral.sh/uv/)
 - [Flutter](https://flutter.dev/) (For mobile development)
 - [Docker](https://www.docker.com/) (Optional for database setup)
 
@@ -110,24 +107,13 @@ Ensure you have the following installed:
    ```
    
 
-2.	Install Dependencies
-   ```sh
-   yarn install
-   ```
-or
+2.	Install Dependencies in the followig direcotires
+	- backend/
+	- backend/strapi/churchlink
+	- frontend/web/churchlink
+	- frontend/app
 
-   ```sh
-   npm install
-   ```
-
-3.	Set Up Environment Variables
-Create a .env file in the root directory and add the necessary environment variables:
-   ```sh
-  DATABASE_URL=your_mongodb_url
-  CMS_DATABASE_URL=your_sqlite_url
-  FIREBASE_API_KEY=your_firebase_key
-  PAYPAL_CLIENT_ID=your_paypal_client_id
-   ```
+4.	Set Up Environment Variables in all direcotires from step 2
 
 4.	Run the Web Frontend (React)
   ```sh
@@ -158,22 +144,6 @@ Create a .env file in the root directory and add the necessary environment varia
 	•	CMS Admin: http://localhost:1337/admin
 	•	Mobile App: (Run on emulator or physical device)
 
-## 🏗️ Project Structure
-
-   ```sh
-   ChurchLink/
-   │── frontend/
-   │   └── app/            # App frontend (Flutter)
-   │   └── web/            # Web frontend (React)
-   │── backend/            # Backend (To be determined)
-   │── cms/                # Headless CMS (Strapi)
-   │── docs/               # Documentation files
-   │── .env                # Environment variables
-   │── package.json        # Dependencies and scripts
-   │── README.md           # Project documentation
-   ```
-
-
 ## 🔔 Mobile Notifications
 
 ChurchLink supports **push notifications** to keep church members informed about announcements, upcoming events, and other important updates.
@@ -184,13 +154,14 @@ ChurchLink supports **push notifications** to keep church members informed about
 
 ---
 
-## 📖 Bible on Mobile *(Future Integration)*
+## 📖 Bible on Mobile
 
 ChurchLink will support an **integrated Bible feature** in the future, allowing users to:
 
 - Read the **full Bible** within the app.
-- Search for **specific verses and chapters**.
-- View **daily scripture recommendations**.
+- Take notes and highlight passages
+- Follow Bible reading plan
+
 
 ---
 
@@ -245,34 +216,6 @@ Sprint 6 - The Completion of a fully functional Bible Reader, including Reading 
 Sprint 7 - The Completion of Media-Watching such as with the Church's existing content, and watching YouTube livestreams. Completing integration of a simple viewer of pages for Mobile
 
 Spint 8 - PROJECT SHOULD BE DONE, Clean-up of any remaining last things we want to get fixed or implemented
-
----
-
-## 📖 Instructions
-
-According to the guidelines for the README.md deliverable, sections must be laid out for testing, deployment, and developer instructions. While the filling out of this content is a CSC 191 assignment, we will section out these places. However, we would encourage a current reader of this repository to read our wiki for detailed instructions.
-
----
-
-## 📖 Developer Instructions
-
----
-
-## 📖 Testing Instructions
-
----
-
-## 📖 Deployment Instructions
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the community! If you’d like to contribute:
-
-1. **Fork** the repository and create a **new branch**.
-2. **Make your changes** and ensure the project runs successfully.
-3. **Submit a pull request** for review.
 
 ---
 
