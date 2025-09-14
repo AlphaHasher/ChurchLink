@@ -51,7 +51,8 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
     while True:
         try:
             due_notifications = await get_due_notifications(db)
-            logging.info(f"Found {len(due_notifications)} due notifications.")
+            if len(due_notifications) > 0: # the spam was unbearable
+                logging.info(f"Found {len(due_notifications)} due notifications.")
             for notif in due_notifications:
                 logging.info(f"Processing notification: id={notif.get('_id')}, title={notif.get('title')}, sent={notif.get('sent')}, scheduled_time={notif.get('scheduled_time')}")
                 if notif.get("sent"):

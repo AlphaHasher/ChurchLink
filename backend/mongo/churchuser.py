@@ -280,15 +280,9 @@ class UserHandler:
 
         result = await DB.db["users"].update_one(
             {"uid": uid},
-            {
-                # ensure an array exists; harmless if already present
-                "$setOnInsert": {"my_events": []},
-                # add by unique key (composite) to avoid duplicates
-                "$addToSet": {"my_events": ref}
-            },
-            upsert=False
+            {"$addToSet": {"my_events": ref}}
         )
-        return ref if result.matched_count == 1 else None
+        return ref if result.modified_count == 1 else None
     
     @staticmethod
     async def add_person_to_user(uid: str, first_name: str, last_name: str, gender: str, date_of_birth):

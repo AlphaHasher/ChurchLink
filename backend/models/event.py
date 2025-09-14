@@ -11,8 +11,7 @@ from datetime import datetime, time, timezone
 from mongo.database import DB
 from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
-
-
+from helpers.MongoHelper import serialize_objectid_deep
 
 class Event(BaseModel):
     id: str
@@ -284,11 +283,12 @@ async def sort_events(
     # Convert MongoDB documents to EventOut objects
     events_out = []
     for event in events:
-        event["id"] = str(
-            event.pop("_id")
-        )  # Add 'id' field using the value from '_id', then remove '_id'
+        # Convert _id to id string first
+        event["id"] = str(event.pop("_id"))
+        # Then serialize any remaining ObjectIds in nested structures
+        event_clean = serialize_objectid_deep(event)
         events_out.append(
-            EventOut(**event)
+            EventOut(**event_clean)
         )  # Create EventOut by unpacking the modified dict
     return events_out
 

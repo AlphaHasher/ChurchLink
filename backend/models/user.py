@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 from pydantic import (
     BaseModel, Field, EmailStr, ConfigDict
@@ -7,6 +7,8 @@ from bson import ObjectId
 from mongo.database import DB
 # Import the refactored roles functions
 from models.roles import get_role_ids_from_names, get_roles_with_permissions
+# Import UserHandler for family member operations
+from mongo.churchuser import UserHandler
 from models.base.ssbc_base_model import PydanticObjectId
 
 # Use shared PydanticObjectId from base model
@@ -242,5 +244,112 @@ async def delete_user(user_id: str) -> bool:
         return result.deleted_count > 0
     except Exception as e:
         print(f"An error occurred deleting user: {e}")
+        return False
+
+
+# Family Member Models for Person Management
+
+class PersonCreate(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=50)
+    last_name: str = Field(..., min_length=1, max_length=50) 
+    gender: Literal["male", "female", "nonbinary", "unspecified"]
+    date_of_birth: datetime
+
+class PersonOut(BaseModel):
+    id: str  # ObjectId converted to string
+    first_name: str
+    last_name: str
+    gender: str
+    date_of_birth: datetime
+    created_on: datetime = Field(..., alias="createdOn")
+
+class PersonUpdate(BaseModel):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    gender: Optional[Literal["male", "female", "nonbinary", "unspecified"]] = None
+    date_of_birth: Optional[datetime] = None
+
+
+# Family Member Database Functions - Direct Wrappers for UserHandler
+
+async def add_family_member(user_uid: str, person_data: PersonCreate) -> Optional[PersonOut]:
+    """
+    Adds a family member to a user's family list.
+    (Direct wrapper for UserHandler.add_person_to_user)
+    """
+    try:
+        person_id = await UserHandler.add_person_to_user(
+            user_uid, 
+            person_data.first_name, 
+            person_data.last_name, 
+            person_data.gender, 
+            person_data.date_of_birth
+        )
+        if person_id:
+            # Get created person and convert to PersonOut
+            person = await UserHandler.get_person(user_uid, person_id)
+            if person:
+                person['id'] = str(person.pop('_id'))
+                return PersonOut(**person)
+        return None
+    except Exception as e:
+        print(f"An error occurred adding family member: {e}")
+        return None
+
+async def get_family_members(user_uid: str) -> List[PersonOut]:
+    """
+    Retrieves all family members for a user.
+    (Direct wrapper for UserHandler.list_people)
+    """
+    try:
+        people = await UserHandler.list_people(user_uid)
+        result = []
+        for person in people:
+            person['id'] = str(person.pop('_id'))
+            result.append(PersonOut(**person))
+        return result
+    except Exception as e:
+        print(f"An error occurred retrieving family members: {e}")
+        return []
+
+async def get_family_member_by_id(user_uid: str, person_id: str) -> Optional[PersonOut]:
+    """
+    Retrieves a specific family member by their ID.
+    (Direct wrapper for UserHandler.get_person)
+    """
+    try:
+        person = await UserHandler.get_person(user_uid, ObjectId(person_id))
+        if person:
+            person['id'] = str(person.pop('_id'))
+            return PersonOut(**person)
+        return None
+    except Exception as e:
+        print(f"An error occurred retrieving family member by ID: {e}")
+        return None
+
+async def update_family_member(user_uid: str, person_id: str, updates: PersonUpdate) -> bool:
+    """
+    Updates a family member's information.
+    (Direct wrapper for UserHandler.update_person)
+    """
+    try:
+        update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+        if not update_dict:
+            print("No updates provided for family member")
+            return False
+        return await UserHandler.update_person(user_uid, ObjectId(person_id), update_dict)
+    except Exception as e:
+        print(f"An error occurred updating family member: {e}")
+        return False
+
+async def delete_family_member(user_uid: str, person_id: str) -> bool:
+    """
+    Removes a family member from a user's family list.
+    (Direct wrapper for UserHandler.remove_person)
+    """
+    try:
+        return await UserHandler.remove_person(user_uid, ObjectId(person_id))
+    except Exception as e:
+        print(f"An error occurred deleting family member: {e}")
         return False
 

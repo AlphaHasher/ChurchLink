@@ -45,14 +45,14 @@ async def get_upcoming_events_alias(
 async def get_ministries_route():
     return await get_all_ministries()
 
-@public_event_router.post("/events/{event_id}/rsvp")
+@public_event_router.post("/{event_id}/rsvp")
 async def rsvp_event(event_id: str, uid: str):
     ok = await register_rsvp(event_id, uid)
     if not ok:
         return {"success": False, "error": "Event full or already RSVP'd"}
     return {"success": True}
 
-@public_event_router.delete("/events/{event_id}/rsvp")
+@public_event_router.delete("/{event_id}/rsvp")
 async def unrsvp_event(event_id: str, uid: str):
     ok = await cancel_rsvp(event_id, uid)
     if not ok:
