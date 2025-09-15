@@ -30,9 +30,6 @@ const Notification = () => {
   const [scheduleStatus, setScheduleStatus] = useState<string | null>(null);
   const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null);
   const [selectedTimezone, setSelectedTimezone] = useState('America/Los_Angeles'); // Will be set from backend
-  const [youtubeAPIKey, setYoutubeAPIKey] = useState("");
-  const [youtubeChannelId, setYoutubeChannelId] = useState("");
-  const [youtubePublicDomain, setYoutubePublicDomain] = useState("");
   const [streamNotificationMessage, setStreamNotificationMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -75,9 +72,6 @@ const Notification = () => {
   fetch("/api/v1/notification/settings")
       .then((res) => res.json())
       .then((data) => {
-  setYoutubeAPIKey(data.YOUTUBE_API_KEY || "");
-  setYoutubeChannelId(data.PRIMARY_CHANNEL_ID || "");
-  setYoutubePublicDomain(data.PUBLIC_DOMAIN || "");
   setStreamNotificationMessage(data.streamNotificationMessage || "A new stream is live!");
   setYoutubeLiveTitle(data.streamNotificationTitle || "Live Stream Started");
   setSelectedTimezone(data.YOUTUBE_TIMEZONE || 'America/Los_Angeles');

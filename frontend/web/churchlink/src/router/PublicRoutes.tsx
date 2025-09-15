@@ -1,7 +1,6 @@
 import { lazy } from "react";
 import { Route, Routes, useParams } from "react-router-dom";
 import Layout from "../shared/layouts/Layout";
-import Payment from "../shared/components/PaymentExample";
 
 // Lazy load components
 const ArticlesListPage = lazy(() => import("../features/articles/pages/ArticlesListPage"));
@@ -24,7 +23,6 @@ export const PublicRoutes = () => {
           <Route path="/articles" element={<ArticlesListPage />} />
           <Route path="/articles/:id" element={<ArticlePage />} />
           <Route path="/giving" element={<Giving />} />
-          <Route path="/PaymentExample" element={<Payment />} />
           <Route path="/:name?" element={<GeneralWrapper />} />
         </Routes>
       </Layout>

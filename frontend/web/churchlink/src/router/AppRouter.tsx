@@ -6,6 +6,7 @@ import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "../features/auth/guards/PrivateRoute";
 import { PrivateRoutes } from "./PrivateRoutes";
 import DynamicPage from "../shared/components/DynamicPage";
+import PaypalThankYouPage from "../features/paypal/pages/thank-you";
 
 // Lazy load components
 const Login = lazy(() => import("../features/auth/pages/Login"));
@@ -38,6 +39,14 @@ export const AppRouter = () => {
           element={
             <PublicRoute>
               <DynamicPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/thank-you"
+          element={
+            <PublicRoute>
+              <PaypalThankYouPage />
             </PublicRoute>
           }
         />
