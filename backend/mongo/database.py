@@ -55,6 +55,15 @@ class DB:
             "name": "settings",
             "indexes": ["key"]
         }
+        ,
+        {
+            "name": "bible_plans",
+            "compound_indexes": [["user_id", "created_at"]],
+        },
+        {
+            "name": "bible_plan_templates",
+            "indexes": ["name"]
+        }
     ]
 
     ###########

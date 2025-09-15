@@ -1,18 +1,20 @@
 
 from fastapi import APIRouter, HTTPException, status, Request
 from models.event import sort_events, EventCreate, search_events, delete_events
-from controllers.event_functions import process_create_event, process_edit_event, process_delete_event
+from controllers.event_functions import process_create_event, process_edit_event, process_delete_event, register_rsvp, cancel_rsvp
 from typing import Literal, List
 from bson import ObjectId
 from typing import Optional
 from datetime import date
 from protected_routers.perm_protected_router import PermProtectedRouter
+from protected_routers.auth_protected_router import AuthProtectedRouter
 from models.event import get_all_ministries
 
 
 
 event_router = PermProtectedRouter(prefix="/events", tags=["Events"], required_perms=["event_editing"])
 public_event_router = APIRouter(prefix="/events", tags=["Events Public Routes"])
+auth_event_router = AuthProtectedRouter(prefix="/events", tags=["Events Authenticated Routes"])
 
 
 @public_event_router.get("/", summary="Get events by filters")
@@ -44,6 +46,20 @@ async def get_upcoming_events_alias(
 @public_event_router.get("/ministries", summary="Get all unique ministries")
 async def get_ministries_route():
     return await get_all_ministries()
+
+@auth_event_router.post("/{event_id}/rsvp")
+async def rsvp_event(event_id: str, request: Request):
+    ok = await register_rsvp(event_id, request.state.uid)
+    if not ok:
+        return {"success": False, "error": "Event full or already RSVP'd"}
+    return {"success": True}
+
+@auth_event_router.delete("/{event_id}/rsvp")
+async def unrsvp_event(event_id: str, request: Request):
+    ok = await cancel_rsvp(event_id, request.state.uid)
+    if not ok:
+        return {"success": False, "error": "RSVP not found"}
+    return {"success": True}
 
 # This route catches all paths under /api/v1/events/...
 # @public_event_router.get("/{event_id}", summary="Get event by id")

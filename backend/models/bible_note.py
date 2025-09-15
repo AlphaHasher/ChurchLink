@@ -1,62 +1,12 @@
-from typing import Optional, List, Any, Annotated, Literal
+from typing import Optional, List, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict, GetCoreSchemaHandler, GetJsonSchemaHandler, model_validator
-from pydantic_core import core_schema
+from pydantic import BaseModel, Field, model_validator
 from bson import ObjectId
 from mongo.database import DB
+from models.base.ssbc_base_model import MongoBaseModel
 
 
-class _ObjectIdPydanticAnnotation:
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls,
-        _source_type: Any,
-        _handler: GetCoreSchemaHandler,
-    ) -> core_schema.CoreSchema:
-        """
-        Defines how to validate the ObjectId. 
-        Accepts ObjectId instances directly or attempts to validate from a string.
-        """
-        def validate_from_str(v: str) -> ObjectId:
-            try:
-                return ObjectId(v)
-            except Exception:
-                raise ValueError(f"Invalid ObjectId string format: '{v}'")
-
-        # Schema for validating from a string input
-        from_str_schema = core_schema.chain_schema(
-            [
-                core_schema.str_schema(),
-                core_schema.no_info_plain_validator_function(validate_from_str),
-            ]
-        )
-
-        return core_schema.union_schema(
-            [
-                # Allow ObjectId instances directly during model creation/validation
-                core_schema.is_instance_schema(ObjectId),
-                # Allow validation from string input
-                from_str_schema,
-            ],
-            # Always serialize to string representation
-            serialization=core_schema.plain_serializer_function_ser_schema(lambda x: str(x)),
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> dict:
-        """
-        Defines the JSON schema representation for ObjectId as a string.
-        """
-        # Use the existing string schema handler and add the 'objectid' format
-        json_schema = handler(core_schema.str_schema())
-        json_schema.update({'type': 'string', 'format': 'objectid'})
-        return json_schema
-
-
-# Annotated type using the custom class
-PydanticObjectId = Annotated[ObjectId, _ObjectIdPydanticAnnotation]
+ 
 
 
 # Bible books list for validation
@@ -118,16 +68,8 @@ class BibleNoteUpdate(BaseModel):
     highlight_color: Optional[Literal["blue", "red", "yellow", "green", "purple"]] = None
 
 
-class BibleNote(BibleNoteBase):
-    id: PydanticObjectId = Field(default_factory=ObjectId, alias="_id")
+class BibleNote(MongoBaseModel, BibleNoteBase):
     user_id: str = Field(..., description="User ID who created the note")
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
-
-    model_config = ConfigDict(
-        populate_by_name=True,
-        arbitrary_types_allowed=True,
-    )
 
 
 class BibleNoteOut(BaseModel):
@@ -337,7 +279,7 @@ def _build_verse_overlap_query(verse: Optional[int], verse_start: Optional[int],
         return {
             "$or": [
                 {"verse_start": {"$lte": verse_end}, "verse_end": {"$gte": verse_start}},
-                {"verse_start": {"$lte": verse_end}, "verse_end": None, "verse_start": {"$gte": verse_start}}
+                {"verse_end": None, "verse_start": {"$gte": verse_start, "$lte": verse_end}}
             ]
         }
     elif verse:
