@@ -33,10 +33,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
     const genderDisplay = gender ?? "—";
 
+    const initials = getInitials(firstName, lastName);
+
     return (
         <Card className={["w-96 shadow-lg", className].filter(Boolean).join(" ")}>
             <CardHeader className="flex flex-col items-center">
-                <div className="mb-4 h-24 w-24 rounded-full bg-gray-300"></div>
+                <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gray-300 text-3xl font-bold text-gray-700">
+                    {initials}
+                </div>
                 <h2 className="px-4 text-center text-xl font-semibold break-words">
                     {displayName}
                 </h2>
@@ -75,4 +79,10 @@ function OverviewRow({ label, value }: { label: string; value: string }) {
             </dd>
         </div>
     );
+}
+
+function getInitials(first: string, last: string) {
+    const f = first?.trim()?.[0] ?? "";
+    const l = last?.trim()?.[0] ?? "";
+    return (f + l).toUpperCase();
 }

@@ -6,35 +6,11 @@ import { ProfileEditDialog } from "@/features/users/components/Profile/ProfileEd
 import Layout from "@/shared/layouts/Layout";
 
 import { ProfileInfo } from "@/shared/types/ProfileInfo";
-import { getMyProfileInfo } from "@/helpers/UserHelper";
+import { getMyProfileInfo, getMyFamilyMembers } from "@/helpers/UserHelper";
 import {
     Gender,
     PersonInfo as EditPersonInfo,
 } from "@/features/users/components/Profile/PersonInfoInput";
-
-const MOCK_PEOPLE: PersonDetails[] = [
-    {
-        id: "p1",
-        firstName: "First",
-        lastName: "Last",
-        dob: { mm: "01", dd: "02", yyyy: "2001" },
-        gender: "M",
-    },
-    {
-        id: "p2",
-        firstName: "Jane",
-        lastName: "Doe",
-        dob: { mm: "02", dd: "14", yyyy: "2012" },
-        gender: "F",
-    },
-    {
-        id: "p3",
-        firstName: "Sam",
-        lastName: "Lee",
-        dob: { mm: "11", dd: "30", yyyy: "2015" },
-        gender: "M",
-    },
-];
 
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
@@ -53,12 +29,16 @@ const ProfilePage: React.FC = () => {
     const [loading, setLoading] = React.useState(true);
     const [profile, setProfile] = React.useState<ProfileInfo | null>(null);
 
+    const [members, setMembers] = React.useState<PersonDetails[]>([]);
+
     React.useEffect(() => {
         let alive = true;
         (async () => {
             const p = await getMyProfileInfo();
+            const m = await getMyFamilyMembers();
             if (alive) {
                 setProfile(p);
+                setMembers(m);
                 setLoading(false);
             }
         })();
@@ -95,7 +75,7 @@ const ProfilePage: React.FC = () => {
                             />
                         }
                     />
-                    <PersonRail className="lg:ml-6" people={MOCK_PEOPLE} />
+                    <PersonRail className="lg:ml-6" people={members} />
                 </div>
             </div>
         </Layout>

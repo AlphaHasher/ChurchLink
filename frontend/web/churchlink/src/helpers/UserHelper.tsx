@@ -1,9 +1,10 @@
-import { signOut } from "firebase/auth";
+import { signOut } from "@/lib/firebase";
 import { auth } from "@/lib/firebase";
 import { processFetchedUserData } from "./DataFunctions";
 import api from "../api/api";
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 import { toProfileInfo, ProfileInfo } from "@/shared/types/ProfileInfo";
+import { PersonDetails } from "@/shared/types/Person";
 
 export const processMongoVerification = async () => {
     try {
@@ -106,3 +107,61 @@ export const updateProfileInfo = async (profile: ProfileInfo) => {
         return { success: false, msg: "Failed to update profile info.", profile: null };
     }
 };
+
+export const getMyFamilyMembers = async () => {
+    try {
+        const res = await api.get("/v1/users/all-family-members");
+        return (res.data?.family_members as PersonDetails[]) ?? [];
+    } catch (err) {
+        console.error("Failed to get family members:", err);
+        return [];
+    }
+}
+
+export const addFamilyMember = async (person: PersonDetails) => {
+    try {
+        const payload = {
+            first_name: person.first_name,
+            last_name: person.last_name,
+            date_of_birth: person.date_of_birth,
+            gender: person.gender
+        }
+        await api.post("/v1/users/add-family-member", payload);
+        return { "success": true };
+    }
+    catch (err) {
+        console.error("Failed to add family member:", err);
+        return { "success": false };
+    }
+}
+
+export const editFamilyMember = async (person: PersonDetails) => {
+    try {
+        const payload = {
+            id: person.id,
+            first_name: person.first_name,
+            last_name: person.last_name,
+            date_of_birth: person.date_of_birth,
+            gender: person.gender
+        }
+        await api.patch("/v1/users/family-member", payload);
+        return { "success": true };
+    }
+    catch (err) {
+        console.log("Failed to edit family member:", err);
+        return { "success": false }
+    }
+}
+
+export const deleteFamilyMember = async (id: String) => {
+    try {
+        await api.delete(`/v1/users/family-member/${id}`);
+        return { "success": true };
+    }
+    catch (err) {
+        console.log("Failed to delete family member:", err);
+        return { "success": false }
+    }
+}
+
+
