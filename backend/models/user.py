@@ -45,6 +45,9 @@ class UserCreate(UserBase):
 class UserOut(UserBase):
     id: str # Output id as string
 
+class FamilyMemberIDTag(BaseModel):
+    id: str
+
 # CRUD Operations as top-level async functions
 
 async def create_user(user_data: UserCreate) -> Optional[UserOut]:
@@ -252,7 +255,7 @@ async def delete_user(user_id: str) -> bool:
 class PersonCreate(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50) 
-    gender: Literal["male", "female", "nonbinary", "unspecified"]
+    gender: Literal["M", "F"]
     date_of_birth: datetime
 
 class PersonOut(BaseModel):
@@ -266,8 +269,11 @@ class PersonOut(BaseModel):
 class PersonUpdate(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1, max_length=50)
     last_name: Optional[str] = Field(None, min_length=1, max_length=50)
-    gender: Optional[Literal["male", "female", "nonbinary", "unspecified"]] = None
+    gender: Optional[Literal["M", "F"]] = None
     date_of_birth: Optional[datetime] = None
+
+class PersonUpdateRequest(PersonUpdate):
+    id: str
 
 
 # Family Member Database Functions - Direct Wrappers for UserHandler

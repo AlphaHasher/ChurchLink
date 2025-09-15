@@ -28,6 +28,7 @@ from routes.common_routes.user_routes import user_router, user_mod_router, user_
 from routes.common_routes.event_person_routes import event_person_router, public_event_person_router
 from routes.common_routes.event_routes import public_event_router, auth_event_router
 from routes.bible_routes.bible_note_routes import bible_note_router
+from routes.common_routes.youtube_routes import public_youtube_router
 from routes.bible_routes.bible_plan_routes import bible_plan_router
 from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
 from routes.paypal_routes.paypal_routes import paypal_router
@@ -227,6 +228,7 @@ base_router.include_router(strapi_protected_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
 base_router.include_router(notification_router)
+base_router.include_router(public_youtube_router)
 
 
 

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request, Query, Response
 from helpers.youtubeHelper import YoutubeHelper
-import xml.etree.ElementTree as ET
 
 youtube_router = APIRouter(prefix="/youtube_listener")
 
