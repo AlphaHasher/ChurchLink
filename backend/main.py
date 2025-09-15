@@ -206,7 +206,13 @@ router_webhook_listener.include_router(youtube_router)
 
 
 #####################################################
-# Base Router Configuration all routes will have api/v1 prefix
+# Public Router Configuration - NO authentication required
+#####################################################
+public_router = APIRouter(prefix="/api/v1")
+public_router.include_router(public_event_router)
+
+#####################################################
+# Base Router Configuration - all routes require authentication
 #####################################################
 base_router = AuthProtectedRouter(prefix="/api/v1")
 base_router.include_router(paypal_router)
@@ -220,7 +226,6 @@ base_router.include_router(bible_note_router)
 base_router.include_router(bible_plan_router)
 base_router.include_router(strapi_router)
 base_router.include_router(strapi_protected_router)
-base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
 base_router.include_router(notification_router)
 
@@ -233,7 +238,8 @@ non_v1_router.include_router(footer_router)
 
 
 # Include routers in main app
-app.include_router(base_router)
+app.include_router(public_router)   # Public routes (no authentication)
+app.include_router(base_router)     # Protected routes (authentication required)
 app.include_router(non_v1_router)
 
 
