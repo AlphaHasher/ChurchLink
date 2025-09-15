@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { BIBLE_BOOKS, BibleBook, BiblePassage } from '../../../../shared/types/BiblePlan';
-import { Button } from '../../../../shared/components/ui/button';
-import { Input } from '../../../../shared/components/ui/input';
+import { Plus, Trash2 } from 'lucide-react';
+import { BIBLE_BOOKS, BibleBook, BiblePassage } from '@/shared/types/BiblePlan';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
 import { useDroppable } from '@dnd-kit/core';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/shared/components/ui/accordion';
 
 interface BiblePassageSelectorProps {
   selectedDay?: number | null;           // Day currently selected in the calendar
@@ -21,8 +22,8 @@ const TrashDropZone = () => {
       className={`
         flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg text-sm
         transition-colors duration-200 min-h-[50px]
-        ${isOver 
-          ? 'border-red-400 bg-red-50 text-red-700' 
+        ${isOver
+          ? 'border-red-400 bg-red-50 text-red-700'
           : 'border-gray-300 bg-gray-50 text-gray-500 hover:border-gray-400'
         }
       `}
@@ -34,8 +35,7 @@ const TrashDropZone = () => {
 };
 
 const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSelectorProps) => {
-  const [expandedTestament, setExpandedTestament] = useState<'Old' | 'New' | null>(null);
-  const [expandedBook, setExpandedBook] = useState<string | null>(null);
+
   const [selectedChapter, setSelectedChapter] = useState<{ book: BibleBook; chapter: number } | null>(null);
   const [verseRange, setVerseRange] = useState({ start: '', end: '' });
   const [selectedChaptersSet, setSelectedChaptersSet] = useState<Set<string>>(new Set());
@@ -43,16 +43,6 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
   const oldTestamentBooks = BIBLE_BOOKS.filter(book => book.testament === 'Old');
   const newTestamentBooks = BIBLE_BOOKS.filter(book => book.testament === 'New');
 
-  const toggleTestament = (testament: 'Old' | 'New') => {
-    setExpandedTestament(expandedTestament === testament ? null : testament);
-    setExpandedBook(null);
-    setSelectedChapter(null);
-  };
-
-  const toggleBook = (bookId: string) => {
-    setExpandedBook(expandedBook === bookId ? null : bookId);
-    setSelectedChapter(null);
-  };
 
   const keyFor = (bookId: string, chapter: number) => `${bookId}-${chapter}`;
   const isChapterSelected = (bookId: string, chapter: number) => selectedChaptersSet.has(keyFor(bookId, chapter));
@@ -86,11 +76,11 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     chaptersByBook.forEach((chapters, bookId) => {
       const book = BIBLE_BOOKS.find(b => b.id === bookId);
       if (!book) return;
-      chapters.sort((a,b)=> a-b);
+      chapters.sort((a, b) => a - b);
       let start = chapters[0];
       let prev = chapters[0];
       const ranges: { start: number; end: number }[] = [];
-      for (let i=1;i<=chapters.length;i++) {
+      for (let i = 1; i <= chapters.length; i++) {
         const curr = chapters[i];
         if (curr !== prev + 1) {
           ranges.push({ start, end: prev });
@@ -120,14 +110,14 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
   })();
 
   const addWholeChapter = (book: BibleBook, chapter: number) => {
-  if (!selectedDay) return; // Must have a day selected
+    if (!selectedDay) return; // Must have a day selected
     const passage: BiblePassage = {
       id: `${book.id}-${chapter}-${Date.now()}`,
       book: book.name,
       chapter,
       reference: `${book.name} ${chapter}`
     };
-  onCreatePassage?.(passage);
+    onCreatePassage?.(passage);
   };
 
   let isInvalidVerseRange = false;
@@ -137,8 +127,8 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     const meta = multiChapterSelectionMeta;
     if (!selectedChapter && !meta) return;
     const useMulti = !!(meta && meta.type === 'multi' && meta.range.start !== meta.range.end);
-    const book = useMulti ? meta!.book : (selectedChapter?.book as BibleBook);
-    const baseChapter = useMulti ? meta!.range.start : (selectedChapter?.chapter || 1);
+    const book = useMulti ? meta!.book : (selectedChapter?.book || meta?.book as BibleBook);
+    const baseChapter = useMulti ? meta!.range.start : (selectedChapter?.chapter || meta?.range.start || 1);
     const endChapter = useMulti ? meta!.range.end : undefined;
 
     const startTxt = verseRange.start.trim();
@@ -192,62 +182,55 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
   // Render a list of books and their chapters
   const renderBooks = (books: BibleBook[]) => (
-    <>
+    <Accordion type="multiple" className="w-full">
       {books.map((book) => (
-        <div key={book.id}>
-          <button
-            onClick={() => toggleBook(book.id)}
-            className="w-full flex items-center justify-between p-2 text-left hover:bg-gray-50 text-sm"
-          >
-            <span>{book.name}</span>
-            {expandedBook === book.id ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </button>
-
-          {expandedBook === book.id && (
-            <div className="pl-4">
-              {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
-                <div key={chapter} className="flex items-center justify-between text-xs gap-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    <button
-                      onClick={() => {
-                        const currentlySelected = isChapterSelected(book.id, chapter);
-                        if (currentlySelected) {
-                          toggleChapterSelected(book.id, chapter);
-                          if (selectedChapter?.book.id === book.id && selectedChapter.chapter === chapter) {
-                            setSelectedChapter(null);
-                            setVerseRange({ start: '', end: '' });
-                          }
-                        } else {
-                          toggleChapterSelected(book.id, chapter);
-                          setSelectedChapter({ book, chapter });
+        <AccordionItem key={book.id} value={book.id}>
+          <AccordionTrigger className="px-2 py-2 text-sm hover:bg-gray-50">
+            {book.name}
+          </AccordionTrigger>
+          <AccordionContent className="pl-2">
+            {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
+              <div key={chapter} className="flex items-center justify-between text-xs gap-2">
+                <div className="flex items-center gap-2 flex-1">
+                  <button
+                    onClick={() => {
+                      const currentlySelected = isChapterSelected(book.id, chapter);
+                      if (currentlySelected) {
+                        toggleChapterSelected(book.id, chapter);
+                        if (selectedChapter?.book.id === book.id && selectedChapter.chapter === chapter) {
+                          setSelectedChapter(null);
+                          setVerseRange({ start: '', end: '' });
                         }
-                      }}
-                      className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${
-                        isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
+                      } else {
+                        toggleChapterSelected(book.id, chapter);
+                        setSelectedChapter({ book, chapter });
+                      }
+                    }}
+                    className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
                       }`}
-                      aria-pressed={isChapterSelected(book.id, chapter)}
-                      aria-label={`Chapter ${chapter}`}
-                    >
-                      <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
-                      <span className="ml-4">Chapter {chapter}</span>
-                    </button>
-                  </div>
+                    aria-pressed={isChapterSelected(book.id, chapter)}
+                    aria-label={`Chapter ${chapter}`}
+                  >
+                    <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
+                    <span className="ml-3">Chapter {chapter}</span>
+                  </button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => addWholeChapter(book, chapter)}
                     disabled={!selectedDay}
-                    className="h-6 w-6 p-0"
+                    className="h-6 w-6 p-0 mr-1"
                   >
                     <Plus className="w-3 h-3" />
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+              </div>
+            ))}
+          </AccordionContent>
+        </AccordionItem>
       ))}
-    </>
+    </Accordion>
   );
 
   return (
@@ -255,37 +238,22 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
       <TrashDropZone />
 
-  {/* Bible Book Selector */}
-  <div className="border rounded-lg max-h-64 overflow-y-auto">
-        {/* Old Testament */}
-        <div className="border-b">
-          <button
-            onClick={() => toggleTestament('Old')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
-          >
-            <span className="font-medium">Old Testament</span>
-            {expandedTestament === 'Old' ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
-          
-          {expandedTestament === 'Old' && (
-            <div className="pl-4 pb-2">{renderBooks(oldTestamentBooks)}</div>
-          )}
-        </div>
-
-        {/* New Testament */}
-        <div>
-          <button
-            onClick={() => toggleTestament('New')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
-          >
-            <span className="font-medium">New Testament</span>
-            {expandedTestament === 'New' ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
-          
-          {expandedTestament === 'New' && (
-            <div className="pl-4 pb-2">{renderBooks(newTestamentBooks)}</div>
-          )}
-        </div>
+      {/* Bible Book Selector */}
+      <div className="border rounded-lg max-h-64 overflow-y-auto pr-3" style={{ scrollbarGutter: 'stable' }}>
+        <Accordion type="multiple" className="w-full">
+          <AccordionItem value="old">
+            <AccordionTrigger className="px-3 py-3 font-medium">Old Testament</AccordionTrigger>
+            <AccordionContent className="pl-2 pb-2">
+              {renderBooks(oldTestamentBooks)}
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="new">
+            <AccordionTrigger className="px-3 py-3 font-medium">New Testament</AccordionTrigger>
+            <AccordionContent className="pl-2 pb-2">
+              {renderBooks(newTestamentBooks)}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       {/* Chapter & Verse Selection */}
@@ -345,20 +313,20 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                 value={verseRange.start}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
                 className="w-28 h-8 text-sm"
-                disabled={(!selectedChapter && !(multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi')) || !selectedDay}
+                disabled={(!selectedChapter && !multiChapterSelectionMeta) || !selectedDay || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               />
               <Input
                 placeholder="End Verse"
                 value={verseRange.end}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
                 className="w-28 h-8 text-sm"
-                disabled={(!selectedChapter && !(multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi')) || !selectedDay}
+                disabled={(!selectedChapter && !multiChapterSelectionMeta) || !selectedDay || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               />
             </div>
             <Button
               size="sm"
               onClick={addVerseRange}
-              disabled={!selectedDay || isInvalidVerseRange || (!selectedChapter && !multiChapterSelectionMeta)}
+              disabled={!selectedDay || isInvalidVerseRange || (!selectedChapter && !multiChapterSelectionMeta) || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               className="h-8 text-xs"
             >
               Add

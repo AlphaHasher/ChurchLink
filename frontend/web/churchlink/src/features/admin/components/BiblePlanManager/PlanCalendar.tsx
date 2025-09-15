@@ -1,11 +1,28 @@
-import { useState } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 import { useDraggable, useDroppable, useDndContext } from '@dnd-kit/core';
-import { ReadingPlan, BiblePassage } from '../../../../shared/types/BiblePlan';
-import { Button } from '../../../../shared/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
+import React from 'react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/shared/components/ui/pagination';
 import PassageBadge from './PassageBadge';
+import { Calendar } from '@/shared/components/ui/calendar';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button';
 
-interface PlanCalendarProps { plan: ReadingPlan; selectedDay: number | null; onSelectDay: (day: number) => void; }
+interface PlanCalendarProps { 
+  plan: ReadingPlan; 
+  selectedDay: number | null; 
+  onSelectDay: (day: number) => void; 
+  className?: string;
+}
 
 const CalendarPassageChip = ({ passage, dayKey }: { passage: BiblePassage; dayKey: string }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -16,13 +33,13 @@ const CalendarPassageChip = ({ passage, dayKey }: { passage: BiblePassage; dayKe
   const style = isDragging ? { opacity: 0 } : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="min-w-0">
       <PassageBadge passage={passage} />
     </div>
   );
 };
 
-const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber: number; passages: BiblePassage[]; isSelected: boolean; onSelect: (day: number) => void }) => {
+const CalendarDay = React.memo(({ dayNumber, passages, isSelected, onSelect, dateLabel }: { dayNumber: number; passages: BiblePassage[]; isSelected: boolean; onSelect: (day: number) => void; dateLabel?: string | null }) => {
   const dayKey = String(dayNumber);
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dayKey}`,
@@ -35,7 +52,8 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
       ref={setNodeRef}
       onClick={() => onSelect(dayNumber)}
       className={`
-        min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
+        relative min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
+        min-w-[150px] max-w-full flex flex-col
         ${isPassageOver
           ? 'border-2 border-dashed border-green-400 bg-green-50'
           : isSelected
@@ -45,10 +63,14 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
     >
       <div className="flex items-center mb-2">
         <div className="text-sm font-medium text-gray-900 flex-1">Day {dayNumber}</div>
-        {isSelected && <span className="text-[10px] uppercase tracking-wide text-blue-600 font-semibold">Selected</span>}
       </div>
+      {dateLabel && (
+        <div className="absolute top-1 right-1 text-[10px] font-semibold text-gray-600 bg-white/80 backdrop-blur px-1.5 py-0.5 rounded shadow-sm pointer-events-none">
+          {dateLabel}
+        </div>
+      )}
       
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-0">
         {passages.map((passage: BiblePassage) => (
           <CalendarPassageChip key={passage.id} passage={passage} dayKey={dayKey} />
         ))}
@@ -59,13 +81,33 @@ const CalendarDay = ({ dayNumber, passages, isSelected, onSelect }: { dayNumber:
           </div>
         )}
       </div>
+      {isSelected && (
+        <span className="pointer-events-none absolute bottom-1 right-1 text-[10px] uppercase tracking-wide text-blue-600 font-semibold">
+          Selected
+        </span>
+      )}
     </div>
   );
-};
+}, (prev, next) => {
+  // Re-render only if selection state, date label, day number, or passages list identity/length/ids change.
+  if (prev.dayNumber !== next.dayNumber) return false;
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.dateLabel !== next.dateLabel) return false;
+  if (prev.passages.length !== next.passages.length) return false;
+  for (let i = 0; i < prev.passages.length; i++) {
+    if (prev.passages[i].id !== next.passages[i].id) return false;
+  }
+  return true;
+});
 
-const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => {
+const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalendarProps) => {
   const [currentPage, setCurrentPage] = useState(0);
-  
+  const [showDayOverlay, setShowDayOverlay] = useState(false);
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+  const [baseDate, setBaseDate] = useState<Date | undefined>(new Date());
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const calendarToggleRef = useRef<HTMLButtonElement | null>(null);
+
   const daysPerPage = 31;
   const totalPages = Math.ceil(plan.duration / daysPerPage);
 
@@ -85,7 +127,21 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
     });
   };
 
-  const days = getCurrentPageDays();
+  const days = useMemo(() => getCurrentPageDays(), [currentPage, plan.duration, plan.readings]);
+
+  const dateLabels = useMemo(() => {
+    if (!showDayOverlay || !baseDate) return {} as Record<number, string>;
+    const startTime = baseDate.getTime();
+    const map: Record<number, string> = {};
+    const weekday = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    for (const d of days) {
+      const date = new Date(startTime + (d.dayNumber - 1) * 86400000);
+      const dow = weekday[date.getDay()];
+      const md = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      map[d.dayNumber] = `${md}, ${dow}`; // e.g., Jan 5, Mon
+    }
+    return map;
+  }, [showDayOverlay, baseDate, days]);
 
   const nextPage = () => {
     if (currentPage < totalPages - 1) {
@@ -99,41 +155,72 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
     }
   };
 
+  // Close calendar picker on outside click or Escape
+  useEffect(() => {
+    if (!(showDayOverlay && showCalendarPicker)) return;
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        overlayRef.current &&
+        !overlayRef.current.contains(target) &&
+        calendarToggleRef.current &&
+        !calendarToggleRef.current.contains(target)
+      ) {
+        setShowCalendarPicker(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowCalendarPicker(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true });
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [showDayOverlay, showCalendarPicker]);
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">
-            {plan.duration}-Day Reading Plan
-          </h2>
-  </div>
-        
+    <div className={cn('relative', className)}>
+      <div className="mb-4 flex items-start justify-between gap-4 px-1">
+        <h2 className="text-lg font-semibold text-gray-900">
+          {plan.duration}-Day Reading Plan
+        </h2>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={prevPage}
-            disabled={currentPage === 0}
-          >
-            <ChevronLeft className="w-4 h-4" />
+          <Button variant={showDayOverlay ? 'secondary' : 'outline'} size="sm" onClick={() => {
+            setShowDayOverlay(o => !o);
+          }}>
+            {showDayOverlay ? 'Hide Day Overlay' : 'Show Day Overlay'}
           </Button>
-          
-          <span className="text-sm text-gray-600 px-3">
-            Page {currentPage + 1} of {totalPages}
-          </span>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={nextPage}
-            disabled={currentPage === totalPages - 1}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+          {showDayOverlay && (
+            <Button ref={calendarToggleRef} variant={showCalendarPicker ? 'default' : 'outline'} size="sm" onClick={() => {
+              setShowCalendarPicker(p => !p);
+            }} aria-label="Select Start Date">
+              <CalendarIcon className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
+      {showDayOverlay && showCalendarPicker && (
+        <div ref={overlayRef} className="absolute z-20 top-16 right-4">
+          <Calendar
+            mode="single"
+            selected={baseDate}
+            onSelect={(d) => { if (d) setBaseDate(d); }}
+            captionLayout="dropdown"
+            className="rounded-md border shadow-sm"
+          />
+        </div>
+      )}
 
-  <div className="grid grid-cols-4 gap-3 lg:grid-cols-7">
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))'
+        }}
+      >
         {days.map((day) => (
           <CalendarDay
             key={day.dayNumber}
@@ -141,13 +228,92 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay }: PlanCalendarProps) => 
             passages={day.passages}
             isSelected={selectedDay === day.dayNumber}
             onSelect={onSelectDay}
+            dateLabel={dateLabels[day.dayNumber]}
           />
         ))}
       </div>
       
       {plan.duration > daysPerPage && (
-        <div className="mt-4 text-center text-sm text-gray-500">
-          Showing days {currentPage * daysPerPage + 1} - {Math.min((currentPage + 1) * daysPerPage, plan.duration)} of {plan.duration}
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Pagination className="w-full">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={(e: any) => { e.preventDefault(); prevPage(); }}
+                  href="#"
+                  className={currentPage === 0 ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+              {(() => {
+                const items: React.ReactNode[] = [];
+                const maxNumbersToShow = 5; // center window size
+                let start = Math.max(0, currentPage - 2);
+                let end = Math.min(totalPages - 1, start + maxNumbersToShow - 1);
+                if (end - start < maxNumbersToShow - 1) {
+                  start = Math.max(0, end - (maxNumbersToShow - 1));
+                }
+                // Always show first page link
+                if (start > 0) {
+                  items.push(
+                    <PaginationItem key={0}>
+                      <PaginationLink
+                        href="#"
+                        isActive={currentPage === 0}
+                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(0); }}
+                      >1</PaginationLink>
+                    </PaginationItem>
+                  );
+                  if (start > 1) {
+                    items.push(
+                      <PaginationItem key="start-ellipsis">
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                }
+                for (let p = start; p <= end; p++) {
+                  items.push(
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(p); }}
+                      >{p + 1}</PaginationLink>
+                    </PaginationItem>
+                  );
+                }
+                if (end < totalPages - 1) {
+                  if (end < totalPages - 2) {
+                    items.push(
+                      <PaginationItem key="end-ellipsis">
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  items.push(
+                    <PaginationItem key={totalPages - 1}>
+                      <PaginationLink
+                        href="#"
+                        isActive={currentPage === totalPages - 1}
+                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(totalPages - 1); }}
+                      >{totalPages}</PaginationLink>
+                    </PaginationItem>
+                  );
+                }
+                return items;
+              })()}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={(e: any) => { e.preventDefault(); nextPage(); }}
+                  href="#"
+                  className={currentPage === totalPages - 1 ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+          <div className="text-xs text-gray-500">
+            Showing days {currentPage * daysPerPage + 1}-{Math.min((currentPage + 1) * daysPerPage, plan.duration)} of {plan.duration}
+          </div>
         </div>
       )}
     </div>
