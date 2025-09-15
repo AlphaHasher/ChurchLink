@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
 from models.transaction import Transaction
 
 paypal_webhook_router = APIRouter(prefix="/paypal", tags=["paypal_webhook"])

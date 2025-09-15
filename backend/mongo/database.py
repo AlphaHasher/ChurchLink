@@ -50,6 +50,10 @@ class DB:
         {
             "name": "transactions",
             "indexes": ["transaction_id"]
+        },
+        {
+            "name": "settings",
+            "indexes": ["key"]
         }
     ]
 
@@ -271,3 +275,60 @@ class DB:
         except Exception as e:
             print(f"Error deleting documents from {collection_name}: {e}")
             return 0
+            
+    @staticmethod
+    async def get_setting(key: str, default_value=None):
+        """Get a setting from the database by key."""
+        if DB.db is None:
+            print("Database not initialized.")
+            return default_value
+        try:
+            setting = await DB.db["settings"].find_one({"key": key})
+            if setting:
+                return setting["value"]
+            return default_value
+        except Exception as e:
+            print(f"Error getting setting {key}: {e}")
+            return default_value
+        
+    @staticmethod
+    async def set_setting(key: str, value):
+        """Set or update a setting in the database."""
+        if DB.db is None:
+            print("Database not initialized.")
+            return False
+        try:
+            result = await DB.db["settings"].update_one(
+                {"key": key},
+                {"$set": {"key": key, "value": value, "updated_at": datetime.now().isoformat()}},
+                upsert=True
+            )
+            return result.modified_count > 0 or result.upserted_id is not None
+        except Exception as e:
+            print(f"Error setting {key}: {e}")
+            return False
+        
+    @staticmethod
+    async def get_paypal_settings():
+        """Get all PayPal settings as a dictionary."""
+        settings = {}
+        # Define default values
+        defaults = {
+            "PAYPAL_PLAN_NAME": "Church Donation Subscription",
+            "PAYPAL_PLAN_DESCRIPTION": "Recurring donation to Church",
+            "CHURCH_NAME": "Church",
+            "ALLOWED_FUNDS": ["General", "Building", "Missions", "Youth", "Other"]
+        }
+        
+        # Try to get settings from database, fall back to defaults or env vars
+        for key, default in defaults.items():
+            # Try to get from database first
+            value = await DB.get_setting(key, None)
+            
+            # If not in database, use default (keep environment variables separate)
+            if value is None:
+                value = default
+                
+            settings[key] = value
+            
+        return settings

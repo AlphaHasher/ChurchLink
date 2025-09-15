@@ -15,7 +15,7 @@ class DonationSubscription(BaseModel):
     plan_id: Optional[str] = None
     start_time: Optional[str] = None
     next_billing_time: Optional[str] = None
-    user_id: Optional[str] = None
+    name: Optional[str] = None  # Donor name
     note: Optional[str] = None
     currency: Optional[str] = "USD"
     event_type: Optional[str] = None

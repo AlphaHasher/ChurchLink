@@ -18,7 +18,7 @@ class Transaction(BaseModel):
     time: Optional[str] = None
     start_time: Optional[str] = None
     next_billing_time: Optional[str] = None
-    user_id: Optional[str] = None
+    name: Optional[str] = None  # Donor name
     note: Optional[str] = None
     currency: Optional[str] = "USD"
     event_type: Optional[str] = None
@@ -80,3 +80,18 @@ class Transaction(BaseModel):
         """
         result = await DB.delete_documents("transactions", {"transaction_id": transaction_id})
         return result > 0
+    
+    async def save_paypal_transaction(transaction_data: dict):
+        """
+        Save a PayPal transaction (one-time or subscription) to MongoDB using Transaction model.
+        """
+        import logging
+        logging.info(f"Attempting to save PayPal transaction: {transaction_data}")
+        try:
+            transaction = Transaction(**transaction_data)
+            result = await Transaction.create_transaction(transaction)
+            logging.info(f"Transaction saved successfully: {result}")
+            return result
+        except Exception as e:
+            logging.error(f"Error saving PayPal transaction: {e}")
+            raise
