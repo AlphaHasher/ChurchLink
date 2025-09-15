@@ -11,8 +11,7 @@ from datetime import datetime, time, timezone
 from mongo.database import DB
 from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
-
-
+from helpers.MongoHelper import serialize_objectid_deep
 
 class Event(BaseModel):
     id: str
@@ -284,11 +283,12 @@ async def sort_events(
     # Convert MongoDB documents to EventOut objects
     events_out = []
     for event in events:
-        event["id"] = str(
-            event.pop("_id")
-        )  # Add 'id' field using the value from '_id', then remove '_id'
+        # Convert _id to id string first
+        event["id"] = str(event.pop("_id"))
+        # Then serialize any remaining ObjectIds in nested structures
+        event_clean = serialize_objectid_deep(event)
         events_out.append(
-            EventOut(**event)
+            EventOut(**event_clean)
         )  # Create EventOut by unpacking the modified dict
     return events_out
 
@@ -323,7 +323,7 @@ async def get_all_ministries():
             status_code=500,
             detail={"error": "Failed to fetch ministries", "reason": str(e)}
         )
-    
+
 def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp") -> str:
     # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
     return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}"
@@ -380,16 +380,16 @@ async def rsvp_remove_person(
     key = _attendee_key(uid, person_id, kind)
 
     result = await DB.db["events"].find_one_and_update(
-    {"_id": ev_oid, "attendee_keys": key},
-    {
-        "$inc": {"seats_taken": -1},
-        "$pull": {
-            "attendees": {"key": key},
-            "attendee_keys": key
+        {"_id": ev_oid, "attendee_keys": key},
+        {
+            "$inc": {"seats_taken": -1},
+            "$pull": {
+                "attendees": {"key": key},
+                "attendee_keys": key
+            },
         },
-    },
-    return_document=False,
-)
+        return_document=False,
+    )
     return result is not None
 
 async def rsvp_add_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:
