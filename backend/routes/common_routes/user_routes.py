@@ -7,11 +7,12 @@ from datetime import datetime # Import datetime if needed for birthday query
 # Import models and functions from models/user.py
 from helpers.Firebase_helpers import authenticate_uid
 from models.user import (
-    UserCreate, UserOut, AddressSchema, # Assuming AddressSchema might be needed for updates
+    UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, # Assuming AddressSchema might be needed for updates
     create_user, get_user_by_id, get_user_by_email,
     get_users,
     find_users_with_permissions,
-    update_user_roles, delete_user
+    update_user_roles, delete_user,
+    add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member
 )
 from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, MyPermsRequest
 from protected_routers.auth_protected_router import AuthProtectedRouter
@@ -173,7 +174,6 @@ async def delete_user_route(user_id: str):
 # This would likely require a new Pydantic model for partial updates (e.g., UserUpdate)
 # and a corresponding model function (e.g., update_user_profile).
 
-
 @user_private_router.post("/sync-user")
 async def process_sync_request(request:Request):
     return await process_sync_by_uid(request)
@@ -186,3 +186,89 @@ async def process_get_users(request:Request):
 @user_mod_router.post("/get-my-permissions")
 async def process_get_my_permissions(payload: MyPermsRequest, request:Request):
     return await get_my_permissions(payload, request)
+
+#
+# --- Family Member Routes ---
+#
+
+# Add family member
+@user_private_router.post("/{user_id}/family-members", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def add_family_member_to_user_route(user_id: str, request: Request, family_member_data: PersonCreate = Body(...)):
+    try:
+        if request.state.uid != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only manage own family members")
+        
+        created_member = await add_family_member(user_id, family_member_data)
+        if not created_member:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error adding family member")
+        
+        return {"success": True, "family_member": created_member}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding family member: {str(e)}")
+
+# Get all family members
+@user_private_router.get("/{user_id}/family-members", response_model=dict)
+async def get_user_family_members_route(user_id: str, request: Request):
+    try:
+        if request.state.uid != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only access own family members")
+        
+        family_members = await get_family_members(user_id)
+        return {"success": True, "family_members": family_members}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family members: {str(e)}")
+
+# Get specific family member
+@user_private_router.get("/{user_id}/family-members/{family_member_id}", response_model=dict)
+async def get_user_family_member_route(user_id: str, family_member_id: str, request: Request):
+    try:
+        if request.state.uid != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only access own family members")
+        
+        member = await get_family_member_by_id(user_id, family_member_id)
+        if not member:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
+        
+        return {"success": True, "family_member": member}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member: {str(e)}")
+
+# Update family member
+@user_private_router.put("/{user_id}/family-members/{family_member_id}", response_model=dict)
+async def update_user_family_member_route(user_id: str, family_member_id: str, request: Request, family_member_data: PersonUpdate = Body(...)):
+    try:
+        if request.state.uid != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only manage own family members")
+        
+        success = await update_family_member(user_id, family_member_id, family_member_data)
+        if not success:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
+        
+        return {"success": True, "message": "Family member updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error updating family member: {str(e)}")
+
+# Remove family member
+@user_private_router.delete("/{user_id}/family-members/{family_member_id}", response_model=dict)
+async def delete_user_family_member_route(user_id: str, family_member_id: str, request: Request):
+    try:
+        if request.state.uid != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only manage own family members")
+        
+        success = await delete_family_member(user_id, family_member_id)
+        if not success:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
+        
+        return {"success": success, "message": "Family member deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error deleting family member: {str(e)}")

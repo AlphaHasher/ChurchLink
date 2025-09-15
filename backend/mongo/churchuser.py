@@ -83,7 +83,8 @@ class UserHandler:
         series_id: ObjectId = None,   # optional: if your model separates series vs instances
         occurrence_id: ObjectId = None,  # optional: if occurrences are stored as docs
         occurrence_start=None,  # optional: datetime for the chosen occurrence time
-        meta: dict | None = None
+        meta: dict | None = None,
+        person_id: ObjectId = None  # optional: for family member registrations
     ):
         """
         A normalized reference to an event the user is 'involved in'.
@@ -104,6 +105,7 @@ class UserHandler:
         return {
             "_id": ObjectId(),          # local id of the embedded record
             "event_id": event_id,       # required
+            "person_id": person_id,     # optional: for family member registrations
             "reason": reason,           # "watch" or (later) "rsvp"
             "scope": scope,             # "series" or "occurrence"
             "series_id": series_id,     # optional
@@ -189,17 +191,28 @@ class UserHandler:
         return doc["people"][0]
     
     @staticmethod
-    async def list_my_events(uid: str, expand: bool = False):
+    async def list_my_events(uid: str, expand: bool = False, person_id: ObjectId = None):
         """
         If expand=True, join with 'events' to return full event docs alongside refs.
+        If person_id is provided, filter events for specific family member.
         """
         if not expand:
             user = await DB.db["users"].find_one({"uid": uid}, {"_id": 0, "my_events": 1})
-            return (user or {}).get("my_events", [])
+            events = (user or {}).get("my_events", [])
+            if person_id:
+                events = [event for event in events if event.get("person_id") == person_id]
+            return events
 
         pipeline = [
             {"$match": {"uid": uid}},
             {"$unwind": {"path": "$my_events", "preserveNullAndEmptyArrays": False}},
+        ]
+
+        # Add person_id filter if specified
+        if person_id:
+            pipeline.append({"$match": {"my_events.person_id": person_id}})
+
+        pipeline.extend([
             {"$lookup": {
                 "from": "events",
                 "localField": "my_events.event_id",
@@ -213,7 +226,7 @@ class UserHandler:
                     {"event": "$event"}
                 ]
             }}}
-        ]
+        ])
         cursor = DB.db["users"].aggregate(pipeline)
         return [doc async for doc in cursor]
     
@@ -266,7 +279,8 @@ class UserHandler:
         series_id: ObjectId | None = None,
         occurrence_id: ObjectId | None = None,
         occurrence_start=None,
-        meta: dict | None = None
+        meta: dict | None = None,
+        person_id: ObjectId = None        # optional: for family member registrations
     ):
         ref = UserHandler.create_event_ref_schema(
             event_id=event_id,
@@ -275,7 +289,8 @@ class UserHandler:
             series_id=series_id,
             occurrence_id=occurrence_id,
             occurrence_start=occurrence_start,
-            meta=meta
+            meta=meta,
+            person_id=person_id
         )
 
         result = await DB.db["users"].update_one(
@@ -309,7 +324,7 @@ class UserHandler:
     async def remove_from_my_events(uid: str, *, key: str = None, event_id: ObjectId = None,
                                     reason: str = None, scope: str = None,
                                     occurrence_id: ObjectId = None, occurrence_start=None,
-                                    series_id: ObjectId = None):
+                                    series_id: ObjectId = None, person_id: ObjectId = None):
         """
         Remove by the stable 'key' (recommended) OR by matching fields.
         """
@@ -328,6 +343,8 @@ class UserHandler:
                 criteria["occurrence_id"] = occurrence_id
             if occurrence_start is not None:
                 criteria["occurrence_start"] = occurrence_start
+            if person_id is not None:
+                criteria["person_id"] = person_id
 
         result = await DB.db["users"].update_one(
             {"uid": uid},
@@ -337,10 +354,27 @@ class UserHandler:
     
     @staticmethod
     async def remove_person(uid: str, person_id: ObjectId):
-        result = await DB.db["users"].update_one(
-            {"uid": uid},
-            {"$pull": {"people": {"_id": person_id}}}
-        )
-        return result.modified_count == 1
+        """
+        Remove a family member and clean up their event registrations.
+        """
+        try:
+            # Remove the person from the people array
+            result = await DB.db["users"].update_one(
+                {"uid": uid},
+                {"$pull": {"people": {"_id": person_id}}}
+            )
+
+            if result.modified_count == 1:
+                # Also remove any event registrations for this family member
+                cleanup_result = await DB.db["users"].update_one(
+                    {"uid": uid},
+                    {"$pull": {"my_events": {"person_id": person_id}}}
+                )
+                print(f"Cleaned up {cleanup_result.modified_count} event registrations for family member {person_id}")
+
+            return result.modified_count == 1
+        except Exception as e:
+            print(f"Error removing person {person_id}: {e}")
+            return False
     
     
