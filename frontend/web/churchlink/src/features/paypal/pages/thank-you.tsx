@@ -23,7 +23,7 @@ const ThankYouPage: React.FC = () => {
     
     if (paymentId && payerId) {
       // One-time payment
-      axios.post(`${apiHost}/api/v1/paypal/orders/${paymentId}/capture?payer_id=${payerId}`)
+      axios.post(`${apiHost}/api/paypal/orders/${paymentId}/capture?payer_id=${payerId}`)
         .then(res => {
           setConfirmation(res.data);
           setStatus("Thank you! Your donation was successful.");
@@ -39,12 +39,19 @@ const ThankYouPage: React.FC = () => {
         });
     } else if (token) {
       // Subscription
-      axios.post(`${apiHost}/api/v1/paypal/subscription/execute?token=${token}`)
+      console.log("Processing subscription with token:", token);
+      console.log("Making request to:", `${apiHost}/api/paypal/subscription/execute?token=${token}`);
+      
+      axios.post(`${apiHost}/api/paypal/subscription/execute?token=${token}`)
         .then(res => {
+          console.log("Subscription execution response:", res);
+          console.log("Response data:", res.data);
           setConfirmation(res.data);
           setStatus("Thank you! Your subscription was successful.");
         })
         .catch(err => {
+          console.error("Subscription execution error:", err);
+          console.error("Error response:", err.response);
           const msg = err?.response?.data?.error || "Subscription could not be completed.";
           setError(msg);
           setStatus("");
@@ -62,6 +69,15 @@ const ThankYouPage: React.FC = () => {
         {confirmation && (
           <div className="mb-4 text-left bg-gray-50 p-4 rounded">
             <h2 className="text-xl font-semibold mb-2">Confirmation Details</h2>
+            
+            {/* Debug: Show raw confirmation data */}
+            <details className="mb-4">
+              <summary className="cursor-pointer text-sm text-gray-600">Debug: Show raw data</summary>
+              <pre className="text-xs bg-gray-100 p-2 mt-2 overflow-auto">
+                {JSON.stringify(confirmation, null, 2)}
+              </pre>
+            </details>
+            
             <div className="space-y-2">
               {/* One-time donation confirmation */}
               {confirmation.transaction_id && (

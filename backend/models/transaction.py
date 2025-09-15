@@ -19,6 +19,7 @@ class Transaction(BaseModel):
     start_time: Optional[str] = None
     next_billing_time: Optional[str] = None
     name: Optional[str] = None  # Donor name
+    fund_name: Optional[str] = None  # Donation fund purpose
     note: Optional[str] = None
     currency: Optional[str] = "USD"
     event_type: Optional[str] = None

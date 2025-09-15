@@ -6,7 +6,7 @@ from models.donation_subscription import DonationSubscription
 from models.transaction import Transaction
 from mongo.database import DB
 from fastapi.responses import JSONResponse
-from fastapi import Query, Request
+from fastapi import Query, Request, HTTPException
 import re
 
 # PayPal configuration from environment variables
@@ -381,16 +381,19 @@ async def list_all_transactions(skip: int = 0, limit: int = 20, fund_name: str =
             query["status"] = status
             
         # Get total count for pagination info
-        total_count = await DB.count_documents("transactions", query)
+        total_count = await DB.db["transactions"].count_documents(query)
         
-        # Get transactions with pagination
-        tx_docs = await DB.find_documents("transactions", query, skip=skip, limit=limit, sort=[("created_on", -1)])
+        # Get transactions with pagination - use multiple sort fields as fallback
+        sort_options = [("created_on", -1), ("time", -1), ("_id", -1)]
+        tx_docs = await DB.db["transactions"].find(query).sort(sort_options).skip(skip).limit(limit).to_list(length=limit)
         
         result = []
         for tx in tx_docs:
             tx["id"] = str(tx.pop("_id"))
-            if "created_on" in tx and hasattr(tx["created_on"], "isoformat"):
-                tx["created_on"] = tx["created_on"].isoformat()
+            # Convert datetime objects to ISO strings for multiple possible date fields
+            for date_field in ["created_on", "time", "start_time", "next_billing_time"]:
+                if date_field in tx and hasattr(tx[date_field], "isoformat"):
+                    tx[date_field] = tx[date_field].isoformat()
             result.append(tx)
         
         return {
@@ -403,10 +406,7 @@ async def list_all_transactions(skip: int = 0, limit: int = 20, fund_name: str =
             }
         }
     except Exception as e:
-        return JSONResponse(
-            status_code=500, 
-            content={"error": "Failed to fetch transactions", "details": str(e)}
-        ) 
+        raise HTTPException(status_code=500, detail=f"Failed to fetch transactions: {str(e)}") 
 
 async def get_transaction_by_id(transaction_id: str):
     """
@@ -716,10 +716,7 @@ async def create_subscription_helper(request):
     donation_sub = DonationSubscription(**subscription_data)
     await DonationSubscription.create_donation_subscription(donation_sub)
     
-    # Store names being used
-    stored_name = f"{first_name} {last_name}".strip() if first_name or last_name else "Anonymous"
     
-    # Also create a transaction record for better reporting consistency
     transaction_data = {
         "transaction_id": f"sub_{subscription_id}",
         "user_email": "Anonymous",  # Will be updated from PayPal when subscription is executed
@@ -965,19 +962,7 @@ async def execute_subscription_helper(token):
                     }}
                 )
 
-            # Create simple transaction record
-            transaction_data = {
-                "plan_id": recent_sub.get("plan_id") if recent_sub else None,
-                "transaction_amount": recent_sub.get("amount") if recent_sub else None,
-                "currency_code": recent_sub.get("currency_code", "USD") if recent_sub else "USD",
-                "status": status_val,
-                "transaction_date": datetime.datetime.now(),
-                "name": name,
-                "email": payer_email,
-                "agreement_id": agreement_id
-            }
             
-            await DB.db["transactions"].insert_one(transaction_data)
 
             return {
                 "success": True,
@@ -999,22 +984,18 @@ async def execute_subscription_helper(token):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-async def get_all_subscriptions_helper(skip: int = 0, limit: int = 20, status: str = None):
+async def get_all_subscriptions_helper(skip: int = 0, limit: int = 20, status: str = None, fund_name: str = None):
     """Get all donation subscriptions with pagination and filtering"""
     try:
         query = {}
         if status:
             query["status"] = status
+        if fund_name:
+            query["fund_name"] = fund_name
             
-        total_count = await DB.count_documents("donations_subscriptions", query)
+        total_count = await DB.db["donations_subscriptions"].count_documents(query)
         
-        sub_docs = await DB.find_documents(
-            "donations_subscriptions", 
-            query, 
-            skip=skip, 
-            limit=limit,
-            sort=[("created_on", -1)]
-        )
+        sub_docs = await DB.db["donations_subscriptions"].find(query).sort([("created_on", -1), ("start_time", -1), ("_id", -1)]).skip(skip).limit(limit).to_list(length=limit)
         
         subs = []
         for sub in sub_docs:
@@ -1037,8 +1018,5 @@ async def get_all_subscriptions_helper(skip: int = 0, limit: int = 20, status: s
             }
         }
     except Exception as e:
-        return JSONResponse(
-            status_code=500, 
-            content={"error": "Failed to fetch subscriptions", "details": str(e)}
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to fetch subscriptions: {str(e)}")
 

@@ -29,6 +29,7 @@ from routes.bible_routes.bible_note_routes import bible_note_router
 from routes.bible_routes.bible_plan_routes import bible_plan_router
 from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
 from routes.paypal_routes.paypal_routes import paypal_router
+from routes.paypal_routes.paypal_adminsetting import paypal_router as paypal_admin_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
@@ -194,7 +195,6 @@ async def update_user_roles(role_update: RoleUpdate):
 # Declare router middleware/slash permissions for imported routes
 #####################################################
 strapi_router.dependencies.append(Depends(role_based_access(["strapi_admin"])))
-# paypal_router.dependencies.append(Depends(role_based_access(["finance"])))
 
 
 #####################################################
@@ -211,7 +211,6 @@ router_webhook_listener.include_router(paypal_subscription_webhook_router)
 # Base Router Configuration all routes will have api/v1 prefix
 #####################################################
 base_router = AuthProtectedRouter(prefix="/api/v1")
-base_router.include_router(paypal_router)
 base_router.include_router(permissions_view_router)
 base_router.include_router(permissions_protected_router)
 base_router.include_router(event_router)
@@ -225,6 +224,7 @@ base_router.include_router(bible_note_router)
 base_router.include_router(bible_plan_router)
 base_router.include_router(strapi_router)
 base_router.include_router(strapi_protected_router)
+base_router.include_router(paypal_admin_router)
 base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
 base_router.include_router(notification_router)
@@ -233,6 +233,7 @@ non_v1_router = APIRouter(prefix="/api")
 non_v1_router.include_router(page_router)
 non_v1_router.include_router(header_router)
 non_v1_router.include_router(footer_router)
+non_v1_router.include_router(paypal_router)
 
 
 # Include routers in main app

@@ -68,7 +68,7 @@ const PaypalSection: React.FC<PaypalSectionProps> = ({ data, isEditing, onChange
   const fetchPayPalSettings = async () => {
     try {
       const apiHost = import.meta.env.VITE_API_HOST || "http://localhost:8000";
-      const response = await axios.get(`${apiHost}/api/v1/paypal/settings`);
+      const response = await axios.get(`${apiHost}/api/paypal/settings`);
       if (response.data?.settings?.ALLOWED_FUNDS) {
         setAllowedFunds(response.data.settings.ALLOWED_FUNDS);
       }
@@ -104,7 +104,7 @@ const PaypalSection: React.FC<PaypalSectionProps> = ({ data, isEditing, onChange
 
   const createSubscription = async (donation: PaypalDonation) => {
     const apiHost = import.meta.env.VITE_API_HOST || "http://localhost:8000";
-    const url = `${apiHost}/api/v1/paypal/subscription`;
+    const url = `${apiHost}/api/paypal/subscription`;
     try {
       const response = await axios.post(url, { donation }, {
         headers: { 'Content-Type': 'application/json' }
@@ -163,7 +163,7 @@ const PaypalSection: React.FC<PaypalSectionProps> = ({ data, isEditing, onChange
             cancel_url: window.location.origin + window.location.pathname,
           },
         };
-        response = await axios.post(`${apiHost}/api/v1/paypal/orders`, payload);
+        response = await axios.post(`${apiHost}/api/paypal/orders`, payload);
       }
       
       if (!response) {

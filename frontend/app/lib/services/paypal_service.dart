@@ -7,7 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class PaypalService {
   static Future<Map<String, dynamic>?> createOrder(Map<String, dynamic> donation) async {
     final backendUrl = dotenv.env['BACKEND_URL'];
-    final url = Uri.parse('$backendUrl/paypal/orders');
+    final url = Uri.parse('$backendUrl/api/paypal/orders');
     log('[PaypalService] Sending donation order creation to: $url');
     log('[PaypalService] Payload: ${jsonEncode({'donation': donation})}');
     try {
@@ -36,7 +36,7 @@ class PaypalService {
 
   static Future<Map<String, dynamic>?> captureOrder(String orderId, String payerId) async {
     final backendUrl = dotenv.env['BACKEND_URL'];
-    final url = Uri.parse('$backendUrl/paypal/orders/$orderId/capture?payer_id=$payerId');
+    final url = Uri.parse('$backendUrl/api/paypal/orders/$orderId/capture?payer_id=$payerId');
     log('[PaypalService] captureOrder called for $orderId with payerId $payerId');
     try {
       final response = await http.post(url);
@@ -55,7 +55,7 @@ class PaypalService {
 
   static Future<Map<String, dynamic>?> createSubscription(Map<String, dynamic> donation) async {
     final backendUrl = dotenv.env['BACKEND_URL'];
-    final url = Uri.parse('$backendUrl/paypal/subscription');
+    final url = Uri.parse('$backendUrl/api/paypal/subscription');
     log('[PaypalService] Sending subscription creation to: $url');
     log('[PaypalService] Payload: ${jsonEncode({'donation': donation})}');
     try {
@@ -83,7 +83,7 @@ class PaypalService {
 
   static Future<List<String>> getFundPurposes() async {
     final backendUrl = dotenv.env['BACKEND_URL'];
-    final url = Uri.parse('$backendUrl/paypal/fund-purposes');
+    final url = Uri.parse('$backendUrl/api/paypal/fund-purposes');
     log('[PaypalService] Fetching fund purposes from: $url');
     try {
       final response = await http.get(url);

@@ -99,7 +99,7 @@ const FinancePage: React.FC = () => {
   useEffect(() => {
     const fetchDonations = async () => {
       try {
-        const response = await api.get("/v1/paypal/admin/transactions");
+        const response = await api.get("/v1/paypal_admin/admin/transactions");
         let txs = response.data.transactions || [];
         // Map created_on to date for frontend display
         txs = txs.map((t: any) => ({ ...t, date: t.date || t.created_on || t.time || "" }));
@@ -115,7 +115,7 @@ const FinancePage: React.FC = () => {
   useEffect(() => {
     const fetchSubscriptions = async () => {
       try {
-        const response = await api.get("/v1/paypal/subscription/all");
+        const response = await api.get("/v1/paypal_admin/admin/subscriptions");
         let subs: DonationSubscription[] = response.data.subscriptions || [];
         subs = subs.map((s: any) => ({ ...s, date: s.date || s.created_on || s.start_date || "" }));
         setSubscriptions(subs);
