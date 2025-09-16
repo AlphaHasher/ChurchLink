@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/event.dart';
-import '../models/event_registration_details.dart';
+import '../models/event_registration_summary.dart';
 
 class EnhancedEventCard extends StatelessWidget {
   final Event event;
   final VoidCallback onViewPressed;
-  final EventRegistrationDetails? registrationDetails;
+  final EventRegistrationSummary? registrationSummary;
 
   const EnhancedEventCard({
     super.key,
     required this.event,
     required this.onViewPressed,
-    this.registrationDetails,
+    this.registrationSummary,
   });
 
   @override
@@ -165,8 +165,8 @@ class EnhancedEventCard extends StatelessWidget {
 
   Widget _buildCostLabel() {
     // Check if event is full first
-    if (registrationDetails != null &&
-        registrationDetails!.availableSpots <= 0) {
+    if (registrationSummary != null &&
+        registrationSummary!.availableSpots <= 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(

@@ -1,8 +1,3 @@
-/// @deprecated This model exposes other users' private registration data.
-/// Use EventRegistrationSummary instead which only shows aggregate data and user's own registrations.
-@Deprecated(
-  'This model violates privacy by exposing other users\' personal information. Use EventRegistrationSummary instead.',
-)
 class RegistrationEntry {
   final String userUid;
   final String userName;
@@ -60,29 +55,25 @@ class RegistrationEntry {
   }
 }
 
-/// @deprecated This model exposes other users' private registration data.
-/// Use EventRegistrationSummary instead which only shows aggregate data and user's own registrations.
-@Deprecated(
-  'This model violates privacy by exposing other users\' personal information. Use EventRegistrationSummary instead.',
-)
-class EventRegistrationDetails {
-  final List<RegistrationEntry> registrations;
-  final int totalRegistrations;
+class EventRegistrationSummary {
+  final List<RegistrationEntry> userRegistrations; // Only current user's family
+  final int totalRegistrations; // Aggregate count only
   final int availableSpots;
   final int totalSpots;
   final bool canRegister;
 
-  EventRegistrationDetails({
-    required this.registrations,
+  EventRegistrationSummary({
+    required this.userRegistrations,
     required this.totalRegistrations,
     required this.availableSpots,
     required this.totalSpots,
     required this.canRegister,
   });
 
-  factory EventRegistrationDetails.fromJson(Map<String, dynamic> json) {
-    final registrationsList = json['registrations'] as List<dynamic>? ?? [];
-    final registrations =
+  factory EventRegistrationSummary.fromJson(Map<String, dynamic> json) {
+    final registrationsList =
+        json['user_registrations'] as List<dynamic>? ?? [];
+    final userRegistrations =
         registrationsList
             .map(
               (item) =>
@@ -90,8 +81,8 @@ class EventRegistrationDetails {
             )
             .toList();
 
-    return EventRegistrationDetails(
-      registrations: registrations,
+    return EventRegistrationSummary(
+      userRegistrations: userRegistrations,
       totalRegistrations: json['total_registrations'] ?? 0,
       availableSpots: json['available_spots'] ?? 0,
       totalSpots: json['total_spots'] ?? 0,
@@ -101,7 +92,7 @@ class EventRegistrationDetails {
 
   Map<String, dynamic> toJson() {
     return {
-      'registrations': registrations.map((r) => r.toJson()).toList(),
+      'user_registrations': userRegistrations.map((r) => r.toJson()).toList(),
       'total_registrations': totalRegistrations,
       'available_spots': availableSpots,
       'total_spots': totalSpots,
@@ -111,7 +102,7 @@ class EventRegistrationDetails {
 
   /// Get registrations for the current user (themselves)
   List<RegistrationEntry> getCurrentUserRegistrations(String currentUserUid) {
-    return registrations
+    return userRegistrations
         .where((reg) => reg.isCurrentUser(currentUserUid))
         .toList();
   }
@@ -120,7 +111,7 @@ class EventRegistrationDetails {
   List<RegistrationEntry> getCurrentUserFamilyRegistrations(
     String currentUserUid,
   ) {
-    return registrations
+    return userRegistrations
         .where((reg) => reg.isCurrentUserFamily(currentUserUid))
         .toList();
   }
@@ -129,18 +120,6 @@ class EventRegistrationDetails {
   List<RegistrationEntry> getAllCurrentUserRegistrations(
     String currentUserUid,
   ) {
-    return registrations.where((reg) => reg.userUid == currentUserUid).toList();
-  }
-
-  /// Get registrations for other users (not current user or their family)
-  /// @deprecated PRIVACY VIOLATION: This method exposes other users' personal information.
-  /// This method has been removed for privacy compliance.
-  @Deprecated(
-    'PRIVACY VIOLATION: This method exposes other users\' personal information and has been disabled for privacy compliance.',
-  )
-  List<RegistrationEntry> getOtherUserRegistrations(String currentUserUid) {
-    // SECURITY FIX: This method previously exposed other users' personal information
-    // Now returns empty list to prevent privacy violations
-    return [];
+    return userRegistrations;
   }
 }

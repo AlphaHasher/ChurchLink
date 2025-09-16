@@ -1,5 +1,6 @@
 import '../helpers/api_client.dart';
 import '../models/event_registration_details.dart';
+import '../models/event_registration_summary.dart';
 
 class EventRegistrationService {
   /// Register user or family member for an event
@@ -48,8 +49,37 @@ class EventRegistrationService {
     }
   }
 
+  /// Get registration summary for event (user's family registrations + aggregate data only)
+  static Future<EventRegistrationSummary> getEventRegistrationSummary(
+    String eventId,
+  ) async {
+    try {
+      final response = await api.get(
+        '/v1/events/$eventId/registrations/summary',
+      );
+      if (response.data['success'] == true) {
+        return EventRegistrationSummary.fromJson(response.data);
+      }
+      // Return empty summary if request fails
+      return EventRegistrationSummary(
+        userRegistrations: [],
+        totalRegistrations: 0,
+        availableSpots: 0,
+        totalSpots: 0,
+        canRegister: false,
+      );
+    } catch (e) {
+      throw Exception('Failed to get event registration summary: $e');
+    }
+  }
+
   /// Get detailed registration information for a specific event
   /// Returns comprehensive registration details including resolved names
+  /// @deprecated This method exposes other users' registration data.
+  /// Use getEventRegistrationSummary instead which only shows aggregate data and user's own registrations.
+  @Deprecated(
+    'This method violates privacy by exposing other users\' registration data. Use getEventRegistrationSummary instead.',
+  )
   static Future<EventRegistrationDetails> getEventRegistrationDetails(
     String eventId,
   ) async {
