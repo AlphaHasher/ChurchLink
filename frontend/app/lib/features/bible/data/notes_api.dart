@@ -1,32 +1,24 @@
 // Lightweight client for Bible Note routes.
 //
 // Routes defined in backend\routes\bible_routes\bible_note_routes.py:
-//   GET  /api/v1/bible-notes/reference/{book}
-//   GET  /api/v1/bible-notes/reference/{book}/{chapter}
-//   POST /api/v1/bible-notes/
-//   PUT  /api/v1/bible-notes/{note_id}
-//   DELETE /api/v1/bible-notes/{note_id}
+//   GET  /v1/bible-notes/reference/{book}
+//   GET  /v1/bible-notes/reference/{book}/{chapter}
+//   POST /v1/bible-notes/
+//   PUT  /v1/bible-notes/{note_id}
+//   DELETE /v1/bible-notes/{note_id}
 //
 // Auth: Firebase UID bearer token.
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:dio/dio.dart';
+import 'package:app/helpers/api_client.dart';
 
 // offline/backoff utilities
 import 'dart:async'; 
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
-/// Defines the URL for the backend. 
-/// Uses the Android Flutter default if API_BASE_URL is not in .env
-class NotesApiConfig {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
-  );
-}
 
 enum ServerHighlight { blue, red, yellow, green, purple }
 
@@ -107,29 +99,8 @@ class NotesApi {
   static final StreamController<void> _syncedCtr = StreamController<void>.broadcast();
   static Stream<void> get onSynced => _syncedCtr.stream;
 
-  static Future<String> _token() async {
-    final u = FirebaseAuth.instance.currentUser;
-    if (u == null) {
-      throw StateError('Not authenticated');
-    }
-
-    String? tok = await u.getIdToken();
-    if (tok == null || tok.isEmpty) {
-      tok = await u.getIdToken(true);
-    }
-    if (tok == null || tok.isEmpty) {
-      throw StateError('Failed to obtain Firebase ID token');
-    }
-    return tok;
-  }
-
-  static Map<String, String> _headers(String token) => {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      };
-
-  static Uri _u(String path, [Map<String, String>? qp]) =>
-      Uri.parse('${NotesApiConfig.baseUrl}$path').replace(queryParameters: qp);
+  // Use shared Dio client configured in ApiClient (baseUrl ends with /api)
+  static Dio get _dio => api;
 
   // detect offline
   static bool _isOffline(Object e) =>
@@ -153,26 +124,21 @@ class NotesApi {
     int skip = 0,
     int limit = 2000,
   }) async {
-    final t = await _token();
-    final uri = _u(
-      '/api/v1/bible-notes/reference/$book',
-      {
-        'chapter_start': '$chapterStart',
-        'chapter_end': '$chapterEnd',
-        'skip': '$skip',
-        'limit': '$limit',
-      },
-    );
-
-    if (kDebugMode) debugPrint('[NotesApi] GET $uri');
+    final qp = {
+      'chapter_start': '$chapterStart',
+      'chapter_end': '$chapterEnd',
+      'skip': '$skip',
+      'limit': '$limit',
+    };
+    if (kDebugMode) debugPrint('[NotesApi] GET /v1/bible-notes/reference/$book');
     try {
-      final r = await http.get(uri, headers: _headers(t));
+      final r = await _dio.get('/v1/bible-notes/reference/$book', queryParameters: qp);
       if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode}');
 
       if (r.statusCode != 200) {
-        throw StateError('GET notes (range) failed: ${r.statusCode} ${r.body}');
+        throw StateError('GET notes (range) failed: ${r.statusCode} ${r.data}');
       }
-      final data = json.decode(r.body) as List;
+      final data = r.data as List;
       var notes = data
           .map((e) => RemoteNote.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -220,22 +186,15 @@ class NotesApi {
 
   // Raw online paths (used by outbox)
   static Future<RemoteNote> _createOnline(RemoteNote draft) async {
-    final t = await _token();
-    final uri = _u('/api/v1/bible-notes/');
     if (kDebugMode) {
-      debugPrint('[NotesApi] POST $uri body=${draft.toCreateJson()}');
+      debugPrint('[NotesApi] POST /v1/bible-notes/ body=${draft.toCreateJson()}');
     }
-    final r = await http.post(
-      uri,
-      headers: _headers(t),
-      body: json.encode(draft.toCreateJson()),
-    );
-    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.body}');
+    final r = await _dio.post('/v1/bible-notes/', data: draft.toCreateJson());
+    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.data}');
     if (r.statusCode != 200 && r.statusCode != 201) {
-      throw StateError('POST note failed: ${r.statusCode} ${r.body}');
+      throw StateError('POST note failed: ${r.statusCode} ${r.data}');
     }
-    final created =
-        RemoteNote.fromJson(json.decode(r.body) as Map<String, dynamic>);
+    final created = RemoteNote.fromJson(r.data as Map<String, dynamic>);
 
     await _Cache.upsert(created);
     _syncedCtr.add(null);
@@ -248,23 +207,18 @@ class NotesApi {
     String? note,
     ServerHighlight? color,
   }) async {
-    final t = await _token();
-    final uri = _u('/api/v1/bible-notes/$id');
-
     final body = <String, dynamic>{};
     if (note != null) body['note'] = note;
     if (color != null) body['highlight_color'] = color.name;
 
-    if (kDebugMode) debugPrint('[NotesApi] PUT $uri body=$body');
-    final r =
-        await http.put(uri, headers: _headers(t), body: json.encode(body));
-    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.body}');
+    if (kDebugMode) debugPrint('[NotesApi] PUT /v1/bible-notes/$id body=$body');
+    final r = await _dio.put('/v1/bible-notes/$id', data: body);
+    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.data}');
 
     if (r.statusCode != 200) {
-      throw StateError('PUT note failed: ${r.statusCode} ${r.body}');
+      throw StateError('PUT note failed: ${r.statusCode} ${r.data}');
     }
-    final updated =
-        RemoteNote.fromJson(json.decode(r.body) as Map<String, dynamic>);
+    final updated = RemoteNote.fromJson(r.data as Map<String, dynamic>);
 
     await _Cache.upsert(updated);
     _syncedCtr.add(null);
@@ -273,15 +227,12 @@ class NotesApi {
   }
 
   static Future<void> _deleteOnline(String id) async {
-    final t = await _token();
-    final uri = _u('/api/v1/bible-notes/$id');
-
-    if (kDebugMode) debugPrint('[NotesApi] DELETE $uri');
-    final r = await http.delete(uri, headers: _headers(t));
-    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.body}');
+    if (kDebugMode) debugPrint('[NotesApi] DELETE /v1/bible-notes/$id');
+    final r = await _dio.delete('/v1/bible-notes/$id');
+    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.data}');
 
     if (r.statusCode != 200) {
-      throw StateError('DELETE note failed: ${r.statusCode} ${r.body}');
+      throw StateError('DELETE note failed: ${r.statusCode} ${r.data}');
     }
 
     await _Cache.removeById(id);
@@ -471,7 +422,7 @@ class _Cache {
         return c != 0 ? c : va.compareTo(vb);
       });
     return filtered
-        .map((e) => RemoteNote.fromJson(Map<String, dynamic>.from(e)))
+        .map((e) => RemoteNote.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

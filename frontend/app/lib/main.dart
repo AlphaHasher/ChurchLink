@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -58,11 +59,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60));
     return MaterialApp(
       title: 'ChurchLink',
       navigatorKey: navigatorKey, // Allows navigation from notifications
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60)),
+        useMaterial3: false,
+        colorScheme: colorScheme,
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Colors.black,
+          elevation: 0,
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white70,
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+        ),
       ),
       home: const MyHomePage(),
       routes: {
@@ -135,12 +147,49 @@ class _MyHomePageState extends State<MyHomePage> {
         type: BottomNavigationBarType.fixed,
         currentIndex: tabProvider.currentIndex,
         onTap: (value) => tabProvider.setTab(value),
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: "Bible"),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: "Sermons"),
-          BottomNavigationBarItem(icon: Icon(Icons.account_box), label: "Profile"),
+          BottomNavigationBarItem(
+            label: '',
+            icon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: false),
+            activeIcon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: true),
+          ),
+          BottomNavigationBarItem(
+            label: '',
+            icon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: false),
+            activeIcon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: true),
+          ),
+          BottomNavigationBarItem(
+            label: '',
+            icon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: false),  
+            activeIcon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: true),
+          ),
+          BottomNavigationBarItem(
+            label: '',
+            icon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: false),
+            activeIcon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: true),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _TintableSvg extends StatelessWidget {
+  final String path;
+  final bool isActive;
+  const _TintableSvg({required this.path, required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    return SvgPicture.asset(
+      path,
+      width: 40,
+      height: 40,
+      colorFilter: ColorFilter.mode(
+        isActive ? Colors.white : Colors.white70,
+        BlendMode.srcIn,
       ),
     );
   }

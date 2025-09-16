@@ -1,121 +1,69 @@
 import os
 import logging
-
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from paypalserversdk.http.auth.o_auth_2 import ClientCredentialsAuthCredentials
-from paypalserversdk.logging.configuration.api_logging_configuration import (
-    LoggingConfiguration,
-    RequestLoggingConfiguration,
-    ResponseLoggingConfiguration,
+from fastapi import APIRouter, Request, Query, Body, Depends, HTTPException
+from typing import Optional, Dict, List, Any
+from helpers.paypalHelper import (
+    create_order as paypal_create_order,
+    capture_order as paypal_capture_order,
+    update_transaction_status_api as paypal_update_transaction_status,
+    get_transaction_by_id as paypal_get_transaction_by_id,
+    list_all_transactions as paypal_list_all_transactions,
+    create_subscription_helper as paypal_create_subscription_helper,
+    execute_subscription_helper as paypal_execute_subscription_helper,
+    get_all_subscriptions_helper as paypal_get_all_subscriptions_helper
 )
-from paypalserversdk.paypal_serversdk_client import PaypalServersdkClient
-from paypalserversdk.controllers.orders_controller import OrdersController
-from paypalserversdk.controllers.payments_controller import PaymentsController
-from paypalserversdk.models.amount_breakdown import AmountBreakdown
-from paypalserversdk.models.amount_with_breakdown import AmountWithBreakdown
-from paypalserversdk.models.checkout_payment_intent import CheckoutPaymentIntent
-from paypalserversdk.models.order_request import OrderRequest
-# from paypalserversdk.models.capture_request import CaptureRequest
-from paypalserversdk.models.money import Money
-# from paypalserversdk.models.shipping_details import ShippingDetails
-# from paypalserversdk.models.shipping_option import ShippingOption
-# from paypalserversdk.models.shipping_type import ShippingType
-from paypalserversdk.models.purchase_unit_request import PurchaseUnitRequest
-# from paypalserversdk.models.payment_source import PaymentSource
-# from paypalserversdk.models.card_request import CardRequest
-# from paypalserversdk.models.card_attributes import CardAttributes
-from paypalserversdk.models.item import Item
-from paypalserversdk.models.item_category import ItemCategory
-# from paypalserversdk.models.paypal_wallet import PaypalWallet
-# from paypalserversdk.models.paypal_wallet_experience_context import PaypalWalletExperienceContext
-# from paypalserversdk.models.shipping_preference import ShippingPreference
-# from paypalserversdk.models.paypal_experience_landing_page import PaypalExperienceLandingPage
-# from paypalserversdk.models.paypal_experience_user_action import PaypalExperienceUserAction
-# from paypalserversdk.exceptions.error_exception import ErrorException
-from paypalserversdk.api_helper import ApiHelper
+from mongo.database import DB
 
 paypal_router = APIRouter(prefix="/paypal", tags=["paypal"])
 
-# Initialize the PayPal client with required credentials and logging configuration.
-paypal_client: PaypalServersdkClient = PaypalServersdkClient(
-    client_credentials_auth_credentials=ClientCredentialsAuthCredentials(
-        o_auth_client_id=os.getenv("PAYPAL_CLIENT_ID"),
-        o_auth_client_secret=os.getenv("PAYPAL_CLIENT_SECRET"),
-    ),
-    logging_configuration=LoggingConfiguration(
-        log_level=logging.INFO,
-        # Disable masking of sensitive headers for Sandbox testing.
-        # This should be set to True (the default if unset)in production.
-        mask_sensitive_headers=False,
-        request_logging_config=RequestLoggingConfiguration(
-            log_headers=True, log_body=True
-        ),
-        response_logging_config=ResponseLoggingConfiguration(
-            log_headers=True, log_body=True
-        ),
-    ),
-)
-
-orders_controller: OrdersController = paypal_client.orders
-payments_controller: PaymentsController = paypal_client.payments
-
-# ------------------------------------------------------------------------------
-# Endpoint to Create an Order
-# ------------------------------------------------------------------------------
 @paypal_router.post("/orders", status_code=200)
 async def create_order(request: Request):
-    request_body = await request.json()
-
-    cart = request_body.get("cart")
-
-    # Build the order request
-    order = orders_controller.create_order({
-        "body": OrderRequest(
-            intent=CheckoutPaymentIntent.CAPTURE,
-            purchase_units=[
-                PurchaseUnitRequest(
-                    amount=AmountWithBreakdown(
-                        currency_code="USD",
-                        value="100",
-                        breakdown=AmountBreakdown(
-                            item_total=Money(currency_code="USD", value="100")
-                        ),
-                    ),
-                    items=[
-                        Item(
-                            name="T-Shirt",
-                            unit_amount=Money(currency_code="USD", value="100"),
-                            quantity="1",
-                            description="Super Fresh Shirt",
-                            sku="sku01",
-                            category=ItemCategory.PHYSICAL_GOODS,
-                        )
-                    ],
-                )
-            ],
-        )
-    })
-
-    # Return the order details as JSON.
-    return JSONResponse(
-        content=ApiHelper.json_serialize(order.body)
-    )
+    return await paypal_create_order(request)
 
 # ------------------------------------------------------------------------------
 # Endpoint to Capture the Payment for an Order
 # ------------------------------------------------------------------------------
-@paypal_router.post("/orders/{order_id}/capture", status_code=200)
-async def capture_order(order_id: str):
-    # Capture the order payment.
-    order = orders_controller.capture_order(
-        {
-            "id": order_id,
-            "prefer": "return=representation"
-        }
-    )
+@paypal_router.post("/orders/{payment_id}/capture", status_code=200)
+async def capture_order(payment_id: str, payer_id: str = Query(...)):
+    return await paypal_capture_order(payment_id, payer_id)
 
-    # Return the captured order details as JSON.
-    return JSONResponse(
-        content=ApiHelper.json_serialize(order.body),
-    )
+
+# ------------------------------------------------------------------------------
+# Endpoint to Get Transaction by transaction_id
+# ------------------------------------------------------------------------------
+@paypal_router.get("/transaction/{transaction_id}", status_code=200)
+async def get_transaction_by_id(transaction_id: str):
+    return await paypal_get_transaction_by_id(transaction_id)
+
+# ------------------------------------------------------------------------------
+# Endpoint to Create a Subscription
+# ------------------------------------------------------------------------------
+@paypal_router.post("/subscription", status_code=200)
+async def create_subscription(request: Request):
+    return await paypal_create_subscription_helper(request)
+
+# ------------------------------------------------------------------------------
+# Endpoint to Execute a Subscription after approval
+# ------------------------------------------------------------------------------
+@paypal_router.post("/subscription/execute", status_code=200)
+async def execute_subscription(token: str = Query(..., description="PayPal approval token")):
+    return await paypal_execute_subscription_helper(token)
+
+
+# ------------------------------------------------------------------------------
+# Endpoint to Get Available Fund Purposes
+# ------------------------------------------------------------------------------
+@paypal_router.get("/fund-purposes", status_code=200)
+async def get_fund_purposes():
+    """
+    Get all available fund purposes that can be donated to.
+    These are defined in the settings collection with a built-in default.
+    """
+    # Try to get from settings first
+    settings = await DB.get_paypal_settings()
+    if settings and "ALLOWED_FUNDS" in settings:
+        return settings["ALLOWED_FUNDS"]
+        
+    # Use built-in default instead of environment variable
+    default_funds = ["General", "Building", "Missions", "Youth", "Other"]
+    return default_funds

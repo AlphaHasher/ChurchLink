@@ -192,7 +192,7 @@ async def process_check_mod(request:Request):
         return {'success':True}
     else:
         return {'success':False}
-    
+
 @user_mod_router.get("/get-users")
 async def process_get_users(request:Request):
     return await fetch_users()
@@ -273,7 +273,7 @@ async def delete_user_family_member_route(request: Request, family_id:str):
         
         success = await delete_family_member(user_id, family_id)
         if not success:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")      
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
         return {"success": success, "message": "Family member deleted successfully"}
     except HTTPException:
         raise

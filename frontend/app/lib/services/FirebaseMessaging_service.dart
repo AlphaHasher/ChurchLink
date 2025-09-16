@@ -3,7 +3,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:app/pages/dashboard.dart';
-import 'package:provider/provider.dart';
 import 'package:app/providers/tab_provider.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -16,8 +15,15 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
 Future<void> setupLocalNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings =
-      InitializationSettings(android: initializationSettingsAndroid);
+  final DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsIOS,
+  );
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) async {
@@ -39,6 +45,7 @@ void setupFirebaseMessaging() async {
     alert: true,
     badge: true,
     sound: true,
+    provisional: false,
   );
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     debugPrint("User granted permission");
@@ -85,8 +92,11 @@ void showLocalNotification(RemoteMessage message) async {
     priority: Priority.high,
     ticker: 'ticker',
   );
-  const NotificationDetails platformChannelSpecifics =
-      NotificationDetails(android: androidPlatformChannelSpecifics);
+  const DarwinNotificationDetails iosPlatformChannelSpecifics = DarwinNotificationDetails();
+  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
+    iOS: iosPlatformChannelSpecifics,
+  );
   String? payload;
   if (message.data['link'] != null) {
     payload = message.data['link'];
