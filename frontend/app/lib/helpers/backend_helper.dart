@@ -2,10 +2,20 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 class BackendHelper {
-  static const String apiBase =
-      "http://10.0.2.2:8000"; // Emulator-safe localhost
+  static String get apiBase {
+    const fromDefine = String.fromEnvironment('API_BASE_URL');
+    if (fromDefine.isNotEmpty) return fromDefine;
+    try {
+      if (Platform.isAndroid) return 'http://10.0.2.2:8000';
+      return 'http://127.0.0.1:8000';
+    } catch (_) {
+      return 'http://127.0.0.1:8000';
+    }
+  }
+
   static const String syncEndpoint = "/api/v1/users/sync-user";
 
   static Future<bool> syncFirebaseUserWithBackend() async {
