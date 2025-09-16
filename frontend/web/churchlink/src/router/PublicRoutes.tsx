@@ -1,7 +1,6 @@
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import Layout from "../shared/layouts/Layout";
-import Payment from "../shared/components/PaymentExample";
 
 const ArticlesListPage = lazy(() => import("../features/articles/pages/ArticlesListPage"));
 const ArticlePage = lazy(() => import("../features/articles/pages/ArticlePage"));

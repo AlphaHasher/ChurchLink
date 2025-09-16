@@ -7,6 +7,7 @@ import { AdminRoutes } from "./AdminRoutes";
 import { ProfileRoutes } from "./ProfileRoutes";
 import AdminRoute from "@/features/auth/guards/AdminRoute";
 import DynamicPage from "../shared/components/DynamicPage";
+import PaypalThankYouPage from "../features/paypal/pages/thank-you";
 
 const Login = lazy(() => import("../features/auth/pages/Login"));
 const Signup = lazy(() => import("../features/auth/pages/Signup"));
@@ -40,7 +41,15 @@ export const AppRouter = () => {
             </PublicRoute>
           }
         />
-
+        <Route
+          path="/thank-you"
+          element={
+            <PublicRoute>
+              <PaypalThankYouPage />
+            </PublicRoute>
+          }
+        />
+        {/* Dynamic page route for any URL */}
         <Route
           path="/pages/*"
           element={
