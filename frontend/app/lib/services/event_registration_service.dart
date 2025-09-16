@@ -73,49 +73,6 @@ class EventRegistrationService {
     }
   }
 
-  /// Get detailed registration information for a specific event
-  /// Returns comprehensive registration details including resolved names
-  /// @deprecated This method exposes other users' registration data.
-  /// Use getEventRegistrationSummary instead which only shows aggregate data and user's own registrations.
-  @Deprecated(
-    'This method violates privacy by exposing other users\' registration data. Use getEventRegistrationSummary instead.',
-  )
-  static Future<EventRegistrationDetails> getEventRegistrationDetails(
-    String eventId,
-  ) async {
-    try {
-      final response = await api.get('/v1/events/$eventId/registrations');
-      if (response.data['success'] == true) {
-        return EventRegistrationDetails.fromJson(response.data);
-      }
-      // Return empty details if request fails
-      return EventRegistrationDetails(
-        registrations: [],
-        totalRegistrations: 0,
-        availableSpots: 0,
-        totalSpots: 0,
-        canRegister: false,
-      );
-    } catch (e) {
-      throw Exception('Failed to get event registration details: $e');
-    }
-  }
-
-  /// Get list of registrations for a specific event (legacy method)
-  /// Returns list of user/family member IDs registered for the event
-  /// @deprecated Use getEventRegistrationDetails instead for full information
-  static Future<List<String>> getEventRegistrations(String eventId) async {
-    try {
-      final details = await getEventRegistrationDetails(eventId);
-      // Return simplified list of registration keys for backwards compatibility
-      return details.registrations
-          .map((reg) => reg.personId ?? reg.userUid)
-          .toList();
-    } catch (e) {
-      throw Exception('Failed to get event registrations: $e');
-    }
-  }
-
   /// Check if current user is registered for event
   static Future<bool> isUserRegistered(String eventId) async {
     try {
