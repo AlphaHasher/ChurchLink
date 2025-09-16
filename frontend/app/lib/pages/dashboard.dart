@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:app/components/tiles.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:app/pages/joinlive.dart';
-// import 'package:app/pages/giving.dart';
-import 'package:app/pages/payment_example.dart';
+import 'package:app/pages/giving.dart';
 import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
@@ -102,7 +101,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     Navigator.push(
                       context,
                       CupertinoPageRoute(
-                        builder: ((context) => const PaymentExample()),
+                        builder: ((context) => const Giving()),
                       ),
                     );
                    },

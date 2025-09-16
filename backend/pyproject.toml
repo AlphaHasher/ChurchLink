@@ -18,4 +18,5 @@ dependencies = [
     "uvicorn>=0.34.0",
     "paypal-server-sdk>=1.0.0",
     "faker>=37.1.0",
+    "paypalrestsdk>=1.13.3",
 ]

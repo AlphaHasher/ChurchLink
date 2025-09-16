@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from "@/api/api";
 import HeroSection from "@/features/admin/components/WebBuilder/sections/HeroSection";
+import PaypalSection from "@/features/admin/components/WebBuilder/sections/PaypalSection";
 import ServiceTimesSection from "@/features/admin/components/WebBuilder/sections/ServiceTimesSection";
 import MenuSection from "@/features/admin/components/WebBuilder/sections/MenuSection";
 import ContactInfoSection from "@/features/admin/components/WebBuilder/sections/ContactInfoSection";
@@ -21,7 +22,7 @@ export interface SectionSettings {
 
 export interface Section {
   id: string;
-  type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map" | "event";
+  type: "text" | "image" | "video" | "hero" | "paypal" | "service-times" | "menu" | "contact-info" | "map" | "event";
   content: any; // use any to handle complex objects like hero
   settings?: SectionSettings;
 }
@@ -98,6 +99,13 @@ const DynamicPage: React.FC = () => {
               )}
 
               {section.type === "hero" && <HeroSection data={section.content} isEditing={false} />}
+
+              {section.type === "paypal" && (
+                <PaypalSection
+                  data={section.content}
+                  isEditing={false}
+                />
+              )}
 
               {section.type === "service-times" && <ServiceTimesSection data={section.content} isEditing={false} />}
 

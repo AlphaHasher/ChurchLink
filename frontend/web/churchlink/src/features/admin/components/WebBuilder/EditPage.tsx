@@ -1,3 +1,4 @@
+import PaypalSection from "./sections/PaypalSection";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "@/api/api";
@@ -29,11 +30,21 @@ interface ServiceTimesContent {
   times: { label: string; time: string }[];
 }
 
+interface PaypalSectionContent {
+  title?: string;
+  subtitle?: string;
+  backgroundImageUrl?: string;
+  buttonText?: string;
+  amount?: number;
+  purpose?: string;
+  note?: string;
+}
+
 interface Section {
   id: string;
-  type: "text" | "image" | "video" | "hero" | "service-times" | "menu" | "contact-info" | "map" | "event"; // Updated type
-  content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string };
-  settings?: { showFilters?: boolean; eventName?: string | string[]; lockedFilters?: { ministry?: string; ageRange?: string }; title?: string; showTitle?: boolean }; // Updated optional property
+  type: "text" | "image" | "video" | "hero" | "paypal" | "service-times" | "menu" | "contact-info" | "map" | "event";
+  content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | (PaypalSectionContent & { purpose?: string; amount?: number }) | { embedUrl?: string };
+  settings?: { showFilters?: boolean; eventName?: string | string[]; lockedFilters?: { ministry?: string; ageRange?: string }; title?: string; showTitle?: boolean };
 }
 
 interface PageData {
@@ -136,7 +147,16 @@ const EditPage = () => {
   };
 
   const handleAddSection = (type: Section["type"]) => {
-    let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | { embedUrl?: string } = "";
+    type PaypalSectionContent = {
+      title: string;
+      subtitle: string;
+      backgroundImageUrl: string;
+      buttonText: string;
+      buttonUrl: string;
+      amount: number;
+      note: string;
+    };
+    let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | PaypalSectionContent | { embedUrl?: string } = "";
     let settings;
 
     if (type === "hero") {
@@ -148,6 +168,13 @@ const EditPage = () => {
         buttonUrl: "",
         secondaryButtonText: "",
         secondaryButtonUrl: ""
+      };
+    } else if (type === "paypal") {
+      defaultContent = {
+        title: "",
+        subtitle: "",
+        backgroundImageUrl: "",
+        buttonText: "Give with PayPal",
       };
     } else if (type === "service-times") {
       const existing = sections.find((s) => s.type === "service-times");
@@ -197,11 +224,12 @@ const EditPage = () => {
           <option value="image">Image</option>
           <option value="video">Video</option>
           <option value="hero">Hero</option>
+          <option value="paypal">Paypal</option>
           <option value="service-times">Service Times</option>
           <option value="menu">Menu</option>
           <option value="contact-info">Contact Info</option>
           <option value="map">Map</option>
-          <option value="event">Event</option> {/* Added event option */}
+          <option value="event">Event</option>
         </select>
         <button
           onClick={() => handleAddSection(newSectionType)}
@@ -282,6 +310,14 @@ const EditPage = () => {
                       data={section.content as HeroContent}
                       isEditing
                       onChange={(newContent) => handleContentChange(index, newContent)}
+                    />
+                  )}
+                  {section.type === "paypal" && (
+                    <PaypalSection
+                      data={section.content as PaypalSectionContent}
+                      isEditing
+                      onChange={(newContent) => handleContentChange(index, newContent)}
+                      editableFields={["backgroundImageUrl", "title", "subtitle", "buttonText"]}
                     />
                   )}
                   {section.type === "service-times" && (
