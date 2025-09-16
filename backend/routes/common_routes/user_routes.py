@@ -7,7 +7,7 @@ from datetime import datetime # Import datetime if needed for birthday query
 # Import models and functions from models/user.py
 from helpers.Firebase_helpers import authenticate_uid
 from models.user import (
-    UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, PersonUpdateRequest, FamilyMemberIDTag, # Assuming AddressSchema might be needed for updates
+    UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, PersonUpdateRequest, # Assuming AddressSchema might be needed for updates
     create_user, get_user_by_id, get_user_by_email,
     get_users,
     find_users_with_permissions,
