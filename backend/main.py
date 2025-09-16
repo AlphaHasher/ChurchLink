@@ -210,7 +210,15 @@ router_webhook_listener.include_router(youtube_router)
 #####################################################
 # Base Router Configuration all routes will have api/v1 prefix
 #####################################################
-base_router = AuthProtectedRouter(prefix="/api/v1")
+
+# I AM UNDOING A CHANGE TO MAKE THIS PROTECTED JUST FOR NOW AS A STOPGAP
+# AUTHPROTECTED BROKE THE APP IN SOMEPLACES
+# TO ADDRESS THIS, I WILL BE RE-FACTORING SUCH THAT WE HAVE THREE SEPARATE ROUTERS AND A CLEAR SEPARATION
+# SINCE THIS IS NOT YET HERE, HOWEVER, I WILL UNDO THE CHANGE UNTIL IT'S SAFE TO USE AUTHPROTECTED WITH MY COMING REFACTOR
+# - DYLAN
+base_router = APIRouter(prefix="/api/v1")
+
+
 base_router.include_router(paypal_router)
 base_router.include_router(permissions_view_router)
 base_router.include_router(permissions_protected_router)
