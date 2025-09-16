@@ -89,7 +89,7 @@ flutter:
     # Bible translations generated from public sources
     - assets/bibles/translations/
     - assets/bibles/translations/kjv/
-    - assets/bibles/translations/russyn/
+    - assets/bibles/translations/rst/
     - assets/bibles/translations/asv/
     - assets/bibles/translations/web/
 
