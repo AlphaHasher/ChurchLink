@@ -51,6 +51,7 @@ class Books {
   static final Books instance = Books._();
 
   bool _loaded = false;
+  Future<void>? _loading;
   late final List<String> _locales;          // e.g., ["en","ru"]
   late final List<BookMeta> _byOrder;        // sorted by order
   late final Map<String, BookMeta> _byKey;   // "GEN" -> meta
@@ -69,7 +70,16 @@ class Books {
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;
+    if (_loading != null) {
+      await _loading;
+      return;
+    }
+    _loading = _doLoad();
+    await _loading;
+    _loading = null;
+  }
 
+  Future<void> _doLoad() async {
     Map<String, dynamic>? root;
     final candidates = [
       'assets/bibles/books.json',
@@ -124,6 +134,8 @@ class Books {
       final abbrs = (b['abbr']  as Map).cast<String, String>().values;
       for (final n in names) aliasMap[_norm(n)] = key;
       for (final a2 in abbrs) aliasMap[_norm(a2)] = key;
+      // Index the raw key (e.g., GEN) as an alias to itself for USFM \id
+      aliasMap[_norm(key)] = key;
     }
     // And index English canonical names as aliases too
     for (final enName in _byEn.keys) {
@@ -186,6 +198,13 @@ class Books {
       throw RangeError('Book order out of range: $order1based');
     }
     return _byOrder[order1based - 1].key;
+  }
+
+  /// Return the English canonical name for a key like 'GEN'.
+  String englishByKey(String key) {
+    final meta = _byKey[key];
+    if (meta == null) return key;
+    return meta.names['en'] ?? key;
   }
 
   /// Return the English canonical name for a 1-based order.
