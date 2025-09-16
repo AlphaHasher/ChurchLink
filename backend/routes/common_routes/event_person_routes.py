@@ -1,13 +1,19 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Query, Body, Depends, Request
+from fastapi import HTTPException, status, Request, Body
 from bson import ObjectId
+from pydantic import BaseModel
 
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from models.user import get_family_member_by_id
 from helpers.MongoHelper import serialize_objectid
 
-public_event_person_router = AuthProtectedRouter(prefix="/event-people", tags=["Event Registration"])
 event_person_router = AuthProtectedRouter(prefix="/event-people", tags=["Event People Management"])
+# Additional router for frontend compatibility - handles /events/{event_id}/... routes
+events_status_router = AuthProtectedRouter(prefix="/events", tags=["Event Status Routes"])
+
+# Request model for bulk family member registration checking
+class FamilyMembersRegistrationCheck(BaseModel):
+    family_member_ids: List[str]
 
 #
 # --- Protected routes --- 
@@ -35,18 +41,109 @@ async def get_registration_status_route(event_id: str, user_id: str, request: Re
         from models.event import rsvp_list
         
         rsvp_data = await rsvp_list(event_id)
-        user_registered = any(r.get('uid') == user_id for r in rsvp_data.get('rsvp_list', []))
+        user_registered = any(r.get('user_uid') == user_id for r in rsvp_data.get('attendees', []))
         
         return {"success": True, "status": {"event_id": event_id, "user_id": user_id, "registered": user_registered}}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching registration status: {str(e)}")
- 
-#
-# --- Public routes --- 
-#
+
+# Check if family member is registered for an event - matches frontend expectation
+@events_status_router.get("/{event_id}/is-family-member-registered", response_model=dict)
+async def check_family_member_registration_status(event_id: str, request: Request, family_member_id: str):
+    try:
+        # Validate family member ownership
+        member = await get_family_member_by_id(request.state.uid, family_member_id)
+        if not member:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
+        
+        # Check registration status using existing rsvp_list
+        from models.event import rsvp_list
+        from bson import ObjectId
+        
+        rsvp_data = await rsvp_list(event_id)
+        # Convert family_member_id to ObjectId for comparison
+        family_member_object_id = ObjectId(family_member_id)
+        is_registered = any(
+            r.get('user_uid') == request.state.uid and r.get('person_id') == family_member_object_id
+            for r in rsvp_data.get('attendees', [])
+        )
+        
+        return {"success": True, "is_registered": is_registered, "event_id": event_id, "family_member_id": family_member_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking family member registration status: {str(e)}")
+
+# Check if multiple family members are registered for an event - bulk endpoint for efficiency
+@events_status_router.post("/{event_id}/are-family-members-registered", response_model=dict)
+async def check_family_members_registration_status(event_id: str, request: Request, check_request: FamilyMembersRegistrationCheck = Body(...)):
+    try:
+        from models.event import rsvp_list
+        from bson import ObjectId
+        
+        if not check_request.family_member_ids:
+            return {"success": True, "registrations": {}, "event_id": event_id}
+        
+        # Validate all family member IDs belong to the requesting user
+        for family_member_id in check_request.family_member_ids:
+            member = await get_family_member_by_id(request.state.uid, family_member_id)
+            if not member:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
+        
+        # Get registration data once - much more efficient than multiple calls
+        rsvp_data = await rsvp_list(event_id)
+        attendees = rsvp_data.get('attendees', [])
+        
+        # Check registration status for all family members in a single pass
+        registrations = {}
+        for family_member_id in check_request.family_member_ids:
+            family_member_object_id = ObjectId(family_member_id)
+            is_registered = any(
+                r.get('user_uid') == request.state.uid and r.get('person_id') == family_member_object_id
+                for r in attendees
+            )
+            registrations[family_member_id] = is_registered
+        
+        return {"success": True, "registrations": registrations, "event_id": event_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking family members registration status: {str(e)}")
+
+# Check if current user is registered for an event - for completeness
+@events_status_router.get("/{event_id}/is-registered", response_model=dict)
+async def check_user_registration_status(event_id: str, request: Request):
+    try:
+        # Check registration status using existing rsvp_list
+        from models.event import rsvp_list
+        
+        rsvp_data = await rsvp_list(event_id)
+        is_registered = any(r.get('user_uid') == request.state.uid for r in rsvp_data.get('attendees', []))
+        
+        return {"success": True, "is_registered": is_registered, "event_id": event_id, "user_id": request.state.uid}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking user registration status: {str(e)}")
+
+# Get detailed registrations for an event - matches frontend expectation
+@events_status_router.get("/{event_id}/registrations", response_model=dict)
+async def get_event_registrations(event_id: str, request: Request):
+    try:
+        from controllers.users_functions import get_event_registration_summary
+        
+        # Get comprehensive registration summary
+        registration_summary = await get_event_registration_summary(event_id)
+        
+        if not registration_summary.get('success', False):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=registration_summary.get('error', 'Failed to get registrations'))
+        
+        return registration_summary
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching event registrations: {str(e)}")
 
 # Add user to event
-@public_event_person_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
+@event_person_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_user_for_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
@@ -62,7 +159,7 @@ async def register_user_for_event(event_id: str, request: Request):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error registering for event: {str(e)}")
 
 # Remove user from event
-@public_event_person_router.delete("/unregister/{event_id}", response_model=dict)
+@event_person_router.delete("/unregister/{event_id}", response_model=dict)
 async def unregister_user_from_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
@@ -78,7 +175,7 @@ async def unregister_user_from_event(event_id: str, request: Request):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error unregistering from event: {str(e)}")
 
 # Get user's events
-@public_event_person_router.get("/my-events", response_model=dict)
+@event_person_router.get("/my-events", response_model=dict)
 async def get_my_events(request: Request, include_family: bool = True):
     try:
         from mongo.churchuser import UserHandler
@@ -114,7 +211,7 @@ async def get_my_events(request: Request, include_family: bool = True):
 #
 
 # Register a family member for an event
-@public_event_person_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
+@event_person_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
@@ -135,7 +232,7 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error registering family member for event: {str(e)}")
 
 # Unregister a family member from an event
-@public_event_person_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
+@event_person_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
 async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
@@ -156,7 +253,7 @@ async def unregister_family_member_from_event(event_id: str, family_member_id: s
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error unregistering family member from event: {str(e)}")
 
 # Get all events for user's family members
-@public_event_person_router.get("/my-family-members-events", response_model=dict)
+@event_person_router.get("/my-family-members-events", response_model=dict)
 async def get_my_family_members_events(request: Request, filters: Optional[str] = None):
     try:
         from mongo.churchuser import UserHandler
@@ -169,7 +266,7 @@ async def get_my_family_members_events(request: Request, filters: Optional[str] 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member events: {str(e)}")
 
 # Get events for specific family member
-@public_event_person_router.get("/family-member/{family_member_id}/events", response_model=dict)
+@event_person_router.get("/family-member/{family_member_id}/events", response_model=dict)
 async def get_family_member_events(family_member_id: str, request: Request):
     try:
         from mongo.churchuser import UserHandler

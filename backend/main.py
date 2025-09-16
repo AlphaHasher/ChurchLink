@@ -25,9 +25,10 @@ from routes.page_management_routes.header_routes import header_router as header_
 from routes.page_management_routes.footer_routes import footer_router as footer_router
 from routes.common_routes.event_routes import event_router
 from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
-from routes.common_routes.event_person_routes import event_person_router, public_event_person_router
+from routes.common_routes.event_person_routes import event_person_router, events_status_router
 from routes.common_routes.event_routes import public_event_router, auth_event_router
 from routes.bible_routes.bible_note_routes import bible_note_router
+from routes.common_routes.youtube_routes import public_youtube_router
 from routes.bible_routes.bible_plan_routes import bible_plan_router
 from routes.strapi_routes.strapi_routes import strapi_router, strapi_protected_router
 from routes.paypal_routes.paypal_routes import paypal_router
@@ -221,11 +222,11 @@ base_router.include_router(permissions_view_router)
 base_router.include_router(permissions_protected_router)
 base_router.include_router(event_router)
 base_router.include_router(auth_event_router)
+base_router.include_router(events_status_router)
 base_router.include_router(user_router)
 base_router.include_router(user_private_router)
 base_router.include_router(user_mod_router)
 base_router.include_router(event_person_router)
-base_router.include_router(public_event_person_router)
 base_router.include_router(bible_note_router)
 base_router.include_router(bible_plan_router)
 base_router.include_router(strapi_router)
@@ -233,8 +234,14 @@ base_router.include_router(strapi_protected_router)
 base_router.include_router(router_webhook_listener)
 base_router.include_router(notification_router)
 
+#####################################################
+# Unprotected Router Configuration
+#####################################################
+public_base_router = APIRouter(prefix="/api/v1")
+public_base_router.include_router(public_event_router)
+public_base_router.include_router(public_youtube_router)
 
-
+# Non v1
 non_v1_router = APIRouter(prefix="/api")
 non_v1_router.include_router(page_router)
 non_v1_router.include_router(header_router)
@@ -245,6 +252,7 @@ non_v1_router.include_router(footer_router)
 app.include_router(public_router)   # Public routes (no authentication)
 app.include_router(base_router)     # Protected routes (authentication required)
 app.include_router(non_v1_router)
+app.include_router(public_base_router)
 
 
 if __name__ == "__main__":
