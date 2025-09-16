@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../helpers/api_client.dart';
-import '../models/event.dart';
-import '../models/event_registration_details.dart';
-import '../services/event_registration_service.dart';
-import '../widgets/enhanced_event_card.dart';
-import 'event_showcase.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+// Gets the backend address from the .env file, currently set to Flutter
+const String backendHost = String.fromEnvironment(
+  'API_BASE_URL',
+  //Fallback address uses Flutter Android Emulator's default
+  defaultValue: 'http://10.0.0.2:8000',
+);
 
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -14,10 +17,50 @@ class EventsPage extends StatefulWidget {
   State<EventsPage> createState() => _EventsPageState();
 }
 
+class Event {
+  final String id;
+  final String name;
+  final String description;
+  final String date;
+  final String location;
+  final double price;
+  final List<String> ministry;
+  final int minAge;
+  final int maxAge;
+  final String gender;
+
+  Event({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.date,
+    required this.location,
+    required this.price,
+    required this.ministry,
+    required this.minAge,
+    required this.maxAge,
+    required this.gender,
+  });
+
+  factory Event.fromJson(Map<String, dynamic> json) {
+    return Event(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      date: json['date'],
+      location: json['location'],
+      price: (json['price'] as num).toDouble(),
+      ministry: List<String>.from(json['ministry']),
+      minAge: json['min_age'],
+      maxAge: json['max_age'],
+      gender: json['gender'],
+    );
+  }
+}
+
 class _EventsPageState extends State<EventsPage> {
   List<Event> _events = [];
   bool _isLoading = true;
-  Map<String, EventRegistrationDetails> _registrationDetails = {};
 
   // Declare variables for dynamic filter values
   int? _minAge;
@@ -101,19 +144,16 @@ class _EventsPageState extends State<EventsPage> {
       queryParams['is_free'] = 'true';
     }
 
+    final uri = Uri.http(backendHost, '/api/v1/events/', queryParams);
+
     try {
-      final response = await api.get(
-        '/v1/events/',
-        queryParameters: queryParams,
-      );
+      final response = await http.get(uri);
       if (response.statusCode == 200) {
-        final List<dynamic> jsonData = response.data;
+        final List<dynamic> jsonData = jsonDecode(response.body);
         setState(() {
           _events = jsonData.map((json) => Event.fromJson(json)).toList();
           _isLoading = false;
         });
-        // Load registration details for all events
-        _loadRegistrationDetails();
       } else {
         debugPrint("Failed to load events: ${response.statusCode}");
         setState(() => _isLoading = false);
@@ -121,24 +161,6 @@ class _EventsPageState extends State<EventsPage> {
     } catch (e) {
       debugPrint("Error loading events: $e");
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadRegistrationDetails() async {
-    for (final event in _events) {
-      try {
-        final details =
-            await EventRegistrationService.getEventRegistrationDetails(
-              event.id,
-            );
-        setState(() {
-          _registrationDetails[event.id] = details;
-        });
-      } catch (e) {
-        debugPrint(
-          'Failed to load registration details for event ${event.id}: $e',
-        );
-      }
     }
   }
 
@@ -336,22 +358,11 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  void _navigateToShowcase(Event event) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EventShowcase(event: event)),
-    );
-
-    // Refresh the events data when returning from the showcase
-    _loadEvents();
-  }
-
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: ssbcGray,
+        backgroundColor: const Color.fromARGB(159, 144, 79, 230),
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Padding(
           padding: EdgeInsets.only(left: 100),
@@ -364,7 +375,7 @@ class _EventsPageState extends State<EventsPage> {
           },
         ),
       ),
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
+      backgroundColor: const Color.fromARGB(246, 244, 236, 255),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
         child: SingleChildScrollView(
@@ -386,10 +397,17 @@ class _EventsPageState extends State<EventsPage> {
                     itemCount: _events.length,
                     itemBuilder: (context, index) {
                       final event = _events[index];
-                      return EnhancedEventCard(
-                        event: event,
-                        onViewPressed: () => _navigateToShowcase(event),
-                        registrationDetails: _registrationDetails[event.id],
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          title: Text(event.name),
+                          subtitle: Text(event.description),
+                          trailing: Text(
+                            event.price == 0
+                                ? "Free"
+                                : "\$${event.price.toStringAsFixed(2)}",
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -398,7 +416,7 @@ class _EventsPageState extends State<EventsPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+        backgroundColor: Colors.deepPurple,
         child: const Icon(Icons.filter_list),
         onPressed: () => _showFilterSheet(context),
       ),

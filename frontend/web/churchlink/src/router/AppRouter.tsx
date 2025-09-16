@@ -1,13 +1,13 @@
-// import { LoginPage } from '../features/auth';
 import { Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { PublicRoute } from "../features/auth/guards/PublicRoute";
 import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "../features/auth/guards/PrivateRoute";
-import { PrivateRoutes } from "./PrivateRoutes";
+import { AdminRoutes } from "./AdminRoutes";
+import { ProfileRoutes } from "./ProfileRoutes";
+import AdminRoute from "@/features/auth/guards/AdminRoute";
 import DynamicPage from "../shared/components/DynamicPage";
 
-// Lazy load components
 const Login = lazy(() => import("../features/auth/pages/Login"));
 const Signup = lazy(() => import("../features/auth/pages/Signup"));
 
@@ -32,27 +32,8 @@ export const AppRouter = () => {
           }
         />
 
-
         <Route
-          path="/"
-          element={
-            <PublicRoute>
-              <DynamicPage />
-            </PublicRoute>
-          }
-        />
-        {/* Dynamic page route for any URL */}
-        <Route
-          path="/:slug/*" // Catch all routes. Apparently works with slashes compared to "/:slug", though functionality does not work at the moment.
-          element={
-            <PublicRoute>
-              <DynamicPage />
-            </PublicRoute>
-          }
-        />
-
-        <Route
-          path="/pages/*"
+          path="/*"
           element={
             <PublicRoute>
               <PublicRoutes />
@@ -61,11 +42,28 @@ export const AppRouter = () => {
         />
 
         <Route
-          path="/admin/*"
+          path="/pages/*"
+          element={
+            <PublicRoute>
+              <DynamicPage />
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/profile/*"
           element={
             <PrivateRoute>
-              <PrivateRoutes />
+              <ProfileRoutes />
             </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/*"
+          element={
+            <AdminRoute>
+              <AdminRoutes />
+            </AdminRoute>
           }
         />
       </Routes>

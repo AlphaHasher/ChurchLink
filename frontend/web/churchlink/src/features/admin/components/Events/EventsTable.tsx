@@ -21,7 +21,7 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/shared/components/ui/DataTable"
+} from "@/shared/components/ui/datatable"
 
 import { useState } from "react"
 import { ChurchEvent, eventLabels } from "@/shared/types/ChurchEvent"
