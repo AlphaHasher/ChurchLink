@@ -9,6 +9,7 @@ import '../data/bible_repo_elisha.dart';
 import 'flowing_chapter_text.dart';
 import '../data/verse_matching.dart' show VerseMatching, VerseKey;
 import '../data/books.dart';
+import '../data/elisha_json_source.dart';
 
 // Debug logging (visible in flutter run console)
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
@@ -118,6 +119,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   int _bookIndex(String book) =>
       _booksReady ? (Books.instance.orderIndex(book) - 1) : 0;
 
+  List<Map<String, String>>? _currentRuns;
+  Map<int, Map<String, dynamic>>? _currentBlocks; // verse -> block info
+
   @override
   void initState() {
     super.initState();
@@ -188,6 +192,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     );
     if (!mounted) return;
     setState(() => _verses = data);
+
+    // Load runs (headings/sections) for the current chapter from the source
+    try {
+      final src = ElishaJsonSource();
+      final runsByChapter = await src.loadRunsFor(_translation, _book);
+      _currentRuns = runsByChapter[_chapter];
+      final blocksByChapter = await src.loadVerseBlocksFor(_translation, _book);
+      _currentBlocks = blocksByChapter[_chapter];
+    } catch (_) {
+      _currentRuns = null;
+      _currentBlocks = null;
+    }
 
     await _syncFetchChapterNotes();
     if (mounted) setState(() {});
@@ -846,90 +862,119 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-          child: Row(
-            children: [
-              IconButton(
-                tooltip: 'Previous chapter',
-                onPressed: _isAtFirstChapter ? null : _prevChapter,
-                icon: const Icon(Icons.chevron_left),
+          child: IconButtonTheme(
+            data: IconButtonThemeData(
+              style: ButtonStyle(
+                foregroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                  final base = Theme.of(context).colorScheme.onSurface;
+                  return states.contains(WidgetState.disabled)
+                      ? base.withValues(alpha: 0.35)
+                      : base.withValues(alpha: 0.7);
+                }),
               ),
-              Expanded(
-                flex: 6,
-                child: SizedBox(
-                  height: 36,
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _openJumpPicker,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHigh,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+            ),
+            child: IconTheme(
+              data: IconThemeData(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Previous chapter',
+                    onPressed: _isAtFirstChapter ? null : _prevChapter,
+                    icon: Icon(
+                      Icons.chevron_left,
+                      color: _isAtFirstChapter ? Colors.white38 : Colors.white70,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 6,
+                    child: SizedBox(
+                      height: 36,
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: _openJumpPicker,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surfaceContainerHigh,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          '${_booksReady ? _abbr(_book) : _book} $_chapter',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                        ),
                       ),
                     ),
-                    child: Text(
-                      '${_booksReady ? _abbr(_book) : _book} $_chapter',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
+                  ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    tooltip: 'Translation',
+                    initialValue: _translation,
+                    onSelected: (val) {
+                      setState(() {
+                        _translation = val;
+                        if (_booksReady) {
+                          Books.instance.setLocaleCode(_localeForTx(_translation));
+                        }
+                      });
+                      _load();
+                    },
+                    itemBuilder: (ctx) => _translations
+                        .map((t) => PopupMenuItem(value: t, child: Text(t.toUpperCase())))
+                        .toList(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(tLabel),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_drop_down, size: 18),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              PopupMenuButton<String>(
-                tooltip: 'Translation',
-                initialValue: _translation,
-                onSelected: (val) {
-                  setState(() {
-                    _translation = val;
-                    if (_booksReady) {
-                      Books.instance.setLocaleCode(_localeForTx(_translation));
-                    }
-                  });
-                  _load();
-                },
-                itemBuilder: (ctx) => _translations
-                    .map((t) => PopupMenuItem(value: t, child: Text(t.toUpperCase())))
-                    .toList(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor,
-                      width: 1,
+                  const Spacer(flex: 1),
+                  IconButton(
+                    tooltip: 'Search',
+                    onPressed: null,
+                    icon: const Icon(
+                      Icons.search,
+                      color: Colors.white60,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(tLabel),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_drop_down, size: 18),
-                    ],
+                  IconButton(
+                    tooltip: 'Read aloud',
+                    onPressed: null,
+                    icon: const Icon(
+                      Icons.volume_up_outlined,
+                      color: Colors.white60,
+                    ),
                   ),
-                ),
+                  IconButton(
+                    tooltip: 'Next chapter',
+                    onPressed: _isAtLastChapter ? null : _nextChapter,
+                    icon: Icon(
+                      Icons.chevron_right,
+                      color: _isAtLastChapter ? Colors.white38 : Colors.white70,
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(flex: 1),
-              IconButton(
-                tooltip: 'Search',
-                onPressed: null,
-                icon: const Icon(Icons.search),
-              ),
-              IconButton(
-                tooltip: 'Read aloud',
-                onPressed: null,
-                icon: const Icon(Icons.volume_up_outlined),
-              ),
-              IconButton(
-                tooltip: 'Next chapter',
-                onPressed: _isAtLastChapter ? null : _nextChapter,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
+            ),
           ),
         ),
         const Divider(height: 12),
@@ -946,6 +991,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                           fontSize: 16,
                           height: 1.6,
                         ),
+                    runs: _currentRuns,
+                    verseBlocks: _currentBlocks,
                   ),
                 ),
         ),
