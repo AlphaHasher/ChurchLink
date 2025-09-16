@@ -90,10 +90,14 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   final Map<String, Map<String, HighlightColor>> _hlPerTx = {
     'kjv': <String, HighlightColor>{},
     'rst': <String, HighlightColor>{},
+    'asv': <String, HighlightColor>{},
+    'web': <String, HighlightColor>{},
   };
   final Map<String, Map<String, String>> _notesPerTx = {
     'kjv': <String, String>{},
     'rst': <String, String>{},
+    'asv': <String, String>{},
+    'web': <String, String>{},
   };
 
   // Remote ID index (so we can update/delete correct rows)
@@ -105,7 +109,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   StreamSubscription<User?>? _authSub; // TODO
 
   String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
-  String get _otherTx => _translation.toLowerCase() == 'kjv' ? 'rst' : 'kjv';
+  String _canonicalTx(String tx) {
+    final t = tx.trim().toLowerCase();
+    if (t == 'asv' || t == 'web') return 'kjv';
+    return t;
+  }
+  String get _otherTx => _canonicalTx(_translation) == 'kjv' ? 'rst' : 'kjv';
 
   bool _booksReady = false;
   String _localeForTx(String tx) => tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
@@ -214,13 +223,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   bool _existsInOther(VerseRef ref) {
     final m = _matcher;
     if (m == null) return false;
-    return m.existsInOther(fromTx: _translation, key: _keyOf(ref));
-  }
-
-  List<VerseKey> _matchToOther(VerseRef ref) {
-    final m = _matcher;
-    if (m == null) return const [];
-    return m.matchToOther(fromTx: _translation, key: _keyOf(ref));
+    return m.existsInOther(fromTx: _canonicalTx(_translation), key: _keyOf(ref));
   }
 
   Iterable<VerseKey> _sameTxSiblingsFor(VerseRef ref) {
@@ -228,8 +231,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     if (m == null) return const <VerseKey>[];
 
     final me = _keyOf(ref);
-    final fromTx = _translation.toLowerCase();
-    final otherTx = _otherTx.toLowerCase();
+    final fromTx = _canonicalTx(_translation);
+    final otherTx = _otherTx;
 
     List<VerseKey> toOther;
     if (me.book == 'Psalms') {
@@ -258,7 +261,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     final m = _matcher;
     if (m == null) return;
 
-    for (final tx in ['kjv', 'rst']) {
+    for (final tx in _hlPerTx.keys) {
       final per = _hlPerTx[tx]!;
       for (final e in per.entries.toList()) {
         final p = e.key.split('|');
@@ -268,15 +271,15 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           chapter: int.tryParse(p[1]) ?? 0,
           verse: int.tryParse(p[2]) ?? 0
         );
-        if (m.existsInOther(fromTx: tx, key: k)) {
-          final cid = m.clusterId(tx, k);
+        if (m.existsInOther(fromTx: _canonicalTx(tx), key: k)) {
+          final cid = m.clusterId(_canonicalTx(tx), k);
           _hlShared[cid] = e.value;
           per.remove(e.key);
         }
       }
     }
 
-    for (final tx in ['kjv', 'rst']) {
+    for (final tx in _notesPerTx.keys) {
       final per = _notesPerTx[tx]!;
       for (final e in per.entries.toList()) {
         final p = e.key.split('|');
@@ -286,8 +289,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           chapter: int.tryParse(p[1]) ?? 0,
           verse: int.tryParse(p[2]) ?? 0
         );
-        if (m.existsInOther(fromTx: tx, key: k)) {
-          final cid = m.clusterId(tx, k);
+        if (m.existsInOther(fromTx: _canonicalTx(tx), key: k)) {
+          final cid = m.clusterId(_canonicalTx(tx), k);
           _notesShared[cid] = e.value;
           per.remove(e.key);
         }
@@ -337,7 +340,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
           if (m != null) {
             final cid =
-                m.clusterId(_translation, (book: bookCanon, chapter: rn.chapter, verse: v));
+                m.clusterId(_canonicalTx(_translation), (book: bookCanon, chapter: rn.chapter, verse: v));
             _noteIdByCluster[cid] = rn.id;
             if (noteText.isNotEmpty) _notesShared[cid] = noteText;
             if (color != HighlightColor.none) _hlShared[cid] = color;
@@ -368,7 +371,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     final m = _matcher;
 
     if (m != null) {
-      final selfCid = m.clusterId(_translation, _keyOf(ref));
+      final selfCid = m.clusterId(_canonicalTx(_translation), _keyOf(ref));
       final cSelf = _hlShared[selfCid];
       if (cSelf != null) return cSelf;
 
@@ -376,12 +379,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       final bool isPsalms = me.book == 'Psalms';
       List<VerseKey> counterparts;
       if (isPsalms) {
-        final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+        final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
         final hasCross = ro.any((x) => x.chapter != me.chapter);
         counterparts =
             hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
       } else {
-        counterparts = m.matchToOther(fromTx: _translation, key: me);
+        counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
       }
       for (final other in counterparts) {
         final otherCid = m.clusterId(_otherTx, other);
@@ -403,7 +406,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   String? _noteFor(VerseRef ref) {
     final m = _matcher;
     if (m != null) {
-      final selfCid = m.clusterId(_translation, _keyOf(ref));
+      final selfCid = m.clusterId(_canonicalTx(_translation), _keyOf(ref));
       final sSelf = _notesShared[selfCid];
       if (sSelf != null && sSelf.isNotEmpty) return sSelf;
 
@@ -411,12 +414,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       final bool isPsalms = me.book == 'Psalms';
       List<VerseKey> counterparts;
       if (isPsalms) {
-        final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+        final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
         final hasCross = ro.any((x) => x.chapter != me.chapter);
         counterparts =
             hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
       } else {
-        counterparts = m.matchToOther(fromTx: _translation, key: me);
+        counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
       }
       for (final other in counterparts) {
         final otherCid = m.clusterId(_otherTx, other);
@@ -424,7 +427,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         if (sOther != null && sOther.isNotEmpty) return sOther;
       }
       for (final sib in _sameTxSiblingsFor(ref)) {
-        final sibCid = m.clusterId(_translation, sib);
+        final sibCid = m.clusterId(_canonicalTx(_translation), sib);
         final sSib = _notesShared[sibCid];
         if (sSib != null && sSib.isNotEmpty) return sSib;
       }
@@ -629,17 +632,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
         if (m != null && _existsInOther(v.$1)) {
           final me = _keyOf(v.$1);
-          final selfCid = m.clusterId(_translation, me);
+          final selfCid = m.clusterId(_canonicalTx(_translation), me);
 
           final bool isPsalms = me.book == 'Psalms';
           List<VerseKey> counterparts;
           if (isPsalms) {
-            final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+            final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
             final hasCross = ro.any((x) => x.chapter != me.chapter);
             counterparts =
                 hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
           } else {
-            counterparts = m.matchToOther(fromTx: _translation, key: me);
+            counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
           }
 
           final cids = <String>{selfCid};
@@ -647,7 +650,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             cids.add(m.clusterId(_otherTx, o));
           }
           for (final s in _sameTxSiblingsFor(v.$1)) {
-            cids.add(m.clusterId(_translation, s));
+            cids.add(m.clusterId(_canonicalTx(_translation), s));
             _hlPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
           }
           // Clear shared note + highlight for all related clusters
@@ -670,17 +673,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           final hereK = _k(v.$1);
           if (m != null && _existsInOther(v.$1)) {
             final me = _keyOf(v.$1);
-            final selfCid = m.clusterId(_translation, me);
+            final selfCid = m.clusterId(_canonicalTx(_translation), me);
 
             final bool isPsalms = me.book == 'Psalms';
             List<VerseKey> counterparts;
             if (isPsalms) {
-              final ro = m.matchToOtherRuleOnly(fromTx: _translation, key: me);
+              final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
               final hasCross = ro.any((x) => x.chapter != me.chapter);
               counterparts =
                   hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
             } else {
-              counterparts = m.matchToOther(fromTx: _translation, key: me);
+              counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
             }
 
             final cids = <String>{selfCid};
@@ -688,7 +691,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
               cids.add(m.clusterId(_otherTx, o));
             }
             for (final s in _sameTxSiblingsFor(v.$1)) {
-              cids.add(m.clusterId(_translation, s));
+              cids.add(m.clusterId(_canonicalTx(_translation), s));
               _hlPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
             }
 
@@ -704,10 +707,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           }
         } else {
           if (m != null && _existsInOther(v.$1)) {
-            final cid = m.clusterId(_translation, _keyOf(v.$1));
+            final cid = m.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
             _notesShared[cid] = txt;
-            _notesPerTx['kjv']?.remove(_k(v.$1));
-            _notesPerTx['rst']?.remove(_k(v.$1));
+            for (final tx in _notesPerTx.keys) {
+              _notesPerTx[tx]?.remove(_k(v.$1));
+            }
             for (final s in _sameTxSiblingsFor(v.$1)) {
               _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
             }
@@ -725,21 +729,22 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         final m = _matcher;
         final mapsAcross = m != null && _existsInOther(v.$1);
 
-        if (!mapsAcross || m == null) {
+        if (!mapsAcross) {
           if (color == HighlightColor.none) {
             _hlPerTx[_translation]?.remove(hereK);
           } else {
             _hlPerTx[_translation]?[hereK] = color;
           }
         } else {
-          final cid = m.clusterId(_translation, _keyOf(v.$1));
+          final cid = m.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
           if (color == HighlightColor.none) {
             _hlShared.remove(cid);
           } else {
             _hlShared[cid] = color;
           }
-          _hlPerTx['kjv']?.remove(hereK);
-          _hlPerTx['rst']?.remove(hereK);
+          for (final tx in _hlPerTx.keys) {
+            _hlPerTx[tx]?.remove(hereK);
+          }
           for (final s in _sameTxSiblingsFor(v.$1)) {
             final kStr = '${s.book}|${s.chapter}|${s.verse}';
             if (color == HighlightColor.none) {
@@ -755,7 +760,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     // ----- Server write-throughs (fail-soft) -----
     try {
       final m = _matcher;
-      final cid = m?.clusterId(_translation, _keyOf(v.$1));
+      final cid = m?.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
       String? id = (cid != null ? _noteIdByCluster[cid] : null) ?? _noteIdByKey[_k(v.$1)];
 
       if (kDebugMode) {
@@ -812,7 +817,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       if (res.highlight != null) {
         final color = res.highlight!;
         final sc = _serverFromUi(color);
-        final cid2 = m?.clusterId(_translation, _keyOf(v.$1));
+        final cid2 = m?.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
         String? id2 = (cid2 != null ? _noteIdByCluster[cid2] : null) ?? _noteIdByKey[_k(v.$1)];
 
         if (color != HighlightColor.none) {
@@ -1027,8 +1032,6 @@ class _VerseActionsSheet extends StatefulWidget {
 class _VerseActionsSheetState extends State<_VerseActionsSheet> {
   late HighlightColor _pick = widget.currentHighlight;
   late final _note = TextEditingController(text: widget.existingNote ?? '');
-
-  bool get _noteHasText => _note.text.trim().isNotEmpty;
   bool get _canEditNote => _pick != HighlightColor.none;
 
   @override
@@ -1142,4 +1145,4 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
 }
 
 // Translations selectable
-const List<String> _translations = ['kjv', 'rst'];
+const List<String> _translations = ['kjv', 'asv', 'web', 'rst'];

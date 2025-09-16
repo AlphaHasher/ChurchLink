@@ -90,6 +90,8 @@ flutter:
     - assets/bibles/translations/
     - assets/bibles/translations/kjv/
     - assets/bibles/translations/russyn/
+    - assets/bibles/translations/asv/
+    - assets/bibles/translations/web/
 
     # Translation rules for mismatched RST and KJV bible verse numbering
     - assets/bibles/verse_matching/
