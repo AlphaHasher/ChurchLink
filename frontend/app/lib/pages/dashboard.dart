@@ -11,31 +11,6 @@ import 'package:app/pages/contact.dart';
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60)),
-
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,112 +21,102 @@ class _MyHomePageState extends State<MyHomePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-              Tiles(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: ((context) => const JoinLive()),
-                    ),
-                  );
-                },
-                mainText: "Join Live",
-                subText: '',
-                height: 150,
-                width: 150,
-              ),
-              const SizedBox(width: 15),
-              Tiles(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: ((context) => const WeeklyBulletin()),
-                    ),
-                  );
-                },
-                mainText: "Weekly Bulletin",
-                subText: '',
-                height: 150,
-                width: 150,
-             ),
-             ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 Tiles(
-                   onTap: () {
+                Tiles(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(builder: (_) => const JoinLive()),
+                    );
+                  },
+                  mainText: "Join Live",
+                  subText: '',
+                  height: 150,
+                  width: 150,
+                ),
+                const SizedBox(width: 15),
+                Tiles(
+                  onTap: () {
                     Navigator.push(
                       context,
                       CupertinoPageRoute(
-                        builder: ((context) => const EventsPage()),
+                        builder: (_) => const WeeklyBulletin(),
                       ),
                     );
-                   },
-                   mainText: "Events",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
-                 const SizedBox(width: 15),
-                 Tiles(
-                   onTap: () {
+                  },
+                  mainText: "Weekly Bulletin",
+                  subText: '',
+                  height: 150,
+                  width: 150,
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Tiles(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(builder: (_) => const EventsPage()),
+                    );
+                  },
+                  mainText: "Events",
+                  subText: '',
+                  height: 150,
+                  width: 150,
+                ),
+                const SizedBox(width: 15),
+                Tiles(
+                  onTap: () {
                     Navigator.push(
                       context,
                       CupertinoPageRoute(
                         builder: ((context) => const Giving()),
                       ),
                     );
-                   },
-                   mainText: "Giving",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
+                  },
+                  mainText: "Giving",
+                  subText: '',
+                  height: 150,
+                  width: 150,
+                ),
               ],
-           ),
-           const SizedBox(height: 15),
+            ),
+            const SizedBox(height: 15),
             Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 Tiles(
-                   onTap: () {
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Tiles(
+                  onTap: () {
                     Navigator.push(
                       context,
-                      CupertinoPageRoute(
-                        builder: ((context) => const Ministries()),
-                      ),
+                      CupertinoPageRoute(builder: (_) => const Ministries()),
                     );
-                   },
-                   mainText: "Ministries",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
-                 const SizedBox(width: 15),
-                 Tiles(
-                   onTap: () {
+                  },
+                  mainText: "Ministries",
+                  subText: '',
+                  height: 150,
+                  width: 150,
+                ),
+                const SizedBox(width: 15),
+                Tiles(
+                  onTap: () {
                     Navigator.push(
                       context,
-                      CupertinoPageRoute(
-                        builder: ((context) => const Contact()),
-                      ),
+                      CupertinoPageRoute(builder: (_) => const Contact()),
                     );
-                   },
-                   mainText: "Contact Us",
-                   subText: '',
-                   height: 150,
-                   width: 150,
-                 ),
+                  },
+                  mainText: "Contact Us",
+                  subText: '',
+                  height: 150,
+                  width: 150,
+                ),
               ],
-           ),
-    ],
-  ),
-
-    ),
-       // This trailing comma makes auto-formatting nicer for build methods.
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

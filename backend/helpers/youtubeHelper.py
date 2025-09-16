@@ -44,6 +44,7 @@ class YoutubeHelper:
     isStreaming = False
     activeStreamIDs = []
     youtubeClient = None
+    default_settings = settings
 
   
     @staticmethod

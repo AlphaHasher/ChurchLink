@@ -1,14 +1,14 @@
-// import { LoginPage } from '../features/auth';
 import { Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { PublicRoute } from "../features/auth/guards/PublicRoute";
 import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "../features/auth/guards/PrivateRoute";
-import { PrivateRoutes } from "./PrivateRoutes";
+import { AdminRoutes } from "./AdminRoutes";
+import { ProfileRoutes } from "./ProfileRoutes";
+import AdminRoute from "@/features/auth/guards/AdminRoute";
 import DynamicPage from "../shared/components/DynamicPage";
 import PaypalThankYouPage from "../features/paypal/pages/thank-you";
 
-// Lazy load components
 const Login = lazy(() => import("../features/auth/pages/Login"));
 const Signup = lazy(() => import("../features/auth/pages/Signup"));
 
@@ -33,12 +33,11 @@ export const AppRouter = () => {
           }
         />
 
-
         <Route
-          path="/"
+          path="/*"
           element={
             <PublicRoute>
-              <DynamicPage />
+              <PublicRoutes />
             </PublicRoute>
           }
         />
@@ -52,7 +51,7 @@ export const AppRouter = () => {
         />
         {/* Dynamic page route for any URL */}
         <Route
-          path="/:slug/*" // Catch all routes. Apparently works with slashes compared to "/:slug", though functionality does not work at the moment.
+          path="/pages/*"
           element={
             <PublicRoute>
               <DynamicPage />
@@ -61,20 +60,19 @@ export const AppRouter = () => {
         />
 
         <Route
-          path="/pages/*"
+          path="/profile/*"
           element={
-            <PublicRoute>
-              <PublicRoutes />
-            </PublicRoute>
+            <PrivateRoute>
+              <ProfileRoutes />
+            </PrivateRoute>
           }
         />
-
         <Route
           path="/admin/*"
           element={
-            <PrivateRoute>
-              <PrivateRoutes />
-            </PrivateRoute>
+            <AdminRoute>
+              <AdminRoutes />
+            </AdminRoute>
           }
         />
       </Routes>

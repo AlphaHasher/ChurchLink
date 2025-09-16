@@ -22,6 +22,7 @@ class UserHandler:
             "roles": await RoleHandler.names_to_ids(roles),
             "phone": phone,
             "birthday": birthday,
+            "gender": None,
             "address": address or {
                 "address": None,
                 "suite": None,

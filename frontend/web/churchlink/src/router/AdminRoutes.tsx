@@ -21,7 +21,7 @@ const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
 
-export const PrivateRoutes = () => {
+export const AdminRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<AdminLayout></AdminLayout>}>

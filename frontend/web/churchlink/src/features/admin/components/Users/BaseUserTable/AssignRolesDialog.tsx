@@ -8,7 +8,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/shared/components/ui/Dialog";
+} from "@/shared/components/ui/dialog";
 import { ChevronDown, ShieldPlus, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/shared/components/ui/dropdown-menu';
 import PermBeforeAfterTable from "./PermBeforeAfterTable";

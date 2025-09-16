@@ -58,6 +58,11 @@ dependencies:
   flutter_svg: ^2.0.10+1
   dio: ^5.9.0
   
+
+  logger: ^2.0.2+1
+  webview_flutter_android: ^4.7.0
+  webview_flutter_wkwebview: ^3.13.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
