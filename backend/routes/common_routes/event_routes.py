@@ -3,8 +3,6 @@ from fastapi import APIRouter, HTTPException, status, Request, Body, Query, Depe
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from models.event import sort_events, EventCreate, search_events, delete_events
 from controllers.event_functions import process_create_event, process_edit_event, process_delete_event, register_rsvp, cancel_rsvp
-# DEPRECATED: get_event_registration_summary exposes other users' data
-# from controllers.users_functions import get_event_registration_summary
 from models.user import get_family_member_by_id
 from models.event import rsvp_list
 from typing import Literal, List, Dict
@@ -245,14 +243,6 @@ async def check_user_registered_private_route(event_id: str, request: Request):
         return {"success": True, "is_registered": is_registered}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking user registration: {str(e)}")
-
-# This route catches all paths under /api/v1/events/...
-# @public_event_router.get("/{event_id}", summary="Get event by id")
-# async def get_event_by_id_route(event_id: str):
-#     event = await get_event_by_id(event_id)
-#     if not event:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-#     return event
 
 
 @event_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
