@@ -10,8 +10,12 @@ class FCMTokenRequest(BaseModel):
     user_id: str
     token: str
 
+# Mod Protected Router from main
+# Consider changing to PermProtectedRouter down the line if perm is added
 notification_router = APIRouter(prefix="/notification", tags=["notification"])
 
+
+# Mod Protected Router
 # --- FCM Token Management ---
 @notification_router.post('/save-fcm-token')
 async def save_fcm_token(request: FCMTokenRequest):
@@ -22,6 +26,7 @@ async def save_fcm_token(request: FCMTokenRequest):
     )
     return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
 
+# Mod Protected Router
 @notification_router.get('/get-fcm-tokens')
 async def get_fcm_tokens():
     tokens = await DB.db['fcm_tokens'].find({}, {'_id': 0, 'token': 1, 'user_id': 1}).to_list(length=1000)
@@ -29,6 +34,7 @@ async def get_fcm_tokens():
 
 # --- Notification Settings ---
 
+# Mod Protected Router
 @notification_router.get('/settings')
 async def get_notification_settings():
     doc = await DB.db["settings"].find_one({"type": "youtube"})
@@ -37,6 +43,7 @@ async def get_notification_settings():
         "streamNotificationTitle": doc.get("streamNotificationTitle", "YouTube Live Stream") if doc else "YouTube Live Stream"
     }
 
+# Mod Protected Router
 # Add POST endpoint to update notification settings
 @notification_router.post('/settings')
 async def update_notification_settings(
@@ -53,6 +60,7 @@ async def update_notification_settings(
     )
     return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
 
+# Mod Protected Router
 # --- Notification History ---
 @notification_router.get('/history')
 async def notification_history(limit: int = 100):
@@ -62,6 +70,7 @@ async def notification_history(limit: int = 100):
             n['_id'] = str(n['_id'])
     return history
 
+# Mod Protected Router
 # --- Send Push Notification (Instant) ---
 @notification_router.post('/send')
 async def send_push_notification(
@@ -114,6 +123,7 @@ async def send_push_notification(
     else:
         return {"success": False, "error": "No token provided and send_to_all is False."}
 
+# Mod Protected Router
 # --- Schedule Notification ---
 @notification_router.post('/schedule')
 async def api_schedule_notification(
@@ -136,6 +146,7 @@ async def api_schedule_notification(
     notification_id = await schedule_notification(DB.db, payload)
     return {"success": True, "id": notification_id}
 
+# Mod Protected Router
 # --- List Scheduled Notifications ---
 @notification_router.get('/scheduled')
 async def api_get_scheduled_notifications():
@@ -145,6 +156,7 @@ async def api_get_scheduled_notifications():
             n['_id'] = str(n['_id'])
     return notifications
 
+# Mod Protected Router
 # --- Remove Scheduled Notification ---
 @notification_router.delete('/scheduled/{notification_id}')
 async def api_remove_scheduled_notification(notification_id: str):

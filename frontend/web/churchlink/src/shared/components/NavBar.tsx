@@ -44,7 +44,7 @@ export default function NavBar() {
     useEffect(() => {
         const fetchHeaderItems = async () => {
             try {
-                const response = await api.get<Header>("/header");
+                const response = await api.get<Header>("/v1/header");
                 setHeaderItems(response.data.items);
             } catch (error) {
                 console.error("Failed to fetch header items:", error);

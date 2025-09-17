@@ -9,31 +9,32 @@ from typing import Literal, List, Dict
 from bson import ObjectId
 from typing import Optional
 from datetime import date, datetime
-from protected_routers.perm_protected_router import PermProtectedRouter
-from protected_routers.auth_protected_router import AuthProtectedRouter
 from models.event import get_all_ministries
-from helpers.Firebase_helpers import authenticate_uid
-from mongo.churchuser import UserHandler
 
 
 security = HTTPBearer(auto_error=False)
 
 
 
-event_router = PermProtectedRouter(prefix="/events", tags=["Events"], required_perms=["event_editing"])
+
+event_editing_router = APIRouter(prefix="/events", tags=["Events Editing Routes"])
+
 public_event_router = APIRouter(prefix="/events", tags=["Events Public Routes"])
-auth_event_router = AuthProtectedRouter(prefix="/events", tags=["Events Authenticated Routes"])
+
+private_event_router = APIRouter(prefix="/events", tags=["Events Authenticated Routes"])
 
 
+# Public Router
 @public_event_router.get("/", summary="Get events by filters")
 async def get_events(skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Optional[Literal["male", "female", "all"]] = None, is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date", name: Optional[str] = None, max_price: Optional[float] = None, date_after: Optional[date] = None, date_before: Optional[date] = None,):
     return await sort_events(skip, limit, ministry, age, gender, is_free, sort, sort_by, name=name, max_price=max_price, date_after=date_after, date_before=date_before)
 
-
+# Public Router
 @public_event_router.get("/search", summary="Search events")
 async def search_events_route(query: str, skip: int = 0, limit: int = 100, ministry: str = None, age: Optional[int] = None, gender: Optional[Literal["male", "female", "all"]] = None, is_free: bool = None, sort: Literal["asc", "desc"] = "asc", sort_by: Literal["date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"] = "date"):
     return await search_events(query, skip, limit, ministry, age, gender, is_free, sort, sort_by)
 
+# Public Router
 @public_event_router.get("/upcoming", summary="Alias: Get upcoming events")
 async def get_upcoming_events_alias(
     skip: int = 0,
@@ -51,24 +52,28 @@ async def get_upcoming_events_alias(
 ):
     return await sort_events(skip, limit, ministry, age, gender, is_free, sort, sort_by, name=name, max_price=max_price, date_after=date_after, date_before=date_before)
 
+# Public Router
 @public_event_router.get("/ministries", summary="Get all unique ministries")
 async def get_ministries_route():
     return await get_all_ministries()
 
-@auth_event_router.post("/{event_id}/rsvp")
+# Private Router
+@private_event_router.post("/{event_id}/rsvp")
 async def rsvp_event(event_id: str, request: Request):
     ok = await register_rsvp(event_id, request.state.uid)
     if not ok:
         return {"success": False, "error": "Event full or already RSVP'd"}
     return {"success": True}
 
-@auth_event_router.delete("/{event_id}/rsvp")
+# Private Router
+@private_event_router.delete("/{event_id}/rsvp")
 async def unrsvp_event(event_id: str, request: Request):
     ok = await cancel_rsvp(event_id, request.state.uid)
     if not ok:
         return {"success": False, "error": "RSVP not found"}
     return {"success": True}
 
+# Public Router
 @public_event_router.get("/{event_id}/registrations/public", response_model=dict)
 async def get_event_registrations_public_route(event_id: str):
     """Get public registration information for a specific event (aggregate data only)"""
@@ -92,10 +97,9 @@ async def get_event_registrations_public_route(event_id: str):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching public event registrations: {str(e)}")
 
-# REMOVED: Privacy violation - this endpoint exposed all users' registration data
-# Replaced with privacy-compliant /registrations/summary endpoint below
 
-@auth_event_router.get("/{event_id}/registrations/summary", response_model=dict)
+# Private Router
+@private_event_router.get("/{event_id}/registrations/summary", response_model=dict)
 async def get_event_registration_summary_route(event_id: str, request: Request):
     """Get registration summary for event (aggregate data only, no individual user information)"""
     try:
@@ -147,7 +151,9 @@ async def get_event_registration_summary_route(event_id: str, request: Request):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching event registration summary: {str(e)}")
 
-@auth_event_router.post("/{event_id}/are-family-members-registered", response_model=dict)
+
+# Private Router
+@private_event_router.post("/{event_id}/are-family-members-registered", response_model=dict)
 async def check_family_members_registered_bulk_route(event_id: str, request: Request, family_member_data: Dict = Body(...)):
     """Check if multiple family members are registered for an event (bulk operation)"""
     try:
@@ -182,7 +188,9 @@ async def check_family_members_registered_bulk_route(event_id: str, request: Req
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking family member registrations: {str(e)}")
 
-@auth_event_router.get("/{event_id}/is-family-member-registered", response_model=dict)
+
+# Private Router
+@private_event_router.get("/{event_id}/is-family-member-registered", response_model=dict)
 async def check_family_member_registered_route(event_id: str, request: Request, family_member_id: str = Query(...)):
     """Check if a specific family member is registered for an event"""
     try:
@@ -211,6 +219,8 @@ async def check_family_member_registered_route(event_id: str, request: Request, 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking family member registration: {str(e)}")
 
+
+# Public Router
 @public_event_router.get("/{event_id}/is-registered/public", response_model=dict)
 async def check_user_registered_public_route(event_id: str):
     """Check if the current user is registered for an event (public route for guests)"""
@@ -220,7 +230,8 @@ async def check_user_registered_public_route(event_id: str):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking user registration: {str(e)}")
 
-@auth_event_router.get("/{event_id}/is-registered", response_model=dict)
+# Private Router
+@private_event_router.get("/{event_id}/is-registered", response_model=dict)
 async def check_user_registered_private_route(event_id: str, request: Request):
     """Check if the current user is registered for an event (authenticated route)"""
     try:
@@ -245,22 +256,24 @@ async def check_user_registered_private_route(event_id: str, request: Request):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error checking user registration: {str(e)}")
 
 
-@event_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
+# Perm Protected Router: event_editing
+@event_editing_router.post("/", summary="Create event", status_code=status.HTTP_201_CREATED)
 async def create_event_route(event: EventCreate, request: Request):
     return await process_create_event(event, request)
 
-
-@event_router.put("/{event_id}", summary="Update event")
+# Perm Protected Router: event_editing
+@event_editing_router.put("/{event_id}", summary="Update event")
 async def update_event_route(event_id: str, event: EventCreate, request: Request):
     return await process_edit_event(event_id, event, request)
     
 
-
-@event_router.delete("/{event_id}", summary="Delete event")
+# Perm Protected Router: event_editing
+@event_editing_router.delete("/{event_id}", summary="Delete event")
 async def delete_event_route(event_id: str, request: Request):
     return await process_delete_event(event_id, request)
 
-@event_router.delete("/", summary="Delete multiple events by ID")
+# Perm Protected Router: event_editing
+@event_editing_router.delete("/", summary="Delete multiple events by ID")
 async def delete_events_route(event_ids: List[str], request: Request):
     """
     Deletes multiple events based on a list of provided string ObjectIds.

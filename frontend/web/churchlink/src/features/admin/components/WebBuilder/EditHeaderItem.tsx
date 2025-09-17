@@ -78,7 +78,7 @@ const EditHeaderItem: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await api.get(`/header/${encodeURIComponent(title)}`);
+            const response = await api.get(`/v1/header/${encodeURIComponent(title)}`);
             setItem(response.data);
             setNewTitle(response.data.title);
             setRussianTitle(response.data.russian_title);
@@ -86,7 +86,7 @@ const EditHeaderItem: React.FC = () => {
             if (response.data.items) {
                 setIsDropdown(true);
                 setDropdownItems(response.data.items || []);
-            } else if (response.data.url){
+            } else if (response.data.url) {
                 setUrl(response.data.url);
                 setIsDropdown(false);
             }
@@ -117,7 +117,7 @@ const EditHeaderItem: React.FC = () => {
                     url,
                 };
 
-            const response = await api.put(`/header/items/edit/${title}`, updatedItem);
+            const response = await api.put(`/v1/header/items/edit/${title}`, updatedItem);
 
             if (response.data) {
                 toast.success("Navigation item updated successfully");

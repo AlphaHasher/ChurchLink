@@ -4,10 +4,15 @@ from models.page_models import Page
 from bson import ObjectId, errors as bson_errors
 from datetime import datetime
 
-page_router = APIRouter(prefix="/pages", tags=["pages"])
+# TODO: make page perms
+mod_page_router = APIRouter(prefix="/pages", tags=["pages mod"])
 
+public_page_router = APIRouter(prefix="/pages", tags=["pages public"])
+
+
+# Mod Router
 # @router.post("/api/pages", dependencies=[Depends(permission_required(["can_create_pages"]))])
-@page_router.post("/")
+@mod_page_router.post("/")
 async def create_page(page: Page = Body(...)):
     if not page.title.strip():
         raise HTTPException(status_code=400, detail="Title is required")
@@ -25,7 +30,8 @@ async def create_page(page: Page = Body(...)):
     result = await DB.db["pages"].insert_one(page_data)
     return {"_id": str(result.inserted_id)}
 
-@page_router.get("/{slug}")
+# Public Router
+@public_page_router.get("/{slug}")
 async def get_page_by_slug(slug: str):
     page = await DB.db["pages"].find_one({"slug": slug})
     if not page:
@@ -33,8 +39,9 @@ async def get_page_by_slug(slug: str):
     page["_id"] = str(page["_id"])
     return page
 
+# Mod Router
 # @router.put("/api/pages/{page_id}", dependencies=[Depends(permission_required(["can_edit_pages"]))])
-@page_router.put("/{page_id}")
+@mod_page_router.put("/{page_id}")
 async def update_page_sections(
     page_id: str = Path(...),
     data: dict = Body(...)
@@ -59,7 +66,8 @@ async def update_page_sections(
     
     return {"matched": result.matched_count, "modified": result.modified_count}
 
-@page_router.delete("/{page_id}")
+# Mod Router
+@mod_page_router.delete("/{page_id}")
 async def delete_page(page_id: str = Path(...)):
     try:
         object_id = ObjectId(page_id)
@@ -73,7 +81,8 @@ async def delete_page(page_id: str = Path(...)):
 
     return {"deleted": result.deleted_count}
 
-@page_router.get("/")
+# Mod Router
+@mod_page_router.get("/")
 async def list_pages(skip: int = 0, limit: int = 20):
     cursor = DB.db["pages"].find().skip(skip).limit(limit)
     pages = await cursor.to_list(length=limit)
@@ -81,12 +90,14 @@ async def list_pages(skip: int = 0, limit: int = 20):
         page["_id"] = str(page["_id"])
     return pages
 
-@page_router.get("/check-slug")
+# Mod Router
+@mod_page_router.get("/check-slug")
 async def check_slug_availability(slug: str):
     existing_page = await DB.db["pages"].find_one({"slug": slug})
     return {"available": existing_page is None}
 
-@page_router.put("/{page_id}/visibility")
+# Mod Router
+@mod_page_router.put("/{page_id}/visibility")
 async def toggle_page_visibility(page_id: str = Path(...), visible: bool = Body(...)):
     try:
         object_id = ObjectId(page_id)

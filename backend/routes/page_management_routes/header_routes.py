@@ -4,9 +4,12 @@ from fastapi import APIRouter, HTTPException, Body, Path
 from mongo.database import DB
 from models.header import *
 
-header_router = APIRouter(prefix="/header", tags=["header"])
+public_header_router = APIRouter(prefix="/header", tags=["public header"])
+mod_header_router = APIRouter(prefix="/header", tags=["mod header"])
 
-@header_router.get("", response_model=Header)
+
+# Public Route
+@public_header_router.get("", response_model=Header)
 async def get_header_route():
     """Get the current header."""
     header = await get_header()
@@ -14,7 +17,8 @@ async def get_header_route():
         raise HTTPException(status_code=404, detail="Header not found and could not create default")
     return header
 
-@header_router.get("/items", response_model=Header)
+# Mod Route
+@public_header_router.get("/items", response_model=Header)
 async def get_header_items_route():
     """Get the current header."""
     header = await get_header_items()
@@ -22,7 +26,8 @@ async def get_header_items_route():
         raise HTTPException(status_code=404, detail="Header not found and could not create default")
     return header
 
-@header_router.post("/items/links", response_model=bool)
+ # Mod Roue
+@mod_header_router.post("/items/links", response_model=bool)
 async def add_header_link_route(item: HeaderLink = Body(...)):
     """Add a new item to the header."""
     success = await add_link(dict(item))
@@ -31,7 +36,8 @@ async def add_header_link_route(item: HeaderLink = Body(...)):
 
     return success
 
-@header_router.post("/items/dropdowns", response_model=bool)
+# Mod Route
+@mod_header_router.post("/items/dropdowns", response_model=bool)
 async def add_header_dropdown_route(item: HeaderDropdown = Body(...)):
     """Add a new item to the header."""
     success = await add_dropdown(dict(item))
@@ -40,7 +46,8 @@ async def add_header_dropdown_route(item: HeaderDropdown = Body(...)):
 
     return success is not None
 
-@header_router.get("/{title}", response_model=HeaderItem)
+# Mod Route
+@mod_header_router.get("/{title}", response_model=HeaderItem)
 async def get_header_item_route(title: str = Path(...)):
     """Remove an item from the header by title."""
     item = await get_item_by_title(title)
@@ -50,7 +57,8 @@ async def get_header_item_route(title: str = Path(...)):
     # Return updated header
     return item
 
-@header_router.put("/items/edit/{title}", response_model=bool)
+# Mod Route
+@mod_header_router.put("/items/edit/{title}", response_model=bool)
 async def update_header_item_route(title: str = Path(...), updated_item: dict = Body(...)):
     """Update an item in the header by title."""
     success = await update_item(title, updated_item)
@@ -58,7 +66,8 @@ async def update_header_item_route(title: str = Path(...), updated_item: dict = 
         raise HTTPException(status_code=404, detail="Header item not found or update failed")
     return success
 
-@header_router.delete("/{title}", response_model=bool)
+# Mod Route
+@mod_header_router.delete("/{title}", response_model=bool)
 async def remove_header_item_route(title: str = Path(...)):
     """Remove an item from the header by title."""
     success = await remove_item_by_name(title)
@@ -66,7 +75,8 @@ async def remove_header_item_route(title: str = Path(...)):
         raise HTTPException(status_code=404, detail="Header item not found or could not be deleted")
     return success
 
-@header_router.put("/reorder", response_model=bool)
+# Mod Route
+@mod_header_router.put("/reorder", response_model=bool)
 async def reorder_header_items_route(titles: dict = Body(...)):
     """Reorder header items based on the provided list of titles."""
     success = await reorder_items(titles["titles"])
@@ -74,7 +84,8 @@ async def reorder_header_items_route(titles: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Failed to reorder header items")
     return success is not None
 
-@header_router.put("/{title}/visibility", response_model=bool)
+# Mod Route
+@mod_header_router.put("/{title}/visibility", response_model=bool)
 async def change_header_item_visibility_route(title: str = Path(...), visible: dict = Body(...)):
     """Change visibility of a header item."""
     success = await change_visibility(title, visible["visible"])

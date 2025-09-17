@@ -8,8 +8,7 @@ from helpers.paypalHelper import (
 )
 from mongo.database import DB
 
-
-paypal_router = APIRouter(prefix="/paypal_admin", tags=["paypal"])
+paypal_router = APIRouter(prefix="/paypal_admin", tags=["paypal-admin"])
 
 # ------------------------------------------------------------------------------
 # Endpoint to Update Transaction Status (refund/cancel/etc)

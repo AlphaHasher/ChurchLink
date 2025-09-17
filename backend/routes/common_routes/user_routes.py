@@ -1,11 +1,10 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Query, Body, Depends, Request
+from fastapi import APIRouter, HTTPException, status, Query, Body, Request
 from pydantic import EmailStr
 from bson import ObjectId
 from datetime import datetime # Import datetime if needed for birthday query
 
 # Import models and functions from models/user.py
-from helpers.Firebase_helpers import authenticate_uid
 from models.user import (
     UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, PersonUpdateRequest, FamilyMemberIDTag, # Assuming AddressSchema might be needed for updates
     create_user, get_user_by_id, get_user_by_email,
@@ -15,16 +14,15 @@ from models.user import (
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member
 )
 from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, MyPermsRequest, PersonalInfo
-from protected_routers.auth_protected_router import AuthProtectedRouter
-from protected_routers.mod_protected_router import ModProtectedRouter
 
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
 
+# UNDER REVIEW
 user_router = APIRouter(prefix="/users", tags=["Users"])
 
-user_private_router = AuthProtectedRouter(prefix="/users", tags=["Users"])
-user_mod_router = ModProtectedRouter(prefix="/users", tags=["Users"])
+user_private_router = APIRouter(prefix="/users", tags=["Users"])
+user_mod_router = APIRouter(prefix="/users", tags=["Users"])
 
 # --- User Creation ---
 @user_router.post(
@@ -174,18 +172,22 @@ async def delete_user_route(user_id: str):
 # This would likely require a new Pydantic model for partial updates (e.g., UserUpdate)
 # and a corresponding model function (e.g., update_user_profile).
 
+# Private Router
 @user_private_router.post("/sync-user")
 async def process_sync_request(request:Request):
     return await process_sync_by_uid(request)
 
+# Private Router
 @user_private_router.get("/get-profile")
 async def process_get_profile(request:Request):
     return await fetch_profile_info(request)
 
+# Private Router
 @user_private_router.patch("/update-profile")
 async def process_update_profile(request:Request, profile_data: PersonalInfo = Body(...)):
     return await update_profile(request, profile_data)
 
+# Mod Router
 @user_mod_router.get("/check-mod")
 async def process_check_mod(request:Request):
     if type(request.state.roles) == list and len(request.state.roles) > 0:
@@ -193,10 +195,12 @@ async def process_check_mod(request:Request):
     else:
         return {'success':False}
 
+# Mod Router
 @user_mod_router.get("/get-users")
 async def process_get_users(request:Request):
     return await fetch_users()
 
+# Mod Router
 @user_mod_router.post("/get-my-permissions")
 async def process_get_my_permissions(payload: MyPermsRequest, request:Request):
     return await get_my_permissions(payload, request)
@@ -205,6 +209,7 @@ async def process_get_my_permissions(payload: MyPermsRequest, request:Request):
 # --- Family Member Routes ---
 #
 
+# Private Router
 # Add family member
 @user_private_router.post("/add-family-member", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def add_family_member_to_user_route(request: Request, family_member_data: PersonCreate = Body(...)):
@@ -221,6 +226,7 @@ async def add_family_member_to_user_route(request: Request, family_member_data: 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding family member: {str(e)}")
 
+# Private Router
 # Get all family members
 @user_private_router.get("/all-family-members", response_model=dict)
 async def get_user_family_members_route(request: Request):
@@ -234,6 +240,7 @@ async def get_user_family_members_route(request: Request):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family members: {str(e)}")
 
+# Private Router
 # Get specific family member
 @user_private_router.get("/family-member/{family_member_id}", response_model=dict)
 async def get_user_family_member_route(request: Request, family_member_id:str):
@@ -250,6 +257,7 @@ async def get_user_family_member_route(request: Request, family_member_id:str):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member: {str(e)}")
 
+# Private Router
 # Update family member
 @user_private_router.patch("/family-member", response_model=dict)
 async def update_user_family_member_route(request: Request, family_member_data: PersonUpdateRequest = Body(...)):
@@ -265,6 +273,7 @@ async def update_user_family_member_route(request: Request, family_member_data: 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error updating family member: {str(e)}")
 
+# Private Router
 # Remove family member
 @user_private_router.delete("/family-member/{family_id}", response_model=dict)
 async def delete_user_family_member_route(request: Request, family_id:str):
