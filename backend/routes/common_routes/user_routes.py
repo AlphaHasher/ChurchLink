@@ -19,6 +19,8 @@ from controllers.users_functions import fetch_users, process_sync_by_uid, get_my
 # from models.roles import RoleOut
 
 # UNDER REVIEW
+# NOT INCLUDED IN MAIN BECAUSE I THINK WE DON'T ACTUALLY HAVE A CURRENT USE FOR IT...
+# I THINK WE SHOULD KEEP IT FOR NOW BECAUSE IT COULD HAVE HELPFUL STUFF, DONT NEED TO REMOVE CODE UNTIL THE END.
 user_router = APIRouter(prefix="/users", tags=["Users"])
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])

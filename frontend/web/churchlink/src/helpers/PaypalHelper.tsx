@@ -97,7 +97,7 @@ export const parsePayPalReturn = (search: string) => {
 
 export const getPayPalSettings = async (): Promise<string[]> => {
     try {
-        const res = await api.get<PaypalSettingsResponse>("/api/paypal/settings");
+        const res = await api.get<PaypalSettingsResponse>("/v1/paypal/settings");
         return res.data?.settings?.ALLOWED_FUNDS ?? ["General", "Building", "Missions", "Youth", "Other"];
     } catch (err) {
         console.warn("Failed to fetch PayPal settings, using defaults:", err);
@@ -109,7 +109,7 @@ export const createPayPalOrder = async (
     payload: PaypalDonationPayload
 ): Promise<PaypalOrderResponse | null> => {
     try {
-        const res = await api.post<PaypalOrderResponse>("/api/paypal/orders", payload, {
+        const res = await api.post<PaypalOrderResponse>("/v1/paypal/orders", payload, {
             headers: { "Content-Type": "application/json" },
         });
         return res.data ?? null;
@@ -124,7 +124,7 @@ export const createPayPalSubscription = async (
 ): Promise<PaypalSubscriptionResponse | null> => {
     try {
         const res = await api.post<PaypalSubscriptionResponse>(
-            "/api/paypal/subscription",
+            "/v1/paypal/subscription",
             { donation },
             { headers: { "Content-Type": "application/json" } }
         );
@@ -141,7 +141,7 @@ export const capturePayPalOrder = async (
     payerId: string
 ): Promise<PaypalCaptureResponse | null> => {
     try {
-        const path = `/api/paypal/orders/${encodeURIComponent(paymentId)}/capture?payer_id=${encodeURIComponent(
+        const path = `/v1/paypal/orders/${encodeURIComponent(paymentId)}/capture?payer_id=${encodeURIComponent(
             payerId
         )}`;
         const res = await api.post<PaypalCaptureResponse>(path);
@@ -157,7 +157,7 @@ export const executePayPalSubscription = async (
     token: string
 ): Promise<PaypalExecuteSubResponse | null> => {
     try {
-        const path = `/api/paypal/subscription/execute?token=${encodeURIComponent(token)}`;
+        const path = `/v1/paypal/subscription/execute?token=${encodeURIComponent(token)}`;
         const res = await api.post<PaypalExecuteSubResponse>(path);
         return res.data ?? null;
     } catch (err) {

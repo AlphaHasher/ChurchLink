@@ -204,15 +204,12 @@ public_router.include_router(public_footer_router)
 public_router.include_router(public_header_router)
 public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
+public_router.include_router(strapi_router)
 
 
-## UNDER REVIEW !!!
-public_router.include_router(notification_router)
-public_router.include_router(user_router)
+## UNDER REVIEW !!! CURRENTLY PUBLIC ONLY BECAUSE IM NOT SURE WHAT THEY NEED TO BE
 public_router.include_router(paypal_router)
 public_router.include_router(paypal_router_2)
-public_router.include_router(strapi_router)
-public_router.include_router(strapi_protected_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 
@@ -238,6 +235,8 @@ mod_router.include_router(mod_footer_router)
 mod_router.include_router(mod_header_router)
 mod_router.include_router(mod_page_router)
 mod_router.include_router(permissions_view_router)
+mod_router.include_router(notification_router)
+mod_router.include_router(strapi_protected_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
