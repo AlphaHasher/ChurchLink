@@ -81,7 +81,7 @@ const DynamicPage: React.FC = () => {
 
     (async () => {
       try {
-        const res = await api.get(`/pages/${encodeURIComponent(slug)}`, {
+        const res = await api.get(`/v1/pages/${encodeURIComponent(slug)}`, {
           signal: ctrl.signal,
         });
         setPageData(res.data);

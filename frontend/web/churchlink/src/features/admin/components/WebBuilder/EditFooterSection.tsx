@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import api from "@/api/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import {DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,} from "@dnd-kit/core";
-import {SortableContext, verticalListSortingStrategy, useSortable, arrayMove,} from "@dnd-kit/sortable";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 // Type definitions
@@ -76,7 +76,7 @@ const EditHeaderItem: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await api.get(`/footer/${encodeURIComponent(title)}`);
+            const response = await api.get(`/v1/footer/${encodeURIComponent(title)}`);
             setItem(response.data);
             setNewTitle(response.data.title);
             setRussianTitle(response.data.russian_title);
@@ -84,7 +84,7 @@ const EditHeaderItem: React.FC = () => {
             if (response.data.items) {
                 setIsDropdown(true);
                 setDropdownItems(response.data.items || []);
-            } else if (response.data.url){
+            } else if (response.data.url) {
                 setUrl(response.data.url);
                 setIsDropdown(false);
             }
@@ -115,7 +115,7 @@ const EditHeaderItem: React.FC = () => {
                     url,
                 };
 
-            const response = await api.put(`/footer/items/edit/${title}`, updatedItem);
+            const response = await api.put(`/v1/footer/items/edit/${title}`, updatedItem);
 
             if (response.data) {
                 toast.success("Navigation item updated successfully");
