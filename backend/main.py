@@ -209,29 +209,34 @@ router_webhook_listener.include_router(paypal_webhook_router)
 router_webhook_listener.include_router(paypal_subscription_webhook_router)
 
 #####################################################
+# Public Routers - No auth
+#####################################################
+public_router = APIRouter(prefix="/api/v1")
+
+public_router.include_router(public_event_router)
+public_router.include_router(public_event_person_router)
+public_router.include_router(public_youtube_router)
+
+#####################################################
 # Base Router Configuration all routes will have api/v1 prefix
 #####################################################
 
 base_router = AuthProtectedRouter(prefix="/api/v1")
 base_router.include_router(permissions_view_router)
 base_router.include_router(permissions_protected_router)
-base_router.include_router(event_router)
 base_router.include_router(auth_event_router)
 base_router.include_router(user_router)
 base_router.include_router(user_private_router)
 base_router.include_router(user_mod_router)
 base_router.include_router(event_person_router)
-base_router.include_router(public_event_person_router)
 base_router.include_router(bible_note_router)
 base_router.include_router(bible_plan_router)
 base_router.include_router(strapi_router)
 base_router.include_router(strapi_protected_router)
 base_router.include_router(paypal_admin_router)
-base_router.include_router(public_event_router)
 base_router.include_router(router_webhook_listener)
 base_router.include_router(notification_router)
-base_router.include_router(public_youtube_router)
-
+base_router.include_router(event_router)
 
 
 non_v1_router = APIRouter(prefix="/api")
@@ -244,6 +249,7 @@ non_v1_router.include_router(paypal_router)
 # Include routers in main app
 app.include_router(base_router)
 app.include_router(non_v1_router)
+app.include_router(public_router)
 
 
 if __name__ == "__main__":

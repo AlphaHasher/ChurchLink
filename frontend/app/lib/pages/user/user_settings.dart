@@ -9,6 +9,7 @@ import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
 import '../../firebase/firebase_auth_service.dart';
 import 'edit_profile.dart';
+import 'family_members_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class UserSettings extends StatefulWidget {
@@ -50,55 +51,57 @@ class _UserSettingsState extends State<UserSettings> {
     super.dispose();
   }
 
-  
-
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedImage = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80, // ✅ Reduce size
+      imageQuality: 80, //  Reduce size
     );
 
     if (pickedImage == null) return; // No image picked
 
     setState(() {
-      _isUploading = true; // ✅ Show loading animation
+      _isUploading = true; //  Show loading animation
     });
 
     File file = File(pickedImage.path);
     User? user = FirebaseAuth.instance.currentUser;
 
     try {
-      // 🔹 Step 1: Delete Old Image (if exists)
+      //  Step 1: Delete Old Image (if exists)
       if (user?.photoURL != null) {
         await _deleteOldImage(user!.photoURL!);
       }
 
-      // 🔹 Step 2: Upload New Avatar to Cloudinary
-      Uri uri = Uri.parse("https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/upload");
+      //  Step 2: Upload New Avatar to Cloudinary
+      Uri uri = Uri.parse(
+        "https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/upload",
+      );
 
-      var request = http.MultipartRequest("POST", uri)
-        ..fields['upload_preset'] = "user_avatars" //CLOUDINARY_UPLOAD_PRESET
-        ..files.add(await http.MultipartFile.fromPath('file', file.path));
+      var request =
+          http.MultipartRequest("POST", uri)
+            ..fields['upload_preset'] =
+                "user_avatars" //CLOUDINARY_UPLOAD_PRESET
+            ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
       var response = await request.send();
       var responseData = await response.stream.bytesToString();
       var jsonData = jsonDecode(responseData);
 
-      String imageUrl = jsonData['secure_url']; // ✅ Get uploaded image URL
+      String imageUrl = jsonData['secure_url']; //  Get uploaded image URL
 
-      // 🔹 Step 3: Update Firebase User Profile
+      //  Step 3: Update Firebase User Profile
       await user?.updatePhotoURL(imageUrl);
       await user?.reload();
 
       setState(() {
-        _profileImage = file; // ✅ Update local UI
+        _profileImage = file; //  Update local UI
         _isUploading = false;
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Profile picture updated!")),
+          const SnackBar(content: Text(" Profile picture updated!")),
         );
       }
     } catch (e) {
@@ -107,20 +110,23 @@ class _UserSettingsState extends State<UserSettings> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Failed to update avatar: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(" Failed to update avatar: $e")));
       }
     }
   }
 
-  /// 🔹 Deletes the old avatar from Cloudinary before uploading a new one
+  ///  Deletes the old avatar from Cloudinary before uploading a new one
   Future<void> _deleteOldImage(String imageUrl) async {
     // Extract public ID from the Cloudinary URL
     Uri uri = Uri.parse(imageUrl);
-    String fileName = uri.pathSegments.last.split('.').first; // Get Cloudinary public ID
+    String fileName =
+        uri.pathSegments.last.split('.').first; // Get Cloudinary public ID
 
-    Uri deleteUri = Uri.parse("https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/destroy");
+    Uri deleteUri = Uri.parse(
+      "https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/destroy",
+    );
 
     var response = await http.post(
       deleteUri,
@@ -132,9 +138,9 @@ class _UserSettingsState extends State<UserSettings> {
     );
 
     if (response.statusCode == 200) {
-      debugPrint("✅ Old avatar deleted successfully!");
+      debugPrint(" Old avatar deleted successfully!");
     } else {
-      debugPrint("❌ Failed to delete old avatar: ${response.body}");
+      debugPrint(" Failed to delete old avatar: ${response.body}");
     }
   }
 
@@ -162,7 +168,20 @@ class _UserSettingsState extends State<UserSettings> {
                   ),
                 );
               }
-            }
+            },
+          },
+          {
+            'icon': Icons.family_restroom,
+            'title': 'Family Members',
+            'subtitle': 'Manage your family members',
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FamilyMembersPage(),
+                ),
+              );
+            },
           },
           {
             'icon': Icons.image,
@@ -176,9 +195,9 @@ class _UserSettingsState extends State<UserSettings> {
             'subtitle': 'Request an email to reset your password',
             'ontap': () {
               PasswordReset.show(context, user?.email);
-            }
+            },
           },
-        ]
+        ],
       },
       {
         'category': 'Guest',
@@ -189,32 +208,64 @@ class _UserSettingsState extends State<UserSettings> {
             'subtitle': 'To access more features login or signup',
             'ontap': () {
               AuthPopup.show(context);
-            }
+            },
           },
-        ]
+        ],
       },
       {
         'category': 'Preferences',
         'items': [
-          {'icon': Icons.dark_mode, 'title': 'Theme', 'subtitle': 'Light or dark mode'},
-          {'icon': Icons.language, 'title': 'Language', 'subtitle': 'Change app language'},
-          {'icon': Icons.notifications, 'title': 'Notifications', 'subtitle': 'Customize alert preferences'},
-        ]
+          {
+            'icon': Icons.dark_mode,
+            'title': 'Theme',
+            'subtitle': 'Light or dark mode',
+          },
+          {
+            'icon': Icons.language,
+            'title': 'Language',
+            'subtitle': 'Change app language',
+          },
+          {
+            'icon': Icons.notifications,
+            'title': 'Notifications',
+            'subtitle': 'Customize alert preferences',
+          },
+        ],
       },
       {
         'category': 'Privacy',
         'items': [
-          {'icon': Icons.visibility, 'title': 'Account Visibility', 'subtitle': 'Who can see your profile'},
-          {'icon': Icons.delete, 'title': 'Delete Account', 'subtitle': 'Permanently remove your data'},
-        ]
+          {
+            'icon': Icons.visibility,
+            'title': 'Account Visibility',
+            'subtitle': 'Who can see your profile',
+          },
+          {
+            'icon': Icons.delete,
+            'title': 'Delete Account',
+            'subtitle': 'Permanently remove your data',
+          },
+        ],
       },
       {
         'category': 'Support',
         'items': [
-          {'icon': Icons.help, 'title': 'Help Center', 'subtitle': 'FAQ and support resources'},
-          {'icon': Icons.feedback, 'title': 'Send Feedback', 'subtitle': 'Help us improve'},
-          {'icon': Icons.policy, 'title': 'Terms & Policies', 'subtitle': 'Privacy policy and terms of use'},
-        ]
+          {
+            'icon': Icons.help,
+            'title': 'Help Center',
+            'subtitle': 'FAQ and support resources',
+          },
+          {
+            'icon': Icons.feedback,
+            'title': 'Send Feedback',
+            'subtitle': 'Help us improve',
+          },
+          {
+            'icon': Icons.policy,
+            'title': 'Terms & Policies',
+            'subtitle': 'Privacy policy and terms of use',
+          },
+        ],
       },
     ];
 
@@ -232,16 +283,22 @@ class _UserSettingsState extends State<UserSettings> {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: ssbcGray,
-                    backgroundImage: user?.photoURL != null && user!.photoURL!.isNotEmpty
-                        ? NetworkImage(user.photoURL!) // ✅ Load Firebase profile picture
-                        : const AssetImage('assets/user/ssbc-dove.png') as ImageProvider, // Default image
+                    backgroundImage:
+                        user?.photoURL != null && user!.photoURL!.isNotEmpty
+                            ? NetworkImage(
+                              user.photoURL!,
+                            ) //  Load Firebase profile picture
+                            : const AssetImage('assets/user/ssbc-dove.png')
+                                as ImageProvider, // Default image
                   ),
 
-                  // 🔹 Show a loading spinner when uploading an image
+                  //  Show a loading spinner when uploading an image
                   if (_isUploading)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withValues(alpha: 0.3), // Darken background
+                        color: Colors.black.withValues(
+                          alpha: 0.3,
+                        ), // Darken background
                         child: const Center(
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
@@ -263,10 +320,7 @@ class _UserSettingsState extends State<UserSettings> {
                   if (loggedIn)
                     Text(
                       user?.email ?? "(Please set your display email)",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                 ],
               ),
@@ -281,7 +335,10 @@ class _UserSettingsState extends State<UserSettings> {
     // Generate categories and items from list
     for (var category in settingsCategories) {
       // Either show account or guest based on login status
-      if ((category['category'] == 'Account' || category['category'] == 'Privacy') && !loggedIn) continue;
+      if ((category['category'] == 'Account' ||
+              category['category'] == 'Privacy') &&
+          !loggedIn)
+        continue;
       if (category['category'] == 'Guest' && loggedIn) continue;
 
       pageWidgets.add(
@@ -289,10 +346,7 @@ class _UserSettingsState extends State<UserSettings> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Text(
             category['category'],
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
       );
@@ -305,10 +359,7 @@ class _UserSettingsState extends State<UserSettings> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: ListTile(
-              leading: Icon(
-                item['icon'],
-                color: ssbcGray,
-              ),
+              leading: Icon(item['icon'], color: ssbcGray),
               title: Text(item['title']),
               subtitle: Text(item['subtitle']),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -339,10 +390,7 @@ class _UserSettingsState extends State<UserSettings> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
-              'Logout',
-              style: TextStyle(fontSize: 16),
-            ),
+            child: const Text('Logout', style: TextStyle(fontSize: 16)),
           ),
         ),
       );

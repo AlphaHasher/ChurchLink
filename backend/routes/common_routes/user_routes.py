@@ -7,7 +7,7 @@ from datetime import datetime # Import datetime if needed for birthday query
 # Import models and functions from models/user.py
 from helpers.Firebase_helpers import authenticate_uid
 from models.user import (
-    UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, PersonUpdateRequest, # Assuming AddressSchema might be needed for updates
+    UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, PersonUpdateRequest, FamilyMemberIDTag, # Assuming AddressSchema might be needed for updates
     create_user, get_user_by_id, get_user_by_email,
     get_users,
     find_users_with_permissions,
@@ -192,7 +192,7 @@ async def process_check_mod(request:Request):
         return {'success':True}
     else:
         return {'success':False}
-    
+
 @user_mod_router.get("/get-users")
 async def process_get_users(request:Request):
     return await fetch_users()
@@ -273,7 +273,7 @@ async def delete_user_family_member_route(request: Request, family_id:str):
         
         success = await delete_family_member(user_id, family_id)
         if not success:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")      
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
         return {"success": success, "message": "Family member deleted successfully"}
     except HTTPException:
         raise

@@ -45,6 +45,9 @@ class UserCreate(UserBase):
 class UserOut(UserBase):
     id: str # Output id as string
 
+class FamilyMemberIDTag(BaseModel):
+    id: str
+
 # CRUD Operations as top-level async functions
 
 async def create_user(user_data: UserCreate) -> Optional[UserOut]:
