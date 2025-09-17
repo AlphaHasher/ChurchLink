@@ -243,12 +243,12 @@ mod_router.include_router(strapi_protected_router)
 #####################################################
 
 # EVENT EDITING CORE
-event_editing_protected_router = PermProtectedRouter(prefix="/events", tags=["Events"], required_perms=["event_editing"])
+event_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Events"], required_perms=["event_editing"])
 
 event_editing_protected_router.include_router(event_editing_router)
 
 # PERMISSIONS MANAGEMENT CORE
-permissions_management_protected_router = PermProtectedRouter(prefix="/permissions", tags=["permissions"], required_perms=['permissions_management'])
+permissions_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["permissions"], required_perms=['permissions_management'])
 
 permissions_management_protected_router.include_router(permissions_protected_router)
 
