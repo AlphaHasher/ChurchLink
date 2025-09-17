@@ -193,15 +193,6 @@ async def update_user_roles(role_update: RoleUpdate):
     )
 
 
-# Webhook listeners, shouldn't be used as an explicit part of the api/v1
-router_webhook_listener = APIRouter(
-    prefix="/webhook_listener", tags=["webhook_listener"]
-)
-router_webhook_listener.include_router(youtube_listener_router)
-router_webhook_listener.include_router(paypal_webhook_router)
-router_webhook_listener.include_router(paypal_subscription_webhook_router)
-
-
 #####################################################
 # Public Routers - No Auth
 #####################################################
@@ -212,6 +203,7 @@ public_router.include_router(public_youtube_router)
 public_router.include_router(public_footer_router)
 public_router.include_router(public_header_router)
 public_router.include_router(public_page_router)
+public_router.include_router(youtube_listener_router)
 public_router.include_router(strapi_router)
 
 
