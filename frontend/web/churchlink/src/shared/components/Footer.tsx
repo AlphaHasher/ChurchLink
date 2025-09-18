@@ -20,6 +20,8 @@ interface FooterData {
     items: FooterSection[];
 }
 
+// TODO: consider looking into adding a spacer item to be rendered here, for possibility of a right-aligned item
+
 const Footer = () => {
     const [footerData, setFooterData] = useState<FooterData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -49,7 +51,6 @@ const Footer = () => {
 
     return (
         <footer className="bg-neutral-300 text-black py-6 px-3 font-[Montserrat]!">
-            {/* Left-aligned container (no centering/max-width) */}
             <div className="px-6 sm:px-12 lg:px-28 pt-8 md:pt-10 lg:pt-12">
                 <div className="flex flex-wrap -mx-4">
                     {footerData.items.map((section, index) => (
