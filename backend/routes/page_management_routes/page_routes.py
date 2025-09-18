@@ -35,8 +35,7 @@ async def create_page(page: Page = Body(...)):
 async def get_page_by_slug(slug: str):
     page = await DB.db["pages"].find_one({
         "slug": slug,
-        "visible": True,
-        "published": True
+        "visible": True
     })
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
@@ -47,12 +46,11 @@ async def get_page_by_slug(slug: str):
 @public_page_router.get("/")
 async def list_visible_pages(skip: int = 0, limit: int = 20):
     """
-    List all visible and published pages for public consumption (navigation, menus, etc.)
-    Only returns pages where both visible=True and published=True
+    List all visible pages for public consumption (navigation, menus, etc.)
+    Only returns pages where visible=True
     """
     cursor = DB.db["pages"].find({
-        "visible": True,
-        "published": True
+        "visible": True
     }).skip(skip).limit(limit)
     pages = await cursor.to_list(length=limit)
     for page in pages:
@@ -137,3 +135,16 @@ async def toggle_page_visibility(page_id: str = Path(...), visible: bool = Body(
         raise HTTPException(status_code=404, detail="Page not found")
 
     return {"matched": result.matched_count, "modified": result.modified_count}
+
+# Mod Router - Preview page for admin (bypasses visibility checks)
+@mod_page_router.get("/preview/{slug}")
+async def preview_page_by_slug(slug: str):
+    """
+    Preview any page by slug for admin purposes (bypasses visibility checks)
+    This allows admins to preview pages even when they're hidden
+    """
+    page = await DB.db["pages"].find_one({"slug": slug})
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    page["_id"] = str(page["_id"])
+    return page

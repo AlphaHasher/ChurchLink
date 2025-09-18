@@ -114,6 +114,12 @@ const WebBuilderPageList = () => {
                     Edit
                   </button>
                   <button
+                    onClick={() => navigate(`/admin/webbuilder/preview/${page.slug}`)}
+                    className="text-sm text-green-600 hover:underline"
+                  >
+                    Preview
+                  </button>
+                  <button
                     onClick={() => toggleVisibility(page._id, page.visible)}
                     className="text-sm text-yellow-600 hover:underline"
                   >
