@@ -12,12 +12,12 @@ class FCMTokenRequest(BaseModel):
 
 # Mod Protected Router from main
 # Consider changing to PermProtectedRouter down the line if perm is added
-notification_router = APIRouter(prefix="/notification", tags=["notification"])
+public_notification_router = APIRouter(prefix="/notification", tags=["Notification Public Route"])
+private_notification_router = APIRouter(prefix="/notification", tags=["Notification Auth Route"], dependencies=[])
 
-
-# Mod Protected Router
-# --- FCM Token Management ---
-@notification_router.post('/save-fcm-token')
+# PUBLIC ROUTES
+# --- FCM Token Management (Public) ---
+@public_notification_router.post('/save-fcm-token')
 async def save_fcm_token(request: FCMTokenRequest):
     result = await DB.db['fcm_tokens'].update_one(
         {'user_id': request.user_id},
@@ -27,7 +27,7 @@ async def save_fcm_token(request: FCMTokenRequest):
     return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
 
 # Mod Protected Router
-@notification_router.get('/get-fcm-tokens')
+@private_notification_router.get('/get-fcm-tokens')
 async def get_fcm_tokens():
     tokens = await DB.db['fcm_tokens'].find({}, {'_id': 0, 'token': 1, 'user_id': 1}).to_list(length=1000)
     return tokens
@@ -35,7 +35,7 @@ async def get_fcm_tokens():
 # --- Notification Settings ---
 
 # Mod Protected Router
-@notification_router.get('/settings')
+@private_notification_router.get('/settings')
 async def get_notification_settings():
     doc = await DB.db["settings"].find_one({"type": "youtube"})
     return {
@@ -45,7 +45,7 @@ async def get_notification_settings():
 
 # Mod Protected Router
 # Add POST endpoint to update notification settings
-@notification_router.post('/settings')
+@private_notification_router.post('/settings')
 async def update_notification_settings(
     streamNotificationMessage: str = Body(...),
     streamNotificationTitle: str = Body(...)
@@ -62,7 +62,7 @@ async def update_notification_settings(
 
 # Mod Protected Router
 # --- Notification History ---
-@notification_router.get('/history')
+@private_notification_router.get('/history')
 async def notification_history(limit: int = 100):
     history = await get_notification_history(DB.db, limit)
     for n in history:
@@ -72,7 +72,7 @@ async def notification_history(limit: int = 100):
 
 # Mod Protected Router
 # --- Send Push Notification (Instant) ---
-@notification_router.post('/send')
+@private_notification_router.post('/send')
 async def send_push_notification(
     title: str = Body(...),
     body: str = Body(...),
@@ -125,7 +125,7 @@ async def send_push_notification(
 
 # Mod Protected Router
 # --- Schedule Notification ---
-@notification_router.post('/schedule')
+@private_notification_router.post('/schedule')
 async def api_schedule_notification(
     title: str = Body(...),
     body: str = Body(...),
@@ -148,7 +148,7 @@ async def api_schedule_notification(
 
 # Mod Protected Router
 # --- List Scheduled Notifications ---
-@notification_router.get('/scheduled')
+@private_notification_router.get('/scheduled')
 async def api_get_scheduled_notifications():
     notifications = await get_scheduled_notifications(DB.db)
     for n in notifications:
@@ -158,7 +158,7 @@ async def api_get_scheduled_notifications():
 
 # Mod Protected Router
 # --- Remove Scheduled Notification ---
-@notification_router.delete('/scheduled/{notification_id}')
+@private_notification_router.delete('/scheduled/{notification_id}')
 async def api_remove_scheduled_notification(notification_id: str):
     success = await remove_scheduled_notification(DB.db, notification_id)
     return {"success": success}

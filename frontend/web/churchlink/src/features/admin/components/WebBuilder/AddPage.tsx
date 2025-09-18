@@ -20,7 +20,7 @@ const AddPage = () => {
   const checkSlugExists = async (slug: string): Promise<boolean> => {
     try {
       const response = await api.get(`/v1/pages/check-slug?slug=${slug}`);
-      return response.data.exists;
+      return !response.data.available;
     } catch (err) {
       console.error("Error checking slug:", err);
       return false;

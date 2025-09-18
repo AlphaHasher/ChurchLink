@@ -17,7 +17,7 @@ const WebBuilderPageList = () => {
   useEffect(() => {
     const fetchPages = async () => {
       try {
-        const response = await api.get("/v1/pages");
+        const response = await api.get("/v1/pages/");
         setPages(response.data);
       } catch (error) {
         console.error("Error fetching pages:", error);
@@ -112,6 +112,12 @@ const WebBuilderPageList = () => {
                     className="text-sm text-blue-600 hover:underline"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => navigate(`/admin/webbuilder/preview/${page.slug}`)}
+                    className="text-sm text-green-600 hover:underline"
+                  >
+                    Preview
                   </button>
                   <button
                     onClick={() => toggleVisibility(page._id, page.visible)}

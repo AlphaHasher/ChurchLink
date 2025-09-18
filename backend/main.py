@@ -16,24 +16,31 @@ from mongo.scheduled_notifications import scheduled_notification_loop
 import asyncio
 import os
 import logging
+
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
 
 from routes.bible_routes.bible_note_routes import bible_note_router
 from routes.bible_routes.bible_plan_routes import mod_bible_plan_router
+
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
-from routes.common_routes.notification_routes import notification_router
+from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
 from routes.common_routes.youtube_routes import public_youtube_router
+
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
 from routes.page_management_routes.page_routes import mod_page_router, public_page_router
+
 from routes.paypal_routes.paypal_adminsetting import paypal_admin_router
 from routes.paypal_routes.paypal_routes import paypal_public_router
+
 from routes.permissions_routes.permissions_routes import permissions_protected_router, permissions_view_router
+
 from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
+
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
@@ -205,6 +212,7 @@ public_router.include_router(public_header_router)
 public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
 public_router.include_router(strapi_router)
+public_router.include_router(public_notification_router)
 public_router.include_router(paypal_public_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
@@ -232,7 +240,7 @@ mod_router.include_router(mod_footer_router)
 mod_router.include_router(mod_header_router)
 mod_router.include_router(mod_page_router)
 mod_router.include_router(permissions_view_router)
-mod_router.include_router(notification_router)
+mod_router.include_router(private_notification_router)
 mod_router.include_router(strapi_protected_router)
 mod_router.include_router(paypal_admin_router)
 
