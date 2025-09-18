@@ -14,16 +14,16 @@ from helpers.paypalHelper import (
 )
 from mongo.database import DB
 
-paypal_router_2 = APIRouter(prefix="/paypal", tags=["paypal"])
+paypal_public_router = APIRouter(prefix="/paypal", tags=["paypal"])
 
-@paypal_router_2.post("/orders", status_code=200)
+@paypal_public_router.post("/orders", status_code=200)
 async def create_order(request: Request):
     return await paypal_create_order(request)
 
 # ------------------------------------------------------------------------------
 # Endpoint to Capture the Payment for an Order
 # ------------------------------------------------------------------------------
-@paypal_router_2.post("/orders/{payment_id}/capture", status_code=200)
+@paypal_public_router.post("/orders/{payment_id}/capture", status_code=200)
 async def capture_order(payment_id: str, payer_id: str = Query(...)):
     return await paypal_capture_order(payment_id, payer_id)
 
@@ -31,21 +31,21 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
 # ------------------------------------------------------------------------------
 # Endpoint to Get Transaction by transaction_id
 # ------------------------------------------------------------------------------
-@paypal_router_2.get("/transaction/{transaction_id}", status_code=200)
+@paypal_public_router.get("/transaction/{transaction_id}", status_code=200)
 async def get_transaction_by_id(transaction_id: str):
     return await paypal_get_transaction_by_id(transaction_id)
 
 # ------------------------------------------------------------------------------
 # Endpoint to Create a Subscription
 # ------------------------------------------------------------------------------
-@paypal_router_2.post("/subscription", status_code=200)
+@paypal_public_router.post("/subscription", status_code=200)
 async def create_subscription(request: Request):
     return await paypal_create_subscription_helper(request)
 
 # ------------------------------------------------------------------------------
 # Endpoint to Execute a Subscription after approval
 # ------------------------------------------------------------------------------
-@paypal_router_2.post("/subscription/execute", status_code=200)
+@paypal_public_router.post("/subscription/execute", status_code=200)
 async def execute_subscription(token: str = Query(..., description="PayPal approval token")):
     return await paypal_execute_subscription_helper(token)
 
@@ -53,7 +53,7 @@ async def execute_subscription(token: str = Query(..., description="PayPal appro
 # ------------------------------------------------------------------------------
 # Endpoint to Get Available Fund Purposes
 # ------------------------------------------------------------------------------
-@paypal_router_2.get("/fund-purposes", status_code=200)
+@paypal_public_router.get("/fund-purposes", status_code=200)
 async def get_fund_purposes():
     """
     Get all available fund purposes that can be donated to.

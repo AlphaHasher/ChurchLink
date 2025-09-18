@@ -30,8 +30,8 @@ from routes.common_routes.youtube_routes import public_youtube_router
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
 from routes.page_management_routes.page_routes import mod_page_router, public_page_router
-from routes.paypal_routes.paypal_adminsetting import paypal_router
-from routes.paypal_routes.paypal_routes import paypal_router_2
+from routes.paypal_routes.paypal_adminsetting import paypal_admin_router
+from routes.paypal_routes.paypal_routes import paypal_public_router
 from routes.permissions_routes.permissions_routes import permissions_protected_router, permissions_view_router
 from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
@@ -205,13 +205,10 @@ public_router.include_router(public_header_router)
 public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
 public_router.include_router(strapi_router)
-
-
-## UNDER REVIEW !!! CURRENTLY PUBLIC ONLY BECAUSE IM NOT SURE WHAT THEY NEED TO BE
-public_router.include_router(paypal_router)
-public_router.include_router(paypal_router_2)
+public_router.include_router(paypal_public_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
+
 
 #####################################################
 # Private Routers - Requires Auth
@@ -237,6 +234,7 @@ mod_router.include_router(mod_page_router)
 mod_router.include_router(permissions_view_router)
 mod_router.include_router(notification_router)
 mod_router.include_router(strapi_protected_router)
+mod_router.include_router(paypal_admin_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
