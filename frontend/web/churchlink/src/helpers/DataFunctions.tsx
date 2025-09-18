@@ -41,7 +41,6 @@ export function getDisplayValue(value: any, key: any): string {
     return String(value);
 };
 
-
 // Function to transform a UserInfo type object to a UserPermMask
 const transformToUserPermMask = (user: UserInfo, allPerms: AccountPermissions[]): UserPermMask => {
     // Collect ALL of the Roles that the user actually has.

@@ -22,6 +22,7 @@ class UserHandler:
             "roles": await RoleHandler.names_to_ids(roles),
             "phone": phone,
             "birthday": birthday,
+            "gender": None,
             "address": address or {
                 "address": None,
                 "suite": None,
@@ -358,6 +359,9 @@ class UserHandler:
         Remove a family member and clean up their event registrations.
         """
         try:
+            # First, get all events this family member is registered for
+            family_member_events = await UserHandler.list_my_events(uid, expand=False, person_id=person_id)
+            
             # Remove the person from the people array
             result = await DB.db["users"].update_one(
                 {"uid": uid},
@@ -365,12 +369,28 @@ class UserHandler:
             )
 
             if result.modified_count == 1:
-                # Also remove any event registrations for this family member
+                # Clean up event registrations from user's my_events
                 cleanup_result = await DB.db["users"].update_one(
                     {"uid": uid},
                     {"$pull": {"my_events": {"person_id": person_id}}}
                 )
-                print(f"Cleaned up {cleanup_result.modified_count} event registrations for family member {person_id}")
+                print(f"Cleaned up {cleanup_result.modified_count} event registrations from user my_events for family member {person_id}")
+
+                # Now remove the family member from all event attendee lists
+                from models.event import rsvp_remove_person
+                events_cleaned = 0
+                for event_record in family_member_events:
+                    event_id = str(event_record.get("event_id"))
+                    if event_id:
+                        try:
+                            # Use the existing rsvp_remove_person function to clean up event attendee lists
+                            removed = await rsvp_remove_person(event_id, uid, person_id)
+                            if removed:
+                                events_cleaned += 1
+                        except Exception as e:
+                            print(f"Warning: Failed to remove family member {person_id} from event {event_id}: {e}")
+                
+                print(f"Cleaned up family member {person_id} from {events_cleaned} event attendee lists")
 
             return result.modified_count == 1
         except Exception as e:

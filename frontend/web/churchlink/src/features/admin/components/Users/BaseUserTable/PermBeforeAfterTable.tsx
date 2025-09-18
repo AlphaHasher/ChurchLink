@@ -17,7 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/shared/components/ui/DataTable"
+} from "@/shared/components/ui/datatable"
 
 import { PermComp, PermCompLabels } from "@/shared/types/AccountPermissions"
 

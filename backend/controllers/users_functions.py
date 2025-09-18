@@ -3,12 +3,39 @@ from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 from pydantic import BaseModel, Field
 from fastapi import Request
+from typing import Optional, List, Dict
+from datetime import datetime
+import re
+from datetime import datetime, timezone
+from bson import ObjectId
+from firebase_admin import auth
+from models.user import get_family_member_by_id
+
+NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'\-]{0,49}$")
 
 
 class MyPermsRequest(BaseModel):
     user_assignable_roles: bool
     event_editor_roles: bool
     user_role_ids: bool
+
+class PersonalInfo(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    birthday: Optional[datetime]
+    gender: Optional[str]
+
+def is_valid_name(s: str) -> bool:
+    if not s:
+        return False
+    return bool(NAME_RE.match(s))
+
+def is_over_13(bday: datetime) -> bool:
+    today = datetime.now(timezone.utc).date()
+    d = bday.date()
+    age = today.year - d.year - ((today.month, today.day) < (d.month, d.day))
+    return age >= 13
 
 async def process_sync_by_uid(request:Request):
     uid = request.state.uid
@@ -63,3 +90,176 @@ async def get_my_permissions(payload: MyPermsRequest, request:Request):
         retDict['user_role_ids'] = user['roles']
     
     return retDict
+
+async def fetch_profile_info(request: Request):
+    user = request.state.user
+
+    profile_info = PersonalInfo(
+        first_name=user.get("first_name", ""),
+        last_name=user.get("last_name", ""),
+        email=user.get("email", ""),
+        birthday=user.get("birthday"),
+        gender=user.get("gender")
+    )
+
+    return {
+        "success": True,
+        "profile_info": profile_info.model_dump()
+    }
+
+async def update_profile(request: Request, profile_info: PersonalInfo):
+    uid = request.state.uid
+
+    # Excluding Email because we never want to change email from the profile changing section, so we may as well prune it here.
+    update_data = {
+        "first_name": (profile_info.first_name or "").strip(),
+        "last_name": (profile_info.last_name or "").strip(),
+        "birthday": profile_info.birthday,
+        "gender": profile_info.gender,
+    }
+
+    # Ensure name inputs are valid and sane
+    if not (is_valid_name(update_data["first_name"]) and is_valid_name(update_data["last_name"])):
+        return {"success": False, "msg": "Please enter valid name inputs!"}
+
+    # Ensure that the user provided a birthday
+    bday = update_data["birthday"]
+    if bday is None:
+        return {"success": False, "msg": "You must be 13 years or older to register!"}
+
+    # Ensure bday has a proper timezone for comparison
+    if bday.tzinfo is None:
+        bday = bday.replace(tzinfo=timezone.utc)
+    
+    # Ensure that the user is 13 or over
+    if not is_over_13(bday):
+        return {"success": False, "msg": "You must be 13 years or older to register!"}
+    
+    # Ensure that the user provided a gender
+    gender = update_data["gender"]
+    if gender is None or (isinstance(gender, str) and gender.lower() not in ['m', 'f']):
+        return {"success":False, "msg":"Please select a gender for your account so we may determine your event eligibility!"}
+
+    # Update the user information
+    modified = await UserHandler.update_user({"uid": uid}, update_data)
+    if not modified:
+        return {"success": False, "msg": "Error in changing profile details!"}
+
+    # Re-fetch and return the latest profile data for dynamic updating purposes
+    updated = await UserHandler.find_by_uid(uid)
+    if not updated or updated == False:
+        return {"success": False, "msg": "Error retrieving updated profile details!"}
+    
+    refreshed = PersonalInfo(
+        first_name=updated.get("first_name", ""),
+        last_name=updated.get("last_name", ""),
+        email=updated.get("email", ""),
+        birthday=updated.get("birthday"),
+        gender=updated.get("gender"),
+    )
+
+    return {
+        "success": True,
+        "msg": "Profile detail update success!",
+        "profile_info": refreshed.model_dump()
+    }
+
+
+# User Resolution Functions (moved from UserResolutionHelper)
+
+async def resolve_user_name(uid: str) -> str:
+    """
+    Resolve a Firebase UID to user's display name.
+    Returns a fallback name if user is not found.
+    """
+    try:
+        user = auth.get_user(uid)
+        if user.display_name:
+            return user.display_name
+        elif user.email:
+            # Fallback to email if displayName not available
+            return user.email.split('@')[0].title()
+        else:
+            return f"User {uid[:8]}..."
+    except Exception:
+        return f"User {uid[:8]}..."
+
+
+async def resolve_family_member_name(uid: str, person_id: ObjectId) -> Optional[str]:
+    """
+    Resolve a family member's name by their person_id and parent user uid.
+    Returns None if family member is not found.
+    """
+    try:
+        # Get family member data
+        member = await get_family_member_by_id(uid, str(person_id))
+        if member:
+            # PersonOut has first_name and last_name attributes
+            return f"{member.first_name} {member.last_name}".strip()
+        else:
+            return None
+    except Exception:
+        return None
+
+
+async def create_display_name(user_uid: str, person_id: Optional[ObjectId], user_name: str, person_name: Optional[str]) -> str:
+    """
+    Create a display name for registration entry.
+    """
+    if person_id is None:
+        # This is the user themselves
+        return user_name
+    elif person_name:
+        # This is a family member with a known name
+        return person_name
+    else:
+        # Family member exists but name couldn't be resolved
+        return "Family Member"
+
+
+async def resolve_registration_display_names(attendees: List[Dict]) -> List[Dict]:
+    """
+    Resolve display names for a list of event attendees.
+    Returns enhanced attendee list with resolved names and display information.
+    """
+    enhanced_attendees = []
+    
+    # Batch resolve user names to avoid N+1 queries
+    user_uids = list(set(attendee.get('user_uid') for attendee in attendees if attendee.get('user_uid')))
+    user_name_cache = {}
+    
+    for uid in user_uids:
+        if uid:  # Only process valid UIDs
+            user_name_cache[uid] = await resolve_user_name(uid)
+    
+    for attendee in attendees:
+        user_uid = attendee.get('user_uid')
+        person_id = attendee.get('person_id')
+        
+        if not user_uid:
+            continue
+        
+        user_name = user_name_cache.get(user_uid, f"User {user_uid[:8]}...")
+        person_name = None
+        
+        # Resolve family member name if this is a family member registration
+        if person_id:
+            person_name = await resolve_family_member_name(user_uid, person_id)
+        
+        # Create display name
+        display_name = await create_display_name(user_uid, person_id, user_name, person_name)
+        
+        # Create enhanced attendee entry
+        enhanced_attendee = {
+            "user_uid": user_uid,
+            "user_name": user_name,
+            "person_id": str(person_id) if person_id else None,
+            "person_name": person_name,
+            "display_name": display_name,
+            "registered_on": attendee.get('addedOn', datetime.now()),
+            "kind": attendee.get('kind', 'rsvp')
+        }
+        
+        enhanced_attendees.append(enhanced_attendee)
+    
+    return enhanced_attendees

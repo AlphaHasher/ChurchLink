@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useParams } from "react-router-dom";
 import api from "@/api/api";
 import HeroSection from "@/features/admin/components/WebBuilder/sections/HeroSection";
 import PaypalSection from "@/features/admin/components/WebBuilder/sections/PaypalSection";
@@ -22,8 +22,18 @@ export interface SectionSettings {
 
 export interface Section {
   id: string;
-  type: "text" | "image" | "video" | "hero" | "paypal" | "service-times" | "menu" | "contact-info" | "map" | "event";
-  content: any; // use any to handle complex objects like hero
+  type:
+  | "text"
+  | "image"
+  | "video"
+  | "hero"
+  | "paypal"
+  | "service-times"
+  | "menu"
+  | "contact-info"
+  | "map"
+  | "event";
+  content: any;
   settings?: SectionSettings;
 }
 
@@ -33,41 +43,64 @@ export interface Page {
   slug?: string;
   content?: string;
   sections?: Section[];
-  visible?: boolean; // added visibility property to Page
+  visible?: boolean;
 }
 
+const DEFAULT_HOME_SLUG = "home";
+const OPTIONAL_BASE = "pages";
+
 const DynamicPage: React.FC = () => {
+  const { slug: paramSlug } = useParams();
   const location = useLocation();
-  const slug = location.pathname === "/" ? "home" : location.pathname.replace(/^\/+/, "");
+
+  const slug = useMemo(() => {
+    let raw =
+      (paramSlug as string | undefined) ??
+      location.pathname.replace(/^\/+/, "");
+
+    if (raw?.startsWith(`${OPTIONAL_BASE}/`)) raw = raw.slice(OPTIONAL_BASE.length + 1);
+
+    raw = raw?.replace(/\/+$/, "");
+
+    if (!raw || raw === "") return DEFAULT_HOME_SLUG;
+
+    return raw;
+  }, [paramSlug, location.pathname]);
 
   const [pageData, setPageData] = useState<Page | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!slug) {
-      setError('Invalid slug');
-      setLoading(false);
-      return;
-    }
+    const ctrl = new AbortController();
+    setLoading(true);
+    setError(null);
+    setNotFound(false);
+    setPageData(null);
 
-    const fetchPageData = async () => {
+    (async () => {
       try {
-        const response = await api.get(`/pages/${slug}`);
-        setPageData(response.data);
-      } catch {
-        // setError('Error fetching page data');
-        return <NotFoundPage />;
+        const res = await api.get(`/pages/${encodeURIComponent(slug)}`, {
+          signal: ctrl.signal,
+        });
+        setPageData(res.data);
+      } catch (e: any) {
+        if (ctrl.signal.aborted) return;
+        const status = e?.response?.status;
+        if (status === 404) setNotFound(true);
+        else setError("Failed to load page.");
       } finally {
-        setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       }
-    };
-    fetchPageData();
+    })();
+
+    return () => ctrl.abort();
   }, [slug]);
 
   if (loading) return <div className="text-center">Loading...</div>;
   if (error) return <div className="text-center text-red-500">{error}</div>;
-  if (!pageData) return <NotFoundPage />;
+  if (notFound || !pageData) return <NotFoundPage />;
   if (pageData.visible === false) return <InConstructionPage />;
 
   return (
@@ -77,15 +110,13 @@ const DynamicPage: React.FC = () => {
           {pageData.sections.map((section) => (
             <React.Fragment key={section.id}>
               {section.type === "text" && <p>{section.content}</p>}
+
               {section.type === "image" && (
                 <div className="w-full">
-                  <img
-                    src={section.content}
-                    alt="Section"
-                    className="w-full object-cover"
-                  />
+                  <img src={section.content} alt="Section" className="w-full object-cover" />
                 </div>
               )}
+
               {section.type === "video" && (
                 <div className="aspect-w-16 aspect-h-9">
                   <iframe
@@ -94,7 +125,7 @@ const DynamicPage: React.FC = () => {
                     frameBorder="0"
                     allowFullScreen
                     className="w-full h-96"
-                  ></iframe>
+                  />
                 </div>
               )}
 
