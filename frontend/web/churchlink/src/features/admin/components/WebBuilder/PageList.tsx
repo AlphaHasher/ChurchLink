@@ -17,7 +17,7 @@ const WebBuilderPageList = () => {
   useEffect(() => {
     const fetchPages = async () => {
       try {
-        const response = await api.get("/v1/pages");
+        const response = await api.get("/v1/pages/");
         setPages(response.data);
       } catch (error) {
         console.error("Error fetching pages:", error);

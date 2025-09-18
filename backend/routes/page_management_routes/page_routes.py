@@ -33,11 +33,31 @@ async def create_page(page: Page = Body(...)):
 # Public Router
 @public_page_router.get("/{slug}")
 async def get_page_by_slug(slug: str):
-    page = await DB.db["pages"].find_one({"slug": slug})
+    page = await DB.db["pages"].find_one({
+        "slug": slug,
+        "visible": True,
+        "published": True
+    })
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
     page["_id"] = str(page["_id"])
     return page
+
+# Public Router - List visible pages only
+@public_page_router.get("/")
+async def list_visible_pages(skip: int = 0, limit: int = 20):
+    """
+    List all visible and published pages for public consumption (navigation, menus, etc.)
+    Only returns pages where both visible=True and published=True
+    """
+    cursor = DB.db["pages"].find({
+        "visible": True,
+        "published": True
+    }).skip(skip).limit(limit)
+    pages = await cursor.to_list(length=limit)
+    for page in pages:
+        page["_id"] = str(page["_id"])
+    return pages
 
 # Mod Router
 # @router.put("/api/pages/{page_id}", dependencies=[Depends(permission_required(["can_edit_pages"]))])
@@ -81,9 +101,13 @@ async def delete_page(page_id: str = Path(...)):
 
     return {"deleted": result.deleted_count}
 
-# Mod Router
+# Mod Router - List all pages (including hidden ones) for admin management
 @mod_page_router.get("/")
-async def list_pages(skip: int = 0, limit: int = 20):
+async def list_all_pages(skip: int = 0, limit: int = 20):
+    """
+    List all pages for admin management (including hidden pages)
+    Returns all pages regardless of visibility status
+    """
     cursor = DB.db["pages"].find().skip(skip).limit(limit)
     pages = await cursor.to_list(length=limit)
     for page in pages:

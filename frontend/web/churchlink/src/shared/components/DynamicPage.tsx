@@ -10,7 +10,6 @@ import EventSection from "@/features/admin/components/WebBuilder/sections/EventS
 import MapSection from "@/features/admin/components/WebBuilder/sections/MapSection";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
-import Layout from "@/shared/layouts/Layout";
 
 export interface SectionSettings {
   showFilters?: boolean;
@@ -79,15 +78,24 @@ const DynamicPage: React.FC = () => {
     setNotFound(false);
     setPageData(null);
 
+    console.log("DynamicPage: Loading page with slug:", slug);
+
     (async () => {
       try {
-        const res = await api.get(`/v1/pages/${encodeURIComponent(slug)}`, {
+        const url = `/v1/pages/${encodeURIComponent(slug)}`;
+        console.log("DynamicPage: Fetching from:", url);
+        const res = await api.get(url, {
           signal: ctrl.signal,
         });
+        console.log("DynamicPage: Response received:", res.data);
+        console.log("DynamicPage: Number of sections:", res.data?.sections?.length);
         setPageData(res.data);
       } catch (e: any) {
         if (ctrl.signal.aborted) return;
         const status = e?.response?.status;
+        console.error("DynamicPage: Error loading page:", e);
+        console.error("DynamicPage: Error status:", status);
+        console.error("DynamicPage: Error data:", e?.response?.data);
         if (status === 404) setNotFound(true);
         else setError("Failed to load page.");
       } finally {
@@ -103,68 +111,75 @@ const DynamicPage: React.FC = () => {
   if (notFound || !pageData) return <NotFoundPage />;
   if (pageData.visible === false) return <InConstructionPage />;
 
+  console.log("DynamicPage: Rendering page:", pageData);
+  console.log("DynamicPage: Page sections:", pageData.sections);
+
   return (
-    <Layout>
+    <>
       {pageData.sections && pageData.sections.length > 0 ? (
         <>
-          {pageData.sections.map((section) => (
-            <React.Fragment key={section.id}>
-              {section.type === "text" && <p>{section.content}</p>}
+          {pageData.sections.map((section) => {
+            console.log("DynamicPage: Rendering section:", section.type, section);
+            return (
+              <React.Fragment key={section.id}>
+                {section.type === "text" && <p>{section.content}</p>}
 
-              {section.type === "image" && (
-                <div className="w-full">
-                  <img src={section.content} alt="Section" className="w-full object-cover" />
-                </div>
-              )}
+                {section.type === "image" && (
+                  <div className="w-full">
+                    <img src={section.content} alt="Section" className="w-full object-cover" />
+                  </div>
+                )}
 
-              {section.type === "video" && (
-                <div className="aspect-w-16 aspect-h-9">
-                  <iframe
-                    src={section.content}
-                    title="Embedded Video"
-                    frameBorder="0"
-                    allowFullScreen
-                    className="w-full h-96"
+                {section.type === "video" && (
+                  <div className="aspect-w-16 aspect-h-9">
+                    <iframe
+                      src={section.content}
+                      title="Embedded Video"
+                      frameBorder="0"
+                      allowFullScreen
+                      className="w-full h-96"
+                    />
+                  </div>
+                )}
+
+                {section.type === "hero" && <HeroSection data={section.content} isEditing={false} />}
+
+                {section.type === "paypal" && (
+                  <PaypalSection
+                    data={section.content}
+                    isEditing={false}
                   />
-                </div>
-              )}
+                )}
 
-              {section.type === "hero" && <HeroSection data={section.content} isEditing={false} />}
+                {section.type === "service-times" && <ServiceTimesSection data={section.content} isEditing={false} />}
 
-              {section.type === "paypal" && (
-                <PaypalSection
-                  data={section.content}
-                  isEditing={false}
-                />
-              )}
+                {section.type === "menu" && (
+                  <MenuSection data={section.content} isEditing={false} />
+                )}
 
-              {section.type === "service-times" && <ServiceTimesSection data={section.content} isEditing={false} />}
+                {section.type === "contact-info" && <ContactInfoSection data={section.content} isEditing={false} />}
 
-              {section.type === "menu" && (
-                <MenuSection data={section.content} isEditing={false} />
-              )}
-
-              {section.type === "contact-info" && <ContactInfoSection data={section.content} isEditing={false} />}
-
-              {section.type === "map" && (
-                <MapSection data={section.content} isEditing={false} />
-              )}
-              {section.type === "event" && (
-                <EventSection
-                  showFilters={section.settings?.showFilters !== false}
-                  eventName={section.settings?.eventName}
-                  lockedFilters={section.settings?.lockedFilters}
-                  title={section.settings?.title}
-                  showTitle={section.settings?.showTitle !== false}
-                />
-              )}
-            </React.Fragment>
-          ))}
+                {section.type === "map" && (
+                  <MapSection data={section.content} isEditing={false} />
+                )}
+                
+                {section.type === "event" && (
+                  <EventSection
+                    showFilters={section.settings?.showFilters !== false}
+                    eventName={section.settings?.eventName}
+                    lockedFilters={section.settings?.lockedFilters}
+                    title={section.settings?.title}
+                    showTitle={section.settings?.showTitle !== false}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </>
       ) : (
         <p>No content available.</p>
       )}
-    </Layout>
+    </>
   );
 };
 
