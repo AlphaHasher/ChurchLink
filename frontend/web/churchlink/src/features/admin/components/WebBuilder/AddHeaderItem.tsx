@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,} from "@dnd-kit/core";
-import {SortableContext, verticalListSortingStrategy, useSortable, arrayMove,} from "@dnd-kit/sortable";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 interface HeaderLink {
@@ -74,7 +74,7 @@ const AddHeaderItem = () => {
             return;
         }
         try {
-            const res = await api.post("/header/items/links", {
+            const res = await api.post("/v1/header/items/links", {
                 "title": newLinkTitle,
                 "russian_title": newLinkRussianTitle,
                 "url": newLinkUrl,
@@ -103,7 +103,7 @@ const AddHeaderItem = () => {
         }
 
         try {
-            const res = await api.post("/header/items/dropdowns", {
+            const res = await api.post("/v1/header/items/dropdowns", {
                 "title": newDropdownTitle,
                 "russian_title": newDropdownRussianTitle,
                 "items": dropdownLinks,
@@ -151,18 +151,16 @@ const AddHeaderItem = () => {
                 <div className="flex gap-4">
                     <button
                         type="button"
-                        className={`px-4 py-2 rounded ${
-                            itemType === "link" ? "text-white" : "text-gray-500"
-                        }`}
+                        className={`px-4 py-2 rounded ${itemType === "link" ? "text-white" : "text-gray-500"
+                            }`}
                         onClick={() => setItemType("link")}
                     >
                         Link
                     </button>
                     <button
                         type="button"
-                        className={`px-4 py-2 rounded ${
-                            itemType === "dropdown" ? "text-white" : "text-gray-500"
-                        }`}
+                        className={`px-4 py-2 rounded ${itemType === "dropdown" ? "text-white" : "text-gray-500"
+                            }`}
                         onClick={() => setItemType("dropdown")}
                     >
                         Dropdown

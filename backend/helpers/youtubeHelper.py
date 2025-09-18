@@ -31,7 +31,7 @@ def get_youtube_client(api_key):
     return build("youtube", "v3", developerKey=api_key)
 
 def get_callback_url(public_domain):
-    return f"{public_domain}/api/v1/webhook_listener/youtube_listener/live"
+    return f"{public_domain}/api/v1/youtube_listener/live"
 
 NOTIF_SUB_DELAY = 86400
 HUB_URL = "https://pubsubhubbub.appspot.com/subscribe"

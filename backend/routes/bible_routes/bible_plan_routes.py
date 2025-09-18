@@ -18,10 +18,14 @@ from models.bible_plan import (
 )
 
 
-bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans"])
+# This is renamed to mod bible plan router because it specifically requires mod permissions.
+# Consider changing in future to be based on PermProtectedRouter if specific perm is implemented
+# The name is a proactive change because in the future, we will also need public routes, so the name change is pre-empitive
+mod_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans"])
 
 
-@bible_plan_router.post("/", response_model=ReadingPlanOut, status_code=status.HTTP_201_CREATED)
+# Mod Route
+@mod_bible_plan_router.post("/", response_model=ReadingPlanOut, status_code=status.HTTP_201_CREATED)
 async def create_plan(plan: ReadingPlanCreate, request: Request) -> ReadingPlanOut:
     uid = request.state.uid
     created = await create_reading_plan(plan, uid)
@@ -29,14 +33,14 @@ async def create_plan(plan: ReadingPlanCreate, request: Request) -> ReadingPlanO
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create plan")
     return created
 
-
-@bible_plan_router.get("/", response_model=List[ReadingPlanOut])
+# Mod Route
+@mod_bible_plan_router.get("/", response_model=List[ReadingPlanOut])
 async def list_plans(request: Request, skip: int = 0, limit: int = Query(100, le=500)) -> List[ReadingPlanOut]:
     uid = request.state.uid
     return await list_reading_plans(uid, skip=skip, limit=limit)
 
-
-@bible_plan_router.get("/templates", response_model=List[ReadingPlanTemplateOut])
+# Mod Route
+@mod_bible_plan_router.get("/templates", response_model=List[ReadingPlanTemplateOut])
 async def list_bible_plan_templates():
     """Get all available Bible plan templates"""
     try:
@@ -45,16 +49,16 @@ async def list_bible_plan_templates():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch templates: {str(e)}")
 
-
-@bible_plan_router.get("/templates/id/{template_id}", response_model=ReadingPlanTemplateOut)
+# Mod Route
+@mod_bible_plan_router.get("/templates/id/{template_id}", response_model=ReadingPlanTemplateOut)
 async def get_bible_plan_template_by_id_endpoint(template_id: str):
     template = await get_bible_plan_template_by_id(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template with id '{template_id}' not found")
     return template
 
-
-@bible_plan_router.get("/templates/{template_name}", response_model=ReadingPlanTemplateOut)
+# Mod Route
+@mod_bible_plan_router.get("/templates/{template_name}", response_model=ReadingPlanTemplateOut)
 async def get_bible_plan_template(template_name: str):
     """Get a specific Bible plan template by name"""
     try:
@@ -67,14 +71,14 @@ async def get_bible_plan_template(template_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch template: {str(e)}")
 
-
-@bible_plan_router.get("/user/{user_id}", response_model=List[ReadingPlanOut])
+# Mod Route
+@mod_bible_plan_router.get("/user/{user_id}", response_model=List[ReadingPlanOut])
 async def get_user_plans(user_id: str) -> List[ReadingPlanOut]:
     plans = await get_reading_plans_from_user(user_id)
     return plans
 
-
-@bible_plan_router.get("/{plan_id}", response_model=ReadingPlanOut)
+# Mod Route
+@mod_bible_plan_router.get("/{plan_id}", response_model=ReadingPlanOut)
 async def get_plan(plan_id: str, request: Request) -> ReadingPlanOut:
     uid = request.state.uid
     plan = await get_reading_plan_by_id(plan_id, uid)
@@ -82,8 +86,8 @@ async def get_plan(plan_id: str, request: Request) -> ReadingPlanOut:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     return plan
 
-
-@bible_plan_router.put("/{plan_id}", response_model=ReadingPlanOut)
+# Mod Route
+@mod_bible_plan_router.put("/{plan_id}", response_model=ReadingPlanOut)
 async def update_plan(plan_id: str, update: ReadingPlanUpdate, request: Request) -> ReadingPlanOut:
     uid = request.state.uid
     updated = await update_reading_plan(plan_id, uid, update)
@@ -91,8 +95,8 @@ async def update_plan(plan_id: str, update: ReadingPlanUpdate, request: Request)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found or update failed")
     return updated
 
-
-@bible_plan_router.delete("/{plan_id}")
+# Mod Route
+@mod_bible_plan_router.delete("/{plan_id}")
 async def remove_plan(plan_id: str, request: Request) -> dict:
     uid = request.state.uid
     ok = await delete_reading_plan(plan_id, uid)

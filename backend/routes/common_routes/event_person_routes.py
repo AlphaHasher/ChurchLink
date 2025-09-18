@@ -1,26 +1,26 @@
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Query, Body, Depends, Request
+from typing import Optional
+from fastapi import APIRouter, HTTPException, status, Request
 from bson import ObjectId
 
-from protected_routers.auth_protected_router import AuthProtectedRouter
 from models.user import get_family_member_by_id
 from helpers.MongoHelper import serialize_objectid
 
-public_event_person_router = AuthProtectedRouter(prefix="/event-people", tags=["Event Registration"])
-event_person_router = AuthProtectedRouter(prefix="/event-people", tags=["Event People Management"])
+event_person_registration_router = APIRouter(prefix="/event-people", tags=["Event Registration"])
+event_person_management_router = APIRouter(prefix="/event-people", tags=["Event People Management"])
 
 #
 # --- Protected routes --- 
 #
 
+# Private Router
 # Get all events for a user
-@event_person_router.get("/user/{user_id}", response_model=dict)
-async def get_user_events_route(user_id: str, request: Request):
+@event_person_management_router.get("/user", response_model=dict)
+async def get_user_events_route(request: Request):
     try:
         from mongo.churchuser import UserHandler
         from bson import ObjectId
         
-        events = await UserHandler.list_my_events(user_id)
+        events = await UserHandler.list_my_events(request.state.uid)
         # Convert ObjectIds to strings for JSON serialization
         events_serialized = serialize_objectid(events)
         
@@ -28,25 +28,24 @@ async def get_user_events_route(user_id: str, request: Request):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching user events: {str(e)}")
 
-@event_person_router.get("/status/{event_id}/{user_id}", response_model=dict)
-async def get_registration_status_route(event_id: str, user_id: str, request: Request):
+
+# Private Router
+@event_person_management_router.get("/status/{event_id}", response_model=dict)
+async def get_registration_status_route(event_id: str, request: Request):
     try:
         # Simple implementation using existing rsvp_list
         from models.event import rsvp_list
         
         rsvp_data = await rsvp_list(event_id)
-        user_registered = any(r.get('uid') == user_id for r in rsvp_data.get('rsvp_list', []))
+        user_registered = any(r.get('uid') == request.state.uid for r in rsvp_data.get('rsvp_list', []))
         
-        return {"success": True, "status": {"event_id": event_id, "user_id": user_id, "registered": user_registered}}
+        return {"success": True, "status": {"event_id": event_id, "user_id": request.state.uid, "registered": user_registered}}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching registration status: {str(e)}")
  
-#
-# --- Public routes --- 
-#
-
+# Private Route
 # Add user to event
-@public_event_person_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
+@event_person_registration_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_user_for_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
@@ -61,8 +60,9 @@ async def register_user_for_event(event_id: str, request: Request):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error registering for event: {str(e)}")
 
+# Private Route
 # Remove user from event
-@public_event_person_router.delete("/unregister/{event_id}", response_model=dict)
+@event_person_registration_router.delete("/unregister/{event_id}", response_model=dict)
 async def unregister_user_from_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
@@ -77,8 +77,9 @@ async def unregister_user_from_event(event_id: str, request: Request):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error unregistering from event: {str(e)}")
 
+# Private Route
 # Get user's events
-@public_event_person_router.get("/my-events", response_model=dict)
+@event_person_registration_router.get("/my-events", response_model=dict)
 async def get_my_events(request: Request, include_family: bool = True):
     try:
         from mongo.churchuser import UserHandler
@@ -113,8 +114,9 @@ async def get_my_events(request: Request, include_family: bool = True):
 # --- Family Member Event Routes --- 
 #
 
+# Private Route
 # Register a family member for an event
-@public_event_person_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
+@event_person_registration_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
@@ -134,8 +136,9 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error registering family member for event: {str(e)}")
 
+# Private Route
 # Unregister a family member from an event
-@public_event_person_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
+@event_person_registration_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
 async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
@@ -155,8 +158,9 @@ async def unregister_family_member_from_event(event_id: str, family_member_id: s
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error unregistering family member from event: {str(e)}")
 
+# Private Route
 # Get all events for user's family members
-@public_event_person_router.get("/my-family-members-events", response_model=dict)
+@event_person_registration_router.get("/my-family-members-events", response_model=dict)
 async def get_my_family_members_events(request: Request, filters: Optional[str] = None):
     try:
         from mongo.churchuser import UserHandler
@@ -168,8 +172,9 @@ async def get_my_family_members_events(request: Request, filters: Optional[str] 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member events: {str(e)}")
 
+# Private Route
 # Get events for specific family member
-@public_event_person_router.get("/family-member/{family_member_id}/events", response_model=dict)
+@event_person_registration_router.get("/family-member/{family_member_id}/events", response_model=dict)
 async def get_family_member_events(family_member_id: str, request: Request):
     try:
         from mongo.churchuser import UserHandler

@@ -7,7 +7,7 @@ import HeroSection, { HeroContent } from "@/features/admin/components/WebBuilder
 import MenuSection, { MenuSectionContent } from "@/features/admin/components/WebBuilder/sections/MenuSection";
 import ContactInfoSection, { ContactInfoContent } from "@/features/admin/components/WebBuilder/sections/ContactInfoSection";
 import MapSection from "@/features/admin/components/WebBuilder/sections/MapSection";
-import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection"; 
+import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import MultiTagInput from "@/helpers/MultiTagInput";
 import {
   DndContext,
@@ -80,7 +80,7 @@ const EditPage = () => {
   const [eventSuggestions, setEventSuggestions] = useState<string[]>([]);
   const [newSectionType, setNewSectionType] = useState<Section["type"]>("text");
   const [, setSaving] = useState(false);
-  
+
   const sensors = useSensors(useSensor(PointerSensor));
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -94,7 +94,7 @@ const EditPage = () => {
   useEffect(() => {
     const fetchPage = async () => {
       try {
-        const res = await api.get(`/pages/${slug}`);
+        const res = await api.get(`/v1/pages/${slug}`);
         setPageData(res.data);
         setSections(res.data.sections || []);
       } catch (err) {
@@ -133,7 +133,7 @@ const EditPage = () => {
     console.log("Saving page with data:", JSON.stringify({ sections }));
     try {
       setSaving(true);
-      await api.put(`/pages/${_id}`, {
+      await api.put(`/v1/pages/${_id}`, {
         ...restPageData,
         sections,
       });
@@ -199,7 +199,7 @@ const EditPage = () => {
       defaultContent = "";
       settings = { showFilters: true, lockedFilters: {} }; // Default setting for event
     }
- 
+
     setSections([...sections, { id: Date.now().toString(), type, content: defaultContent, settings }]);
   };
 
@@ -243,7 +243,7 @@ const EditPage = () => {
           <div className="flex flex-col gap-4">
             {sections.map((section, index) => (
               <SortableItem key={section.id} id={section.id}>
-                
+
                 <div className="border p-4 rounded shadow bg-white">
                   <h2 className="text-lg font-semibold capitalize p-1">{section.type.replace("-", " ")} Section</h2>
                   {section.type === "text" && (
@@ -270,7 +270,7 @@ const EditPage = () => {
                           setSections(updatedSections);
                         }}
                       />
-                      
+
                     </div>
                   )}
                   {section.type === "video" && (
@@ -363,7 +363,7 @@ const EditPage = () => {
                   {section.type === "event" && (
                     <div className="mt-2 flex flex-col gap-2">
                       <label className="text-sm flex items-center gap-2">
-                      <input
+                        <input
                           type="checkbox"
                           checked={
                             !!section.settings?.showFilters &&
