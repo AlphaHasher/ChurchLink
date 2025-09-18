@@ -95,7 +95,7 @@ class RemoteNote {
 
 /// Handles communication with the backend
 class NotesApi {
-  // TODO: Announce server reconnect
+  // Announce server reconnect
   static final StreamController<void> _syncedCtr = StreamController<void>.broadcast();
   static Stream<void> get onSynced => _syncedCtr.stream;
 
@@ -107,8 +107,8 @@ class NotesApi {
       e is SocketException || e is HttpException || e is TimeoutException;
 
   // small retry timer after a failure
-  static Timer? _retryTimer; // TODO
-  static void _scheduleRetry() { // TODO
+  static Timer? _retryTimer;
+  static void _scheduleRetry() {
     _retryTimer?.cancel();
     _retryTimer = Timer(const Duration(seconds: 7), () {
       if (kDebugMode) debugPrint('[Outbox] scheduled drain');
@@ -177,7 +177,7 @@ class NotesApi {
           chapterStart: chapterStart,
           chapterEnd: chapterEnd,
         );
-        _scheduleRetry(); // TODO
+        _scheduleRetry();
         return cached;
       }
       rethrow;
@@ -258,8 +258,8 @@ class NotesApi {
           createdAt: DateTime.now(),
           updatedAt: null,
         );
-        await _Cache.upsert(optimistic);       // TODO
-        _scheduleRetry();                      // TODO
+        await _Cache.upsert(optimistic);
+        _scheduleRetry();
         return optimistic;
       }
       rethrow;
@@ -277,9 +277,9 @@ class NotesApi {
       return await _updateOnline(id, note: note, color: color);
     } catch (e) {
       if (_isOffline(e)) {
-        await _Outbox.enqueueUpdate(id, note: note, color: color);       // TODO
-        await _Cache.updatePartial(id, note: note, color: color);        // TODO
-        _scheduleRetry();                                                // TODO
+        await _Outbox.enqueueUpdate(id, note: note, color: color);
+        await _Cache.updatePartial(id, note: note, color: color);
+        _scheduleRetry();
         return RemoteNote(
           id: id,
           book: '',
@@ -302,9 +302,9 @@ class NotesApi {
       await _deleteOnline(id);
     } catch (e) {
       if (_isOffline(e)) {
-        await _Outbox.enqueueDelete(id);       // TODO
-        await _Cache.removeById(id);           // TODO
-        _scheduleRetry();                      // TODO
+        await _Outbox.enqueueDelete(id);
+        await _Cache.removeById(id);
+        _scheduleRetry();
         return;
       }
       rethrow;
@@ -410,14 +410,14 @@ class _Cache {
     final all = await _readAll();
     final filtered = all.where((m) {
       final b = (m['book'] as String?) ?? '';
-      final ch = (m['chapter'] as num?)?.toInt() ?? -1; // TODO
+      final ch = (m['chapter'] as num?)?.toInt() ?? -1;
       return b == book && ch >= chapterStart && ch <= chapterEnd;
     }).toList()
       ..sort((a, b) {
-        final ca = (a['chapter'] as num?)?.toInt() ?? 0; // TODO
-        final cb = (b['chapter'] as num?)?.toInt() ?? 0; // TODO
-        final va = (a['verse_start'] as num?)?.toInt() ?? 0; // TODO
-        final vb = (b['verse_start'] as num?)?.toInt() ?? 0; // TODO
+        final ca = (a['chapter'] as num?)?.toInt() ?? 0;
+        final cb = (b['chapter'] as num?)?.toInt() ?? 0;
+        final va = (a['verse_start'] as num?)?.toInt() ?? 0;
+        final vb = (b['verse_start'] as num?)?.toInt() ?? 0;
         final c = ca.compareTo(cb);
         return c != 0 ? c : va.compareTo(vb);
       });
@@ -462,8 +462,8 @@ class _Cache {
 class _Outbox {
   static const _fileName = 'notes_outbox.json';
 
-  // TODO: prevent concurrent drain runs
-  static bool _draining = false; // TODO
+  // prevent concurrent drain runs
+  static bool _draining = false; 
 
   static Future<File> _file() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -533,7 +533,7 @@ class _Outbox {
   }
 
   // robust int conversion from dynamic
-  static int _asInt(dynamic v, {int? or}) { // TODO
+  static int _asInt(dynamic v, {int? or}) {
     if (v == null) return or ?? 0;
     if (v is int) return v;
     if (v is num) return v.toInt();
