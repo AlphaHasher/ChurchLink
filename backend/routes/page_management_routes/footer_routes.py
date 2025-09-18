@@ -64,10 +64,9 @@ async def add_footer_item_route(item: FooterItem = Body(...)):
     return success
 
 # Mod Router
-# Why is this a get and not a DELETE??
 @mod_footer_router.get("/{title}", response_model=FooterItem)
 async def get_footer_item_route(title: str = Path(...)):
-    """Remove an item from the footer by title."""
+    """Get an item from the footer by title."""
     item = await get_item_by_title(title)
     if not item:
         raise HTTPException(status_code=404, detail="Footer not found, item not found, or update failed")

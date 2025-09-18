@@ -26,7 +26,7 @@ async def get_header_items_route():
         raise HTTPException(status_code=404, detail="Header not found and could not create default")
     return header
 
- # Mod Roue
+ # Mod Route
 @mod_header_router.post("/items/links", response_model=bool)
 async def add_header_link_route(item: HeaderLink = Body(...)):
     """Add a new item to the header."""
