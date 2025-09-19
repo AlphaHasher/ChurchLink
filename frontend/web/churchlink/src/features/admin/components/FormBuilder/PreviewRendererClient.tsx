@@ -39,7 +39,7 @@ export function PreviewRendererClient() {
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
       {schema.fields.filter((f) => isVisible(f.visibleIf)).map((f) => (
-        <FieldRenderer key={f.id} field={f} control={form.control} />
+        <FieldRenderer key={f.id} field={f} control={form.control} error={(form.formState.errors as any)?.[f.name]?.message as string | undefined} />
       ))}
       <div className="col-span-12">
         <Button type="submit">Validate</Button>

@@ -6,13 +6,15 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 
 type Props = {
   field: AnyField;
   control: Control<any>;
+  error?: string;
 };
 
-export function FieldRenderer({ field, control }: Props) {
+export function FieldRenderer({ field, control, error }: Props) {
   const colClass = cn("col-span-12", widthToCols(field.width));
   return (
     <div className={cn("flex flex-col gap-2", colClass)}>
@@ -60,7 +62,28 @@ export function FieldRenderer({ field, control }: Props) {
                 </div>
               );
             case "select": {
-              const opts = (field as any).options || [];
+              const f: any = field as any;
+              const opts = f.options || [];
+              if (f.multiple) {
+                const current: string[] = Array.isArray(rhf.value) ? rhf.value : [];
+                const toggle = (val: string, checked: boolean) => {
+                  const next = checked ? [...current, val] : current.filter((v) => v !== val);
+                  rhf.onChange(next);
+                };
+                return (
+                  <div className="flex flex-col gap-2">
+                    {opts.map((o: any) => (
+                      <label key={o.value} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={current.includes(o.value)}
+                          onCheckedChange={(v) => toggle(o.value, !!v)}
+                        />
+                        <span>{o.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              }
               return (
                 <Select value={rhf.value} onValueChange={rhf.onChange}>
                   <SelectTrigger id={field.name}>
@@ -77,21 +100,16 @@ export function FieldRenderer({ field, control }: Props) {
               );
             }
             case "radio": {
-              // For simplicity render as select; dedicated radio UI can be added later
               const opts = (field as any).options || [];
               return (
-                <Select value={rhf.value} onValueChange={rhf.onChange}>
-                  <SelectTrigger id={field.name}>
-                    <SelectValue placeholder={field.placeholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {opts.map((o: any) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <RadioGroup value={rhf.value} onValueChange={rhf.onChange}>
+                  {opts.map((o: any) => (
+                    <div className="flex items-center space-x-2" key={o.value}>
+                      <RadioGroupItem id={`${field.name}-${o.value}`} value={o.value} />
+                      <Label htmlFor={`${field.name}-${o.value}`}>{o.label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
               );
             }
             case "date":
@@ -107,6 +125,7 @@ export function FieldRenderer({ field, control }: Props) {
       {field.helpText && (
         <p className="text-xs text-muted-foreground">{field.helpText}</p>
       )}
+      {error && <p className="text-xs text-destructive">{String(error)}</p>}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { useBuilderStore } from "./store";
-import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableItem } from "./SortableItem";
 
@@ -12,7 +12,10 @@ export function Canvas() {
   const removeField = useBuilderStore((s) => s.removeField);
   const reorder = useBuilderStore((s) => s.reorder);
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor)
+  );
 
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -31,15 +34,32 @@ export function Canvas() {
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-2">
-              {fields.map((f) => (
+              {fields.map((f, idx) => (
                 <SortableItem key={f.id} id={f.id}>
-                  <div
-                    className={`flex items-center justify-between rounded border p-3 ${selectedId === f.id ? "border-ring" : "border-border"}`}
-                    onClick={() => select(f.id)}
-                  >
-                    <div className="text-sm">{f.label} <span className="text-muted-foreground">({f.type})</span></div>
-                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); removeField(f.id); }}>Remove</Button>
-                  </div>
+                  {({ setNodeRef, setActivatorNodeRef, attributes, listeners, style }) => (
+                    <div
+                      ref={setNodeRef}
+                      style={style}
+                      className={`flex items-center justify-between rounded border p-3 ${selectedId === f.id ? "border-ring" : "border-border"}`}
+                      onClick={() => select(f.id)}
+                      {...attributes}
+                    >
+                      <div className="text-sm flex items-center gap-2">
+                        <span
+                          ref={setActivatorNodeRef}
+                          className="mr-1 cursor-grab select-none"
+                          {...listeners}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label="Drag handle"
+                          title="Drag to reorder"
+                        >
+                          ⋮⋮
+                        </span>
+                        {idx + 1}. {f.label} <span className="text-muted-foreground">({f.type}{f.width ? ` • ${f.width}` : ""})</span>
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); removeField(f.id); }}>Remove</Button>
+                    </div>
+                  )}
                 </SortableItem>
               ))}
             </div>
