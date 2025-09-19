@@ -1,6 +1,5 @@
 import { Palette } from "./Palette";
 import { Canvas } from "./Canvas";
-import { Inspector } from "./Inspector";
 import { PreviewRendererClient } from "./PreviewRendererClient";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useEffect, useRef } from "react";
@@ -79,9 +78,6 @@ export function BuilderShell() {
           </ErrorBoundary>
         </div>
         <div className="col-span-12 md:col-span-4 space-y-4">
-          <ErrorBoundary>
-            <Inspector />
-          </ErrorBoundary>
           <div className="rounded border p-4">
             <h3 className="font-medium mb-2">Live Preview</h3>
             <ErrorBoundary>

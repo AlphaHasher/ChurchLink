@@ -1,6 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/Dialog";
+import { Pencil, Trash } from "lucide-react";
 import { useBuilderStore } from "./store";
+import { Inspector } from "./Inspector";
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
@@ -9,9 +12,9 @@ import { SortableItem } from "./SortableItem";
 export function Canvas() {
   const fields = useBuilderStore((s) => s.schema.fields);
   const select = useBuilderStore((s) => s.select);
-  const selectedId = useBuilderStore((s) => s.selectedId);
   const removeField = useBuilderStore((s) => s.removeField);
   const reorder = useBuilderStore((s) => s.reorder);
+  const selectedId = useBuilderStore((s) => s.selectedId);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -58,7 +61,27 @@ export function Canvas() {
                         </span>
                         {idx + 1}. {f.label} <span className="text-muted-foreground">({f.type}{f.width ? ` • ${f.width}` : ""})</span>
                       </div>
-                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); removeField(f.id); }}>Remove</Button>
+                      <div className="flex items-center gap-1">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); select(f.id); }} title="Edit">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Field</DialogTitle>
+                            </DialogHeader>
+                            {/* Inspector inside dialog */}
+                            <div className="max-h-[70vh] overflow-auto">
+                              <Inspector />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); removeField(f.id); }} title="Remove">
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </SortableItem>

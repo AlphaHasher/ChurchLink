@@ -19,9 +19,14 @@ export function Palette() {
       <CardHeader>
         <CardTitle>Palette</CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-2">
+      <CardContent className="flex flex-col gap-2">
         {items.map((it) => (
-          <Button key={it.type} variant="secondary" onClick={() => addField(it.type as any)}>
+          <Button
+            key={it.type}
+            className="w-full justify-start"
+            variant="secondary"
+            onClick={() => addField(it.type as any)}
+          >
             {it.label}
           </Button>
         ))}
