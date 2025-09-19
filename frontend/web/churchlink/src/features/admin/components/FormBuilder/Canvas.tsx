@@ -3,6 +3,7 @@ import { Button } from "@/shared/components/ui/button";
 import { useBuilderStore } from "./store";
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import { SortableItem } from "./SortableItem";
 
 export function Canvas() {
@@ -31,7 +32,7 @@ export function Canvas() {
         <CardTitle>Canvas</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+  <DndContext sensors={sensors} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis, restrictToParentElement]}>
           <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-2">
               {fields.map((f, idx) => (
