@@ -11,6 +11,7 @@ const Finance = lazy(() => import("../features/admin/pages/Finance"));
 const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
 const AddPage = lazy(() => import("../features/admin/components/WebBuilder/AddPage"));
 const EditPage = lazy(() => import("../features/admin/components/WebBuilder/EditPage"));
+const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/AdminPagePreview"));
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/EditHeader"));
 const EditHeaderItem = lazy(() => import("../features/admin/components/WebBuilder/EditHeaderItem"));
 const AddHeaderItem = lazy(() => import("../features/admin/components/WebBuilder/AddHeaderItem"));
@@ -35,6 +36,7 @@ export const AdminRoutes = () => {
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
+        <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
         <Route path="/webbuilder/header" element={<EditHeader />} />
         <Route path="/webbuilder/header/edit/:title" element={<EditHeaderItem />} />
         <Route path="/webbuilder/header/add" element={<AddHeaderItem />} />

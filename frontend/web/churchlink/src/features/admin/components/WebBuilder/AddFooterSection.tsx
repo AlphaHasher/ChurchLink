@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,} from "@dnd-kit/core";
-import {SortableContext, verticalListSortingStrategy, useSortable, arrayMove,} from "@dnd-kit/sortable";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 interface FooterItem {
@@ -74,7 +74,7 @@ const AddFooterItem = () => {
         }
 
         try {
-            const res = await api.post("/footer/items", {
+            const res = await api.post("/v1/footer/items", {
                 "title": newSectionTitle,
                 "russian_title": newSectionRussianTitle,
                 "items": sectionItems,

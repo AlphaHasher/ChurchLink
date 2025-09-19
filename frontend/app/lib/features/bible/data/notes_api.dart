@@ -1,112 +1,23 @@
-// Lightweight client for Bible Note routes.
-//
-// Routes defined in backend\routes\bible_routes\bible_note_routes.py:
-//   GET  /v1/bible-notes/reference/{book}
-//   GET  /v1/bible-notes/reference/{book}/{chapter}
-//   POST /v1/bible-notes/
-//   PUT  /v1/bible-notes/{note_id}
-//   DELETE /v1/bible-notes/{note_id}
-//
-// Auth: Firebase UID bearer token.
+// NotesApi (refactored): uses BibleHelper for all network I/O,
+// preserves offline cache + outbox + retry behavior.
 
+import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
-import 'package:dio/dio.dart';
-import 'package:app/helpers/api_client.dart';
-
-// offline/backoff utilities
-import 'dart:async'; 
 import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:path_provider/path_provider.dart';
 
+import 'package:app/helpers/bible_notes_helper.dart';
 
-enum ServerHighlight { blue, red, yellow, green, purple }
-
-/// Convert between possible formats for Highlight colors
-ServerHighlight? serverHighlightFrom(String? s) {
-  switch ((s ?? '').toLowerCase()) {
-    case 'blue':
-      return ServerHighlight.blue;
-    case 'red':
-      return ServerHighlight.red;
-    case 'yellow':
-      return ServerHighlight.yellow;
-    case 'green':
-      return ServerHighlight.green;
-    case 'purple':
-      return ServerHighlight.purple;
-    default:
-      return null;
-  }
-}
-
-String? serverHighlightToString(ServerHighlight? c) => c?.name;
-
-/// Reformats information for use with the server
-class RemoteNote {
-  final String id;
-  final String book; // canonical English name
-  final int chapter;
-  final int verseStart;
-  final int? verseEnd;
-  final String note;
-  final ServerHighlight? color;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-
-  RemoteNote({
-    required this.id,
-    required this.book,
-    required this.chapter,
-    required this.verseStart,
-    required this.verseEnd,
-    required this.note,
-    required this.color,
-    this.createdAt,
-    this.updatedAt,
-  });
-
-  factory RemoteNote.fromJson(Map<String, dynamic> j) => RemoteNote(
-        id: j['id']?.toString() ?? j['_id']?.toString() ?? '',
-        book: j['book'] as String,
-        chapter: (j['chapter'] as num).toInt(),
-        verseStart: (j['verse_start'] as num).toInt(),
-        verseEnd: j['verse_end'] == null ? null : (j['verse_end'] as num).toInt(),
-        note: (j['note'] as String?) ?? '',
-        color: serverHighlightFrom(j['highlight_color'] as String?),
-        createdAt: j['created_at'] != null
-            ? DateTime.tryParse(j['created_at'].toString())
-            : null,
-        updatedAt: j['updated_at'] != null
-            ? DateTime.tryParse(j['updated_at'].toString())
-            : null,
-      );
-
-  /// Backend requires a highlight_color on create; default to yellow if none chosen.
-  Map<String, dynamic> toCreateJson() => {
-        'book': book,
-        'chapter': chapter,
-        'verse_start': verseStart,
-        if (verseEnd != null) 'verse_end': verseEnd,
-        'note': note,
-        'highlight_color': (color ?? ServerHighlight.yellow).name,
-      };
-}
-
-/// Handles communication with the backend
 class NotesApi {
-  // Announce server reconnect
-  static final StreamController<void> _syncedCtr = StreamController<void>.broadcast();
+  static final StreamController<void> _syncedCtr =
+      StreamController<void>.broadcast();
   static Stream<void> get onSynced => _syncedCtr.stream;
 
-  // Use shared Dio client configured in ApiClient (baseUrl ends with /api)
-  static Dio get _dio => api;
-
-  // detect offline
   static bool _isOffline(Object e) =>
       e is SocketException || e is HttpException || e is TimeoutException;
 
-  // small retry timer after a failure
   static Timer? _retryTimer;
   static void _scheduleRetry() {
     _retryTimer?.cancel();
@@ -117,36 +28,31 @@ class NotesApi {
   }
 
   /// Read notes for a book and chapter range (inclusive).
-  static Future<List<RemoteNote>> getNotesForChapterRange({
+  static Future<List<RemoteNote>> getNotesForChapterRangeApi({
     required String book,
     required int chapterStart,
     required int chapterEnd,
     int skip = 0,
     int limit = 2000,
   }) async {
-    final qp = {
-      'chapter_start': '$chapterStart',
-      'chapter_end': '$chapterEnd',
-      'skip': '$skip',
-      'limit': '$limit',
-    };
-    if (kDebugMode) debugPrint('[NotesApi] GET /v1/bible-notes/reference/$book');
     try {
-      final r = await _dio.get('/v1/bible-notes/reference/$book', queryParameters: qp);
-      if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode}');
-
-      if (r.statusCode != 200) {
-        throw StateError('GET notes (range) failed: ${r.statusCode} ${r.data}');
+      if (kDebugMode) {
+        debugPrint('[NotesApi] GET /v1/bible-notes/reference/$book');
       }
-      final data = r.data as List;
-      var notes = data
-          .map((e) => RemoteNote.fromJson(e as Map<String, dynamic>))
-          .toList();
 
-      // cache fresh server data
+      // Online fetch via helper
+      final notes = await getNotesForChapterRange(
+        book: book,
+        chapterStart: chapterStart,
+        chapterEnd: chapterEnd,
+        skip: skip,
+        limit: limit,
+      );
+
+      // Cache fresh server data
       await _Cache.upsertMany(notes);
 
-      // keep local temps visible until they sync
+      // Keep local temps visible until they sync
       final cachedForRange = await _Cache.getRange(
         book,
         chapterStart: chapterStart,
@@ -171,7 +77,9 @@ class NotesApi {
       return notes;
     } catch (e) {
       if (_isOffline(e)) {
-        if (kDebugMode) debugPrint('[NotesApi] offline GET -> cache fallback');
+        if (kDebugMode) {
+          debugPrint('[NotesApi] offline GET -> cache fallback');
+        }
         final cached = await _Cache.getRange(
           book,
           chapterStart: chapterStart,
@@ -184,21 +92,12 @@ class NotesApi {
     }
   }
 
-  // Raw online paths (used by outbox)
-  static Future<RemoteNote> _createOnline(RemoteNote draft) async {
-    if (kDebugMode) {
-      debugPrint('[NotesApi] POST /v1/bible-notes/ body=${draft.toCreateJson()}');
-    }
-    final r = await _dio.post('/v1/bible-notes/', data: draft.toCreateJson());
-    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.data}');
-    if (r.statusCode != 200 && r.statusCode != 201) {
-      throw StateError('POST note failed: ${r.statusCode} ${r.data}');
-    }
-    final created = RemoteNote.fromJson(r.data as Map<String, dynamic>);
+  // --- Online ops (delegate to helper) ---
 
+  static Future<RemoteNote> _createOnline(RemoteNote draft) async {
+    final created = await createNote(draft);
     await _Cache.upsert(created);
     _syncedCtr.add(null);
-
     return created;
   }
 
@@ -207,34 +106,14 @@ class NotesApi {
     String? note,
     ServerHighlight? color,
   }) async {
-    final body = <String, dynamic>{};
-    if (note != null) body['note'] = note;
-    if (color != null) body['highlight_color'] = color.name;
-
-    if (kDebugMode) debugPrint('[NotesApi] PUT /v1/bible-notes/$id body=$body');
-    final r = await _dio.put('/v1/bible-notes/$id', data: body);
-    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.data}');
-
-    if (r.statusCode != 200) {
-      throw StateError('PUT note failed: ${r.statusCode} ${r.data}');
-    }
-    final updated = RemoteNote.fromJson(r.data as Map<String, dynamic>);
-
+    final updated = await updateNote(id, note: note, color: color);
     await _Cache.upsert(updated);
     _syncedCtr.add(null);
-
     return updated;
   }
 
   static Future<void> _deleteOnline(String id) async {
-    if (kDebugMode) debugPrint('[NotesApi] DELETE /v1/bible-notes/$id');
-    final r = await _dio.delete('/v1/bible-notes/$id');
-    if (kDebugMode) debugPrint('[NotesApi] -> ${r.statusCode} ${r.data}');
-
-    if (r.statusCode != 200) {
-      throw StateError('DELETE note failed: ${r.statusCode} ${r.data}');
-    }
-
+    await deleteNote(id);
     await _Cache.removeById(id);
     _syncedCtr.add(null);
   }
@@ -316,7 +195,7 @@ class NotesApi {
 }
 
 // -----------------------------------------------------------------------------
-// Store notes locally for offline access
+// Local cache (unchanged)
 // -----------------------------------------------------------------------------
 class _Cache {
   static const _fileName = 'notes_cache.json';
@@ -408,19 +287,20 @@ class _Cache {
     required int chapterEnd,
   }) async {
     final all = await _readAll();
-    final filtered = all.where((m) {
-      final b = (m['book'] as String?) ?? '';
-      final ch = (m['chapter'] as num?)?.toInt() ?? -1;
-      return b == book && ch >= chapterStart && ch <= chapterEnd;
-    }).toList()
-      ..sort((a, b) {
-        final ca = (a['chapter'] as num?)?.toInt() ?? 0;
-        final cb = (b['chapter'] as num?)?.toInt() ?? 0;
-        final va = (a['verse_start'] as num?)?.toInt() ?? 0;
-        final vb = (b['verse_start'] as num?)?.toInt() ?? 0;
-        final c = ca.compareTo(cb);
-        return c != 0 ? c : va.compareTo(vb);
-      });
+    final filtered =
+        all.where((m) {
+            final b = (m['book'] as String?) ?? '';
+            final ch = (m['chapter'] as num?)?.toInt() ?? -1;
+            return b == book && ch >= chapterStart && ch <= chapterEnd;
+          }).toList()
+          ..sort((a, b) {
+            final ca = (a['chapter'] as num?)?.toInt() ?? 0;
+            final cb = (b['chapter'] as num?)?.toInt() ?? 0;
+            final va = (a['verse_start'] as num?)?.toInt() ?? 0;
+            final vb = (b['verse_start'] as num?)?.toInt() ?? 0;
+            final c = ca.compareTo(cb);
+            return c != 0 ? c : va.compareTo(vb);
+          });
     return filtered
         .map((e) => RemoteNote.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -432,7 +312,11 @@ class _Cache {
     await _writeAll(all);
   }
 
-  static Future<void> updatePartial(String id, {String? note, ServerHighlight? color}) async {
+  static Future<void> updatePartial(
+    String id, {
+    String? note,
+    ServerHighlight? color,
+  }) async {
     final all = await _readAll();
     final i = all.indexWhere((m) => (m['id']?.toString() ?? '') == id);
     if (i < 0) return;
@@ -457,13 +341,11 @@ class _Cache {
 }
 
 // -----------------------------------------------------------------------------
-// Store offline note changes until connection can be established
+// Outbox (unchanged except delegating online ops via helper)
 // -----------------------------------------------------------------------------
 class _Outbox {
   static const _fileName = 'notes_outbox.json';
-
-  // prevent concurrent drain runs
-  static bool _draining = false; 
+  static bool _draining = false;
 
   static Future<File> _file() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -495,7 +377,9 @@ class _Outbox {
   }
 
   static Future<void> enqueueCreate(
-      String localId, Map<String, dynamic> payload) async {
+    String localId,
+    Map<String, dynamic> payload,
+  ) async {
     final jobs = await _read();
     jobs.add({
       'op': 'create',
@@ -507,8 +391,11 @@ class _Outbox {
     if (kDebugMode) debugPrint('[Outbox] queued create localId=$localId');
   }
 
-  static Future<void> enqueueUpdate(String id,
-      {String? note, ServerHighlight? color}) async {
+  static Future<void> enqueueUpdate(
+    String id, {
+    String? note,
+    ServerHighlight? color,
+  }) async {
     final jobs = await _read();
     jobs.add({
       'op': 'update',
@@ -532,7 +419,6 @@ class _Outbox {
     if (kDebugMode) debugPrint('[Outbox] queued delete id=$id');
   }
 
-  // robust int conversion from dynamic
   static int _asInt(dynamic v, {int? or}) {
     if (v == null) return or ?? 0;
     if (v is int) return v;
@@ -546,12 +432,10 @@ class _Outbox {
       return;
     }
     _draining = true;
-    var processedAny = false; 
+    var processedAny = false;
     try {
       var jobs = await _read();
-      if (jobs.isEmpty) {
-        return;
-      }
+      if (jobs.isEmpty) return;
 
       final idMap = <String, String>{}; // temp_id -> server_id
       int i = 0;
@@ -566,25 +450,30 @@ class _Outbox {
             final localId = rawLocal?.toString();
             final payloadAny = job['payload'];
             if (localId == null || payloadAny == null || payloadAny is! Map) {
-              if (kDebugMode) debugPrint('[Outbox] drop malformed create: $job');
+              if (kDebugMode)
+                debugPrint('[Outbox] drop malformed create: $job');
               jobs.removeAt(i);
               await _write(jobs);
               continue;
             }
             final p = Map<String, dynamic>.from(payloadAny as Map);
 
-            final created = await NotesApi._createOnline(RemoteNote(
-              id: 'new',
-              book: (p['book'] ?? '').toString(),
-              chapter: _asInt(p['chapter'], or: 0),
-              verseStart: _asInt(p['verse_start'], or: 0),
-              verseEnd: p['verse_end'] == null ? null : _asInt(p['verse_end']),
-              note: (p['note'] as String?) ?? '',
-              color: serverHighlightFrom(p['highlight_color'] as String?) ??
-                  ServerHighlight.yellow,
-              createdAt: null,
-              updatedAt: null,
-            ));
+            final created = await NotesApi._createOnline(
+              RemoteNote(
+                id: 'new',
+                book: (p['book'] ?? '').toString(),
+                chapter: _asInt(p['chapter'], or: 0),
+                verseStart: _asInt(p['verse_start'], or: 0),
+                verseEnd:
+                    p['verse_end'] == null ? null : _asInt(p['verse_end']),
+                note: (p['note'] as String?) ?? '',
+                color:
+                    serverHighlightFrom(p['highlight_color'] as String?) ??
+                    ServerHighlight.yellow,
+                createdAt: null,
+                updatedAt: null,
+              ),
+            );
             idMap[localId] = created.id;
 
             // Cache reconciliation
@@ -601,14 +490,17 @@ class _Outbox {
             jobs.removeAt(i);
             await _write(jobs);
             processedAny = true;
-            if (kDebugMode) debugPrint('[Outbox] create OK $localId -> ${created.id}');
+            if (kDebugMode) {
+              debugPrint('[Outbox] create OK $localId -> ${created.id}');
+            }
             continue;
           }
 
           if (op == 'update') {
             var id = job['id']?.toString();
             if (id == null) {
-              if (kDebugMode) debugPrint('[Outbox] drop malformed update: $job');
+              if (kDebugMode)
+                debugPrint('[Outbox] drop malformed update: $job');
               jobs.removeAt(i);
               await _write(jobs);
               continue;
@@ -616,7 +508,11 @@ class _Outbox {
             id = idMap[id] ?? id;
             final note = job['note'] as String?;
             final color = serverHighlightFrom(job['color'] as String?);
-            final updated = await NotesApi._updateOnline(id, note: note, color: color);
+            final updated = await NotesApi._updateOnline(
+              id,
+              note: note,
+              color: color,
+            );
             await _Cache.upsert(updated);
             jobs.removeAt(i);
             await _write(jobs);
@@ -628,7 +524,8 @@ class _Outbox {
           if (op == 'delete') {
             var id = job['id']?.toString();
             if (id == null) {
-              if (kDebugMode) debugPrint('[Outbox] drop malformed delete: $job');
+              if (kDebugMode)
+                debugPrint('[Outbox] drop malformed delete: $job');
               jobs.removeAt(i);
               await _write(jobs);
               continue;
@@ -638,7 +535,7 @@ class _Outbox {
             await _Cache.removeById(id);
             jobs.removeAt(i);
             await _write(jobs);
-            processedAny = true; 
+            processedAny = true;
             if (kDebugMode) debugPrint('[Outbox] delete OK id=$id');
             continue;
           }

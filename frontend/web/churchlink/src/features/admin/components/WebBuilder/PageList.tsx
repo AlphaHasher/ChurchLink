@@ -17,7 +17,7 @@ const WebBuilderPageList = () => {
   useEffect(() => {
     const fetchPages = async () => {
       try {
-        const response = await api.get("/pages");
+        const response = await api.get("/v1/pages/");
         setPages(response.data);
       } catch (error) {
         console.error("Error fetching pages:", error);
@@ -28,7 +28,7 @@ const WebBuilderPageList = () => {
 
   const toggleVisibility = async (id: string, current: boolean) => {
     try {
-      await api.put(`/pages/${id}`, { visible: !current });
+      await api.put(`/v1/pages/${id}`, { visible: !current });
       setPages((prev) =>
         prev.map((p) => (p._id === id ? { ...p, visible: !current } : p))
       );
@@ -39,7 +39,7 @@ const WebBuilderPageList = () => {
 
   const toggleLock = async (id: string, current: boolean) => {
     try {
-      await api.put(`/pages/${id}`, { locked: !current });
+      await api.put(`/v1/pages/${id}`, { locked: !current });
       setPages((prev) =>
         prev.map((p) => (p._id === id ? { ...p, locked: !current } : p))
       );
@@ -53,7 +53,7 @@ const WebBuilderPageList = () => {
     if (!confirmDelete) return;
 
     try {
-      await api.delete(`/pages/${id}`);
+      await api.delete(`/v1/pages/${id}`);
       setPages((prev) => prev.filter((p) => p._id !== id));
     } catch (error) {
       console.error("Error deleting page:", error);
@@ -62,15 +62,15 @@ const WebBuilderPageList = () => {
 
   return (
     <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-semibold">Website Pages</h1>
-            <button
-                onClick={() => navigate("/admin/webbuilder/add")}
-                className="px-4 py-2 rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors flex items-center"
-            >
-                <span className="mr-1">+</span> Add Page
-            </button>
-        </div>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-semibold">Website Pages</h1>
+        <button
+          onClick={() => navigate("/admin/webbuilder/add")}
+          className="px-4 py-2 rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors flex items-center"
+        >
+          <span className="mr-1">+</span> Add Page
+        </button>
+      </div>
       <div className="bg-white rounded shadow-md overflow-hidden">
         <table className="min-w-full table-auto text-left">
           <thead className="bg-gray-100 text-gray-700 text-sm">
@@ -92,9 +92,8 @@ const WebBuilderPageList = () => {
                 <td className="px-4 py-3 text-blue-600">{page.slug}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${
-                      page.visible ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                    }`}
+                    className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${page.visible ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                      }`}
                   >
                     {page.visible ? "Visible" : "Hidden"}
                   </span>
@@ -113,6 +112,12 @@ const WebBuilderPageList = () => {
                     className="text-sm text-blue-600 hover:underline"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => navigate(`/admin/webbuilder/preview/${page.slug}`)}
+                    className="text-sm text-green-600 hover:underline"
+                  >
+                    Preview
                   </button>
                   <button
                     onClick={() => toggleVisibility(page._id, page.visible)}

@@ -87,7 +87,7 @@ const EditHeader = () => {
     const fetchHeader = async () => {
         try {
             setLoading(true);
-            const response = await api.get("/header/items");
+            const response = await api.get("/v1/header/items");
             setOriginalHeader(response.data);
             setHeader(response.data);
             // Reset pending changes
@@ -162,17 +162,17 @@ const EditHeader = () => {
 
             // 1. Process removals
             for (const title of pendingChanges.removals) {
-                await api.delete(`/header/${title}`);
+                await api.delete(`/v1/header/${title}`);
             }
 
             // 2. Apply visibility changes
             for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                await api.put(`/header/${title}/visibility`, { visible });
+                await api.put(`/v1/header/${title}/visibility`, { visible });
             }
 
             // 3. Save reordering last (after removals are processed)
             const currentTitles = header.items.map(item => item.title);
-            await api.put("/header/reorder", {titles: currentTitles});
+            await api.put("/v1/header/reorder", { titles: currentTitles });
             toast.success("Navigation changes saved successfully");
 
             // Refresh data from server

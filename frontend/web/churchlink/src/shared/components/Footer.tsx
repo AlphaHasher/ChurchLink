@@ -29,7 +29,7 @@ const Footer = () => {
         const fetchFooterData = async () => {
             try {
                 setLoading(true);
-                const response = await api.get("/footer/items");
+                const response = await api.get("/v1/footer/items");
                 setFooterData(response.data);
                 setError(null);
             } catch (err) {

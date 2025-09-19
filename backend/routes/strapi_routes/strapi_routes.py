@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 strapi_router = APIRouter(prefix="/strapi", tags=["strapi"])
 
-strapi_protected_router = ModProtectedRouter(prefix="/strapi", tags=["strapi"])
+strapi_protected_router = APIRouter(prefix="/strapi", tags=["strapi"])
 
 ###################
 # Article routes

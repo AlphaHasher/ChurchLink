@@ -19,8 +19,8 @@ const AddPage = () => {
 
   const checkSlugExists = async (slug: string): Promise<boolean> => {
     try {
-      const response = await api.get(`/pages/check-slug?slug=${slug}`);
-      return response.data.exists;
+      const response = await api.get(`/v1/pages/check-slug?slug=${slug}`);
+      return !response.data.available;
     } catch (err) {
       console.error("Error checking slug:", err);
       return false;
@@ -40,7 +40,7 @@ const AddPage = () => {
         return;
       }
 
-      const res = await api.post("/pages", {
+      const res = await api.post("/v1/pages", {
         title,
         slug: newSlug,
         visible: true,
@@ -81,9 +81,8 @@ const AddPage = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`${
-            loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-          } text-white px-4 py-2 rounded`}
+          className={`${loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            } text-white px-4 py-2 rounded`}
         >
           {loading ? "Creating..." : "Create Page"}
         </button>

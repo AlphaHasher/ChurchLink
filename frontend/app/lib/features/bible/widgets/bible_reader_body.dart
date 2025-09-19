@@ -19,19 +19,21 @@ import '../data/notes_api.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
+import 'package:app/helpers/bible_notes_helper.dart';
+
 /// List of possible highlight colors, matching what the API supports
 enum HighlightColor { none, blue, red, yellow, green, purple }
 
 /// Converts colors between different formats
 extension HighlightColorServerCodec on HighlightColor {
   String? get apiValue => switch (this) {
-        HighlightColor.none => null,
-        HighlightColor.blue => 'blue',
-        HighlightColor.red => 'red',
-        HighlightColor.yellow => 'yellow',
-        HighlightColor.green => 'green',
-        HighlightColor.purple => 'purple',
-      };
+    HighlightColor.none => null,
+    HighlightColor.blue => 'blue',
+    HighlightColor.red => 'red',
+    HighlightColor.yellow => 'yellow',
+    HighlightColor.green => 'green',
+    HighlightColor.purple => 'purple',
+  };
 
   static HighlightColor fromApi(String? s) {
     switch ((s ?? '').toLowerCase()) {
@@ -101,8 +103,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   };
 
   // Remote ID index (so we can update/delete correct rows)
-  final Map<String, String> _noteIdByKey = <String, String>{}; // "Book|C|V" -> id
-  final Map<String, String> _noteIdByCluster = <String, String>{}; // clusterId -> id
+  final Map<String, String> _noteIdByKey =
+      <String, String>{}; // "Book|C|V" -> id
+  final Map<String, String> _noteIdByCluster =
+      <String, String>{}; // clusterId -> id
 
   // TODO: listen for server-sync events + auth changes
   StreamSubscription? _notesSyncSub; // TODO
@@ -118,7 +122,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   String get _otherTx => _canonicalTx(_translation) == 'kjv' ? 'rst' : 'kjv';
 
   bool _booksReady = false;
-  String _localeForTx(String tx) => tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
+  String _localeForTx(String tx) =>
+      tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
 
   // Catalog wrappers
   List<String> get _bookNames =>
@@ -186,7 +191,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     await ElishaBibleRepo.ensureInitialized();
 
     if (kDebugMode) {
-      debugPrint('[BibleReader] getChapter tx=$_translation book=$_book ch=$_chapter');
+      debugPrint(
+        '[BibleReader] getChapter tx=$_translation book=$_book ch=$_chapter',
+      );
     }
 
     final data = await _repo.getChapter(
@@ -220,12 +227,19 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     if (mounted) setState(() {});
   }
 
-  VerseKey _keyOf(VerseRef r) => (book: r.book, chapter: r.chapter, verse: r.verse);
+  VerseKey _keyOf(VerseRef r) => (
+    book: r.book,
+    chapter: r.chapter,
+    verse: r.verse,
+  );
 
   bool _existsInOther(VerseRef ref) {
     final m = _matcher;
     if (m == null) return false;
-    return m.existsInOther(fromTx: _canonicalTx(_translation), key: _keyOf(ref));
+    return m.existsInOther(
+      fromTx: _canonicalTx(_translation),
+      key: _keyOf(ref),
+    );
   }
 
   Iterable<VerseKey> _sameTxSiblingsFor(VerseRef ref) {
@@ -246,9 +260,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
     final siblings = <String, VerseKey>{};
     for (final t in toOther) {
-      final back = (me.book == 'Psalms')
-          ? m.matchToOtherRuleOnly(fromTx: otherTx, key: t)
-          : m.matchToOther(fromTx: otherTx, key: t);
+      final back =
+          (me.book == 'Psalms')
+              ? m.matchToOtherRuleOnly(fromTx: otherTx, key: t)
+              : m.matchToOther(fromTx: otherTx, key: t);
       for (final s in back) {
         if (s.book == me.book &&
             !(s.chapter == me.chapter && s.verse == me.verse)) {
@@ -271,7 +286,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         final k = (
           book: p[0],
           chapter: int.tryParse(p[1]) ?? 0,
-          verse: int.tryParse(p[2]) ?? 0
+          verse: int.tryParse(p[2]) ?? 0,
         );
         if (m.existsInOther(fromTx: _canonicalTx(tx), key: k)) {
           final cid = m.clusterId(_canonicalTx(tx), k);
@@ -289,7 +304,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         final k = (
           book: p[0],
           chapter: int.tryParse(p[1]) ?? 0,
-          verse: int.tryParse(p[2]) ?? 0
+          verse: int.tryParse(p[2]) ?? 0,
         );
         if (m.existsInOther(fromTx: _canonicalTx(tx), key: k)) {
           final cid = m.clusterId(_canonicalTx(tx), k);
@@ -319,18 +334,26 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
     try {
       if (kDebugMode) {
-        debugPrint('[Sync.Read] $bookCanon ch=$c window=[$start..$end] tx=$_translation');
+        debugPrint(
+          '[Sync.Read] $bookCanon ch=$c window=[$start..$end] tx=$_translation',
+        );
       }
 
-      final items = await NotesApi.getNotesForChapterRange(
+      final items = await getNotesForChapterRange(
         book: bookCanon,
         chapterStart: start,
         chapterEnd: end,
       );
 
       items.sort((a, b) {
-        final ax = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bx = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final ax =
+            a.updatedAt ??
+            a.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final bx =
+            b.updatedAt ??
+            b.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return ax.compareTo(bx);
       });
 
@@ -371,13 +394,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// Sends selected color values to the backend API
   ServerHighlight? _serverFromUi(HighlightColor c) => switch (c) {
-        HighlightColor.blue => ServerHighlight.blue,
-        HighlightColor.red => ServerHighlight.red,
-        HighlightColor.yellow => ServerHighlight.yellow,
-        HighlightColor.green => ServerHighlight.green,
-        HighlightColor.purple => ServerHighlight.purple,
-        HighlightColor.none => null,
-      };
+    HighlightColor.blue => ServerHighlight.blue,
+    HighlightColor.red => ServerHighlight.red,
+    HighlightColor.yellow => ServerHighlight.yellow,
+    HighlightColor.green => ServerHighlight.green,
+    HighlightColor.purple => ServerHighlight.purple,
+    HighlightColor.none => null,
+  };
 
   // ===== Effective lookups =====
   HighlightColor _colorFor(VerseRef ref) {
@@ -392,12 +415,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       final bool isPsalms = me.book == 'Psalms';
       List<VerseKey> counterparts;
       if (isPsalms) {
-        final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
+        final ro = m.matchToOtherRuleOnly(
+          fromTx: _canonicalTx(_translation),
+          key: me,
+        );
         final hasCross = ro.any((x) => x.chapter != me.chapter);
         counterparts =
-            hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
+            hasCross
+                ? ro.where((x) => x.chapter != me.chapter).toList()
+                : const <VerseKey>[];
       } else {
-        counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
+        counterparts = m.matchToOther(
+          fromTx: _canonicalTx(_translation),
+          key: me,
+        );
       }
       for (final other in counterparts) {
         final otherCid = m.clusterId(_otherTx, other);
@@ -427,12 +458,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       final bool isPsalms = me.book == 'Psalms';
       List<VerseKey> counterparts;
       if (isPsalms) {
-        final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
+        final ro = m.matchToOtherRuleOnly(
+          fromTx: _canonicalTx(_translation),
+          key: me,
+        );
         final hasCross = ro.any((x) => x.chapter != me.chapter);
         counterparts =
-            hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
+            hasCross
+                ? ro.where((x) => x.chapter != me.chapter).toList()
+                : const <VerseKey>[];
       } else {
-        counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
+        counterparts = m.matchToOther(
+          fromTx: _canonicalTx(_translation),
+          key: me,
+        );
       }
       for (final other in counterparts) {
         final otherCid = m.clusterId(_otherTx, other);
@@ -508,106 +547,117 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         String selBook = _bookNames[_bookIndex(_book)];
         int selChap = _chapter;
 
-        return StatefulBuilder(builder: (ctx, setSheet) {
-          final total = _chapterCount(selBook);
-          return SafeArea(
-            child: LayoutBuilder(
-              builder: (ctx, constraints) {
-                final maxH = constraints.maxHeight * 0.92;
-                return ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: maxH),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      top: 12,
-                      bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
-                    ),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: SingleChildScrollView(
-                            physics: const ClampingScrollPhysics(),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text('Jump to',
-                                    style: Theme.of(ctx).textTheme.titleMedium),
-                                const SizedBox(height: 12),
-                                DropdownButtonFormField<String>(
-                                  value: selBook,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Book',
-                                    border: OutlineInputBorder(),
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            final total = _chapterCount(selBook);
+            return SafeArea(
+              child: LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final maxH = constraints.maxHeight * 0.92;
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: maxH),
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 12,
+                        bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
+                      ),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    'Jump to',
+                                    style: Theme.of(ctx).textTheme.titleMedium,
                                   ),
-                                  items: _bookNames
-                                      .map((b) => DropdownMenuItem(
-                                            value: b,
-                                            child: Text(b),
-                                          ))
-                                      .toList(),
-                                  onChanged: (b) {
-                                    if (b == null) return;
-                                    setSheet(() {
-                                      selBook = b;
-                                      selChap = 1;
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text('Chapter',
-                                      style:
-                                          Theme.of(ctx).textTheme.labelLarge),
-                                ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: List.generate(total, (i) {
-                                    final c = i + 1;
-                                    final selected = c == selChap;
-                                    return ChoiceChip(
-                                      label: Text('$c'),
-                                      selected: selected,
-                                      onSelected: (_) =>
-                                          setSheet(() => selChap = c),
-                                    );
-                                  }),
-                                ),
-                              ],
+                                  const SizedBox(height: 12),
+                                  DropdownButtonFormField<String>(
+                                    value: selBook,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Book',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items:
+                                        _bookNames
+                                            .map(
+                                              (b) => DropdownMenuItem(
+                                                value: b,
+                                                child: Text(b),
+                                              ),
+                                            )
+                                            .toList(),
+                                    onChanged: (b) {
+                                      if (b == null) return;
+                                      setSheet(() {
+                                        selBook = b;
+                                        selChap = 1;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'Chapter',
+                                      style: Theme.of(ctx).textTheme.labelLarge,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: List.generate(total, (i) {
+                                      final c = i + 1;
+                                      final selected = c == selChap;
+                                      return ChoiceChip(
+                                        label: Text('$c'),
+                                        selected: selected,
+                                        onSelected:
+                                            (_) => setSheet(() => selChap = c),
+                                      );
+                                    }),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('Cancel'),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Cancel'),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: () =>
-                                    Navigator.pop(ctx, (selBook, selChap)),
-                                child: const Text('Go'),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed:
+                                      () => Navigator.pop(ctx, (
+                                        selBook,
+                                        selChap,
+                                      )),
+                                  child: const Text('Go'),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          );
-        });
+                  );
+                },
+              ),
+            );
+          },
+        );
       },
     );
     if (result != null) {
@@ -629,11 +679,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     final res = await showModalBottomSheet<_ActionResult>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => _VerseActionsSheet(
-        verseLabel: v.$1.toString(),
-        currentHighlight: _colorFor(v.$1),
-        existingNote: _noteFor(v.$1),
-      ),
+      builder:
+          (ctx) => _VerseActionsSheet(
+            verseLabel: v.$1.toString(),
+            currentHighlight: _colorFor(v.$1),
+            existingNote: _noteFor(v.$1),
+          ),
     );
     if (res == null) return;
 
@@ -650,12 +701,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           final bool isPsalms = me.book == 'Psalms';
           List<VerseKey> counterparts;
           if (isPsalms) {
-            final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
+            final ro = m.matchToOtherRuleOnly(
+              fromTx: _canonicalTx(_translation),
+              key: me,
+            );
             final hasCross = ro.any((x) => x.chapter != me.chapter);
             counterparts =
-                hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
+                hasCross
+                    ? ro.where((x) => x.chapter != me.chapter).toList()
+                    : const <VerseKey>[];
           } else {
-            counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
+            counterparts = m.matchToOther(
+              fromTx: _canonicalTx(_translation),
+              key: me,
+            );
           }
 
           final cids = <String>{selfCid};
@@ -691,12 +750,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             final bool isPsalms = me.book == 'Psalms';
             List<VerseKey> counterparts;
             if (isPsalms) {
-              final ro = m.matchToOtherRuleOnly(fromTx: _canonicalTx(_translation), key: me);
+              final ro = m.matchToOtherRuleOnly(
+                fromTx: _canonicalTx(_translation),
+                key: me,
+              );
               final hasCross = ro.any((x) => x.chapter != me.chapter);
               counterparts =
-                  hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
+                  hasCross
+                      ? ro.where((x) => x.chapter != me.chapter).toList()
+                      : const <VerseKey>[];
             } else {
-              counterparts = m.matchToOther(fromTx: _canonicalTx(_translation), key: me);
+              counterparts = m.matchToOther(
+                fromTx: _canonicalTx(_translation),
+                key: me,
+              );
             }
 
             final cids = <String>{selfCid};
@@ -705,7 +772,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             }
             for (final s in _sameTxSiblingsFor(v.$1)) {
               cids.add(m.clusterId(_canonicalTx(_translation), s));
-              _hlPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
+              _hlPerTx[_translation]?.remove(
+                '${s.book}|${s.chapter}|${s.verse}',
+              );
             }
 
             for (final cid in cids) {
@@ -726,7 +795,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
               _notesPerTx[tx]?.remove(_k(v.$1));
             }
             for (final s in _sameTxSiblingsFor(v.$1)) {
-              _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
+              _notesPerTx[_translation]?.remove(
+                '${s.book}|${s.chapter}|${s.verse}',
+              );
             }
           } else {
             _notesPerTx[_translation]?[_k(v.$1)] = txt;
@@ -775,20 +846,24 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       final m = _matcher;
       final cid = m?.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
       String? id =
-          (cid != null ? _noteIdByCluster[cid] : null) ?? _noteIdByKey[_k(v.$1)];
+          (cid != null ? _noteIdByCluster[cid] : null) ??
+          _noteIdByKey[_k(v.$1)];
 
       if (kDebugMode) {
-        debugPrint('[WriteThrough] ref=${_k(v.$1)} cid=${cid ?? "-"} id=${id ?? "-"} '
-            'noteDelete=${res.noteDelete} noteLen=${(res.noteText ?? "").length} '
-            'hl=${res.highlight?.name}');
+        debugPrint(
+          '[WriteThrough] ref=${_k(v.$1)} cid=${cid ?? "-"} id=${id ?? "-"} '
+          'noteDelete=${res.noteDelete} noteLen=${(res.noteText ?? "").length} '
+          'hl=${res.highlight?.name}',
+        );
       }
 
       if (res.noteDelete == true) {
         if (id != null && id.startsWith('temp_')) {
           await NotesApi.drainOutbox();
           await _syncFetchChapterNotes();
-          id = (cid != null ? _noteIdByCluster[cid] : null)
-              ?? _noteIdByKey[_k(v.$1)];
+          id =
+              (cid != null ? _noteIdByCluster[cid] : null) ??
+              _noteIdByKey[_k(v.$1)];
         }
 
         if (id != null) {
@@ -802,15 +877,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         if (txt.isNotEmpty) {
           if (id == null) {
             if (kDebugMode) debugPrint('[WriteThrough] CREATE note');
-            final created = await NotesApi.create(RemoteNote(
-              id: 'new',
-              book: v.$1.book,
-              chapter: v.$1.chapter,
-              verseStart: v.$1.verse,
-              verseEnd: null,
-              note: txt,
-              color: null, // toCreateJson() will default this to yellow.
-            ));
+            final created = await NotesApi.create(
+              RemoteNote(
+                id: 'new',
+                book: v.$1.book,
+                chapter: v.$1.chapter,
+                verseStart: v.$1.verse,
+                verseEnd: null,
+                note: txt,
+                color: null, // toCreateJson() will default this to yellow.
+              ),
+            );
             _noteIdByKey[_k(v.$1)] = created.id;
             if (cid != null) _noteIdByCluster[cid] = created.id;
           } else {
@@ -835,37 +912,42 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         final sc = _serverFromUi(color);
         final cid2 = m?.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
         String? id2 =
-            (cid2 != null ? _noteIdByCluster[cid2] : null) ?? _noteIdByKey[_k(v.$1)];
+            (cid2 != null ? _noteIdByCluster[cid2] : null) ??
+            _noteIdByKey[_k(v.$1)];
 
         if (color != HighlightColor.none) {
           if (id2 == null) {
             if (kDebugMode) debugPrint('[WriteThrough] CREATE highlight');
-            final created = await NotesApi.create(RemoteNote(
-              id: 'new',
-              book: v.$1.book,
-              chapter: v.$1.chapter,
-              verseStart: v.$1.verse,
-              verseEnd: null,
-              note: '',
-              color: sc, // explicit valid color
-            ));
+            final created = await NotesApi.create(
+              RemoteNote(
+                id: 'new',
+                book: v.$1.book,
+                chapter: v.$1.chapter,
+                verseStart: v.$1.verse,
+                verseEnd: null,
+                note: '',
+                color: sc, // explicit valid color
+              ),
+            );
             _noteIdByKey[_k(v.$1)] = created.id;
             if (cid2 != null) _noteIdByCluster[cid2] = created.id;
           } else {
             if (kDebugMode) {
-              debugPrint('[WriteThrough] UPDATE highlight id=$id2 -> ${sc?.name}');
+              debugPrint(
+                '[WriteThrough] UPDATE highlight id=$id2 -> ${sc?.name}',
+              );
             }
             await NotesApi.update(id2, color: sc);
           }
         } else {
-          final existingTxt = (_notesPerTx[_translation]?[_k(v.$1)] ??
-                  _notesShared[cid2 ?? ''] ??
-                  '')
-              .trim();
+          final existingTxt =
+              (_notesPerTx[_translation]?[_k(v.$1)] ??
+                      _notesShared[cid2 ?? ''] ??
+                      '')
+                  .trim();
           if (existingTxt.isEmpty && id2 != null) {
-            if (kDebugMode) {
+            if (kDebugMode)
               debugPrint('[WriteThrough] DELETE row (clear highlight) id=$id2');
-            }
             await NotesApi.delete(id2);
             if (cid2 != null) _noteIdByCluster.remove(cid2);
             _noteIdByKey.remove(_k(v.$1));
@@ -891,7 +973,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           child: IconButtonTheme(
             data: IconButtonThemeData(
               style: ButtonStyle(
-                foregroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                foregroundColor: WidgetStateProperty.resolveWith<Color?>((
+                  states,
+                ) {
                   final base = Theme.of(context).colorScheme.onSurface;
                   return states.contains(WidgetState.disabled)
                       ? base.withValues(alpha: 0.35)
@@ -901,7 +985,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             ),
             child: IconTheme(
               data: IconThemeData(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
               child: Row(
                 children: [
@@ -910,7 +996,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                     onPressed: _isAtFirstChapter ? null : _prevChapter,
                     icon: Icon(
                       Icons.chevron_left,
-                      color: _isAtFirstChapter ? Colors.white38 : Colors.white70,
+                      color:
+                          _isAtFirstChapter ? Colors.white38 : Colors.white70,
                     ),
                   ),
                   Expanded(
@@ -921,9 +1008,14 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       child: TextButton(
                         onPressed: _openJumpPicker,
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           backgroundColor:
-                              Theme.of(context).colorScheme.surfaceContainerHigh,
+                              Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHigh,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -945,18 +1037,33 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       setState(() {
                         _translation = val;
                         if (_booksReady) {
-                          Books.instance.setLocaleCode(_localeForTx(_translation));
+                          Books.instance.setLocaleCode(
+                            _localeForTx(_translation),
+                          );
                         }
                       });
                       _load();
                     },
-                    itemBuilder: (ctx) => _translations
-                        .map((t) => PopupMenuItem(value: t, child: Text(t.toUpperCase())))
-                        .toList(),
+                    itemBuilder:
+                        (ctx) =>
+                            _translations
+                                .map(
+                                  (t) => PopupMenuItem(
+                                    value: t,
+                                    child: Text(t.toUpperCase()),
+                                  ),
+                                )
+                                .toList(),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: Theme.of(context).dividerColor,
@@ -977,10 +1084,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   IconButton(
                     tooltip: 'Search',
                     onPressed: null,
-                    icon: const Icon(
-                      Icons.search,
-                      color: Colors.white60,
-                    ),
+                    icon: const Icon(Icons.search, color: Colors.white60),
                   ),
                   IconButton(
                     tooltip: 'Read aloud',
@@ -1005,22 +1109,23 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         ),
         const Divider(height: 12),
         Expanded(
-          child: _verses.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                  child: FlowingChapterText(
-                    verses: _verses,
-                    highlights: {for (final v in _verses) v.$1: _colorFor(v.$1)},
-                    onTapVerse: (vt) => _openActions(vt),
-                    baseStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontSize: 16,
-                          height: 1.6,
-                        ),
-                    runs: _currentRuns,
-                    verseBlocks: _currentBlocks,
+          child:
+              _verses.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                    child: FlowingChapterText(
+                      verses: _verses,
+                      highlights: {
+                        for (final v in _verses) v.$1: _colorFor(v.$1),
+                      },
+                      onTapVerse: (vt) => _openActions(vt),
+                      baseStyle: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(fontSize: 16, height: 1.6),
+                      runs: _currentRuns,
+                      verseBlocks: _currentBlocks,
+                    ),
                   ),
-                ),
         ),
       ],
     );
@@ -1071,46 +1176,56 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
           top: 12,
           bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.verseLabel, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.verseLabel,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
 
-          // ---- Highlight picker ----
-          Align(alignment: Alignment.centerLeft, child: const Text('Highlight')),
-          const SizedBox(height: 8),
+            // ---- Highlight picker ----
+            Align(
+              alignment: Alignment.centerLeft,
+              child: const Text('Highlight'),
+            ),
+            const SizedBox(height: 8),
 
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              for (final c in HighlightColor.values.where((c) => c != HighlightColor.none))
-                InkWell(
-                  onTap: () => setState(() => _pick = c),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: {
-                        HighlightColor.blue: Colors.lightBlueAccent,
-                        HighlightColor.red: Colors.redAccent,
-                        HighlightColor.yellow: Colors.yellow,
-                        HighlightColor.green: Colors.lightGreenAccent,
-                        HighlightColor.purple: Colors.purpleAccent,
-                      }[c]!.withOpacity(.9),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _pick == c ? Colors.black87 : Colors.black26,
-                        width: _pick == c ? 2 : 1,
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final c in HighlightColor.values.where(
+                  (c) => c != HighlightColor.none,
+                ))
+                  InkWell(
+                    onTap: () => setState(() => _pick = c),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: {
+                          HighlightColor.blue: Colors.lightBlueAccent,
+                          HighlightColor.red: Colors.redAccent,
+                          HighlightColor.yellow: Colors.yellow,
+                          HighlightColor.green: Colors.lightGreenAccent,
+                          HighlightColor.purple: Colors.purpleAccent,
+                        }[c]!.withOpacity(.9),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _pick == c ? Colors.black87 : Colors.black26,
+                          width: _pick == c ? 2 : 1,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
 
-          const Divider(height: 24),
+            const Divider(height: 24),
 
           // ---- Note field (gated by highlight) ----
           Align(alignment: Alignment.centerLeft, child: const Text('Note')),
@@ -1128,36 +1243,40 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
           ),
           const SizedBox(height: 12),
 
-          Row(children: [
-            // Delete All is always visible now
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    Navigator.pop(context, _ActionResult(noteDelete: true)),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Delete All'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton(
-                onPressed: () {
-                  // If text editing is disabled, ignore any controller text
-                  final String? textToSend = _canEditNote ? _note.text : null;
+            Row(
+              children: [
+                // Delete All is always visible now
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        () => Navigator.pop(
+                          context,
+                          _ActionResult(noteDelete: true),
+                        ),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Delete All'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      // If text editing is disabled, ignore any controller text
+                      final String? textToSend =
+                          _canEditNote ? _note.text : null;
 
-                  Navigator.pop(
-                    context,
-                    _ActionResult(
-                      highlight: _pick,
-                      noteText: textToSend,
-                    ),
-                  );
-                },
-                child: const Text('Save'),
-              ),
+                      Navigator.pop(
+                        context,
+                        _ActionResult(highlight: _pick, noteText: textToSend),
+                      );
+                    },
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ]),
+          ],
+        ),
       ),
     );
   }

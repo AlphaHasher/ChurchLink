@@ -84,7 +84,7 @@ const EditFooter = () => {
     const fetchFooter = async () => {
         try {
             setLoading(true);
-            const response = await api.get("/footer/items");
+            const response = await api.get("/v1/footer/items");
             setOriginalFooter(response.data);
             setFooter(response.data);
             // Reset pending changes
@@ -159,17 +159,17 @@ const EditFooter = () => {
 
             // 1. Process removals
             for (const title of pendingChanges.removals) {
-                await api.delete(`/footer/${title}`);
+                await api.delete(`/v1/footer/${title}`);
             }
 
             // 2. Apply visibility changes
             for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                await api.put(`/footer/${title}/visibility`, { visible });
+                await api.put(`/v1/footer/${title}/visibility`, { visible });
             }
 
             // 3. Save reordering last (after removals are processed)
             const currentTitles = footer.items.map(item => item.title);
-            await api.put("/footer/reorder", {titles: currentTitles});
+            await api.put("/v1/footer/reorder", { titles: currentTitles });
             toast.success("Footer changes saved successfully");
 
             // Refresh data from server

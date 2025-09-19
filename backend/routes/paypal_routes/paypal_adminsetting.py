@@ -8,13 +8,12 @@ from helpers.paypalHelper import (
 )
 from mongo.database import DB
 
-
-paypal_router = APIRouter(prefix="/paypal_admin", tags=["paypal"])
+paypal_admin_router = APIRouter(prefix="/paypal_admin", tags=["paypal-admin"])
 
 # ------------------------------------------------------------------------------
 # Endpoint to Update Transaction Status (refund/cancel/etc)
 # ------------------------------------------------------------------------------
-@paypal_router.post("/transaction/{transaction_id}/status", status_code=200)
+@paypal_admin_router.post("/transaction/{transaction_id}/status", status_code=200)
 async def update_transaction_status(
     transaction_id: str, 
     status: str = Body(...), 
@@ -25,7 +24,7 @@ async def update_transaction_status(
 # ------------------------------------------------------------------------------
 # Admin Dashboard: List All Transactions
 # ------------------------------------------------------------------------------
-@paypal_router.get("/admin/transactions", status_code=200)
+@paypal_admin_router.get("/admin/transactions", status_code=200)
 async def list_all_transactions(
     skip: int = Query(0, description="Number of records to skip"),
     limit: int = Query(20, description="Maximum number of records to return"),
@@ -37,14 +36,14 @@ async def list_all_transactions(
 # ------------------------------------------------------------------------------
 # Endpoint to Get Transaction by transaction_id
 # ------------------------------------------------------------------------------
-@paypal_router.get("/transaction/{transaction_id}", status_code=200)
+@paypal_admin_router.get("/transaction/{transaction_id}", status_code=200)
 async def get_transaction_by_id(transaction_id: str):
     return await paypal_get_transaction_by_id(transaction_id)
 
 # ------------------------------------------------------------------------------
 # Admin Dashboard: List All Subscriptions
 # ------------------------------------------------------------------------------
-@paypal_router.get("/admin/subscriptions", status_code=200)
+@paypal_admin_router.get("/admin/subscriptions", status_code=200)
 async def get_all_subscriptions(
     skip: int = Query(0, description="Number of records to skip"),
     limit: int = Query(20, description="Maximum number of records to return"),
@@ -56,7 +55,7 @@ async def get_all_subscriptions(
 # ------------------------------------------------------------------------------
 # PayPal Settings Management Endpoints (ADMIN ONLY
 # ------------------------------------------------------------------------------
-@paypal_router.get("/settings")
+@paypal_admin_router.get("/settings")
 async def get_paypal_settings():
     """Get PayPal settings for the admin dashboard"""
     try:
@@ -65,7 +64,7 @@ async def get_paypal_settings():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@paypal_router.post("/settings")
+@paypal_admin_router.post("/settings")
 async def update_paypal_settings(
     settings: Dict[str, Any] = Body(...)
 ):
@@ -106,7 +105,7 @@ async def update_paypal_settings(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@paypal_router.get("/settings/{key}")
+@paypal_admin_router.get("/settings/{key}")
 async def get_setting(key: str):
     """Get a specific setting value"""
     try:
@@ -119,7 +118,7 @@ async def get_setting(key: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@paypal_router.post("/settings/{key}")
+@paypal_admin_router.post("/settings/{key}")
 async def update_setting(
     key: str, 
     value: Dict[str, Any] = Body(...)

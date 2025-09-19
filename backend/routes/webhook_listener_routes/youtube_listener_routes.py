@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Request, Query, Response
 from helpers.youtubeHelper import YoutubeHelper
 
-youtube_router = APIRouter(prefix="/youtube_listener")
+youtube_listener_router = APIRouter(prefix="/youtube_listener")
 
 
 #Youtube may send a notif subscription verification challenge. This route handles that to handle the challenge
-@youtube_router.get("/live")
+@youtube_listener_router.get("/live")
 async def youtube_webhook_listener(
     hub_mode: str = Query(..., alias="hub.mode"),
     hub_topic: str = Query(..., alias="hub.topic"),
@@ -18,7 +18,7 @@ async def youtube_webhook_listener(
     return {"message": "Invalid request"}
 
 #This route is where the pubsub notification comes in to notify us of a livestream detection. When a notification is received, we know we need to check for livestreams.
-@youtube_router.post("/live")
+@youtube_listener_router.post("/live")
 async def youtube_live_callback(request: Request):
     await YoutubeHelper.updateMainChannel()
 
