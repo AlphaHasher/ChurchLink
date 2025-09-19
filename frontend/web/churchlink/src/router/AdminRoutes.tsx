@@ -21,6 +21,7 @@ const AddFooterSection = lazy(() => import("../features/admin/components/WebBuil
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
+const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 
 export const AdminRoutes = () => {
   return (
@@ -31,8 +32,9 @@ export const AdminRoutes = () => {
         <Route path="/users" element={<Users />} />
         <Route path="/permissions" element={<Permissions />} />
         <Route path="/notifications" element={<Notification />} />
-        <Route path="/finance" element={<Finance />} />
+        <Route path="/form-builder" element={<FormBuilder />} />
         <Route path="/events" element={<Events />} />
+        <Route path="/finance" element={<Finance />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
