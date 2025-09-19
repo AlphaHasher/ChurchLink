@@ -3,8 +3,6 @@ import 'backend_helper.dart';
 import 'logger.dart';
 
 class YoutubeHelper {
-  static String apiBase = BackendHelper.apiBase;
-
   // Fetches the StreamIDs of the current lives from backend
   static Future<List<String>> fetchStreamIDs() async {
     try {
