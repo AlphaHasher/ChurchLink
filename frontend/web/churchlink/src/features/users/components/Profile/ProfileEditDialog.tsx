@@ -2,7 +2,7 @@ import * as React from "react";
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter,
     DialogHeader, DialogTitle, DialogTrigger,
-} from "@/shared/components/ui/dialog";
+} from "@/shared/components/ui/Dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { Input } from "@/shared/components/ui/input";

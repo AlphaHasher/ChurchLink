@@ -9,7 +9,7 @@ import {
     DialogTrigger,
     DialogFooter,
     DialogClose,
-} from "@/shared/components/ui/dialog";
+} from "@/shared/components/ui/Dialog";
 import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";
 import { PersonDetails } from "@/shared/types/Person";
 import { addFamilyMember } from "@/helpers/UserHelper";

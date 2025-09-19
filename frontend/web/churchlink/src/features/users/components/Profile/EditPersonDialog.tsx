@@ -2,7 +2,7 @@ import * as React from "react";
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
     DialogTrigger, DialogFooter, DialogClose
-} from "@/shared/components/ui/dialog";
+} from "@/shared/components/ui/Dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Pencil } from "lucide-react";
 import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";

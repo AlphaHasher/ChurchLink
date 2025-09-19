@@ -27,7 +27,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/shared/components/ui/datatable"
+} from "@/shared/components/ui/DataTable"
 
 import { CreatePermDialog } from "@/features/admin/components/Permissions/RoleTable/CreatePermDialog"
 import { EditPermDialog } from "@/features/admin/components/Permissions/RoleTable/EditPermDialog"

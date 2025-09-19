@@ -7,7 +7,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/shared/components/ui/dialog"
+} from "@/shared/components/ui/Dialog"
 import { Loader2 } from "lucide-react"
 
 import { ChurchEvent } from "@/shared/types/ChurchEvent"

@@ -28,7 +28,7 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/shared/components/ui/datatable"
+} from "@/shared/components/ui/DataTable"
 
 
 import {

@@ -22,7 +22,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/shared/components/ui/datatable"
+} from "@/shared/components/ui/DataTable"
 
 import { AccountPermissions } from "@/shared/types/AccountPermissions"
 import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo"
