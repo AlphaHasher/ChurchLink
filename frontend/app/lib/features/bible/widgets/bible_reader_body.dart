@@ -157,42 +157,33 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       debugPrint('[BibleReader] boot -> $_translation $_book:$_chapter');
     }
 
+    // NOTE: _load() now ensures VerseMatching is ready BEFORE hydrating server notes.
     _load();
 
-    // Verse matcher
-    Future(() async {
-      _matcher = await VerseMatching.load();
-      _promoteLocalToShared();
-      if (mounted) setState(() {});
-    });
-
     // TODO: kick a drain when the Bible page opens (if already signed in)
-    final u = FirebaseAuth.instance.currentUser; // TODO
+    final u = FirebaseAuth.instance.currentUser;
     if (u != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // TODO
-        NotesApi.drainOutbox(); // TODO
+        NotesApi.drainOutbox();
       });
     }
 
     // TODO: also drain if the user signs in while this page is open
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
-      // TODO
-      if (user != null) NotesApi.drainOutbox(); // TODO
-    }); // TODO
+      if (user != null) NotesApi.drainOutbox();
+    });
 
     // TODO: refresh indices automatically when outbox/direct writes finish
     _notesSyncSub = NotesApi.onSynced.listen((_) async {
-      // TODO
-      await _syncFetchChapterNotes(); // TODO
-      if (mounted) setState(() {}); // TODO
-    }); // TODO
+      await _syncFetchChapterNotes();
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
-    _notesSyncSub?.cancel(); // TODO
-    _authSub?.cancel(); // TODO
+    _notesSyncSub?.cancel();
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -223,6 +214,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     } catch (_) {
       _currentRuns = null;
       _currentBlocks = null;
+    }
+
+    // --- FIX: ensure matcher before we hydrate from server, then normalize ---
+    if (_matcher == null) {
+      if (kDebugMode) debugPrint('[BibleReader] loading VerseMatching…');
+      _matcher = await VerseMatching.load();
+      _promoteLocalToShared(); // lift any pre-existing per-tx entries into shared clusters
     }
 
     await _syncFetchChapterNotes();
@@ -322,6 +320,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     _noteIdByKey.clear();
     _noteIdByCluster.clear();
 
+    // Belt & suspenders: never write unmapped data if matcher isn't ready
+    final m = _matcher;
+    if (m == null) {
+      if (kDebugMode) debugPrint('[Sync.Read] matcher not ready; deferring hydration');
+      return;
+    }
+
     final bookCanon = _book;
     final c = _chapter;
     final start = (c - 1) < 1 ? 1 : (c - 1);
@@ -352,8 +357,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         return ax.compareTo(bx);
       });
 
-      final m = _matcher;
       for (final rn in items) {
+        // Set which translation the backend uses
+        // It's set to KJV in our case but anything except RST uses the same numbering
+        final String serverTx = 'kjv';
+
         final s = rn.verseStart;
         final e = rn.verseEnd ?? rn.verseStart;
         final color = HighlightColorServerCodec.fromApi(rn.color?.name);
@@ -363,20 +371,19 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           final key = '$bookCanon|${rn.chapter}|$v';
           _noteIdByKey[key] = rn.id;
 
-          if (m != null) {
-            final cid = m.clusterId(_canonicalTx(_translation), (
-              book: bookCanon,
-              chapter: rn.chapter,
-              verse: v,
-            ));
-            _noteIdByCluster[cid] = rn.id;
-            if (noteText.isNotEmpty) _notesShared[cid] = noteText;
-            if (color != HighlightColor.none) _hlShared[cid] = color;
-          } else {
-            if (noteText.isNotEmpty) _notesPerTx[_translation]![key] = noteText;
-            if (color != HighlightColor.none)
-              _hlPerTx[_translation]![key] = color;
-          }
+          // IMPORTANT: compute cluster from the SERVER numbering, not the UI tx.
+          final cid = m.clusterId(
+            serverTx,
+            (book: bookCanon, chapter: rn.chapter, verse: v),
+          );
+
+          _noteIdByCluster[cid] = rn.id;
+          if (noteText.isNotEmpty) _notesShared[cid] = noteText;
+          if (color != HighlightColor.none) _hlShared[cid] = color;
+
+          // Purge any stale per-tx entry for the same spot
+          _notesPerTx[_translation]?.remove(key);
+          _hlPerTx[_translation]?.remove(key);
         }
       }
     } catch (e, st) {
@@ -889,8 +896,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           }
         } else {
           if (id != null) {
-            if (kDebugMode)
+            if (kDebugMode) {
               debugPrint('[WriteThrough] DELETE note (empty text) id=$id');
+            }
             await NotesApi.delete(id);
             if (cid != null) _noteIdByCluster.remove(cid);
             _noteIdByKey.remove(_k(v.$1));
@@ -1219,24 +1227,21 @@ class _VerseActionsSheetState extends State<_VerseActionsSheet> {
 
             const Divider(height: 24),
 
-            // ---- Note field (gated by highlight) ----
-            Align(alignment: Alignment.centerLeft, child: const Text('Note')),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _note,
-              enabled: _canEditNote, // greyed out until a color is picked
-              minLines: 3,
-              maxLines: 6,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText:
-                    _canEditNote
-                        ? 'Write a note for this verse…'
-                        : 'Pick a highlight to enable notes',
-                border: const OutlineInputBorder(),
-              ),
+          // ---- Note field (gated by highlight) ----
+          Align(alignment: Alignment.centerLeft, child: const Text('Note')),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _note,
+            enabled: _canEditNote, // greyed out until a color is picked
+            minLines: 3,
+            maxLines: 6,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              hintText: 'Write a note for this verse…',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 12),
 
             Row(
               children: [
