@@ -7,6 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
+import { Button } from "@/shared/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
+import { Calendar } from "@/shared/components/ui/calendar";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { format, parse } from "date-fns";
 
 type Props = {
   field: AnyField;
@@ -112,10 +117,86 @@ export function FieldRenderer({ field, control, error }: Props) {
                 </RadioGroup>
               );
             }
-            case "date":
+            case "date": {
+              const f: any = field as any;
+              const mode = f.mode || "single";
+              const minDate = f.minDate ? parse(f.minDate, "yyyy-MM-dd", new Date()) : undefined;
+              const maxDate = f.maxDate ? parse(f.maxDate, "yyyy-MM-dd", new Date()) : undefined;
+              const disabled = (date: Date) => {
+                if (minDate && date < minDate) return true;
+                if (maxDate && date > maxDate) return true;
+                return false;
+              };
+
+              if (mode === "range") {
+                // Expect rhf.value as { from?: string; to?: string }
+                const rangeVal = (rhf.value as { from?: string; to?: string } | undefined) || {};
+                const selected = {
+                  from: rangeVal.from ? parse(rangeVal.from, "yyyy-MM-dd", new Date()) : undefined,
+                  to: rangeVal.to ? parse(rangeVal.to, "yyyy-MM-dd", new Date()) : undefined,
+                } as { from?: Date; to?: Date };
+                const label = selected.from && selected.to
+                  ? `${format(selected.from, "PPP")} – ${format(selected.to, "PPP")}`
+                  : selected.from
+                  ? `${format(selected.from, "PPP")} – …`
+                  : field.placeholder || "Pick a date range";
+                const selectedRange = selected.from ? selected : undefined;
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("justify-start", !selected.from && "text-muted-foreground")}> 
+                        {label}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        selected={selectedRange as any}
+                        onSelect={(r: { from?: Date; to?: Date } | undefined) => {
+                          if (!r || !r.from) {
+                            rhf.onChange(undefined);
+                            return;
+                          }
+                          rhf.onChange({
+                            from: r.from ? format(r.from, "yyyy-MM-dd") : undefined,
+                            to: r.to ? format(r.to, "yyyy-MM-dd") : undefined,
+                          });
+                        }}
+                        disabled={disabled}
+                        captionLayout="dropdown"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                );
+              }
+
+              // single mode
+              const valueStr: string | undefined = rhf.value;
+              const selectedDate = valueStr ? parse(valueStr, "yyyy-MM-dd", new Date()) : undefined;
               return (
-                <Input id={field.name} type="date" value={rhf.value ?? ""} onChange={rhf.onChange} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("justify-start", !selectedDate && "text-muted-foreground")}
+                    >
+                      {selectedDate ? format(selectedDate, "PPP") : (field.placeholder || "Pick a date")}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(d: Date | undefined) => rhf.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                      disabled={disabled}
+                      captionLayout="dropdown"
+                    />
+                  </PopoverContent>
+                </Popover>
               );
+            }
             default:
               return <div />;
           }

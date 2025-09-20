@@ -67,7 +67,7 @@ export function BuilderShell() {
         </div>
       </div>
       <div className="grid grid-cols-12 gap-4 p-4">
-        <div className="col-span-12 md:col-span-3">
+        <div className="col-span-12 md:col-span-2">
           <ErrorBoundary>
             <Palette />
           </ErrorBoundary>

@@ -16,10 +16,10 @@ export function Palette() {
   const addField = useBuilderStore((s) => s.addField);
   return (
     <Card className="h-full">
-      <CardHeader>
+      <CardHeader className="p-3 pb-2">
         <CardTitle>Palette</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="p-3 pt-0 flex flex-col gap-2">
         {items.map((it) => (
           <Button
             key={it.type}

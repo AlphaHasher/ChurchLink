@@ -140,14 +140,26 @@ export function Inspector() {
           </div>
         )}
         {(field.type === "date") && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label>Min date</Label>
-              <Input type="date" value={(field as any).minDate ?? ""} onChange={(e) => onChange({ minDate: e.target.value || undefined } as any)} />
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Min date</Label>
+                <Input type="date" value={(field as any).minDate ?? ""} onChange={(e) => onChange({ minDate: e.target.value || undefined } as any)} />
+              </div>
+              <div>
+                <Label>Max date</Label>
+                <Input type="date" value={(field as any).maxDate ?? ""} onChange={(e) => onChange({ maxDate: e.target.value || undefined } as any)} />
+              </div>
             </div>
-            <div>
-              <Label>Max date</Label>
-              <Input type="date" value={(field as any).maxDate ?? ""} onChange={(e) => onChange({ maxDate: e.target.value || undefined } as any)} />
+            <div className="space-y-1">
+              <Label>Selection mode</Label>
+              <Select value={(field as any).mode || "single"} onValueChange={(v) => onChange({ mode: v as any } as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single day</SelectItem>
+                  <SelectItem value="range">Date range</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}

@@ -45,16 +45,61 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       return s;
     }
     case "date": {
-      let s: z.ZodType<string | undefined> = z.string().optional();
       const f = field as DateField;
-      if (f.required) s = z.string().min(1, `${field.label || field.name} is required`);
+      const label = field.label || field.name;
+
+      // Helper to compare YYYY-MM-DD strings lexicographically, avoiding timezone issues
+      const gte = (a: string, b: string) => a >= b;
+      const lte = (a: string, b: string) => a <= b;
+
+      if (f.mode === "range") {
+        // Range mode: value is { from?: string; to?: string } | undefined
+        let s = z
+          .object({
+            from: z.string().optional(),
+            to: z.string().optional(),
+          })
+          .optional();
+
+        // If required, both from and to must be provided
+        if (f.required) {
+          s = s.refine((v) => !!v && !!v.from && !!v.to, {
+            message: `${label} is required`,
+          });
+        }
+
+        // Order check when both present: from <= to
+        s = s.refine((v) => !v || !v.from || !v.to || gte(v.to, v.from), {
+          message: `${label} end date must be on or after start date`,
+        });
+
+        // Min/Max checks for whichever endpoints exist
+        if (f.minDate) {
+          const min = f.minDate;
+          s = s.refine((v) => !v || (!v.from || gte(v.from, min)) && (!v.to || gte(v.to, min)), {
+            message: `${label} must be on or after ${f.minDate}`,
+          });
+        }
+        if (f.maxDate) {
+          const max = f.maxDate;
+          s = s.refine((v) => !v || (!v.from || lte(v.from, max)) && (!v.to || lte(v.to, max)), {
+            message: `${label} must be on or before ${f.maxDate}`,
+          });
+        }
+
+        return s;
+      }
+
+      // Single-date mode: value is a string (YYYY-MM-DD) or undefined
+      let s: z.ZodType<string | undefined> = z.string().optional();
+      if (f.required) s = z.string().min(1, `${label} is required`);
       if (f.minDate)
-        s = s.refine((v: string | undefined) => !v || new Date(v) >= new Date(f.minDate!), {
-          message: `${field.label || field.name} must be on or after ${f.minDate}`,
+        s = s.refine((v: string | undefined) => !v || gte(v, f.minDate!), {
+          message: `${label} must be on or after ${f.minDate}`,
         });
       if (f.maxDate)
-        s = s.refine((v: string | undefined) => !v || new Date(v) <= new Date(f.maxDate!), {
-          message: `${field.label || field.name} must be on or before ${f.maxDate}`,
+        s = s.refine((v: string | undefined) => !v || lte(v, f.maxDate!), {
+          message: `${label} must be on or before ${f.maxDate}`,
         });
       return s;
     }

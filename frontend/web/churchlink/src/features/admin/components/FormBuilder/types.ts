@@ -60,6 +60,7 @@ export interface DateField extends BaseField {
   type: "date";
   minDate?: string; // ISO date
   maxDate?: string; // ISO date
+  mode?: "single" | "range"; // selection mode
 }
 
 export type AnyField =
