@@ -2,10 +2,12 @@ import { Palette } from "./Palette";
 import { Canvas } from "./Canvas";
 import { PreviewRendererClient } from "./PreviewRendererClient";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBuilderStore } from "./store";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Input } from '@/shared/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 
 export function BuilderShell() {
   const schema = useBuilderStore((s) => s.schema);
@@ -29,6 +31,16 @@ export function BuilderShell() {
       localStorage.setItem("form-builder:schema", JSON.stringify(schema));
     } catch {}
   }, [schema]);
+
+  const [formName, setFormName] = useState(schema?.meta?.title ?? "");
+  const [destination, setDestination] = useState("local");
+
+  const handleSave = () => {
+    console.log('Save form', { name: formName, destination, schema });
+
+    // Persist name into schema meta so it stays with exported JSON
+    setSchema({ ...(schema || { fields: [] }), meta: { ...(schema?.meta || {}), title: formName } });
+  };
 
   const onExport = () => {
     const blob = new Blob([JSON.stringify(schema, null, 2)], { type: "application/json" });
@@ -58,6 +70,25 @@ export function BuilderShell() {
     <ErrorBoundary>
       <div className="p-2">
         <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-sm">Name</label>
+              <Input value={formName} onChange={(e) => setFormName(e.target.value)} className="w-48" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm">Save To</label>
+              <Select onValueChange={(v) => setDestination(String(v))}>
+                <SelectTrigger size="sm">
+                  <SelectValue placeholder="Choose" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODO">TODO</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleSave} className="ml-2">Save</Button>
+          </div>
           <div className="flex items-center gap-2">
             <input ref={fileInputRef} onChange={onFileChange} type="file" accept="application/json" className="hidden" />
             <Button variant="secondary" onClick={onImportClick}>Import JSON</Button>
