@@ -1,20 +1,16 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import Sidebar from "@/features/admin/components/AdminDashboardSideBar";
-import WebBuilderSidebar from "@/features/admin/components/WebBuilder/WebBuilderSidebar";
 import { ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/shared/components/ui/sidebar";
 
 interface AdminLayoutProps {
-  customSidebar?: ReactNode;
   children?: ReactNode;
 }
 
-const AdminLayout = ({ customSidebar, children }: AdminLayoutProps) => {
-  const location = useLocation();
-  const isWebBuilderRoute = location.pathname.includes("/webbuilder");
+const AdminLayout = ({ children }: AdminLayoutProps) => {
+  
 
-  const renderedSidebar =
-    customSidebar ?? (isWebBuilderRoute ? <WebBuilderSidebar /> : <Sidebar />);
+  const renderedSidebar = <Sidebar />;
 
   return (
     <SidebarProvider>

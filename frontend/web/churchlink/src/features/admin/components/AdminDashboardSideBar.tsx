@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { useState, type ComponentType, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { BarChart2, Settings, LogOut, Home, Shield, User, Folder, Loader2, CalendarFold, BookOpen, Bell, DollarSign } from "lucide-react";
 import { signOut } from "firebase/auth";
@@ -11,9 +11,13 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarRail,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/shared/components/ui/sidebar";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 
@@ -21,6 +25,14 @@ const AdminDashboardSideBar = () => {
   const [loading, setLoading] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
+  const webBuilderLinks = useMemo(() => [
+    { title: "Pages", url: "/admin/webbuilder" },
+    { title: "Header", url: "/admin/webbuilder/header" },
+    { title: "Footer", url: "/admin/webbuilder/footer" },
+    { title: "Media", url: "/admin/webbuilder/media" },
+    { title: "Settings", url: "/admin/webbuilder/settings" },
+  ], []);
+  const [webBuilderOpen, setWebBuilderOpen] = useState(() => location.pathname.startsWith("/admin/webbuilder"));
 
   const handleMediaRedirect = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -42,7 +54,6 @@ const AdminDashboardSideBar = () => {
     { title: "Events", url: "/admin/events", icon: CalendarFold },
     { title: "Forms", url: "/admin/forms/form-builder", icon: Folder },
     { title: "Bible Plan Manager", url: "/admin/bible-plan-manager", icon: BookOpen },
-    { title: "Web Builder", url: "/admin/webbuilder", icon: Folder },
     { title: "Finance", url: "/admin/finance", icon: DollarSign },
     { title: "Notifications", url: "/admin/notifications", icon: Bell },
     { title: "Settings", url: "/admin/settings", icon: Settings },
@@ -50,33 +61,60 @@ const AdminDashboardSideBar = () => {
   ];
 
   return (
-      <ShSidebar>
+      <ShSidebar collapsible="icon">
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    {item.onClick ? (
-                      <SidebarMenuButton onClick={item.onClick} aria-disabled={item.loadingKey ? loading : undefined} isActive={isActive(item.url)}>
-                        {item.loadingKey && loading ? <Loader2 className="animate-spin" /> : <item.icon />}
-                        <span>{item.loadingKey && loading ? "Loading..." : item.title}</span>
+                {items.map((item) => [
+                  (
+                    <SidebarMenuItem key={item.title}>
+                      {item.onClick ? (
+                        <SidebarMenuButton onClick={item.onClick} aria-disabled={item.loadingKey ? loading : undefined} isActive={isActive(item.url)} tooltip={item.title}>
+                          {item.loadingKey && loading ? <Loader2 className="animate-spin" /> : <item.icon />}
+                          <span>{item.loadingKey && loading ? "Loading..." : item.title}</span>
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                          <Link to={item.url!}>
+                            <item.icon />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      )}
+                    </SidebarMenuItem>
+                  ),
+                  item.url === "/admin/permissions" ? (
+                    <SidebarMenuItem key="webbuilder-group">
+                      <SidebarMenuButton
+                        isActive={isActive("/admin/webbuilder")}
+                        onClick={() => setWebBuilderOpen((v) => !v)}
+                        tooltip="Web Builder"
+                        data-state={webBuilderOpen ? "open" : "closed"}
+                      >
+                        <Folder />
+                        <span>Web Builder</span>
                       </SidebarMenuButton>
-                    ) : (
-                      <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                        <Link to={item.url!}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                ))}
+                      {webBuilderOpen && (
+                        <SidebarMenuSub>
+                          {webBuilderLinks.map((link) => (
+                            <SidebarMenuSubItem key={link.url}>
+                              <SidebarMenuSubButton asChild isActive={isActive(link.url)}>
+                                <Link to={link.url}>{link.title}</Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      )}
+                    </SidebarMenuItem>
+                  ) : null,
+                ])}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+        <SidebarRail />
         <SidebarFooter>
           <div className="flex items-center justify-between gap-2 p-2 text-sm">
             <div className="flex items-center gap-2">
