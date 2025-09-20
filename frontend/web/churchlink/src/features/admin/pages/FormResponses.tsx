@@ -22,11 +22,14 @@ const FormResponses = () => {
   const [columns, setColumns] = useState<Col[]>([]);
   // We will display raw user_id as recorded in DB. No name resolution here.
   const [count, setCount] = useState(0);
-  const [items, setItems] = useState<{ submitted_at: string; response: Record<string, any> }[]>([]);
+  const [rawItems, setRawItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
+  const [items, setItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filters, setFilters] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -42,49 +45,115 @@ const FormResponses = () => {
     };
     fetchMeta();
   }, [formId]);
-
   const fetchResponses = async () => {
     if (!formId) return;
-    setLoading(true);
+    const hasFilters = Object.values(filters).some((v) => v && v.trim() !== '');
+    const showLoading = !hasFilters; // avoid hiding table when user is typing filters
+    if (showLoading) setLoading(true);
     setError(null);
     try {
-        const skip = (page - 1) * pageSize;
-        const resp = await api.get(`/v1/forms/${formId}/responses`, { params: { skip, limit: pageSize } });
-      setCount(resp.data?.count || 0);
-      const newItems = resp.data?.items || [];
-      setItems(newItems);
-      // Union any extra keys from responses that aren't in columns yet
-      const existingKeys = new Set<string>(columns.map((c) => c.key));
-      const extra: Col[] = [];
-      for (const it of newItems) {
-        const respObj = it?.response || {};
-        Object.keys(respObj).forEach((k) => {
-          if (!existingKeys.has(k)) {
-            existingKeys.add(k);
-            extra.push({ key: k, label: k });
-          }
-        });
+      const skip = hasFilters ? 0 : (page - 1) * pageSize;
+      const fetchLimit = hasFilters ? 500 : pageSize; // backend enforces a 500 limit
+      const resp = await api.get(`/v1/forms/${formId}/responses`, { params: { skip, limit: fetchLimit } });
+      const total = resp.data?.count || 0;
+      let fetched = resp.data?.items || [];
+      if (!Array.isArray(fetched)) fetched = [];
+      setRawItems(fetched);
+      // If no filters, show paginated fetched items directly and keep backend count
+      if (!hasFilters) {
+        setItems(fetched);
+        setCount(total);
       }
-      if (extra.length > 0) {
-        // Keep Submitted as first column; append extras at the end
-        setColumns((prev) => {
-          const userCol = prev.find((c) => c.key === '__user__');
-          const submitted = prev.find((c) => c.key === '__submitted__');
-          const others = prev.filter((c) => c.key !== '__submitted__' && c.key !== '__user__');
-          return [userCol!, submitted!, ...others, ...extra];
-        });
+      // If filters are active and total exceeds fetchLimit, warn user that results are limited
+      if (hasFilters) {
+        if (total > fetchLimit) setNotice(`Filtering applied to first ${fetchLimit} responses (server limit). Results may be incomplete.`);
+        else setNotice(null);
+      } else {
+        setNotice(null);
+      }
+
+      // Only update columns when not actively filtering to avoid remounting inputs while user types
+      if (!hasFilters) {
+        // Union any extra keys from responses that aren't in columns yet
+        const existingKeys = new Set<string>(columns.map((c) => c.key));
+        const extra: Col[] = [];
+        for (const it of fetched) {
+          const respObj = it?.response || {};
+          Object.keys(respObj).forEach((k) => {
+            if (!existingKeys.has(k)) {
+              existingKeys.add(k);
+              extra.push({ key: k, label: k });
+            }
+          });
+        }
+        if (extra.length > 0) {
+          // Keep Submitted as first column; append extras at the end
+          setColumns((prev) => {
+            const userCol = prev.find((c) => c.key === '__user__');
+            const submitted = prev.find((c) => c.key === '__submitted__');
+            const others = prev.filter((c) => c.key !== '__submitted__' && c.key !== '__user__');
+            return [userCol!, submitted!, ...others, ...extra];
+          });
+        }
       }
 
       // No user name resolution here; frontend will display raw user_id as-is.
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load responses');
+      const detail = e?.response?.data?.detail;
+      // avoid storing/rendering non-string objects directly in the UI
+      const msg = typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : 'Failed to load responses';
+      setError(msg);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => { fetchResponses(); }, [formId, page, pageSize]);
 
+  // When rawItems or filters (or pagination) change, compute filtered items and paginated display
+  useEffect(() => {
+    const applyFilters = () => {
+      const fkeys = Object.keys(filters).filter((k) => filters[k] && filters[k].trim() !== '');
+      let filtered = rawItems.slice();
+      if (fkeys.length > 0) {
+        filtered = filtered.filter((it) => {
+          const resp = it.response || {};
+          for (const k of fkeys) {
+            const want = (filters[k] || '').toLowerCase();
+            let val: any = undefined;
+            if (k === '__user__') val = (it as any).user_id;
+            else if (k === '__submitted__') val = it.submitted_at;
+            else val = resp[k];
+            const sval = val === null || val === undefined ? '' : String(val).toLowerCase();
+            if (!sval.includes(want)) return false;
+          }
+          return true;
+        });
+      }
+      // update count to filtered length
+      setCount(filtered.length);
+      // apply paging
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      setItems(filtered.slice(start, end));
+    };
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawItems, filters, page, pageSize]);
+
+  // Debounced fetch when filters change so typing doesn't trigger immediate fetches and steal focus
+  useEffect(() => {
+    const hasFilters = Object.values(filters).some((v) => v && v.trim() !== '');
+    if (!hasFilters) {
+      // filters cleared -> refresh immediately to show paginated backend results
+      fetchResponses();
+      return;
+    }
+    const t = setTimeout(() => {
+      fetchResponses();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [filters]);
   const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
 
   const formatDate = (iso?: string) => {
@@ -96,6 +165,9 @@ const FormResponses = () => {
       return iso;
     }
   };
+
+  // Ensure columns are unique by key before rendering to avoid duplicate React keys. Causes bunch of errors without this
+  const uniqueColumns = columns.filter((c, i, arr) => arr.findIndex((x) => x.key === c.key) === i);
 
   const SubmittedCell = ({ iso }: { iso?: string }) => {
     return <TableCell>{formatDate(iso)}</TableCell>;
@@ -150,42 +222,66 @@ const FormResponses = () => {
           </CardHeader>
           <CardContent>
             {error && <div className="text-sm text-destructive mb-3">{error}</div>}
+            {notice && <div className="text-sm text-yellow-800 mb-3 p-2 bg-yellow-50 border border-yellow-100 rounded">{notice}</div>}
             {loading && <div className="text-sm">Loading responses…</div>}
-            {!loading && count === 0 && (
-              <div className="text-sm text-muted-foreground">No responses yet.</div>
-            )}
-            {!loading && count > 0 && (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+            {/* Always render table header + filter inputs so user can adjust filters even when there are no results */}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {uniqueColumns.map((col, idx) => (
+                      <TableHead key={col?.key ?? `col-${idx}`}>{col?.label ?? String(col?.key ?? `Column ${idx + 1}`)}</TableHead>
+                    ))}
+                  </TableRow>
+                  {/* filter inputs row */}
+                  <TableRow>
+                    {uniqueColumns.map((col, idx) => (
+                      <TableHead key={`f-${col?.key ?? idx}`}>
+                        <input
+                          className="w-full px-2 py-1 border rounded text-sm"
+                          placeholder="Filter"
+                          value={filters[col?.key ?? ''] || ''}
+                          onChange={(e) => {
+                            const key = col?.key ?? '';
+                            const v = e.target.value;
+                            setFilters((prev) => ({ ...prev, [key]: v }));
+                            setPage(1);
+                          }}
+                        />
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.length === 0 ? (
                     <TableRow>
-                      {columns.map((col) => (
-                        <TableHead key={col.key}>{col.label}</TableHead>
-                      ))}
+                      <TableCell colSpan={Math.max(1, uniqueColumns.length)} className="text-sm text-muted-foreground p-4">
+                        {loading ? 'Loading responses…' : 'No matching responses.'}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((it, idx) => {
+                  ) : (
+                    items.map((it, idx) => {
                       const resp = it.response || {};
                       return (
                         <TableRow key={`${it.submitted_at}-${idx}`}>
-                          {columns.map((col, cidx) => {
-                            if (col.key === '__submitted__') return <SubmittedCell key={`s-${cidx}`} iso={it.submitted_at} />;
-                            if (col.key === '__user__') {
+                          {uniqueColumns.map((col, cidx) => {
+                            const key = col?.key ?? '';
+                            if (key === '__submitted__') return <SubmittedCell key={`s-${idx}-${cidx}`} iso={it.submitted_at} />;
+                            if (key === '__user__') {
                               const uid = (it as any).user_id;
                               // show raw user_id as recorded in DB
-                              return <UserCell key={`u-${cidx}`} uid={uid} />;
+                              return <UserCell key={`u-${idx}-${cidx}`} uid={uid} />;
                             }
-                            const val = resp[col.key];
-                            return <ValueCell key={`${col.key}-${cidx}`} value={val} />;
+                            const val = resp[key];
+                            return <ValueCell key={`${idx}-${key}-${cidx}`} value={val} />;
                           })}
                         </TableRow>
                       );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
           <CardFooter className="flex items-center justify-between">
             <div />

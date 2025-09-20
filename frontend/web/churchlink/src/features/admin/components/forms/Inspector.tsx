@@ -148,7 +148,8 @@ export function Inspector() {
 
   return (
     <div className="space-y-3">
-        {/* Localization controls for field texts */}
+        {/* Localization controls for field texts (hidden for price fields) */}
+        {field.type !== 'price' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Localization</Label>
@@ -187,7 +188,7 @@ export function Inspector() {
                       }}
                     />
                   </div>
-                  {(field.type !== 'static' && field.type !== 'price') && (
+                  {!['static', 'price', 'date', 'time'].includes((field as any).type) && (
                     <div>
                       <Label className="text-xs">Placeholder</Label>
                       <Input
@@ -228,7 +229,8 @@ export function Inspector() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+          )}
         {field.type === "static" && (
           <div className="space-y-2">
             <div className="space-y-1">
@@ -268,10 +270,12 @@ export function Inspector() {
           </div>
         )}
         {/* Removed base Label input; use Localization cards below to manage label per language */}
+        {field.type !== 'price' && (
         <div className="space-y-1">
           <Label>Component Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
         </div>
+        )}
         {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
         {field.type === "price" && (
           <div className="space-y-1">
@@ -281,6 +285,8 @@ export function Inspector() {
             <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
           </div>
         )}
+        {field.type !== 'price' && (
+        <>
         <div className="space-y-1">
           <Label>Width</Label>
           <Select value={field.width || "full"} onValueChange={(v) => onChange({ width: v as any })}>
@@ -369,8 +375,7 @@ export function Inspector() {
                 <Input
                   type="date"
                   value={(field as any).maxDate ? format(new Date((field as any).maxDate), "yyyy-MM-dd") : ""}
-                  onChange={(e) => onChange({ maxDate: e.target.value ? new Date(e.target.value) : undefined } as any)}
-                />
+                  onChange={(e) => onChange({ maxDate: e.target.value ? new Date(e.target.value) : undefined } as any)} />
               </div>
             </div>
             <div className="space-y-1">
@@ -470,9 +475,11 @@ export function Inspector() {
               </HoverCardContent>
             </HoverCard>
           </div>
-          <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
-        </div>
-        {renderOptions()}
+    <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
+    </div>
+    </>
+    )}
+    {renderOptions()}
     </div>
   );
 }
