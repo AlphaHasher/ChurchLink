@@ -5,6 +5,14 @@ import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/shared/components/ui/pagination';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
@@ -282,8 +290,19 @@ const ManageForms = () => {
           <Button onClick={search} disabled={loading}><Settings2 className="h-4 w-4 mr-2" />Search</Button>
           <Button variant="ghost" onClick={() => { setSearchName(''); setSearchFolder('all'); fetchForms(); }}>Clear</Button>
           {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}
+          <div className="ml-auto">
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+              <SelectTrigger className="w-24">
+                <SelectValue placeholder="Rows" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>    
         </div>
-
         {/* Bulk actions */}
         {selected.size > 0 && (
           <div className="flex items-center justify-between p-2 border rounded mb-3 bg-muted/30">
@@ -376,24 +395,62 @@ const ManageForms = () => {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-3">
-          <div className="text-sm text-muted-foreground">Page {page} of {totalPages}</div>
-          <div className="flex items-center gap-2">
-            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
-              <SelectTrigger className="w-24">
-                <SelectValue placeholder="Rows" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
-              <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
-            </div>
+        <div className="mt-3">
+          <div className="flex items-center justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={(e: any) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
+                    href="#"
+                    className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+                {(() => {
+                  const items: React.ReactNode[] = [];
+                  const maxToShow = 5;
+                  let start = Math.max(1, page - 2);
+                  let end = Math.min(totalPages, start + maxToShow - 1);
+                  if (end - start < maxToShow - 1) {
+                    start = Math.max(1, end - (maxToShow - 1));
+                  }
+                  if (start > 1) {
+                    items.push(
+                      <PaginationItem key={1}>
+                        <PaginationLink href="#" isActive={page === 1} onClick={(e: any) => { e.preventDefault(); setPage(1); }}>1</PaginationLink>
+                      </PaginationItem>
+                    );
+                    if (start > 2) items.push(<PaginationItem key="s-ellipsis"><span className="px-2">…</span></PaginationItem>);
+                  }
+                  for (let p = start; p <= end; p++) {
+                    items.push(
+                      <PaginationItem key={p}>
+                        <PaginationLink href="#" isActive={p === page} onClick={(e: any) => { e.preventDefault(); setPage(p); }}>{p}</PaginationLink>
+                      </PaginationItem>
+                    );
+                  }
+                  if (end < totalPages) {
+                    if (end < totalPages - 1) items.push(<PaginationItem key="e-ellipsis"><span className="px-2">…</span></PaginationItem>);
+                    items.push(
+                      <PaginationItem key={totalPages}>
+                        <PaginationLink href="#" isActive={page === totalPages} onClick={(e: any) => { e.preventDefault(); setPage(totalPages); }}>{totalPages}</PaginationLink>
+                      </PaginationItem>
+                    );
+                  }
+                  return items;
+                })()}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={(e: any) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
+                    href="#"
+                    className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
+
+          {/* rows-per-page moved to top filters */}
         </div>
       </div>
 
