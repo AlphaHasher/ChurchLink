@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Switch } from '@/shared/components/ui/switch';
-import { MoreHorizontal, FileEdit, Copy, Download, Trash2, MoveRight, Settings2, RefreshCcw } from 'lucide-react';
+import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, Settings2, RefreshCcw } from 'lucide-react';
 
 const ManageForms = () => {
   const navigate = useNavigate();
@@ -27,6 +27,8 @@ const ManageForms = () => {
   const [moveToFolderId, setMoveToFolderId] = useState<string>('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string } | null>(null);
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   const fetchForms = async () => {
     try {
@@ -182,6 +184,47 @@ const ManageForms = () => {
     }
   };
 
+  const slugify = (s: string) => {
+    return s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  };
+
+  const openCreateSlug = (id: string, currentSlug?: string) => {
+    setSlugError(null);
+    setSlugDialog({ id, slug: currentSlug || '' });
+  };
+
+  const saveSlug = async () => {
+    if (!slugDialog) return;
+    const { id, slug } = slugDialog;
+    const cleaned = slugify(slug);
+    if (!cleaned) { setSlugError('Slug cannot be empty'); return; }
+    try {
+      await api.put(`/v1/forms/${id}`, { slug: cleaned });
+      setForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
+      setSlugDialog(null);
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        setSlugError('Slug already exists. Pick a different value.');
+      } else {
+        setSlugError('Failed to save slug');
+      }
+    }
+  };
+
+  const handleRemoveSlug = async (id: string) => {
+    try {
+      await api.put(`/v1/forms/${id}`, { slug: null });
+      setForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
+    } catch (err) {
+      setStatus('Failed to remove slug');
+    }
+  };
+
   const handleRename = async () => {
     if (!renameTarget) return;
     try {
@@ -214,7 +257,7 @@ const ManageForms = () => {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchForms} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
           <Button onClick={() => navigate('/admin/forms/form-builder')}>
-            <FileEdit className="h-4 w-4 mr-2" /> New Form
+            <Pencil className="h-4 w-4 mr-2" /> New Form
           </Button>
         </div>
       </div>
@@ -246,7 +289,7 @@ const ManageForms = () => {
           <div className="flex items-center justify-between p-2 border rounded mb-3 bg-muted/30">
             <div className="text-sm">{selected.size} selected</div>
             <div className="flex items-center gap-2">
-              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteIds(Array.from(selected))}><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteIds(Array.from(selected))}><Trash className="h-4 w-4 mr-1" /> Delete</Button>
               <Button size="sm" variant="outline" onClick={() => setMoveTargetIds(Array.from(selected))}><MoveRight className="h-4 w-4 mr-1" /> Move to...</Button>
               <Button size="sm" variant="outline" onClick={async () => { for (const id of selected) await handleExport(id); }}><Download className="h-4 w-4 mr-1" /> Export</Button>
             </div>
@@ -257,10 +300,11 @@ const ManageForms = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-muted-foreground">
+                <tr className="text-left text-muted-foreground">
                 <th className="w-8 p-2"><Checkbox checked={selected.size === forms.length && forms.length > 0} onCheckedChange={(c) => toggleSelectAll(!!c)} aria-label="Select all" /></th>
                 <th className="p-2">Title</th>
                 <th className="p-2">Folder</th>
+                <th className="p-2">Links</th>
                 <th className="p-2">Visible</th>
                 <th className="p-2">Actions</th>
               </tr>
@@ -291,6 +335,19 @@ const ManageForms = () => {
                     )}
                   </td>
                   <td className="p-2">
+                    {f.slug ? (
+                      <div className={`inline-flex items-center gap-2 ${!f.visible ? 'text-muted-foreground' : ''}`}>
+                        <a href={`/forms/${f.slug}`} target="_blank" rel="noreferrer" className={`${!f.visible ? 'pointer-events-none' : ''}`}>{`/forms/${f.slug}`}</a>
+                          <div className={`inline-flex items-center ${!f.visible ? 'text-muted-foreground' : ''}`}>
+                            <Button size="icon" variant="ghost" onClick={() => openCreateSlug(f.id, f.slug)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleRemoveSlug(f.id)} title="Remove slug"><Trash className="h-4 w-4" /></Button>
+                          </div>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => openCreateSlug(f.id)} className="text-muted-foreground">Create Link</Button>
+                    )}
+                  </td>
+                  <td className="p-2">
                     <Switch checked={!!f.visible} onCheckedChange={(c) => handleToggleVisible(f.id, !!c)} aria-label="Toggle visibility" />
                   </td>
                   <td className="p-2">
@@ -304,10 +361,10 @@ const ManageForms = () => {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleDuplicate(f.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleExport(f.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setRenameTarget({ id: f.id, title: f.title })}><FileEdit className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setRenameTarget({ id: f.id, title: f.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setMoveTargetIds([f.id]); setMoveToFolderId(''); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600" onClick={() => setConfirmDeleteIds([f.id])}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600" onClick={() => setConfirmDeleteIds([f.id])}><Trash className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -353,6 +410,21 @@ const ManageForms = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Slug create/edit dialog */}
+      <Dialog open={!!slugDialog} onOpenChange={(open) => { if (!open) setSlugDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{slugDialog?.slug ? 'Edit link' : 'Create link'}</DialogTitle>
+          </DialogHeader>
+          <Input value={slugDialog?.slug || ''} onChange={(e) => setSlugDialog((s) => s ? ({ ...s, slug: e.target.value }) : s)} placeholder="Enter slug (letters, numbers, dashes)" />
+          {slugError && <div className="text-xs text-destructive mt-2">{slugError}</div>}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSlugDialog(null)}>Cancel</Button>
+            <Button onClick={saveSlug}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rename dialog */}
       <Dialog open={!!renameTarget} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>

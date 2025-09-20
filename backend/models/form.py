@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, List, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
 
 from mongo.database import DB
@@ -15,10 +15,26 @@ class FormBase(BaseModel):
     folder: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     visible: bool = Field(True)
+    slug: Optional[str] = Field(None)
 
 
 class FormCreate(FormBase):
     data: Any = Field(default_factory=dict)
+
+    @field_validator("slug", mode="before")
+    def validate_slug(cls, v):
+        if v is None:
+            return v
+        s = str(v).strip()
+        if s == "":
+            return None
+        # only allow lowercase letters, numbers and dashes
+        import re
+        if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", s):
+            raise ValueError("Invalid slug format: only lowercase letters, numbers and dashes allowed")
+        if len(s) > 200:
+            raise ValueError("Slug too long")
+        return s
 
 
 class FormUpdate(BaseModel):
@@ -27,13 +43,30 @@ class FormUpdate(BaseModel):
     folder: Optional[str] = None
     description: Optional[str] = None
     visible: Optional[bool] = None
+    slug: Optional[str] = None
     data: Optional[Any] = None
+
+    @field_validator("slug", mode="before")
+    def validate_slug_update(cls, v):
+        # allow explicit null to remove slug
+        if v is None:
+            return None
+        s = str(v).strip()
+        if s == "":
+            return None
+        import re
+        if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", s):
+            raise ValueError("Invalid slug format: only lowercase letters, numbers and dashes allowed")
+        if len(s) > 200:
+            raise ValueError("Slug too long")
+        return s
 
 
 class Form(MongoBaseModel, FormBase):
     user_id: str
     data: Any = Field(default_factory=dict)
     responses: List[Any] = Field(default_factory=list)
+    slug: Optional[str]
 
 
 class FormOut(BaseModel):
@@ -44,6 +77,7 @@ class FormOut(BaseModel):
     description: Optional[str]
     user_id: str
     visible: bool
+    slug: Optional[str]
     data: Any
     responses: List[Any]
     created_at: datetime
@@ -57,6 +91,7 @@ def _doc_to_out(doc: dict) -> FormOut:
             ru_title=doc.get("ru_title"),
             folder=doc.get("folder"),
             description=doc.get("description"),
+        slug=doc.get("slug"),
         user_id=doc.get("user_id"),
         visible=doc.get("visible", True),
         data=doc.get("data", {}),
@@ -78,6 +113,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "ru_title": form.ru_title,
             "folder": form.folder,
             "description": form.description,
+            "slug": form.slug,
             "user_id": user_id,
             "visible": form.visible if hasattr(form, "visible") else True,
             # Remove any meta/title/description fields from data to avoid duplicate metadata storage
@@ -171,6 +207,15 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
         return None
 
 
+async def get_form_by_slug(slug: str) -> Optional[FormOut]:
+    try:
+        doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
+        return _doc_to_out(doc) if doc else None
+    except Exception as e:
+        print(f"Error fetching form by slug: {e}")
+        return None
+
+
 async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optional[FormOut]:
     try:
         update_doc = {"updated_at": datetime.now()}
@@ -185,6 +230,12 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
         if update.data is not None:
             # Strip any meta/title/description keys from incoming data
             update_doc["data"] = ({k: v for k, v in (update.data or {}).items() if k not in ['meta', 'title', 'description']} if isinstance(update.data, dict) else update.data)
+        try:
+            provided = update.model_dump(exclude_unset=True)
+        except Exception:
+            provided = {k: getattr(update, k) for k in update.__dict__.keys()}
+        if "slug" in provided:
+            update_doc["slug"] = provided.get("slug")
 
         result = await DB.db.forms.update_one({"_id": ObjectId(form_id), "user_id": user_id}, {"$set": update_doc})
         if result.matched_count:
