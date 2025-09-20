@@ -21,7 +21,6 @@ type Props = {
 };
 
 export function FieldRenderer({ field, control, error }: Props) {
-  // Price fields should not be rendered
   if (field.type === "price") return null;
   const colClass = cn("col-span-12", widthToCols(field.width));
   return (
@@ -183,7 +182,6 @@ export function FieldRenderer({ field, control, error }: Props) {
               };
 
               if (mode === "range") {
-                // Expect rhf.value as { from?: Date; to?: Date }
                 const selected = (rhf.value as { from?: Date; to?: Date } | undefined) || {};
                 const label = selected.from && selected.to
                   ? `${format(selected.from, "PPP")} – ${format(selected.to, "PPP")}`
@@ -221,7 +219,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                 );
               }
 
-              // single mode: value is Date | undefined
+              
               const selectedDate: Date | undefined = rhf.value;
               return (
                 <Popover>
@@ -247,7 +245,6 @@ export function FieldRenderer({ field, control, error }: Props) {
               );
             }
             case "time": {
-              // Expect HH:MM string
               const val: string | undefined = rhf.value;
               return (
                 <Input

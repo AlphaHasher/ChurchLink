@@ -73,7 +73,6 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       return z.boolean().optional();
     }
     case "switch": {
-      // same semantics as checkbox
       if (field.required) {
         return z.literal(true, { message: `${field.label || field.name} must be enabled` } as any);
       }
@@ -108,19 +107,19 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
           })
           .optional();
 
-        // If required, both from and to must be provided
+  // If required, both from and to must be provided
         if (f.required) {
           s = s.refine((v) => !!v && !!v.from && !!v.to, {
             message: `${label} is required`,
           });
         }
 
-        // Order check when both present: from <= to
+  // Order check when both present: from <= to
         s = s.refine((v) => !v || !v.from || !v.to || v.to.getTime() >= v.from.getTime(), {
           message: `${label} end date must be on or after start date`,
         });
 
-        // Min/Max checks for whichever endpoints exist
+  // Min/Max checks for whichever endpoints exist
         if (f.minDate) {
           const min = f.minDate;
           s = s.refine((v) => !v || (!v.from || v.from.getTime() >= min.getTime()) && (!v.to || v.to.getTime() >= min.getTime()), {
@@ -137,7 +136,7 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         return s;
       }
 
-      // Single-date mode: value is a Date or undefined
+  // Single-date mode: value is a Date or undefined
       let s: z.ZodType<Date | undefined> = z.date().optional();
       if (f.required) s = z.date();
       if (f.minDate)

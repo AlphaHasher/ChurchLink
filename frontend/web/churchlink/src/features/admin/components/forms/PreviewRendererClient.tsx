@@ -40,7 +40,7 @@ export function PreviewRendererClient() {
 
   const computeTotal = (): number => {
     let total = 0;
-  for (const f of schema.data as AnyField[]) {
+    for (const f of schema.data as AnyField[]) {
       if (!isVisible((f as any).visibleIf)) continue;
       const val = (values as any)?.[f.name];
       if (f.type === "price") {
@@ -100,7 +100,7 @@ export function PreviewRendererClient() {
 
   const total = computeTotal();
   const hasPricing = (): boolean => {
-  for (const f of schema.data as AnyField[]) {
+    for (const f of schema.data as AnyField[]) {
       if (f.type === "price") {
         return true;
       } else if (f.type === "checkbox" || f.type === "switch") {

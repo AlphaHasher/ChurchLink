@@ -56,7 +56,7 @@ const newField = (type: FieldType): AnyField => {
     case "price":
       return { ...base, type: "price", label: "Price", amount: 0 } as any;
     default:
-      return { ...base, type: "text", placeholder: "Enter text" }; // might need better handling
+      return { ...base, type: "text", placeholder: "Enter text" };
   }
 };
 

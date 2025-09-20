@@ -13,13 +13,13 @@ export function PreviewRenderer() {
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;
-    // Very simple parser: "name op literal" where op in == != >= <= > <
+    // Parser: "name op literal" where op in == != >= <= > <
     const m = visibleIf.match(/^\s*(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*$/);
     if (!m) return true;
     const [, name, op, rhsRaw] = m;
     const lhs = (values as any)?.[name];
     let rhs: any = rhsRaw;
-    // normalize rhs: strip quotes, parse number/boolean
+  // normalize rhs: strip quotes, parse number/boolean
     if ((/^['"].*['"]$/).test(rhsRaw)) rhs = rhsRaw.slice(1, -1);
     else if (/^(true|false)$/i.test(rhsRaw)) rhs = rhsRaw.toLowerCase() === "true";
     else if (!Number.isNaN(Number(rhsRaw))) rhs = Number(rhsRaw);
@@ -35,7 +35,6 @@ export function PreviewRenderer() {
   };
 
   const onSubmit = form.handleSubmit((data: any) => {
-    // For now, just log data
     console.log("Preview submit", data);
   });
 

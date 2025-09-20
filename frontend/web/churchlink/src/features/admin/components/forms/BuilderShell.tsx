@@ -9,6 +9,9 @@ import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from '@/shared/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
+import { Save as SaveIcon, MoreHorizontal, Upload, Download } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,10 +37,10 @@ export function BuilderShell() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showNameConflictDialog, setShowNameConflictDialog] = useState(false);
   const [overrideTargetId, setOverrideTargetId] = useState<string | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const authCtx = useAuth();
 
-  // Fetch user folders from server once auth is ready
   useEffect(() => {
     if (!authCtx.user) return;
     let mounted = true;
@@ -54,7 +57,6 @@ export function BuilderShell() {
     return () => { mounted = false; };
   }, [authCtx.user]);
 
-  // If ?load=<id> is present, fetch that form and load into builder
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const loadId = params.get('load');
@@ -67,8 +69,13 @@ export function BuilderShell() {
         if (!mounted) return;
         const form = resp.data;
         if (form && form.data) {
-          // form.data should already be the builder schema without meta
-          setSchema(form.data);
+          const dataArray = Array.isArray(form.data) ? form.data : (form.data?.data || []);
+          setSchema({
+            title: form.title || '',
+            description: form.description || '',
+            folder: form.folder || null,
+            data: dataArray,
+          } as any);
           setFormName(form.title || '');
           setDescription(form.description || '');
           setFolder(form.folder || null);
@@ -94,7 +101,6 @@ export function BuilderShell() {
 
     try {
       setStatusMessage('Saving to server...');
-      // Save using canonical payload: top-level title/description/folder and data array
       const payload = {
         title: formName,
         description: description,
@@ -145,7 +151,6 @@ export function BuilderShell() {
   };
 
   const onExport = () => {
-    // Export in canonical schema: title/description/folder at top-level, data array under `data`
     const exportObj: any = {
       title: formName || (schema as any)?.title || 'Untitled Form',
       description: description || (schema as any)?.description || '',
@@ -169,29 +174,24 @@ export function BuilderShell() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        if (parsed) {
-          // Accept legacy shape (fields) or new shape (data).
-          if (parsed.fields && Array.isArray(parsed.fields)) {
-            setSchema({
-              title: parsed.title || parsed.meta?.title || '',
-              description: parsed.description || parsed.meta?.description || '',
-              folder: parsed.meta?.folder || parsed.folder || null,
-              data: parsed.fields,
-            });
-            if (parsed.title || parsed.meta?.title) setFormName(parsed.title || parsed.meta?.title);
-            if (parsed.description || parsed.meta?.description) setDescription(parsed.description || parsed.meta?.description);
-          } else if (parsed.data && Array.isArray(parsed.data)) {
-            setSchema({
-              title: parsed.title || '',
-              description: parsed.description || '',
-              folder: parsed.folder || null,
-              data: parsed.data,
-            });
-            if (parsed.title) setFormName(parsed.title);
-            if (parsed.description) setDescription(parsed.description);
-          }
+        // Only support the canonical shape: top-level `data` array
+        if (parsed && Array.isArray(parsed.data)) {
+          setSchema({
+            title: parsed.title || '',
+            description: parsed.description || '',
+            folder: parsed.folder || null,
+            data: parsed.data,
+          });
+          if (parsed.title) setFormName(parsed.title);
+          if (parsed.description) setDescription(parsed.description);
+          setStatusMessage('Form imported');
+        } else {
+          setStatusMessage('Invalid form JSON: expected top-level "data" array');
         }
-      } catch {}
+      } catch (err) {
+        console.error('Failed to parse imported file', err);
+        setStatusMessage('Failed to parse JSON file');
+      }
     };
     reader.readAsText(file);
     e.currentTarget.value = "";
@@ -199,17 +199,46 @@ export function BuilderShell() {
   return (
     <ErrorBoundary>
       <div className="p-2">
+        {/* Header */}
         <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} className="w-48" />
-                <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-80" />
-              </div>
-
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2">
-                  <Select onValueChange={(v) => setFolder(String(v))}>
-                    <SelectTrigger size="sm">
+          <div>
+            <div className="text-xl font-semibold">{formName || 'Untitled Form'}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setSaveDialogOpen(true)}>
+              <SaveIcon className="h-4 w-4 mr-2" /> Save
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline"><MoreHorizontal className="h-4 w-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Form</DropdownMenuLabel>
+                <DropdownMenuItem onClick={onImportClick}><Upload className="h-4 w-4 mr-2" /> Import JSON</DropdownMenuItem>
+                <DropdownMenuItem onClick={onExport}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setSaveDialogOpen(true)}><SaveIcon className="h-4 w-4 mr-2" /> Save As...</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className="ml-1 text-sm text-muted-foreground h-5">{statusMessage}</div>
+        <input ref={fileInputRef} onChange={onFileChange} type="file" accept="application/json" className="hidden" />
+        </div>
+        {/* Save Dialog */}
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Save form</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} />
+              <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Folder</div>
+                {folders && folders.length > 0 ? (
+                  <Select value={folder || undefined} onValueChange={(v) => setFolder(String(v))}>
+                    <SelectTrigger>
                       <SelectValue placeholder="Choose folder" />
                     </SelectTrigger>
                     <SelectContent>
@@ -218,8 +247,12 @@ export function BuilderShell() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input placeholder="New folder" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} className="w-36" />
-                  <Button size="sm" variant="ghost" onClick={async () => {
+                ) : (
+                  <div className="text-sm text-muted-foreground">No folders created</div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Input placeholder="New folder" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} />
+                  <Button variant="ghost" onClick={async () => {
                     if (!newFolderName) return;
                     try {
                       setStatusMessage('Creating folder...');
@@ -239,16 +272,14 @@ export function BuilderShell() {
                     }
                   }}>Create</Button>
                 </div>
+              </div>
             </div>
-              <Button onClick={handleSave} className="ml-2">Save</Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <input ref={fileInputRef} onChange={onFileChange} type="file" accept="application/json" className="hidden" />
-            <Button variant="secondary" onClick={onImportClick}>Import JSON</Button>
-            <Button onClick={onExport}>Export JSON</Button>
-          </div>
-          <div className="ml-4 text-sm text-muted-foreground">{statusMessage}</div>
-        </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
+              <Button onClick={async () => { if (!folder) { setStatusMessage('Select or create a folder before saving'); return; } await handleSave(); setSaveDialogOpen(false); }}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Override confirmation dialog (name conflict) */}
         <AlertDialog open={showNameConflictDialog} onOpenChange={(open) => { if (!open) { setShowNameConflictDialog(false); setOverrideTargetId(null); } }}>
           <AlertDialogContent>
@@ -264,7 +295,6 @@ export function BuilderShell() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
       <div className="grid grid-cols-12 gap-4 p-4">
         <div className="col-span-12 md:col-span-2">
           <ErrorBoundary>
