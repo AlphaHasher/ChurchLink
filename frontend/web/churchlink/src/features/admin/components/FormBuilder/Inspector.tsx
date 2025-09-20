@@ -9,6 +9,7 @@ import type { AnyField, SelectField } from "./types";
 import { format } from "date-fns";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/shared/components/ui/hover-card";
 import { CircleHelp } from "lucide-react";
+import { Table, TableBody, TableHead, TableRow, TableCell, TableHeader } from "@/shared/components/ui/DataTable";
 
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
@@ -35,43 +36,64 @@ export function Inspector() {
     return (
       <div className="space-y-2">
         <Label>Options</Label>
-        {sel.options?.map((o, idx) => (
-          <div key={idx} className="flex gap-2">
-            <Input
-              placeholder="Label"
-              value={o.label}
-              onChange={(e) => {
-                const next = [...sel.options];
-                next[idx] = { ...next[idx], label: e.target.value };
-                updateOptions(field.id, next);
-              }}
-            />
-            <Input
-              placeholder="Value"
-              value={o.value}
-              onChange={(e) => {
-                const next = [...sel.options];
-                next[idx] = { ...next[idx], value: e.target.value };
-                updateOptions(field.id, next);
-              }}
-            />
-            <Button
-              variant="ghost"
-              onClick={() => {
-                const next = sel.options.filter((_, i) => i !== idx);
-                updateOptions(field.id, next);
-              }}
-            >
-              Remove
-            </Button>
-          </div>
-        ))}
-        <Button
-          variant="secondary"
-          onClick={() => updateOptions(field.id, [...(sel.options || []), { label: "New option", value: `value${(sel.options?.length || 0) + 1}` }])}
-        >
-          Add option
-        </Button>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Label</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(sel.options || []).map((o, idx) => (
+              <TableRow key={idx}>
+                <TableCell>
+                  <Input
+                    placeholder="Label"
+                    value={o.label}
+                    onChange={(e) => {
+                      const next = [...sel.options];
+                      next[idx] = { ...next[idx], label: e.target.value };
+                      updateOptions(field.id, next);
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    placeholder="Value"
+                    value={o.value}
+                    onChange={(e) => {
+                      const next = [...sel.options];
+                      next[idx] = { ...next[idx], value: e.target.value };
+                      updateOptions(field.id, next);
+                    }}
+                  />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      const next = sel.options.filter((_, i) => i !== idx);
+                      updateOptions(field.id, next);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => updateOptions(field.id, [...(sel.options || []), { label: "New option", value: `value${(sel.options?.length || 0) + 1}` }])}
+          >
+            Add option
+          </Button>
+        </div>
       </div>
     );
   };
@@ -82,6 +104,44 @@ export function Inspector() {
         <CardTitle>Inspector</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {field.type === "static" && (
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label>Text content</Label>
+              <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
+            </div>
+            <div className="grid grid-cols-3 gap-2 items-end">
+              <div className="space-y-1">
+                <Label>As</Label>
+                <Select value={(field as any).as || "p"} onValueChange={(v) => onChange({ as: v as any } as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="h1">H1</SelectItem>
+                    <SelectItem value="h2">H2</SelectItem>
+                    <SelectItem value="h3">H3</SelectItem>
+                    <SelectItem value="h4">H4</SelectItem>
+                    <SelectItem value="p">Paragraph</SelectItem>
+                    <SelectItem value="small">Small</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Color</Label>
+                <Input type="color" value={(field as any).color || "#000000"} onChange={(e) => onChange({ color: e.target.value } as any)} />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={(field as any).bold || false} onCheckedChange={(v) => onChange({ bold: !!v } as any)} />
+                  <Label>Bold</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={(field as any).underline || false} onCheckedChange={(v) => onChange({ underline: !!v } as any)} />
+                  <Label>Underline</Label>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="space-y-1">
           <Label>Label</Label>
           <Input value={field.label} onChange={(e) => onChange({ label: e.target.value })} />
@@ -90,10 +150,12 @@ export function Inspector() {
           <Label>Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
         </div>
-        <div className="space-y-1">
-          <Label>Placeholder</Label>
-          <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} />
-        </div>
+        {field.type !== "static" && (
+          <div className="space-y-1">
+            <Label>Placeholder</Label>
+            <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} />
+          </div>
+        )}
         <div className="space-y-1">
           <Label>Width</Label>
           <Select value={field.width || "full"} onValueChange={(v) => onChange({ width: v as any })}>

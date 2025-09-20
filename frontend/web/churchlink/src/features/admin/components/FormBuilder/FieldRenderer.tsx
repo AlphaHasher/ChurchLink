@@ -23,9 +23,10 @@ export function FieldRenderer({ field, control, error }: Props) {
   const colClass = cn("col-span-12", widthToCols(field.width));
   return (
     <div className={cn("flex flex-col gap-2", colClass)}>
-      {field.label && (
-        <Label htmlFor={field.name} className="text-sm font-medium">
-          {field.label}
+      {field.type !== "static" && field.label && (
+        <Label htmlFor={field.name} className="text-sm font-medium flex items-center gap-1">
+          <span>{field.label}</span>
+          {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
         </Label>
       )}
 
@@ -34,6 +35,33 @@ export function FieldRenderer({ field, control, error }: Props) {
         control={control}
         render={({ field: rhf }) => {
           switch (field.type) {
+            case "static": {
+              const f: any = field as any;
+              const Tag = (f.as || "p") as any;
+              const sizeClass = (() => {
+                switch (f.as) {
+                  case "h1":
+                    return "text-4xl";
+                  case "h2":
+                    return "text-3xl";
+                  case "h3":
+                    return "text-2xl";
+                  case "h4":
+                    return "text-xl";
+                  case "small":
+                    return "text-sm";
+                  case "p":
+                  default:
+                    return "text-base";
+                }
+              })();
+              const style: React.CSSProperties = {
+                color: f.color || undefined,
+                fontWeight: f.bold ? 600 : undefined,
+                textDecoration: f.underline ? "underline" : undefined,
+              };
+              return <Tag className={sizeClass} style={style}>{f.content || f.label}</Tag>;
+            }
             case "text":
               return (
                 <Input id={field.name} placeholder={field.placeholder} {...rhf} />

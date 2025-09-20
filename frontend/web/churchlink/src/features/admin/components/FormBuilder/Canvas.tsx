@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/Dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/shared/components/ui/sheet";
 import { Pencil, Trash } from "lucide-react";
 import { useBuilderStore } from "./store";
 import { Inspector } from "./Inspector";
@@ -62,22 +62,21 @@ export function Canvas() {
                         {idx + 1}. {f.label} <span className="text-muted-foreground">({f.type}{f.width ? ` • ${f.width}` : ""})</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Dialog>
-                          <DialogTrigger asChild>
+                        <Sheet>
+                          <SheetTrigger asChild>
                             <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); select(f.id); }} title="Edit">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Edit Field</DialogTitle>
-                            </DialogHeader>
-                            {/* Inspector inside dialog */}
-                            <div className="max-h-[70vh] overflow-auto">
+                          </SheetTrigger>
+                          <SheetContent side="left" className="sm:max-w-md w-[90vw] p-0">
+                            <SheetHeader className="p-4 pb-2">
+                              <SheetTitle>Edit Field</SheetTitle>
+                            </SheetHeader>
+                            <div className="max-h-[80vh] overflow-auto p-4 pt-2">
                               <Inspector />
                             </div>
-                          </DialogContent>
-                        </Dialog>
+                          </SheetContent>
+                        </Sheet>
                         <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); removeField(f.id); }} title="Remove">
                           <Trash className="h-4 w-4" />
                         </Button>

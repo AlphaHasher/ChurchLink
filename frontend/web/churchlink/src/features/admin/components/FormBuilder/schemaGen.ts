@@ -99,6 +99,10 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         });
       return s;
     }
+    case "static": {
+      // No user input; not included in form values
+      return z.any().optional();
+    }
     default:
       return z.any();
   }

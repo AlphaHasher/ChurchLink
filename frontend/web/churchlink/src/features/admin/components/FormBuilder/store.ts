@@ -41,6 +41,8 @@ const newField = (type: FieldType): AnyField => {
       return { ...base, type: "radio", options: [{ label: "Option 1", value: "option1" }] } as AnyField;
     case "date":
       return { ...base, type: "date" };
+    case "static":
+      return { ...base, type: "static", name: `static_${id}`, label: "Static Text", content: "Sample text", as: "p" } as any;
   }
 };
 

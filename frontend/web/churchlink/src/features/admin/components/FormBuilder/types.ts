@@ -8,7 +8,8 @@ export type FieldType =
   | "select"
   | "checkbox"
   | "radio"
-  | "date";
+  | "date"
+  | "static";
 
 export type Width = "full" | "half" | "third" | "quarter";
 
@@ -61,12 +62,22 @@ export interface DateField extends BaseField {
   mode?: "single" | "range";
 }
 
+export interface StaticTextField extends BaseField {
+  type: "static";
+  content: string;
+  as?: "p" | "h1" | "h2" | "h3" | "h4" | "small";
+  color?: string; // CSS color string (e.g. #000000)
+  bold?: boolean;
+  underline?: boolean;
+}
+
 export type AnyField =
   | NumberField
   | TextField
   | SelectField
   | CheckboxField
-  | DateField;
+  | DateField
+  | StaticTextField;
 
 export interface FormSchemaMeta {
   title?: string;

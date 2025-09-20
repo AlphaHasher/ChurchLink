@@ -10,6 +10,7 @@ const items = [
   { type: "radio", label: "Radio" },
   { type: "checkbox", label: "Checkbox" },
   { type: "date", label: "Date" },
+  { type: "static", label: "Static Text" },
 ] as const;
 
 export function Palette() {
