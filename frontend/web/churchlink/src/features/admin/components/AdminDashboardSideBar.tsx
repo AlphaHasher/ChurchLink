@@ -81,7 +81,10 @@ const AdminDashboardSideBar = () => {
     { title: "Web Builder", icon: Folder, children: webBuilderChildren },
     { title: "Media Library", icon: Folder, onClick: handleMediaRedirect, loadingKey: "media" },
     { title: "Events", url: "/admin/events", icon: CalendarFold },
-    { title: "Forms", url: "/admin/forms/form-builder", icon: Folder },
+    { title: "Forms", icon: Folder, children: [
+      { title: "Manage Forms", url: "/admin/forms/manage-forms" },
+      { title: "Form Builder", url: "/admin/forms/form-builder" },
+    ] },
     { title: "Bible Plan Manager", url: "/admin/bible-plan-manager", icon: BookOpen },
     { title: "Finance", url: "/admin/finance", icon: DollarSign },
     { title: "Notifications", url: "/admin/notifications", icon: Bell },
