@@ -1,7 +1,7 @@
 
 
-import { BuilderShell } from "../components/FormBuilder/BuilderShell";
-import FormsTabs from '@/features/admin/components/forms/FormsTabs';
+import { BuilderShell } from "../components/Forms/BuilderShell";
+import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 
 const FormBuilder = () => {
   return (

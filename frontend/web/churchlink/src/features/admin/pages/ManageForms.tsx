@@ -1,4 +1,4 @@
-import FormsTabs from '@/features/admin/components/forms/FormsTabs';
+import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 
 const ManageForms = () => {
   return (
