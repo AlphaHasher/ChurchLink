@@ -351,7 +351,47 @@ def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-async def add_response_by_slug(slug: str, response: Any) -> Tuple[bool, Optional[str]]:
+def _to_base_key(k: str) -> str:
+    return re.sub(r"\.[a-z]{2,}$", "", k or "")
+
+
+def _canonicalize_response(resp: Any) -> Any:
+    """Collapse locale-suffixed keys (e.g., name.en, name.es) into a single base key ('name').
+    Preference order: exact base key if present, else '.en' if present, else the first available locale value.
+    """
+    if not isinstance(resp, dict):
+        return resp
+    canonical: dict = {}
+    buckets: dict[str, dict[str, Any]] = {}
+    for k, v in resp.items():
+        base = _to_base_key(k)
+        # If the exact base key exists, prefer it and don't overwrite
+        if k == base:
+            if base not in canonical:
+                canonical[base] = v
+            # No need to add to buckets; base wins
+            continue
+        # Collect localized variants
+        if base not in buckets:
+            buckets[base] = {}
+        buckets[base][k] = v
+
+    # For any base not already set by exact key, choose a localized value
+    for base, variants in buckets.items():
+        if base in canonical:
+            continue
+        # Prefer '.en' if present
+        en_key = f"{base}.en"
+        if en_key in variants:
+            canonical[base] = variants[en_key]
+            continue
+        # Else take the first variant in sorted key order for stability
+        first_key = sorted(variants.keys())[0]
+        canonical[base] = variants[first_key]
+    return canonical
+
+
+async def add_response_by_slug(slug: str, response: Any, user_id: Optional[str] = None) -> Tuple[bool, Optional[str]]:
     """Validate the response against the stored form schema and append it to a single
     aggregated response document for the form (one document per form_id) in the
     form_responses collection under the `responses` array.
@@ -369,17 +409,32 @@ async def add_response_by_slug(slug: str, response: Any) -> Tuple[bool, Optional
         except ValueError as ve:
             return False, str(ve)
 
+        # Canonicalize the response to collapse locale-specific keys
+        response_canon = _canonicalize_response(response or {})
+
         # Validate each declared field against the provided response payload
         for f in schema_fields:
-            valid, err = _validate_field(f, response.get(f.get("name")))
+            name = f.get("name")
+            # value may be under exact name or localized variants; response_canon already collapsed
+            value = response_canon.get(name)
+            valid, err = _validate_field(f, value)
             if not valid:
                 return False, err
 
         # Upsert a single aggregated responses document per form_id and push the new response
         now = datetime.now()
+        # Build response entry and include user_id if provided
+        entry: dict = {"response": response_canon, "submitted_at": now}
+        if user_id:
+            try:
+                entry["user_id"] = ObjectId(user_id)
+            except Exception:
+                # fallback to plain string if not a valid ObjectId
+                entry["user_id"] = user_id
+
         update_result = await DB.db.form_responses.update_one(
             {"form_id": form_id},
-            {"$push": {"responses": {"response": response, "submitted_at": now}}},
+            {"$push": {"responses": entry}},
             upsert=True,
         )
         if update_result.matched_count == 0 and update_result.upserted_id is None:
@@ -461,9 +516,16 @@ async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: i
                 submitted_iso = submitted.isoformat()
             else:
                 submitted_iso = str(submitted) if submitted is not None else None
+            # Convert user_id to string if present
+            uid = r.get("user_id")
+            if isinstance(uid, ObjectId):
+                uid_str = str(uid)
+            else:
+                uid_str = str(uid) if uid is not None else None
             items.append({
                 "submitted_at": submitted_iso,
-                "response": r.get("response", {}),
+                "user_id": uid_str,
+                "response": _canonicalize_response(r.get("response", {})),
             })
 
         return {"form_id": form_id, "count": total, "items": items}

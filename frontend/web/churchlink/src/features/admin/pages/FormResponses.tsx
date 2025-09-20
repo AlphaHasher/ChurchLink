@@ -4,9 +4,11 @@ import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 import api from '@/api/api';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/components/ui/card';
+// pagination/select removed for simplified view
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/shared/components/ui/pagination';
 import { ArrowLeft, RefreshCcw } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
 
 const useQuery = () => new URLSearchParams(useLocation().search);
 
@@ -15,7 +17,10 @@ const FormResponses = () => {
   const query = useQuery();
   const formId = query.get('formId') || '';
 
-  const [formMeta, setFormMeta] = useState<{ title: string; description?: string } | null>(null);
+  const [formMeta, setFormMeta] = useState<{ title: string; description?: string; data?: any[] } | null>(null);
+  type Col = { key: string; label: string };
+  const [columns, setColumns] = useState<Col[]>([]);
+  // We will display raw user_id as recorded in DB. No name resolution here.
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<{ submitted_at: string; response: Record<string, any> }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,7 +33,9 @@ const FormResponses = () => {
       if (!formId) return;
       try {
         const resp = await api.get(`/v1/forms/${formId}`);
-        setFormMeta({ title: resp.data?.title || 'Form', description: resp.data?.description });
+        const meta = { title: resp.data?.title || 'Form', description: resp.data?.description };
+        setFormMeta(meta);
+        setColumns([{ key: '__user__', label: 'User' }, { key: '__submitted__', label: 'Submitted' }]);
       } catch (e) {
         // ignore
       }
@@ -41,10 +48,34 @@ const FormResponses = () => {
     setLoading(true);
     setError(null);
     try {
-      const skip = (page - 1) * pageSize;
-      const resp = await api.get(`/v1/forms/${formId}/responses`, { params: { skip, limit: pageSize } });
+        const skip = (page - 1) * pageSize;
+        const resp = await api.get(`/v1/forms/${formId}/responses`, { params: { skip, limit: pageSize } });
       setCount(resp.data?.count || 0);
-      setItems(resp.data?.items || []);
+      const newItems = resp.data?.items || [];
+      setItems(newItems);
+      // Union any extra keys from responses that aren't in columns yet
+      const existingKeys = new Set<string>(columns.map((c) => c.key));
+      const extra: Col[] = [];
+      for (const it of newItems) {
+        const respObj = it?.response || {};
+        Object.keys(respObj).forEach((k) => {
+          if (!existingKeys.has(k)) {
+            existingKeys.add(k);
+            extra.push({ key: k, label: k });
+          }
+        });
+      }
+      if (extra.length > 0) {
+        // Keep Submitted as first column; append extras at the end
+        setColumns((prev) => {
+          const userCol = prev.find((c) => c.key === '__user__');
+          const submitted = prev.find((c) => c.key === '__submitted__');
+          const others = prev.filter((c) => c.key !== '__submitted__' && c.key !== '__user__');
+          return [userCol!, submitted!, ...others, ...extra];
+        });
+      }
+
+      // No user name resolution here; frontend will display raw user_id as-is.
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load responses');
     } finally {
@@ -64,6 +95,24 @@ const FormResponses = () => {
     } catch {
       return iso;
     }
+  };
+
+  const SubmittedCell = ({ iso }: { iso?: string }) => {
+    return <TableCell>{formatDate(iso)}</TableCell>;
+  };
+
+  const UserCell = ({ uid }: { uid?: string }) => {
+    return <TableCell>{uid ?? '—'}</TableCell>;
+  };
+
+  const ValueCell = ({ value }: { value: any }) => {
+    let display = '';
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) display = '—';
+    else if (typeof value === 'boolean') display = value ? 'Yes' : 'No';
+    else if (Array.isArray(value)) display = value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ');
+    else if (typeof value === 'object') display = JSON.stringify(value);
+    else display = String(value);
+    return <TableCell>{display}</TableCell>;
   };
 
   return (
@@ -106,19 +155,35 @@ const FormResponses = () => {
               <div className="text-sm text-muted-foreground">No responses yet.</div>
             )}
             {!loading && count > 0 && (
-              <div className="space-y-3">
-                {items.map((it, idx) => (
-                  <div key={`${it.submitted_at}-${idx}`} className="border rounded p-3">
-                    <div className="text-xs text-muted-foreground mb-2">Submitted: {formatDate(it.submitted_at)}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {Object.entries(it.response || {}).map(([k, v]) => (
-                        <div key={k} className="text-sm">
-                          <span className="font-medium">{k}:</span> <span className="text-muted-foreground">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                        </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {columns.map((col) => (
+                        <TableHead key={col.key}>{col.label}</TableHead>
                       ))}
-                    </div>
-                  </div>
-                ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((it, idx) => {
+                      const resp = it.response || {};
+                      return (
+                        <TableRow key={`${it.submitted_at}-${idx}`}>
+                          {columns.map((col, cidx) => {
+                            if (col.key === '__submitted__') return <SubmittedCell key={`s-${cidx}`} iso={it.submitted_at} />;
+                            if (col.key === '__user__') {
+                              const uid = (it as any).user_id;
+                              // show raw user_id as recorded in DB
+                              return <UserCell key={`u-${cidx}`} uid={uid} />;
+                            }
+                            const val = resp[col.key];
+                            return <ValueCell key={`${col.key}-${cidx}`} value={val} />;
+                          })}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
@@ -146,7 +211,7 @@ const FormResponses = () => {
                       />
                     </PaginationItem>
                     {(() => {
-                      const items: React.ReactNode[] = [];
+                      const itemsNodes: React.ReactNode[] = [];
                       const maxToShow = 5;
                       let start = Math.max(1, page - 2);
                       let end = Math.min(totalPages, start + maxToShow - 1);
@@ -154,29 +219,29 @@ const FormResponses = () => {
                         start = Math.max(1, end - (maxToShow - 1));
                       }
                       if (start > 1) {
-                        items.push(
+                        itemsNodes.push(
                           <PaginationItem key={1}>
                             <PaginationLink href="#" isActive={page === 1} onClick={(e: any) => { e.preventDefault(); setPage(1); }}>1</PaginationLink>
                           </PaginationItem>
                         );
-                        if (start > 2) items.push(<PaginationItem key="s-ellipsis"><span className="px-2">…</span></PaginationItem>);
+                        if (start > 2) itemsNodes.push(<PaginationItem key="s-ellipsis"><span className="px-2">…</span></PaginationItem>);
                       }
                       for (let p = start; p <= end; p++) {
-                        items.push(
+                        itemsNodes.push(
                           <PaginationItem key={p}>
                             <PaginationLink href="#" isActive={p === page} onClick={(e: any) => { e.preventDefault(); setPage(p); }}>{p}</PaginationLink>
                           </PaginationItem>
                         );
                       }
                       if (end < totalPages) {
-                        if (end < totalPages - 1) items.push(<PaginationItem key="e-ellipsis"><span className="px-2">…</span></PaginationItem>);
-                        items.push(
+                        if (end < totalPages - 1) itemsNodes.push(<PaginationItem key="e-ellipsis"><span className="px-2">…</span></PaginationItem>);
+                        itemsNodes.push(
                           <PaginationItem key={totalPages}>
                             <PaginationLink href="#" isActive={page === totalPages} onClick={(e: any) => { e.preventDefault(); setPage(totalPages); }}>{totalPages}</PaginationLink>
                           </PaginationItem>
                         );
                       }
-                      return items;
+                      return itemsNodes;
                     })()}
                     <PaginationItem>
                       <PaginationNext

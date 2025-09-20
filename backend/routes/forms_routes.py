@@ -126,7 +126,9 @@ async def submit_response_by_slug(slug: str, request: Request):
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid JSON')
-    ok, info = await add_response_by_slug(slug, payload)
+    # If available, capture the submitting user's id (authenticated session)
+    uid = getattr(request.state, 'uid', None)
+    ok, info = await add_response_by_slug(slug, payload, user_id=uid)
     if not ok:
         # info may be an error message
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or 'Failed to store response')

@@ -53,7 +53,6 @@ export const fetchUsers = async () => {
 };
 
 
-
 export const getMyPermissions = async (options?: MyPermsRequest) => {
     try {
         // Provide default values if options is not passed
