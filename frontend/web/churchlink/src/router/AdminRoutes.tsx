@@ -22,6 +22,7 @@ const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
+const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 
 export const AdminRoutes = () => {
   return (
@@ -36,6 +37,7 @@ export const AdminRoutes = () => {
         <Route path="/finance" element={<Finance />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
         <Route path="/forms/form-builder" element={<FormBuilder />} />
+        <Route path="/forms/manage-forms" element={<ManageForms />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />

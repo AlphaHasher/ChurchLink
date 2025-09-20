@@ -58,7 +58,6 @@ export function BuilderShell() {
     <ErrorBoundary>
       <div className="p-2">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-semibold">Form Builder</h1>
           <div className="flex items-center gap-2">
             <input ref={fileInputRef} onChange={onFileChange} type="file" accept="application/json" className="hidden" />
             <Button variant="secondary" onClick={onImportClick}>Import JSON</Button>
