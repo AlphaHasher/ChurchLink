@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -18,14 +17,7 @@ export function Inspector() {
   const updateOptions = useBuilderStore((s) => s.updateOptions);
 
   if (!selectedId || !field) {
-    return (
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>Inspector</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Select a field to edit its properties</CardContent>
-      </Card>
-    );
+    return <div className="text-sm text-muted-foreground">Select a field to edit its properties</div>;
   }
 
   const onChange = (patch: Partial<AnyField>) => update(field.id, patch);
@@ -99,11 +91,7 @@ export function Inspector() {
   };
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Inspector</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         {field.type === "static" && (
           <div className="space-y-2">
             <div className="space-y-1">
@@ -296,7 +284,6 @@ export function Inspector() {
           <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
         </div>
         {renderOptions()}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
