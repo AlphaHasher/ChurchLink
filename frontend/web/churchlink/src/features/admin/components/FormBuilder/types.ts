@@ -13,7 +13,7 @@ export type FieldType =
 export type Width = "full" | "half" | "third" | "quarter";
 
 export interface BaseField {
-  id: string; // uuid
+  id: string;
   type: FieldType;
   name: string; // form key
   label: string;
@@ -21,8 +21,6 @@ export interface BaseField {
   helpText?: string;
   required?: boolean;
   width?: Width;
-  // Conditional visibility expression: simple DSL for now
-  // Example: "subscribe == true" or "age >= 18"
   visibleIf?: string;
 }
 
@@ -37,7 +35,7 @@ export interface TextField extends BaseField {
   type: "text" | "textarea";
   minLength?: number;
   maxLength?: number;
-  pattern?: string; // regex as string
+  pattern?: string;
 }
 
 export interface OptionItem {
@@ -58,9 +56,9 @@ export interface CheckboxField extends BaseField {
 
 export interface DateField extends BaseField {
   type: "date";
-  minDate?: Date; // Minimum allowed date
-  maxDate?: Date; // Maximum allowed date
-  mode?: "single" | "range"; // selection mode
+  minDate?: Date;
+  maxDate?: Date;
+  mode?: "single" | "range";
 }
 
 export type AnyField =

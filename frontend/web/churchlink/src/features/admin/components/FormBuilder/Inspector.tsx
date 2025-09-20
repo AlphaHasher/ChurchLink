@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
 import { format } from "date-fns";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/shared/components/ui/hover-card";
+import { CircleHelp } from "lucide-react";
 
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
@@ -179,8 +181,39 @@ export function Inspector() {
           </div>
         )}
         <div className="space-y-1">
-          <Label>Conditional visibility (e.g. subscribe == true)</Label>
-          <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} />
+          <div className="flex items-center gap-2">
+            <Label>Conditional visibility</Label>
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground" aria-label="Conditional visibility help">
+                  <CircleHelp className="h-4 w-4" />
+                </button>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-96" align="start">
+                <div className="space-y-2 text-sm">
+                  <p>Show this field only when a simple condition on another field is true.</p>
+                  <p>Syntax: <code>name op value</code></p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>name</strong>: another field's name</li>
+                    <li><strong>op</strong>: one of <code>==</code>, <code>!=</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&lt;</code></li>
+                    <li><strong>value</strong>: number, boolean (<code>true</code>/<code>false</code>), or string (wrap in quotes)</li>
+                  </ul>
+                  <div className="space-y-1">
+                    <p className="font-medium">Examples</p>
+                    <pre className="rounded bg-muted p-2 text-xs">staff == true</pre>
+                    <pre className="rounded bg-muted p-2 text-xs">age &gt;= 12</pre>
+                    <pre className="rounded bg-muted p-2 text-xs">country == "US"</pre>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium">Multiple conditions</p>
+                    <p>Chain with <code>&amp;&amp;</code> (AND) or <code>||</code> (OR). Only first condition is parsed today; support for chaining is planned. For now, prefer one condition per field.</p>
+                    <pre className="rounded bg-muted p-2 text-xs">subscribe == true &amp;&amp; age &gt;= 18</pre>
+                  </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
+          <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
         </div>
         {renderOptions()}
       </CardContent>

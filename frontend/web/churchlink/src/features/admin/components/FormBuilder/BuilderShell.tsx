@@ -20,7 +20,6 @@ export function BuilderShell() {
         if (parsed && parsed.fields) setSchema(parsed);
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Autosave to localStorage
