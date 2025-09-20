@@ -5,6 +5,7 @@ import { FieldRenderer } from "./FieldRenderer";
 import { useBuilderStore, type BuilderState } from "./store";
 import { Button } from "@/shared/components/ui/button";
 import { useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 
 export function PreviewRenderer() {
   const schema = useBuilderStore((s: BuilderState) => s.schema);
@@ -49,8 +50,39 @@ export function PreviewRenderer() {
 
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
-  {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
-        <FieldRenderer key={f.id} field={f} control={form.control} />
+      {/* Hidden required fields errors */}
+      {(() => {
+        const errs: Record<string, any> = (form.formState.errors as any) || {};
+        const msgs: string[] = [];
+        for (const f of schema.data) {
+          const e = errs?.[f.name];
+          if (!e) continue;
+          const vis = isVisible((f as any).visibleIf);
+          if (!vis && e?.message) msgs.push(e.message as string);
+        }
+        return msgs.length > 0 ? (
+          <div className="col-span-12">
+            <Alert variant="destructive">
+              <AlertTitle>Some required fields are missing</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc pl-5">
+                  {msgs.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          </div>
+        ) : null;
+      })()}
+
+      {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
+        <FieldRenderer
+          key={f.id}
+          field={f}
+          control={form.control}
+          error={(form.formState.errors as any)?.[f.name]?.message as string | undefined}
+        />
       ))}
       <div className="col-span-12">
         <Button type="submit">Submit</Button>

@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_slug(v: Optional[str], allow_none: bool = True) -> Optional[str]:
-    """Common slug validation logic."""
     if v is None:
         return None
     s = str(v).strip()
@@ -29,20 +28,11 @@ def _validate_slug(v: Optional[str], allow_none: bool = True) -> Optional[str]:
 
 
 def _validate_data_is_list(v: Any, allow_none: bool = True) -> Any:
-    """Common data validation logic."""
     if v is None:
         return [] if not allow_none else None
     if not isinstance(v, list):
         raise ValueError("Form data must be an array of field definitions")
     return v
-
-
-def _filter_metadata_from_data(data: Any) -> Any:
-    """Remove any meta/title/description fields from data to avoid duplicate metadata storage."""
-    if isinstance(data, dict):
-        return {k: v for k, v in data.items() if k not in ['meta', 'title', 'description']}
-    return data
-
 
 class FormBase(BaseModel):
     title: str = Field(...)
@@ -85,9 +75,7 @@ class FormUpdate(BaseModel):
 
 class Form(MongoBaseModel, FormBase):
     user_id: str
-    data: Any = Field(default_factory=dict)
-    # responses will be a list of ObjectId references stored on the form
-    responses: List[Any] = Field(default_factory=list)
+    data: Any = Field(default_factory=list)
     slug: Optional[str]
 
 
@@ -101,8 +89,6 @@ class FormOut(BaseModel):
     visible: bool
     slug: Optional[str]
     data: Any
-    # list of response ids (strings)
-    responses: List[str]
     created_at: datetime
     updated_at: datetime
 
@@ -117,8 +103,7 @@ def _doc_to_out(doc: dict) -> FormOut:
         slug=doc.get("slug"),
         user_id=doc.get("user_id"),
         visible=doc.get("visible", True),
-        data=doc.get("data", {}),
-        responses=[str(r) for r in (doc.get("responses") or [])],
+        data=doc.get("data", []),
         created_at=doc.get("created_at"),
         updated_at=doc.get("updated_at"),
     )
@@ -139,8 +124,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "slug": form.slug,
             "user_id": user_id,
             "visible": form.visible if hasattr(form, "visible") else True,
-            "data": _filter_metadata_from_data(form.data),
-            "responses": [],
+            "data": (form.data),
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
         }
@@ -373,8 +357,12 @@ def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
 
 
 async def add_response_by_slug(slug: str, response: Any) -> Tuple[bool, Optional[str]]:
-    """Validate the response against the stored form schema, insert into form_responses collection, and push the response id onto the form's responses array.
-    Returns (True, response_id) or (False, error_message)
+    """Validate the response against the stored form schema and append it to a single
+    aggregated response document for the form (one document per form_id) in the
+    form_responses collection under the `responses` array.
+
+    Returns (True, response_identifier) or (False, error_message). The identifier is
+    the ISO timestamp of when the response was recorded.
     """
     try:
         doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
@@ -392,15 +380,18 @@ async def add_response_by_slug(slug: str, response: Any) -> Tuple[bool, Optional
             if not valid:
                 return False, err
 
-        # Insert into separate collection
-        res_doc = {"form_id": form_id, "response": response, "submitted_at": datetime.now()}
-        result = await DB.db.form_responses.insert_one(res_doc)
-        if not result.inserted_id:
+        # Upsert a single aggregated responses document per form_id and push the new response
+        now = datetime.now()
+        update_result = await DB.db.form_responses.update_one(
+            {"form_id": form_id},
+            {"$push": {"responses": {"response": response, "submitted_at": now}}},
+            upsert=True,
+        )
+        if update_result.matched_count == 0 and update_result.upserted_id is None:
+            # Shouldn't happen, but indicates failure
             return False, "Failed to store response"
-
-        # Push the response ObjectId into forms.responses
-        await DB.db.forms.update_one({"_id": form_id}, {"$push": {"responses": result.inserted_id}})
-        return True, str(result.inserted_id)
+        # Return the timestamp as a stable identifier for the recorded response
+        return True, now.isoformat()
     except Exception as e:
         logger.error(f"Error adding response for slug {slug}: {e}")
         return False, "Server error"
@@ -418,7 +409,7 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
         if update.visible is not None:
             update_doc["visible"] = update.visible
         if update.data is not None:
-            update_doc["data"] = _filter_metadata_from_data(update.data)
+            update_doc["data"] = (update.data)
         
         try:
             provided = update.model_dump(exclude_unset=True)

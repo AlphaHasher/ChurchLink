@@ -8,7 +8,8 @@ import type { AnyField, DateField, SelectField } from "./types";
 import { format } from "date-fns";
 import api from '@/api/api';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 
 export function PreviewRendererClient({ slug }: { slug?: string }) {
   const schema = useBuilderStore((s) => s.schema);
@@ -116,6 +117,23 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
   };
 
   const total = computeTotal();
+  
+  // Collect errors for fields that are currently hidden, so they still surface
+  const hiddenErrors: string[] = useMemo(() => {
+    const msgs: string[] = [];
+    const errs: Record<string, any> = (form.formState.errors as any) || {};
+    const byName: Record<string, any> = errs;
+    for (const f of schema.data as AnyField[]) {
+      const e = byName[f.name];
+      if (!e) continue;
+      const currentlyVisible = isVisible((f as any).visibleIf);
+      if (!currentlyVisible) {
+        const msg = e?.message as string | undefined;
+        if (msg) msgs.push(msg);
+      }
+    }
+    return msgs;
+  }, [form.formState.errors, schema.data, values]);
   const hasPricing = (): boolean => {
     for (const f of schema.data as AnyField[]) {
       if (f.type === "price") {
@@ -135,8 +153,29 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
 
   return (
   <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
-  {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
-        <FieldRenderer key={f.id} field={f} control={form.control} error={(form.formState.errors as any)?.[f.name]?.message as string | undefined} />
+      {/* Show errors for hidden required fields too */}
+      {hiddenErrors.length > 0 && (
+        <div className="col-span-12">
+          <Alert variant="destructive">
+            <AlertTitle>Some required fields are missing</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc pl-5">
+                {hiddenErrors.map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
+        <FieldRenderer
+          key={f.id}
+          field={f}
+          control={form.control}
+          error={(form.formState.errors as any)?.[f.name]?.message as string | undefined}
+        />
       ))}
       <div className="col-span-12">
         <Button type="submit">Submit</Button>

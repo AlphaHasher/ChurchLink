@@ -264,7 +264,7 @@ const ManageForms = () => {
         <h1 className="text-2xl font-semibold mb-4">Forms</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchForms} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
-          <Button onClick={() => navigate('/admin/forms/form-builder')}>
+          <Button onClick={() => navigate('/admin/forms/form-builder?new=1')}>
             <Pencil className="h-4 w-4 mr-2" /> New Form
           </Button>
         </div>
