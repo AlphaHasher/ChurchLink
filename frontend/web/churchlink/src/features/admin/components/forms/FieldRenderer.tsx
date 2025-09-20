@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { Calendar } from "@/shared/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { useBuilderStore } from "./store";
 
 type Props = {
   field: AnyField;
@@ -23,11 +24,20 @@ type Props = {
 export function FieldRenderer({ field, control, error }: Props) {
   if (field.type === "price") return null;
   const colClass = cn("col-span-12", widthToCols(field.width));
+  const activeLocale = useBuilderStore((s) => s.activeLocale);
+  const t = (key: 'label'|'placeholder'|'helpText'|'content', base?: string) => {
+    const map = (field as any).i18n as Record<string, any> | undefined;
+    const val = map?.[activeLocale]?.[key];
+    return (val != null && val !== '') ? val : base;
+  };
+  const localizedLabel = t('label', field.label);
+  const localizedPlaceholder = t('placeholder', (field as any).placeholder);
+  const localizedHelp = t('helpText', (field as any).helpText);
   return (
     <div className={cn("flex flex-col gap-2", colClass)}>
-      {field.type !== "static" && field.label && (
+      {field.type !== "static" && localizedLabel && (
         <Label htmlFor={field.name} className="text-sm font-medium flex items-center gap-1">
-          <span>{field.label}</span>
+          <span>{localizedLabel}</span>
           {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
         </Label>
       )}
@@ -62,34 +72,35 @@ export function FieldRenderer({ field, control, error }: Props) {
                 fontWeight: f.bold ? 600 : undefined,
                 textDecoration: f.underline ? "underline" : undefined,
               };
-              return <Tag className={sizeClass} style={style}>{f.content || f.label}</Tag>;
+              const localizedContent = t('content', f.content || f.label);
+              return <Tag className={sizeClass} style={style}>{localizedContent}</Tag>;
             }
             case "text":
               return (
-                <Input id={field.name} placeholder={field.placeholder} {...rhf} />
+                <Input id={field.name} placeholder={localizedPlaceholder} {...rhf} />
               );
             case "email":
               return (
-                <Input id={field.name} type="email" placeholder={field.placeholder || "you@example.com"} {...rhf} />
+                <Input id={field.name} type="email" placeholder={localizedPlaceholder || "you@example.com"} {...rhf} />
               );
             case "url":
               return (
-                <Input id={field.name} type="url" placeholder={field.placeholder || "https://"} {...rhf} />
+                <Input id={field.name} type="url" placeholder={localizedPlaceholder || "https://"} {...rhf} />
               );
             case "tel":
               return (
-                <Input id={field.name} type="tel" placeholder={field.placeholder || "+1 (555) 123-4567"} {...rhf} />
+                <Input id={field.name} type="tel" placeholder={localizedPlaceholder || "+1 (555) 123-4567"} {...rhf} />
               );
             case "textarea":
               return (
-                <Textarea id={field.name} placeholder={field.placeholder} {...rhf} />
+                <Textarea id={field.name} placeholder={localizedPlaceholder} {...rhf} />
               );
             case "number":
               return (
                 <Input
                   id={field.name}
                   type="number"
-                  placeholder={field.placeholder}
+                  placeholder={localizedPlaceholder}
                   min={(field as any).min}
                   max={(field as any).max}
                   step={(field as any).step}
@@ -101,9 +112,9 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <div className="flex items-center gap-2">
                   <Checkbox id={field.name} checked={!!rhf.value} onCheckedChange={rhf.onChange} />
-                  {field.placeholder && (
+                  {localizedPlaceholder && (
                     <Label htmlFor={field.name} className="text-sm text-muted-foreground">
-                      {field.placeholder}
+                      {localizedPlaceholder}
                     </Label>
                   )}
                 </div>
@@ -112,9 +123,9 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <div className="flex items-center gap-2">
                   <Switch checked={!!rhf.value} onCheckedChange={rhf.onChange} id={field.name} />
-                  {field.placeholder && (
+                  {localizedPlaceholder && (
                     <Label htmlFor={field.name} className="text-sm text-muted-foreground">
-                      {field.placeholder}
+                      {localizedPlaceholder}
                     </Label>
                   )}
                 </div>
@@ -136,7 +147,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                           checked={current.includes(o.value)}
                           onCheckedChange={(v) => toggle(o.value, !!v)}
                         />
-                        <span>{o.label}</span>
+                        <span>{(o.i18n?.[activeLocale]?.label ?? o.label)}</span>
                       </label>
                     ))}
                   </div>
@@ -145,12 +156,12 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <Select value={rhf.value} onValueChange={rhf.onChange}>
                   <SelectTrigger id={field.name}>
-                    <SelectValue placeholder={field.placeholder} />
+                    <SelectValue placeholder={localizedPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
                     {opts.map((o: any) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                        {(o.i18n?.[activeLocale]?.label ?? o.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -164,7 +175,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                   {opts.map((o: any) => (
                     <div className="flex items-center space-x-2" key={o.value}>
                       <RadioGroupItem id={`${field.name}-${o.value}`} value={o.value} />
-                      <Label htmlFor={`${field.name}-${o.value}`}>{o.label}</Label>
+                      <Label htmlFor={`${field.name}-${o.value}`}>{(o.i18n?.[activeLocale]?.label ?? o.label)}</Label>
                     </div>
                   ))}
                 </RadioGroup>
@@ -263,8 +274,8 @@ export function FieldRenderer({ field, control, error }: Props) {
         }}
       />
 
-      {field.helpText && (
-        <p className="text-xs text-muted-foreground">{field.helpText}</p>
+      {localizedHelp && (
+        <p className="text-xs text-muted-foreground">{localizedHelp}</p>
       )}
       {error && <p className="text-xs text-destructive">{String(error)}</p>}
     </div>

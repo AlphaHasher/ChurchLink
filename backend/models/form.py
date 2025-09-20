@@ -36,7 +36,6 @@ def _validate_data_is_list(v: Any, allow_none: bool = True) -> Any:
 
 class FormBase(BaseModel):
     title: str = Field(...)
-    ru_title: Optional[str] = Field(None)
     folder: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     visible: bool = Field(True)
@@ -57,7 +56,6 @@ class FormCreate(FormBase):
 
 class FormUpdate(BaseModel):
     title: Optional[str] = None
-    ru_title: Optional[str] = None
     folder: Optional[str] = None
     description: Optional[str] = None
     visible: Optional[bool] = None
@@ -82,7 +80,6 @@ class Form(MongoBaseModel, FormBase):
 class FormOut(BaseModel):
     id: str
     title: str
-    ru_title: Optional[str]
     folder: Optional[str]
     description: Optional[str]
     user_id: str
@@ -97,7 +94,6 @@ def _doc_to_out(doc: dict) -> FormOut:
     return FormOut(
         id=str(doc.get("_id")),
         title=doc.get("title"),
-        ru_title=doc.get("ru_title"),
         folder=doc.get("folder"),
         description=doc.get("description"),
         slug=doc.get("slug"),
@@ -118,7 +114,6 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
     try:
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
-            "ru_title": form.ru_title,
             "folder": form.folder,
             "description": form.description,
             "slug": form.slug,
@@ -234,70 +229,70 @@ def _is_present(value: Any) -> bool:
 
 def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
     t = field.get("type")
-    name = field.get("label") or field.get("name")
+    component_name = field.get("label") or field.get("component_name")
     # Text/textarea
     if t in ("text", "textarea"):
         if field.get("required") and not _is_present(value):
-            return False, f"{name} is required"
+            return False, f"{component_name} is required"
         if value is None:
             return True, None
         if not isinstance(value, str):
-            return False, f"{name} must be a string"
+            return False, f"{component_name} must be a string"
         if field.get("minLength") is not None and len(value) < field.get("minLength"):
-            return False, f"{name} must be at least {field.get('minLength')} characters"
+            return False, f"{component_name} must be at least {field.get('minLength')} characters"
         if field.get("maxLength") is not None and len(value) > field.get("maxLength"):
-            return False, f"{name} must be at most {field.get('maxLength')} characters"
+            return False, f"{component_name} must be at most {field.get('maxLength')} characters"
         if field.get("pattern"):
             if not re.match(field.get("pattern"), value):
-                return False, f"{name} is invalid"
+                return False, f"{component_name} is invalid"
         return True, None
 
     if t == "email":
         if field.get("required") and not _is_present(value):
-            return False, f"{name} is required"
+            return False, f"{component_name} is required"
         if value is None:
             return True, None
         email_re = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
         if not isinstance(value, str) or not email_re.match(value):
-            return False, f"{name} must be a valid email"
+            return False, f"{component_name} must be a valid email"
         return True, None
 
     if t == "number":
         if field.get("required") and value is None:
-            return False, f"{name} is required"
+            return False, f"{component_name} is required"
         if value is None:
             return True, None
         try:
             n = float(value)
         except Exception:
-            return False, f"{name} must be a number"
+            return False, f"{component_name} must be a number"
         if field.get("min") is not None and n < field.get("min"):
-            return False, f"{name} must be >= {field.get('min')}"
+            return False, f"{component_name} must be >= {field.get('min')}"
         if field.get("max") is not None and n > field.get("max"):
-            return False, f"{name} must be <= {field.get('max')}"
+            return False, f"{component_name} must be <= {field.get('max')}"
         # allowedValues CSV
         if field.get("allowedValues"):
             try:
                 allowed = [float(x.strip()) for x in field.get("allowedValues").split(",") if x.strip()]
                 if allowed and n not in allowed:
-                    return False, f"{name} must be one of: {', '.join(str(int(x)) if x.is_integer() else str(x) for x in allowed)}"
+                    return False, f"{component_name} must be one of: {', '.join(str(int(x)) if x.is_integer() else str(x) for x in allowed)}"
             except Exception:
                 pass
         return True, None
 
     if t in ("checkbox", "switch"):
         if field.get("required") and not value:
-            return False, f"{name} must be checked"
+            return False, f"{component_name} must be checked"
         return True, None
 
     if t in ("select", "radio"):
         if field.get("required"):
             if value is None:
-                return False, f"{name} is required"
+                return False, f"{component_name} is required"
             if isinstance(value, list) and len(value) == 0:
-                return False, f"{name} is required"
+                return False, f"{component_name} is required"
             if isinstance(value, str) and value == "":
-                return False, f"{name} is required"
+                return False, f"{component_name} is required"
         return True, None
 
     if t == "date":
@@ -307,50 +302,50 @@ def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
         if fcfg.get("mode") == "range":
             if fcfg.get("required"):
                 if not value or not value.get("from") or not value.get("to"):
-                    return False, f"{name} is required"
+                    return False, f"{component_name} is required"
             if not value:
                 return True, None
             try:
                 fr = _dt.fromisoformat(value.get("from")) if value.get("from") else None
                 to = _dt.fromisoformat(value.get("to")) if value.get("to") else None
             except Exception:
-                return False, f"{name} has invalid date format"
+                return False, f"{component_name} has invalid date format"
             if fr and to and to < fr:
-                return False, f"{name} end date must be on or after start date"
+                return False, f"{component_name} end date must be on or after start date"
             if fcfg.get("minDate"):
                 try:
                     minD = _dt.fromisoformat(fcfg.get("minDate")) if isinstance(fcfg.get("minDate"), str) else fcfg.get("minDate")
                     if fr and fr < minD:
-                        return False, f"{name} must be on or after {minD.date()}"
+                        return False, f"{component_name} must be on or after {minD.date()}"
                 except Exception:
                     pass
             if fcfg.get("maxDate"):
                 try:
                     maxD = _dt.fromisoformat(fcfg.get("maxDate")) if isinstance(fcfg.get("maxDate"), str) else fcfg.get("maxDate")
                     if to and to > maxD:
-                        return False, f"{name} must be on or before {maxD.date()}"
+                        return False, f"{component_name} must be on or before {maxD.date()}"
                 except Exception:
                     pass
             return True, None
         else:
             if field.get("required") and not _is_present(value):
-                return False, f"{name} is required"
+                return False, f"{component_name} is required"
             if not _is_present(value):
                 return True, None
             try:
                 _dt.fromisoformat(value)
                 return True, None
             except Exception:
-                return False, f"{name} has invalid date format"
+                return False, f"{component_name} has invalid date format"
 
     if t == "time":
         if field.get("required") and not _is_present(value):
-            return False, f"{name} is required"
+            return False, f"{component_name} is required"
         if not _is_present(value):
             return True, None
 
         if not re.match(r"^([01]\d|2[0-3]):([0-5]\d)$", value):
-            return False, f"{name} has invalid time format"
+            return False, f"{component_name} has invalid time format"
         return True, None
 
     return True, None
@@ -402,8 +397,6 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
         update_doc = {"updated_at": datetime.now()}
         if update.title is not None:
             update_doc["title"] = update.title
-        if update.ru_title is not None:
-            update_doc["ru_title"] = update.ru_title
         if update.description is not None:
             update_doc["description"] = update.description
         if update.visible is not None:

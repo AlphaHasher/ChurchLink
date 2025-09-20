@@ -31,6 +31,16 @@ export interface BaseField {
   required?: boolean;
   width?: Width;
   visibleIf?: string;
+  // Per-locale overrides for visible texts
+  // Keyed by locale code (e.g., 'en', 'es').
+  // Only keys present will override the base values.
+  i18n?: Record<string, {
+    label?: string;
+    placeholder?: string;
+    helpText?: string;
+    // static fields may also override content via i18n
+    content?: string;
+  }>;
 }
 
 export interface NumberField extends BaseField {
@@ -75,6 +85,8 @@ export interface OptionItem {
   label: string;
   value: string;
   price?: number; // optional price for this option
+  // Per-locale overrides for option label
+  i18n?: Record<string, { label?: string }>;
 }
 
 export interface SelectField extends BaseField {
@@ -160,6 +172,10 @@ export interface FormSchema {
   title?: string;
   folder?: string;
   description?: string;
+  // List of additional locales supported by this form (excluding defaultLocale)
+  locales?: string[];
+  // Default/primary locale, used as base language for authoring
+  defaultLocale?: string;
   data: AnyField[];
 }
 

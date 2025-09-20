@@ -2,7 +2,7 @@ import { Palette } from "./Palette";
 import { Canvas } from "./Canvas";
 import { PreviewRendererClient } from "./PreviewRendererClient";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from '@/features/auth/hooks/auth-context';
 import { useBuilderStore } from "./store";
 import { Button } from "@/shared/components/ui/button";
@@ -27,6 +27,25 @@ import api from '@/api/api';
 
 export function BuilderShell() {
   const schema = useBuilderStore((s) => s.schema);
+  const activeLocale = useBuilderStore((s) => s.activeLocale);
+  const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
+  const availableLocales = useMemo(() => {
+    const set = new Set<string>();
+    const dl = (schema as any)?.defaultLocale || 'en';
+    if (dl) set.add(dl);
+    for (const l of ((schema as any)?.locales || [])) set.add(l);
+    for (const f of ((schema as any)?.data || [])) {
+      const i18n = (f as any)?.i18n as Record<string, any> | undefined;
+      if (i18n) for (const k of Object.keys(i18n)) set.add(k);
+      if ((f as any)?.options) {
+        for (const o of (f as any).options) {
+          const oi = o?.i18n as Record<string, any> | undefined;
+          if (oi) for (const k of Object.keys(oi)) set.add(k);
+        }
+      }
+    }
+    return Array.from(set);
+  }, [schema]);
   const setSchema = useBuilderStore((s) => s.setSchema);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -41,7 +60,7 @@ export function BuilderShell() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', folder: null, data: [] }));
+  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], data: [] }));
 
   useEffect(() => {
     if (status?.type === 'success') {
@@ -86,13 +105,15 @@ export function BuilderShell() {
             title: form.title || '',
             description: form.description || '',
             folder: form.folder || null,
+            defaultLocale: form.defaultLocale || 'en',
+            locales: form.locales || [],
             data: dataArray,
           } as any);
           setFormName(form.title || '');
           setDescription(form.description || '');
           setFolder(form.folder || null);
           setStatus(null);
-          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', folder: form.folder || null, data: dataArray });
+          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', folder: form.folder || null, defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], data: dataArray });
         }
       } catch (err) {
         console.error('Failed to load form', err);
@@ -114,15 +135,15 @@ export function BuilderShell() {
       resetToBlank();
       return;
     }
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, data: dataArray });
-    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', folder: null, data: [] });
+  const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: dataArray });
+  const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], data: [] });
     if (isDirty) setShowDiscardDialog(true);
     else resetToBlank();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetToBlank = () => {
-    const blank: any = { title: '', description: '', folder: null, data: [] };
+  const blank: any = { title: '', description: '', folder: null, defaultLocale: 'en', locales: [], data: [] };
     setSchema(blank);
     setFormName('');
     setDescription('');
@@ -132,7 +153,7 @@ export function BuilderShell() {
 
   // Track dirty state and expose it for manager page via localStorage
   useEffect(() => {
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, data: (schema as any)?.data || [] });
+  const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: (schema as any)?.data || [] });
     const isDirtyNow = snapshot !== lastSavedSnapshotRef.current;
     try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch {}
   }, [schema, formName, description, folder]);
@@ -158,7 +179,7 @@ export function BuilderShell() {
       };
       await api.post('/v1/forms/', payload);
       setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
-  lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, data: (schema as any)?.data || [] });
+  lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: (schema as any)?.data || [] });
     } catch (err: any) {
       console.error('Failed to save form to server', err);
       if (err?.response?.status === 409) {
@@ -187,7 +208,7 @@ export function BuilderShell() {
       };
   await api.put(`/v1/forms/${overrideTargetId}`, updatePayload);
   setStatus({ type: 'success', message: 'Form overridden' });
-  lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, data: (schema as any)?.data || [] });
+  lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: (schema as any)?.data || [] });
       // Refresh folders list just in case
       const foldersResp = await api.get('/v1/forms/folders');
       setFolders(foldersResp.data || []);
@@ -205,6 +226,8 @@ export function BuilderShell() {
       title: formName || (schema as any)?.title || 'Untitled Form',
       description: description || (schema as any)?.description || '',
       folder: (schema as any)?.folder || null,
+      defaultLocale: (schema as any)?.defaultLocale || 'en',
+      locales: (schema as any)?.locales || [],
       data: (schema as any)?.data || [],
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
@@ -230,6 +253,8 @@ export function BuilderShell() {
             title: parsed.title || '',
             description: parsed.description || '',
             folder: parsed.folder || null,
+            defaultLocale: parsed.defaultLocale || 'en',
+            locales: parsed.locales || [],
             data: parsed.data,
           });
           if (parsed.title) setFormName(parsed.title);
@@ -429,7 +454,21 @@ export function BuilderShell() {
         <div className="col-span-12 md:col-span-4">
           <Card className="h-full">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Live Preview</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Live Preview</CardTitle>
+                <div className="flex">
+                  <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+                    <SelectTrigger className="h-8 w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {availableLocales.map((l) => (
+                        <SelectItem key={l} value={l}>{l}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ErrorBoundary>

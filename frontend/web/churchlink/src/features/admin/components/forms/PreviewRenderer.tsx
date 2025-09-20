@@ -13,6 +13,7 @@ export function PreviewRenderer() {
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} });
   const values = form.watch();
   const [status, setStatus] = useState<string | null>(null);
+  // Language selection handled in parent card header
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;
@@ -50,6 +51,7 @@ export function PreviewRenderer() {
 
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
+      {/* Language selector removed here; kept in Live Preview card header */}
       {/* Hidden required fields errors */}
       {(() => {
         const errs: Record<string, any> = (form.formState.errors as any) || {};

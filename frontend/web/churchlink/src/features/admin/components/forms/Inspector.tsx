@@ -15,6 +15,26 @@ export function Inspector() {
   const field = useBuilderStore((s) => s.schema.data.find((f) => f.id === s.selectedId));
   const update = useBuilderStore((s) => s.updateField);
   const updateOptions = useBuilderStore((s) => s.updateOptions);
+  const addLocale = useBuilderStore((s) => s.addLocale);
+  const removeLocale = useBuilderStore((s) => s.removeLocale);
+  const schema = useBuilderStore((s) => s.schema);
+  const schemaLocales = schema.locales || [];
+  const defaultLocale = schema.defaultLocale || 'en';
+  const availableLocales = (() => {
+    const set = new Set<string>();
+    if (defaultLocale) set.add(defaultLocale);
+    for (const l of schemaLocales) set.add(l);
+    const i18n = (field as any)?.i18n as Record<string, any> | undefined;
+    if (i18n) Object.keys(i18n).forEach((k) => set.add(k));
+    if ((field as any)?.type === 'select' || (field as any)?.type === 'radio') {
+      const sel = field as SelectField;
+      for (const o of (sel.options || [])) {
+        const oi = (o as any)?.i18n as Record<string, any> | undefined;
+        if (oi) Object.keys(oi).forEach((k) => set.add(k));
+      }
+    }
+    return Array.from(set);
+  })();
 
   if (!selectedId || !field) {
     return <div className="text-sm text-muted-foreground">Select a field to edit its properties</div>;
@@ -50,6 +70,28 @@ export function Inspector() {
                       updateOptions(field.id, next);
                     }}
                   />
+                  {(availableLocales.length > 0) && (
+                    <div className="mt-1 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Localized labels</Label>
+                      {availableLocales.map((loc) => (
+                        <div className="flex items-center gap-2" key={loc}>
+                          <span className="text-xs w-10">{loc}</span>
+                          <Input
+                            placeholder={`Label (${loc})`}
+                            value={o.i18n?.[loc]?.label ?? ''}
+                            onChange={(e) => {
+                              const next = [...sel.options] as any[];
+                              const curr = next[idx];
+                              const i18n = { ...(curr.i18n || {}) };
+                              i18n[loc] = { ...(i18n[loc] || {}), label: e.target.value };
+                              next[idx] = { ...curr, i18n };
+                              updateOptions(field.id, next as any);
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Input
@@ -106,6 +148,87 @@ export function Inspector() {
 
   return (
     <div className="space-y-3">
+        {/* Localization controls for field texts */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Localization</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                className="h-8 w-24"
+                placeholder="Add locale"
+                onKeyDown={(e) => {
+                  const v = (e.target as HTMLInputElement).value.trim();
+                  if (e.key === 'Enter' && v) {
+                    addLocale(v);
+                    (e.target as HTMLInputElement).value = '';
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            {availableLocales.map((loc) => (
+              <div key={loc} className="border rounded p-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">{loc}</div>
+                  {loc !== defaultLocale && (
+                    <Button size="sm" variant="ghost" onClick={() => removeLocale(loc)}>Remove</Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Label</Label>
+                    <Input
+                      value={(field as any).i18n?.[loc]?.label ?? ''}
+                      onChange={(e) => {
+                        const i18n = { ...((field as any).i18n || {}) };
+                        i18n[loc] = { ...(i18n[loc] || {}), label: e.target.value };
+                        update(field.id, { i18n } as any);
+                      }}
+                    />
+                  </div>
+                  {(field.type !== 'static' && field.type !== 'price') && (
+                    <div>
+                      <Label className="text-xs">Placeholder</Label>
+                      <Input
+                        value={(field as any).i18n?.[loc]?.placeholder ?? ''}
+                        onChange={(e) => {
+                          const i18n = { ...((field as any).i18n || {}) };
+                          i18n[loc] = { ...(i18n[loc] || {}), placeholder: e.target.value };
+                          update(field.id, { i18n } as any);
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="col-span-2">
+                    <Label className="text-xs">Help text</Label>
+                    <Input
+                      value={(field as any).i18n?.[loc]?.helpText ?? ''}
+                      onChange={(e) => {
+                        const i18n = { ...((field as any).i18n || {}) };
+                        i18n[loc] = { ...(i18n[loc] || {}), helpText: e.target.value };
+                        update(field.id, { i18n } as any);
+                      }}
+                    />
+                  </div>
+                  {field.type === 'static' && (
+                    <div className="col-span-2">
+                      <Label className="text-xs">Content</Label>
+                      <Input
+                        value={(field as any).i18n?.[loc]?.content ?? ''}
+                        onChange={(e) => {
+                          const i18n = { ...((field as any).i18n || {}) };
+                          i18n[loc] = { ...(i18n[loc] || {}), content: e.target.value };
+                          update(field.id, { i18n } as any);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
         {field.type === "static" && (
           <div className="space-y-2">
             <div className="space-y-1">
@@ -144,20 +267,12 @@ export function Inspector() {
             </div>
           </div>
         )}
+        {/* Removed base Label input; use Localization cards below to manage label per language */}
         <div className="space-y-1">
-          <Label>Label</Label>
-          <Input value={field.label} onChange={(e) => onChange({ label: e.target.value })} />
-        </div>
-        <div className="space-y-1">
-          <Label>Name</Label>
+          <Label>Component Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
         </div>
-        {field.type !== "static" && field.type !== "price" && (
-          <div className="space-y-1">
-            <Label>Placeholder</Label>
-            <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} />
-          </div>
-        )}
+        {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
         {field.type === "price" && (
           <div className="space-y-1">
             <Label>Amount</Label>
@@ -334,9 +449,9 @@ export function Inspector() {
               <HoverCardContent className="w-96" align="start">
                 <div className="space-y-2 text-sm">
                   <p>Show this field only when a simple condition on another field is true.</p>
-                  <p>Syntax: <code>name op value</code></p>
+                  <p>Syntax: <code>Component Name op value</code></p>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>name</strong>: another field's name</li>
+                    <li><strong>Component Name</strong>: another field's name</li>
                     <li><strong>op</strong>: one of <code>==</code>, <code>!=</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&lt;</code></li>
                     <li><strong>value</strong>: number, boolean (<code>true</code>/<code>false</code>), or string (wrap in quotes)</li>
                   </ul>

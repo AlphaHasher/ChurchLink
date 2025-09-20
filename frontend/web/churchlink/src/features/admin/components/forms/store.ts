@@ -7,6 +7,7 @@ const DEFAULT_META = { title: "Untitled Form", description: "" };
 export type BuilderState = {
   schema: FormSchema;
   selectedId?: string;
+  activeLocale: string; // current preview/edit locale
   select: (id?: string) => void;
   addField: (type: FieldType) => void;
   removeField: (id: string) => void;
@@ -14,6 +15,9 @@ export type BuilderState = {
   updateField: (id: string, patch: Partial<AnyField>) => void;
   updateOptions: (id: string, options: OptionItem[]) => void;
   setSchema: (schema: FormSchema) => void;
+  setActiveLocale: (locale: string) => void;
+  addLocale: (locale: string) => void;
+  removeLocale: (locale: string) => void;
 };
 
 const newField = (type: FieldType): AnyField => {
@@ -60,9 +64,10 @@ const newField = (type: FieldType): AnyField => {
   }
 };
 
-export const useBuilderStore = create<BuilderState>((set) => ({
-  schema: { title: DEFAULT_META.title, description: DEFAULT_META.description, data: [] },
+export const useBuilderStore = create<BuilderState>((set, get) => ({
+  schema: { title: DEFAULT_META.title, description: DEFAULT_META.description, defaultLocale: 'en', locales: [], data: [] },
   selectedId: undefined,
+  activeLocale: 'en',
   select: (id?: string) => set({ selectedId: id }),
   addField: (type: FieldType) => set((s) => ({ schema: { ...s.schema, data: [...s.schema.data, newField(type)] } })),
   removeField: (id: string) => set((s) => ({
@@ -87,5 +92,26 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       data: s.schema.data.map((f) => (f.id === id ? ({ ...f, options } as AnyField) : f)) as AnyField[],
     },
   })),
-  setSchema: (schema) => set({ schema }),
+  setSchema: (schema) => set({
+    schema: {
+      defaultLocale: schema.defaultLocale || 'en',
+      locales: schema.locales || [],
+      ...schema,
+    },
+    activeLocale: schema.defaultLocale || get().activeLocale || 'en',
+  }),
+  setActiveLocale: (locale: string) => set({ activeLocale: locale }),
+  addLocale: (locale: string) => set((s) => {
+    const existing = new Set([...(s.schema.locales || [])]);
+    // avoid adding defaultLocale into locales list
+    const dl = s.schema.defaultLocale || 'en';
+    if (locale === dl) return { schema: { ...s.schema } };
+    existing.add(locale);
+    return { schema: { ...s.schema, locales: Array.from(existing) } };
+  }),
+  removeLocale: (locale: string) => set((s) => ({
+    schema: { ...s.schema, locales: (s.schema.locales || []).filter((l) => l !== locale) },
+    // If removing currently active locale, fallback to default
+    activeLocale: get().activeLocale === locale ? (s.schema.defaultLocale || 'en') : get().activeLocale,
+  })),
 }));
