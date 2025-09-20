@@ -16,7 +16,8 @@ export type FieldType =
   | "checkbox"
   | "radio"
   | "date"
-  | "static";
+  | "static"
+  | "price";
 
 export type Width = "full" | "half" | "third" | "quarter";
 
@@ -73,6 +74,7 @@ export interface TelField extends BaseField {
 export interface OptionItem {
   label: string;
   value: string;
+  price?: number; // optional price for this option
 }
 
 export interface SelectField extends BaseField {
@@ -84,10 +86,12 @@ export interface SelectField extends BaseField {
 export interface CheckboxField extends BaseField {
   type: "checkbox";
   defaultChecked?: boolean;
+  price?: number; // price when checked
 }
 
 export interface SwitchField extends BaseField {
   type: "switch";
+  price?: number; // price when on
 }
 
 export interface DateField extends BaseField {
@@ -95,6 +99,14 @@ export interface DateField extends BaseField {
   minDate?: Date;
   maxDate?: Date;
   mode?: "single" | "range";
+  pricing?: {
+    enabled?: boolean;
+    basePerDay?: number; // default price per selected day
+    // per-weekday overrides (0=Sun..6=Sat)
+    weekdayOverrides?: { 0?: number; 1?: number; 2?: number; 3?: number; 4?: number; 5?: number; 6?: number };
+    // specific date overrides in yyyy-MM-dd for easy editing/serialization
+    specificDates?: { date: string; price: number }[];
+  };
 }
 
 export interface TimeField extends BaseField {
@@ -116,6 +128,11 @@ export interface StaticTextField extends BaseField {
   underline?: boolean;
 }
 
+export interface PriceField extends BaseField {
+  type: "price";
+  amount: number; // flat amount to add to total when visible
+}
+
 export type AnyField =
   | NumberField
   | TextField
@@ -129,7 +146,8 @@ export type AnyField =
   | DateField
   | TimeField
   | ColorField
-  | StaticTextField;
+  | StaticTextField
+  | PriceField;
 
 export interface FormSchemaMeta {
   title?: string;

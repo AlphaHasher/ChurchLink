@@ -33,6 +33,7 @@ export function Inspector() {
             <TableRow>
               <TableHead>Label</TableHead>
               <TableHead>Value</TableHead>
+              <TableHead className="w-28">Price</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -57,6 +58,19 @@ export function Inspector() {
                     onChange={(e) => {
                       const next = [...sel.options];
                       next[idx] = { ...next[idx], value: e.target.value };
+                      updateOptions(field.id, next);
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={(o as any).price ?? ""}
+                    onChange={(e) => {
+                      const next = [...sel.options];
+                      const price = e.target.value === "" ? undefined : Number(e.target.value);
+                      next[idx] = { ...next[idx], price } as any;
                       updateOptions(field.id, next);
                     }}
                   />
@@ -138,10 +152,18 @@ export function Inspector() {
           <Label>Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
         </div>
-        {field.type !== "static" && (
+        {field.type !== "static" && field.type !== "price" && (
           <div className="space-y-1">
             <Label>Placeholder</Label>
             <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} />
+          </div>
+        )}
+        {field.type === "price" && (
+          <div className="space-y-1">
+            <Label>Amount</Label>
+            <Input type="number" value={(field as any).amount ?? 0}
+                   onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
+            <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
           </div>
         )}
         <div className="space-y-1">
@@ -160,6 +182,12 @@ export function Inspector() {
           <Checkbox checked={!!field.required} onCheckedChange={(v) => onChange({ required: !!v })} />
           <Label>Required</Label>
         </div>
+        {(field.type === "checkbox" || field.type === "switch") && (
+          <div className="space-y-1">
+            <Label>Price when selected</Label>
+            <Input type="number" value={(field as any).price ?? ""} onChange={(e) => onChange({ price: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+          </div>
+        )}
         {field.type === "number" && (
           <div className="grid grid-cols-3 gap-2">
             <div>
@@ -239,6 +267,52 @@ export function Inspector() {
                   <SelectItem value="range">Date range</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox checked={!!(field as any).pricing?.enabled} onCheckedChange={(v) => onChange({ pricing: { ...(field as any).pricing, enabled: !!v } } as any)} />
+                <Label>Enable per-day pricing</Label>
+              </div>
+              {(field as any).pricing?.enabled && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Base price per day</Label>
+                      <Input type="number" value={(field as any).pricing?.basePerDay ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, basePerDay: e.target.value === "" ? undefined : Number(e.target.value) } } as any)} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Sunday price</Label>
+                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[0] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 0: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                    </div>
+                    <div>
+                      <Label>Monday price</Label>
+                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[1] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 1: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                    </div>
+                    <div>
+                      <Label>Tuesday price</Label>
+                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[2] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 2: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                    </div>
+                    <div>
+                      <Label>Wednesday price</Label>
+                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[3] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 3: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                    </div>
+                    <div>
+                      <Label>Thursday price</Label>
+                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[4] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 4: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                    </div>
+                    <div>
+                      <Label>Friday price</Label>
+                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[5] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 5: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                    </div>
+                    <div>
+                      <Label>Saturday price</Label>
+                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[6] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 6: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

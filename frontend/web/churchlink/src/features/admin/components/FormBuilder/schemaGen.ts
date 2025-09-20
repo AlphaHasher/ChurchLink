@@ -178,6 +178,9 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       // No user input; not included in form values
       return z.any().optional();
     }
+    case "price": {
+      return z.any().optional();
+    }
     default:
       return z.any();
   }

@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { useEffect, useRef } from "react";
 import { useBuilderStore } from "./store";
 import { Button } from "@/shared/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 
 export function BuilderShell() {
   const schema = useBuilderStore((s) => s.schema);
@@ -71,18 +72,22 @@ export function BuilderShell() {
             <Palette />
           </ErrorBoundary>
         </div>
-        <div className="col-span-12 md:col-span-5">
+        <div className="col-span-12 md:col-span-6">
           <ErrorBoundary>
             <Canvas />
           </ErrorBoundary>
         </div>
-        <div className="col-span-12 md:col-span-4 space-y-4">
-          <div className="rounded border p-4">
-            <h3 className="font-medium mb-2">Live Preview</h3>
-            <ErrorBoundary>
-              <PreviewRendererClient />
-            </ErrorBoundary>
-          </div>
+        <div className="col-span-12 md:col-span-4">
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Live Preview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ErrorBoundary>
+                <PreviewRendererClient />
+              </ErrorBoundary>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </ErrorBoundary>

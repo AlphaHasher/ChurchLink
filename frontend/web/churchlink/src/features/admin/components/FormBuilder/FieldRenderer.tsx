@@ -21,6 +21,8 @@ type Props = {
 };
 
 export function FieldRenderer({ field, control, error }: Props) {
+  // Price fields should not be rendered
+  if (field.type === "price") return null;
   const colClass = cn("col-span-12", widthToCols(field.width));
   return (
     <div className={cn("flex flex-col gap-2", colClass)}>
