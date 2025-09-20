@@ -31,9 +31,6 @@ export interface BaseField {
   required?: boolean;
   width?: Width;
   visibleIf?: string;
-  // Per-locale overrides for visible texts
-  // Keyed by locale code (e.g., 'en', 'es').
-  // Only keys present will override the base values.
   i18n?: Record<string, {
     label?: string;
     placeholder?: string;

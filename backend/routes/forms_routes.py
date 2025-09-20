@@ -15,6 +15,7 @@ from models.form import (
     update_form,
     delete_form,
     add_response_by_slug,
+    get_form_responses,
 )
 from mongo.database import DB
 from bson import ObjectId
@@ -130,3 +131,16 @@ async def submit_response_by_slug(slug: str, request: Request):
         # info may be an error message
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or 'Failed to store response')
     return {"message": "Response recorded", "response_id": info}
+
+
+@mod_forms_router.get('/{form_id}/responses')
+async def list_form_responses(form_id: str, request: Request, skip: int = 0, limit: int = Query(100, le=500)):
+    """Return responses for a form belonging to the current user.
+
+    Response shape: { count: number, items: [{ submitted_at: ISO, response: object }] }
+    """
+    uid = request.state.uid
+    data = await get_form_responses(form_id, uid, skip=skip, limit=limit)
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+    return data

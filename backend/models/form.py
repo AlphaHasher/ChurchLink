@@ -428,3 +428,45 @@ async def delete_form(form_id: str, user_id: str) -> bool:
     except Exception as e:
         logger.error(f"Error deleting form: {e}")
         return False
+
+
+async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: int = 100) -> Optional[dict]:
+    """Return responses for a form owned by the given user.
+
+    Results include total count and a slice of items sorted by submitted_at DESC.
+    The submitted_at values are returned as ISO strings for JSON serialization.
+    """
+    try:
+        agg_doc = await DB.db.form_responses.find_one({"form_id": ObjectId(form_id)})
+        if not agg_doc:
+            return {"form_id": form_id, "count": 0, "items": []}
+
+        responses = agg_doc.get("responses", []) or []
+        # Sort by submitted_at desc (handle missing gracefully)
+        def _to_dt(x):
+            return x.get("submitted_at") or datetime.min
+
+        responses_sorted = sorted(responses, key=_to_dt, reverse=True)
+
+        total = len(responses_sorted)
+        # Apply pagination
+        start = max(0, int(skip))
+        end = max(start, start + int(limit))
+        page_items = responses_sorted[start:end]
+
+        items = []
+        for r in page_items:
+            submitted = r.get("submitted_at")
+            if isinstance(submitted, datetime):
+                submitted_iso = submitted.isoformat()
+            else:
+                submitted_iso = str(submitted) if submitted is not None else None
+            items.append({
+                "submitted_at": submitted_iso,
+                "response": r.get("response", {}),
+            })
+
+        return {"form_id": form_id, "count": total, "items": items}
+    except Exception as e:
+        logger.error(f"Error getting form responses: {e}")
+        return None

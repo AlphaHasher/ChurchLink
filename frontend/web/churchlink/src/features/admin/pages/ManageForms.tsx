@@ -372,6 +372,7 @@ const ManageForms = () => {
                   <td className="p-2">
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/form-builder?load=${f.id}`)}><FileEdit className="h-4 w-4 mr-1" /> Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/responses?formId=${f.id}`)}>View responses</Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="sm" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
