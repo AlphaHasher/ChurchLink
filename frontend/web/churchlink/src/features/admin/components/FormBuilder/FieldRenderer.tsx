@@ -3,6 +3,7 @@ import { AnyField, widthToCols } from "./types";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
+import { Switch } from "@/shared/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,18 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <Input id={field.name} placeholder={field.placeholder} {...rhf} />
               );
+            case "email":
+              return (
+                <Input id={field.name} type="email" placeholder={field.placeholder || "you@example.com"} {...rhf} />
+              );
+            case "url":
+              return (
+                <Input id={field.name} type="url" placeholder={field.placeholder || "https://"} {...rhf} />
+              );
+            case "tel":
+              return (
+                <Input id={field.name} type="tel" placeholder={field.placeholder || "+1 (555) 123-4567"} {...rhf} />
+              );
             case "textarea":
               return (
                 <Textarea id={field.name} placeholder={field.placeholder} {...rhf} />
@@ -87,6 +100,17 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <div className="flex items-center gap-2">
                   <Checkbox id={field.name} checked={!!rhf.value} onCheckedChange={rhf.onChange} />
+                  {field.placeholder && (
+                    <Label htmlFor={field.name} className="text-sm text-muted-foreground">
+                      {field.placeholder}
+                    </Label>
+                  )}
+                </div>
+              );
+            case "switch":
+              return (
+                <div className="flex items-center gap-2">
+                  <Switch checked={!!rhf.value} onCheckedChange={rhf.onChange} id={field.name} />
                   {field.placeholder && (
                     <Label htmlFor={field.name} className="text-sm text-muted-foreground">
                       {field.placeholder}
@@ -218,6 +242,20 @@ export function FieldRenderer({ field, control, error }: Props) {
                     />
                   </PopoverContent>
                 </Popover>
+              );
+            }
+            case "time": {
+              // Expect HH:MM string
+              const val: string | undefined = rhf.value;
+              return (
+                <Input
+                  id={field.name}
+                  type="time"
+                  value={val ?? ""}
+                  onChange={(e) => rhf.onChange(e.target.value || undefined)}
+                  min={(field as any).minTime}
+                  max={(field as any).maxTime}
+                />
               );
             }
             default:

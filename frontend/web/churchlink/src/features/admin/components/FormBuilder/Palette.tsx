@@ -3,14 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { useBuilderStore } from "./store";
 
 const items = [
+  { type: "static", label: "Static Text" },
   { type: "text", label: "Text" },
   { type: "textarea", label: "Textarea" },
+  { type: "checkbox", label: "Checkbox" },
+  { type: "tel", label: "Phone" },
+  { type: "email", label: "Email" },
+  { type: "url", label: "URL" },
+  { type: "date", label: "Date" },
   { type: "number", label: "Number" },
   { type: "select", label: "Select" },
   { type: "radio", label: "Radio" },
-  { type: "checkbox", label: "Checkbox" },
-  { type: "date", label: "Date" },
-  { type: "static", label: "Static Text" },
+  { type: "switch", label: "Switch" },
+  { type: "time", label: "Time" },
 ] as const;
 
 export function Palette() {

@@ -29,18 +29,28 @@ const newField = (type: FieldType): AnyField => {
   switch (type) {
     case "text":
       return { ...base, type: "text", placeholder: "Enter text" };
+    case "email":
+      return { ...base, type: "email", placeholder: "you@example.com" } as any;
+    case "url":
+      return { ...base, type: "url", placeholder: "https://" } as any;
+    case "tel":
+      return { ...base, type: "tel", placeholder: "+1 (555) 123-4567" } as any;
     case "textarea":
       return { ...base, type: "textarea", placeholder: "Enter long text" };
     case "number":
-      return { ...base, type: "number", placeholder: "0" };
+      return { ...base, type: "number", placeholder: "0", allowedValues: "" } as any;
     case "checkbox":
       return { ...base, type: "checkbox" };
+    case "switch":
+      return { ...base, type: "switch", placeholder: "On/Off" } as any;
     case "select":
       return { ...base, type: "select", options: [{ label: "Option 1", value: "option1" }] } as AnyField;
     case "radio":
       return { ...base, type: "radio", options: [{ label: "Option 1", value: "option1" }] } as AnyField;
     case "date":
       return { ...base, type: "date" };
+    case "time":
+      return { ...base, type: "time", placeholder: "HH:MM" } as any;
     case "static":
       return { ...base, type: "static", name: `static_${id}`, label: "Static Text", content: "Sample text", as: "p" } as any;
   }

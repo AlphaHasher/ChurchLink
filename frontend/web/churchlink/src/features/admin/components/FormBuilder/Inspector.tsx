@@ -186,9 +186,13 @@ export function Inspector() {
               <Label>Step</Label>
               <Input type="number" value={(field as any).step ?? ""} onChange={(e) => onChange({ step: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
             </div>
+            <div className="col-span-3">
+              <Label>Allowed values (comma-separated)</Label>
+              <Input value={(field as any).allowedValues ?? ""} onChange={(e) => onChange({ allowedValues: e.target.value } as any)} placeholder="e.g. 6,11,42" />
+            </div>
           </div>
         )}
-        {(field.type === "text" || field.type === "textarea") && (
+        {(field.type === "text" || field.type === "textarea" || field.type === "password") && (
           <div className="grid grid-cols-3 gap-2">
             <div>
               <Label>Min length</Label>
@@ -198,9 +202,23 @@ export function Inspector() {
               <Label>Max length</Label>
               <Input type="number" value={(field as any).maxLength ?? ""} onChange={(e) => onChange({ maxLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
             </div>
-            <div className="col-span-3">
-              <Label>Pattern (regex)</Label>
-              <Input value={(field as any).pattern ?? ""} onChange={(e) => onChange({ pattern: e.target.value } as any)} />
+            {(field.type === "text" || field.type === "textarea") && (
+              <div className="col-span-3">
+                <Label>Pattern (regex)</Label>
+                <Input value={(field as any).pattern ?? ""} onChange={(e) => onChange({ pattern: e.target.value } as any)} />
+              </div>
+            )}
+          </div>
+        )}
+        {field.type === "time" && (
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Min time</Label>
+              <Input type="time" value={(field as any).minTime ?? ""} onChange={(e) => onChange({ minTime: e.target.value || undefined } as any)} />
+            </div>
+            <div>
+              <Label>Max time</Label>
+              <Input type="time" value={(field as any).maxTime ?? ""} onChange={(e) => onChange({ maxTime: e.target.value || undefined } as any)} />
             </div>
           </div>
         )}
