@@ -10,7 +10,7 @@ import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifi
 import { SortableItem } from "./SortableItem";
 
 export function Canvas() {
-  const fields = useBuilderStore((s) => s.schema.fields);
+  const fields = useBuilderStore((s) => s.schema.data);
   const select = useBuilderStore((s) => s.select);
   const removeField = useBuilderStore((s) => s.removeField);
   const reorder = useBuilderStore((s) => s.reorder);

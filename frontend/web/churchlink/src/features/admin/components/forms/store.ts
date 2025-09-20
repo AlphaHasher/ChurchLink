@@ -61,30 +61,30 @@ const newField = (type: FieldType): AnyField => {
 };
 
 export const useBuilderStore = create<BuilderState>((set) => ({
-  schema: { meta: DEFAULT_META, fields: [] },
+  schema: { title: DEFAULT_META.title, description: DEFAULT_META.description, data: [] },
   selectedId: undefined,
   select: (id?: string) => set({ selectedId: id }),
-  addField: (type: FieldType) => set((s) => ({ schema: { ...s.schema, fields: [...s.schema.fields, newField(type)] } })),
+  addField: (type: FieldType) => set((s) => ({ schema: { ...s.schema, data: [...s.schema.data, newField(type)] } })),
   removeField: (id: string) => set((s) => ({
-    schema: { ...s.schema, fields: s.schema.fields.filter((f) => f.id !== id) },
+    schema: { ...s.schema, data: s.schema.data.filter((f) => f.id !== id) },
     selectedId: s.selectedId === id ? undefined : s.selectedId,
   })),
   reorder: (from: number, to: number) => set((s) => {
-    const arr = [...s.schema.fields];
+    const arr = [...s.schema.data];
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
-    return { schema: { ...s.schema, fields: arr } };
+    return { schema: { ...s.schema, data: arr } };
   }),
   updateField: (id: string, patch: Partial<AnyField>) => set((s) => ({
     schema: {
       ...s.schema,
-      fields: s.schema.fields.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[],
+      data: s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[],
     },
   })),
   updateOptions: (id: string, options: OptionItem[]) => set((s) => ({
     schema: {
       ...s.schema,
-      fields: s.schema.fields.map((f) => (f.id === id ? ({ ...f, options } as AnyField) : f)) as AnyField[],
+      data: s.schema.data.map((f) => (f.id === id ? ({ ...f, options } as AnyField) : f)) as AnyField[],
     },
   })),
   setSchema: (schema) => set({ schema }),

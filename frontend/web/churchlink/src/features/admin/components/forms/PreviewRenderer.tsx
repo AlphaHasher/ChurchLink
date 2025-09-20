@@ -41,7 +41,7 @@ export function PreviewRenderer() {
 
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
-      {schema.fields.filter((f) => isVisible(f.visibleIf)).map((f) => (
+  {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
         <FieldRenderer key={f.id} field={f} control={form.control} />
       ))}
       <div className="col-span-12">

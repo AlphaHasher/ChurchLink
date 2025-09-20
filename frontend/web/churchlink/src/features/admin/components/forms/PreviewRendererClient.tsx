@@ -40,7 +40,7 @@ export function PreviewRendererClient() {
 
   const computeTotal = (): number => {
     let total = 0;
-    for (const f of schema.fields as AnyField[]) {
+  for (const f of schema.data as AnyField[]) {
       if (!isVisible((f as any).visibleIf)) continue;
       const val = (values as any)?.[f.name];
       if (f.type === "price") {
@@ -100,7 +100,7 @@ export function PreviewRendererClient() {
 
   const total = computeTotal();
   const hasPricing = (): boolean => {
-    for (const f of schema.fields as AnyField[]) {
+  for (const f of schema.data as AnyField[]) {
       if (f.type === "price") {
         return true;
       } else if (f.type === "checkbox" || f.type === "switch") {
@@ -118,7 +118,7 @@ export function PreviewRendererClient() {
 
   return (
   <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
-      {schema.fields.filter((f) => isVisible(f.visibleIf)).map((f) => (
+  {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
         <FieldRenderer key={f.id} field={f} control={form.control} error={(form.formState.errors as any)?.[f.name]?.message as string | undefined} />
       ))}
       <div className="col-span-12">

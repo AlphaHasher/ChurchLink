@@ -151,12 +151,16 @@ export type AnyField =
 
 export interface FormSchemaMeta {
   title?: string;
+  folder?: string;
   description?: string;
 }
 
+// Canonical form schema: top-level metadata with a single 'data' array
 export interface FormSchema {
-  meta: FormSchemaMeta;
-  fields: AnyField[];
+  title?: string;
+  folder?: string;
+  description?: string;
+  data: AnyField[];
 }
 
 export const widthToCols = (w?: Width) => {

@@ -12,7 +12,7 @@ import { Table, TableBody, TableHead, TableRow, TableCell, TableHeader } from "@
 
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
-  const field = useBuilderStore((s) => s.schema.fields.find((f) => f.id === s.selectedId));
+  const field = useBuilderStore((s) => s.schema.data.find((f) => f.id === s.selectedId));
   const update = useBuilderStore((s) => s.updateField);
   const updateOptions = useBuilderStore((s) => s.updateOptions);
 

@@ -188,7 +188,7 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
 
 export function schemaToZodObject(schema: FormSchema) {
   const shape: Record<string, z.ZodTypeAny> = {};
-  for (const f of schema.fields) {
+  for (const f of schema.data) {
     shape[f.name] = fieldToZod(f);
   }
   return z.object(shape);

@@ -1,0 +1,94 @@
+from fastapi import APIRouter, Request, HTTPException, status, Query
+from typing import List
+
+from models.form import (
+    FormCreate,
+    FormOut,
+    FormUpdate,
+    search_forms,
+    create_folder,
+    list_folders,
+    create_form,
+    list_forms,
+    get_form_by_id,
+    update_form,
+    delete_form,
+)
+from mongo.database import DB
+
+
+mod_forms_router = APIRouter(prefix="/forms", tags=["Forms"])
+
+
+@mod_forms_router.post("/", response_model=FormOut, status_code=status.HTTP_201_CREATED)
+async def create_new_form(form: FormCreate, request: Request) -> FormOut:
+    uid = request.state.uid
+    # Prevent accidental duplicate form names — let client choose to override
+    existing = await DB.db.forms.find_one({"user_id": uid, "title": {"$regex": f"^{form.title}$", "$options": "i"}})
+    if existing:
+        # Return 409 with existing id so client can prompt to override
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"message": "Form already exists", "existing_id": str(existing.get("_id"))})
+
+    created = await create_form(form, uid)
+    if not created:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create form")
+    return created
+
+
+@mod_forms_router.get("/", response_model=List[FormOut])
+async def list_user_forms(request: Request, skip: int = 0, limit: int = Query(100, le=500)) -> List[FormOut]:
+    uid = request.state.uid
+    return await list_forms(uid, skip=skip, limit=limit)
+
+
+@mod_forms_router.get("/search", response_model=List[FormOut])
+async def search_user_forms(request: Request, name: str | None = None, folder: str | None = None, skip: int = 0, limit: int = Query(100, le=500)) -> List[FormOut]:
+    uid = request.state.uid
+    return await search_forms(uid, name=name, folder=folder, skip=skip, limit=limit)
+
+
+@mod_forms_router.post('/folders', status_code=status.HTTP_201_CREATED)
+async def create_new_folder(request: Request, name: str):
+    uid = request.state.uid
+    # Check for duplicate folder name (case-insensitive)
+    existing = await DB.db.form_folders.find_one({"user_id": uid, "name": {"$regex": f"^{name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Folder already exists')
+
+    created = await create_folder(uid, name)
+    if not created:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Failed to create folder')
+    return created
+
+
+@mod_forms_router.get('/folders', response_model=List[dict])
+async def list_user_folders(request: Request):
+    uid = request.state.uid
+    return await list_folders(uid)
+
+
+@mod_forms_router.get("/{form_id}", response_model=FormOut)
+async def get_form(form_id: str, request: Request) -> FormOut:
+    uid = request.state.uid
+    form = await get_form_by_id(form_id, uid)
+    if not form:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+    return form
+
+
+@mod_forms_router.put("/{form_id}", response_model=FormOut)
+async def update_existing_form(form_id: str, update: FormUpdate, request: Request) -> FormOut:
+    uid = request.state.uid
+    updated = await update_form(form_id, uid, update)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found or update failed")
+    return updated
+
+
+@mod_forms_router.delete("/{form_id}")
+async def remove_form(form_id: str, request: Request) -> dict:
+    uid = request.state.uid
+    ok = await delete_form(form_id, uid)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+    return {"message": "Form deleted"}
