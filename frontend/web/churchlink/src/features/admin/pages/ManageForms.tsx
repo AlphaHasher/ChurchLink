@@ -18,7 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Switch } from '@/shared/components/ui/switch';
-import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, Settings2, RefreshCcw } from 'lucide-react';
+import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, RefreshCcw } from 'lucide-react';
 
 const ManageForms = () => {
   const navigate = useNavigate();
@@ -51,16 +51,19 @@ const ManageForms = () => {
   };
 
   const search = async () => {
+    // show the loading indicator only if the request takes longer than 250ms
+    let loadingTimer: ReturnType<typeof setTimeout> | null = null;
     try {
-      setLoading(true);
+      loadingTimer = setTimeout(() => setLoading(true), 250);
       const params: Record<string, string> = {};
       if (searchName) params.name = searchName;
-  if (searchFolder && searchFolder !== 'all') params.folder = searchFolder;
+      if (searchFolder && searchFolder !== 'all') params.folder = searchFolder;
       const resp = await api.get('/v1/forms/search', { params });
       setForms(resp.data || []);
     } catch (e) {
       console.error('Search failed', e);
     } finally {
+      if (loadingTimer) clearTimeout(loadingTimer);
       setLoading(false);
     }
   };
@@ -75,6 +78,17 @@ const ManageForms = () => {
   };
 
   useEffect(() => { fetchForms(); fetchFolders(); }, []);
+
+  // Auto-run search or reload when filters change, debounced to avoid flicker and excessive API calls
+  useEffect(() => {
+    const isFiltering = (searchName && searchName.trim() !== '') || (searchFolder && searchFolder !== 'all');
+    const t = setTimeout(() => {
+      if (isFiltering) search();
+      else fetchForms();
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchName, searchFolder]);
 
   const pagedForms = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -287,8 +301,7 @@ const ManageForms = () => {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={search} disabled={loading}><Settings2 className="h-4 w-4 mr-2" />Search</Button>
-          <Button variant="ghost" onClick={() => { setSearchName(''); setSearchFolder('all'); fetchForms(); }}>Clear</Button>
+          <Button onClick={() => { setSearchName(''); setSearchFolder('all'); fetchForms(); }}>Clear</Button>
           {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}
           <div className="ml-auto">
             <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
