@@ -6,12 +6,17 @@ import { useBuilderStore } from "./store";
 import { Button } from "@/shared/components/ui/button";
 import type { AnyField, DateField, SelectField } from "./types";
 import { format } from "date-fns";
+import api from '@/api/api';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
-export function PreviewRendererClient() {
+export function PreviewRendererClient({ slug }: { slug?: string }) {
   const schema = useBuilderStore((s) => s.schema);
   const zodSchema = schemaToZodObject(schema);
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} });
   const values = form.watch();
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<string | null>(null);
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;
@@ -34,8 +39,20 @@ export function PreviewRendererClient() {
     }
   };
 
-  const onSubmit = form.handleSubmit((data: any) => {
+  const onSubmit = form.handleSubmit(async (data: any) => {
     console.log("Preview submit", data);
+    // If a slug prop is provided, submit to public endpoint and redirect to thank-you
+    if (slug) {
+      try {
+        setStatus('Submitting...');
+        await api.post(`/v1/forms/slug/${slug}/responses`, data);
+        setStatus('Submitted');
+        navigate('/forms/thank-you');
+      } catch (err: any) {
+        console.error('Submit failed', err);
+        setStatus(err?.response?.data?.detail || 'Submit failed');
+      }
+    }
   });
 
   const computeTotal = (): number => {
@@ -122,7 +139,8 @@ export function PreviewRendererClient() {
         <FieldRenderer key={f.id} field={f} control={form.control} error={(form.formState.errors as any)?.[f.name]?.message as string | undefined} />
       ))}
       <div className="col-span-12">
-        <Button type="submit">Validate</Button>
+        <Button type="submit">Submit</Button>
+        {status && <div className="text-sm text-muted-foreground mt-2">{status}</div>}
       </div>
       {showPricingBar && (
         <div className="col-span-12">

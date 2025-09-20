@@ -14,6 +14,7 @@ from models.form import (
     get_form_by_id,
     update_form,
     delete_form,
+    add_response_by_slug,
 )
 from mongo.database import DB
 from bson import ObjectId
@@ -114,3 +115,18 @@ async def remove_form(form_id: str, request: Request) -> dict:
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
     return {"message": "Form deleted"}
+
+
+
+@mod_forms_router.post('/slug/{slug}/responses')
+async def submit_response_by_slug(slug: str, request: Request):
+    # Public endpoint: append response to form responses array
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid JSON')
+    ok, info = await add_response_by_slug(slug, payload)
+    if not ok:
+        # info may be an error message
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or 'Failed to store response')
+    return {"message": "Response recorded", "response_id": info}

@@ -46,7 +46,7 @@ export default function FormPublic() {
           <CardTitle>Public Form</CardTitle>
         </CardHeader>
         <CardContent>
-          <PreviewRendererClient />
+          <PreviewRendererClient slug={slug} />
         </CardContent>
       </Card>
     </div>

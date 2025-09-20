@@ -1,12 +1,47 @@
 from __future__ import annotations
 
-from typing import Any, List, Optional
+import logging
+import re
+from typing import Any, List, Optional, Tuple
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
 
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
+
+logger = logging.getLogger(__name__)
+
+
+def _validate_slug(v: Optional[str], allow_none: bool = True) -> Optional[str]:
+    """Common slug validation logic."""
+    if v is None:
+        return None
+    s = str(v).strip()
+    if s == "":
+        return None
+    # only allow lowercase letters, numbers and dashes
+    if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", s):
+        raise ValueError("Invalid slug format: only lowercase letters, numbers and dashes allowed")
+    if len(s) > 200:
+        raise ValueError("Slug too long")
+    return s
+
+
+def _validate_data_is_list(v: Any, allow_none: bool = True) -> Any:
+    """Common data validation logic."""
+    if v is None:
+        return [] if not allow_none else None
+    if not isinstance(v, list):
+        raise ValueError("Form data must be an array of field definitions")
+    return v
+
+
+def _filter_metadata_from_data(data: Any) -> Any:
+    """Remove any meta/title/description fields from data to avoid duplicate metadata storage."""
+    if isinstance(data, dict):
+        return {k: v for k, v in data.items() if k not in ['meta', 'title', 'description']}
+    return data
 
 
 class FormBase(BaseModel):
@@ -19,22 +54,15 @@ class FormBase(BaseModel):
 
 
 class FormCreate(FormBase):
-    data: Any = Field(default_factory=dict)
+    data: Any = Field(default_factory=list)
+
+    @field_validator("data", mode="before")
+    def validate_data_is_list(cls, v):
+        return _validate_data_is_list(v, allow_none=False)
 
     @field_validator("slug", mode="before")
     def validate_slug(cls, v):
-        if v is None:
-            return v
-        s = str(v).strip()
-        if s == "":
-            return None
-        # only allow lowercase letters, numbers and dashes
-        import re
-        if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", s):
-            raise ValueError("Invalid slug format: only lowercase letters, numbers and dashes allowed")
-        if len(s) > 200:
-            raise ValueError("Slug too long")
-        return s
+        return _validate_slug(v)
 
 
 class FormUpdate(BaseModel):
@@ -48,23 +76,17 @@ class FormUpdate(BaseModel):
 
     @field_validator("slug", mode="before")
     def validate_slug_update(cls, v):
-        # allow explicit null to remove slug
-        if v is None:
-            return None
-        s = str(v).strip()
-        if s == "":
-            return None
-        import re
-        if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", s):
-            raise ValueError("Invalid slug format: only lowercase letters, numbers and dashes allowed")
-        if len(s) > 200:
-            raise ValueError("Slug too long")
-        return s
+        return _validate_slug(v)
+
+    @field_validator("data", mode="before")
+    def validate_update_data_is_list(cls, v):
+        return _validate_data_is_list(v, allow_none=True)
 
 
 class Form(MongoBaseModel, FormBase):
     user_id: str
     data: Any = Field(default_factory=dict)
+    # responses will be a list of ObjectId references stored on the form
     responses: List[Any] = Field(default_factory=list)
     slug: Optional[str]
 
@@ -79,7 +101,8 @@ class FormOut(BaseModel):
     visible: bool
     slug: Optional[str]
     data: Any
-    responses: List[Any]
+    # list of response ids (strings)
+    responses: List[str]
     created_at: datetime
     updated_at: datetime
 
@@ -88,14 +111,14 @@ def _doc_to_out(doc: dict) -> FormOut:
     return FormOut(
         id=str(doc.get("_id")),
         title=doc.get("title"),
-            ru_title=doc.get("ru_title"),
-            folder=doc.get("folder"),
-            description=doc.get("description"),
+        ru_title=doc.get("ru_title"),
+        folder=doc.get("folder"),
+        description=doc.get("description"),
         slug=doc.get("slug"),
         user_id=doc.get("user_id"),
         visible=doc.get("visible", True),
         data=doc.get("data", {}),
-        responses=doc.get("responses", []),
+        responses=[str(r) for r in (doc.get("responses") or [])],
         created_at=doc.get("created_at"),
         updated_at=doc.get("updated_at"),
     )
@@ -116,8 +139,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "slug": form.slug,
             "user_id": user_id,
             "visible": form.visible if hasattr(form, "visible") else True,
-            # Remove any meta/title/description fields from data to avoid duplicate metadata storage
-            "data": ({k: v for k, v in (form.data or {}).items() if k not in ['meta', 'title', 'description']} if isinstance(form.data, dict) else form.data),
+            "data": _filter_metadata_from_data(form.data),
             "responses": [],
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
@@ -129,7 +151,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
                 return _doc_to_out(created)
         return None
     except Exception as e:
-        print(f"Error creating form: {e}")
+        logger.error(f"Error creating form: {e}")
         return None
 
 
@@ -139,7 +161,7 @@ async def list_forms(user_id: str, skip: int = 0, limit: int = 100) -> List[Form
         docs = await cursor.to_list(length=limit)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
-        print(f"Error listing forms: {e}")
+        logger.error(f"Error listing forms: {e}")
         return []
 
 
@@ -156,7 +178,7 @@ async def search_forms(user_id: str, name: Optional[str] = None, folder: Optiona
         docs = await cursor.to_list(length=limit)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
-        print(f"Error searching forms: {e}")
+        logger.error(f"Error searching forms: {e}")
         return []
 
 
@@ -180,7 +202,7 @@ async def create_folder(user_id: str, name: str) -> Optional[dict]:
                 return {"_id": str(created.get("_id")), "name": created.get("name"), "created_at": created.get("created_at")}
         return None
     except Exception as e:
-        print(f"Error creating folder: {e}")
+        logger.error(f"Error creating folder: {e}")
         return None
 
 
@@ -194,7 +216,7 @@ async def list_folders(user_id: str) -> List[dict]:
             out.append({"_id": str(d.get("_id")), "name": d.get("name"), "created_at": d.get("created_at")})
         return out
     except Exception as e:
-        print(f"Error listing folders: {e}")
+        logger.error(f"Error listing folders: {e}")
         return []
 
 
@@ -203,7 +225,7 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "user_id": user_id})
         return _doc_to_out(doc) if doc else None
     except Exception as e:
-        print(f"Error fetching form: {e}")
+        logger.error(f"Error fetching form: {e}")
         return None
 
 
@@ -212,8 +234,176 @@ async def get_form_by_slug(slug: str) -> Optional[FormOut]:
         doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
         return _doc_to_out(doc) if doc else None
     except Exception as e:
-        print(f"Error fetching form by slug: {e}")
+        logger.error(f"Error fetching form by slug: {e}")
         return None
+
+
+def _get_schema_fields(schema_data: Any) -> List[dict]:
+    if isinstance(schema_data, list):
+        return schema_data
+    raise ValueError("Unsupported form schema: expected an array of field definitions")
+
+
+def _is_present(value: Any) -> bool:
+    return value is not None and value != ""
+
+
+def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
+    t = field.get("type")
+    name = field.get("label") or field.get("name")
+    # Text/textarea
+    if t in ("text", "textarea"):
+        if field.get("required") and not _is_present(value):
+            return False, f"{name} is required"
+        if value is None:
+            return True, None
+        if not isinstance(value, str):
+            return False, f"{name} must be a string"
+        if field.get("minLength") is not None and len(value) < field.get("minLength"):
+            return False, f"{name} must be at least {field.get('minLength')} characters"
+        if field.get("maxLength") is not None and len(value) > field.get("maxLength"):
+            return False, f"{name} must be at most {field.get('maxLength')} characters"
+        if field.get("pattern"):
+            if not re.match(field.get("pattern"), value):
+                return False, f"{name} is invalid"
+        return True, None
+
+    if t == "email":
+        if field.get("required") and not _is_present(value):
+            return False, f"{name} is required"
+        if value is None:
+            return True, None
+        email_re = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+        if not isinstance(value, str) or not email_re.match(value):
+            return False, f"{name} must be a valid email"
+        return True, None
+
+    if t == "number":
+        if field.get("required") and value is None:
+            return False, f"{name} is required"
+        if value is None:
+            return True, None
+        try:
+            n = float(value)
+        except Exception:
+            return False, f"{name} must be a number"
+        if field.get("min") is not None and n < field.get("min"):
+            return False, f"{name} must be >= {field.get('min')}"
+        if field.get("max") is not None and n > field.get("max"):
+            return False, f"{name} must be <= {field.get('max')}"
+        # allowedValues CSV
+        if field.get("allowedValues"):
+            try:
+                allowed = [float(x.strip()) for x in field.get("allowedValues").split(",") if x.strip()]
+                if allowed and n not in allowed:
+                    return False, f"{name} must be one of: {', '.join(str(int(x)) if x.is_integer() else str(x) for x in allowed)}"
+            except Exception:
+                pass
+        return True, None
+
+    if t in ("checkbox", "switch"):
+        if field.get("required") and not value:
+            return False, f"{name} must be checked"
+        return True, None
+
+    if t in ("select", "radio"):
+        if field.get("required"):
+            if value is None:
+                return False, f"{name} is required"
+            if isinstance(value, list) and len(value) == 0:
+                return False, f"{name} is required"
+            if isinstance(value, str) and value == "":
+                return False, f"{name} is required"
+        return True, None
+
+    if t == "date":
+        # expect ISO date strings for single date, or {from,to} for range
+        from datetime import datetime as _dt
+        fcfg = field
+        if fcfg.get("mode") == "range":
+            if fcfg.get("required"):
+                if not value or not value.get("from") or not value.get("to"):
+                    return False, f"{name} is required"
+            if not value:
+                return True, None
+            try:
+                fr = _dt.fromisoformat(value.get("from")) if value.get("from") else None
+                to = _dt.fromisoformat(value.get("to")) if value.get("to") else None
+            except Exception:
+                return False, f"{name} has invalid date format"
+            if fr and to and to < fr:
+                return False, f"{name} end date must be on or after start date"
+            if fcfg.get("minDate"):
+                try:
+                    minD = _dt.fromisoformat(fcfg.get("minDate")) if isinstance(fcfg.get("minDate"), str) else fcfg.get("minDate")
+                    if fr and fr < minD:
+                        return False, f"{name} must be on or after {minD.date()}"
+                except Exception:
+                    pass
+            if fcfg.get("maxDate"):
+                try:
+                    maxD = _dt.fromisoformat(fcfg.get("maxDate")) if isinstance(fcfg.get("maxDate"), str) else fcfg.get("maxDate")
+                    if to and to > maxD:
+                        return False, f"{name} must be on or before {maxD.date()}"
+                except Exception:
+                    pass
+            return True, None
+        else:
+            if field.get("required") and not _is_present(value):
+                return False, f"{name} is required"
+            if not _is_present(value):
+                return True, None
+            try:
+                _dt.fromisoformat(value)
+                return True, None
+            except Exception:
+                return False, f"{name} has invalid date format"
+
+    if t == "time":
+        if field.get("required") and not _is_present(value):
+            return False, f"{name} is required"
+        if not _is_present(value):
+            return True, None
+
+        if not re.match(r"^([01]\d|2[0-3]):([0-5]\d)$", value):
+            return False, f"{name} has invalid time format"
+        return True, None
+
+    return True, None
+
+
+async def add_response_by_slug(slug: str, response: Any) -> Tuple[bool, Optional[str]]:
+    """Validate the response against the stored form schema, insert into form_responses collection, and push the response id onto the form's responses array.
+    Returns (True, response_id) or (False, error_message)
+    """
+    try:
+        doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
+        if not doc:
+            return False, "Form not found"
+        form_id = doc.get("_id")
+        try:
+            schema_fields = _get_schema_fields(doc.get("data"))
+        except ValueError as ve:
+            return False, str(ve)
+
+        # Validate each declared field against the provided response payload
+        for f in schema_fields:
+            valid, err = _validate_field(f, response.get(f.get("name")))
+            if not valid:
+                return False, err
+
+        # Insert into separate collection
+        res_doc = {"form_id": form_id, "response": response, "submitted_at": datetime.now()}
+        result = await DB.db.form_responses.insert_one(res_doc)
+        if not result.inserted_id:
+            return False, "Failed to store response"
+
+        # Push the response ObjectId into forms.responses
+        await DB.db.forms.update_one({"_id": form_id}, {"$push": {"responses": result.inserted_id}})
+        return True, str(result.inserted_id)
+    except Exception as e:
+        logger.error(f"Error adding response for slug {slug}: {e}")
+        return False, "Server error"
 
 
 async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optional[FormOut]:
@@ -228,8 +418,8 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
         if update.visible is not None:
             update_doc["visible"] = update.visible
         if update.data is not None:
-            # Strip any meta/title/description keys from incoming data
-            update_doc["data"] = ({k: v for k, v in (update.data or {}).items() if k not in ['meta', 'title', 'description']} if isinstance(update.data, dict) else update.data)
+            update_doc["data"] = _filter_metadata_from_data(update.data)
+        
         try:
             provided = update.model_dump(exclude_unset=True)
         except Exception:
@@ -243,7 +433,7 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             return _doc_to_out(doc) if doc else None
         return None
     except Exception as e:
-        print(f"Error updating form: {e}")
+        logger.error(f"Error updating form: {e}")
         return None
 
 
@@ -252,5 +442,5 @@ async def delete_form(form_id: str, user_id: str) -> bool:
         result = await DB.db.forms.delete_one({"_id": ObjectId(form_id), "user_id": user_id})
         return result.deleted_count > 0
     except Exception as e:
-        print(f"Error deleting form: {e}")
+        logger.error(f"Error deleting form: {e}")
         return False

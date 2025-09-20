@@ -4,12 +4,14 @@ import { schemaToZodObject } from "./schemaGen";
 import { FieldRenderer } from "./FieldRenderer";
 import { useBuilderStore, type BuilderState } from "./store";
 import { Button } from "@/shared/components/ui/button";
+import { useState } from 'react';
 
 export function PreviewRenderer() {
   const schema = useBuilderStore((s: BuilderState) => s.schema);
   const zodSchema = schemaToZodObject(schema);
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} });
   const values = form.watch();
+  const [status, setStatus] = useState<string | null>(null);
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;
@@ -34,8 +36,15 @@ export function PreviewRenderer() {
     }
   };
 
-  const onSubmit = form.handleSubmit((data: any) => {
+  const onSubmit = form.handleSubmit(async (data: any) => {
     console.log("Preview submit", data);
+    // For admin preview, just show a status message
+    try {
+      setStatus('Validated');
+      // Optionally could POST to a test endpoint if desired
+    } catch (err) {
+      setStatus('Validation failed');
+    }
   });
 
   return (
@@ -44,7 +53,8 @@ export function PreviewRenderer() {
         <FieldRenderer key={f.id} field={f} control={form.control} />
       ))}
       <div className="col-span-12">
-        <Button type="submit">Validate</Button>
+        <Button type="submit">Submit</Button>
+        {status && <div className="text-sm text-muted-foreground mt-2">{status}</div>}
       </div>
     </form>
   );
