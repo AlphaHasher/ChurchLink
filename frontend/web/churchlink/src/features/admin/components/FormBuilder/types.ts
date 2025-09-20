@@ -58,8 +58,8 @@ export interface CheckboxField extends BaseField {
 
 export interface DateField extends BaseField {
   type: "date";
-  minDate?: string; // ISO date
-  maxDate?: string; // ISO date
+  minDate?: Date; // Minimum allowed date
+  maxDate?: Date; // Maximum allowed date
   mode?: "single" | "range"; // selection mode
 }
 

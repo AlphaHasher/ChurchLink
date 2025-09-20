@@ -6,6 +6,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
+import { format } from "date-fns";
 
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
@@ -144,11 +145,19 @@ export function Inspector() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label>Min date</Label>
-                <Input type="date" value={(field as any).minDate ?? ""} onChange={(e) => onChange({ minDate: e.target.value || undefined } as any)} />
+                <Input
+                  type="date"
+                  value={(field as any).minDate ? format(new Date((field as any).minDate), "yyyy-MM-dd") : ""}
+                  onChange={(e) => onChange({ minDate: e.target.value ? new Date(e.target.value) : undefined } as any)}
+                />
               </div>
               <div>
                 <Label>Max date</Label>
-                <Input type="date" value={(field as any).maxDate ?? ""} onChange={(e) => onChange({ maxDate: e.target.value || undefined } as any)} />
+                <Input
+                  type="date"
+                  value={(field as any).maxDate ? format(new Date((field as any).maxDate), "yyyy-MM-dd") : ""}
+                  onChange={(e) => onChange({ maxDate: e.target.value ? new Date(e.target.value) : undefined } as any)}
+                />
               </div>
             </div>
             <div className="space-y-1">

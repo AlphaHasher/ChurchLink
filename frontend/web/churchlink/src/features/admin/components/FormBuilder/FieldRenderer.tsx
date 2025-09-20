@@ -11,7 +11,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 
 type Props = {
   field: AnyField;
@@ -120,8 +120,8 @@ export function FieldRenderer({ field, control, error }: Props) {
             case "date": {
               const f: any = field as any;
               const mode = f.mode || "single";
-              const minDate = f.minDate ? parse(f.minDate, "yyyy-MM-dd", new Date()) : undefined;
-              const maxDate = f.maxDate ? parse(f.maxDate, "yyyy-MM-dd", new Date()) : undefined;
+              const minDate: Date | undefined = f.minDate;
+              const maxDate: Date | undefined = f.maxDate;
               const disabled = (date: Date) => {
                 if (minDate && date < minDate) return true;
                 if (maxDate && date > maxDate) return true;
@@ -129,12 +129,8 @@ export function FieldRenderer({ field, control, error }: Props) {
               };
 
               if (mode === "range") {
-                // Expect rhf.value as { from?: string; to?: string }
-                const rangeVal = (rhf.value as { from?: string; to?: string } | undefined) || {};
-                const selected = {
-                  from: rangeVal.from ? parse(rangeVal.from, "yyyy-MM-dd", new Date()) : undefined,
-                  to: rangeVal.to ? parse(rangeVal.to, "yyyy-MM-dd", new Date()) : undefined,
-                } as { from?: Date; to?: Date };
+                // Expect rhf.value as { from?: Date; to?: Date }
+                const selected = (rhf.value as { from?: Date; to?: Date } | undefined) || {};
                 const label = selected.from && selected.to
                   ? `${format(selected.from, "PPP")} – ${format(selected.to, "PPP")}`
                   : selected.from
@@ -159,8 +155,8 @@ export function FieldRenderer({ field, control, error }: Props) {
                             return;
                           }
                           rhf.onChange({
-                            from: r.from ? format(r.from, "yyyy-MM-dd") : undefined,
-                            to: r.to ? format(r.to, "yyyy-MM-dd") : undefined,
+                            from: r.from,
+                            to: r.to,
                           });
                         }}
                         disabled={disabled}
@@ -171,9 +167,8 @@ export function FieldRenderer({ field, control, error }: Props) {
                 );
               }
 
-              // single mode
-              const valueStr: string | undefined = rhf.value;
-              const selectedDate = valueStr ? parse(valueStr, "yyyy-MM-dd", new Date()) : undefined;
+              // single mode: value is Date | undefined
+              const selectedDate: Date | undefined = rhf.value;
               return (
                 <Popover>
                   <PopoverTrigger asChild>
@@ -189,7 +184,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={(d: Date | undefined) => rhf.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                      onSelect={(d: Date | undefined) => rhf.onChange(d)}
                       disabled={disabled}
                       captionLayout="dropdown"
                     />

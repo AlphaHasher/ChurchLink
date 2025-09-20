@@ -48,16 +48,12 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       const f = field as DateField;
       const label = field.label || field.name;
 
-      // Helper to compare YYYY-MM-DD strings lexicographically, avoiding timezone issues
-      const gte = (a: string, b: string) => a >= b;
-      const lte = (a: string, b: string) => a <= b;
-
       if (f.mode === "range") {
-        // Range mode: value is { from?: string; to?: string } | undefined
+        // Range mode: value is { from?: Date; to?: Date } | undefined
         let s = z
           .object({
-            from: z.string().optional(),
-            to: z.string().optional(),
+            from: z.date().optional(),
+            to: z.date().optional(),
           })
           .optional();
 
@@ -69,37 +65,37 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         }
 
         // Order check when both present: from <= to
-        s = s.refine((v) => !v || !v.from || !v.to || gte(v.to, v.from), {
+        s = s.refine((v) => !v || !v.from || !v.to || v.to.getTime() >= v.from.getTime(), {
           message: `${label} end date must be on or after start date`,
         });
 
         // Min/Max checks for whichever endpoints exist
         if (f.minDate) {
           const min = f.minDate;
-          s = s.refine((v) => !v || (!v.from || gte(v.from, min)) && (!v.to || gte(v.to, min)), {
-            message: `${label} must be on or after ${f.minDate}`,
+          s = s.refine((v) => !v || (!v.from || v.from.getTime() >= min.getTime()) && (!v.to || v.to.getTime() >= min.getTime()), {
+            message: `${label} must be on or after ${f.minDate.toDateString()}`,
           });
         }
         if (f.maxDate) {
           const max = f.maxDate;
-          s = s.refine((v) => !v || (!v.from || lte(v.from, max)) && (!v.to || lte(v.to, max)), {
-            message: `${label} must be on or before ${f.maxDate}`,
+          s = s.refine((v) => !v || (!v.from || v.from.getTime() <= max.getTime()) && (!v.to || v.to.getTime() <= max.getTime()), {
+            message: `${label} must be on or before ${f.maxDate.toDateString()}`,
           });
         }
 
         return s;
       }
 
-      // Single-date mode: value is a string (YYYY-MM-DD) or undefined
-      let s: z.ZodType<string | undefined> = z.string().optional();
-      if (f.required) s = z.string().min(1, `${label} is required`);
+      // Single-date mode: value is a Date or undefined
+      let s: z.ZodType<Date | undefined> = z.date().optional();
+      if (f.required) s = z.date();
       if (f.minDate)
-        s = s.refine((v: string | undefined) => !v || gte(v, f.minDate!), {
-          message: `${label} must be on or after ${f.minDate}`,
+        s = s.refine((v: Date | undefined) => !v || v.getTime() >= f.minDate!.getTime(), {
+          message: `${label} must be on or after ${f.minDate.toDateString()}`,
         });
       if (f.maxDate)
-        s = s.refine((v: string | undefined) => !v || lte(v, f.maxDate!), {
-          message: `${label} must be on or before ${f.maxDate}`,
+        s = s.refine((v: Date | undefined) => !v || v.getTime() <= f.maxDate!.getTime(), {
+          message: `${label} must be on or before ${f.maxDate.toDateString()}`,
         });
       return s;
     }
