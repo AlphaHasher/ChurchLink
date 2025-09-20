@@ -32,10 +32,10 @@ export const AdminRoutes = () => {
         <Route path="/users" element={<Users />} />
         <Route path="/permissions" element={<Permissions />} />
         <Route path="/notifications" element={<Notification />} />
-        <Route path="/form-builder" element={<FormBuilder />} />
         <Route path="/events" element={<Events />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
+        <Route path="/forms/form-builder" element={<FormBuilder />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
