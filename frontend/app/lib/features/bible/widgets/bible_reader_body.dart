@@ -162,6 +162,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   bool _refreshing = false;         // true while a pull-to-refresh is running
   _SyncTrigger? _lastTrigger;       // who triggered the last sync
 
+  // Track which cluster IDs belonged to the last hydrated window.
+  Set<String> _lastWindowCids = <String>{};
+
 
   @override
   void initState() {
@@ -408,6 +411,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         );
       }
 
+      // Clear previously-hydrated clusters for this window so server deletions take effect.
+      for (final cid in _lastWindowCids) {
+        _notesShared.remove(cid);
+        _hlShared.remove(cid);
+      }
+      final nextWindowCids = <String>{};
+
       final items = await NotesApi.getNotesForChapterRangeApi(
         book: bookCanon,
         chapterStart: start,
@@ -446,6 +456,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             (book: bookCanon, chapter: rn.chapter, verse: v),
           );
 
+          nextWindowCids.add(cid);
+
           _noteIdByCluster[cid] = rn.id;
           if (noteText.isNotEmpty) _notesShared[cid] = noteText;
           if (color != HighlightColor.none) _hlShared[cid] = color;
@@ -455,6 +467,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           _hlPerTx[_translation]?.remove(key);
         }
       }
+      _lastWindowCids = nextWindowCids;
     } catch (e, st) {
       debugPrint('[_syncFetchChapterNotes] failed: $e');
       debugPrint('$st');
@@ -1252,14 +1265,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         leading: const Icon(Icons.wifi_off),
                         title: const Text('You’re offline'),
                         subtitle: const Text('Changes are saved and will sync later.'),
-                        trailing: TextButton(
-                          onPressed: () async {
-                            await NotesApi.drainOutbox();
-                            await _syncFetchChapterNotes();
-                            if (mounted) setState(() {});
-                          },
-                          child: const Text('Retry'),
-                        ),
+                        // Hide the action entirely while offline
+                        trailing: null,
                       ),
                     ),
                   ),

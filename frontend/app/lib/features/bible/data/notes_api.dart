@@ -77,32 +77,22 @@ class NotesApi {
         limit: limit,
       );
 
-      // Cache fresh server data
-      await _Cache.upsertMany(notes);
+      // *** Critical change ***
+      // Replace the cache for this window with the server truth,
+      // but keep any local temp_* rows (unsynced edits).
+      await _Cache.replaceRange(
+        book,
+        chapterStart: chapterStart,
+        chapterEnd: chapterEnd,
+        fresh: notes,
+      );
 
-      // Keep local temps visible until they sync
-      final cachedForRange = await _Cache.getRange(
+      // Return merged cache view (server + any temp_* still pending).
+      return await _Cache.getRange(
         book,
         chapterStart: chapterStart,
         chapterEnd: chapterEnd,
       );
-      final pendingTemps =
-          cachedForRange.where((n) => n.id.startsWith('temp_')).toList();
-
-      if (pendingTemps.isNotEmpty) {
-        final seenKey = <String>{};
-        for (final n in notes) {
-          seenKey.add('${n.chapter}|${n.verseStart}');
-        }
-        for (final tnote in pendingTemps) {
-          final key = '${tnote.chapter}|${tnote.verseStart}';
-          if (!seenKey.contains(key)) {
-            notes.add(tnote);
-          }
-        }
-      }
-
-      return notes;
     } catch (e) {
       if (_isOffline(e)) {
         if (kDebugMode) {
@@ -233,7 +223,7 @@ class NotesApi {
       final book = entry.key;
       final chapters = entry.value;
       try {
-        // This fetch writes into the local cache via _Cache.upsertMany(...)
+        // This fetch writes into the local cache via _Cache.replaceRange(...)
         await getNotesForChapterRangeApi(
           book: book,
           chapterStart: 1,
@@ -260,7 +250,7 @@ class NotesApi {
 }
 
 // -----------------------------------------------------------------------------
-// Local cache (unchanged)
+// Local cache (UNCHANGED except: add replaceRange + tiny helpers reuse)
 // -----------------------------------------------------------------------------
 class _Cache {
   static const _fileName = 'notes_cache.json';
@@ -401,6 +391,43 @@ class _Cache {
     } else {
       all[i]['id'] = newId;
     }
+    await _writeAll(all);
+  }
+
+  // *** New: replace the cache for a given window with the server truth,
+  // keeping any local temp_* rows in that same window.
+  static Future<void> replaceRange(
+    String book, {
+    required int chapterStart,
+    required int chapterEnd,
+    required List<RemoteNote> fresh,
+  }) async {
+    final all = await _readAll();
+
+    // Remove only non-temp rows in the requested range.
+    all.removeWhere((m) {
+      final b = (m['book'] as String?) ?? '';
+      final ch = (m['chapter'] as num?)?.toInt() ?? -1;
+      final id = (m['id']?.toString() ?? '');
+      final isTemp = id.startsWith('temp_');
+      return !isTemp && b == book && ch >= chapterStart && ch <= chapterEnd;
+    });
+
+    // Insert the fresh server rows.
+    for (final n in fresh) {
+      all.add({
+        'id': n.id,
+        'book': n.book,
+        'chapter': n.chapter,
+        'verse_start': n.verseStart,
+        'verse_end': n.verseEnd,
+        'note': n.note,
+        'highlight_color': n.color?.name,
+        'created_at': n.createdAt?.toIso8601String(),
+        'updated_at': n.updatedAt?.toIso8601String(),
+      });
+    }
+
     await _writeAll(all);
   }
 }
