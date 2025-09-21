@@ -71,11 +71,6 @@ class RoleHandler:
             for role in admin_roles:
                 if role in returnable_roles:
                     returnable_roles.remove(role)
-            
-            # If no non-admin roles with event_editing exist, but admin roles do,
-            # include admin roles for admins to prevent empty list
-            if len(returnable_roles) == 0 and len(admin_roles) > 0 and perms['admin']:
-                returnable_roles = admin_roles.copy()
         else:
             for role in roles:
                 if str(role['_id']) in role_ids:
