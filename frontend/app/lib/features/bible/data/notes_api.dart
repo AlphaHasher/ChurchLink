@@ -10,13 +10,41 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:app/helpers/bible_notes_helper.dart';
 
+import 'package:http/http.dart' show ClientException;
+
 class NotesApi {
   static final StreamController<void> _syncedCtr =
       StreamController<void>.broadcast();
   static Stream<void> get onSynced => _syncedCtr.stream;
 
-  static bool _isOffline(Object e) =>
-      e is SocketException || e is HttpException || e is TimeoutException;
+  static bool _isOffline(Object e) {
+    // Common network-layer failures
+    if (e is SocketException ||
+        e is HttpException ||
+        e is TimeoutException) return true;
+
+    // package:http wrapper
+    if (e is ClientException) return true;
+
+    // TLS/handshake issues sometimes show up when wifi flips
+    try {
+      if (e.runtimeType.toString() == 'HandshakeException' ||
+          e.runtimeType.toString() == 'TlsException') {
+        return true;
+      }
+    } catch (_) {}
+
+    // Fallback: string match for platform-specific messages
+    final s = e.toString().toLowerCase();
+    if (s.contains('failed host lookup') ||
+        s.contains('network is unreachable') ||
+        s.contains('connection refused') ||
+        s.contains('software caused connection abort') ||
+        s.contains('no route to host')) {
+      return true;
+    }
+    return false;
+  }
 
   static Timer? _retryTimer;
   static void _scheduleRetry() {
@@ -192,6 +220,43 @@ class NotesApi {
 
   // Public drain at boot/resume/reconnect
   static Future<void> drainOutbox() => _Outbox.drain();
+
+  // Prefetch all notes for the user into the local cache so they are available offline.
+  // Call this once after a user is signed in and books metadata is loaded.
+  static bool _primeAllOnce = false;
+
+  static Future<void> primeAllCache({required Map<String, int> books}) async {
+    if (_primeAllOnce) return;
+    _primeAllOnce = true;
+
+    for (final entry in books.entries) {
+      final book = entry.key;
+      final chapters = entry.value;
+      try {
+        // This fetch writes into the local cache via _Cache.upsertMany(...)
+        await getNotesForChapterRangeApi(
+          book: book,
+          chapterStart: 1,
+          chapterEnd: chapters,
+        );
+      } catch (e) {
+        if (_isOffline(e)) {
+          // If we went offline, allow re-try on the next schedule.
+          _primeAllOnce = false;
+          _scheduleRetry();
+          break;
+        } else {
+          if (kDebugMode) {
+            debugPrint('[NotesApi] primeAllCache error for $book: $e');
+          }
+        }
+      }
+    }
+
+    // Notify listeners that new data may now be available.
+    _syncedCtr.add(null);
+  }
+
 }
 
 // -----------------------------------------------------------------------------

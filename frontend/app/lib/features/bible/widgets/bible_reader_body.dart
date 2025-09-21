@@ -142,11 +142,22 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     super.initState();
 
     // Books catalog
-    Books.instance.ensureLoaded().then((_) {
+    Books.instance.ensureLoaded().then((_) async {
       if (!mounted) return;
       Books.instance.setLocaleCode(_localeForTx(widget.initialTranslation));
       _booksReady = true;
       setState(() {});
+      // NEW: With books guaranteed loaded, drain and prefetch if already signed in.
+      final u = FirebaseAuth.instance.currentUser;
+      if (u != null) {
+        await NotesApi.drainOutbox();
+        await NotesApi.primeAllCache(
+          books: {
+            for (final name in Books.instance.names())
+              name: Books.instance.chapterCount(name),
+          },
+        );
+      }
     });
 
     _translation = widget.initialTranslation;
@@ -160,20 +171,22 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     // NOTE: _load() now ensures VerseMatching is ready BEFORE hydrating server notes.
     _load();
 
-    // TODO: kick a drain when the Bible page opens (if already signed in)
-    final u = FirebaseAuth.instance.currentUser;
-    if (u != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        NotesApi.drainOutbox();
-      });
-    }
+    // kick a drain when the Bible page opens (if already signed in)
 
-    // TODO: also drain if the user signs in while this page is open
-    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (user != null) NotesApi.drainOutbox();
+    // also drain if the user signs in while this page is open
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
+      if (user != null) {
+        await NotesApi.drainOutbox();
+        await NotesApi.primeAllCache(
+          books: {
+            for (final name in Books.instance.names())
+              name: Books.instance.chapterCount(name),
+          },
+        );
+      }
     });
 
-    // TODO: refresh indices automatically when outbox/direct writes finish
+    // refresh indices automatically when outbox/direct writes finish
     _notesSyncSub = NotesApi.onSynced.listen((_) async {
       await _syncFetchChapterNotes();
       if (mounted) setState(() {});
@@ -339,7 +352,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         );
       }
 
-      final items = await getNotesForChapterRange(
+      final items = await NotesApi.getNotesForChapterRangeApi(
         book: bookCanon,
         chapterStart: start,
         chapterEnd: end,
@@ -390,6 +403,22 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       debugPrint('[_syncFetchChapterNotes] failed: $e');
       debugPrint('$st');
     }
+  }
+
+  // Pull-to-refresh entry point (Gmail-style).
+  Future<void> _handlePullToRefresh() async {
+    // First, flush any local changes.
+    await NotesApi.drainOutbox();
+    // Also re-prime the local cache (no-op after first success, unless prior run failed)
+    await NotesApi.primeAllCache(
+      books: {
+        for (final name in Books.instance.names())
+          name: Books.instance.chapterCount(name),
+      },
+    );
+    // Then refresh this chapter's notes view.
+    await _syncFetchChapterNotes();
+    if (mounted) setState(() {});
   }
 
   /// Sends selected color values to the backend API
@@ -1112,7 +1141,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           child:
               _verses.isEmpty
                   ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
+                  : RefreshIndicator(
+                  onRefresh: _handlePullToRefresh,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                     child: FlowingChapterText(
                       verses: _verses,
@@ -1126,6 +1158,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       verseBlocks: _currentBlocks,
                     ),
                   ),
+                ),
         ),
       ],
     );
