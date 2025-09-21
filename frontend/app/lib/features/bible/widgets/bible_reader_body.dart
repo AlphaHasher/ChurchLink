@@ -21,8 +21,13 @@ import 'dart:async';
 
 import 'package:app/helpers/bible_notes_helper.dart';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 /// List of possible highlight colors, matching what the API supports
 enum HighlightColor { none, blue, red, yellow, green, purple }
+
+enum _SyncTrigger { pull, auto }
+
 
 /// Converts colors between different formats
 extension HighlightColorServerCodec on HighlightColor {
@@ -108,9 +113,25 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   final Map<String, String> _noteIdByCluster =
       <String, String>{}; // clusterId -> id
 
-  // TODO: listen for server-sync events + auth changes
-  StreamSubscription? _notesSyncSub; // TODO
-  StreamSubscription<User?>? _authSub; // TODO
+  // listen for server-sync events + auth changes
+  StreamSubscription? _notesSyncSub;
+  StreamSubscription<User?>? _authSub;
+
+  // Connectivity state
+  bool _offline = false;
+  StreamSubscription<dynamic>? _connSub; // works for List<ConnectivityResult> or ConnectivityResult
+
+  bool _isOfflineFrom(dynamic value) {
+  final list = value is List<ConnectivityResult>
+      ? value
+      : value is ConnectivityResult
+          ? <ConnectivityResult>[value]
+          : const <ConnectivityResult>[];
+  if (list.isEmpty) return true; // some platforms may deliver empty list
+  return list.every((r) => r == ConnectivityResult.none);
+}
+
+
 
   String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
   String _canonicalTx(String tx) {
@@ -136,6 +157,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   List<Map<String, String>>? _currentRuns;
   Map<int, Map<String, dynamic>>? _currentBlocks; // verse -> block info
+
+  // Distinguish who kicked a refresh
+  bool _refreshing = false;         // true while a pull-to-refresh is running
+  _SyncTrigger? _lastTrigger;       // who triggered the last sync
+
 
   @override
   void initState() {
@@ -188,8 +214,37 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
     // refresh indices automatically when outbox/direct writes finish
     _notesSyncSub = NotesApi.onSynced.listen((_) async {
+      if (_refreshing) return;                // don't double-run during pull
+      _lastTrigger = _SyncTrigger.auto;
+      if (kDebugMode) debugPrint('[SYNC] onSynced -> auto refresh start');
+
       await _syncFetchChapterNotes();
       if (mounted) setState(() {});
+
+      if (kDebugMode) debugPrint('[SYNC] onSynced -> auto refresh done');
+    });
+
+    // --- Connectivity monitoring ---
+    Connectivity().checkConnectivity().then((r) {
+      final isOff = _isOfflineFrom(r);
+      if (mounted) setState(() => _offline = isOff);
+    });
+
+    _connSub = Connectivity().onConnectivityChanged.listen((event) async {
+      final isOff = _isOfflineFrom(event);
+      if (mounted) setState(() => _offline = isOff);
+      if (!isOff) {
+        // Came back online: flush, prime all notes, then refresh current view
+        await NotesApi.drainOutbox();
+        await NotesApi.primeAllCache(
+          books: {
+            for (final name in Books.instance.names())
+              name: Books.instance.chapterCount(name),
+          },
+        );
+        await _syncFetchChapterNotes();
+        if (mounted) setState(() {});
+      }
     });
   }
 
@@ -197,6 +252,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   void dispose() {
     _notesSyncSub?.cancel();
     _authSub?.cancel();
+    _connSub?.cancel();
     super.dispose();
   }
 
@@ -407,18 +463,38 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   // Pull-to-refresh entry point (Gmail-style).
   Future<void> _handlePullToRefresh() async {
-    // First, flush any local changes.
-    await NotesApi.drainOutbox();
-    // Also re-prime the local cache (no-op after first success, unless prior run failed)
-    await NotesApi.primeAllCache(
-      books: {
-        for (final name in Books.instance.names())
-          name: Books.instance.chapterCount(name),
-      },
-    );
-    // Then refresh this chapter's notes view.
-    await _syncFetchChapterNotes();
-    if (mounted) setState(() {});
+    if (!_booksReady) return;
+    if (_refreshing) return; // guard against repeated pulls
+
+    _refreshing = true;
+    _lastTrigger = _SyncTrigger.pull;
+    if (kDebugMode) debugPrint('[PULL] start: drain + prime + rehydrate');
+
+    try {
+      await NotesApi.drainOutbox();
+      await NotesApi.primeAllCache(
+        books: {
+          for (final name in Books.instance.names())
+            name: Books.instance.chapterCount(name),
+        },
+      );
+      await _syncFetchChapterNotes();
+    } finally {
+      _refreshing = false;
+      if (mounted) setState(() {});
+      if (kDebugMode && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('Refreshed'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+            margin: EdgeInsets.all(12),
+            shape: StadiumBorder(),
+          ));
+      }
+      if (kDebugMode) debugPrint('[PULL] done');
+    }
   }
 
   /// Sends selected color values to the backend API
@@ -1138,27 +1214,58 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         ),
         const Divider(height: 12),
         Expanded(
-          child:
+          child: Stack(
+            children: [
               _verses.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : RefreshIndicator(
-                  onRefresh: _handlePullToRefresh,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                    child: FlowingChapterText(
-                      verses: _verses,
-                      highlights: {
-                        for (final v in _verses) v.$1: _colorFor(v.$1),
-                      },
-                      onTapVerse: (vt) => _openActions(vt),
-                      baseStyle: Theme.of(context).textTheme.bodyLarge
-                          ?.copyWith(fontSize: 16, height: 1.6),
-                      runs: _currentRuns,
-                      verseBlocks: _currentBlocks,
+                      onRefresh: _handlePullToRefresh,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(12, 8, 12, _offline ? 96 : 24),
+                        child: FlowingChapterText(
+                          verses: _verses,
+                          highlights: { for (final v in _verses) v.$1: _colorFor(v.$1) },
+                          onTapVerse: (vt) => _openActions(vt),
+                          baseStyle: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(fontSize: 16, height: 1.6),
+                          runs: _currentRuns,
+                          verseBlocks: _currentBlocks,
+                        ),
+                      ),
+                    ),
+
+              // Floating offline bar
+              if (_offline)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                  child: SafeArea(
+                    top: false,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(12),
+                      color: Theme.of(context).colorScheme.tertiaryContainer,
+                      child: ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.wifi_off),
+                        title: const Text('You’re offline'),
+                        subtitle: const Text('Changes are saved and will sync later.'),
+                        trailing: TextButton(
+                          onPressed: () async {
+                            await NotesApi.drainOutbox();
+                            await _syncFetchChapterNotes();
+                            if (mounted) setState(() {});
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ),
                     ),
                   ),
                 ),
+            ],
+          ),
         ),
       ],
     );
