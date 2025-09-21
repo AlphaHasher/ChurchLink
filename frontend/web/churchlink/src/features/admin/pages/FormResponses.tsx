@@ -7,8 +7,10 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/c
 // pagination/select removed for simplified view
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/shared/components/ui/pagination';
-import { ArrowLeft, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, RefreshCcw, Download } from 'lucide-react';
+import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 const useQuery = () => new URLSearchParams(useLocation().search);
 
@@ -166,6 +168,15 @@ const FormResponses = () => {
     }
   };
 
+  const exportCsv = async () => {
+    if (!formId) return;
+    const existingColumns: Col[] = columns.slice();
+    try {
+      await fetchResponsesAndDownloadCsv(formId, { existingColumns, limit: 500, filename: `${formMeta?.title || 'responses'}.csv` });
+    } catch (e) {
+    }
+  };
+
   // Ensure columns are unique by key before rendering to avoid duplicate React keys. Causes bunch of errors without this
   const uniqueColumns = columns.filter((c, i, arr) => arr.findIndex((x) => x.key === c.key) === i);
 
@@ -198,6 +209,7 @@ const FormResponses = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchResponses} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" onClick={exportCsv} title="Export responses as CSV"><Download className="h-4 w-4" /></Button>
         </div>
       </div>
 
@@ -216,14 +228,28 @@ const FormResponses = () => {
                   <div className="text-sm text-muted-foreground">{count === 0 ? 'No responses' : `${count} response${count === 1 ? '' : 's'}`}</div>
                 </div>
               ) : (
-                <div className="text-muted-foreground">Loading form…</div>
+                <div className="w-full">
+                  <Skeleton className="h-6 w-1/3" />
+                  <Skeleton className="h-4 w-1/2 mt-2" />
+                </div>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {error && <div className="text-sm text-destructive mb-3">{error}</div>}
             {notice && <div className="text-sm text-yellow-800 mb-3 p-2 bg-yellow-50 border border-yellow-100 rounded">{notice}</div>}
-            {loading && <div className="text-sm">Loading responses…</div>}
+            {loading && (
+              <div className="space-y-3 mb-3">
+                <Skeleton className="h-4 w-1/4" />
+                <div className="grid grid-cols-6 gap-3">
+                  <Skeleton className="h-8 col-span-1" />
+                  <Skeleton className="h-8 col-span-2" />
+                  <Skeleton className="h-8 col-span-1" />
+                  <Skeleton className="h-8 col-span-1" />
+                  <Skeleton className="h-8 col-span-1" />
+                </div>
+              </div>
+            )}
             {/* Always render table header + filter inputs so user can adjust filters even when there are no results */}
             <div className="overflow-x-auto">
               <Table>
@@ -256,7 +282,15 @@ const FormResponses = () => {
                   {items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={Math.max(1, uniqueColumns.length)} className="text-sm text-muted-foreground p-4">
-                        {loading ? 'Loading responses…' : 'No matching responses.'}
+                        {loading ? (
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-1/4" />
+                            <Skeleton className="h-6" />
+                            <Skeleton className="h-6" />
+                          </div>
+                        ) : (
+                          'No matching responses.'
+                        )}
                       </TableCell>
                     </TableRow>
                   ) : (

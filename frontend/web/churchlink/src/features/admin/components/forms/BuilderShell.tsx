@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Save as SaveIcon, MoreHorizontal, Upload, Download, Trash } from 'lucide-react';
 import { Alert } from '@/shared/components/ui/alert';
+import { Skeleton } from '@/shared/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -472,7 +473,16 @@ export function BuilderShell() {
             </CardHeader>
             <CardContent>
               <ErrorBoundary>
-                <PreviewRendererClient />
+                {status?.message && typeof status.message === 'string' && status.message.toLowerCase().includes('load') ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-1/3" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-8 w-full mt-2" />
+                  </div>
+                ) : (
+                  <PreviewRendererClient />
+                )}
               </ErrorBoundary>
             </CardContent>
           </Card>

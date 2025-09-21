@@ -19,6 +19,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Switch } from '@/shared/components/ui/switch';
 import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, RefreshCcw } from 'lucide-react';
+import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 const ManageForms = () => {
   const navigate = useNavigate();
@@ -141,6 +143,17 @@ const ManageForms = () => {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = async (id: string) => {
+    try {
+      const resp = await api.get(`/v1/forms/${id}`);
+      const form = resp.data;
+      await fetchResponsesAndDownloadCsv(id, { existingColumns: [], limit: 500, filename: `${form.title || 'responses'}.csv` });
+    } catch (e) {
+      console.error('Export CSV failed', e);
+      setStatus('Export CSV failed');
+    }
   };
 
   const handleExport = async (id: string) => {
@@ -343,8 +356,21 @@ const ManageForms = () => {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={5} className="p-4">Loading...</td></tr>
-              )}
+                  <tr>
+                    <td colSpan={6} className="p-4">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-1/3" />
+                        <div className="grid grid-cols-6 gap-3">
+                          <Skeleton className="h-8 col-span-1" />
+                          <Skeleton className="h-8 col-span-2" />
+                          <Skeleton className="h-8 col-span-1" />
+                          <Skeleton className="h-8 col-span-1" />
+                          <Skeleton className="h-8 col-span-1" />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               {!loading && forms.length === 0 && (
                 <tr><td colSpan={5} className="p-4 text-muted-foreground">No forms found</td></tr>
               )}
@@ -394,6 +420,7 @@ const ManageForms = () => {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleDuplicate(f.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleExport(f.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExportCsv(f.id)}><Download className="h-4 w-4 mr-2" /> Export CSV</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setRenameTarget({ id: f.id, title: f.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setMoveTargetIds([f.id]); setMoveToFolderId(''); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
                           <DropdownMenuSeparator />
