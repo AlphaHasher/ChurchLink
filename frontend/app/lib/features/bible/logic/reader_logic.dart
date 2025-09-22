@@ -1,6 +1,6 @@
-// logic/reader_logic.dart
-// Pure reader logic (no BuildContext): matching helpers, color/note resolution,
-// and server hydration for the current chapter window.
+// Accesses the relevant data needed for \bible\widgets\bible_reader_body.dart to display properly
+// Retrieves notes and highlights
+// Also resolves clustering logic
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 

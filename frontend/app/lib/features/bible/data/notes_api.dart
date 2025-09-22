@@ -1,5 +1,5 @@
-// NotesApi (refactored): uses BibleHelper for all network I/O,
-// preserves offline cache + outbox + retry behavior.
+// Communicates with the backend through API calls defined in backend\routes\bible_routes\bible_note_routes.py
+// Supports offline caching of notes
 
 import 'dart:async';
 import 'dart:convert';
@@ -77,7 +77,6 @@ class NotesApi {
         limit: limit,
       );
 
-      // *** Critical change ***
       // Replace the cache for this window with the server truth,
       // but keep any local temp_* rows (unsynced edits).
       await _Cache.replaceRange(

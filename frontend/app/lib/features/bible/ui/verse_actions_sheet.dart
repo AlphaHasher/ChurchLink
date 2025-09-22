@@ -1,5 +1,5 @@
-// widgets/verse_actions_sheet.dart
-// Bottom sheet for verse actions (UI only).
+// UI for the notetaking and highlighting menu that pops up when selecting a verse
+// Features highlighting, notetaking, and clearing all
 
 import 'package:flutter/material.dart';
 import 'package:app/features/bible/domain/highlight.dart' show HighlightColor;

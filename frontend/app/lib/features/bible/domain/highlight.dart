@@ -1,4 +1,6 @@
-// lib/features/bible/domain/highlight.dart
+// Defines what highlights are acceptable (needs to match with the backend)
+// Converts between different formats of highlights. 
+
 import 'package:app/helpers/bible_notes_helper.dart' as bh;
 
 enum HighlightColor { none, blue, red, yellow, green, purple }

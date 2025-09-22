@@ -1,5 +1,6 @@
-// sync/reader_sync.dart
-// Centralizes connectivity + auth + sync side-effects for the Bible reader.
+// Centralizes connectivity + auth + sync
+// Contains the logic for when to communicate with the backend. 
+// Performs this by calling \bible\data\notes_api.dart
 
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';

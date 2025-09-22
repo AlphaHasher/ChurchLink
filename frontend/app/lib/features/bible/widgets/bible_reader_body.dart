@@ -1,5 +1,5 @@
-// widgets/bible_reader_body.dart
-// Bible reader page (UI): rendering, navigation, pull-to-refresh wiring.
+// Renders the bible reader itself
+// Includes navigation elements (possibly migrate to a new file?)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
