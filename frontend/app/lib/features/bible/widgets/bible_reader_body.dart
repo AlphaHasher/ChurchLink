@@ -1,65 +1,27 @@
-// -----------------------------------------------------------------------------
-// Main body for the bible reader. Displays a chapter, lets users highlight and
-// add notes, jump around, and switch translations. Syncs notes/highlights to the
-// backend per verse; clusters are applied on read to mirror across translations.
-// -----------------------------------------------------------------------------
+// widgets/bible_reader_body.dart
+// Bible reader page (UI): rendering, navigation, pull-to-refresh wiring.
 
 import 'package:flutter/material.dart';
-import '../data/bible_repo_elisha.dart';
-import 'flowing_chapter_text.dart';
-import '../data/verse_matching.dart' show VerseMatching, VerseKey;
-import '../data/books.dart';
-import '../data/elisha_json_source.dart';
-
-// Debug logging (visible in flutter run console)
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-// Server syncing client
-import '../data/notes_api.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:async';
+import '../data/bible_repo_elisha.dart';
+import '../data/elisha_json_source.dart';
+import '../data/books.dart';
+import '../data/verse_matching.dart' show VerseMatching, VerseKey;
 
-import 'package:app/helpers/bible_notes_helper.dart';
+import 'flowing_chapter_text.dart';
+import '../domain/highlight.dart';
+import '../logic/reader_logic.dart';
+import '../sync/reader_sync.dart';
+import '../ui/verse_actions_sheet.dart';
+
+// Notes API for network + caching
+import '../data/notes_api.dart' as api;
+// Models/enums (RemoteNote, ServerHighlight) come from the helper:
+import 'package:app/helpers/bible_notes_helper.dart' as bh;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-/// List of possible highlight colors, matching what the API supports
-enum HighlightColor { none, blue, red, yellow, green, purple }
-
-enum _SyncTrigger { pull, auto }
-
-
-/// Converts colors between different formats
-extension HighlightColorServerCodec on HighlightColor {
-  String? get apiValue => switch (this) {
-    HighlightColor.none => null,
-    HighlightColor.blue => 'blue',
-    HighlightColor.red => 'red',
-    HighlightColor.yellow => 'yellow',
-    HighlightColor.green => 'green',
-    HighlightColor.purple => 'purple',
-  };
-
-  static HighlightColor fromApi(String? s) {
-    switch ((s ?? '').toLowerCase()) {
-      case 'blue':
-        return HighlightColor.blue;
-      case 'red':
-        return HighlightColor.red;
-      case 'yellow':
-        return HighlightColor.yellow;
-      case 'green':
-        return HighlightColor.green;
-      case 'purple':
-        return HighlightColor.purple;
-      default:
-        return HighlightColor.none;
-    }
-  }
-}
-
-/// Stores information for what should be displayed in the reader
-/// Translation, Book, and Chapter are needed to display the correct verses
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({
     super.key,
@@ -76,9 +38,11 @@ class BibleReaderBody extends StatefulWidget {
   State<BibleReaderBody> createState() => _BibleReaderBodyState();
 }
 
-/// Stores more necessary information for the reader
-/// Visible Verses, Translation Remapping, Notes/Highlights
 class _BibleReaderBodyState extends State<BibleReaderBody> {
+  // Convert VerseRef -> record expected by reader_logic helpers.
+  ({String book, int chapter, int verse}) _r(VerseRef v) =>
+      (book: v.book, chapter: v.chapter, verse: v.verse);
+
   final _repo = ElishaBibleRepo();
 
   // Current view
@@ -86,7 +50,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   late String _book;
   late int _chapter;
 
-  VerseMatching? _matcher;
+  VerseMatching? _matcher; // mirrored from _ctx.matcher
   List<(VerseRef ref, String text)> _verses = [];
 
   // Shared across translations (cluster keyed)
@@ -108,86 +72,60 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   };
 
   // Remote ID index (so we can update/delete correct rows)
-  final Map<String, String> _noteIdByKey =
-      <String, String>{}; // "Book|C|V" -> id
-  final Map<String, String> _noteIdByCluster =
-      <String, String>{}; // clusterId -> id
-
-  // listen for server-sync events + auth changes
-  StreamSubscription? _notesSyncSub;
-  StreamSubscription<User?>? _authSub;
+  final Map<String, String> _noteIdByKey = <String, String>{}; // "Book|C|V" -> id
+  final Map<String, String> _noteIdByCluster = <String, String>{}; // clusterId -> id
 
   // Connectivity state
   bool _offline = false;
-  StreamSubscription<dynamic>? _connSub; // works for List<ConnectivityResult> or ConnectivityResult
-
-  bool _isOfflineFrom(dynamic value) {
-  final list = value is List<ConnectivityResult>
-      ? value
-      : value is ConnectivityResult
-          ? <ConnectivityResult>[value]
-          : const <ConnectivityResult>[];
-  if (list.isEmpty) return true; // some platforms may deliver empty list
-  return list.every((r) => r == ConnectivityResult.none);
-}
-
-
-
-  String _k(VerseRef r) => '${r.book}|${r.chapter}|${r.verse}';
-  String _canonicalTx(String tx) {
-    final t = tx.trim().toLowerCase();
-    if (t == 'asv' || t == 'web') return 'kjv';
-    return t;
-  }
-
-  String get _otherTx => _canonicalTx(_translation) == 'kjv' ? 'rst' : 'kjv';
-
-  bool _booksReady = false;
-  String _localeForTx(String tx) =>
-      tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
-
-  // Catalog wrappers
-  List<String> get _bookNames =>
-      _booksReady ? Books.instance.names() : const <String>[];
-  String _abbr(String book) => _booksReady ? Books.instance.abbrev(book) : book;
-  int _chapterCount(String book) =>
-      _booksReady ? Books.instance.chapterCount(book) : 1;
-  int _bookIndex(String book) =>
-      _booksReady ? (Books.instance.orderIndex(book) - 1) : 0;
-
-  List<Map<String, String>>? _currentRuns;
-  Map<int, Map<String, dynamic>>? _currentBlocks; // verse -> block info
 
   // Distinguish who kicked a refresh
-  bool _refreshing = false;         // true while a pull-to-refresh is running
-  _SyncTrigger? _lastTrigger;       // who triggered the last sync
+  bool _refreshing = false; // true while a pull-to-refresh is running
 
   // Track which cluster IDs belonged to the last hydrated window.
   Set<String> _lastWindowCids = <String>{};
 
+  // Books catalog state
+  bool _booksReady = false;
+  String _localeForTx(String tx) => tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
+
+  // Catalog wrappers
+  List<String> get _bookNames => _booksReady ? Books.instance.names() : const <String>[];
+  String _abbr(String book) => _booksReady ? Books.instance.abbrev(book) : book;
+  int _chapterCount(String book) => _booksReady ? Books.instance.chapterCount(book) : 1;
+  int _bookIndex(String book) => _booksReady ? (Books.instance.orderIndex(book) - 1) : 0;
+
+  List<Map<String, String>>? _currentRuns;
+  Map<int, Map<String, dynamic>>? _currentBlocks; // verse -> block info
+
+  // Logic + Sync wrappers
+  late final ReaderContext _ctx = ReaderContext(
+    translation: widget.initialTranslation,
+    hlShared: _hlShared,
+    notesShared: _notesShared,
+    hlPerTx: _hlPerTx,
+    notesPerTx: _notesPerTx,
+    noteIdByKey: _noteIdByKey,
+    noteIdByCluster: _noteIdByCluster,
+    lastWindowCids: _lastWindowCids,
+    matcher: _matcher,
+  );
+
+  late final ReaderSync _sync = ReaderSync(
+    provideBooksIndex: () {
+      if (!_booksReady) return <String, int>{};
+      return {
+        for (final name in Books.instance.names()) name: Books.instance.chapterCount(name),
+      };
+    },
+    hydrateCurrent: () async => syncFetchChapterNotes(_ctx, book: _book, chapter: _chapter),
+    onOfflineChanged: (off) {
+      if (mounted) setState(() => _offline = off);
+    },
+  );
 
   @override
   void initState() {
     super.initState();
-
-    // Books catalog
-    Books.instance.ensureLoaded().then((_) async {
-      if (!mounted) return;
-      Books.instance.setLocaleCode(_localeForTx(widget.initialTranslation));
-      _booksReady = true;
-      setState(() {});
-      // NEW: With books guaranteed loaded, drain and prefetch if already signed in.
-      final u = FirebaseAuth.instance.currentUser;
-      if (u != null) {
-        await NotesApi.drainOutbox();
-        await NotesApi.primeAllCache(
-          books: {
-            for (final name in Books.instance.names())
-              name: Books.instance.chapterCount(name),
-          },
-        );
-      }
-    });
 
     _translation = widget.initialTranslation;
     _book = widget.initialBook;
@@ -197,65 +135,31 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       debugPrint('[BibleReader] boot -> $_translation $_book:$_chapter');
     }
 
-    // NOTE: _load() now ensures VerseMatching is ready BEFORE hydrating server notes.
-    _load();
+    // Catalog ready → set locale, then load
+    Books.instance.ensureLoaded().then((_) async {
+      if (!mounted) return;
+      Books.instance.setLocaleCode(_localeForTx(_translation));
+      _booksReady = true;
+      setState(() {});
 
-    // kick a drain when the Bible page opens (if already signed in)
-
-    // also drain if the user signs in while this page is open
-    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
-      if (user != null) {
-        await NotesApi.drainOutbox();
-        await NotesApi.primeAllCache(
-          books: {
-            for (final name in Books.instance.names())
-              name: Books.instance.chapterCount(name),
-          },
-        );
-      }
+      // Kick initial load + prime once books exist
+      await _load();
+      await _sync.onBooksReady();
     });
 
-    // refresh indices automatically when outbox/direct writes finish
-    _notesSyncSub = NotesApi.onSynced.listen((_) async {
-      if (_refreshing) return;                // don't double-run during pull
-      _lastTrigger = _SyncTrigger.auto;
-      if (kDebugMode) debugPrint('[SYNC] onSynced -> auto refresh start');
+    // Start side-effect orchestrator (auth/connectivity/sync stream)
+    _sync.start();
 
-      await _syncFetchChapterNotes();
-      if (mounted) setState(() {});
-
-      if (kDebugMode) debugPrint('[SYNC] onSynced -> auto refresh done');
-    });
-
-    // --- Connectivity monitoring ---
+    // Belt & suspenders: reflect very first connectivity state in the UI.
     Connectivity().checkConnectivity().then((r) {
-      final isOff = _isOfflineFrom(r);
-      if (mounted) setState(() => _offline = isOff);
-    });
-
-    _connSub = Connectivity().onConnectivityChanged.listen((event) async {
-      final isOff = _isOfflineFrom(event);
-      if (mounted) setState(() => _offline = isOff);
-      if (!isOff) {
-        // Came back online: flush, prime all notes, then refresh current view
-        await NotesApi.drainOutbox();
-        await NotesApi.primeAllCache(
-          books: {
-            for (final name in Books.instance.names())
-              name: Books.instance.chapterCount(name),
-          },
-        );
-        await _syncFetchChapterNotes();
-        if (mounted) setState(() {});
-      }
+      if (!mounted) return;
+      setState(() => _offline = ReaderSync.isOfflineFrom(r));
     });
   }
 
   @override
   void dispose() {
-    _notesSyncSub?.cancel();
-    _authSub?.cancel();
-    _connSub?.cancel();
+    _sync.dispose();
     super.dispose();
   }
 
@@ -263,9 +167,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     await ElishaBibleRepo.ensureInitialized();
 
     if (kDebugMode) {
-      debugPrint(
-        '[BibleReader] getChapter tx=$_translation book=$_book ch=$_chapter',
-      );
+      debugPrint('[BibleReader] getChapter tx=$_translation book=$_book ch=$_chapter');
     }
 
     final data = await _repo.getChapter(
@@ -276,7 +178,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     if (!mounted) return;
     setState(() => _verses = data);
 
-    // Load runs (headings/sections) for the current chapter from the source
+    // Load section runs & verse blocks
     try {
       final src = ElishaJsonSource();
       final runsByChapter = await src.loadRunsFor(_translation, _book);
@@ -288,331 +190,22 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       _currentBlocks = null;
     }
 
-    // --- FIX: ensure matcher before we hydrate from server, then normalize ---
-    if (_matcher == null) {
-      if (kDebugMode) debugPrint('[BibleReader] loading VerseMatching…');
-      _matcher = await VerseMatching.load();
-      _promoteLocalToShared(); // lift any pre-existing per-tx entries into shared clusters
-    }
+    // Ensure matcher exists and promote local entries to shared clusters
+    await ensureMatcherLoaded(_ctx);
+    _matcher = _ctx.matcher; // keep mirror in sync
+    promoteLocalToShared(_ctx);
 
-    await _syncFetchChapterNotes();
+    await syncFetchChapterNotes(_ctx, book: _book, chapter: _chapter);
     if (mounted) setState(() {});
   }
 
-  VerseKey _keyOf(VerseRef r) => (
-    book: r.book,
-    chapter: r.chapter,
-    verse: r.verse,
-  );
-
-  bool _existsInOther(VerseRef ref) {
-    final m = _matcher;
-    if (m == null) return false;
-    return m.existsInOther(
-      fromTx: _canonicalTx(_translation),
-      key: _keyOf(ref),
-    );
-  }
-
-  Iterable<VerseKey> _sameTxSiblingsFor(VerseRef ref) {
-    final m = _matcher;
-    if (m == null) return const <VerseKey>[];
-
-    final me = _keyOf(ref);
-    final fromTx = _canonicalTx(_translation);
-    final otherTx = _otherTx;
-
-    List<VerseKey> toOther;
-    if (me.book == 'Psalms') {
-      final ro = m.matchToOtherRuleOnly(fromTx: fromTx, key: me);
-      toOther = ro.where((x) => x.chapter != me.chapter).toList();
-    } else {
-      toOther = m.matchToOther(fromTx: fromTx, key: me);
-    }
-
-    final siblings = <String, VerseKey>{};
-    for (final t in toOther) {
-      final back =
-          (me.book == 'Psalms')
-              ? m.matchToOtherRuleOnly(fromTx: otherTx, key: t)
-              : m.matchToOther(fromTx: otherTx, key: t);
-      for (final s in back) {
-        if (s.book == me.book &&
-            !(s.chapter == me.chapter && s.verse == me.verse)) {
-          siblings['${s.book}|${s.chapter}|${s.verse}'] = s;
-        }
-      }
-    }
-    return siblings.values;
-  }
-
-  void _promoteLocalToShared() {
-    final m = _matcher;
-    if (m == null) return;
-
-    for (final tx in _hlPerTx.keys) {
-      final per = _hlPerTx[tx]!;
-      for (final e in per.entries.toList()) {
-        final p = e.key.split('|');
-        if (p.length != 3) continue;
-        final k = (
-          book: p[0],
-          chapter: int.tryParse(p[1]) ?? 0,
-          verse: int.tryParse(p[2]) ?? 0,
-        );
-        if (m.existsInOther(fromTx: _canonicalTx(tx), key: k)) {
-          final cid = m.clusterId(_canonicalTx(tx), k);
-          _hlShared[cid] = e.value;
-          per.remove(e.key);
-        }
-      }
-    }
-
-    for (final tx in _notesPerTx.keys) {
-      final per = _notesPerTx[tx]!;
-      for (final e in per.entries.toList()) {
-        final p = e.key.split('|');
-        if (p.length != 3) continue;
-        final k = (
-          book: p[0],
-          chapter: int.tryParse(p[1]) ?? 0,
-          verse: int.tryParse(p[2]) ?? 0,
-        );
-        if (m.existsInOther(fromTx: _canonicalTx(tx), key: k)) {
-          final cid = m.clusterId(_canonicalTx(tx), k);
-          _notesShared[cid] = e.value;
-          per.remove(e.key);
-        }
-      }
-    }
-  }
-
-  /// ===== Server sync (read) =====
-  Future<void> _syncFetchChapterNotes() async {
-    _noteIdByKey.clear();
-    _noteIdByCluster.clear();
-
-    // Belt & suspenders: never write unmapped data if matcher isn't ready
-    final m = _matcher;
-    if (m == null) {
-      if (kDebugMode) debugPrint('[Sync.Read] matcher not ready; deferring hydration');
-      return;
-    }
-
-    final bookCanon = _book;
-    final c = _chapter;
-    final start = (c - 1) < 1 ? 1 : (c - 1);
-    final end = c + 1;
-
-    try {
-      if (kDebugMode) {
-        debugPrint(
-          '[Sync.Read] $bookCanon ch=$c window=[$start..$end] tx=$_translation',
-        );
-      }
-
-      // Clear previously-hydrated clusters for this window so server deletions take effect.
-      for (final cid in _lastWindowCids) {
-        _notesShared.remove(cid);
-        _hlShared.remove(cid);
-      }
-      final nextWindowCids = <String>{};
-
-      final items = await NotesApi.getNotesForChapterRangeApi(
-        book: bookCanon,
-        chapterStart: start,
-        chapterEnd: end,
-      );
-
-      items.sort((a, b) {
-        final ax =
-            a.updatedAt ??
-            a.createdAt ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        final bx =
-            b.updatedAt ??
-            b.createdAt ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        return ax.compareTo(bx);
-      });
-
-      for (final rn in items) {
-        // Set which translation the backend uses
-        // It's set to KJV in our case but anything except RST uses the same numbering
-        final String serverTx = 'kjv';
-
-        final s = rn.verseStart;
-        final e = rn.verseEnd ?? rn.verseStart;
-        final color = HighlightColorServerCodec.fromApi(rn.color?.name);
-        final noteText = rn.note;
-
-        for (int v = s; v <= e; v++) {
-          final key = '$bookCanon|${rn.chapter}|$v';
-          _noteIdByKey[key] = rn.id;
-
-          // IMPORTANT: compute cluster from the SERVER numbering, not the UI tx.
-          final cid = m.clusterId(
-            serverTx,
-            (book: bookCanon, chapter: rn.chapter, verse: v),
-          );
-
-          nextWindowCids.add(cid);
-
-          _noteIdByCluster[cid] = rn.id;
-          if (noteText.isNotEmpty) _notesShared[cid] = noteText;
-          if (color != HighlightColor.none) _hlShared[cid] = color;
-
-          // Purge any stale per-tx entry for the same spot
-          _notesPerTx[_translation]?.remove(key);
-          _hlPerTx[_translation]?.remove(key);
-        }
-      }
-      _lastWindowCids = nextWindowCids;
-    } catch (e, st) {
-      debugPrint('[_syncFetchChapterNotes] failed: $e');
-      debugPrint('$st');
-    }
-  }
-
-  // Pull-to-refresh entry point (Gmail-style).
-  Future<void> _handlePullToRefresh() async {
-    if (!_booksReady) return;
-    if (_refreshing) return; // guard against repeated pulls
-
-    _refreshing = true;
-    _lastTrigger = _SyncTrigger.pull;
-    if (kDebugMode) debugPrint('[PULL] start: drain + prime + rehydrate');
-
-    try {
-      await NotesApi.drainOutbox();
-      await NotesApi.primeAllCache(
-        books: {
-          for (final name in Books.instance.names())
-            name: Books.instance.chapterCount(name),
-        },
-      );
-      await _syncFetchChapterNotes();
-    } finally {
-      _refreshing = false;
-      if (mounted) setState(() {});
-      if (kDebugMode && mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text('Refreshed'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-            margin: EdgeInsets.all(12),
-            shape: StadiumBorder(),
-          ));
-      }
-      if (kDebugMode) debugPrint('[PULL] done');
-    }
-  }
-
-  /// Sends selected color values to the backend API
-  ServerHighlight? _serverFromUi(HighlightColor c) => switch (c) {
-    HighlightColor.blue => ServerHighlight.blue,
-    HighlightColor.red => ServerHighlight.red,
-    HighlightColor.yellow => ServerHighlight.yellow,
-    HighlightColor.green => ServerHighlight.green,
-    HighlightColor.purple => ServerHighlight.purple,
-    HighlightColor.none => null,
-  };
-
-  // ===== Effective lookups =====
-  HighlightColor _colorFor(VerseRef ref) {
-    final m = _matcher;
-
-    if (m != null) {
-      final selfCid = m.clusterId(_canonicalTx(_translation), _keyOf(ref));
-      final cSelf = _hlShared[selfCid];
-      if (cSelf != null) return cSelf;
-
-      final me = _keyOf(ref);
-      final bool isPsalms = me.book == 'Psalms';
-      List<VerseKey> counterparts;
-      if (isPsalms) {
-        final ro = m.matchToOtherRuleOnly(
-          fromTx: _canonicalTx(_translation),
-          key: me,
-        );
-        final hasCross = ro.any((x) => x.chapter != me.chapter);
-        counterparts =
-            hasCross
-                ? ro.where((x) => x.chapter != me.chapter).toList()
-                : const <VerseKey>[];
-      } else {
-        counterparts = m.matchToOther(
-          fromTx: _canonicalTx(_translation),
-          key: me,
-        );
-      }
-      for (final other in counterparts) {
-        final otherCid = m.clusterId(_otherTx, other);
-        final cOther = _hlShared[otherCid];
-        if (cOther != null) return cOther;
-      }
-    }
-
-    final local = _hlPerTx[_translation]?[_k(ref)];
-    if (local != null && local != HighlightColor.none) return local;
-    for (final s in _sameTxSiblingsFor(ref)) {
-      final kStr = '${s.book}|${s.chapter}|${s.verse}';
-      final c = _hlPerTx[_translation]?[kStr];
-      if (c != null && c != HighlightColor.none) return c;
-    }
-    return HighlightColor.none;
-  }
-
-  String? _noteFor(VerseRef ref) {
-    final m = _matcher;
-    if (m != null) {
-      final selfCid = m.clusterId(_canonicalTx(_translation), _keyOf(ref));
-      final sSelf = _notesShared[selfCid];
-      if (sSelf != null && sSelf.isNotEmpty) return sSelf;
-
-      final me = _keyOf(ref);
-      final bool isPsalms = me.book == 'Psalms';
-      List<VerseKey> counterparts;
-      if (isPsalms) {
-        final ro = m.matchToOtherRuleOnly(
-          fromTx: _canonicalTx(_translation),
-          key: me,
-        );
-        final hasCross = ro.any((x) => x.chapter != me.chapter);
-        counterparts =
-            hasCross
-                ? ro.where((x) => x.chapter != me.chapter).toList()
-                : const <VerseKey>[];
-      } else {
-        counterparts = m.matchToOther(
-          fromTx: _canonicalTx(_translation),
-          key: me,
-        );
-      }
-      for (final other in counterparts) {
-        final otherCid = m.clusterId(_otherTx, other);
-        final sOther = _notesShared[otherCid];
-        if (sOther != null && sOther.isNotEmpty) return sOther;
-      }
-      for (final sib in _sameTxSiblingsFor(ref)) {
-        final sibCid = m.clusterId(_canonicalTx(_translation), sib);
-        final sSib = _notesShared[sibCid];
-        if (sSib != null && sSib.isNotEmpty) return sSib;
-      }
-    }
-    return _notesPerTx[_translation]?[_k(ref)];
-  }
-
-  /// Used for disabling back button when at first chapter
+  // Sibling helpers
   bool get _isAtFirstChapter {
     if (!_booksReady) return true;
     final i = _bookIndex(_book);
     return _chapter == 1 && i == 0;
   }
 
-  /// Used for disabling forward button when at first chapter
   bool get _isAtLastChapter {
     if (!_booksReady) return true;
     final i = _bookIndex(_book);
@@ -620,8 +213,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return _chapter == _chapterCount(_book) && i == lastBookIndex;
   }
 
-  /// Traverses chapters in a book
-  /// Wraps around chapters when entering a new book
   void _nextChapter() {
     if (!_booksReady) return;
     final i = _bookIndex(_book);
@@ -653,7 +244,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     _load();
   }
 
-  /// Opens the popup for selecting books/chapters
   Future<void> _openJumpPicker() async {
     if (!_booksReady) return;
 
@@ -689,42 +279,27 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text(
-                                    'Jump to',
-                                    style: Theme.of(ctx).textTheme.titleMedium,
-                                  ),
+                                  Text('Jump to', style: Theme.of(ctx).textTheme.titleMedium),
                                   const SizedBox(height: 12),
                                   DropdownButtonFormField<String>(
-                                    value: selBook,
+                                    value: selBook, // (Deprecated in some SDKs) OK for now
                                     isExpanded: true,
                                     decoration: const InputDecoration(
                                       labelText: 'Book',
                                       border: OutlineInputBorder(),
                                     ),
-                                    items:
-                                        _bookNames
-                                            .map(
-                                              (b) => DropdownMenuItem(
-                                                value: b,
-                                                child: Text(b),
-                                              ),
-                                            )
-                                            .toList(),
+                                    items: _bookNames
+                                        .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                                        .toList(),
                                     onChanged: (b) {
                                       if (b == null) return;
-                                      setSheet(() {
-                                        selBook = b;
-                                        selChap = 1;
-                                      });
+                                      setSheet(() { selBook = b; selChap = 1; });
                                     },
                                   ),
                                   const SizedBox(height: 16),
                                   Align(
                                     alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      'Chapter',
-                                      style: Theme.of(ctx).textTheme.labelLarge,
-                                    ),
+                                    child: Text('Chapter', style: Theme.of(ctx).textTheme.labelLarge),
                                   ),
                                   const SizedBox(height: 8),
                                   Wrap(
@@ -736,8 +311,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                       return ChoiceChip(
                                         label: Text('$c'),
                                         selected: selected,
-                                        onSelected:
-                                            (_) => setSheet(() => selChap = c),
+                                        onSelected: (_) => setSheet(() => selChap = c),
                                       );
                                     }),
                                   ),
@@ -757,11 +331,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: FilledButton(
-                                  onPressed:
-                                      () => Navigator.pop(ctx, (
-                                        selBook,
-                                        selChap,
-                                      )),
+                                  onPressed: () => Navigator.pop(ctx, (selBook, selChap)),
                                   child: const Text('Go'),
                                 ),
                               ),
@@ -778,6 +348,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         );
       },
     );
+
     if (result != null) {
       setState(() {
         _book = Books.instance.canonEnglishName(result.$1);
@@ -792,63 +363,77 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
-  /// Opens the note taking popup and handles interactions
+  Future<void> _handlePullToRefresh() async {
+    if (!_booksReady) return;
+    if (_refreshing) return;
+
+    _refreshing = true;
+    if (kDebugMode) debugPrint('[PULL] start: drain + prime + rehydrate');
+
+    try {
+      await _sync.onPullToRefresh();
+    } finally {
+      _refreshing = false;
+      if (mounted) setState(() {});
+      if (kDebugMode && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('Refreshed'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+            margin: EdgeInsets.all(12),
+            shape: StadiumBorder(),
+          ));
+      }
+      if (kDebugMode) debugPrint('[PULL] done');
+    }
+  }
+
   Future<void> _openActions((VerseRef ref, String text) v) async {
-    final res = await showModalBottomSheet<_ActionResult>(
+    final res = await showModalBottomSheet<ActionResult>(
       context: context,
       isScrollControlled: true,
-      builder:
-          (ctx) => _VerseActionsSheet(
-            verseLabel: v.$1.toString(),
-            currentHighlight: _colorFor(v.$1),
-            existingNote: _noteFor(v.$1),
-          ),
+      builder: (ctx) => VerseActionsSheet(
+        verseLabel: v.$1.toString(),
+        currentHighlight: colorFor(_ctx, _r(v.$1)),
+        existingNote: noteFor(_ctx, _r(v.$1)),
+      ),
     );
     if (res == null) return;
 
     // ----- Local state updates -----
     setState(() {
       if (res.noteDelete == true) {
-        final m = _matcher;
-        final hereK = _k(v.$1);
+        final m = _ctx.matcher;
+        final hereK = _ctx.k(_r(v.$1));
 
-        if (m != null && _existsInOther(v.$1)) {
-          final me = _keyOf(v.$1);
-          final selfCid = m.clusterId(_canonicalTx(_translation), me);
+        if (m != null && existsInOther(_ctx, _r(v.$1))) {
+          final me = _ctx.keyOf(_r(v.$1));
+          final selfCid = m.clusterId(_ctx.canonicalTx(_translation), me);
 
           final bool isPsalms = me.book == 'Psalms';
           List<VerseKey> counterparts;
           if (isPsalms) {
-            final ro = m.matchToOtherRuleOnly(
-              fromTx: _canonicalTx(_translation),
-              key: me,
-            );
+            final ro = m.matchToOtherRuleOnly(fromTx: _ctx.canonicalTx(_translation), key: me);
             final hasCross = ro.any((x) => x.chapter != me.chapter);
-            counterparts =
-                hasCross
-                    ? ro.where((x) => x.chapter != me.chapter).toList()
-                    : const <VerseKey>[];
+            counterparts = hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
           } else {
-            counterparts = m.matchToOther(
-              fromTx: _canonicalTx(_translation),
-              key: me,
-            );
+            counterparts = m.matchToOther(fromTx: _ctx.canonicalTx(_translation), key: me);
           }
 
           final cids = <String>{selfCid};
           for (final o in counterparts) {
-            cids.add(m.clusterId(_otherTx, o));
+            cids.add(m.clusterId(_ctx.otherTx, o));
           }
-          for (final s in _sameTxSiblingsFor(v.$1)) {
-            cids.add(m.clusterId(_canonicalTx(_translation), s));
+          for (final s in sameTxSiblingsFor(_ctx, _r(v.$1))) {
+            cids.add(m.clusterId(_ctx.canonicalTx(_translation), s));
             _hlPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
           }
-          // Clear shared note + highlight for all related clusters
           for (final cid in cids) {
             _notesShared.remove(cid);
             _hlShared.remove(cid);
           }
-          // Clear per-tx at the tapped verse
           _notesPerTx[_translation]?.remove(hereK);
           _hlPerTx[_translation]?.remove(hereK);
         } else {
@@ -857,42 +442,31 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         }
       } else if (res.noteText != null) {
         final txt = res.noteText!.trim();
-        final m = _matcher;
+        final m = _ctx.matcher;
 
         if (txt.isEmpty) {
-          final hereK = _k(v.$1);
-          if (m != null && _existsInOther(v.$1)) {
-            final me = _keyOf(v.$1);
-            final selfCid = m.clusterId(_canonicalTx(_translation), me);
+          final hereK = _ctx.k(_r(v.$1));
+          if (m != null && existsInOther(_ctx, _r(v.$1))) {
+            final me = _ctx.keyOf(_r(v.$1));
+            final selfCid = m.clusterId(_ctx.canonicalTx(_translation), me);
 
             final bool isPsalms = me.book == 'Psalms';
             List<VerseKey> counterparts;
             if (isPsalms) {
-              final ro = m.matchToOtherRuleOnly(
-                fromTx: _canonicalTx(_translation),
-                key: me,
-              );
+              final ro = m.matchToOtherRuleOnly(fromTx: _ctx.canonicalTx(_translation), key: me);
               final hasCross = ro.any((x) => x.chapter != me.chapter);
-              counterparts =
-                  hasCross
-                      ? ro.where((x) => x.chapter != me.chapter).toList()
-                      : const <VerseKey>[];
+              counterparts = hasCross ? ro.where((x) => x.chapter != me.chapter).toList() : const <VerseKey>[];
             } else {
-              counterparts = m.matchToOther(
-                fromTx: _canonicalTx(_translation),
-                key: me,
-              );
+              counterparts = m.matchToOther(fromTx: _ctx.canonicalTx(_translation), key: me);
             }
 
             final cids = <String>{selfCid};
             for (final o in counterparts) {
-              cids.add(m.clusterId(_otherTx, o));
+              cids.add(m.clusterId(_ctx.otherTx, o));
             }
-            for (final s in _sameTxSiblingsFor(v.$1)) {
-              cids.add(m.clusterId(_canonicalTx(_translation), s));
-              _hlPerTx[_translation]?.remove(
-                '${s.book}|${s.chapter}|${s.verse}',
-              );
+            for (final s in sameTxSiblingsFor(_ctx, _r(v.$1))) {
+              cids.add(m.clusterId(_ctx.canonicalTx(_translation), s));
+              _hlPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
             }
 
             for (final cid in cids) {
@@ -906,19 +480,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             _hlPerTx[_translation]?.remove(hereK);
           }
         } else {
-          if (m != null && _existsInOther(v.$1)) {
-            final cid = m.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
+          if (m != null && existsInOther(_ctx, _r(v.$1))) {
+            final cid = m.clusterId(_ctx.canonicalTx(_translation), _ctx.keyOf(_r(v.$1)));
             _notesShared[cid] = txt;
             for (final tx in _notesPerTx.keys) {
-              _notesPerTx[tx]?.remove(_k(v.$1));
+              _notesPerTx[tx]?.remove(_ctx.k(_r(v.$1)));
             }
-            for (final s in _sameTxSiblingsFor(v.$1)) {
-              _notesPerTx[_translation]?.remove(
-                '${s.book}|${s.chapter}|${s.verse}',
-              );
+            for (final s in sameTxSiblingsFor(_ctx, _r(v.$1))) {
+              _notesPerTx[_translation]?.remove('${s.book}|${s.chapter}|${s.verse}');
             }
           } else {
-            _notesPerTx[_translation]?[_k(v.$1)] = txt;
+            _notesPerTx[_translation]?[_ctx.k(_r(v.$1))] = txt;
           }
         }
       }
@@ -926,10 +498,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       // HIGHLIGHTS
       if (res.highlight != null) {
         final color = res.highlight!;
-        final hereK = _k(v.$1);
+        final hereK = _ctx.k(_r(v.$1));
 
-        final m = _matcher;
-        final mapsAcross = m != null && _existsInOther(v.$1);
+        final m = _ctx.matcher;
+        final mapsAcross = m != null && existsInOther(_ctx, _r(v.$1));
 
         if (!mapsAcross) {
           if (color == HighlightColor.none) {
@@ -938,7 +510,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             _hlPerTx[_translation]?[hereK] = color;
           }
         } else {
-          final cid = m.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
+          final cid = (m!).clusterId(_ctx.canonicalTx(_translation), _ctx.keyOf(_r(v.$1)));
           if (color == HighlightColor.none) {
             _hlShared.remove(cid);
           } else {
@@ -947,7 +519,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           for (final tx in _hlPerTx.keys) {
             _hlPerTx[tx]?.remove(hereK);
           }
-          for (final s in _sameTxSiblingsFor(v.$1)) {
+          for (final s in sameTxSiblingsFor(_ctx, _r(v.$1))) {
             final kStr = '${s.book}|${s.chapter}|${s.verse}';
             if (color == HighlightColor.none) {
               _hlPerTx[_translation]?.remove(kStr);
@@ -961,65 +533,61 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
     // ----- Server write-throughs (fail-soft) -----
     try {
-      final m = _matcher;
-      final cid = m?.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
-      String? id =
-          (cid != null ? _noteIdByCluster[cid] : null) ??
-          _noteIdByKey[_k(v.$1)];
+      final m = _ctx.matcher;
+      final cid = m?.clusterId(_ctx.canonicalTx(_translation), _ctx.keyOf(_r(v.$1)));
+      String? id = (cid != null ? _noteIdByCluster[cid] : null) ?? _noteIdByKey[_ctx.k(_r(v.$1))];
 
       if (kDebugMode) {
-        debugPrint(
-          '[WriteThrough] ref=${_k(v.$1)} cid=${cid ?? "-"} id=${id ?? "-"} '
-          'noteDelete=${res.noteDelete} noteLen=${(res.noteText ?? "").length} '
-          'hl=${res.highlight?.name}',
-        );
+        debugPrint('[WriteThrough] ref=${_ctx.k(_r(v.$1))} cid=${cid ?? "-"} id=${id ?? "-"} '
+            'noteDelete=${res.noteDelete} noteLen=${(res.noteText ?? "").length} '
+            'hl=${res.highlight?.name}');
       }
 
       if (res.noteDelete == true) {
         if (id != null && id.startsWith('temp_')) {
-          await NotesApi.drainOutbox();
-          await _syncFetchChapterNotes();
-          id =
-              (cid != null ? _noteIdByCluster[cid] : null) ??
-              _noteIdByKey[_k(v.$1)];
+          await api.NotesApi.drainOutbox();
+          await syncFetchChapterNotes(_ctx, book: _book, chapter: _chapter);
+          id = (cid != null ? _noteIdByCluster[cid] : null) ?? _noteIdByKey[_ctx.k(_r(v.$1))];
         }
 
         if (id != null) {
           if (kDebugMode) debugPrint('[WriteThrough] DELETE note id=$id');
-          await NotesApi.delete(id);
+          await api.NotesApi.delete(id);
           if (cid != null) _noteIdByCluster.remove(cid);
-          _noteIdByKey.remove(_k(v.$1));
+          _noteIdByKey.remove(_ctx.k(_r(v.$1)));
         }
       } else if (res.noteText != null) {
         final txt = (res.noteText ?? '').trim();
         if (txt.isNotEmpty) {
           if (id == null) {
             if (kDebugMode) debugPrint('[WriteThrough] CREATE note');
-            final created = await NotesApi.create(
-              RemoteNote(
+            final created = await api.NotesApi.create(
+              bh.RemoteNote(
                 id: 'new',
                 book: v.$1.book,
                 chapter: v.$1.chapter,
                 verseStart: v.$1.verse,
                 verseEnd: null,
                 note: txt,
-                color: null, // toCreateJson() will default this to yellow.
+                color: null, // toCreateJson() may default this to yellow.
+                createdAt: null,
+                updatedAt: null,
               ),
             );
-            _noteIdByKey[_k(v.$1)] = created.id;
+            _noteIdByKey[_ctx.k(_r(v.$1))] = created.id;
             if (cid != null) _noteIdByCluster[cid] = created.id;
           } else {
             if (kDebugMode) debugPrint('[WriteThrough] UPDATE note id=$id');
-            await NotesApi.update(id, note: txt);
+            await api.NotesApi.update(id, note: txt);
           }
         } else {
           if (id != null) {
             if (kDebugMode) {
               debugPrint('[WriteThrough] DELETE note (empty text) id=$id');
             }
-            await NotesApi.delete(id);
+            await api.NotesApi.delete(id);
             if (cid != null) _noteIdByCluster.remove(cid);
-            _noteIdByKey.remove(_k(v.$1));
+            _noteIdByKey.remove(_ctx.k(_r(v.$1)));
           }
         }
       }
@@ -1027,48 +595,42 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       // Highlight upsert/clear
       if (res.highlight != null) {
         final color = res.highlight!;
-        final sc = _serverFromUi(color);
-        final cid2 = m?.clusterId(_canonicalTx(_translation), _keyOf(v.$1));
-        String? id2 =
-            (cid2 != null ? _noteIdByCluster[cid2] : null) ??
-            _noteIdByKey[_k(v.$1)];
+        final sc = HighlightCodec.toServer(color); // -> bh.ServerHighlight?
+        final cid2 = m?.clusterId(_ctx.canonicalTx(_translation), _ctx.keyOf(_r(v.$1)));
+        String? id2 = (cid2 != null ? _noteIdByCluster[cid2] : null) ?? _noteIdByKey[_ctx.k(_r(v.$1))];
 
         if (color != HighlightColor.none) {
           if (id2 == null) {
             if (kDebugMode) debugPrint('[WriteThrough] CREATE highlight');
-            final created = await NotesApi.create(
-              RemoteNote(
+            final created = await api.NotesApi.create(
+              bh.RemoteNote(
                 id: 'new',
                 book: v.$1.book,
                 chapter: v.$1.chapter,
                 verseStart: v.$1.verse,
                 verseEnd: null,
                 note: '',
-                color: sc, // explicit valid color
+                color: sc,
+                createdAt: null,
+                updatedAt: null,
               ),
             );
-            _noteIdByKey[_k(v.$1)] = created.id;
+            _noteIdByKey[_ctx.k(_r(v.$1))] = created.id;
             if (cid2 != null) _noteIdByCluster[cid2] = created.id;
           } else {
             if (kDebugMode) {
-              debugPrint(
-                '[WriteThrough] UPDATE highlight id=$id2 -> ${sc?.name}',
-              );
+              debugPrint('[WriteThrough] UPDATE highlight id=$id2 -> ${sc?.name}');
             }
-            await NotesApi.update(id2, color: sc);
+            await api.NotesApi.update(id2, color: sc);
           }
         } else {
           final existingTxt =
-              (_notesPerTx[_translation]?[_k(v.$1)] ??
-                      _notesShared[cid2 ?? ''] ??
-                      '')
-                  .trim();
+              (_notesPerTx[_translation]?[_ctx.k(_r(v.$1))] ?? _notesShared[cid2 ?? ''] ?? '').trim();
           if (existingTxt.isEmpty && id2 != null) {
-            if (kDebugMode)
-              debugPrint('[WriteThrough] DELETE row (clear highlight) id=$id2');
-            await NotesApi.delete(id2);
+            if (kDebugMode) debugPrint('[WriteThrough] DELETE row (clear highlight) id=$id2');
+            await api.NotesApi.delete(id2);
             if (cid2 != null) _noteIdByCluster.remove(cid2);
-            _noteIdByKey.remove(_k(v.$1));
+            _noteIdByKey.remove(_ctx.k(_r(v.$1)));
           }
         }
       }
@@ -1078,8 +640,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
   }
 
-  /// Renders the header bar and its elements
-  /// Chapter Jump, Navigation, Voice, Search
   @override
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
@@ -1091,9 +651,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
           child: IconButtonTheme(
             data: IconButtonThemeData(
               style: ButtonStyle(
-                foregroundColor: WidgetStateProperty.resolveWith<Color?>((
-                  states,
-                ) {
+                foregroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
                   final base = Theme.of(context).colorScheme.onSurface;
                   return states.contains(WidgetState.disabled)
                       ? base.withValues(alpha: 0.35)
@@ -1103,9 +661,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             ),
             child: IconTheme(
               data: IconThemeData(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
               child: Row(
                 children: [
@@ -1114,8 +670,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                     onPressed: _isAtFirstChapter ? null : _prevChapter,
                     icon: Icon(
                       Icons.chevron_left,
-                      color:
-                          _isAtFirstChapter ? Colors.white38 : Colors.white70,
+                      color: _isAtFirstChapter ? Colors.white38 : Colors.white70,
                     ),
                   ),
                   Expanded(
@@ -1126,17 +681,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       child: TextButton(
                         onPressed: _openJumpPicker,
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          backgroundColor:
-                              Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainerHigh,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                         child: Text(
                           '${_booksReady ? _abbr(_book) : _book} $_chapter',
@@ -1154,39 +701,21 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                     onSelected: (val) {
                       setState(() {
                         _translation = val;
+                        _ctx.translation = val; // keep logic layer in sync
                         if (_booksReady) {
-                          Books.instance.setLocaleCode(
-                            _localeForTx(_translation),
-                          );
+                          Books.instance.setLocaleCode(_localeForTx(_translation));
                         }
                       });
                       _load();
                     },
-                    itemBuilder:
-                        (ctx) =>
-                            _translations
-                                .map(
-                                  (t) => PopupMenuItem(
-                                    value: t,
-                                    child: Text(t.toUpperCase()),
-                                  ),
-                                )
-                                .toList(),
+                    itemBuilder: (ctx) =>
+                        _translations.map((t) => PopupMenuItem(value: t, child: Text(t.toUpperCase()))).toList(),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
-                        color:
-                            Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Theme.of(context).dividerColor,
-                          width: 1,
-                        ),
+                        border: Border.all(color: Theme.of(context).dividerColor, width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1207,10 +736,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   IconButton(
                     tooltip: 'Read aloud',
                     onPressed: null,
-                    icon: const Icon(
-                      Icons.volume_up_outlined,
-                      color: Colors.white60,
-                    ),
+                    icon: const Icon(Icons.volume_up_outlined, color: Colors.white60),
                   ),
                   IconButton(
                     tooltip: 'Next chapter',
@@ -1238,17 +764,15 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         padding: EdgeInsets.fromLTRB(12, 8, 12, _offline ? 96 : 24),
                         child: FlowingChapterText(
                           verses: _verses,
-                          highlights: { for (final v in _verses) v.$1: _colorFor(v.$1) },
+                          highlights: { for (final v in _verses) v.$1: colorFor(_ctx, _r(v.$1)) },
                           onTapVerse: (vt) => _openActions(vt),
-                          baseStyle: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(fontSize: 16, height: 1.6),
+                          baseStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.6),
                           runs: _currentRuns,
                           verseBlocks: _currentBlocks,
                         ),
                       ),
                     ),
 
-              // Floating offline bar
               if (_offline)
                 Positioned(
                   left: 12,
@@ -1260,13 +784,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       elevation: 4,
                       borderRadius: BorderRadius.circular(12),
                       color: Theme.of(context).colorScheme.tertiaryContainer,
-                      child: ListTile(
+                      child: const ListTile(
                         dense: true,
-                        leading: const Icon(Icons.wifi_off),
-                        title: const Text('You’re offline'),
-                        subtitle: const Text('Changes are saved and will sync later.'),
-                        // Hide the action entirely while offline
-                        trailing: null,
+                        leading: Icon(Icons.wifi_off),
+                        title: Text('You’re offline'),
+                        subtitle: Text('Changes are saved and will sync later.'),
                       ),
                     ),
                   ),
@@ -1279,155 +801,4 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   }
 }
 
-/// Stores whatever actions the user takes while in the notetaking menu
-class _ActionResult {
-  final HighlightColor? highlight;
-  final String? noteText;
-  final bool? noteDelete;
-  _ActionResult({this.highlight, this.noteText, this.noteDelete});
-}
-
-/// UI Elements for the note taking menu
-class _VerseActionsSheet extends StatefulWidget {
-  const _VerseActionsSheet({
-    required this.verseLabel,
-    required this.currentHighlight,
-    this.existingNote,
-  });
-  final String verseLabel;
-  final HighlightColor currentHighlight;
-  final String? existingNote;
-
-  @override
-  State<_VerseActionsSheet> createState() => _VerseActionsSheetState();
-}
-
-class _VerseActionsSheetState extends State<_VerseActionsSheet> {
-  late HighlightColor _pick = widget.currentHighlight;
-  late final _note = TextEditingController(text: widget.existingNote ?? '');
-  bool get _canEditNote => _pick != HighlightColor.none;
-
-  @override
-  void dispose() {
-    _note.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.verseLabel,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-
-            // ---- Highlight picker ----
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text('Highlight'),
-            ),
-            const SizedBox(height: 8),
-
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                for (final c in HighlightColor.values.where(
-                  (c) => c != HighlightColor.none,
-                ))
-                  InkWell(
-                    onTap: () => setState(() => _pick = c),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: {
-                          HighlightColor.blue: Colors.lightBlueAccent,
-                          HighlightColor.red: Colors.redAccent,
-                          HighlightColor.yellow: Colors.yellow,
-                          HighlightColor.green: Colors.lightGreenAccent,
-                          HighlightColor.purple: Colors.purpleAccent,
-                        }[c]!.withOpacity(.9),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _pick == c ? Colors.black87 : Colors.black26,
-                          width: _pick == c ? 2 : 1,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-
-            const Divider(height: 24),
-
-          // ---- Note field (gated by highlight) ----
-          Align(alignment: Alignment.centerLeft, child: const Text('Note')),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _note,
-            enabled: _canEditNote, // greyed out until a color is picked
-            minLines: 3,
-            maxLines: 6,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: 'Write a note for this verse…',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-            Row(
-              children: [
-                // Delete All is always visible now
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed:
-                        () => Navigator.pop(
-                          context,
-                          _ActionResult(noteDelete: true),
-                        ),
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Delete All'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      // If text editing is disabled, ignore any controller text
-                      final String? textToSend =
-                          _canEditNote ? _note.text : null;
-
-                      Navigator.pop(
-                        context,
-                        _ActionResult(highlight: _pick, noteText: textToSend),
-                      );
-                    },
-                    child: const Text('Save'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Translations selectable
 const List<String> _translations = ['kjv', 'asv', 'web', 'rst'];
