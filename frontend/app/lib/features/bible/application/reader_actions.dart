@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 import '../domain/highlight.dart';
-import '../logic/reader_logic.dart';
-import '../ui/verse_actions_sheet.dart'; // ActionResult
+import 'reader_logic.dart';
+import '../presentation/sheets/verse_actions_sheet.dart'; // ActionResult
 import '../data/notes_api.dart' as api;
 import 'package:app/helpers/bible_notes_helper.dart' as bh;
 import '../data/verse_matching.dart' show VerseKey;

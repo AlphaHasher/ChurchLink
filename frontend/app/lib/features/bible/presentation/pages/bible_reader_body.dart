@@ -4,25 +4,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-import '../data/bible_repo_elisha.dart';
-import '../data/elisha_json_source.dart';
-import '../data/books.dart';
-import '../data/verse_matching.dart' show VerseMatching, VerseKey;
+import '../../data/bible_repo_elisha.dart';
+import '../../data/elisha_json_source.dart';
+import '../../data/books.dart';
+import '../../data/verse_matching.dart' show VerseMatching, VerseKey;
 
-import 'flowing_chapter_text.dart';
-import '../domain/highlight.dart';
-import '../logic/reader_logic.dart';
-import '../sync/reader_sync.dart';
-import '../ui/verse_actions_sheet.dart';
-import 'reader_top_bar.dart';
+import '../widgets/flowing_chapter_text.dart';
+import '../../domain/highlight.dart';
+import '../../application/reader_logic.dart';
+import '../../application/reader_sync.dart';
+import '../sheets/verse_actions_sheet.dart';
+import '../widgets/reader_top_bar.dart';
 
 // New extractions
-import '../application/reader_loader.dart';
-import '../application/reader_actions.dart';
-import '../presentation/sheets/jump_picker_sheet.dart';
+import '../../application/reader_loader.dart';
+import '../../application/reader_actions.dart';
+import '../sheets/jump_picker_sheet.dart';
 
 // Notes API for network + caching
-import '../data/notes_api.dart' as api;
+import '../../data/notes_api.dart' as api;
 // Models/enums (RemoteNote, ServerHighlight) come from the helper:
 import 'package:app/helpers/bible_notes_helper.dart' as bh;
 
