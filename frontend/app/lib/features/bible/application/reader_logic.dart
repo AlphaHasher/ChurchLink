@@ -227,6 +227,7 @@ Future<void> syncFetchChapterNotes(
     return;
   }
 
+  // Window [chapter-1 .. chapter+1]
   final start = (chapter - 1) < 1 ? 1 : (chapter - 1);
   final end = chapter + 1;
 
@@ -235,25 +236,25 @@ Future<void> syncFetchChapterNotes(
       debugPrint('[ReaderLogic] hydrate $book ch=$chapter window=[$start..$end] tx=${ctx.translation}');
     }
 
-    for (final cid in ctx.lastWindowCids) {
-      ctx.notesShared.remove(cid);
-      ctx.hlShared.remove(cid);
-    }
-    final nextWindowCids = <String>{};
-
+    // 1) Fetch window items first
     final items = await api.NotesApi.getNotesForChapterRangeApi(
       book: book,
       chapterStart: start,
       chapterEnd: end,
     );
 
+    // Stable order (oldest -> newest); newer rows overwrite older ones if overlapping.
     items.sort((a, b) {
       final ax = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bx = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return ax.compareTo(bx);
     });
 
-    const String serverTx = 'kjv'; // server numbering base
+    // Server numbering base
+    const String serverTx = 'kjv';
+
+    // 2) Build the next set of cluster IDs present in this window
+    final nextWindowCids = <String>{};
 
     for (final rn in items) {
       final s = rn.verseStart;
@@ -268,14 +269,30 @@ Future<void> syncFetchChapterNotes(
         final cid = m.clusterId(serverTx, (book: book, chapter: rn.chapter, verse: v));
         nextWindowCids.add(cid);
 
+        // Update/overwrite shared state for this cluster
         ctx.noteIdByCluster[cid] = rn.id;
-        if (noteText.isNotEmpty) ctx.notesShared[cid] = noteText;
-        if (color != HighlightColor.none) ctx.hlShared[cid] = color;
+        if (noteText.isNotEmpty) {
+          ctx.notesShared[cid] = noteText;
+        }
+        if (color != HighlightColor.none) {
+          ctx.hlShared[cid] = color;
+        }
 
+        // Clear any per-tx fallbacks for the hydrated keys
         ctx.notesPerTx[ctx.translation]?.remove(key);
         ctx.hlPerTx[ctx.translation]?.remove(key);
       }
     }
+
+    // 3) Remove ONLY stale cids that used to be in-window but are not anymore.
+    //    (Prevents the “only most recent highlight shows” issue when the fetch is partial.)
+    final stale = ctx.lastWindowCids.difference(nextWindowCids);
+    for (final cid in stale) {
+      ctx.notesShared.remove(cid);
+      ctx.hlShared.remove(cid);
+    }
+
+    // 4) Commit the new window snapshot
     ctx.lastWindowCids = nextWindowCids;
   } catch (e, st) {
     debugPrint('[ReaderLogic] hydrate failed: $e\n$st');
