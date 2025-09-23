@@ -7,6 +7,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/notes_api.dart' as api;
+import 'last_sync_store.dart';
 
 typedef BooksIndexProvider = Map<String, int> Function();
 
@@ -44,7 +45,10 @@ class ReaderSync {
 
     // 3) Outbox / remote ops finished -> refresh if online
     _syncedSub = api.NotesApi.onSynced.listen((_) async {
-      if (!_offline) await hydrateCurrent();
+      if (!_offline) {
+        await hydrateCurrent();
+        await LastSyncStore.markNowUtc(); // NEW
+      }
     });
 
     // 4) User signed in while the page is open -> warm cache + hydrate
@@ -75,6 +79,11 @@ class ReaderSync {
       await api.NotesApi.primeAllCache(books: books);
     }
     await hydrateCurrent();
+
+    // NEW: record a completed successful sync round-trip (only when online)
+    if (!_offline) {
+      await LastSyncStore.markNowUtc();
+    }
   }
 
   void dispose() {

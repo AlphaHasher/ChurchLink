@@ -26,6 +26,10 @@ import '../../data/notes_api.dart' as api;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+import 'package:intl/intl.dart';
+import '../../application/last_sync_store.dart';
+
+
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({
     super.key,
@@ -387,11 +391,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       elevation: 4,
                       borderRadius: BorderRadius.circular(12),
                       color: Theme.of(context).colorScheme.tertiaryContainer,
-                      child: const ListTile(
+                      child: ListTile(
                         dense: true,
-                        leading: Icon(Icons.wifi_off),
-                        title: Text('You’re offline'),
-                        subtitle: Text('Changes are saved and will sync later.'),
+                        leading: const Icon(Icons.wifi_off),
+                        title: const Text('You’re offline'),
+                        subtitle: FutureBuilder<DateTime?>(
+                          future: LastSyncStore.readLocal(),
+                          builder: (context, snap) {
+                            final last = snap.data;
+                            final pretty = last == null
+                                ? 'never'
+                                : DateFormat.yMMMd().add_jm().format(last); // e.g., Sep 22, 3:41 PM
+                            return Text('Last sync: $pretty • Changes are saved and will sync later.');
+                          },
+                        ),
                       ),
                     ),
                   ),
