@@ -402,7 +402,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                             final pretty = last == null
                                 ? 'never'
                                 : DateFormat.yMMMd().add_jm().format(last); // e.g., Sep 22, 3:41 PM
-                            return Text('Last sync: $pretty • Changes are saved and will sync later.');
+                            return Text(
+                              'Last sync: $pretty\nChanges are saved and will sync later.',
+                            );
                           },
                         ),
                       ),
