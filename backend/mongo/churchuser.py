@@ -325,9 +325,12 @@ class UserHandler:
     async def remove_from_my_events(uid: str, *, key: str = None, event_id: ObjectId = None,
                                     reason: str = None, scope: str = None,
                                     occurrence_id: ObjectId = None, occurrence_start=None,
-                                    series_id: ObjectId = None, person_id: ObjectId = None):
+                                    series_id: ObjectId = None, person_id: ObjectId = None, _person_id_provided: bool = False):
         """
         Remove by the stable 'key' (recommended) OR by matching fields.
+        
+        Important: When person_id is None and _person_id_provided is True, it means we want to remove
+        entries for the main user (no person_id). When _person_id_provided is False, person_id is ignored.
         """
         if key:
             criteria = {"key": key}
@@ -344,8 +347,18 @@ class UserHandler:
                 criteria["occurrence_id"] = occurrence_id
             if occurrence_start is not None:
                 criteria["occurrence_start"] = occurrence_start
-            if person_id is not None:
-                criteria["person_id"] = person_id
+            
+            # Handle person_id with proper distinction between None and not provided
+            if _person_id_provided:
+                if person_id is not None:
+                    # Remove entry for specific family member
+                    criteria["person_id"] = person_id
+                else:
+                    # Remove entry for main user (no person_id or person_id is null)
+                    criteria["$or"] = [
+                        {"person_id": {"$exists": False}},
+                        {"person_id": None}
+                    ]
 
         result = await DB.db["users"].update_one(
             {"uid": uid},
