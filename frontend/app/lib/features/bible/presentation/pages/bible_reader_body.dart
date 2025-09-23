@@ -23,8 +23,6 @@ import '../sheets/jump_picker_sheet.dart';
 
 // Notes API for network + caching
 import '../../data/notes_api.dart' as api;
-// Models/enums (RemoteNote, ServerHighlight) come from the helper:
-import 'package:app/helpers/bible_notes_helper.dart' as bh;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
