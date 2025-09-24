@@ -41,6 +41,8 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 
 from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
 
+from routes.forms_routes import mod_forms_router
+
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
@@ -235,6 +237,7 @@ private_router.include_router(user_private_router)
 mod_router = ModProtectedRouter(prefix="/api/v1")
 
 mod_router.include_router(mod_bible_plan_router)
+mod_router.include_router(mod_forms_router)
 mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_footer_router)
 mod_router.include_router(mod_header_router)
