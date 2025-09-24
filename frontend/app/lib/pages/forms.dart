@@ -1,5 +1,6 @@
 import 'package:app/helpers/api_client.dart';
 import 'package:app/components/auth_popup.dart';
+import 'package:app/pages/form_submit.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -115,16 +116,23 @@ class _FormsState extends State<Forms> {
 																final desc = f['description'] ?? '';
 																final slug = f['slug'] ?? '';
 																final createdAt = f['created_at'] ?? '';
-																return ListTile(
-																	title: Text(title),
-																	subtitle: Text(desc.isNotEmpty ? desc : slug),
-																	trailing: createdAt is String
-																			? Text(createdAt.split('T').first)
-																			: const SizedBox.shrink(),
-																	onTap: () {
-																		// TODO - open form details or submission page
-																	},
-																);
+																																return ListTile(
+																																	title: Text(title),
+																																	subtitle: Text(desc.isNotEmpty ? desc : slug),
+																																	trailing: createdAt is String
+																																			? Text(createdAt.split('T').first)
+																																			: const SizedBox.shrink(),
+																																	onTap: () async {
+																																		// Open the form submission page
+																																		final result = await Navigator.of(context).push(
+																																			MaterialPageRoute(builder: (_) => FormSubmitPage(form: f)),
+																																		);
+																																		// If submission happened, reload forms (some forms may change)
+																																		if (result == true) {
+																																			_loadForms();
+																																		}
+																																	},
+																																);
 															},
 														),
 				),
