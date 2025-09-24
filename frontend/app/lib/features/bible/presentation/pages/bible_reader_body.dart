@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import '../../data/bible_repo_elisha.dart';
 import '../../data/elisha_json_source.dart';
 import '../../data/books.dart';
-import '../../data/verse_matching.dart' show VerseMatching, VerseKey;
+import '../../data/verse_matching.dart' show VerseMatching;
 
 import '../widgets/flowing_chapter_text.dart';
 import '../../domain/highlight.dart';
@@ -90,7 +90,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   bool _refreshing = false; // true while a pull-to-refresh is running
 
   // Track which cluster IDs belonged to the last hydrated window.
-  Set<String> _lastWindowCids = <String>{};
+  final Set<String> _lastWindowCids = <String>{};
 
   // Books catalog state
   bool _booksReady = false;

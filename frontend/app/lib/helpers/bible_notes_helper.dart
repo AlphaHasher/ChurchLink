@@ -7,7 +7,6 @@
 //   PUT    /v1/bible-notes/{note_id}
 //   DELETE /v1/bible-notes/{note_id}
 
-import 'package:dio/dio.dart';
 import 'package:app/helpers/api_client.dart';
 
 // Re-exported types for consumers.

@@ -21,7 +21,9 @@ class NotesApi {
     // Common network-layer failures
     if (e is SocketException ||
         e is HttpException ||
-        e is TimeoutException) return true;
+        e is TimeoutException) {
+      return true;
+    }
 
     // package:http wrapper
     if (e is ClientException) return true;
@@ -269,13 +271,13 @@ class _Cache {
       if (raw is Map && raw['notes'] is List) {
         return (raw['notes'] as List)
             .cast<Map>()
-            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
       if (raw is List) {
         return raw
             .cast<Map>()
-            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
       return <Map<String, dynamic>>[];
@@ -311,29 +313,6 @@ class _Cache {
     await _writeAll(all);
   }
 
-  static Future<void> upsertMany(List<RemoteNote> notes) async {
-    final all = await _readAll();
-    for (final n in notes) {
-      final idx = all.indexWhere((m) => (m['id']?.toString() ?? '') == n.id);
-      final noteJson = {
-        'id': n.id,
-        'book': n.book,
-        'chapter': n.chapter,
-        'verse_start': n.verseStart,
-        'verse_end': n.verseEnd,
-        'note': n.note,
-        'highlight_color': n.color?.name,
-        'created_at': n.createdAt?.toIso8601String(),
-        'updated_at': n.updatedAt?.toIso8601String(),
-      };
-      if (idx >= 0) {
-        all[idx] = noteJson;
-      } else {
-        all.add(noteJson);
-      }
-    }
-    await _writeAll(all);
-  }
 
   static Future<List<RemoteNote>> getRange(
     String book, {
@@ -356,7 +335,7 @@ class _Cache {
             return c != 0 ? c : va.compareTo(vb);
           });
     return filtered
-        .map((e) => RemoteNote.fromJson(e as Map<String, dynamic>))
+        .map((e) => RemoteNote.fromJson(e))
         .toList();
   }
 
@@ -453,7 +432,7 @@ class _Outbox {
       if (raw is List) {
         return raw
             .cast<Map>()
-            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
       return <Map<String, dynamic>>[];
@@ -541,13 +520,14 @@ class _Outbox {
             final localId = rawLocal?.toString();
             final payloadAny = job['payload'];
             if (localId == null || payloadAny == null || payloadAny is! Map) {
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('[Outbox] drop malformed create: $job');
+              }
               jobs.removeAt(i);
               await _write(jobs);
               continue;
             }
-            final p = Map<String, dynamic>.from(payloadAny as Map);
+            final p = Map<String, dynamic>.from(payloadAny);
 
             final created = await NotesApi._createOnline(
               RemoteNote(
@@ -590,8 +570,9 @@ class _Outbox {
           if (op == 'update') {
             var id = job['id']?.toString();
             if (id == null) {
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('[Outbox] drop malformed update: $job');
+              }
               jobs.removeAt(i);
               await _write(jobs);
               continue;
@@ -615,8 +596,9 @@ class _Outbox {
           if (op == 'delete') {
             var id = job['id']?.toString();
             if (id == null) {
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('[Outbox] drop malformed delete: $job');
+              }
               jobs.removeAt(i);
               await _write(jobs);
               continue;

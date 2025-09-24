@@ -86,7 +86,7 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
       for (final r in widget.runs!) {
         final text = (r['text'] ?? '').trim();
         if (text.isEmpty) continue;
-        spans.add(TextSpan(text: text + '\n', style: headingStyle));
+        spans.add(TextSpan(text: '$text\n', style: headingStyle));
       }
       spans.add(const TextSpan(text: '\n'));
     }
