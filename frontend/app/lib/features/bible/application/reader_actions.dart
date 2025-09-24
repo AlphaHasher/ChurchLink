@@ -1,3 +1,6 @@
+// Moves all the heavy local state updates + write-throughs out of the widget.
+// Originally code from bible_reader_body.dart
+
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 import '../domain/highlight.dart';
@@ -8,7 +11,6 @@ import 'package:app/helpers/bible_notes_helper.dart' as bh;
 import '../data/verse_matching.dart' show VerseKey;
 import '../data/bible_repo_elisha.dart'; // for VerseRef
 
-/// Moves all the heavy local state updates + write-throughs out of the widget.
 class ReaderActions {
   ReaderActions(this.ctx, this.notesApi);
   final ReaderContext ctx;

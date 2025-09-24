@@ -1,6 +1,5 @@
-// Accesses the relevant data needed for \bible\widgets\bible_reader_body.dart to display properly
-// Retrieves notes and highlights
-// Also resolves clustering logic
+// Retrieves the notes/highlights info and figures out clusters
+// Tells bible_reader_body.dart which exact verses to display as highlighted
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 

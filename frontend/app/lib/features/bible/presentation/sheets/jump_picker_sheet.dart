@@ -1,7 +1,8 @@
+// Bottom sheet to pick a book + chapter.
+// Returns (String selectedBookName, int selectedChapter) using the names passed in.
+
 import 'package:flutter/material.dart';
 
-/// Bottom sheet to pick a book + chapter.
-/// Returns `(String selectedBookName, int selectedChapter)` using the names passed in.
 Future<(String, int)?> showJumpPicker({
   required BuildContext context,
   required List<String> bookNames,

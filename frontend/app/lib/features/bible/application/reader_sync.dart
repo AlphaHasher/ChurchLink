@@ -1,6 +1,6 @@
-// Centralizes connectivity + auth + sync
-// Contains the logic for when to communicate with the backend. 
-// Performs this by calling \bible\data\notes_api.dart
+// Handles syncing on initial connection, reconnection, note change, and manual sync
+// Sync Flow: send pending changes -> update record -> refresh current page -> record last sync time
+// If offline, only queue changes
 
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';

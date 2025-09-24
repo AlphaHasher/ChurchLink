@@ -1,3 +1,6 @@
+// This file is used for logging when the last sync occured.
+// When a user is offline, the app will notify them of when their last sync occured.
+
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 

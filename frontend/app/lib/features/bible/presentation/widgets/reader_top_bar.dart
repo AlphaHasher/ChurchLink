@@ -1,3 +1,6 @@
+// Widget for the top bar in the UI
+// Where the navigation buttons, book selector, etc buttons are
+
 import 'package:flutter/material.dart';
 
 class ReaderTopBar extends StatelessWidget {
