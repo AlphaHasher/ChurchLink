@@ -7,7 +7,7 @@ import '../data/verse_matching.dart' show VerseMatching, VerseKey;
 import '../domain/highlight.dart';
 import '../data/notes_api.dart' as api; // NotesApi
 
-/// We accept the record type directly: ({String book, int chapter, int verse})
+/// Accept the record type directly
 typedef RefRec = ({String book, int chapter, int verse});
 
 /// State handle passed in by the UI; owns *references* to the maps
@@ -211,7 +211,7 @@ String? noteFor(ReaderContext ctx, RefRec ref) {
   return ctx.notesPerTx[ctx.translation]?[ctx.k(ref)];
 }
 
-/// Hydrate notes/highlights for [book]:[chapter-1..chapter+1]
+/// Hydrate notes/highlights for a chapter and its neighbors
 Future<void> syncFetchChapterNotes(
   ReaderContext ctx, {
   required String book,
@@ -226,7 +226,7 @@ Future<void> syncFetchChapterNotes(
     return;
   }
 
-  // Window [chapter-1 .. chapter+1]
+  // Sets the range as a given chapter and it's neighbors
   final start = (chapter - 1) < 1 ? 1 : (chapter - 1);
   final end = chapter + 1;
 

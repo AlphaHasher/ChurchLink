@@ -11,6 +11,8 @@ import 'package:app/helpers/bible_notes_helper.dart' as bh;
 import '../data/verse_matching.dart' show VerseKey;
 import '../data/bible_repo_elisha.dart'; // for VerseRef
 
+// ctx: bundle with the reader's current state 
+// notesAPI: used for communicating with the backend
 class ReaderActions {
   ReaderActions(this.ctx, this.notesApi);
   final ReaderContext ctx;
@@ -19,6 +21,8 @@ class ReaderActions {
   ({String book, int chapter, int verse}) _r(VerseRef v) =>
       (book: v.book, chapter: v.chapter, verse: v.verse);
 
+  // Handles the user's note interaction
+  // Update the page's visual and send the change to the server
   Future<void> applyAction({
     required String translation,
     required (VerseRef ref, String text) vt,
@@ -38,7 +42,7 @@ class ReaderActions {
   }) async {
     final v = vt; // (VerseRef, text)
 
-    // ---------- Local state updates (immediate UI) ----------
+    // Update the visuals of the current page
     if (res.noteDelete == true) {
       final m = ctx.matcher;
       final hereK = ctx.k(_r(v.$1));
@@ -165,7 +169,7 @@ class ReaderActions {
       }
     }
 
-    // ---------- Server write-throughs (fail-soft) ----------
+    // Attempt to send the change to the server
     try {
       final m = ctx.matcher;
       final cid = m?.clusterId(ctx.canonicalTx(translation), ctx.keyOf(_r(v.$1)));
