@@ -657,7 +657,7 @@ class VerseMatching {
     return seen.toList();
   }
 
-  // TODO: NEW — convenience: list same-translation siblings in the cluster (excludes the seed).
+  // list same-translation siblings in the cluster (excludes the seed).
   List<VerseKey> sameTxSiblings({required String tx, required VerseKey key}) {
     final all = clusterMembers(tx: tx, key: key);
     final t = tx.trim().toLowerCase();
