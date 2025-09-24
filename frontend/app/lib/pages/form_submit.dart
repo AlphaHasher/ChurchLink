@@ -71,13 +71,15 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     for (final f in _fields) {
       final type = (f['type'] ?? 'text').toString();
       if (type == 'price') return true;
-      if ((type == 'checkbox' || type == 'switch') && (f['price'] != null))
+      if ((type == 'checkbox' || type == 'switch') && (f['price'] != null)) {
         return true;
+      }
       if (type == 'radio' || type == 'select') {
         final options = (f['options'] ?? f['choices'] ?? []) as List?;
         if (options != null &&
-            options.any((o) => (o is Map && o['price'] != null)))
+            options.any((o) => (o is Map && o['price'] != null))) {
           return true;
+        }
       }
       if (type == 'date') {
         final pricing = f['pricing'];
@@ -94,8 +96,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
       final key =
           "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
       for (final item in specific) {
-        if (item['date'] == key && item['price'] is num)
+        if (item['date'] == key && item['price'] is num) {
           return (item['price'] as num).toDouble();
+        }
       }
     }
     final dow = d.weekday % 7; // Dart: Mon=1..Sun=7; mod7 -> Sun=0..Sat=6
@@ -122,8 +125,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         final amt = f['amount'];
         if (amt is num) total += amt.toDouble();
       } else if (type == 'checkbox' || type == 'switch') {
-        if ((val == true) && f['price'] is num)
+        if ((val == true) && f['price'] is num) {
           total += (f['price'] as num).toDouble();
+        }
       } else if (type == 'radio') {
         final options = (f['options'] ?? f['choices'] ?? []) as List?;
         if (options != null) {
@@ -178,13 +182,15 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
               }
             } else if (val is Map && val['from'] != null) {
               final from = DateTime.tryParse(val['from'].toString());
-              if (from != null)
+              if (from != null) {
                 total += _weekdayPrice(pricing.cast<String, dynamic>(), from);
+              }
             }
           } else {
             final d = val is String ? DateTime.tryParse(val) : null;
-            if (d != null)
+            if (d != null) {
               total += _weekdayPrice(pricing.cast<String, dynamic>(), d);
+            }
           }
         }
       }
@@ -226,6 +232,16 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     final hh = t.hour.toString().padLeft(2, '0');
     final mm = t.minute.toString().padLeft(2, '0');
     return '$hh:$mm';
+  }
+
+  int? _hhmmToMinutes(String? hhmm) {
+    if (hhmm == null || hhmm.trim().isEmpty) return null;
+    final m = RegExp(r'^([01]?\d|2[0-3]):([0-5]\d)$').firstMatch(hhmm.trim());
+    if (m == null) return null;
+    final h = int.tryParse(m.group(1)!);
+    final min = int.tryParse(m.group(2)!);
+    if (h == null || min == null) return null;
+    return h * 60 + min;
   }
 
   Widget _buildField(Map<String, dynamic> f) {
@@ -298,6 +314,37 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             if (required && (v == null || v.trim().isEmpty)) return 'Required';
             if (v != null && v.isNotEmpty && double.tryParse(v) == null)
               return 'Invalid number';
+            if (v != null && v.isNotEmpty) {
+              final n = double.tryParse(v);
+              if (n != null) {
+                final min = (f['min'] is num) ? (f['min'] as num).toDouble() : null;
+                final max = (f['max'] is num) ? (f['max'] as num).toDouble() : null;
+                if (min != null && n < min) {
+                  final dec = min.truncateToDouble() == min ? 0 : 2;
+                  return 'Must be ≥ ${min.toStringAsFixed(dec)}';
+                }
+                if (max != null && n > max) {
+                  final dec = max.truncateToDouble() == max ? 0 : 2;
+                  return 'Must be ≤ ${max.toStringAsFixed(dec)}';
+                }
+                if (f['allowedValues'] is String) {
+                  final allowed = (f['allowedValues'] as String)
+                      .split(',')
+                      .map((s) => s.trim())
+                      .where((s) => s.isNotEmpty)
+                      .map((s) => double.tryParse(s))
+                      .where((x) => x != null)
+                      .map((x) => x!)
+                      .toList();
+                  if (allowed.isNotEmpty && !allowed.contains(n)) {
+                    final fmt = allowed
+                        .map((x) => x.truncateToDouble() == x ? x.toStringAsFixed(0) : x.toString())
+                        .join(', ');
+                    return 'Must be one of: $fmt';
+                  }
+                }
+              }
+            }
             return null;
           },
           onSaved:
@@ -508,97 +555,172 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
       case 'date':
         final mode = (f['mode'] ?? 'single').toString();
         if (mode == 'range') {
-          final Map<String, dynamic>? current =
-              (_values[fieldName] as Map?)?.cast<String, dynamic>();
-          final String? from = current?['from']?.toString();
-          final String? to = current?['to']?.toString();
-          return ListTile(
-            title: Text(label),
-            subtitle: Text(
-              from != null && to != null
-                  ? '${from.split('T').first} → ${to.split('T').first}'
-                  : 'Select date range',
-            ),
-            onTap: () async {
-              final initial = DateTime.now();
-              final res = await showDateRangePicker(
-                context: context,
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100),
-                initialDateRange:
-                    (from != null && to != null)
-                        ? DateTimeRange(
-                          start: DateTime.tryParse(from) ?? initial,
-                          end: DateTime.tryParse(to) ?? initial,
-                        )
-                        : null,
-              );
-              if (res != null) {
-                setState(
-                  () =>
-                      _values[fieldName] = {
-                        'from':
-                            DateTime(
-                              res.start.year,
-                              res.start.month,
-                              res.start.day,
-                            ).toIso8601String(),
-                        'to':
-                            DateTime(
-                              res.end.year,
-                              res.end.month,
-                              res.end.day,
-                            ).toIso8601String(),
-                      },
-                );
+          final Map<String, dynamic>? current = (_values[fieldName] as Map?)?.cast<String, dynamic>();
+          return FormField<Map<String, dynamic>>(
+            initialValue: current,
+            validator: (val) {
+              final req = f['required'] == true;
+              DateTime? parseDateOnly(String? iso) {
+                if (iso == null || iso.isEmpty) return null;
+                final d = DateTime.tryParse(iso);
+                if (d == null) return null;
+                return DateTime(d.year, d.month, d.day);
               }
+              final minD = parseDateOnly(f['minDate']?.toString());
+              final maxD = parseDateOnly(f['maxDate']?.toString());
+              final fromD = parseDateOnly(val?['from']?.toString());
+              final toD = parseDateOnly(val?['to']?.toString());
+              if (req && (fromD == null || toD == null)) return 'Required';
+              if (fromD == null || toD == null) return null;
+              if (toD.isBefore(fromD)) return 'End date must be on or after start date';
+              if (minD != null && fromD.isBefore(minD)) return 'Start must be on or after ${minD.toIso8601String().split('T').first}';
+              if (maxD != null && toD.isAfter(maxD)) return 'End must be on or before ${maxD.toIso8601String().split('T').first}';
+              return null;
+            },
+            builder: (state) {
+              final v = state.value ?? current;
+              final sFrom = v?['from']?.toString();
+              final sTo = v?['to']?.toString();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    title: Text(label),
+                    subtitle: Text(
+                      sFrom != null && sTo != null
+                          ? '${sFrom.split('T').first} → ${sTo.split('T').first}'
+                          : 'Select date range',
+                    ),
+                    onTap: () async {
+                      final initial = DateTime.now();
+                      final res = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime(2100),
+                        initialDateRange: (sFrom != null && sTo != null)
+                            ? DateTimeRange(
+                                start: DateTime.tryParse(sFrom) ?? initial,
+                                end: DateTime.tryParse(sTo) ?? initial,
+                              )
+                            : null,
+                      );
+                      if (res != null) {
+                        final newVal = {
+                          'from': DateTime(res.start.year, res.start.month, res.start.day).toIso8601String(),
+                          'to': DateTime(res.end.year, res.end.month, res.end.day).toIso8601String(),
+                        };
+                        setState(() => _values[fieldName] = newVal);
+                        state.didChange(newVal);
+                      }
+                    },
+                  ),
+                  if (state.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12.0, top: 4),
+                      child: Text(state.errorText ?? '', style: TextStyle(color: Colors.red[700], fontSize: 12)),
+                    ),
+                ],
+              );
             },
           );
         } else {
           final String? current = _values[fieldName]?.toString();
-          return ListTile(
-            title: Text(label),
-            subtitle: Text(current ?? 'Select date'),
-            onTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime.tryParse(current ?? '') ?? DateTime.now(),
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100),
-              );
-              if (picked != null) {
-                final d =
-                    DateTime(
-                      picked.year,
-                      picked.month,
-                      picked.day,
-                    ).toIso8601String();
-                setState(() => _values[fieldName] = d);
+          return FormField<String>(
+            initialValue: current,
+            validator: (val) {
+              final req = f['required'] == true;
+              if (req && (val == null || val.trim().isEmpty)) return 'Required';
+              if (val == null || val.trim().isEmpty) return null;
+              DateTime? parseDateOnly(String? iso) {
+                if (iso == null || iso.isEmpty) return null;
+                final d = DateTime.tryParse(iso);
+                if (d == null) return null;
+                return DateTime(d.year, d.month, d.day);
               }
+              final d = parseDateOnly(val);
+              if (d == null) return 'Invalid date';
+              final minD = parseDateOnly(f['minDate']?.toString());
+              final maxD = parseDateOnly(f['maxDate']?.toString());
+              if (minD != null && d.isBefore(minD)) return 'Must be on or after ${minD.toIso8601String().split('T').first}';
+              if (maxD != null && d.isAfter(maxD)) return 'Must be on or before ${maxD.toIso8601String().split('T').first}';
+              return null;
             },
+            builder: (state) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  title: Text(label),
+                  subtitle: Text(state.value ?? 'Select date'),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.tryParse(state.value ?? '') ?? DateTime.now(),
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      final d = DateTime(picked.year, picked.month, picked.day).toIso8601String();
+                      setState(() => _values[fieldName] = d);
+                      state.didChange(d);
+                    }
+                  },
+                ),
+                if (state.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12.0, top: 4),
+                    child: Text(state.errorText ?? '', style: TextStyle(color: Colors.red[700], fontSize: 12)),
+                  ),
+              ],
+            ),
           );
         }
 
       case 'time':
         final String? currentRaw = _values[fieldName]?.toString();
-        // Display stored value (HH:MM) or nothing yet
-        final display = (currentRaw != null && currentRaw.isNotEmpty)
-            ? currentRaw
-            : 'Select time';
-        // Initialize picker from stored HH:MM (or AM/PM) if available
-        final initialTod = _parseTimeOfDay(currentRaw) ?? TimeOfDay.now();
-        return ListTile(
-          title: Text(label),
-          subtitle: Text(display),
-          onTap: () async {
-            final picked = await showTimePicker(
-              context: context,
-              initialTime: initialTod,
+        final minTime = (f['minTime'] ?? f['min'])?.toString();
+        final maxTime = (f['maxTime'] ?? f['max'])?.toString();
+        return FormField<String>(
+          initialValue: currentRaw,
+          validator: (val) {
+            final req = f['required'] == true;
+            if (req && (val == null || val.trim().isEmpty)) return 'Required';
+            if (val == null || val.trim().isEmpty) return null;
+            if (_hhmmToMinutes(val) == null) return 'Invalid time';
+            final vMin = _hhmmToMinutes(minTime);
+            final vMax = _hhmmToMinutes(maxTime);
+            final v = _hhmmToMinutes(val)!;
+            if (vMin != null && v < vMin) return 'Must be on or after ${minTime}';
+            if (vMax != null && v > vMax) return 'Must be on or before ${maxTime}';
+            return null;
+          },
+          builder: (state) {
+            final initialTod = _parseTimeOfDay(state.value) ?? TimeOfDay.now();
+            final display = (state.value != null && state.value!.isNotEmpty) ? state.value! : 'Select time';
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  title: Text(label),
+                  subtitle: Text(display),
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: initialTod,
+                    );
+                    if (picked != null) {
+                      final value = _formatHHMM(picked);
+                      setState(() => _values[fieldName] = value);
+                      state.didChange(value);
+                    }
+                  },
+                ),
+                if (state.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12.0, top: 4),
+                    child: Text(state.errorText ?? '', style: TextStyle(color: Colors.red[700], fontSize: 12)),
+                  ),
+              ],
             );
-            if (picked != null) {
-              final value = _formatHHMM(picked);
-              setState(() => _values[fieldName] = value);
-            }
           },
         );
 
