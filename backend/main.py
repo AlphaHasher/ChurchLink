@@ -29,6 +29,7 @@ from routes.common_routes.event_routes import event_editing_router, private_even
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
 from routes.common_routes.youtube_routes import public_youtube_router
+from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
 
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
@@ -213,6 +214,7 @@ public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
 public_router.include_router(strapi_router)
 public_router.include_router(public_notification_router)
+public_router.include_router(app_config_public_router)
 public_router.include_router(paypal_public_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
@@ -243,6 +245,7 @@ mod_router.include_router(permissions_view_router)
 mod_router.include_router(private_notification_router)
 mod_router.include_router(strapi_protected_router)
 mod_router.include_router(paypal_admin_router)
+mod_router.include_router(app_config_private_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions

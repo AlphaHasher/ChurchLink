@@ -81,13 +81,16 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                             break
                         logging.info(f"Sending to tokens batch: {batch}")
                         for t in batch:
+                            # Enhanced data payload for deep linking - ensure all values are strings
+                            enhanced_data = {k: str(v) if v is not None else None for k, v in data.items()}
+                            
                             message = messaging.Message(
                                 notification=messaging.Notification(
                                     title=title,
                                     body=body,
                                 ),
                                 token=t,
-                                data=data
+                                data=enhanced_data
                             )
                             try:
                                 response = messaging.send(message)
@@ -96,18 +99,26 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                             except Exception as e:
                                 logging.error(f"FCM error for token {t}: {e}")
                                 responses.append({"token": t, "error": str(e)})
+                                
+                                # If token is invalid, remove it from database
+                                if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
+                                    logging.info(f"Removing invalid FCM token: {t}")
+                                    await db['fcm_tokens'].delete_many({"token": t})
                         sent_count += len(batch)
                         # If less than batch_size, we're done
                         if len(batch) < batch_size:
                             break
                 elif token:
+                    # Enhanced data payload for deep linking - ensure all values are strings
+                    enhanced_data = {k: str(v) if v is not None else None for k, v in data.items()}
+                    
                     message = messaging.Message(
                         notification=messaging.Notification(
                             title=title,
                             body=body,
                         ),
                         token=token,
-                        data=data
+                        data=enhanced_data
                     )
                     try:
                         response = messaging.send(message)
@@ -116,6 +127,11 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                     except Exception as e:
                         logging.error(f"FCM error for token {token}: {e}")
                         responses.append({"token": token, "error": str(e)})
+                        
+                        # If token is invalid, remove it from database
+                        if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
+                            logging.info(f"Removing invalid FCM token: {token}")
+                            await db['fcm_tokens'].delete_many({"token": token})
                 # Mark as sent
                 await mark_as_sent(db, str(notif["_id"]))
             await asyncio.sleep(10)  # Check every 10 seconds

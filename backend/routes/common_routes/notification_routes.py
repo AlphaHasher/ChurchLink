@@ -78,7 +78,13 @@ async def send_push_notification(
     body: str = Body(...),
     data: dict = Body(default={}),
     send_to_all: bool = Body(default=True),
-    token: str = Body(default=None)
+    token: str = Body(default=None),
+    # Deep linking fields
+    tab: str = Body(default=None),
+    eventId: str = Body(default=None),
+    link: str = Body(default=None),
+    route: str = Body(default=None),
+    actionType: str = Body(default="text")
 ):
     responses = []
     target = data.get('target', 'all')
@@ -91,34 +97,67 @@ async def send_push_notification(
         tokens_cursor = DB.db['fcm_tokens'].find(query, {'_id': 0, 'token': 1})
         tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
         for t in tokens:
+            # Enhanced data payload for deep linking
+            enhanced_data = {
+                **data,
+                # Add explicit deep linking fields
+                **({"tab": str(tab)} if tab is not None else {}),
+                **({"eventId": str(eventId)} if eventId is not None else {}),
+                **({"link": str(link)} if link is not None else {}),
+                **({"route": str(route)} if route is not None else {}),
+                **({"actionType": str(actionType)} if actionType is not None else {}),
+                # Ensure string conversion for FCM compatibility
+                **{k: str(v) if v is not None else None for k, v in data.items()}
+            }
+            
             message = messaging.Message(
                 notification=messaging.Notification(
                     title=title,
                     body=body,
                 ),
                 token=t,
-                data=data
+                data=enhanced_data
             )
             try:
                 response = messaging.send(message)
                 responses.append({"token": t, "response": response})
             except Exception as e:
                 responses.append({"token": t, "error": str(e)})
+                
+                # If token is invalid, remove it from database
+                if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
+                    await DB.db['fcm_tokens'].delete_many({"token": t})
         await log_notification(DB.db, title, body, "mobile", tokens, data.get("actionType"), data.get("link"), data.get("route"))
         return {"success": True, "results": responses, "count": len(tokens)}
     elif token:
+        # Enhanced data payload for deep linking
+        enhanced_data = {
+            **data,
+            # Add explicit deep linking fields
+            **({"tab": str(tab)} if tab is not None else {}),
+            **({"eventId": str(eventId)} if eventId is not None else {}),
+            **({"link": str(link)} if link is not None else {}),
+            **({"route": str(route)} if route is not None else {}),
+            **({"actionType": str(actionType)} if actionType is not None else {}),
+            # Ensure string conversion for FCM compatibility
+            **{k: str(v) if v is not None else None for k, v in data.items()}
+        }
+        
         message = messaging.Message(
             notification=messaging.Notification(
                 title=title,
                 body=body,
             ),
             token=token,
-            data=data
+            data=enhanced_data
         )
         try:
             response = messaging.send(message)
             return {"success": True, "response": response}
         except Exception as e:
+            # If token is invalid, remove it from database
+            if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
+                await DB.db['fcm_tokens'].delete_many({"token": token})
             return {"success": False, "error": str(e)}
     else:
         return {"success": False, "error": "No token provided and send_to_all is False."}
@@ -132,15 +171,34 @@ async def api_schedule_notification(
     scheduled_time: str = Body(...),
     send_to_all: bool = Body(default=True),
     token: str = Body(default=None),
-    data: dict = Body(default={})
+    data: dict = Body(default={}),
+    # Deep linking fields
+    tab: str = Body(default=None),
+    eventId: str = Body(default=None),
+    link: str = Body(default=None),
+    route: str = Body(default=None),
+    actionType: str = Body(default="text")
 ):
+    # Enhanced data payload for deep linking
+    enhanced_data = {
+        **data,
+        # Add explicit deep linking fields
+        **({"tab": str(tab)} if tab is not None else {}),
+        **({"eventId": str(eventId)} if eventId is not None else {}),
+        **({"link": str(link)} if link is not None else {}),
+        **({"route": str(route)} if route is not None else {}),
+        **({"actionType": str(actionType)} if actionType is not None else {}),
+        # Ensure string conversion for FCM compatibility
+        **{k: str(v) if v is not None else None for k, v in data.items()}
+    }
+    
     payload = {
         "title": title,
         "body": body,
         "scheduled_time": scheduled_time,
         "send_to_all": send_to_all,
         "token": token,
-        "data": data,
+        "data": enhanced_data,
         "sent": False
     }
     notification_id = await schedule_notification(DB.db, payload)
