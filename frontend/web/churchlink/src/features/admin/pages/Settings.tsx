@@ -1,0 +1,521 @@
+import { useState, useEffect } from "react";
+import { Plus, Edit2, Trash2, Save, ArrowUp, ArrowDown } from "lucide-react";
+import { getAvailableTabs, saveTabConfiguration, AppTab } from "../../../helpers/TabsHelper";
+
+interface EditingTab extends AppTab {
+  isNew?: boolean;
+}
+
+// Predefined allowed tabs that can be added
+const ALLOWED_TABS = [
+  { name: 'home', displayName: 'Home', icon: 'home' },
+  { name: 'live', displayName: 'Live', icon: 'live_tv' },
+  { name: 'bulletin', displayName: 'Weekly Bulletin', icon: 'article' },
+  { name: 'events', displayName: 'Events', icon: 'event' },
+  { name: 'giving', displayName: 'Giving', icon: 'volunteer_activism' },
+  { name: 'ministries', displayName: 'Ministries', icon: 'groups' },
+  { name: 'contact', displayName: 'Contact Us', icon: 'contact_mail' },
+  { name: 'sermons', displayName: 'Sermons', icon: 'church' },
+  { name: 'bible', displayName: 'Bible', icon: 'menu_book' },
+  { name: 'profile', displayName: 'Profile', icon: 'person' }
+];
+
+const Settings = () => {
+  const [tabs, setTabs] = useState<AppTab[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [editingTab, setEditingTab] = useState<EditingTab | null>(null);
+  const [selectedTabToAdd, setSelectedTabToAdd] = useState<string>("");
+
+  // Load tabs on component mount
+  useEffect(() => {
+    loadTabs();
+  }, []);
+
+  const loadTabs = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const tabData = await getAvailableTabs();
+      
+      // Ensure Home tab is always present at index 0
+      const processedTabs = [...tabData];
+      const homeTabIndex = processedTabs.findIndex(tab => tab.name.toLowerCase() === 'home');
+      
+      if (homeTabIndex === -1) {
+        // Add Home tab if not present
+        processedTabs.unshift({
+          index: 0,
+          name: 'home',
+          displayName: 'Home',
+          icon: 'home'
+        });
+      } else if (homeTabIndex !== 0) {
+        // Move Home tab to position 0
+        const homeTab = processedTabs.splice(homeTabIndex, 1)[0];
+        homeTab.index = 0;
+        processedTabs.unshift(homeTab);
+      }
+      
+      // Reindex all tabs to ensure proper ordering
+      processedTabs.forEach((tab, index) => {
+        tab.index = index;
+      });
+      
+      setTabs(processedTabs);
+    } catch (err) {
+      setError("Failed to load tabs");
+      console.error("Error loading tabs:", err);
+      
+      // Set default with Home tab
+      setTabs([{
+        index: 0,
+        name: 'home',
+        displayName: 'Home',
+        icon: 'home'
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveTabs = async () => {
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      const success = await saveTabConfiguration(tabs);
+      if (success) {
+        setSuccess("Tab configuration saved successfully!");
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error("Failed to save tabs");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to save tabs");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddTab = (tabName: string) => {
+    // Check maximum tab limit for Flutter
+    if (tabs.length >= 5) {
+      setError("Maximum 5 tabs allowed due to Flutter BottomNavigationBar limitations");
+      return;
+    }
+    
+    const allowedTab = ALLOWED_TABS.find(t => t.name === tabName);
+    if (!allowedTab) {
+      setError("Invalid tab selection");
+      return;
+    }
+    
+    // Check if tab already exists
+    const exists = tabs.some(tab => tab.name.toLowerCase() === tabName.toLowerCase());
+    if (exists) {
+      setError("Tab already exists");
+      return;
+    }
+    
+    const newIndex = tabs.length; // Next available index
+    setEditingTab({
+      index: newIndex,
+      name: allowedTab.name,
+      displayName: allowedTab.displayName,
+      icon: allowedTab.icon,
+      isNew: true
+    });
+    setSelectedTabToAdd("");
+  };
+
+  // Get available tabs that haven't been added yet
+  const getAvailableTabsToAdd = () => {
+    return ALLOWED_TABS.filter(allowedTab => 
+      !tabs.some(tab => tab.name.toLowerCase() === allowedTab.name.toLowerCase())
+    );
+  };
+
+  // Get emoji representation for icons
+  const _getIconEmoji = (iconName: string): string => {
+    switch (iconName?.toLowerCase()) {
+      case 'home': return '🏠';
+      case 'live_tv': 
+      case 'live': return '📺';
+      case 'article': 
+      case 'bulletin': return '📄';
+      case 'event': 
+      case 'events': return '📅';
+      case 'volunteer_activism': 
+      case 'giving': return '🤝';
+      case 'groups': 
+      case 'ministries': return '👥';
+      case 'contact_mail': 
+      case 'contact': return '📧';
+      case 'play_circle': 
+      case 'church':
+      case 'sermons': return '✝️';
+      case 'menu_book': 
+      case 'bible': return '📖';
+      case 'person': 
+      case 'profile': return '👤';
+      default: return '📱';
+    }
+  };
+
+  const handleEditTab = (tab: AppTab) => {
+    setEditingTab({ ...tab });
+  };
+
+  const handleDeleteTab = (index: number) => {
+    const tab = tabs.find(t => t.index === index);
+    
+    // Prevent deletion of Home tab
+    if (tab?.name.toLowerCase() === 'home') {
+      setError("Home tab cannot be deleted as it is required");
+      return;
+    }
+    
+    if (confirm("Are you sure you want to delete this tab?")) {
+      const newTabs = tabs.filter(tab => tab.index !== index);
+      // Reindex remaining tabs
+      newTabs.forEach((tab, idx) => {
+        tab.index = idx;
+      });
+      setTabs(newTabs);
+    }
+  };
+
+  const handleMoveTab = (index: number, direction: 'up' | 'down') => {
+    const tabIndex = tabs.findIndex(tab => tab.index === index);
+    const tab = tabs[tabIndex];
+    
+    // Prevent moving Home tab from position 0
+    if (tab?.name.toLowerCase() === 'home' && direction === 'up') {
+      setError("Home tab must remain in the first position");
+      return;
+    }
+    
+    // Prevent moving any tab above Home
+    if (direction === 'up' && tabIndex === 1) {
+      const homeTab = tabs[0];
+      if (homeTab?.name.toLowerCase() === 'home') {
+        setError("No tab can be moved above the Home tab");
+        return;
+      }
+    }
+    
+    const newTabs = [...tabs];
+    
+    if (direction === 'up' && tabIndex > 0) {
+      // Swap positions
+      [newTabs[tabIndex], newTabs[tabIndex - 1]] = [newTabs[tabIndex - 1], newTabs[tabIndex]];
+    } else if (direction === 'down' && tabIndex < newTabs.length - 1) {
+      // Swap positions  
+      [newTabs[tabIndex], newTabs[tabIndex + 1]] = [newTabs[tabIndex + 1], newTabs[tabIndex]];
+    }
+    
+    // Update indices to match new positions
+    newTabs.forEach((tab, idx) => {
+      tab.index = idx;
+    });
+    
+    setTabs(newTabs);
+    
+    // Clear error if successful
+    setTimeout(() => setError(null), 3000);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingTab || !editingTab.name || !editingTab.displayName) {
+      setError("Name and Display Name are required");
+      return;
+    }
+
+    if (editingTab.isNew) {
+      // Check if name or index already exists
+      const exists = tabs.some(tab => 
+        tab.name.toLowerCase() === editingTab.name.toLowerCase() || 
+        tab.index === editingTab.index
+      );
+      
+      if (exists) {
+        setError("Tab name or index already exists");
+        return;
+      }
+      
+      setTabs([...tabs, { ...editingTab, isNew: undefined }].sort((a, b) => a.index - b.index));
+    } else {
+      setTabs(tabs.map(tab => 
+        tab.index === editingTab.index 
+          ? { ...editingTab, isNew: undefined }
+          : tab
+      ));
+    }
+    
+    setEditingTab(null);
+    setError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTab(null);
+    setError(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <h1 className="text-3xl font-bold mb-6">Settings</h1>
+        <div className="text-center py-8">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-6">Settings</h1>
+      
+      {/* Tab Management Section */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">App Tab Configuration</h2>
+          <div className="flex gap-2 items-center">
+            <select
+              value={selectedTabToAdd}
+              onChange={(e) => setSelectedTabToAdd(e.target.value)}
+              className="border rounded px-3 py-2"
+              disabled={!!editingTab || tabs.length >= 5}
+            >
+              <option value="">
+                {tabs.length >= 5 ? "Maximum 5 tabs reached" : "Select tab to add..."}
+              </option>
+              {getAvailableTabsToAdd().map((tab) => (
+                <option key={tab.name} value={tab.name}>
+                  {tab.displayName}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                if (selectedTabToAdd) {
+                  handleAddTab(selectedTabToAdd);
+                }
+              }}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center gap-2 disabled:bg-gray-400"
+              disabled={!!editingTab || !selectedTabToAdd || tabs.length >= 5}
+            >
+              <Plus size={16} />
+              Add Tab
+            </button>
+            <button
+              onClick={saveTabs}
+              className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 flex items-center gap-2"
+              disabled={saving || !!editingTab}
+            >
+              <Save size={16} />
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> The Home tab is fixed at the first position and cannot be moved or deleted. 
+            You can add up to 5 tabs total (Flutter BottomNavigationBar limit) from the predefined list: Live, Weekly Bulletin, Events, Giving, Ministries, Contact Us, Sermons, Bible, and Profile.
+            Use the dropdown above to select and add new tabs, then arrange them in your desired order.
+          </p>
+          <div className="mt-2 p-2 bg-blue-25 rounded">
+            <p className="text-xs text-blue-700">
+              <strong>Icons:</strong> Home (🏠), Live (📺), Bulletin (📄), Events (📅), Giving (🤝), Ministries (👥), Contact (📧), Sermons (✝️), Bible (📖), Profile (👤)
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            {success}
+          </div>
+        )}
+
+        {/* Editing Form */}
+        {editingTab && (
+          <div className="bg-gray-50 border rounded-md p-4 mb-4">
+            <h3 className="text-lg font-medium mb-3">
+              {editingTab.isNew ? "Add New Tab" : "Edit Tab"}
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Index</label>
+                <input
+                  type="number"
+                  value={editingTab.index}
+                  onChange={(e) => setEditingTab({...editingTab, index: parseInt(e.target.value)})}
+                  className="border rounded px-3 py-2 w-full bg-gray-100"
+                  min="0"
+                  disabled
+                />
+                <small className="text-gray-500">Index is automatically assigned</small>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Name (Internal)</label>
+                <input
+                  type="text"
+                  value={editingTab.name}
+                  onChange={(e) => setEditingTab({...editingTab, name: e.target.value.toLowerCase()})}
+                  className="border rounded px-3 py-2 w-full bg-gray-100"
+                  placeholder="home, bible, sermons, etc."
+                  disabled
+                />
+                <small className="text-gray-500">Name is predefined and cannot be changed</small>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Display Name</label>
+                <input
+                  type="text"
+                  value={editingTab.displayName}
+                  onChange={(e) => setEditingTab({...editingTab, displayName: e.target.value})}
+                  className="border rounded px-3 py-2 w-full"
+                  placeholder="Home, Bible, Sermons, etc."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Icon</label>
+                <input
+                  type="text"
+                  value={editingTab.icon || ""}
+                  onChange={(e) => setEditingTab({...editingTab, icon: e.target.value})}
+                  className="border rounded px-3 py-2 w-full bg-gray-100"
+                  placeholder="home, bible, event, etc."
+                  disabled
+                />
+                <small className="text-gray-500">Icon is predefined and cannot be changed</small>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleSaveEdit}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs List */}
+        <div className="space-y-2">
+          {tabs.map((tab, idx) => {
+            const isHomeTab = tab.name.toLowerCase() === 'home';
+            return (
+              <div 
+                key={tab.index} 
+                className={`flex items-center gap-4 p-3 border rounded-md ${
+                  isHomeTab 
+                    ? 'bg-blue-50 border-blue-200' 
+                    : 'bg-gray-50'
+                }`}
+              >
+                {isHomeTab && (
+                  <div className="text-xs bg-blue-500 text-white px-2 py-1 rounded">
+                    FIXED
+                  </div>
+                )}
+                
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => handleMoveTab(tab.index, 'up')}
+                    disabled={idx === 0 || isHomeTab}
+                    className="text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                  >
+                    <ArrowUp size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleMoveTab(tab.index, 'down')}
+                    disabled={idx === tabs.length - 1 || isHomeTab}
+                    className="text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                  >
+                    <ArrowDown size={16} />
+                  </button>
+                </div>
+                
+                <div className="flex-1 grid grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-500">Index</div>
+                    <div className="font-medium">{tab.index}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Name</div>
+                    <div className="font-medium">{tab.name}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Display Name</div>
+                    <div className="font-medium">{tab.displayName}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Icon</div>
+                    <div className="font-medium flex items-center gap-2">
+                      <span>{_getIconEmoji(tab.icon || tab.name)}</span>
+                      <span>{tab.icon || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditTab(tab)}
+                    className="text-blue-500 hover:text-blue-700"
+                    disabled={!!editingTab}
+                    title={isHomeTab ? "Edit display name only" : "Edit tab"}
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTab(tab.index)}
+                    className={`${
+                      isHomeTab 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-red-500 hover:text-red-700'
+                    }`}
+                    disabled={!!editingTab || isHomeTab}
+                    title={isHomeTab ? "Home tab cannot be deleted" : "Delete tab"}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {tabs.length === 0 && !editingTab && (
+          <div className="text-center py-8 text-gray-500">
+            No tabs configured. Click "Add Tab" to create your first tab.
+          </div>
+        )}
+      </div>
+
+      {/* Future Settings Sections */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-4">Other Settings</h2>
+        <p className="text-gray-600">Additional settings can be added here in the future.</p>
+      </div>
+    </div>
+  );
+};
+
+export default Settings;

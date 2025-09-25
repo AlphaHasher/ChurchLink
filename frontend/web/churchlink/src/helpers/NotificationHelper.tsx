@@ -2,7 +2,7 @@ import { api } from "@/api";
 
 // ==== Types ====
 
-export type NotificationActionType = "text" | "link" | "route";
+export type NotificationActionType = "text" | "link" | "tab" | "event";
 export type NotificationTarget = "all" | "logged_in" | "anonymous";
 
 export interface NotificationSettingsResponse {
@@ -20,7 +20,8 @@ export interface ScheduleNotificationPayload {
     target: NotificationTarget;
     actionType: NotificationActionType;
     link?: string;
-    route?: string;
+    tab?: string;
+    eventId?: string;
     data?: Record<string, unknown>;
 }
 
@@ -32,7 +33,6 @@ export interface ScheduledNotification {
     sent?: boolean;
     canceled?: boolean;
     link?: string;
-    route?: string;
     data?: Record<string, unknown>;
     [k: string]: unknown;
 }
@@ -44,7 +44,6 @@ export interface HistoryNotification {
     message?: string;
     body?: string;
     link?: string;
-    route?: string;
     recipients?: unknown[];
     sent_at?: string;
     scheduled_time?: string;
@@ -82,6 +81,37 @@ export const getNotificationHistory = async (): Promise<HistoryNotification[]> =
 
 export const scheduleNotification = async (payload: ScheduleNotificationPayload) => {
     const res = await api.post("/v1/notification/schedule", payload, {
+        headers: { "Content-Type": "application/json" },
+    });
+    return res;
+};
+
+export interface SendNotificationPayload {
+    title: string;
+    body: string;
+    target?: NotificationTarget;
+    actionType?: NotificationActionType;
+    link?: string;
+    tab?: string;
+    eventId?: string;
+    data?: Record<string, unknown>;
+}
+
+export const sendNotificationNow = async (payload: SendNotificationPayload) => {
+    const res = await api.post("/v1/notification/send", {
+        title: payload.title,
+        body: payload.body,
+        send_to_all: true,
+        data: {
+            target: payload.target || "all",
+            ...payload.data
+        },
+        // Deep linking fields
+        tab: payload.tab,
+        eventId: payload.eventId,
+        link: payload.link,
+        actionType: payload.actionType || "text"
+    }, {
         headers: { "Content-Type": "application/json" },
     });
     return res;

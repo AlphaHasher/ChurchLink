@@ -10,9 +10,13 @@ import {
   getScheduledNotifications,
   getNotificationHistory,
   scheduleNotification,
+  sendNotificationNow,
   deleteScheduledNotification,
   tzDateTimeToUTCISO,
 } from "../../../helpers/NotificationHelper";
+import { fetchEvents } from "../../../helpers/EventsHelper";
+import { ChurchEvent } from "../../../shared/types/ChurchEvent";
+import { getAvailableTabs, AppTab } from "../../../helpers/TabsHelper";
 
 type ActiveTab = "scheduled" | "history";
 
@@ -25,7 +29,9 @@ interface DraftNotification {
   platform: "mobile" | "email" | "both"; // keeping for parity even if not used server-side
   actionType: NotificationActionType;
   link?: string;
-  route?: string;
+  // Deep linking fields
+  tab?: string;
+  eventId?: string;
 }
 
 const Notification = () => {
@@ -40,6 +46,8 @@ const Notification = () => {
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
   const [notificationHistory, setNotificationHistory] = useState<HistoryNotification[]>([]);
   const [targetAudience, setTargetAudience] = useState<NotificationTarget>("all");
+  const [events, setEvents] = useState<ChurchEvent[]>([]);
+  const [availableTabs, setAvailableTabs] = useState<AppTab[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -58,7 +66,8 @@ const Notification = () => {
     platform: "mobile",
     actionType: "text",
     link: "",
-    route: "",
+    tab: "",
+    eventId: "",
   });
 
   // --- Derived / Validation ---
@@ -80,12 +89,16 @@ const Notification = () => {
     (async () => {
       setLoading(true);
       try {
-        const s = await getNotificationSettings();
+        const [s, tabs] = await Promise.all([
+          getNotificationSettings(),
+          getAvailableTabs()
+        ]);
         if (ignore) return;
         setStreamNotificationMessage(s.streamNotificationMessage || "A new stream is live!");
         setYoutubeLiveTitle(s.streamNotificationTitle || "Live Stream Started");
         setSelectedTimezone(s.YOUTUBE_TIMEZONE || "America/Los_Angeles");
         setEnvOverride(!!s.envOverride);
+        setAvailableTabs(tabs);
       } catch {
         // leave defaults
       } finally {
@@ -119,11 +132,21 @@ const Notification = () => {
     }
   }, []);
 
+  const fetchEventsList = useCallback(async () => {
+    try {
+      const data = await fetchEvents();
+      setEvents(data);
+    } catch {
+      setEvents([]);
+    }
+  }, []);
+
   // initial loads
   useEffect(() => {
     fetchHistory();
     fetchScheduled();
-  }, [fetchHistory, fetchScheduled]);
+    fetchEventsList();
+  }, [fetchHistory, fetchScheduled, fetchEventsList]);
 
   // poll while on "scheduled"
   useEffect(() => {
@@ -176,8 +199,13 @@ const Notification = () => {
       setScheduleLoading(false);
       return;
     }
-    if (newNotification.actionType === "route" && !newNotification.route?.trim()) {
-      setFormError("Route is required for route action.");
+    if (newNotification.actionType === "tab" && !newNotification.tab?.trim()) {
+      setFormError("Tab is required for tab navigation.");
+      setScheduleLoading(false);
+      return;
+    }
+    if (newNotification.actionType === "event" && !newNotification.eventId?.trim()) {
+      setFormError("Event selection is required for event navigation.");
       setScheduleLoading(false);
       return;
     }
@@ -203,39 +231,80 @@ const Notification = () => {
       );
     }
 
-    const payload = {
-      title: newNotification.title,
-      body: newNotification.message,
-      scheduled_time,
-      target: targetAudience,
-      actionType: newNotification.actionType,
-      link: newNotification.link || undefined,
-      route: newNotification.route || undefined,
-      data: {
-        ...(newNotification.actionType === "link" && newNotification.link ? { link: newNotification.link } : {}),
-        ...(newNotification.actionType === "route" && newNotification.route ? { route: newNotification.route } : {}),
-      },
-    };
-
     try {
-      const res = await scheduleNotification(payload);
-      if (res.status >= 200 && res.status < 300) {
-        setScheduleStatus("Notification scheduled successfully.");
-        setNewNotification({
-          title: "",
-          message: "",
-          schedule: "",
-          customDate: "",
-          customTime: "",
-          platform: "both",
-          actionType: "text",
-          link: "",
-          route: "",
-        });
-        fetchScheduled();
+      if (newNotification.schedule === "now") {
+        // Send immediately using the /send endpoint
+        const payload = {
+          title: newNotification.title,
+          body: newNotification.message,
+          target: targetAudience,
+          actionType: newNotification.actionType,
+          link: newNotification.link || undefined,
+          tab: newNotification.tab || undefined,
+          eventId: newNotification.eventId || undefined,
+          data: {
+            ...(newNotification.actionType === "link" && newNotification.link ? { link: newNotification.link } : {}),
+            ...(newNotification.actionType === "tab" && newNotification.tab ? { tab: newNotification.tab } : {}),
+            ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId } : {}),
+            // Combined action for event navigation (tab + event route)
+            ...(newNotification.actionType === "event" && newNotification.eventId ? { 
+              tab: "3", // Events tab index
+              route: `/event/${newNotification.eventId}` 
+            } : {}),
+          },
+        };
+
+        const res = await sendNotificationNow(payload);
+        if (res.status >= 200 && res.status < 300) {
+          setScheduleStatus("Notification sent successfully.");
+        } else {
+          setScheduleStatus("Failed to send notification.");
+        }
       } else {
-        setScheduleStatus("Failed to schedule notification.");
+        // Schedule for later using the /schedule endpoint
+        const payload = {
+          title: newNotification.title,
+          body: newNotification.message,
+          scheduled_time,
+          target: targetAudience,
+          actionType: newNotification.actionType,
+          link: newNotification.link || undefined,
+          tab: newNotification.tab || undefined,
+          eventId: newNotification.eventId || undefined,
+          data: {
+            ...(newNotification.actionType === "link" && newNotification.link ? { link: newNotification.link } : {}),
+            ...(newNotification.actionType === "tab" && newNotification.tab ? { tab: newNotification.tab } : {}),
+            ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId } : {}),
+            // Combined action for event navigation (tab + event route)
+            ...(newNotification.actionType === "event" && newNotification.eventId ? { 
+              tab: "3", // Events tab index
+              route: `/event/${newNotification.eventId}` 
+            } : {}),
+          },
+        };
+
+        const res = await scheduleNotification(payload);
+        if (res.status >= 200 && res.status < 300) {
+          setScheduleStatus("Notification scheduled successfully.");
+          fetchScheduled(); // Only refresh scheduled notifications if we scheduled one
+        } else {
+          setScheduleStatus("Failed to schedule notification.");
+        }
       }
+
+      // Reset form after successful send/schedule
+      setNewNotification({
+        title: "",
+        message: "",
+        schedule: "",
+        customDate: "",
+        customTime: "",
+        platform: "both",
+        actionType: "text",
+        link: "",
+        tab: "",
+        eventId: "",
+      });
     } catch {
       setScheduleStatus("Network error. Please try again.");
     } finally {
@@ -335,7 +404,8 @@ const Notification = () => {
           >
             <option value="text">Text Only (default)</option>
             <option value="link">Open Link (external)</option>
-            <option value="route">Go to Page (in-app)</option>
+            <option value="tab">Switch to Tab</option>
+            <option value="event">Navigate to Event</option>
           </select>
         </div>
 
@@ -352,16 +422,40 @@ const Notification = () => {
           </div>
         )}
 
-        {newNotification.actionType === "route" && (
+        {newNotification.actionType === "tab" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Page Route</label>
-            <input
-              type="text"
-              placeholder="Page route (e.g. /profile, /events)"
-              value={newNotification.route || ""}
-              onChange={(e) => setNewNotification({ ...newNotification, route: e.target.value })}
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tab Name/Index</label>
+            <select
+              value={newNotification.tab || ""}
+              onChange={(e) => setNewNotification({ ...newNotification, tab: e.target.value })}
               className="border p-2 w-full"
-            />
+            >
+              <option value="">Select Tab</option>
+              {availableTabs.map((tab) => (
+                <option key={tab.index} value={tab.index.toString()}>
+                  {tab.displayName} (Index: {tab.index})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {newNotification.actionType === "event" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Select Event</label>
+            <select
+              value={newNotification.eventId || ""}
+              onChange={(e) => setNewNotification({ ...newNotification, eventId: e.target.value })}
+              className="border p-2 w-full"
+            >
+              <option value="">Select an event...</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.name} - {new Date(event.date).toLocaleDateString()} ({event.location})
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-gray-600 mt-1">This will navigate to the Events tab and show the specific event</p>
           </div>
         )}
 
