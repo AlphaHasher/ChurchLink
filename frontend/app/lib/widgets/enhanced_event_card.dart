@@ -119,7 +119,7 @@ class EnhancedEventCard extends StatelessWidget {
       width: double.infinity,
       child: Stack(
         children: [
-          // TODO: Implement image loading from uploads API endpoint
+          // Load image from uploads API endpoint
           // For now, always show placeholder until backend image serving is implemented
           _buildPlaceholderImage(),
 

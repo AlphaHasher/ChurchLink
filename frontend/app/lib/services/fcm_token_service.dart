@@ -10,7 +10,7 @@ Future<void> sendFcmTokenToBackend(String userId) async {
   log('FCM token: $token');
   if (token != null) {
     final backendUrl = dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
-    final url = Uri.parse('$backendUrl/api/v1/paypal/save-fcm-token');
+    final url = Uri.parse('$backendUrl/api/v1/notification/save-fcm-token');
     try {
       final response = await http.post(
         url,

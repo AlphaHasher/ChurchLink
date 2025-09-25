@@ -10,6 +10,9 @@ import 'event_showcase.dart';
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
 
+  // Static callback for deep linking navigation
+  static void Function(String eventId)? onNavigateToEvent;
+
   @override
   State<EventsPage> createState() => _EventsPageState();
 }
@@ -38,6 +41,9 @@ class _EventsPageState extends State<EventsPage> {
   void initState() {
     super.initState();
 
+    // Set up the deep linking callback
+    EventsPage.onNavigateToEvent = _handleDeepLinkNavigation;
+
     //Utilized for entering text into filters
     _nameController = TextEditingController(text: _nameQuery ?? '');
     _maxPriceController = TextEditingController(
@@ -56,6 +62,9 @@ class _EventsPageState extends State<EventsPage> {
 
   @override
   void dispose() {
+    // Clean up the deep linking callback
+    EventsPage.onNavigateToEvent = null;
+    
     _nameController.dispose();
     _maxPriceController.dispose();
     _ageController.dispose();
@@ -115,11 +124,9 @@ class _EventsPageState extends State<EventsPage> {
         // Load registration details for all events
         _loadRegistrationDetails();
       } else {
-        debugPrint("Failed to load events: ${response.statusCode}");
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint("Error loading events: $e");
       setState(() => _isLoading = false);
     }
   }
@@ -135,9 +142,7 @@ class _EventsPageState extends State<EventsPage> {
           _registrationSummaries[event.id] = summary;
         });
       } catch (e) {
-        debugPrint(
-          'Failed to load registration summary for event ${event.id}: $e',
-        );
+        // Registration summary failed to load
       }
     }
   }
@@ -346,6 +351,35 @@ class _EventsPageState extends State<EventsPage> {
     _loadEvents();
   }
 
+  // Handle deep linking navigation to specific event
+  void _handleDeepLinkNavigation(String eventId) async {
+    try {
+      // Find the event in our current events list
+      final event = _events.firstWhere(
+        (e) => e.id == eventId,
+        orElse: () => throw Exception('Event not found in current events list'),
+      );
+      
+      // Use the normal navigation method since the stack should be clean
+      _navigateToShowcase(event);
+      
+    } catch (e) {
+      // If event not found in current list, try to fetch it from API
+      try {
+        final api = ApiClient(baseUrl: 'https://churchlink-backend-production.up.railway.app'); // Update with your API base URL
+        final response = await api.dio.get('/v1/events/$eventId');
+        
+        if (response.statusCode == 200) {
+          final event = Event.fromJson(response.data);
+          // Use the normal navigation method
+          _navigateToShowcase(event);
+        }
+      } catch (apiError) {
+        // API fetch failed
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
@@ -360,7 +394,14 @@ class _EventsPageState extends State<EventsPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            // Check if we can pop normally (i.e., there's a route to go back to)
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              // If we can't pop (likely from deep linking), navigate to home
+              // This ensures we don't get a black screen
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+            }
           },
         ),
       ),
