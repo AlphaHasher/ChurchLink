@@ -350,54 +350,41 @@ class _MyEventsPageState extends State<MyEventsPage> {
 
             // Convert MyEventDetails -> Event model expected by EventShowcase
             final d = eventRef.event;
-            final evt =
-                d != null
-                    ? event_model.Event(
-                      id: d.id.isNotEmpty ? d.id : eventRef.eventId,
-                      name: d.name,
-                      ruName: d.ruName,
-                      description: d.description,
-                      ruDescription: d.ruDescription,
-                      date: d.date,
-                      location: d.location,
-                      price: d.price,
-                      ministry: d.ministry,
-                      minAge: d.minAge,
-                      maxAge: d.maxAge,
-                      gender: d.gender,
-                      imageUrl: d.imageUrl,
-                      spots: d.spots,
-                      rsvp: d.rsvp,
-                      recurring: d.recurring,
-                      roles: d.roles,
-                      published: d.published,
-                      seatsTaken: d.seatsTaken,
-                      attendeeKeys: d.attendeeKeys,
-                      attendees: d.attendees,
-                    )
-                    : event_model.Event(
-                      id: eventRef.eventId,
-                      name: 'Event',
-                      ruName: null,
-                      description: '',
-                      ruDescription: null,
-                      date: DateTime.now(),
-                      location: '',
-                      price: 0.0,
-                      ministry: [],
-                      minAge: 0,
-                      maxAge: 100,
-                      gender: 'all',
-                      imageUrl: null,
-                      spots: null,
-                      rsvp: false,
-                      recurring: null,
-                      roles: [],
-                      published: false,
-                      seatsTaken: 0,
-                      attendeeKeys: [],
-                      attendees: [],
-                    );
+            if (d == null) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Event details could not be loaded. Please try again later.',
+                  ),
+                ),
+              );
+              return;
+            }
+
+            final evt = event_model.Event(
+              id: d.id.isNotEmpty ? d.id : eventRef.eventId,
+              name: d.name,
+              ruName: d.ruName,
+              description: d.description,
+              ruDescription: d.ruDescription,
+              date: d.date,
+              location: d.location,
+              price: d.price,
+              ministry: d.ministry,
+              minAge: d.minAge,
+              maxAge: d.maxAge,
+              gender: d.gender,
+              imageUrl: d.imageUrl,
+              spots: d.spots,
+              rsvp: d.rsvp,
+              recurring: d.recurring,
+              roles: d.roles,
+              published: d.published,
+              seatsTaken: d.seatsTaken,
+              attendeeKeys: d.attendeeKeys,
+              attendees: d.attendees,
+            );
 
             // Push the EventShowcase page. EventShowcase will manage auth-sensitive content.
             await navigator.push(

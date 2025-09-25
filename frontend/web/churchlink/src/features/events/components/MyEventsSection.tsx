@@ -5,7 +5,7 @@ import { MyEventCard } from './MyEventCard';
 import { EventFiltersComponent } from './EventFilters';
 import { EventDetailsModal } from './EventDetailsModal';
 import { myEventsApi } from '@/api/myEventsApi';
-import { MyEvent, EventFilters, GroupedEvent } from '../types/myEvents';
+import { MyEvent, EventFilters, GroupedEvent, EventWithGroupedData } from '../types/myEvents';
 
 export function MyEventsSection() {
   // State management
@@ -15,7 +15,7 @@ export function MyEventsSection() {
     showFamily: true,
     searchTerm: '',
   });
-  const [selectedEvent, setSelectedEvent] = useState<MyEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventWithGroupedData | null>(null);
 
   // Memoize the API parameters to prevent infinite re-renders
   const apiParams = useMemo(() => ({
@@ -115,14 +115,14 @@ export function MyEventsSection() {
         ...groupedEvent.registrants.family
       ];
       
-      const eventWithAllRegistrants = {
+      const eventWithAllRegistrants: EventWithGroupedData = {
         ...primaryEvent,
         groupedEventData: {
           totalRegistrants: allRegistrants.length,
-          allRegistrants: allRegistrants
+          allRegistrants
         }
       };
-      setSelectedEvent(eventWithAllRegistrants as MyEvent);
+      setSelectedEvent(eventWithAllRegistrants);
     }
   };
 

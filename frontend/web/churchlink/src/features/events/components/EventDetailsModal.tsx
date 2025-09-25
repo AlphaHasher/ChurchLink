@@ -13,18 +13,10 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/button';
-import { MyEvent } from '../types/myEvents';
-
-// Extended interface for event with grouped data
-interface EventWithGroupedData extends MyEvent {
-  groupedEventData?: {
-    totalRegistrants: number;
-    allRegistrants: MyEvent[];
-  };
-}
+import { EventWithGroupedData, MyEvent } from '../types/myEvents';
 
 interface EventDetailsModalProps {
-  eventRef: MyEvent | null;
+  eventRef: EventWithGroupedData | null;
   isOpen: boolean;
   onClose: () => void;
   onCancelRSVP: (eventRef: MyEvent) => Promise<void>;
@@ -39,8 +31,7 @@ export function EventDetailsModal({ eventRef, isOpen, onClose, onCancelRSVP }: E
   const isFamilyEvent = Boolean(eventRef.person_id);
 
   // Access grouped event data if available
-  const eventWithGroupedData = eventRef as EventWithGroupedData;
-  const groupedEventData = eventWithGroupedData.groupedEventData;
+  const groupedEventData = eventRef.groupedEventData;
   const allRegistrants = groupedEventData?.allRegistrants || [eventRef];
   
   // Separate user and family registrations for display

@@ -332,8 +332,7 @@ class MyEventCard extends StatelessWidget {
 
   Widget _buildCostBadge(MyEventDetails? event, Color ssbcGray) {
     // Handle null-safety for event wrapper
-    final e =
-        event ?? (throw ArgumentError('Event must not be null for cost badge'));
+    final e = event!;
 
     // If event is full (no available spots) show FULL badge
     if (e.spots != null && e.spots! - e.seatsTaken <= 0) {

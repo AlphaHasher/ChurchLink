@@ -71,7 +71,7 @@ const ProfilePage: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
                         >
-                            <TabsList className="bg-neutral-300 p-4 rounded-xl gap-4 h-16">
+                            <TabsList className="bg-neutral-300 p-4 rounded-xl gap-4 flex-wrap md:flex-nowrap">
                                 <TabsTrigger 
                                     value="profile" 
                                     className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"

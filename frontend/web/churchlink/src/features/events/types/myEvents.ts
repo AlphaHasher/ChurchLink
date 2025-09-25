@@ -41,6 +41,15 @@ export interface MyEvent {
   display_name?: string;
 }
 
+export type MyEventGroupedData = {
+  totalRegistrants: number;
+  allRegistrants: MyEvent[];
+};
+
+export type EventWithGroupedData = MyEvent & {
+  groupedEventData?: MyEventGroupedData;
+};
+
 // Grouped event with all registrants
 export interface GroupedEvent {
   event_id: string;
