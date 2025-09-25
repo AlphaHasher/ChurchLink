@@ -1,5 +1,7 @@
 import "backend_helper.dart";
 import "../firebase/firebase_auth_service.dart";
+import "../services/fcm_token_service.dart";
+import "package:firebase_auth/firebase_auth.dart";
 
 class AuthController {
   final FirebaseAuthService authService = FirebaseAuthService();
@@ -14,6 +16,13 @@ class AuthController {
     if (token == null) return false;
 
     final verified = await backendHelper.verifyAndSyncUser(onError);
+    if (verified) {
+      // Register FCM token after successful authentication
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await sendFcmTokenToBackend(user.uid);
+      }
+    }
     return verified;
   }
 
@@ -22,6 +31,13 @@ class AuthController {
     if (token == null) return false;
 
     final verified = await backendHelper.verifyAndSyncUser(onError);
+    if (verified) {
+      // Register FCM token after successful authentication
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await sendFcmTokenToBackend(user.uid);
+      }
+    }
     return verified;
   }
 }
