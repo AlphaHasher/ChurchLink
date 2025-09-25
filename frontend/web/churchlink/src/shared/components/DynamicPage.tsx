@@ -56,12 +56,12 @@ export interface DynamicPageProps {
 const DEFAULT_HOME_SLUG = "home";
 const OPTIONAL_BASE = "pages";
 
-const DynamicPage: React.FC<DynamicPageProps> = ({ 
-  isPreviewMode = false, 
-  previewSlug, 
+const DynamicPage: React.FC<DynamicPageProps> = ({
+  isPreviewMode = false,
+  previewSlug,
   showPreviewHeader = false,
   onEditClick,
-  onBackClick 
+  onBackClick
 }) => {
   const { slug: paramSlug } = useParams();
   const location = useLocation();
@@ -100,7 +100,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     (async () => {
       try {
         // Choose API endpoint based on preview mode
-        const url = isPreviewMode 
+        const url = isPreviewMode
           ? `/v1/pages/preview/${encodeURIComponent(slug)}`
           : `/v1/pages/${encodeURIComponent(slug)}`;
         const res = await api.get(url, {
@@ -123,7 +123,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   if (loading) return <div className="text-center">Loading...</div>;
   if (error) return <div className="text-center text-red-500">{error}</div>;
   if (notFound || !pageData) return <NotFoundPage />;
-  
+
   // In preview mode, don't check visibility; in public mode, check visibility
   if (!isPreviewMode && pageData.visible === false) return <InConstructionPage />;
 
@@ -140,9 +140,8 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
               <h1 className="text-lg font-semibold text-gray-800">
                 {pageData.title} ({slug})
               </h1>
-              <span className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${
-                pageData.visible ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-              }`}>
+              <span className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${pageData.visible ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                }`}>
                 {pageData.visible ? "Visible" : "Hidden"}
               </span>
             </div>
@@ -214,7 +213,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
                 {section.type === "map" && (
                   <MapSection data={section.content} isEditing={false} />
                 )}
-                
+
                 {section.type === "event" && (
                   <EventSection
                     showFilters={section.settings?.showFilters !== false}
