@@ -97,27 +97,19 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     setNotFound(false);
     setPageData(null);
 
-    console.log("DynamicPage: Loading page with slug:", slug);
-
     (async () => {
       try {
         // Choose API endpoint based on preview mode
         const url = isPreviewMode 
           ? `/v1/pages/preview/${encodeURIComponent(slug)}`
           : `/v1/pages/${encodeURIComponent(slug)}`;
-        console.log("DynamicPage: Fetching from:", url);
         const res = await api.get(url, {
           signal: ctrl.signal,
         });
-        console.log("DynamicPage: Response received:", res.data);
-        console.log("DynamicPage: Number of sections:", res.data?.sections?.length);
         setPageData(res.data);
       } catch (e: any) {
         if (ctrl.signal.aborted) return;
         const status = e?.response?.status;
-        console.error("DynamicPage: Error loading page:", e);
-        console.error("DynamicPage: Error status:", status);
-        console.error("DynamicPage: Error data:", e?.response?.data);
         if (status === 404) setNotFound(true);
         else setError("Failed to load page.");
       } finally {
@@ -134,9 +126,6 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   
   // In preview mode, don't check visibility; in public mode, check visibility
   if (!isPreviewMode && pageData.visible === false) return <InConstructionPage />;
-
-  console.log("DynamicPage: Rendering page:", pageData);
-  console.log("DynamicPage: Page sections:", pageData.sections);
 
   return (
     <>
@@ -183,7 +172,6 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
       {pageData.sections && pageData.sections.length > 0 ? (
         <>
           {pageData.sections.map((section) => {
-            console.log("DynamicPage: Rendering section:", section.type, section);
             return (
               <React.Fragment key={section.id}>
                 {section.type === "text" && <p>{section.content}</p>}
