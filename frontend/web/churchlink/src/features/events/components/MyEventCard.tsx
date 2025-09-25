@@ -3,8 +3,6 @@ import {
   Calendar, 
   MapPin, 
   Users, 
-  DollarSign,
-  UserCheck
 } from 'lucide-react';
 import {
   Card,
@@ -23,17 +21,8 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
   if (!event) return null; // Don't render if no event details
 
   const eventDate = new Date(event.date);
-  const isUpcoming = eventDate > new Date();
   
-  // Get all registrants (user + family members)
-  const userRegistrant = groupedEvent.registrants.user;
-  const familyRegistrants = groupedEvent.registrants.family;
-  const allRegistrants = [
-    ...(userRegistrant ? [userRegistrant] : []),
-    ...familyRegistrants
-  ];
-  const totalRegistrants = allRegistrants.length;
-  const hasUserRegistration = Boolean(userRegistrant);
+  // Registrant details are available via `groupedEvent.registrants` when needed
 
   return (
     <Card 
@@ -43,58 +32,29 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex-1">
-            <h3 className="font-semibold text-lg line-clamp-2">{event.name}</h3>
-            
-            {/* Show registrant summary */}
-            <div className="flex items-center gap-1 text-sm text-blue-600 mt-1">
-              <Users className="h-3 w-3" />
-              <span>
-                {totalRegistrants === 1 
-                  ? hasUserRegistration 
-                    ? 'You are registered'
-                    : `${familyRegistrants[0].display_name} is registered`
-                  : `${totalRegistrants} family members registered`
-                }
-              </span>
-            </div>
+            <h3 className="font-semibold text-lg line-clamp-2 text-gray-800">{event.name}</h3>
           </div>
-        </div>
-        
-        {/* Event Status Badge */}
-        <div className="flex items-center gap-2 mt-2">
-          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-            isUpcoming ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-          }`}>
-            {isUpcoming ? 'Upcoming' : 'Past'}
-          </div>
-          
-          <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">
-            <UserCheck className="h-3 w-3" />
-            Registered
+
+          {/* Price / status badge similar to app: show FREE, FULL, or price */}
+          <div>
+            {event.spots > 0 && (event.spots - (event.seats_taken || 0) <= 0) ? (
+              <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-red-600 text-white">
+                FULL
+              </div>
+            ) : event.price === 0 ? (
+              <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-600 text-white">
+                FREE
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-600 text-white">
+                <span className="font-semibold">${event.price}</span>
+              </div>
+            )}
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {/* Ministry Tags - Moved to top for uniformity */}
-        {event.ministry && event.ministry.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {event.ministry.slice(0, 3).map((ministry: string, index: number) => (
-              <span 
-                key={index}
-                className="inline-block px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full font-medium"
-              >
-                {ministry}
-              </span>
-            ))}
-            {event.ministry.length > 3 && (
-              <span className="inline-block px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full font-medium">
-                +{event.ministry.length - 3} more
-              </span>
-            )}
-          </div>
-        )}
-
         {/* Date & Time */}
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Calendar className="h-4 w-4" />
@@ -109,7 +69,7 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
           </div>
         )}
 
-        {/* Capacity */}
+        {/* Capacity (kept minimal) */}
         {event.spots > 0 && (
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Users className="h-4 w-4" />
@@ -117,20 +77,7 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
           </div>
         )}
 
-        {/* Price */}
-        {event.price > 0 && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <DollarSign className="h-4 w-4" />
-            <span>${event.price}</span>
-          </div>
-        )}
-
-        {/* Description Preview */}
-        {event.description && (
-          <p className="text-sm text-gray-600 line-clamp-2 mt-2">
-            {event.description}
-          </p>
-        )}
+        {/* NOTE: Ministries, registrant summary, and description removed to match app design */}
       </CardContent>
     </Card>
   );

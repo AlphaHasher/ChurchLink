@@ -74,31 +74,51 @@ export function EventDetailsModal({ eventRef, isOpen, onClose, onCancelRSVP }: E
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{event.name}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto pr-4 sm:pr-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">{event.name}</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Ministry Tags - Moved to top for uniformity */}
-          {event.ministry && event.ministry.length > 0 && (
-            <div>
-              <h3 className="font-medium mb-2">Ministries</h3>
-              <div className="flex flex-wrap gap-2">
-                {event.ministry.map((ministry, index) => (
-                  <span 
-                    key={index}
-                    className="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full font-medium"
-                  >
-                    {ministry}
-                  </span>
-                ))}
+          <div className="space-y-6">
+            {/* Upcoming/Past badge - moved to top */}
+            <div className="flex items-center">
+              <div className={`px-3 py-1 rounded-full text-sm ${
+                isUpcoming ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+              }`}>
+                {isUpcoming ? 'Upcoming Event' : 'Past Event'}
               </div>
             </div>
-          )}
 
-          {/* Registered Members */}
-          {groupedEventData && allRegistrants.length > 0 ? (
+            {/* Event Image - moved to top */}
+            {event.image_url && (
+              <div className="w-full h-56 bg-gray-200 rounded-lg overflow-hidden">
+                <img 
+                  src={event.image_url} 
+                  alt={event.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {/* Ministry Tags - Moved below image */}
+            {event.ministry && event.ministry.length > 0 && (
+              <div>
+                <h3 className="font-medium mb-2">Ministries</h3>
+                <div className="flex flex-wrap gap-2">
+                  {event.ministry.map((ministry, index) => (
+                    <span 
+                      key={index}
+                      className="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full font-medium"
+                    >
+                      {ministry}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Registered Members */}
+            {groupedEventData && allRegistrants.length > 0 ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-700">
                 <Users className="h-4 w-4" />
@@ -161,16 +181,7 @@ export function EventDetailsModal({ eventRef, isOpen, onClose, onCancelRSVP }: E
             )
           )}
 
-          {/* Event Image */}
-          {event.image_url && (
-            <div className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden">
-              <img 
-                src={event.image_url} 
-                alt={event.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
+          {/* duplicate lower image removed — image now displayed at top */}
 
           {/* Event Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -247,15 +258,7 @@ export function EventDetailsModal({ eventRef, isOpen, onClose, onCancelRSVP }: E
           )}
 
           {/* Actions */}
-          <div className="flex justify-between pt-4 border-t">
-            <div className="flex items-center gap-2">
-              <div className={`px-3 py-1 rounded-full text-sm ${
-                isUpcoming ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-              }`}>
-                {isUpcoming ? 'Upcoming Event' : 'Past Event'}
-              </div>
-            </div>
-            
+          <div className="flex justify-end pt-4 border-t">
             {/* Only show main cancel button for non-grouped single registrations */}
             {!groupedEventData && (
               <Button 
