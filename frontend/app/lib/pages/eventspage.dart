@@ -17,7 +17,7 @@ class EventsPage extends StatefulWidget {
 class _EventsPageState extends State<EventsPage> {
   List<Event> _events = [];
   bool _isLoading = true;
-  Map<String, EventRegistrationSummary> _registrationSummaries = {};
+  final Map<String, EventRegistrationSummary> _registrationSummaries = {};
 
   // Declare variables for dynamic filter values
   int? _minAge;
@@ -189,7 +189,7 @@ class _EventsPageState extends State<EventsPage> {
 
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
-                    value: tempGender,
+                    initialValue: tempGender,
                     items:
                         [
                           null, // Show all: no filtering
@@ -226,7 +226,7 @@ class _EventsPageState extends State<EventsPage> {
 
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
-                    value: tempMinistry,
+                    initialValue: tempMinistry,
                     items:
                         [
                           null,

@@ -337,8 +337,9 @@ class _UserSettingsState extends State<UserSettings> {
       // Either show account or guest based on login status
       if ((category['category'] == 'Account' ||
               category['category'] == 'Privacy') &&
-          !loggedIn)
+          !loggedIn) {
         continue;
+      }
       if (category['category'] == 'Guest' && loggedIn) continue;
 
       pageWidgets.add(

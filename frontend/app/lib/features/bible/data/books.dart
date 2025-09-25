@@ -61,7 +61,7 @@ class Books {
   late final Map<String, String> _aliasToKey;// normalized alias -> key
 
   String _uiLocale = 'en'; // current UI locale (2-letter)
-  String _fallbackLocale = 'en'; // fallback
+  final String _fallbackLocale = 'en'; // fallback
 
   // Normalize for lookups (case/space/punct-insensitive)
   String _norm(String s) => s
@@ -138,12 +138,18 @@ class Books {
     for (final b in booksJson) {
       final key = b['key'] as String;
       final extra = (b['extra_aliases'] as List?)?.cast<String>() ?? const <String>[];
-      for (final a in extra) aliasMap[_norm(a)] = key;
+      for (final a in extra) {
+        aliasMap[_norm(a)] = key;
+      }
       // Also index all known localized names/abbr as aliases:
       final names = (b['names'] as Map).cast<String, String>().values;
       final abbrs = (b['abbr'] as Map).cast<String, String>().values;
-      for (final n in names) aliasMap[_norm(n)] = key;
-      for (final a2 in abbrs) aliasMap[_norm(a2)] = key;
+      for (final n in names) {
+        aliasMap[_norm(n)] = key;
+      }
+      for (final a2 in abbrs) {
+        aliasMap[_norm(a2)] = key;
+      }
       // Index the raw key (e.g., GEN) as an alias to itself for USFM \id
       aliasMap[_norm(key)] = key;
     }

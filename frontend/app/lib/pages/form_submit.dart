@@ -298,8 +298,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             if (required && (v == null || v.trim().isEmpty)) return 'Required';
             if (v != null &&
                 v.isNotEmpty &&
-                !RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v))
+                !RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v)) {
               return 'Invalid email';
+            }
             return null;
           },
           onSaved: (v) => _values[fieldName] = v ?? '',
@@ -312,8 +313,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           keyboardType: TextInputType.number,
           validator: (v) {
             if (required && (v == null || v.trim().isEmpty)) return 'Required';
-            if (v != null && v.isNotEmpty && double.tryParse(v) == null)
+            if (v != null && v.isNotEmpty && double.tryParse(v) == null) {
               return 'Invalid number';
+            }
             if (v != null && v.isNotEmpty) {
               final n = double.tryParse(v);
               if (n != null) {
@@ -457,8 +459,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                         );
                       },
                     );
-                    if (updated != null)
+                    if (updated != null) {
                       setState(() => _values[fieldName] = updated);
+                    }
                   },
                   child: const Text('Choose'),
                 ),
@@ -689,8 +692,8 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             final vMin = _hhmmToMinutes(minTime);
             final vMax = _hhmmToMinutes(maxTime);
             final v = _hhmmToMinutes(val)!;
-            if (vMin != null && v < vMin) return 'Must be on or after ${minTime}';
-            if (vMax != null && v > vMax) return 'Must be on or before ${maxTime}';
+            if (vMin != null && v < vMin) return 'Must be on or after $minTime';
+            if (vMax != null && v > vMax) return 'Must be on or before $maxTime';
             return null;
           },
           builder: (state) {
