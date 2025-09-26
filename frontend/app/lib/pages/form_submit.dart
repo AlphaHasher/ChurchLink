@@ -647,20 +647,17 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                                 opt['id'] ??
                                 opt.toString())
                             : opt.toString();
+                    final sel = state.value == val.toString();
                     return ListTile(
-                      leading: Radio<String>(
-                        value: val.toString(),
-                        groupValue: state.value,
-                        onChanged: (v) {
-                          state.didChange(v);
-                          _values[fieldName] = v;
-                          _markDirty();
-                        },
+                      leading: Icon(
+                        sel ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                        color: sel ? Theme.of(context).colorScheme.primary : null,
                       ),
                       title: Text(display.toString()),
                       onTap: () {
-                        state.didChange(val.toString());
-                        _values[fieldName] = val.toString();
+                        final vstr = val.toString();
+                        state.didChange(vstr);
+                        _values[fieldName] = vstr;
                         _markDirty();
                       },
                     );
