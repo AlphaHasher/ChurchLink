@@ -19,4 +19,5 @@ dependencies = [
     "paypal-server-sdk>=1.0.0",
     "faker>=37.1.0",
     "paypalrestsdk>=1.13.3",
+    "pytest>=8.4.2",
 ]
