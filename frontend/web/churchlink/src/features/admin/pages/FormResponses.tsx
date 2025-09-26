@@ -4,10 +4,9 @@ import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 import api from '@/api/api';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/components/ui/card';
-// pagination/select removed for simplified view
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/shared/components/ui/pagination';
-import { ArrowLeft, RefreshCcw, Download } from 'lucide-react';
+import { ArrowLeft, RefreshCcw, Download, ChevronUp, ChevronDown } from 'lucide-react';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
 import { Skeleton } from '@/shared/components/ui/skeleton';
@@ -20,9 +19,8 @@ const FormResponses = () => {
   const formId = query.get('formId') || '';
 
   const [formMeta, setFormMeta] = useState<{ title: string; description?: string; data?: any[] } | null>(null);
-  type Col = { key: string; label: string };
+  type Col = { key: string; label: string; type?: 'text' | 'date' | 'time' | 'number' };
   const [columns, setColumns] = useState<Col[]>([]);
-  // We will display raw user_id as recorded in DB. No name resolution here.
   const [count, setCount] = useState(0);
   const [rawItems, setRawItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
   const [items, setItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
@@ -32,6 +30,32 @@ const FormResponses = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [sortField, setSortField] = useState<string>('__submitted__');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Helper function to detect field type from values
+  const detectFieldType = (values: any[]): 'text' | 'date' | 'time' | 'number' => {
+    for (const val of values) {
+      if (val === null || val === undefined || val === '') continue;
+      const str = String(val);
+      
+      // Check for time format (HH:MM or HH:MM:SS)
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(str)) {
+        return 'time';
+      }
+      
+      // Check for date format (various ISO formats)
+      if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?/.test(str)) {
+        return 'date';
+      }
+      
+      // Check if it's a number
+      if (!isNaN(Number(str)) && str.trim() !== '') {
+        return 'number';
+      }
+    }
+    return 'text';
+  };
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -40,7 +64,10 @@ const FormResponses = () => {
         const resp = await api.get(`/v1/forms/${formId}`);
         const meta = { title: resp.data?.title || 'Form', description: resp.data?.description };
         setFormMeta(meta);
-        setColumns([{ key: '__user__', label: 'User' }, { key: '__submitted__', label: 'Submitted' }]);
+        setColumns([
+          { key: '__user__', label: 'User', type: 'text' }, 
+          { key: '__submitted__', label: 'Submitted', type: 'date' }
+        ]);
       } catch (e) {
         // ignore
       }
@@ -60,15 +87,31 @@ const FormResponses = () => {
 
       const existingKeys = new Set<string>(columns.map((c) => c.key));
       const extra: Col[] = [];
+      const fieldValues: Record<string, any[]> = {};
+      
+      // Collect all values for each field to detect types
       for (const it of fetched) {
         const respObj = it?.response || {};
         Object.keys(respObj).forEach((k) => {
+          if (!fieldValues[k]) fieldValues[k] = [];
+          fieldValues[k].push(respObj[k]);
+          
           if (!existingKeys.has(k)) {
             existingKeys.add(k);
-            extra.push({ key: k, label: k });
           }
         });
       }
+      
+      // Create columns with detected types
+      Object.keys(fieldValues).forEach((k) => {
+        if (!existingKeys.has(k)) return;
+        const isExtraCol = !columns.some((c) => c.key === k);
+        if (isExtraCol) {
+          const type = detectFieldType(fieldValues[k]);
+          extra.push({ key: k, label: k, type });
+        }
+      });
+      
       if (extra.length > 0) {
         // Keep Submitted as first column; append extras at the end
         setColumns((prev) => {
@@ -79,7 +122,6 @@ const FormResponses = () => {
         });
       }
 
-      // No user name resolution here; frontend will display raw user_id as-is.
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
       // avoid storing/rendering non-string objects directly in the UI
@@ -92,36 +134,125 @@ const FormResponses = () => {
 
   useEffect(() => { fetchResponses(); }, [formId]);
 
-  // When rawItems or filters (or pagination) change, compute filtered items and paginated display
   useEffect(() => {
     const applyFilters = () => {
       const fkeys = Object.keys(filters).filter((k) => filters[k] && filters[k].trim() !== '');
       let filtered = rawItems.slice();
+      
+      // Apply filters
       if (fkeys.length > 0) {
         filtered = filtered.filter((it) => {
           const resp = it.response || {};
           for (const k of fkeys) {
-            const want = (filters[k] || '').toLowerCase();
+            const want = (filters[k] || '').toLowerCase().trim();
             let val: any = undefined;
+            
             if (k === '__user__') val = (it as any).user_id;
             else if (k === '__submitted__') val = it.submitted_at;
             else val = resp[k];
-            const sval = val === null || val === undefined ? '' : String(val).toLowerCase();
-            if (!sval.includes(want)) return false;
+            
+            const column = columns.find((c) => c.key === k);
+            const fieldType = column?.type || 'text';
+            
+            // Handle different field types
+            if (fieldType === 'date') {
+              // For date filtering
+              if (val) {
+                // Create date objects and compare the actual date components
+                const originalDate = new Date(val);
+                const filterDate = new Date(want + 'T00:00:00'); // Add time to ensure local timezone
+                
+                // Compare year, month, and date components directly to avoid timezone issues
+                const originalDateStr = originalDate.getFullYear() + '-' + 
+                  String(originalDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(originalDate.getDate()).padStart(2, '0');
+                  
+                const filterDateStr = filterDate.getFullYear() + '-' + 
+                  String(filterDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(filterDate.getDate()).padStart(2, '0');
+                
+                if (originalDateStr !== filterDateStr) return false;
+              } else if (want !== '') {
+                return false;
+              }
+            } else if (fieldType === 'time') {
+              // For time filtering, match HH:MM format
+              if (val) {
+                const timeStr = String(val).toLowerCase();
+                if (!timeStr.includes(want)) return false;
+              } else if (want !== '') {
+                return false;
+              }
+            } else {
+              // Text and number filtering (default behavior)
+              const sval = val === null || val === undefined ? '' : String(val).toLowerCase();
+              if (!sval.includes(want)) return false;
+            }
           }
           return true;
         });
       }
-      // update count to filtered length
+      
+      // Apply sorting
+      filtered.sort((a, b) => {
+        let aVal: any = undefined;
+        let bVal: any = undefined;
+        
+        if (sortField === '__user__') {
+          aVal = (a as any).user_id || '';
+          bVal = (b as any).user_id || '';
+        } else if (sortField === '__submitted__') {
+          aVal = a.submitted_at;
+          bVal = b.submitted_at;
+        } else {
+          aVal = a.response?.[sortField];
+          bVal = b.response?.[sortField];
+        }
+        
+        // Handle null/undefined values
+        if (aVal === null || aVal === undefined) aVal = '';
+        if (bVal === null || bVal === undefined) bVal = '';
+        
+        const column = columns.find((c) => c.key === sortField);
+        const fieldType = column?.type || 'text';
+        
+        // Type-specific comparison
+        if (fieldType === 'date') {
+          const aDate = aVal ? new Date(aVal).getTime() : 0;
+          const bDate = bVal ? new Date(bVal).getTime() : 0;
+          return sortDirection === 'desc' ? bDate - aDate : aDate - bDate;
+        } else if (fieldType === 'number') {
+          const aNum = parseFloat(String(aVal)) || 0;
+          const bNum = parseFloat(String(bVal)) || 0;
+          return sortDirection === 'desc' ? bNum - aNum : aNum - bNum;
+        } else if (fieldType === 'time') {
+          // Convert time to minutes for comparison
+          const timeToMinutes = (timeStr: string): number => {
+            const [hours, minutes] = String(timeStr).split(':').map(Number);
+            return (hours || 0) * 60 + (minutes || 0);
+          };
+          const aMin = timeToMinutes(String(aVal));
+          const bMin = timeToMinutes(String(bVal));
+          return sortDirection === 'desc' ? bMin - aMin : aMin - bMin;
+        } else {
+          // Text comparison
+          const aStr = String(aVal).toLowerCase();
+          const bStr = String(bVal).toLowerCase();
+          if (sortDirection === 'desc') {
+            return bStr.localeCompare(aStr);
+          } else {
+            return aStr.localeCompare(bStr);
+          }
+        }
+      });
+      
       setCount(filtered.length);
-      // apply paging on client side
       const start = (page - 1) * pageSize;
       const end = start + pageSize;
       setItems(filtered.slice(start, end));
     };
     applyFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawItems, filters, page, pageSize]);
+  }, [rawItems, filters, page, pageSize, sortField, sortDirection, columns]);
   const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
 
   const formatDate = (iso?: string) => {
@@ -140,6 +271,78 @@ const FormResponses = () => {
     try {
       await fetchResponsesAndDownloadCsv(formId, { existingColumns, limit: 500, filename: `${formMeta?.title || 'responses'}.csv` });
     } catch (e) {
+    }
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+    setPage(1);
+  };
+
+  const renderFilterInput = (col: Col) => {
+    const key = col?.key ?? '';
+    const fieldType = col?.type || 'text';
+    
+    if (fieldType === 'date' && key === '__submitted__') {
+      // Special date input for submitted date
+      return (
+        <input
+          type="date"
+          className="w-full px-2 py-1 border rounded text-sm"
+          placeholder="Filter date"
+          value={filters[key] || ''}
+          onChange={(e) => {
+            setFilters((prev) => ({ ...prev, [key]: e.target.value }));
+            setPage(1);
+          }}
+        />
+      );
+    } else if (fieldType === 'date') {
+      // Date input for other date fields
+      return (
+        <input
+          type="date"
+          className="w-full px-2 py-1 border rounded text-sm"
+          placeholder="Filter date"
+          value={filters[key] || ''}
+          onChange={(e) => {
+            setFilters((prev) => ({ ...prev, [key]: e.target.value }));
+            setPage(1);
+          }}
+        />
+      );
+    } else if (fieldType === 'time') {
+      // Time input for time fields
+      return (
+        <input
+          type="time"
+          className="w-full px-2 py-1 border rounded text-sm"
+          placeholder="Filter time"
+          value={filters[key] || ''}
+          onChange={(e) => {
+            setFilters((prev) => ({ ...prev, [key]: e.target.value }));
+            setPage(1);
+          }}
+        />
+      );
+    } else {
+      // Default text input
+      return (
+        <input
+          className="w-full px-2 py-1 border rounded text-sm"
+          placeholder="Filter"
+          value={filters[key] || ''}
+          onChange={(e) => {
+            setFilters((prev) => ({ ...prev, [key]: e.target.value }));
+            setPage(1);
+          }}
+        />
+      );
     }
   };
 
@@ -221,25 +424,36 @@ const FormResponses = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {uniqueColumns.map((col, idx) => (
-                      <TableHead key={col?.key ?? `col-${idx}`}>{col?.label ?? String(col?.key ?? `Column ${idx + 1}`)}</TableHead>
-                    ))}
+                    {uniqueColumns.map((col, idx) => {
+                      const key = col?.key ?? '';
+                      const label = col?.label ?? String(col?.key ?? `Column ${idx + 1}`);
+                      const isSorted = sortField === key;
+                      return (
+                        <TableHead key={col?.key ?? `col-${idx}`} className="select-none">
+                          <Button
+                            variant="ghost"
+                            className="h-auto p-0 font-medium flex items-center gap-1 hover:bg-transparent"
+                            onClick={() => handleSort(key)}
+                          >
+                            {label}
+                            <div className="flex flex-col">
+                              <ChevronUp 
+                                className={`h-3 w-3 ${isSorted && sortDirection === 'asc' ? 'text-primary' : 'text-muted-foreground'}`} 
+                              />
+                              <ChevronDown 
+                                className={`h-3 w-3 -mt-1 ${isSorted && sortDirection === 'desc' ? 'text-primary' : 'text-muted-foreground'}`} 
+                              />
+                            </div>
+                          </Button>
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                   {/* filter inputs row */}
                   <TableRow>
                     {uniqueColumns.map((col, idx) => (
                       <TableHead key={`f-${col?.key ?? idx}`}>
-                        <input
-                          className="w-full px-2 py-1 border rounded text-sm"
-                          placeholder="Filter"
-                          value={filters[col?.key ?? ''] || ''}
-                          onChange={(e) => {
-                            const key = col?.key ?? '';
-                            const v = e.target.value;
-                            setFilters((prev) => ({ ...prev, [key]: v }));
-                            setPage(1);
-                          }}
-                        />
+                        {renderFilterInput(col)}
                       </TableHead>
                     ))}
                   </TableRow>
