@@ -39,6 +39,11 @@ const ManageForms = () => {
   const [pageSize, setPageSize] = useState(10);
   const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
+  const [duplicateNameDialog, setDuplicateNameDialog] = useState<{ 
+    formId: string; 
+    newTitle: string; 
+    existingId: string;
+  } | null>(null);
 
   const fetchForms = async () => {
     try {
@@ -266,9 +271,46 @@ const ManageForms = () => {
       await api.put(`/v1/forms/${renameTarget.id}`, { title: renameTarget.title });
       setForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
       setRenameTarget(null);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Rename failed', e);
+      if (e?.response?.status === 409) {
+        const payload = e.response?.data || e.response?.data?.detail || {};
+        const existingId = payload?.existing_id || payload?.existingId || (payload?.detail && payload.detail.existing_id) || null;
+        if (existingId) {
+          // Show duplicate name dialog
+          setDuplicateNameDialog({
+            formId: renameTarget.id,
+            newTitle: renameTarget.title,
+            existingId: existingId
+          });
+          return;
+        }
+      }
       setStatus('Rename failed');
+    }
+  };
+
+  const handleOverrideDuplicate = async () => {
+    if (!duplicateNameDialog || !renameTarget) return;
+    try {
+      setStatus('Overriding form...');
+      await api.delete(`/v1/forms/${duplicateNameDialog.formId}`);
+      await api.put(`/v1/forms/${duplicateNameDialog.existingId}`, { 
+        title: duplicateNameDialog.newTitle
+      });
+      setForms((prev) => prev.filter((f) => f.id !== duplicateNameDialog.formId));
+      setForms((prev) => prev.map((f) => 
+        f.id === duplicateNameDialog.existingId ? { ...f, title: duplicateNameDialog.newTitle } : f
+      ));
+      
+      setDuplicateNameDialog(null);
+      setRenameTarget(null);
+      setStatus('Form overridden successfully');
+      
+      setTimeout(() => setStatus(null), 3000);
+    } catch (e) {
+      console.error('Override failed', e);
+      setStatus('Override failed');
     }
   };
 
@@ -505,6 +547,22 @@ const ManageForms = () => {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setConfirmDeleteIds(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => confirmDeleteIds && handleDelete(confirmDeleteIds)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate name dialog */}
+      <AlertDialog open={!!duplicateNameDialog} onOpenChange={(open) => { if (!open) { setDuplicateNameDialog(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Form name already exists</AlertDialogTitle>
+            <AlertDialogDescription>
+              A form named "{duplicateNameDialog?.newTitle}" already exists. This will delete the current form and rename the existing one. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setDuplicateNameDialog(null); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleOverrideDuplicate} className="bg-red-600 hover:bg-red-700">Override</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
