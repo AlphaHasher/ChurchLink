@@ -4,13 +4,14 @@ from dotenv import load_dotenv
 import sys
 sys.path.append('.')  # Add project root to path
 
-def generate_test_token(email="fake@example.com", password="Password"):
+def generate_test_token(email="fake@example.com", password="Password", save_to_file=True):
     """
-    Get a Firebase ID token using email/password authentication and save to bearer.txt.
+    Get a Firebase ID token using email/password authentication and optionally save to bearer.txt.
     
     Args:
         email (str): Email of the test user
         password (str): Password of the test user
+        save_to_file (bool): Whether to save the token to bearer.txt or just return it
     """
     # Load environment variables
     load_dotenv()
@@ -39,11 +40,12 @@ def generate_test_token(email="fake@example.com", password="Password"):
         id_token = response.json()["idToken"]
         bearer_token = f"{id_token}"
         
-        # Save to bearer.txt
-        with open("bearer.txt", "w") as f:
-            f.write(bearer_token)
+        if save_to_file:
+            # Save to bearer.txt
+            with open("bearer.txt", "w") as f:
+                f.write(bearer_token)
+            print("Bearer token has been saved to bearer.txt")
         
-        print("Bearer token has been saved to bearer.txt")
         return id_token
         
     except requests.exceptions.HTTPError as e:
