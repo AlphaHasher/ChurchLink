@@ -136,7 +136,7 @@ async def submit_response_by_slug(slug: str, request: Request):
 
 
 @mod_forms_router.get('/{form_id}/responses')
-async def list_form_responses(form_id: str, request: Request, skip: int = 0, limit: int = Query(100, le=500)):
+async def list_form_responses(form_id: str, request: Request, skip: int = 0, limit: int | None = None):
     """Return responses for a form belonging to the current user.
 
     Response shape: { count: number, items: [{ submitted_at: ISO, response: object }] }

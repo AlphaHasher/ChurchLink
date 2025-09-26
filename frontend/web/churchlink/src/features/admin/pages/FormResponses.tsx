@@ -49,54 +49,34 @@ const FormResponses = () => {
   }, [formId]);
   const fetchResponses = async () => {
     if (!formId) return;
-    const hasFilters = Object.values(filters).some((v) => v && v.trim() !== '');
-    const showLoading = !hasFilters; // avoid hiding table when user is typing filters
-    if (showLoading) setLoading(true);
+    setLoading(true);
     setError(null);
     try {
-      const skip = hasFilters ? 0 : (page - 1) * pageSize;
-      const fetchLimit = hasFilters ? 500 : pageSize; // backend enforces a 500 limit
-      const resp = await api.get(`/v1/forms/${formId}/responses`, { params: { skip, limit: fetchLimit } });
-      const total = resp.data?.count || 0;
+      const resp = await api.get(`/v1/forms/${formId}/responses`);
       let fetched = resp.data?.items || [];
       if (!Array.isArray(fetched)) fetched = [];
       setRawItems(fetched);
-      // If no filters, show paginated fetched items directly and keep backend count
-      if (!hasFilters) {
-        setItems(fetched);
-        setCount(total);
-      }
-      // If filters are active and total exceeds fetchLimit, warn user that results are limited
-      if (hasFilters) {
-        if (total > fetchLimit) setNotice(`Filtering applied to first ${fetchLimit} responses (server limit). Results may be incomplete.`);
-        else setNotice(null);
-      } else {
-        setNotice(null);
-      }
+      setNotice(null);
 
-      // Only update columns when not actively filtering to avoid remounting inputs while user types
-      if (!hasFilters) {
-        // Union any extra keys from responses that aren't in columns yet
-        const existingKeys = new Set<string>(columns.map((c) => c.key));
-        const extra: Col[] = [];
-        for (const it of fetched) {
-          const respObj = it?.response || {};
-          Object.keys(respObj).forEach((k) => {
-            if (!existingKeys.has(k)) {
-              existingKeys.add(k);
-              extra.push({ key: k, label: k });
-            }
-          });
-        }
-        if (extra.length > 0) {
-          // Keep Submitted as first column; append extras at the end
-          setColumns((prev) => {
-            const userCol = prev.find((c) => c.key === '__user__');
-            const submitted = prev.find((c) => c.key === '__submitted__');
-            const others = prev.filter((c) => c.key !== '__submitted__' && c.key !== '__user__');
-            return [userCol!, submitted!, ...others, ...extra];
-          });
-        }
+      const existingKeys = new Set<string>(columns.map((c) => c.key));
+      const extra: Col[] = [];
+      for (const it of fetched) {
+        const respObj = it?.response || {};
+        Object.keys(respObj).forEach((k) => {
+          if (!existingKeys.has(k)) {
+            existingKeys.add(k);
+            extra.push({ key: k, label: k });
+          }
+        });
+      }
+      if (extra.length > 0) {
+        // Keep Submitted as first column; append extras at the end
+        setColumns((prev) => {
+          const userCol = prev.find((c) => c.key === '__user__');
+          const submitted = prev.find((c) => c.key === '__submitted__');
+          const others = prev.filter((c) => c.key !== '__submitted__' && c.key !== '__user__');
+          return [userCol!, submitted!, ...others, ...extra];
+        });
       }
 
       // No user name resolution here; frontend will display raw user_id as-is.
@@ -106,11 +86,11 @@ const FormResponses = () => {
       const msg = typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : 'Failed to load responses';
       setError(msg);
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => { fetchResponses(); }, [formId, page, pageSize]);
+  useEffect(() => { fetchResponses(); }, [formId]);
 
   // When rawItems or filters (or pagination) change, compute filtered items and paginated display
   useEffect(() => {
@@ -134,7 +114,7 @@ const FormResponses = () => {
       }
       // update count to filtered length
       setCount(filtered.length);
-      // apply paging
+      // apply paging on client side
       const start = (page - 1) * pageSize;
       const end = start + pageSize;
       setItems(filtered.slice(start, end));
@@ -142,20 +122,6 @@ const FormResponses = () => {
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawItems, filters, page, pageSize]);
-
-  // Debounced fetch when filters change so typing doesn't trigger immediate fetches and steal focus
-  useEffect(() => {
-    const hasFilters = Object.values(filters).some((v) => v && v.trim() !== '');
-    if (!hasFilters) {
-      // filters cleared -> refresh immediately to show paginated backend results
-      fetchResponses();
-      return;
-    }
-    const t = setTimeout(() => {
-      fetchResponses();
-    }, 300);
-    return () => clearTimeout(t);
-  }, [filters]);
   const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
 
   const formatDate = (iso?: string) => {
