@@ -139,6 +139,7 @@ First, create a model file in the `models` directory, following the pattern in `
 ```python
 # models/your_model.py
 from typing import Optional
+from pydantic import ConfigDict
 from pydantic import BaseModel
 from helpers.DB import DB
 from bson import ObjectId
@@ -147,7 +148,7 @@ class YourModelBase(BaseModel):
     name: str
     description: Optional[str] = None
 
-    class Config:
+    class ConfigDict:
         from_attributes = True
 
 class YourModelCreate(YourModelBase):
