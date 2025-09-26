@@ -71,75 +71,107 @@ class _FormsState extends State<Forms> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
-          child:
-              user == null
-                  ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.lock_outline,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Please sign in to view your forms.',
-                          style: TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            await AuthPopup.show(context);
-                            // After popup closes, try to load forms (user may have logged in)
-                            _maybeLoad();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                          ),
-                          child: const Text('Log In'),
-                        ),
-                      ],
-                    ),
-                  )
-                  : _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                  ? Center(child: Text(_error!))
-                  : _forms.isEmpty
-                  ? const Center(child: Text('No forms available.'))
-                  : ListView.separated(
-                    itemCount: _forms.length,
-                    separatorBuilder: (_, __) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final f = _forms[index] as Map<String, dynamic>;
-                      final title = f['title'] ?? 'Untitled';
-                      final desc = f['description'] ?? '';
-                      final slug = f['slug'] ?? '';
-                      final createdAt = f['created_at'] ?? '';
-                      return ListTile(
-                        title: Text(title),
-                        subtitle: Text(desc.isNotEmpty ? desc : slug),
-                        trailing:
-                            createdAt is String
-                                ? Text(createdAt.split('T').first)
-                                : const SizedBox.shrink(),
-                        onTap: () async {
-                          // Open the form submission page
-                          final result = await Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => FormSubmitPage(form: f),
-                            ),
-                          );
-                          // If submission happened, reload forms (some forms may change)
-                          if (result == true) {
-                            _loadForms();
-                          }
+          child: user == null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lock_outline,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Please sign in to view your forms.',
+                        style: TextStyle(fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await AuthPopup.show(context);
+                          // After popup closes, try to load forms (user may have logged in)
+                          _maybeLoad();
                         },
-                      );
-                    },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                        ),
+                        child: const Text('Log In'),
+                      ),
+                    ],
                   ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadForms,
+                  child: _isLoading
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 200),
+                            Center(child: CircularProgressIndicator()),
+                          ],
+                        )
+                      : _error != null
+                          ? ListView(
+                              physics:
+                                  const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height: 200,
+                                  child: Center(child: Text(_error!)),
+                                ),
+                              ],
+                            )
+                          : _forms.isEmpty
+                              ? ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  children: const [
+                                    SizedBox(height: 200),
+                                    Center(
+                                        child: Text('No forms available.')),
+                                  ],
+                                )
+                              : ListView.separated(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  itemCount: _forms.length,
+                                  separatorBuilder: (_, __) =>
+                                      const Divider(),
+                                  itemBuilder: (context, index) {
+                                    final f = _forms[index]
+                                        as Map<String, dynamic>;
+                                    final title = f['title'] ?? 'Untitled';
+                                    final desc = f['description'] ?? '';
+                                    final slug = f['slug'] ?? '';
+                                    final createdAt =
+                                        f['created_at'] ?? '';
+                                    return ListTile(
+                                      title: Text(title),
+                                      subtitle:
+                                          Text(desc.isNotEmpty ? desc : slug),
+                                      trailing: createdAt is String
+                                          ? Text(createdAt.split('T').first)
+                                          : const SizedBox.shrink(),
+                                      onTap: () async {
+                                        // Open the form submission page
+                                        final result =
+                                            await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                FormSubmitPage(form: f),
+                                          ),
+                                        );
+                                        // If submission happened, reload forms (some forms may change)
+                                        if (result == true) {
+                                          _loadForms();
+                                        }
+                                      },
+                                    );
+                                  },
+                                ),
+                ),
         ),
       ),
     );

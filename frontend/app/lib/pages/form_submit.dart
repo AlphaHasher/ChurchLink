@@ -11,14 +11,23 @@ class FormSubmitPage extends StatefulWidget {
 }
 
 class _FormSubmitPageState extends State<FormSubmitPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _scaffoldFormKey = GlobalKey<FormState>();
   final Map<String, dynamic> _values = {};
   bool _submitting = false;
   String? _error;
+  late Map<String, dynamic> _form; // local, refreshable copy of the form
+  int _formInstanceId = 0; // bump to reset Form state after refresh
+  bool _isDirty = false; // tracks whether user has typed/changed anything
+
+  @override
+  void initState() {
+    super.initState();
+    _form = Map<String, dynamic>.from(widget.form);
+  }
 
   // Helper to extract field list from form
   List<Map<String, dynamic>> get _fields {
-    final data = widget.form['data'];
+    final data = _form['data'];
     if (data is List) return List<Map<String, dynamic>>.from(data);
     return [];
   }
@@ -244,6 +253,93 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     return h * 60 + min;
   }
 
+  void _markDirty() {
+    if (!_isDirty) {
+      setState(() => _isDirty = true);
+    }
+  }
+
+  bool _hasAnyInput() {
+    if (_isDirty) return true;
+    for (final entry in _values.entries) {
+      final v = entry.value;
+      if (v == null) continue;
+      if (v is String && v.trim().isEmpty) continue;
+      if (v is List && v.isEmpty) continue;
+      if (v is Map && v.isEmpty) continue;
+      // any other non-null value counts as input
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _reloadForm() async {
+    try {
+      final String slug = (_form['slug']?.toString() ?? '').trim();
+      final String id = _form['id']?.toString() ?? '';
+      dynamic response;
+      if (slug.isNotEmpty && slug.toLowerCase() != 'null') {
+        response = await api.get('/v1/forms/slug/$slug');
+      } else if (id.isNotEmpty) {
+        response = await api.get('/v1/forms/$id');
+      }
+      if (response != null && (response.statusCode == 200)) {
+        final data = response.data;
+        if (data is Map) {
+          setState(() {
+            _form = Map<String, dynamic>.from(data);
+            _values.clear();
+            _error = null;
+            _formInstanceId++;
+            _isDirty = false;
+          });
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Form reloaded. All inputs were cleared.')),
+          );
+          return;
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to reload form${response?.statusCode != null ? ' (${response.statusCode})' : ''}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error reloading form: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirmAndReload() async {
+    if (!_hasAnyInput()) {
+      await _reloadForm();
+      return;
+    }
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reload form?'),
+        content: const Text(
+            'Reloading will fetch the latest form and clear all data you\'ve entered. Continue?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reload'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await _reloadForm();
+    }
+  }
+
   Widget _buildField(Map<String, dynamic> f) {
     if (!_isVisible(f)) return const SizedBox.shrink();
     final type = (f['type'] ?? 'text').toString();
@@ -286,6 +382,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
               required
                   ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
                   : null,
+          onChanged: (v) {
+            _values[fieldName] = v;
+            _markDirty();
+          },
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
 
@@ -302,6 +402,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
               return 'Invalid email';
             }
             return null;
+          },
+          onChanged: (v) {
+            _values[fieldName] = v;
+            _markDirty();
           },
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
@@ -349,6 +453,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             }
             return null;
           },
+          onChanged: (v) {
+            _values[fieldName] = v;
+            _markDirty();
+          },
           onSaved:
               (v) =>
                   _values[fieldName] =
@@ -361,7 +469,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           value: current,
           title: Text(label),
           controlAffinity: ListTileControlAffinity.leading,
-          onChanged: (val) => setState(() => _values[fieldName] = val ?? false),
+          onChanged: (val) => setState(() {
+            _values[fieldName] = val ?? false;
+            _markDirty();
+          }),
         );
 
       case 'switch':
@@ -369,7 +480,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         return SwitchListTile(
           value: current,
           title: Text(label),
-          onChanged: (val) => setState(() => _values[fieldName] = val),
+          onChanged: (val) => setState(() {
+            _values[fieldName] = val;
+            _markDirty();
+          }),
         );
 
       case 'select':
@@ -460,7 +574,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                       },
                     );
                     if (updated != null) {
-                      setState(() => _values[fieldName] = updated);
+                      setState(() {
+                        _values[fieldName] = updated;
+                        _markDirty();
+                      });
                     }
                   },
                   child: const Text('Choose'),
@@ -497,7 +614,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                     child: Text(display),
                   );
                 }).toList(),
-            onChanged: (v) => setState(() => _values[fieldName] = v),
+            onChanged: (v) => setState(() {
+              _values[fieldName] = v;
+              _markDirty();
+            }),
           );
         }
 
@@ -534,12 +654,14 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                         onChanged: (v) {
                           state.didChange(v);
                           _values[fieldName] = v;
+                          _markDirty();
                         },
                       ),
                       title: Text(display.toString()),
                       onTap: () {
                         state.didChange(val.toString());
                         _values[fieldName] = val.toString();
+                        _markDirty();
                       },
                     );
                   }),
@@ -612,7 +734,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                           'from': DateTime(res.start.year, res.start.month, res.start.day).toIso8601String(),
                           'to': DateTime(res.end.year, res.end.month, res.end.day).toIso8601String(),
                         };
-                        setState(() => _values[fieldName] = newVal);
+                        setState(() {
+                          _values[fieldName] = newVal;
+                          _markDirty();
+                        });
                         state.didChange(newVal);
                       }
                     },
@@ -663,7 +788,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                     );
                     if (picked != null) {
                       final d = DateTime(picked.year, picked.month, picked.day).toIso8601String();
-                      setState(() => _values[fieldName] = d);
+                      setState(() {
+                        _values[fieldName] = d;
+                        _markDirty();
+                      });
                       state.didChange(d);
                     }
                   },
@@ -712,7 +840,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                     );
                     if (picked != null) {
                       final value = _formatHHMM(picked);
-                      setState(() => _values[fieldName] = value);
+                      setState(() {
+                        _values[fieldName] = value;
+                        _markDirty();
+                      });
                       state.didChange(value);
                     }
                   },
@@ -736,14 +867,18 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
               required
                   ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
                   : null,
+          onChanged: (v) {
+            _values[fieldName] = v;
+            _markDirty();
+          },
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
     }
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    _formKey.currentState!.save();
+  if (!_scaffoldFormKey.currentState!.validate()) return;
+  _scaffoldFormKey.currentState!.save();
 
     setState(() {
       _submitting = true;
@@ -791,9 +926,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.form['title'] ?? 'Form';
-    final description = widget.form['description'] ?? '';
-    final String slug = (widget.form['slug']?.toString() ?? '').trim();
+    final title = _form['title'] ?? 'Form';
+    final description = _form['description'] ?? '';
+    final String slug = (_form['slug']?.toString() ?? '').trim();
     final bool canSubmit = slug.isNotEmpty && slug.toLowerCase() != 'null';
   final List<Map<String, dynamic>> visibleFields = _fields
     .where(_isVisible)
@@ -803,7 +938,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     final double total = _computeTotal();
 
     return Scaffold(
-      appBar: AppBar(title: Text(title), backgroundColor: Colors.black),
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Colors.black,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -831,14 +969,19 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 ),
               Expanded(
                 child: Form(
-                  key: _formKey,
-                  child: ListView.separated(
-                    itemCount: visibleFields.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final f = visibleFields[index];
-                      return _buildField(f);
-                    },
+                  key: _scaffoldFormKey,
+                  child: RefreshIndicator(
+                    onRefresh: _confirmAndReload,
+                    child: ListView.separated(
+                      key: Key('form-instance-$_formInstanceId'),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: visibleFields.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final f = visibleFields[index];
+                        return _buildField(f);
+                      },
+                    ),
                   ),
                 ),
               ),

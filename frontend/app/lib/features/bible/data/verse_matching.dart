@@ -446,14 +446,13 @@ class VerseMatching {
   /// If no rules are present, falls back to same book/chapter/verse
   List<VerseKey> matchToOther({required String fromTx, required VerseKey key}) {
     final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
-    bool blockIdentity = false;
 
     for (final r in _rules) {
       final mapped = r.map(fromTx, nk);
       if (mapped.isNotEmpty) return mapped;
     }
 
-    return blockIdentity ? const [] : [nk];
+    return [nk];
   }
 
   /// Rule-only mapping (no identity fallback). Useful for cluster traversal.
