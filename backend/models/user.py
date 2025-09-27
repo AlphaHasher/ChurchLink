@@ -6,7 +6,7 @@ from pydantic import (
 from bson import ObjectId
 from mongo.database import DB
 # Import the refactored roles functions
-from models.roles import get_role_ids_from_names, get_roles_with_permissions
+from models.roles_models import get_role_ids_from_names, get_roles_with_permissions
 # Import UserHandler for family member operations
 from mongo.churchuser import UserHandler
 from models.base.ssbc_base_model import PydanticObjectId

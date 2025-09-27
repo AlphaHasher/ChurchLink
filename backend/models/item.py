@@ -1,16 +1,16 @@
 from typing import Optional
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from mongo import database as DB
 from bson import ObjectId
 
-
-##this is an example only
+#this is an example only
 class ItemBase(BaseModel):
     name: str
     description: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
     def __repr__(self):
         return f"Name={self.name}, description={self.description}"
