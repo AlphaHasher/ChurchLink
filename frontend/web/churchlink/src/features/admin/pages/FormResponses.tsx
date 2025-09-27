@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 import api from '@/api/api';
+import { fetchUserNameByUId } from '@/helpers/UserHelper';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
@@ -24,6 +25,7 @@ const FormResponses = () => {
   const [count, setCount] = useState(0);
   const [rawItems, setRawItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
   const [items, setItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -122,6 +124,12 @@ const FormResponses = () => {
         });
       }
 
+      // Preload user names for better performance
+      const uniqueUserIds = [...new Set(fetched.map((item: any) => item.user_id).filter(Boolean))] as string[];
+      if (uniqueUserIds.length > 0) {
+        preloadUserNames(uniqueUserIds);
+      }
+
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
       // avoid storing/rendering non-string objects directly in the UI
@@ -129,6 +137,41 @@ const FormResponses = () => {
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const preloadUserNames = async (userIds: string[]) => {
+    const namesToFetch = userIds.filter(id => !userNames[id]);
+    if (namesToFetch.length === 0) return;
+
+    const namePromises = namesToFetch.map(async (uid) => {
+      try {
+        const nameResult = await fetchUserNameByUId(uid);
+        let fullName: string;
+        
+        if (Array.isArray(nameResult) && nameResult.length >= 2) {
+          fullName = `${nameResult[0]} ${nameResult[1]}`;
+        } else {
+          fullName = String(nameResult);
+        }
+        
+        return { uid, fullName };
+      } catch (error) {
+        console.error(`Failed to fetch name for user ${uid}:`, error);
+        return { uid, fullName: uid };
+      }
+    });
+
+    try {
+      const results = await Promise.all(namePromises);
+      const newUserNames = results.reduce((acc, { uid, fullName }) => {
+        acc[uid] = fullName;
+        return acc;
+      }, {} as Record<string, string>);
+
+      setUserNames(prev => ({ ...prev, ...newUserNames }));
+    } catch (error) {
+      console.error('Error preloading user names:', error);
     }
   };
 
@@ -147,9 +190,14 @@ const FormResponses = () => {
             const want = (filters[k] || '').toLowerCase().trim();
             let val: any = undefined;
             
-            if (k === '__user__') val = (it as any).user_id;
-            else if (k === '__submitted__') val = it.submitted_at;
-            else val = resp[k];
+            if (k === '__user__') {
+              const userId = (it as any).user_id;
+              val = userId ? (userNames[userId] || userId) : '';
+            } else if (k === '__submitted__') {
+              val = it.submitted_at;
+            } else {
+              val = resp[k];
+            }
             
             const column = columns.find((c) => c.key === k);
             const fieldType = column?.type || 'text';
@@ -199,8 +247,10 @@ const FormResponses = () => {
         let bVal: any = undefined;
         
         if (sortField === '__user__') {
-          aVal = (a as any).user_id || '';
-          bVal = (b as any).user_id || '';
+          const aUserId = (a as any).user_id;
+          const bUserId = (b as any).user_id;
+          aVal = aUserId ? (userNames[aUserId] || aUserId) : '';
+          bVal = bUserId ? (userNames[bUserId] || bUserId) : '';
         } else if (sortField === '__submitted__') {
           aVal = a.submitted_at;
           bVal = b.submitted_at;
@@ -252,7 +302,7 @@ const FormResponses = () => {
       setItems(filtered.slice(start, end));
     };
     applyFilters();
-  }, [rawItems, filters, page, pageSize, sortField, sortDirection, columns]);
+  }, [rawItems, filters, page, pageSize, sortField, sortDirection, columns, userNames]);
   const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
 
   const formatDate = (iso?: string) => {
@@ -354,7 +404,44 @@ const FormResponses = () => {
   };
 
   const UserCell = ({ uid }: { uid?: string }) => {
-    return <TableCell>{uid ?? '—'}</TableCell>;
+    const [displayName, setDisplayName] = useState<string>(uid ?? '—');
+    
+    useEffect(() => {
+      if (!uid) {
+        setDisplayName('—');
+        return;
+      }
+      
+      // Check if we already have the name cached
+      if (userNames[uid]) {
+        setDisplayName(userNames[uid]);
+        return;
+      }
+      
+      // Fetch the user name
+      const fetchName = async () => {
+        try {
+          const nameResult = await fetchUserNameByUId(uid);
+          let fullName: string;
+          
+          if (Array.isArray(nameResult) && nameResult.length >= 2) {
+            fullName = `${nameResult[0]} ${nameResult[1]}`;
+          } else {
+            fullName = String(nameResult);
+          }
+          
+          setDisplayName(fullName);
+          setUserNames(prev => ({ ...prev, [uid]: fullName }));
+        } catch (error) {
+          console.error('Failed to fetch user name:', error);
+          setDisplayName(uid);
+        }
+      };
+      
+      fetchName();
+    }, [uid]);
+    
+    return <TableCell>{displayName}</TableCell>;
   };
 
   const ValueCell = ({ value }: { value: any }) => {

@@ -52,6 +52,22 @@ export const fetchUsers = async () => {
     }
 };
 
+export const fetchUserNameByUId = async (userId: string) => {
+    try {
+        const res = await api.get(`/v1/users/get-user-by-uid/${userId}`);
+        const user = res.data;
+        if (user && user.first_name && user.last_name) {
+            return [user.first_name, user.last_name];
+        } else if (user && (user.first_name || user.last_name)) {
+            return [user.first_name || '', user.last_name || ''].filter(Boolean);
+        } else {
+            return userId;
+        }
+    } catch (err) {
+        console.error("Failed to fetch user by ID:", err);
+        return userId;
+    }
+}
 
 export const getMyPermissions = async (options?: MyPermsRequest) => {
     try {
