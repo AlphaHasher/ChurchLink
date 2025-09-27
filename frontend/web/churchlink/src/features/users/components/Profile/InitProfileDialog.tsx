@@ -74,9 +74,6 @@ export const InitProfileDialog: React.FC<InitProfileDialogProps> = ({
                 return;
             }
 
-            // If backend succeeded but still not initialized (e.g., more fields required)
-            // stay on the dialog; optionally surface a hint
-            alert("Information saved. Please complete all required fields to continue.");
         } catch (e) {
             console.error(e);
             alert("Failed to update profile info.");

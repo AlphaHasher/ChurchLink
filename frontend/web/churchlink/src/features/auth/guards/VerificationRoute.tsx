@@ -29,7 +29,6 @@ export const VerificationRoute: React.FC<VerificationRouteProps> = ({ children }
             }
             setVerLoading(true);
             try {
-                // getIsInit returns: { verified: boolean, init: boolean, msg?: string }
                 const res = await getIsInit();
                 if (!alive) return;
                 setIsVerified(!!res?.verified);

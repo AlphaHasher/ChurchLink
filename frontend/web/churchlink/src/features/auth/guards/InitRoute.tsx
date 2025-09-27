@@ -34,7 +34,7 @@ export const InitRoute: React.FC<InitRouteProps> = ({ children }) => {
             }
             setInitLoading(true);
             try {
-                const res = await getIsInit(); // expects: { verified: boolean, init: boolean, msg?: string }
+                const res = await getIsInit();
                 if (!alive) return;
                 setIsInit(!!res?.init);
                 setIsVerified(!!res?.verified);
@@ -54,7 +54,6 @@ export const InitRoute: React.FC<InitRouteProps> = ({ children }) => {
         };
     }, [user, loading]);
 
-    // Hold until both auth and init/verify checks are done
     if (loading || (user && initLoading)) {
         return <div />;
     }
