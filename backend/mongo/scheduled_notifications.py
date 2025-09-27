@@ -146,7 +146,7 @@ async def get_notification_history(db: AsyncIOMotorDatabase, limit=100) -> list:
     return await cursor.to_list(length=limit)
 
 # Log a sent notification to history (for live/instant notifications)
-async def log_notification(db: AsyncIOMotorDatabase, title, body, platform, tokens, actionType=None, link=None, route=None):
+async def log_notification(db: AsyncIOMotorDatabase, title, body, platform, tokens, actionType=None, link=None, route=None, tab=None, eventId=None):
     doc = {
         "title": title,
         "body": body,
@@ -155,6 +155,8 @@ async def log_notification(db: AsyncIOMotorDatabase, title, body, platform, toke
         "actionType": actionType,
         "link": link,
         "route": route,
+        "tab": tab,
+        "eventId": eventId,
         "sent": True,
         "sent_at": datetime.utcnow().isoformat(),
     }

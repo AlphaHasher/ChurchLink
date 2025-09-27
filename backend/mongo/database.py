@@ -67,6 +67,10 @@ class DB:
         {
             "name": "app_config",
             "indexes": ["config_type"]
+        },
+        {
+            "name": "fcm_tokens",
+            "indexes": ["user_id"]
         }
     ]
 

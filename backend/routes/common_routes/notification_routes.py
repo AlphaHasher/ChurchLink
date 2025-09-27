@@ -19,11 +19,16 @@ private_notification_router = APIRouter(prefix="/notification", tags=["Notificat
 # --- FCM Token Management (Public) ---
 @public_notification_router.post('/save-fcm-token')
 async def save_fcm_token(request: FCMTokenRequest):
+    print(f"FCM Token save request received: user_id={request.user_id}, token={request.token[:20]}...")
+    
     result = await DB.db['fcm_tokens'].update_one(
         {'user_id': request.user_id},
         {'$set': {'token': request.token}},
         upsert=True
     )
+    
+    print(f"FCM Token save result: matched={result.matched_count}, modified={result.modified_count}, upserted={result.upserted_id}")
+    
     return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
 
 # Mod Protected Router
@@ -80,7 +85,6 @@ async def send_push_notification(
     send_to_all: bool = Body(default=True),
     token: str = Body(default=None),
     # Deep linking fields
-    tab: str = Body(default=None),
     eventId: str = Body(default=None),
     link: str = Body(default=None),
     route: str = Body(default=None),
@@ -99,15 +103,13 @@ async def send_push_notification(
         for t in tokens:
             # Enhanced data payload for deep linking
             enhanced_data = {
-                **data,
-                # Add explicit deep linking fields
-                **({"tab": str(tab)} if tab is not None else {}),
+                # First convert all existing data to strings for FCM compatibility
+                **{k: str(v) if v is not None else None for k, v in data.items()},
+                # Then add/override with explicit deep linking fields
                 **({"eventId": str(eventId)} if eventId is not None else {}),
                 **({"link": str(link)} if link is not None else {}),
                 **({"route": str(route)} if route is not None else {}),
-                **({"actionType": str(actionType)} if actionType is not None else {}),
-                # Ensure string conversion for FCM compatibility
-                **{k: str(v) if v is not None else None for k, v in data.items()}
+                **({"actionType": str(actionType)} if actionType is not None else {})
             }
             
             message = messaging.Message(
@@ -127,20 +129,19 @@ async def send_push_notification(
                 # If token is invalid, remove it from database
                 if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
                     await DB.db['fcm_tokens'].delete_many({"token": t})
-        await log_notification(DB.db, title, body, "mobile", tokens, data.get("actionType"), data.get("link"), data.get("route"))
+        
+        await log_notification(DB.db, title, body, "mobile", tokens, actionType, link, route, eventId)
         return {"success": True, "results": responses, "count": len(tokens)}
     elif token:
         # Enhanced data payload for deep linking
         enhanced_data = {
-            **data,
-            # Add explicit deep linking fields
-            **({"tab": str(tab)} if tab is not None else {}),
+            # First convert all existing data to strings for FCM compatibility
+            **{k: str(v) if v is not None else None for k, v in data.items()},
+            # Then add/override with explicit deep linking fields
             **({"eventId": str(eventId)} if eventId is not None else {}),
             **({"link": str(link)} if link is not None else {}),
             **({"route": str(route)} if route is not None else {}),
-            **({"actionType": str(actionType)} if actionType is not None else {}),
-            # Ensure string conversion for FCM compatibility
-            **{k: str(v) if v is not None else None for k, v in data.items()}
+            **({"actionType": str(actionType)} if actionType is not None else {})
         }
         
         message = messaging.Message(
@@ -181,15 +182,13 @@ async def api_schedule_notification(
 ):
     # Enhanced data payload for deep linking
     enhanced_data = {
-        **data,
-        # Add explicit deep linking fields
-        **({"tab": str(tab)} if tab is not None else {}),
+        # First convert all existing data to strings for FCM compatibility
+        **{k: str(v) if v is not None else None for k, v in data.items()},
+        # Then add/override with explicit deep linking fields
         **({"eventId": str(eventId)} if eventId is not None else {}),
         **({"link": str(link)} if link is not None else {}),
         **({"route": str(route)} if route is not None else {}),
-        **({"actionType": str(actionType)} if actionType is not None else {}),
-        # Ensure string conversion for FCM compatibility
-        **{k: str(v) if v is not None else None for k, v in data.items()}
+        **({"actionType": str(actionType)} if actionType is not None else {})
     }
     
     payload = {
