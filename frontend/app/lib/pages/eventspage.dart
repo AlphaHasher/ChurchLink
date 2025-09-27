@@ -6,6 +6,8 @@ import '../models/event_registration_summary.dart';
 import '../services/event_registration_service.dart';
 import '../widgets/enhanced_event_card.dart';
 import 'event_showcase.dart';
+import 'package:app/services/notification_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -38,14 +40,12 @@ class _EventsPageState extends State<EventsPage> {
   void initState() {
     super.initState();
 
-    //Utilized for entering text into filters
+    // Utilized for entering text into filters
     _nameController = TextEditingController(text: _nameQuery ?? '');
-    _maxPriceController = TextEditingController(
-      text: _maxPrice?.toString() ?? '',
-    );
+    _maxPriceController = TextEditingController(text: _maxPrice?.toString() ?? '');
     _ageController = TextEditingController(text: _age?.toString() ?? '');
 
-    //Adjust the date slider so that it only shows one year in advance from the current date
+    // Adjust the date slider so that it only shows one year in advance from the current date
     _minDate = DateTime.now();
     _maxDate = DateTime.now().add(const Duration(days: 365));
     final totalDays = _maxDate.difference(_minDate).inDays.toDouble();
@@ -82,20 +82,18 @@ class _EventsPageState extends State<EventsPage> {
     };
 
     // Always include upcoming-only events
-    queryParams['date_after'] =
-        _minDate
-            .add(Duration(days: _dateRange.start.round()))
-            .toIso8601String()
-            .split('T')
-            .first;
+    queryParams['date_after'] = _minDate
+        .add(Duration(days: _dateRange.start.round()))
+        .toIso8601String()
+        .split('T')
+        .first;
 
     if (_dateRange.end < totalDays) {
-      queryParams['date_before'] =
-          _minDate
-              .add(Duration(days: _dateRange.end.round()))
-              .toIso8601String()
-              .split('T')
-              .first;
+      queryParams['date_before'] = _minDate
+          .add(Duration(days: _dateRange.end.round()))
+          .toIso8601String()
+          .split('T')
+          .first;
     }
 
     // Free events shortcut (max_price == 0)
@@ -138,10 +136,7 @@ class _EventsPageState extends State<EventsPage> {
       if (!mounted) return; // Exit early if widget is disposed
 
       try {
-        final summary =
-            await EventRegistrationService.getEventRegistrationSummary(
-              event.id,
-            );
+        final summary = await EventRegistrationService.getEventRegistrationSummary(event.id);
 
         if (!mounted) return; // Check again after async operation
 
@@ -149,9 +144,7 @@ class _EventsPageState extends State<EventsPage> {
           _registrationSummaries[event.id] = summary;
         });
       } catch (e) {
-        debugPrint(
-          'Failed to load registration summary for event ${event.id}: $e',
-        );
+        debugPrint('Failed to load registration summary for event ${event.id}: $e');
       }
     }
   }
@@ -195,73 +188,63 @@ class _EventsPageState extends State<EventsPage> {
                     controller: _maxPriceController,
                     decoration: const InputDecoration(labelText: "Max Price"),
                     keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) => setModalState(
-                          () => tempMaxPrice = double.tryParse(value),
-                        ),
+                    onChanged: (value) => setModalState(() => tempMaxPrice = double.tryParse(value)),
                   ),
 
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
                     value: tempGender,
-                    items:
-                        [
-                          null, // Show all: no filtering
-                          'all', // Only "All Genders" events
-                          'male',
-                          'female',
-                        ].map((g) {
-                          String label;
-                          if (g == null) {
-                            label = 'Show All';
-                          } else if (g == 'all') {
-                            label = 'All Genders Allowed';
-                          } else {
-                            label =
-                                '${g[0].toUpperCase()}${g.substring(1)} Only';
-                          }
-                          return DropdownMenuItem<String>(
-                            value: g,
-                            child: Text(label),
-                          );
-                        }).toList(),
-                    onChanged:
-                        (value) => setModalState(() => tempGender = value),
+                    items: [
+                      null, // Show all: no filtering
+                      'all', // Only "All Genders" events
+                      'male',
+                      'female',
+                    ].map((g) {
+                      String label;
+                      if (g == null) {
+                        label = 'Show All';
+                      } else if (g == 'all') {
+                        label = 'All Genders Allowed';
+                      } else {
+                        label = '${g[0].toUpperCase()}${g.substring(1)} Only';
+                      }
+                      return DropdownMenuItem<String>(
+                        value: g,
+                        child: Text(label),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setModalState(() => tempGender = value),
                   ),
 
                   TextField(
                     controller: _ageController,
                     decoration: const InputDecoration(labelText: "Age"),
                     keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) =>
-                            setModalState(() => tempAge = int.tryParse(value)),
+                    onChanged: (value) => setModalState(() => tempAge = int.tryParse(value)),
                   ),
 
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
                     value: tempMinistry,
-                    items:
-                        [
-                          null,
-                          'Children',
-                          'Education',
-                          'Family',
-                          'Music',
-                          'Quo Vadis Theater',
-                          'Skala Teens',
-                          'VBS',
-                          'United Service',
-                          'Women\'s Ministries',
-                          'Youth',
-                        ].map((m) {
-                          return DropdownMenuItem<String>(
-                            value: m,
-                            child: Text(m ?? 'All Ministries'),
-                          );
-                        }).toList(),
-                    onChanged:
-                        (value) => setModalState(() => tempMinistry = value),
+                    items: [
+                      null,
+                      'Children',
+                      'Education',
+                      'Family',
+                      'Music',
+                      'Quo Vadis Theater',
+                      'Skala Teens',
+                      'VBS',
+                      'United Service',
+                      'Women\'s Ministries',
+                      'Youth',
+                    ].map((m) {
+                      return DropdownMenuItem<String>(
+                        value: m,
+                        child: Text(m ?? 'All Ministries'),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setModalState(() => tempMinistry = value),
                   ),
 
                   Column(
@@ -277,18 +260,10 @@ class _EventsPageState extends State<EventsPage> {
                         max: _maxDate.difference(_minDate).inDays.toDouble(),
                         divisions: 20,
                         labels: RangeLabels(
-                          _minDate
-                              .add(Duration(days: _dateRange.start.round()))
-                              .toString()
-                              .split(' ')[0],
-                          _minDate
-                              .add(Duration(days: _dateRange.end.round()))
-                              .toString()
-                              .split(' ')[0],
+                          _minDate.add(Duration(days: _dateRange.start.round())).toString().split(' ')[0],
+                          _minDate.add(Duration(days: _dateRange.end.round())).toString().split(' ')[0],
                         ),
-                        onChanged:
-                            (values) =>
-                                setModalState(() => tempDateRange = values),
+                        onChanged: (values) => setModalState(() => tempDateRange = values),
                       ),
                     ],
                   ),
@@ -330,8 +305,7 @@ class _EventsPageState extends State<EventsPage> {
                             _dateRange = tempDateRange;
 
                             _nameController.text = _nameQuery ?? '';
-                            _maxPriceController.text =
-                                _maxPrice?.toString() ?? '';
+                            _maxPriceController.text = _maxPrice?.toString() ?? '';
                             _ageController.text = _age?.toString() ?? '';
                           });
                           Navigator.pop(context);
@@ -388,35 +362,185 @@ class _EventsPageState extends State<EventsPage> {
             children: [
               _isLoading
                   ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+                      padding: EdgeInsets.symmetric(vertical: 50),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
                   : _events.isEmpty
-                  ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Text("No events found."),
-                  )
-                  : ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: _events.length,
-                    itemBuilder: (context, index) {
-                      final event = _events[index];
-                      return EnhancedEventCard(
-                        event: event,
-                        onViewPressed: () => _navigateToShowcase(event),
-                        registrationSummary: _registrationSummaries[event.id],
-                      );
-                    },
-                  ),
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 50),
+                          child: Text("No events found."),
+                        )
+                      : ListView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: _events.length,
+                          itemBuilder: (context, index) {
+                            final event = _events[index];
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                EnhancedEventCard(
+                                  event: event,
+                                  onViewPressed: () => _navigateToShowcase(event),
+                                  registrationSummary: _registrationSummaries[event.id],
+                                ),
+
+                                // Action row: "Remind me" popup (right aligned)
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: PopupMenuButton<String>(
+                                    icon: const Icon(Icons.alarm_add),
+                                    onSelected: (v) async {
+                                      final DateTime start = event.date; // assumed DateTime
+
+                                      if (v == '1m') {
+                                        // Debug: fires ~1 minute from now
+                                        final t = DateTime.now().add(const Duration(minutes: 1));
+                                        await NotificationService.instance.scheduleEventReminder(
+                                          eventId: event.id,
+                                          title: 'Test: ${event.name}',
+                                          body: 'Should fire in ~1 minute.',
+                                          eventStartLocal: t,
+                                          offset: Duration.zero,
+                                        );
+                                      } else if (v == '1h') {
+                                        await NotificationService.instance.scheduleEventReminder(
+                                          eventId: event.id,
+                                          title: event.name,
+                                          body: 'Starts in 1 hour${event.location != null ? " at ${event.location}" : ""}',
+                                          eventStartLocal: start,
+                                          offset: const Duration(hours: 1),
+                                        );
+                                      } else if (v == '1d') {
+                                        await NotificationService.instance.scheduleEventReminder(
+                                          eventId: event.id,
+                                          title: 'Tomorrow: ${event.name}',
+                                          body:
+                                              'Starts at ${start.hour.toString().padLeft(2, "0")}:${start.minute.toString().padLeft(2, "0")}',
+                                          eventStartLocal: start,
+                                          offset: const Duration(days: 1),
+                                        );
+                                      } else if (v == 'off') {
+                                        await NotificationService.instance.cancelEventReminder(event.id);
+                                      }
+
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Reminder updated')),
+                                        );
+                                      }
+                                    },
+                                    itemBuilder: (_) => const [
+                                      PopupMenuItem(value: '1m', child: Text('Remind in 1 minute (debug)')),
+                                      PopupMenuItem(value: '1h', child: Text('Remind 1 hour before')),
+                                      PopupMenuItem(value: '1d', child: Text('Remind 1 day before')),
+                                      PopupMenuItem(value: 'off', child: Text('Remove reminder')),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+                              ],
+                            );
+                          },
+                        ),
             ],
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-        child: const Icon(Icons.filter_list),
-        onPressed: () => _showFilterSheet(context),
+
+      // Diagnostics footer (temporary; remove after testing)
+      persistentFooterButtons: [
+        TextButton(
+          onPressed: () async {
+            final pending = await FlutterLocalNotificationsPlugin().pendingNotificationRequests();
+            debugPrint('PENDING=${pending.length}');
+            for (final p in pending) {
+              debugPrint('id=${p.id} title=${p.title}');
+            }
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Pending: ${pending.length}')),
+              );
+            }
+          },
+          child: const Text('List pending'),
+        ),
+        TextButton(
+          onPressed: () async {
+            await FlutterLocalNotificationsPlugin().cancelAll();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('All reminders canceled')),
+              );
+            }
+          },
+          child: const Text('Cancel all'),
+        ),
+      ],
+
+      // Two FABs: Show now + Test 1m + Filter
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Show now (immediate)
+          FloatingActionButton.extended(
+            heroTag: 'fab-show-now',
+            backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+            icon: const Icon(Icons.notifications_active),
+            label: const Text('Show now'),
+            onPressed: () async {
+              await FlutterLocalNotificationsPlugin().show(
+                99001,
+                'Immediate test',
+                'If you see this, notifications work.',
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                    'events',
+                    'Event Reminders',
+                    importance: Importance.max,
+                    priority: Priority.high,
+                  ),
+                  iOS: DarwinNotificationDetails(),
+                ),
+                payload: 'immediate',
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Test 1-minute FAB
+          FloatingActionButton.extended(
+            heroTag: 'fab-test-1m',
+            backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+            icon: const Icon(Icons.alarm),
+            label: const Text('Test 1m'),
+            onPressed: () async {
+              final t = DateTime.now().add(const Duration(minutes: 1));
+              await NotificationService.instance.scheduleEventReminder(
+                eventId: 'debug-1m',
+                title: 'Test reminder',
+                body: 'Should fire in ~1 minute.',
+                eventStartLocal: t,
+                offset: Duration.zero,
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Reminder scheduled for ~1 minute')),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Existing Filter FAB
+          FloatingActionButton(
+            heroTag: 'fab-filter',
+            backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+            child: const Icon(Icons.filter_list),
+            onPressed: () => _showFilterSheet(context),
+          ),
+        ],
       ),
     );
   }
