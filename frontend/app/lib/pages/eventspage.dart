@@ -136,7 +136,10 @@ class _EventsPageState extends State<EventsPage> {
       if (!mounted) return; // Exit early if widget is disposed
 
       try {
-        final summary = await EventRegistrationService.getEventRegistrationSummary(event.id);
+        final summary =
+            await EventRegistrationService.getEventRegistrationSummary(
+              event.id,
+            );
 
         if (!mounted) return; // Check again after async operation
 
