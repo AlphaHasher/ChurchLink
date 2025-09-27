@@ -5,10 +5,6 @@ from bson import ObjectId
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
 
-
- 
-
-
 # Bible books list for validation
 BIBLE_BOOKS = [
     # Old Testament

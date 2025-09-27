@@ -19,7 +19,7 @@ class EventShowcase extends StatefulWidget {
 
 class _EventShowcaseState extends State<EventShowcase> {
   List<FamilyMember> _familyMembers = [];
-  Set<String> _selectedRegistrants = {};
+  final Set<String> _selectedRegistrants = {};
   bool _isRegistering = false;
   bool _isUserRegistered = false;
   Map<String, bool> _familyMemberRegistrations = {};

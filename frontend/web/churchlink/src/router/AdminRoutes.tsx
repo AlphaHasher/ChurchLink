@@ -21,6 +21,9 @@ const AddFooterSection = lazy(() => import("../features/admin/components/WebBuil
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
+const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
+const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
+const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
 
 export const AdminRoutes = () => {
   return (
@@ -31,9 +34,12 @@ export const AdminRoutes = () => {
         <Route path="/users" element={<Users />} />
         <Route path="/permissions" element={<Permissions />} />
         <Route path="/notifications" element={<Notification />} />
-        <Route path="/finance" element={<Finance />} />
         <Route path="/events" element={<Events />} />
+        <Route path="/finance" element={<Finance />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
+        <Route path="/forms/form-builder" element={<FormBuilder />} />
+        <Route path="/forms/manage-forms" element={<ManageForms />} />
+        <Route path="/forms/responses" element={<FormResponses />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />

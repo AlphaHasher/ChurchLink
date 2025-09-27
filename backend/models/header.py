@@ -1,4 +1,3 @@
-# backend/models/header.py
 from datetime import datetime
 from typing import List, Optional, Final, Union
 from pydantic import BaseModel

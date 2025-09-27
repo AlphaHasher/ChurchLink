@@ -7,7 +7,7 @@ from datetime import datetime # Import datetime if needed for birthday query
 # Import models and functions from models/user.py
 from models.user import (
     UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, PersonUpdateRequest, FamilyMemberIDTag, # Assuming AddressSchema might be needed for updates
-    create_user, get_user_by_id, get_user_by_email,
+    create_user, get_user_by_id, get_user_by_uid, get_user_by_email,
     get_users,
     find_users_with_permissions,
     update_user_roles, delete_user,
@@ -201,6 +201,16 @@ async def process_check_mod(request:Request):
 @user_mod_router.get("/get-users")
 async def process_get_users(request:Request):
     return await fetch_users()
+
+# Mod Router
+@user_mod_router.get("/get-user/{user_id}")
+async def process_get_user(user_id: str, request:Request):
+    return await get_user_by_id(user_id)
+
+# Get user by uid
+@user_mod_router.get("/get-user-by-uid/{uid}")
+async def process_get_user_by_uid(uid: str, request:Request):
+    return await get_user_by_uid(uid)
 
 # Mod Router
 @user_mod_router.post("/get-my-permissions")

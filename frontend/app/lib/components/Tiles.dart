@@ -44,26 +44,26 @@ class _TilesState extends State<Tiles> {
             const Duration(milliseconds: 150), // Adjust the duration as needed
         opacity: isPressed ? 0.8 : 1.0, // Lower opacity when pressed
         child: Container(
-            width: widget.width,
-            height: widget.height,
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.black54),
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.black,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.fromARGB(
+          width: widget.width,
+          height: widget.height,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.black54),
+            borderRadius: BorderRadius.circular(10),
+            color: Colors.black,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.fromARGB(
                       255, 238, 237, 237), //old: Color.fromARGB(255, 6, 74, 83)
-                  Color.fromARGB(
+                Color.fromARGB(
                       32, 67, 157, 216) //old: Color.fromARGB(255, 99, 25, 148)
-                ],
-              ),
+              ],
             ),
+          ),
             child: (widget.subText.isEmpty)
-                ? Center(
+                  ? Center(
                     child: Text(
                       textAlign: TextAlign.center,
                       widget.mainText,
@@ -74,7 +74,7 @@ class _TilesState extends State<Tiles> {
                       ),
                     ),
                   )
-                : Center(
+                  : Center(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Column(
@@ -100,7 +100,8 @@ class _TilesState extends State<Tiles> {
                         ],
                       ),
                     ),
-                  )),
+                  ),
+        ),
       ),
     );
   }

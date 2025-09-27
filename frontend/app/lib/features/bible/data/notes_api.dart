@@ -215,13 +215,13 @@ class _Cache {
       if (raw is Map && raw['notes'] is List) {
         return (raw['notes'] as List)
             .cast<Map>()
-            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
       if (raw is List) {
         return raw
             .cast<Map>()
-            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
       return <Map<String, dynamic>>[];
@@ -302,7 +302,7 @@ class _Cache {
             return c != 0 ? c : va.compareTo(vb);
           });
     return filtered
-        .map((e) => RemoteNote.fromJson(e as Map<String, dynamic>))
+        .map((e) => RemoteNote.fromJson(e))
         .toList();
   }
 
@@ -362,7 +362,7 @@ class _Outbox {
       if (raw is List) {
         return raw
             .cast<Map>()
-            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
       return <Map<String, dynamic>>[];
@@ -450,13 +450,14 @@ class _Outbox {
             final localId = rawLocal?.toString();
             final payloadAny = job['payload'];
             if (localId == null || payloadAny == null || payloadAny is! Map) {
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('[Outbox] drop malformed create: $job');
+              }
               jobs.removeAt(i);
               await _write(jobs);
               continue;
             }
-            final p = Map<String, dynamic>.from(payloadAny as Map);
+            final p = Map<String, dynamic>.from(payloadAny);
 
             final created = await NotesApi._createOnline(
               RemoteNote(
@@ -499,8 +500,9 @@ class _Outbox {
           if (op == 'update') {
             var id = job['id']?.toString();
             if (id == null) {
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('[Outbox] drop malformed update: $job');
+              }
               jobs.removeAt(i);
               await _write(jobs);
               continue;
@@ -524,8 +526,9 @@ class _Outbox {
           if (op == 'delete') {
             var id = job['id']?.toString();
             if (id == null) {
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('[Outbox] drop malformed delete: $job');
+              }
               jobs.removeAt(i);
               await _write(jobs);
               continue;

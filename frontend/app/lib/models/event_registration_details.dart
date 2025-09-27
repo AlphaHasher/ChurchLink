@@ -1,4 +1,3 @@
-
 class RegistrationEntry {
   final String userUid;
   final String userName;
