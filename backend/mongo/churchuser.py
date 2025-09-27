@@ -4,6 +4,9 @@ from mongo.database import DB
 from datetime import datetime
 from mongo.roles import RoleHandler
 
+
+_PERSON_ID_NOT_PROVIDED = object()
+
 class UserHandler:
     @staticmethod
     async def is_user(uid):
@@ -322,13 +325,28 @@ class UserHandler:
             print(f"An error occurred:\n {e}")
 
     @staticmethod
-    async def remove_from_my_events(uid: str, *, key: str = None, event_id: ObjectId = None,
-                                    reason: str = None, scope: str = None,
-                                    occurrence_id: ObjectId = None, occurrence_start=None,
-                                    series_id: ObjectId = None, person_id: ObjectId = None):
+    async def remove_from_my_events(
+        uid: str,
+        *,
+        key: str = None,
+        event_id: ObjectId = None,
+        reason: str = None,
+        scope: str = None,
+        occurrence_id: ObjectId = None,
+        occurrence_start=None,
+        series_id: ObjectId = None,
+        person_id: ObjectId | None | object = _PERSON_ID_NOT_PROVIDED,
+    ):
         """
         Remove by the stable 'key' (recommended) OR by matching fields.
+
+        Person filtering rules:
+        - If person_id is not passed, entries are matched without considering person_id.
+        - If person_id is explicitly passed as None, entries for the main user (no person_id) are removed.
+        - If person_id is an ObjectId, entries for the specified family member are removed.
         """
+        person_id_provided = person_id is not _PERSON_ID_NOT_PROVIDED
+
         if key:
             criteria = {"key": key}
         else:
@@ -344,8 +362,17 @@ class UserHandler:
                 criteria["occurrence_id"] = occurrence_id
             if occurrence_start is not None:
                 criteria["occurrence_start"] = occurrence_start
-            if person_id is not None:
-                criteria["person_id"] = person_id
+
+            if person_id_provided:
+                if person_id is None:
+                    # Remove entry for main user (no person_id or explicit null)
+                    criteria["$or"] = [
+                        {"person_id": {"$exists": False}},
+                        {"person_id": None},
+                    ]
+                else:
+                    # Remove entry for specific family member
+                    criteria["person_id"] = person_id
 
         result = await DB.db["users"].update_one(
             {"uid": uid},
