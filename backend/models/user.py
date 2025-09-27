@@ -6,7 +6,7 @@ from pydantic import (
 from bson import ObjectId
 from mongo.database import DB
 # Import the refactored roles functions
-from models.roles import get_role_ids_from_names, get_roles_with_permissions
+from models.roles_models import get_role_ids_from_names, get_roles_with_permissions
 # Import UserHandler for family member operations
 from mongo.churchuser import UserHandler
 from models.base.ssbc_base_model import PydanticObjectId
@@ -103,6 +103,21 @@ async def get_user_by_id(user_id: str) -> Optional[UserOut]:
         print(f"An error occurred fetching user by ID: {e}")
         return None
 
+async def get_user_by_uid(uid: str) -> Optional[UserOut]:
+    """
+    Retrieves a user by their UID (assuming 'uid' is a unique field in the user document).
+    (Uses find_one directly as uid is expected to be unique)
+    """
+    try:
+        # Use find_one directly for unique uid lookup
+        user_doc = await DB.db["users"].find_one({"uid": uid})
+        if user_doc:
+            user_doc["id"] = str(user_doc.pop("_id"))
+            return UserOut(**user_doc)
+        return None
+    except Exception as e:
+        print(f"An error occurred fetching user by UID: {e}")
+        return None
 
 async def get_user_by_email(email: EmailStr) -> Optional[UserOut]:
     """

@@ -577,7 +577,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                   ),
                                   const SizedBox(height: 12),
                                   DropdownButtonFormField<String>(
-                                    value: selBook,
+                                    initialValue: selBook,
                                     isExpanded: true,
                                     decoration: const InputDecoration(
                                       labelText: 'Book',
@@ -946,8 +946,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       '')
                   .trim();
           if (existingTxt.isEmpty && id2 != null) {
-            if (kDebugMode)
+            if (kDebugMode) {
               debugPrint('[WriteThrough] DELETE row (clear highlight) id=$id2');
+            }
             await NotesApi.delete(id2);
             if (cid2 != null) _noteIdByCluster.remove(cid2);
             _noteIdByKey.remove(_k(v.$1));
