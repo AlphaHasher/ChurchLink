@@ -2,7 +2,7 @@ import { api } from "@/api";
 
 // ==== Types ====
 
-export type NotificationActionType = "text" | "link" | "tab" | "event";
+export type NotificationActionType = "text" | "link" | "event" | "route";
 export type NotificationTarget = "all" | "logged_in" | "anonymous";
 
 export interface NotificationSettingsResponse {
@@ -20,7 +20,6 @@ export interface ScheduleNotificationPayload {
     target: NotificationTarget;
     actionType: NotificationActionType;
     link?: string;
-    tab?: string;
     eventId?: string;
     data?: Record<string, unknown>;
 }
@@ -44,6 +43,8 @@ export interface HistoryNotification {
     message?: string;
     body?: string;
     link?: string;
+    route?: string;
+    actionType?: NotificationActionType;
     recipients?: unknown[];
     sent_at?: string;
     scheduled_time?: string;
@@ -92,7 +93,6 @@ export interface SendNotificationPayload {
     target?: NotificationTarget;
     actionType?: NotificationActionType;
     link?: string;
-    tab?: string;
     eventId?: string;
     data?: Record<string, unknown>;
 }
@@ -107,7 +107,6 @@ export const sendNotificationNow = async (payload: SendNotificationPayload) => {
             ...payload.data
         },
         // Deep linking fields
-        tab: payload.tab,
         eventId: payload.eventId,
         link: payload.link,
         actionType: payload.actionType || "text"

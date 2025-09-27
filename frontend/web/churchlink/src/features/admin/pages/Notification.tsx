@@ -16,7 +16,6 @@ import {
 } from "../../../helpers/NotificationHelper";
 import { fetchEvents } from "../../../helpers/EventsHelper";
 import { ChurchEvent } from "../../../shared/types/ChurchEvent";
-import { getAvailableTabs, AppTab } from "../../../helpers/TabsHelper";
 
 type ActiveTab = "scheduled" | "history";
 
@@ -29,8 +28,7 @@ interface DraftNotification {
   platform: "mobile" | "email" | "both"; // keeping for parity even if not used server-side
   actionType: NotificationActionType;
   link?: string;
-  // Deep linking fields
-  tab?: string;
+  route?: string;
   eventId?: string;
 }
 
@@ -47,7 +45,6 @@ const Notification = () => {
   const [notificationHistory, setNotificationHistory] = useState<HistoryNotification[]>([]);
   const [targetAudience, setTargetAudience] = useState<NotificationTarget>("all");
   const [events, setEvents] = useState<ChurchEvent[]>([]);
-  const [availableTabs, setAvailableTabs] = useState<AppTab[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -66,7 +63,7 @@ const Notification = () => {
     platform: "mobile",
     actionType: "text",
     link: "",
-    tab: "",
+    route: "",
     eventId: "",
   });
 
@@ -89,16 +86,12 @@ const Notification = () => {
     (async () => {
       setLoading(true);
       try {
-        const [s, tabs] = await Promise.all([
-          getNotificationSettings(),
-          getAvailableTabs()
-        ]);
+        const s = await getNotificationSettings();
         if (ignore) return;
         setStreamNotificationMessage(s.streamNotificationMessage || "A new stream is live!");
         setYoutubeLiveTitle(s.streamNotificationTitle || "Live Stream Started");
         setSelectedTimezone(s.YOUTUBE_TIMEZONE || "America/Los_Angeles");
         setEnvOverride(!!s.envOverride);
-        setAvailableTabs(tabs);
       } catch {
         // leave defaults
       } finally {
@@ -199,11 +192,6 @@ const Notification = () => {
       setScheduleLoading(false);
       return;
     }
-    if (newNotification.actionType === "tab" && !newNotification.tab?.trim()) {
-      setFormError("Tab is required for tab navigation.");
-      setScheduleLoading(false);
-      return;
-    }
     if (newNotification.actionType === "event" && !newNotification.eventId?.trim()) {
       setFormError("Event selection is required for event navigation.");
       setScheduleLoading(false);
@@ -239,16 +227,12 @@ const Notification = () => {
           body: newNotification.message,
           target: targetAudience,
           actionType: newNotification.actionType,
-          link: newNotification.link || undefined,
-          tab: newNotification.tab || undefined,
-          eventId: newNotification.eventId || undefined,
+          ...(newNotification.link && { link: newNotification.link }),
+          ...(newNotification.eventId && { eventId: newNotification.eventId }),
           data: {
             ...(newNotification.actionType === "link" && newNotification.link ? { link: newNotification.link } : {}),
-            ...(newNotification.actionType === "tab" && newNotification.tab ? { tab: newNotification.tab } : {}),
             ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId } : {}),
-            // Combined action for event navigation (tab + event route)
             ...(newNotification.actionType === "event" && newNotification.eventId ? { 
-              tab: "3", // Events tab index
               route: `/event/${newNotification.eventId}` 
             } : {}),
           },
@@ -268,16 +252,12 @@ const Notification = () => {
           scheduled_time,
           target: targetAudience,
           actionType: newNotification.actionType,
-          link: newNotification.link || undefined,
-          tab: newNotification.tab || undefined,
-          eventId: newNotification.eventId || undefined,
+          ...(newNotification.link && { link: newNotification.link }),
+          ...(newNotification.eventId && { eventId: newNotification.eventId }),
           data: {
             ...(newNotification.actionType === "link" && newNotification.link ? { link: newNotification.link } : {}),
-            ...(newNotification.actionType === "tab" && newNotification.tab ? { tab: newNotification.tab } : {}),
             ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId } : {}),
-            // Combined action for event navigation (tab + event route)
             ...(newNotification.actionType === "event" && newNotification.eventId ? { 
-              tab: "3", // Events tab index
               route: `/event/${newNotification.eventId}` 
             } : {}),
           },
@@ -302,7 +282,6 @@ const Notification = () => {
         platform: "both",
         actionType: "text",
         link: "",
-        tab: "",
         eventId: "",
       });
     } catch {
@@ -404,10 +383,33 @@ const Notification = () => {
           >
             <option value="text">Text Only (default)</option>
             <option value="link">Open Link (external)</option>
-            <option value="tab">Switch to Tab</option>
+            <option value="route">Open Page (route)</option>
             <option value="event">Navigate to Event</option>
           </select>
         </div>
+        
+        {newNotification.actionType === "route" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Select Page</label>
+            <select
+              value={newNotification.route || ""}
+              onChange={(e) => setNewNotification({ ...newNotification, route: e.target.value })}
+              className="border p-2 w-full"
+            >
+              <option value="">Select a page...</option>
+              <option value="/home">Home</option>
+              <option value="/bible">Bible</option>
+              <option value="/sermons">Sermons</option>
+              <option value="/events">Events</option>
+              <option value="/profile">Profile</option>
+              <option value="/live">Live Stream</option>
+              <option value="/bulletin">Weekly Bulletin</option>
+              <option value="/giving">Giving</option>
+              <option value="/ministries">Ministries</option>
+              <option value="/contact">Contact</option>
+            </select>
+          </div>
+        )}
 
         {newNotification.actionType === "link" && (
           <div>
@@ -422,23 +424,7 @@ const Notification = () => {
           </div>
         )}
 
-        {newNotification.actionType === "tab" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tab Name/Index</label>
-            <select
-              value={newNotification.tab || ""}
-              onChange={(e) => setNewNotification({ ...newNotification, tab: e.target.value })}
-              className="border p-2 w-full"
-            >
-              <option value="">Select Tab</option>
-              {availableTabs.map((tab) => (
-                <option key={tab.index} value={tab.index.toString()}>
-                  {tab.displayName} (Index: {tab.index})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        
 
         {newNotification.actionType === "event" && (
           <div>
@@ -455,7 +441,7 @@ const Notification = () => {
                 </option>
               ))}
             </select>
-            <p className="text-sm text-gray-600 mt-1">This will navigate to the Events tab and show the specific event</p>
+            <p className="text-sm text-gray-600 mt-1">This will show the specific event</p>
           </div>
         )}
 
@@ -617,7 +603,8 @@ const Notification = () => {
                 <th className="border p-2">Time</th>
                 <th className="border p-2">Title</th>
                 <th className="border p-2">Message</th>
-                <th className="border p-2">Link</th>
+                <th className="border p-2">Action Type</th>
+                <th className="border p-2">Detail</th>
                 <th className="border p-2">Recipients</th>
                 <th className="border p-2">Status</th>
                 <th className="border p-2">Actions</th>
@@ -634,6 +621,24 @@ const Notification = () => {
                   const msg = n.message || n.body || (n.data as any)?.message || "-";
                   const link = (n.link || (n.data as any)?.link) ?? null;
                   const route = (n.route || (n.data as any)?.route) ?? null;
+                  // Removed unused tab reference
+                  const eventId = (n as any).eventId || ((n.data as any)?.eventId ?? null);
+                  const actionType = (n as any).actionType || (n.data as any)?.actionType || "text";
+                  
+                  // Determine detail content based on action type
+                  let detailContent = "-";
+                  if (actionType === "link" && link) {
+                    detailContent = link;
+                  } else if (actionType === "event" && eventId) {
+                    // Find the actual event name from the events array
+                    const matchedEvent = events.find(e => e.id === eventId);
+                    const eventName = matchedEvent ? matchedEvent.name : `Event ${eventId}`;
+                    detailContent = `Open event: ${eventName}`;
+                  } else if (route) {
+                    detailContent = route;
+                  } else if (link) {
+                    detailContent = link;
+                  }
 
                   return (
                     <tr key={(n.id as any) || n._id || idx} className="border">
@@ -643,14 +648,21 @@ const Notification = () => {
                       <td className="p-2 border">{n.title}</td>
                       <td className="p-2 border">{msg}</td>
                       <td className="p-2 border">
-                        {link ? (
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          actionType === "link" ? "bg-blue-100 text-blue-800" :
+                          actionType === "event" ? "bg-purple-100 text-purple-800" :
+                          "bg-gray-100 text-gray-800"
+                        }`}>
+                          {actionType.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-2 border">
+                        {actionType === "link" && link ? (
                           <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                            {link}
+                            {link.length > 50 ? `${link.substring(0, 50)}...` : link}
                           </a>
-                        ) : route ? (
-                          <span>{route}</span>
                         ) : (
-                          "-"
+                          <span className="text-gray-700">{detailContent}</span>
                         )}
                       </td>
                       <td className="p-2 border">
