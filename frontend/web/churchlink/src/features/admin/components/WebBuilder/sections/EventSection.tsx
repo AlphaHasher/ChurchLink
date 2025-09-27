@@ -145,24 +145,23 @@ const EventSection: React.FC<EventSectionProps> = ({
   const isRegistered = (ev: Event) =>
     myEvents.some((m) => m.event_id === ev.id && m.reason === "rsvp");
 
-  const addWatch = async (ev: Event) => {
+  const addWatch = async (ev: Event, desiredScope?: MyEventScope) => {
+  const scopeToUse = desiredScope ?? watchScope;
   setChanging(ev.id);
   try {
     const params = new URLSearchParams();
-    params.set("scope", watchScope);
-    if (watchScope === "occurrence") {
-      // no date input; use event's own start time
+    params.set("scope", scopeToUse);
+    if (scopeToUse === "occurrence") {
+      // we removed the date picker; use the event's own start
       params.set("occurrenceStart", new Date(ev.date).toISOString());
     }
     await api.post(`/v1/event-people/watch/${ev.id}?` + params.toString());
     await fetchMyEvents();
-  } catch (e) {
-    console.error(e);
-    alert("Failed to add to My Events.");
   } finally {
     setChanging(null);
   }
 };
+
 
   const removeWatch = async (ev: Event) => {
     setChanging(ev.id);
@@ -178,11 +177,12 @@ const EventSection: React.FC<EventSectionProps> = ({
   };
 
   const switchWatchScope = async (ev: Event) => {
-    const next: MyEventScope = currentWatchScope(ev) === "series" ? "occurrence" : "series";
-    setWatchScope(next);
-    await removeWatch(ev);
-    await addWatch(ev);
-  };
+  if (changing === ev.id) return; // guard
+  const next: MyEventScope = currentWatchScope(ev) === "series" ? "occurrence" : "series";
+  setWatchScope(next);                 // update UI state (optional)
+  await removeWatch(ev);               // remove existing watch (any scope)
+  await addWatch(ev, next);            // add with the intended scope explicitly
+};
 
   // ---------- actions: RSVP / registration ----------
   const register = async (ev: Event) => {
