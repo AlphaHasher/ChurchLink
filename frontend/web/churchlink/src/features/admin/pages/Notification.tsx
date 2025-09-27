@@ -187,10 +187,16 @@ const Notification = () => {
       setScheduleLoading(false);
       return;
     }
-    if (newNotification.actionType === "link" && !newNotification.link?.trim()) {
-      setFormError("Link is required for link action.");
-      setScheduleLoading(false);
-      return;
+    let normalizedLink = newNotification.link?.trim();
+    if (newNotification.actionType === "link") {
+      if (!normalizedLink) {
+        setFormError("Link is required for link action.");
+        setScheduleLoading(false);
+        return;
+      }
+      if (!isLinkValidFormat(normalizedLink)) {
+        normalizedLink = `https://${normalizedLink.replace(/^\/*/, "")}`;
+      }
     }
     if (newNotification.actionType === "event" && !newNotification.eventId?.trim()) {
       setFormError("Event selection is required for event navigation.");
@@ -227,22 +233,22 @@ const Notification = () => {
           body: newNotification.message,
           target: targetAudience,
           actionType: newNotification.actionType,
-          ...(newNotification.link && { link: newNotification.link }),
-          ...(newNotification.eventId && { eventId: newNotification.eventId }),
+          ...(newNotification.actionType === "link" ? { link: normalizedLink } : (newNotification.link && { link: newNotification.link })),
+          ...(newNotification.actionType === "route" && newNotification.route ? { route: newNotification.route } : {}),
+          ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId, route: `/event/${newNotification.eventId}` } : {}),
           data: {
-            ...(newNotification.actionType === "link" && newNotification.link ? { link: newNotification.link } : {}),
-            ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId } : {}),
-            ...(newNotification.actionType === "event" && newNotification.eventId ? { 
-              route: `/event/${newNotification.eventId}` 
-            } : {}),
+            ...(newNotification.actionType === "link" && normalizedLink ? { link: normalizedLink } : {}),
+            ...(newNotification.actionType === "route" && newNotification.route ? { route: newNotification.route } : {}),
+            ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId, route: `/event/${newNotification.eventId}` } : {}),
           },
         };
 
         const res = await sendNotificationNow(payload);
-        if (res.status >= 200 && res.status < 300) {
+        if (res.status >= 200 && res.status < 300 && res.data?.success !== false) {
           setScheduleStatus("Notification sent successfully.");
         } else {
-          setScheduleStatus("Failed to send notification.");
+          const errorMsg = res.data?.error || "Failed to send notification.";
+          setScheduleStatus(errorMsg);
         }
       } else {
         // Schedule for later using the /schedule endpoint
@@ -252,14 +258,13 @@ const Notification = () => {
           scheduled_time,
           target: targetAudience,
           actionType: newNotification.actionType,
-          ...(newNotification.link && { link: newNotification.link }),
-          ...(newNotification.eventId && { eventId: newNotification.eventId }),
+          ...(newNotification.actionType === "link" ? { link: normalizedLink } : (newNotification.link && { link: newNotification.link })),
+          ...(newNotification.actionType === "route" && newNotification.route ? { route: newNotification.route } : {}),
+          ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId, route: `/event/${newNotification.eventId}` } : {}),
           data: {
-            ...(newNotification.actionType === "link" && newNotification.link ? { link: newNotification.link } : {}),
-            ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId } : {}),
-            ...(newNotification.actionType === "event" && newNotification.eventId ? { 
-              route: `/event/${newNotification.eventId}` 
-            } : {}),
+            ...(newNotification.actionType === "link" && normalizedLink ? { link: normalizedLink } : {}),
+            ...(newNotification.actionType === "route" && newNotification.route ? { route: newNotification.route } : {}),
+            ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId, route: `/event/${newNotification.eventId}` } : {}),
           },
         };
 
@@ -282,6 +287,7 @@ const Notification = () => {
         platform: "both",
         actionType: "text",
         link: "",
+        route: "",
         eventId: "",
       });
     } catch {
@@ -684,5 +690,10 @@ const Notification = () => {
     </div>
   );
 };
+
+// Utility to check if a link is valid format (starts with https://)
+function isLinkValidFormat(url: string): boolean {
+  return /^https?:\/\//.test(url);
+}
 
 export default Notification;

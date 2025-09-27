@@ -96,7 +96,13 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const DashboardPage(),
         '/bible': (context) => const BiblePage(),
         '/sermons': (context) => const SermonsPage(),
+        '/events': (context) => const EventsPage(),
         '/profile': (context) => const UserSettings(),
+        '/live': (context) => const JoinLive(),
+        '/bulletin': (context) => const WeeklyBulletin(),
+        '/giving': (context) => const Giving(),
+        '/ministries': (context) => const Ministries(),
+        '/contact': (context) => const Contact(),
       },
     );
   }
