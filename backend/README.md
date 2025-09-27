@@ -148,8 +148,7 @@ class YourModelBase(BaseModel):
     name: str
     description: Optional[str] = None
 
-    class ConfigDict:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class YourModelCreate(YourModelBase):
     pass
