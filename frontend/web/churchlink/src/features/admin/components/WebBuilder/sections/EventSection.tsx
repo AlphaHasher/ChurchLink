@@ -92,13 +92,37 @@ function EventRegistrationForm({
   event,
   onClose,
   onSaved,
-  onAddPerson,
+  onAddPerson, // optional external flow; we keep it but also provide inline add
 }: {
   event: Event;
   onClose: () => void;
-  onSaved: () => void;     // parent will refresh My Events + close modal
+  onSaved: () => void;
   onAddPerson?: () => void;
 }) {
+  type Person = {
+    _id: string;
+    first_name: string;
+    last_name: string;
+    gender?: Gender | null;
+    date_of_birth?: string | null; // ISO
+  };
+
+  type RegistrationSummary = {
+    success: boolean;
+    user_registrations: Array<{
+      user_uid: string;
+      person_id: string | null;
+      person_name: string | null;
+      display_name: string;
+      registered_on: string;
+      kind: "rsvp";
+    }>;
+    total_registrations: number;
+    available_spots: number;
+    total_spots: number;
+    can_register: boolean;
+  };
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
@@ -109,16 +133,34 @@ function EventRegistrationForm({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
 
+  // --- Inline "Add Person" UI state ---
+  const [showAdd, setShowAdd] = useState(false);
+  const [newFirst, setNewFirst] = useState("");
+  const [newLast, setNewLast] = useState("");
+  const [newGender, setNewGender] = useState<Gender | "unspecified">("unspecified");
+  const [newDob, setNewDob] = useState<string>("");
+
+  const resetAddForm = () => {
+    setNewFirst("");
+    setNewLast("");
+    setNewGender("unspecified");
+    setNewDob("");
+  };
+
+  const fetchPeople = async () => {
+    const res = await api.get("/v1/users/me/people");
+    const ppl = res.data?.people ?? res.data ?? [];
+    setPeople(ppl);
+  };
+
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const [peopleRes, regRes] = await Promise.all([
-          api.get("/v1/users/me/people"),
+        const [_, regRes] = await Promise.all([
+          fetchPeople(),
           api.get(`/v1/events/${event.id}/registrations/summary`),
         ]);
-        const ppl = peopleRes.data?.people ?? peopleRes.data ?? [];
-        setPeople(ppl);
         setSummary(regRes.data);
 
         // seed selection from current registrations
@@ -150,7 +192,7 @@ function EventRegistrationForm({
   useEffect(() => {
     const errs: Record<string, string | null> = {};
     for (const p of people) errs[p._id] = validatePersonForEvent(p, event);
-    errs["__self__"] = null; // (optional) validate self if you store user gender
+    errs["__self__"] = null;
     setErrors(errs);
   }, [people, event]);
 
@@ -228,6 +270,35 @@ function EventRegistrationForm({
     }
   };
 
+  const submitAddPerson = async () => {
+    // minimal client-side required fields
+    if (!newFirst.trim() || !newLast.trim()) {
+      alert("First and last name are required.");
+      return;
+    }
+    try {
+      setSaving(true);
+      // shape matches your PersonCreate in models.user
+      const payload = {
+        first_name: newFirst.trim(),
+        last_name: newLast.trim(),
+        gender: newGender === "unspecified" ? null : newGender, // TS will complain about None; send null
+        date_of_birth: newDob ? new Date(newDob).toISOString() : null,
+      } as any;
+      if (payload.gender === undefined) payload.gender = null;
+
+      await api.post("/v1/users/me/people", payload);
+      await fetchPeople();
+      resetAddForm();
+      setShowAdd(false);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to add person.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <div>Loading…</div>;
 
   return (
@@ -274,13 +345,69 @@ function EventRegistrationForm({
         )}
       </div>
 
-      {/* Add Person CTA */}
+      {/* Add Person CTA + Inline form toggle */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">Need to add a new Event Person?</div>
-        <button className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" onClick={onAddPerson}>
-          Add Person
-        </button>
+        <div className="flex gap-2">
+          {onAddPerson && (
+            <button
+              className="px-3 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+              onClick={onAddPerson}
+            >
+              Open Full Add Screen
+            </button>
+          )}
+          <button
+            className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            onClick={() => setShowAdd((s) => !s)}
+          >
+            {showAdd ? "Close Inline Add" : "Add Person Here"}
+          </button>
+        </div>
       </div>
+
+      {showAdd && (
+        <div className="rounded-xl border p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input
+              className="border rounded px-3 py-2"
+              placeholder="First name"
+              value={newFirst}
+              onChange={(e) => setNewFirst(e.target.value)}
+            />
+            <input
+              className="border rounded px-3 py-2"
+              placeholder="Last name"
+              value={newLast}
+              onChange={(e) => setNewLast(e.target.value)}
+            />
+            <select
+              className="border rounded px-3 py-2"
+              value={newGender}
+              onChange={(e) => setNewGender(e.target.value as any)}
+            >
+              <option value="unspecified">Gender (unspecified)</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+            <input
+              type="date"
+              className="border rounded px-3 py-2"
+              value={newDob}
+              onChange={(e) => setNewDob(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+              onClick={submitAddPerson}
+            >
+              Save Person
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Choose from saved Event People */}
       <div>
@@ -339,6 +466,7 @@ function EventRegistrationForm({
     </div>
   );
 }
+
 
 /* ---------- EventSection with integrated registration modal ---------- */
 
