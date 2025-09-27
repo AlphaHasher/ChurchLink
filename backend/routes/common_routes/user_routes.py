@@ -13,7 +13,7 @@ from models.user import (
     update_user_roles, delete_user,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, MyPermsRequest, PersonalInfo
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, MyPermsRequest, PersonalInfo
 
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
@@ -188,6 +188,11 @@ async def process_get_profile(request:Request):
 @user_private_router.patch("/update-profile")
 async def process_update_profile(request:Request, profile_data: PersonalInfo = Body(...)):
     return await update_profile(request, profile_data)
+
+# Private Router
+@user_private_router.get("/is-init")
+async def process_is_init(request: Request):
+    return await get_is_init(request)
 
 # Mod Router
 @user_mod_router.get("/check-mod")

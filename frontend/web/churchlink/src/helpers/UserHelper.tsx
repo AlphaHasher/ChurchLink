@@ -72,6 +72,18 @@ export const getMyPermissions = async (options?: MyPermsRequest) => {
     }
 };
 
+export const getIsInit = async () => {
+    try {
+        const res = await api.get("v1/users/is-init");
+        return res.data
+    }
+    catch (err) {
+        console.error("Failed to get init stats:", err);
+        return { "verified": false, "init": false, "msg": "Error!" }
+    }
+}
+
+
 export const getMyProfileInfo = async () => {
     try {
         const res = await api.get("/v1/users/get-profile");
