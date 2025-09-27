@@ -145,24 +145,24 @@ const EventSection: React.FC<EventSectionProps> = ({
   const isRegistered = (ev: Event) =>
     myEvents.some((m) => m.event_id === ev.id && m.reason === "rsvp");
 
-  // ---------- actions: WATCH (non-RSVP) ----------
   const addWatch = async (ev: Event) => {
-    setChanging(ev.id);
-    try {
-      const params = new URLSearchParams();
-      params.set("scope", watchScope);
-      if (watchScope === "occurrence" && occurrenceStart) {
-        params.set("occurrenceStart", occurrenceStart);
-      }
-      await api.post(`/v1/event-people/watch/${ev.id}?` + params.toString());
-      await fetchMyEvents();
-    } catch (e) {
-      console.error(e);
-      alert("Failed to add to My Events.");
-    } finally {
-      setChanging(null);
+  setChanging(ev.id);
+  try {
+    const params = new URLSearchParams();
+    params.set("scope", watchScope);
+    if (watchScope === "occurrence") {
+      // no date input; use event's own start time
+      params.set("occurrenceStart", new Date(ev.date).toISOString());
     }
-  };
+    await api.post(`/v1/event-people/watch/${ev.id}?` + params.toString());
+    await fetchMyEvents();
+  } catch (e) {
+    console.error(e);
+    alert("Failed to add to My Events.");
+  } finally {
+    setChanging(null);
+  }
+};
 
   const removeWatch = async (ev: Event) => {
     setChanging(ev.id);
@@ -266,15 +266,6 @@ const EventSection: React.FC<EventSectionProps> = ({
                 <option value="occurrence">One time</option>
               </select>
             </div>
-            {watchScope === "occurrence" && (
-              <input
-                type="datetime-local"
-                className="border rounded px-2 py-1 w-full"
-                value={occurrenceStart}
-                onChange={(e) => setOccurrenceStart(e.target.value)}
-                placeholder="Choose occurrence start"
-              />
-            )}
             <button
               disabled={changing === ev.id}
               onClick={() => addWatch(ev)}
@@ -494,15 +485,6 @@ const EventSection: React.FC<EventSectionProps> = ({
                             <option value="occurrence">One time</option>
                           </select>
                         </div>
-                        {watchScope === "occurrence" && (
-                          <input
-                            type="datetime-local"
-                            className="border rounded px-2 py-1 w-full mt-2"
-                            value={occurrenceStart}
-                            onChange={(e) => setOccurrenceStart(e.target.value)}
-                            placeholder="Choose occurrence start"
-                          />
-                        )}
                       </div>
                     )}
                     <WatchButtons ev={selectedEvent} />
