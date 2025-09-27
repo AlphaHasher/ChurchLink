@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../features/bible/widgets/bible_reader_body.dart';
+import '../features/bible/presentation/pages/bible_reader_body.dart';
 import '../features/bible/data/bible_repo_elisha.dart';
 
 class BiblePage extends StatefulWidget {
