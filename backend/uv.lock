@@ -217,7 +217,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "scalar-fastapi" },
     { name = "uvicorn" },
-    { name = "windows-curses" },
+    { name = "windows-curses", marker = "sys_platform == 'win32'" },
 ]
 
 [package.metadata]
@@ -238,7 +238,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "scalar-fastapi", specifier = ">=1.0.3" },
     { name = "uvicorn", specifier = ">=0.34.0" },
-    { name = "windows-curses", specifier = ">=2.4.1" },
+    { name = "windows-curses", marker = "sys_platform == 'win32'", specifier = ">=2.4.1" },
 ]
 
 [[package]]
