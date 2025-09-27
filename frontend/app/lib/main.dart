@@ -13,6 +13,8 @@ import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'services/notification_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -31,9 +33,13 @@ Future<void> main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
+  //
+  tz.initializeTimeZones();
+  await NotificationService.instance.init();
+
   // Setup messaging and notifications BEFORE checking for initial message
   setupFirebaseMessaging();
-  await setupLocalNotifications();
+  //await setupLocalNotifications();
 
   RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
