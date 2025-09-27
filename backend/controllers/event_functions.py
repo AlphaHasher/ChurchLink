@@ -137,7 +137,7 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None):
             event_id=ObjectId(event_id),
             reason="rsvp",
             scope="series",
-            person_id=person_object_id
+            person_id=person_object_id,
         )
     except Exception as e:
         print(f"Warning: user my_events cleanup failed: {e}")

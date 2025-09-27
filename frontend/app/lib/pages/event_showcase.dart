@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
 import '../models/family_member.dart';
@@ -847,36 +848,20 @@ class _EventShowcaseState extends State<EventShowcase> {
             border: Border.all(color: Colors.grey[300]!),
             borderRadius: BorderRadius.circular(8),
           ),
-          child:
-              availableRegistrants.length <= 3
-                  ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children:
-                        availableRegistrants
-                            .map(
-                              (registrant) => _buildCheckboxTile(
-                                registrant,
-                                setDialogState,
-                              ),
-                            )
-                            .toList(),
-                  )
-                  : Scrollbar(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children:
-                            availableRegistrants
-                                .map(
-                                  (registrant) => _buildCheckboxTile(
-                                    registrant,
-                                    setDialogState,
-                                  ),
-                                )
-                                .toList(),
-                      ),
-                    ),
-                  ),
+          child: Scrollbar(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children:
+                    availableRegistrants
+                        .map(
+                          (registrant) =>
+                              _buildCheckboxTile(registrant, setDialogState),
+                        )
+                        .toList(),
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: 16),
 
@@ -1115,6 +1100,15 @@ class _EventShowcaseState extends State<EventShowcase> {
             ),
             const SizedBox(height: 12),
             _buildInfoRow(Icons.location_on, 'Location', widget.event.location),
+            // Show ministry line directly under location when available
+            if (widget.event.ministry.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSvgInfoRow(
+                'assets/nav_icons/Home.svg',
+                'Ministry',
+                "${widget.event.ministry.first}'s Ministry",
+              ),
+            ],
           ],
         ),
       ),
@@ -1127,6 +1121,42 @@ class _EventShowcaseState extends State<EventShowcase> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(icon, size: 20, color: ssbcGray),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSvgInfoRow(String assetPath, String label, String value) {
+    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SvgPicture.asset(
+          assetPath,
+          width: 20,
+          height: 20,
+          colorFilter: const ColorFilter.mode(ssbcGray, BlendMode.srcIn),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

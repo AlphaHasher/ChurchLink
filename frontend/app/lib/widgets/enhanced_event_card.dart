@@ -98,13 +98,7 @@ class EnhancedEventCard extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                // Description
-                Text(
-                  event.description,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                // Description removed per design parity with My Events
               ],
             ),
           ),

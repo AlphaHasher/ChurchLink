@@ -63,6 +63,8 @@ class _EventsPageState extends State<EventsPage> {
   }
 
   Future<void> _loadEvents() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
@@ -106,6 +108,9 @@ class _EventsPageState extends State<EventsPage> {
         '/v1/events/',
         queryParameters: queryParams,
       );
+
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = response.data;
         setState(() {
@@ -116,21 +121,30 @@ class _EventsPageState extends State<EventsPage> {
         _loadRegistrationDetails();
       } else {
         debugPrint("Failed to load events: ${response.statusCode}");
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
       debugPrint("Error loading events: $e");
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _loadRegistrationDetails() async {
     for (final event in _events) {
+      if (!mounted) return; // Exit early if widget is disposed
+
       try {
         final summary =
             await EventRegistrationService.getEventRegistrationSummary(
               event.id,
             );
+
+        if (!mounted) return; // Check again after async operation
+
         setState(() {
           _registrationSummaries[event.id] = summary;
         });
@@ -343,7 +357,9 @@ class _EventsPageState extends State<EventsPage> {
     );
 
     // Refresh the events data when returning from the showcase
-    _loadEvents();
+    if (mounted) {
+      _loadEvents();
+    }
   }
 
   @override
