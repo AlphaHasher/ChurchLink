@@ -9,8 +9,6 @@ def generate_test_token(save_to_file=False):
     Get a Firebase ID token using email/password authentication and optionally save to bearer.txt.
     
     Args:
-        email (str): Email of the test user
-        password (str): Password of the test user
         save_to_file (bool): Whether to save the token to bearer.txt or just return it
     """
     # Load environment variables
