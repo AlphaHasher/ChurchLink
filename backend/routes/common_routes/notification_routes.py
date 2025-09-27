@@ -1,5 +1,5 @@
-
-from fastapi import APIRouter, Body
+from controllers.users_functions import update_notification_preferences, fetch_notification_preferences, NotificationPrefsRequest
+from fastapi import APIRouter, Body, Request
 from helpers.NotificationHelper import (
     save_fcm_token as helper_save_fcm_token,
     update_notification_settings as helper_update_notification_settings,
@@ -63,3 +63,11 @@ async def api_get_scheduled_notifications():
 @private_notification_router.delete('/scheduled/{notification_id}')
 async def api_remove_scheduled_notification(notification_id: str):
     return await helper_api_remove_scheduled_notification(notification_id)
+
+@private_notification_router.post('/preferences')
+async def set_notification_preferences(request: Request, prefs: NotificationPrefsRequest):
+    return await update_notification_preferences(request, prefs)
+
+@private_notification_router.get('/preferences')
+async def get_notification_preferences(request: Request):
+    return await fetch_notification_preferences(request)

@@ -26,6 +26,21 @@ class PersonalInfo(BaseModel):
     birthday: Optional[datetime]
     gender: Optional[str]
 
+class NotificationPrefsRequest(BaseModel):
+    notification_preferences: Dict[str, bool]
+
+async def update_notification_preferences(request: Request, prefs: NotificationPrefsRequest):
+    uid = request.state.uid
+    # Update notification_preferences field in user document
+    result = await UserHandler.update_user({"uid": uid}, {"notification_preferences": prefs.notification_preferences})
+    return {"success": bool(result)}
+
+async def fetch_notification_preferences(request: Request):
+    uid = request.state.uid
+    user = await UserHandler.find_by_uid(uid)
+    prefs = user.get("notification_preferences", {}) if user else {}
+    return {"success": True, "notification_preferences": prefs}
+
 def is_valid_name(s: str) -> bool:
     if not s:
         return False
