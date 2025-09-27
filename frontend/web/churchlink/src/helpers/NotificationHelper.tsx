@@ -21,6 +21,7 @@ export interface ScheduleNotificationPayload {
     actionType: NotificationActionType;
     link?: string;
     eventId?: string;
+    route?: string;
     data?: Record<string, unknown>;
 }
 
@@ -94,22 +95,18 @@ export interface SendNotificationPayload {
     actionType?: NotificationActionType;
     link?: string;
     eventId?: string;
+    route?: string;
     data?: Record<string, unknown>;
 }
 
 export const sendNotificationNow = async (payload: SendNotificationPayload) => {
     const res = await api.post("/v1/notification/send", {
-        title: payload.title,
-        body: payload.body,
+        ...payload,
         send_to_all: true,
         data: {
             target: payload.target || "all",
             ...payload.data
-        },
-        // Deep linking fields
-        eventId: payload.eventId,
-        link: payload.link,
-        actionType: payload.actionType || "text"
+        }
     }, {
         headers: { "Content-Type": "application/json" },
     });

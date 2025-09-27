@@ -49,13 +49,12 @@ async def api_schedule_notification(
     send_to_all: bool = Body(default=True),
     token: str = Body(default=None),
     data: dict = Body(default={}),
-    tab: str = Body(default=None),
     eventId: str = Body(default=None),
     link: str = Body(default=None),
     route: str = Body(default=None),
     actionType: str = Body(default="text")
 ):
-    return await helper_api_schedule_notification(title, body, scheduled_time, send_to_all, token, data, tab, eventId, link, route, actionType)
+    return await helper_api_schedule_notification(title, body, scheduled_time, send_to_all, token, data, eventId, link, route, actionType)
 
 @private_notification_router.get('/scheduled')
 async def api_get_scheduled_notifications():

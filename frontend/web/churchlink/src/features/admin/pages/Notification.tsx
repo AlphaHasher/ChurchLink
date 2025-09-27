@@ -25,7 +25,7 @@ interface DraftNotification {
   schedule: "" | "now" | "custom";
   customDate: string;
   customTime: string;
-  platform: "mobile" | "email" | "both"; // keeping for parity even if not used server-side
+  platform: "mobile" | "email" | "both"; // Reserved for future use
   actionType: NotificationActionType;
   link?: string;
   route?: string;
@@ -93,7 +93,6 @@ const Notification = () => {
         setSelectedTimezone(s.YOUTUBE_TIMEZONE || "America/Los_Angeles");
         setEnvOverride(!!s.envOverride);
       } catch {
-        // leave defaults
       } finally {
         if (!ignore) setLoading(false);
       }
@@ -238,10 +237,12 @@ const Notification = () => {
           ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId, route: `/event/${newNotification.eventId}` } : {}),
           data: {
             ...(newNotification.actionType === "link" && normalizedLink ? { link: normalizedLink } : {}),
-            ...(newNotification.actionType === "route" && newNotification.route ? { route: newNotification.route } : {}),
+            // Only include eventId/route for event notifications
             ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId, route: `/event/${newNotification.eventId}` } : {}),
           },
         };
+            // Debug print to verify payload before sending
+            console.log('[DEBUG] Instant notification payload:', payload);
 
         const res = await sendNotificationNow(payload);
         if (res.status >= 200 && res.status < 300 && res.data?.success !== false) {
@@ -303,7 +304,6 @@ const Notification = () => {
       await deleteScheduledNotification(id);
       fetchScheduled();
     } catch {
-      // noop
     } finally {
       setCancelLoadingId(null);
     }
@@ -552,52 +552,96 @@ const Notification = () => {
                 <th className="border p-2">Time</th>
                 <th className="border p-2">Title</th>
                 <th className="border p-2">Message</th>
-                <th className="border p-2">Link</th>
+                <th className="border p-2">Action Type</th>
+                <th className="border p-2">Detail</th>
                 <th className="border p-2">Recipients</th>
                 <th className="border p-2">Status</th>
                 <th className="border p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {scheduledNotifications.map((n) => (
-                <tr key={n._id} className="border">
-                  <td className="p-2 border">
-                    {n.scheduled_time
-                      ? new Date(n.scheduled_time).toLocaleString("en-US", { timeZone: selectedTimezone })
-                      : "-"}
-                  </td>
-                  <td className="p-2 border">{n.title}</td>
-                  <td className="p-2 border">{n.body}</td>
-                  <td className="p-2 border">{String(n.link || n.data?.link || n.route || n.data?.route || "-")}</td>
-                  <td className="p-2 border">All</td>
-                  <td className="p-2 border text-center">
-                    {n.canceled ? (
-                      <span title="Canceled" style={{ color: "#e53e3e" }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="inline" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              {scheduledNotifications.map((n, idx) => {
+                const timeString = n.scheduled_time || "";
+                const msg = n.message || n.body || (n.data as any)?.message || "-";
+                const link = (n.link || (n.data as any)?.link) ?? null;
+                const route = (n.route || (n.data as any)?.route) ?? null;
+                const eventId = (n as any).eventId || ((n.data as any)?.eventId ?? null);
+                const actionType = (n as any).actionType || (n.data as any)?.actionType || "text";
+
+                // Improved detail content for event and route
+                let detailContent = "-";
+                if (actionType === "link" && link) {
+                  detailContent = link;
+                } else if (actionType === "event" && eventId) {
+                  const matchedEvent = events.find(e => e.id === eventId);
+                  const eventName = matchedEvent ? matchedEvent.name : `Event ${eventId}`;
+                  detailContent = `Open event: ${eventName}`;
+                } else if (actionType === "route" && route) {
+                  detailContent = `Open page: ${route}`;
+                } else if (route) {
+                  detailContent = route;
+                } else if (link) {
+                  detailContent = link;
+                }
+
+                return (
+                  <tr key={n._id || idx} className="border">
+                    <td className="p-2 border">
+                      {timeString
+                        ? new Date(timeString).toLocaleString("en-US", { timeZone: selectedTimezone })
+                        : "-"}
+                    </td>
+                    <td className="p-2 border">{n.title}</td>
+                    <td className="p-2 border">{msg}</td>
+                    <td className="p-2 border">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                        actionType === "link" ? "bg-blue-100 text-blue-800" :
+                        actionType === "event" ? "bg-purple-100 text-purple-800" :
+                        actionType === "route" ? "bg-green-100 text-green-800" :
+                        "bg-gray-100 text-gray-800"
+                      }`}>
+                        {actionType.toUpperCase()}
                       </span>
-                    ) : n.sent ? (
-                      <span title="Successfully sent" style={{ color: "#38a169" }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="inline" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      </span>
-                    ) : (
-                      <span title="Pending" style={{ color: "#ecc94b" }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="inline" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" /></svg>
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-2 border">
-                    {!n.sent && !n.canceled && (
-                      <button
-                        className={`bg-red-500 text-white px-3 py-1 rounded ${cancelLoadingId === n._id ? "opacity-50 cursor-not-allowed" : ""}`}
-                        onClick={() => handleRemoveScheduledNotification(n._id)}
-                        disabled={cancelLoadingId === n._id}
-                      >
-                        {cancelLoadingId === n._id ? "Canceling..." : "Remove"}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="p-2 border">
+                      {actionType === "link" && link ? (
+                        <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                          {link.length > 50 ? `${link.substring(0, 50)}...` : link}
+                        </a>
+                      ) : (
+                        <span className="text-gray-700">{detailContent}</span>
+                      )}
+                    </td>
+                    <td className="p-2 border">All</td>
+                    <td className="p-2 border text-center">
+                      {n.canceled ? (
+                        <span title="Canceled" style={{ color: "#e53e3e" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </span>
+                      ) : n.sent ? (
+                        <span title="Successfully sent" style={{ color: "#38a169" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </span>
+                      ) : (
+                        <span title="Pending" style={{ color: "#ecc94b" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" /></svg>
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2 border">
+                      {!n.sent && !n.canceled && (
+                        <button
+                          className={`bg-red-500 text-white px-3 py-1 rounded ${cancelLoadingId === n._id ? "opacity-50 cursor-not-allowed" : ""}`}
+                          onClick={() => handleRemoveScheduledNotification(n._id)}
+                          disabled={cancelLoadingId === n._id}
+                        >
+                          {cancelLoadingId === n._id ? "Canceling..." : "Remove"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -623,33 +667,47 @@ const Notification = () => {
                   return new Date(getTime(b) as string).getTime() - new Date(getTime(a) as string).getTime();
                 })
                 .map((n, idx) => {
-                  const timeString = n.scheduled_time || n.timestamp || n.sent_at || "";
+                  // Prefer sent_at, then scheduled_time, then timestamp
+                  let rawTime = n.sent_at || n.scheduled_time || n.timestamp || "";
+                  let timeString = "-";
+                  let isoTime = rawTime;
+                  // If ISO string has microseconds, strip them and add 'Z' for UTC
+                  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+/.test(rawTime)) {
+                    isoTime = rawTime.replace(/(\.\d+).*/, "") + "Z";
+                  }
+                  if (rawTime && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(rawTime)) {
+                    timeString = rawTime;
+                  } else if (rawTime) {
+                    // Convert from UTC ISO to selectedTimezone
+                    const dateObj = new Date(isoTime);
+                    timeString = dateObj.toLocaleString("en-US", { timeZone: selectedTimezone });
+                  }
                   const msg = n.message || n.body || (n.data as any)?.message || "-";
                   const link = (n.link || (n.data as any)?.link) ?? null;
                   const route = (n.route || (n.data as any)?.route) ?? null;
-                  // Removed unused tab reference
                   const eventId = (n as any).eventId || ((n.data as any)?.eventId ?? null);
                   const actionType = (n as any).actionType || (n.data as any)?.actionType || "text";
                   
-                  // Determine detail content based on action type
-                  let detailContent = "-";
-                  if (actionType === "link" && link) {
-                    detailContent = link;
-                  } else if (actionType === "event" && eventId) {
-                    // Find the actual event name from the events array
-                    const matchedEvent = events.find(e => e.id === eventId);
-                    const eventName = matchedEvent ? matchedEvent.name : `Event ${eventId}`;
-                    detailContent = `Open event: ${eventName}`;
-                  } else if (route) {
-                    detailContent = route;
-                  } else if (link) {
-                    detailContent = link;
-                  }
+                            // Improved detail content for event and route
+                            let detailContent = "-";
+                            if (actionType === "link" && link) {
+                              detailContent = link;
+                            } else if (actionType === "event" && eventId) {
+                              const matchedEvent = events.find(e => e.id === eventId);
+                              const eventName = matchedEvent ? matchedEvent.name : `Event ${eventId}`;
+                              detailContent = `Open event: ${eventName}`;
+                            } else if (actionType === "route" && route) {
+                              detailContent = `Open page: ${route}`;
+                            } else if (route) {
+                              detailContent = route;
+                            } else if (link) {
+                              detailContent = link;
+                            }
 
                   return (
                     <tr key={(n.id as any) || n._id || idx} className="border">
                       <td className="p-2 border">
-                        {timeString ? new Date(timeString).toLocaleString("en-US", { timeZone: selectedTimezone }) : "-"}
+                        {timeString}
                       </td>
                       <td className="p-2 border">{n.title}</td>
                       <td className="p-2 border">{msg}</td>
@@ -691,7 +749,7 @@ const Notification = () => {
   );
 };
 
-// Utility to check if a link is valid format (starts with https://)
+// Utility: Checks if a link is valid format (starts with https://)
 function isLinkValidFormat(url: string): boolean {
   return /^https?:\/\//.test(url);
 }

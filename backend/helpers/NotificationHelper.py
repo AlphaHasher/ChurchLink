@@ -39,6 +39,7 @@ async def notification_history(limit: int = 100):
 
 	
 async def send_push_notification(title, body, data, send_to_all, token, eventId, link, route, actionType):
+	logging.info(f"[DEBUG] send_push_notification args: title={title!r}, body={body!r}, data={data!r}, send_to_all={send_to_all!r}, token={token!r}, eventId={eventId!r}, link={link!r}, route={route!r}, actionType={actionType!r}")
 	responses = []
 	target = data.get('target', 'all')
 	query = {}
@@ -110,7 +111,9 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 		return {"success": False, "error": "No token provided and send_to_all is False."}
 
 	
-async def api_schedule_notification(title, body, scheduled_time, send_to_all, token, data, tab, eventId, link, route, actionType):
+async def api_schedule_notification(title, body, scheduled_time, send_to_all, token, data, eventId, link, route, actionType):
+	import logging
+	logging.info(f"[DEBUG] api_schedule_notification received route: {route!r}")
 	if actionType == "link" and link:
 		error = await validate_link(link)
 		if error:
@@ -133,6 +136,10 @@ async def api_schedule_notification(title, body, scheduled_time, send_to_all, to
 		"send_to_all": send_to_all,
 		"token": token,
 		"data": enhanced_data,
+		"actionType": actionType,
+		"link": link,
+		"route": route,
+		"eventId": eventId,
 		"sent": False
 	}
 	notification_id = await schedule_notification(DB.db, payload)
