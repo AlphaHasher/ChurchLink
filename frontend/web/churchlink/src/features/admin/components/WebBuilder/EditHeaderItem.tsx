@@ -3,12 +3,36 @@ import api from "@/api/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
-
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-// Type definitions
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+    CardFooter,
+} from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
+import { Separator } from "@/shared/components/ui/separator";
+import { GripVertical, ArrowLeft } from "lucide-react";
+
 interface BaseHeaderItem {
     title: string;
     russian_title: string;
@@ -27,25 +51,25 @@ interface DropdownItem extends BaseHeaderItem {
 
 type HeaderItem = LinkItem | DropdownItem;
 
-// SortableItem component for drag-and-drop
 const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
+    const style = { transform: CSS.Transform.toString(transform), transition };
     return (
-        <div ref={setNodeRef} style={style} className="mb-2">
-            <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
-                    &#x2630;
-                </div>
-                <div className="flex-grow">
-                    {children}
-                </div>
-            </div>
+        <div ref={setNodeRef} style={style} className="mb-1.5">
+            <Card>
+                <CardContent className="p-2 flex items-center gap-2">
+                    <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab rounded p-1 hover:bg-muted"
+                        aria-label="Drag to reorder"
+                    >
+                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <div className="flex-1">{children}</div>
+                </CardContent>
+            </Card>
         </div>
     );
 };
@@ -57,12 +81,12 @@ const EditHeaderItem: React.FC = () => {
 
     const [item, setItem] = useState<HeaderItem | null>(null);
     const [loading, setLoading] = useState(true);
+
     const [newTitle, setNewTitle] = useState("");
     const [russianTitle, setRussianTitle] = useState("");
     const [url, setUrl] = useState("");
     const [isDropdown, setIsDropdown] = useState(false);
 
-    // For dropdown items
     const [dropdownItems, setDropdownItems] = useState<LinkItem[]>([]);
     const [tempLinkTitle, setTempLinkTitle] = useState("");
     const [tempLinkRussianTitle, setTempLinkRussianTitle] = useState("");
@@ -70,7 +94,7 @@ const EditHeaderItem: React.FC = () => {
     const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
     useEffect(() => {
-        fetchHeaderItem();
+        void fetchHeaderItem();
     }, [title]);
 
     const fetchHeaderItem = async () => {
@@ -91,7 +115,7 @@ const EditHeaderItem: React.FC = () => {
                 setIsDropdown(false);
             }
         } catch (err) {
-            console.error("Failed to fetch header item:", err);
+            console.error("Failed to fetch navigation item:", err);
             toast.error("Failed to load navigation item");
             navigate("/admin/webbuilder/header");
         } finally {
@@ -101,27 +125,27 @@ const EditHeaderItem: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!item) return;
 
         try {
             const updatedItem = isDropdown
                 ? {
-                    title: newTitle,
-                    russian_title: russianTitle,
+                    title: newTitle.trim(),
+                    russian_title: russianTitle.trim(),
                     items: dropdownItems,
                 }
                 : {
-                    title: newTitle,
-                    russian_title: russianTitle,
-                    url,
+                    title: newTitle.trim(),
+                    russian_title: russianTitle.trim(),
+                    url: url.trim(),
                 };
 
-            const response = await api.put(`/v1/header/items/edit/${title}`, updatedItem);
-
-            if (response.data) {
+            const response = await api.put(`/v1/header/items/edit/${item.title}`, updatedItem);
+            if (response.data?.success) {
                 toast.success("Navigation item updated successfully");
                 navigate("/admin/webbuilder/header");
+            } else {
+                toast.error(response.data?.msg || "Failed to update navigation item");
             }
         } catch (err) {
             console.error("Failed to update navigation item:", err);
@@ -132,248 +156,185 @@ const EditHeaderItem: React.FC = () => {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (active.id !== over?.id) {
-            setDropdownItems(items => {
-                const oldIndex = items.findIndex(item => `${item.title}-${item.url}` === active.id);
-                const newIndex = items.findIndex(item => `${item.title}-${item.url}` === over?.id);
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    return arrayMove(items, oldIndex, newIndex);
-                }
-                return items;
+            setDropdownItems((items) => {
+                const oldIndex = items.findIndex((i) => `${i.title}-${i.url}` === active.id);
+                const newIndex = items.findIndex((i) => `${i.title}-${i.url}` === over?.id);
+                return oldIndex !== -1 && newIndex !== -1 ? arrayMove(items, oldIndex, newIndex) : items;
             });
         }
     };
 
     const handleAddDropdownItem = (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!tempLinkTitle || !tempLinkRussianTitle || !tempLinkUrl) {
-            toast.error("Link title, Russian title, and URL are required");
+            toast.error("Link title, Russian title and URL are required");
             return;
         }
-
         if (editingItemIndex !== null) {
-            // Update existing item
-            const updatedItems = [...dropdownItems];
-            updatedItems[editingItemIndex] = {
+            const copy = [...dropdownItems];
+            copy[editingItemIndex] = {
                 title: tempLinkTitle,
                 russian_title: tempLinkRussianTitle,
                 url: tempLinkUrl,
                 visible: true,
-                type: "link"
+                type: "link",
             };
-            setDropdownItems(updatedItems);
+            setDropdownItems(copy);
             setEditingItemIndex(null);
         } else {
-            // Add new item
-            setDropdownItems([...dropdownItems, {
-                title: tempLinkTitle,
-                russian_title: tempLinkRussianTitle,
-                url: tempLinkUrl,
-                visible: true,
-                type: "link"
-            }]);
+            setDropdownItems((prev) => [
+                ...prev,
+                {
+                    title: tempLinkTitle,
+                    russian_title: tempLinkRussianTitle,
+                    url: tempLinkUrl,
+                    visible: true,
+                    type: "link",
+                },
+            ]);
         }
-
-        // Reset form fields
         setTempLinkTitle("");
         setTempLinkRussianTitle("");
         setTempLinkUrl("");
     };
 
     const handleEditDropdownItem = (index: number) => {
-        const item = dropdownItems[index];
-        setTempLinkTitle(item.title);
-        setTempLinkRussianTitle(item.russian_title);
-        setTempLinkUrl(item.url);
+        const it = dropdownItems[index];
+        setTempLinkTitle(it.title);
+        setTempLinkRussianTitle(it.russian_title);
+        setTempLinkUrl(it.url);
         setEditingItemIndex(index);
     };
 
     const handleRemoveDropdownItem = (index: number) => {
-        setDropdownItems(items => items.filter((_, i) => i !== index));
-        // If we were editing this item, reset the form
+        setDropdownItems((items) => items.filter((_, i) => i !== index));
         if (editingItemIndex === index) {
-            setTempLinkTitle("");
-            setTempLinkRussianTitle("");
-            setTempLinkUrl("");
-            setEditingItemIndex(null);
+            setTempLinkTitle(""); setTempLinkRussianTitle(""); setTempLinkUrl(""); setEditingItemIndex(null);
         }
-    };
-
-    const cancelEditingItem = () => {
-        setTempLinkTitle("");
-        setTempLinkRussianTitle("");
-        setTempLinkUrl("");
-        setEditingItemIndex(null);
     };
 
     if (loading) return <div className="p-6 text-center">Loading item data...</div>;
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
-            <h2 className="text-xl font-semibold mb-4">Edit Navigation Item</h2>
+        <div className="mx-auto w-full max-w-4xl space-y-5">
+            <Button variant="ghost" className="px-0" onClick={() => navigate("/admin/webbuilder/header")}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Header
+            </Button>
 
-            <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                    <label className="block text-gray-700 mb-1" htmlFor="title">
-                        Title
-                    </label>
-                    <input
-                        type="text"
-                        id="title"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        className="w-full p-2 border rounded"
-                        required
-                    />
-                </div>
+            <Card>
+                <CardHeader className="py-4">
+                    <CardTitle className="text-base">Edit Navigation Item</CardTitle>
+                    <CardDescription className="text-xs">Update titles and URL, or manage dropdown links.</CardDescription>
+                </CardHeader>
 
-                <div className="mb-4">
-                    <label className="block text-gray-700 mb-1" htmlFor="russianTitle">
-                        Russian Title
-                    </label>
-                    <input
-                        type="text"
-                        id="russianTitle"
-                        value={russianTitle}
-                        onChange={(e) => setRussianTitle(e.target.value)}
-                        className="w-full p-2 border rounded"
-                        required
-                    />
-                </div>
+                <form onSubmit={handleSubmit}>
+                    <CardContent className="space-y-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Title</Label>
+                            <Input id="title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
+                        </div>
 
-                {!isDropdown && (
-                    <div className="mb-4">
-                        <label className="block text-gray-700 mb-1" htmlFor="url">
-                            URL
-                        </label>
-                        <input
-                            type="text"
-                            id="url"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            className="w-full p-2 border rounded"
-                            required={!isDropdown}
-                        />
-                    </div>
-                )}
+                        <div className="grid gap-2">
+                            <Label htmlFor="ru">Russian Title</Label>
+                            <Input id="ru" value={russianTitle} onChange={(e) => setRussianTitle(e.target.value)} required />
+                        </div>
 
-                {isDropdown && (
-                    <div className="mb-4 border rounded p-4 bg-gray-50">
-                        <h3 className="font-medium mb-2">Dropdown Items</h3>
-
-                        {dropdownItems.length > 0 ? (
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext
-                                    items={dropdownItems.map(link => `${link.title}-${link.url}`)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    <ul className="mb-4">
-                                        {dropdownItems.map((link, index) => (
-                                            <SortableItem
-                                                key={`${link.title}-${link.url}`}
-                                                id={`${link.title}-${link.url}`}
-                                            >
-                                                <li className="flex justify-between items-center p-2 bg-white border rounded">
-                                                    <div>
-                                                        <div className="font-medium">{link.title}</div>
-                                                        <div className="text-sm text-blue-600">{link.url}</div>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleEditDropdownItem(index)}
-                                                            className="text-blue-500 hover:text-blue-700"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveDropdownItem(index)}
-                                                            className="text-red-500 hover:text-red-700"
-                                                        >
-                                                            Remove
-                                                        </button>
-                                                    </div>
-                                                </li>
-                                            </SortableItem>
-                                        ))}
-                                    </ul>
-                                </SortableContext>
-                            </DndContext>
-                        ) : (
-                            <p className="text-gray-500 italic mb-4">No dropdown items</p>
+                        {!isDropdown && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="url">URL</Label>
+                                <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} required />
+                            </div>
                         )}
 
-                        <div className="border-t pt-3">
-                            <h4 className="font-medium mb-2">
-                                {editingItemIndex !== null ? 'Edit Item' : 'Add Item to Dropdown'}
-                            </h4>
-                            <div className="flex flex-col gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="Link Title"
-                                    value={tempLinkTitle}
-                                    onChange={(e) => setTempLinkTitle(e.target.value)}
-                                    className="border rounded px-3 py-2"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Russian Title"
-                                    value={tempLinkRussianTitle}
-                                    onChange={(e) => setTempLinkRussianTitle(e.target.value)}
-                                    className="border rounded px-3 py-2"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Link URL"
-                                    value={tempLinkUrl}
-                                    onChange={(e) => setTempLinkUrl(e.target.value)}
-                                    className="border rounded px-3 py-2"
-                                />
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleAddDropdownItem}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                                    >
-                                        {editingItemIndex !== null ? 'Update Item' : 'Add Item'}
-                                    </button>
-                                    {editingItemIndex !== null && (
-                                        <button
-                                            type="button"
-                                            onClick={cancelEditingItem}
-                                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+                        {isDropdown && (
+                            <div className="space-y-3">
+                                {dropdownItems.length > 0 ? (
+                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                        <SortableContext
+                                            items={dropdownItems.map((l) => `${l.title}-${l.url}`)}
+                                            strategy={verticalListSortingStrategy}
                                         >
-                                            Cancel
-                                        </button>
-                                    )}
+                                            <div className="space-y-1.5">
+                                                {dropdownItems.map((link, index) => (
+                                                    <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
+                                                        <div className="flex w-full items-center justify-between">
+                                                            <div className="min-w-0">
+                                                                <div className="truncate text-sm font-medium">{link.title}</div>
+                                                                <div className="truncate text-[11px] text-muted-foreground">{link.url}</div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <Button type="button" variant="ghost" size="sm" onClick={() => handleEditDropdownItem(index)}>
+                                                                    Edit
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="text-destructive"
+                                                                    onClick={() => handleRemoveDropdownItem(index)}
+                                                                >
+                                                                    Remove
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </SortableItem>
+                                                ))}
+                                            </div>
+                                        </SortableContext>
+                                    </DndContext>
+                                ) : (
+                                    <div className="rounded-md border p-3 text-xs text-muted-foreground">No dropdown items</div>
+                                )}
+
+                                <div className="rounded-md border p-4">
+                                    <h4 className="mb-2 text-sm font-medium">
+                                        {editingItemIndex !== null ? "Edit Item" : "Add Item to Dropdown"}
+                                    </h4>
+                                    <div className="grid gap-2 sm:grid-cols-3">
+                                        <div className="grid gap-2">
+                                            <Label>Link Title</Label>
+                                            <Input value={tempLinkTitle} onChange={(e) => setTempLinkTitle(e.target.value)} />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Russian Title</Label>
+                                            <Input value={tempLinkRussianTitle} onChange={(e) => setTempLinkRussianTitle(e.target.value)} />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>URL</Label>
+                                            <Input value={tempLinkUrl} onChange={(e) => setTempLinkUrl(e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 flex gap-2">
+                                        <Button type="button" onClick={handleAddDropdownItem}>
+                                            {editingItemIndex !== null ? "Update Item" : "Add Item"}
+                                        </Button>
+                                        {editingItemIndex !== null && (
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                onClick={() => {
+                                                    setTempLinkTitle(""); setTempLinkRussianTitle(""); setTempLinkUrl(""); setEditingItemIndex(null);
+                                                }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        )}
+                    </CardContent>
 
-                <div className="flex gap-4 mt-6">
-                    <button
-                        type="submit"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                    >
-                        Save Changes
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => navigate("/admin/webbuilder/header")}
-                        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
-                    >
-                        Cancel
-                    </button>
-                </div>
-            </form>
+                    <Separator className="my-3" />
+
+                    <CardFooter className="flex items-center gap-2 py-3">
+                        <Button type="submit">Save Changes</Button>
+                        <Button type="button" variant="secondary" onClick={() => navigate("/admin/webbuilder/header")}>
+                            Cancel
+                        </Button>
+                    </CardFooter>
+                </form>
+            </Card>
         </div>
     );
 };

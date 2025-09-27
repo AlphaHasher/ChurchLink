@@ -236,8 +236,6 @@ mod_router = ModProtectedRouter(prefix="/api/v1")
 
 mod_router.include_router(mod_bible_plan_router)
 mod_router.include_router(user_mod_router)
-mod_router.include_router(mod_footer_router)
-mod_router.include_router(mod_header_router)
 mod_router.include_router(mod_page_router)
 mod_router.include_router(permissions_view_router)
 mod_router.include_router(private_notification_router)
@@ -258,12 +256,19 @@ permissions_management_protected_router = PermProtectedRouter(prefix="/api/v1", 
 
 permissions_management_protected_router.include_router(permissions_protected_router)
 
+# LAYOUT MANAGEMENT CORE
+layout_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Header/Footer Layout"], required_perms=['layout_management'])
+layout_management_protected_router.include_router(mod_header_router)
+layout_management_protected_router.include_router(mod_footer_router)
+
+
 # Include routers in main app
 app.include_router(public_router)
 app.include_router(private_router)
 app.include_router(mod_router)
 app.include_router(event_editing_protected_router)
 app.include_router(permissions_management_protected_router)
+app.include_router(layout_management_protected_router)
 
 
 if __name__ == "__main__":

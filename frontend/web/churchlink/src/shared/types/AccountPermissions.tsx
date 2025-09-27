@@ -3,6 +3,7 @@ export type AccountPermissions = {
   name: string;
   admin: boolean;
   permissions_management: boolean;
+  layout_management: boolean;
   event_editing: boolean;
   event_management: boolean;
   media_management: boolean;
@@ -22,6 +23,7 @@ export const permissionLabels: Record<string, string> = {
   name: "Permission Name",
   admin: "Administrator",
   permissions_management: "Permissions Manager",
+  layout_management: "Site Layout Manager",
   event_editing: "Event Editor",
   event_management: "Event Manager",
   media_management: "Media Library Manager",

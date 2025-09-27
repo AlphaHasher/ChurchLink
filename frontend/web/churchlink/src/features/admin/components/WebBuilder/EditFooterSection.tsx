@@ -2,95 +2,118 @@ import React, { useState, useEffect } from "react";
 import api from "@/api/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, } from "@dnd-kit/sortable";
+
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-// Type definitions
-interface BaseHeaderItem {
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+    CardFooter,
+} from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
+import { Separator } from "@/shared/components/ui/separator";
+import { GripVertical, Save, X, ArrowLeft } from "lucide-react";
+
+interface BaseSectionItem {
     title: string;
     russian_title: string;
     visible: boolean;
 }
-
-interface LinkItem extends BaseHeaderItem {
+interface LinkItem extends BaseSectionItem {
     url: string | null;
     type: "link";
 }
-
-interface DropdownItem extends BaseHeaderItem {
+interface Section {
+    title: string;
+    russian_title: string;
     items: LinkItem[];
-    type: "dropdown";
 }
 
-type HeaderItem = LinkItem | DropdownItem;
+const SortableItem = ({
+    id,
+    children,
+}: {
+    id: string;
+    children: React.ReactNode;
+}) => {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+        useSortable({ id });
 
-// SortableItem component for drag-and-drop
-const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
+    const style = { transform: CSS.Transform.toString(transform), transition };
 
     return (
-        <div ref={setNodeRef} style={style} className="mb-2">
-            <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
-                    &#x2630;
-                </div>
-                <div className="flex-grow">
-                    {children}
-                </div>
-            </div>
+        <div ref={setNodeRef} style={style} className="mb-1.5">
+            <Card className="border bg-background">
+                <CardContent className="p-2 flex items-center gap-2">
+                    <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab rounded p-1 hover:bg-muted"
+                        aria-label="Drag to reorder"
+                    >
+                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <div className="flex-1">{children}</div>
+                </CardContent>
+            </Card>
         </div>
     );
 };
 
-const EditHeaderItem: React.FC = () => {
+const EditFooterSection: React.FC = () => {
     const { title } = useParams<{ title: string }>();
     const navigate = useNavigate();
     const sensors = useSensors(useSensor(PointerSensor));
 
-    const [item, setItem] = useState<HeaderItem | null>(null);
+    const [section, setSection] = useState<Section | null>(null);
     const [loading, setLoading] = useState(true);
+
     const [newTitle, setNewTitle] = useState("");
     const [russianTitle, setRussianTitle] = useState("");
-    const [url, setUrl] = useState("");
-    const [isDropdown, setIsDropdown] = useState(false);
 
-    // For dropdown items
-    const [dropdownItems, setDropdownItems] = useState<LinkItem[]>([]);
-    const [tempLinkTitle, setTempLinkTitle] = useState("");
-    const [tempLinkRussianTitle, setTempLinkRussianTitle] = useState("");
-    const [tempLinkUrl, setTempLinkUrl] = useState("");
-    const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+    const [items, setItems] = useState<LinkItem[]>([]);
+    const [tempTitle, setTempTitle] = useState("");
+    const [tempRuTitle, setTempRuTitle] = useState("");
+    const [tempUrl, setTempUrl] = useState("");
+    const [editingIndex, setEditingItemIndex] = useState<number | null>(null);
 
     useEffect(() => {
-        fetchHeaderItem();
+        void fetchSection();
     }, [title]);
 
-    const fetchHeaderItem = async () => {
+    const fetchSection = async () => {
         if (!title) return;
 
         try {
             setLoading(true);
             const response = await api.get(`/v1/footer/${encodeURIComponent(title)}`);
-            setItem(response.data);
+            setSection(response.data);
             setNewTitle(response.data.title);
             setRussianTitle(response.data.russian_title);
-
-            if (response.data.items) {
-                setIsDropdown(true);
-                setDropdownItems(response.data.items || []);
-            } else if (response.data.url) {
-                setUrl(response.data.url);
-                setIsDropdown(false);
-            }
+            setItems(response.data.items || []);
         } catch (err) {
-            console.error("Failed to fetch footer item:", err);
-            toast.error("Failed to load navigation item");
+            console.error("Failed to fetch footer section:", err);
+            toast.error("Failed to load section");
             navigate("/admin/webbuilder/footer");
         } finally {
             setLoading(false);
@@ -100,262 +123,196 @@ const EditHeaderItem: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!item) return;
+        if (!section) return;
 
         try {
-            const updatedItem = isDropdown
-                ? {
-                    title: newTitle,
-                    russian_title: russianTitle,
-                    items: dropdownItems,
-                }
-                : {
-                    title: newTitle,
-                    russian_title: russianTitle,
-                    url,
-                };
-
-            const response = await api.put(`/v1/footer/items/edit/${title}`, updatedItem);
-
-            if (response.data) {
-                toast.success("Navigation item updated successfully");
+            const res = await api.put(`/v1/footer/items/edit/${encodeURIComponent(section.title)}`, {
+                title: newTitle.trim(),
+                russian_title: russianTitle.trim(),
+                items,
+            });
+            if (res.data?.success) {
+                toast.success("Section updated");
                 navigate("/admin/webbuilder/footer");
+            } else {
+                toast.error(res.data?.msg || "Failed to update section");
             }
         } catch (err) {
-            console.error("Failed to update navigation item:", err);
-            toast.error("Failed to update navigation item");
+            console.error("Failed to update section:", err);
+            toast.error("Failed to update section");
         }
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (active.id !== over?.id) {
-            setDropdownItems(items => {
-                const oldIndex = items.findIndex(item => `${item.title}-${item.url}` === active.id);
-                const newIndex = items.findIndex(item => `${item.title}-${item.url}` === over?.id);
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    return arrayMove(items, oldIndex, newIndex);
-                }
-                return items;
+            setItems((prev) => {
+                const oldIndex = prev.findIndex((i) => `${i.title}-${i.url}` === String(active.id));
+                const newIndex = prev.findIndex((i) => `${i.title}-${i.url}` === String(over?.id));
+                return oldIndex !== -1 && newIndex !== -1 ? arrayMove(prev, oldIndex, newIndex) : prev;
             });
         }
     };
 
-    const handleAddDropdownItem = (e: React.FormEvent) => {
+    const addOrUpdateItem = (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!tempLinkTitle || !tempLinkRussianTitle) {
-            toast.error("Link title, Russian title, and URL are required");
+        if (!tempTitle || !tempRuTitle) {
+            toast.error("Title and Russian title are required");
             return;
         }
-
-        if (editingItemIndex !== null) {
-            // Update existing item
-            const updatedItems = [...dropdownItems];
-            updatedItems[editingItemIndex] = {
-                title: tempLinkTitle,
-                russian_title: tempLinkRussianTitle,
-                url: tempLinkUrl || "",
-                visible: true,
-                type: "link"
-            };
-            setDropdownItems(updatedItems);
+        const next: LinkItem = {
+            title: tempTitle,
+            russian_title: tempRuTitle,
+            url: (tempUrl || "").trim(),
+            visible: true,
+            type: "link",
+        };
+        if (editingIndex !== null) {
+            const copy = [...items];
+            copy[editingIndex] = next;
+            setItems(copy);
             setEditingItemIndex(null);
         } else {
-            // Add new item
-            setDropdownItems([...dropdownItems, {
-                title: tempLinkTitle,
-                russian_title: tempLinkRussianTitle,
-                url: tempLinkUrl || "",
-                visible: true,
-                type: "link"
-            }]);
+            setItems((prev) => [...prev, next]);
         }
-
-        // Reset form fields
-        setTempLinkTitle("");
-        setTempLinkRussianTitle("");
-        setTempLinkUrl("");
+        setTempTitle(""); setTempRuTitle(""); setTempUrl("");
     };
 
-    const handleEditDropdownItem = (index: number) => {
-        const item = dropdownItems[index];
-        setTempLinkTitle(item.title);
-        setTempLinkRussianTitle(item.russian_title);
-        setTempLinkUrl(item.url || "");
-        setEditingItemIndex(index);
+    const editItem = (i: number) => {
+        const it = items[i];
+        setTempTitle(it.title);
+        setTempRuTitle(it.russian_title);
+        setTempUrl(it.url || "");
+        setEditingItemIndex(i);
     };
 
-    const handleRemoveDropdownItem = (index: number) => {
-        setDropdownItems(items => items.filter((_, i) => i !== index));
-        // If we were editing this item, reset the form
-        if (editingItemIndex === index) {
-            setTempLinkTitle("");
-            setTempLinkRussianTitle("");
-            setTempLinkUrl("");
-            setEditingItemIndex(null);
+    const removeItem = (i: number) => {
+        setItems((prev) => prev.filter((_, idx) => idx !== i));
+        if (editingIndex === i) {
+            setTempTitle(""); setTempRuTitle(""); setTempUrl(""); setEditingItemIndex(null);
         }
     };
 
     const cancelEditingItem = () => {
-        setTempLinkTitle("");
-        setTempLinkRussianTitle("");
-        setTempLinkUrl("");
-        setEditingItemIndex(null);
+        setTempTitle(""); setTempRuTitle(""); setTempUrl(""); setEditingItemIndex(null);
     };
 
-    if (loading) return <div className="p-6 text-center">Loading item data...</div>;
+    if (loading) return <div className="p-6 text-center">Loading section...</div>;
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
-            <h2 className="text-xl font-semibold mb-4">Edit Section</h2>
+        <div className="mx-auto w-full max-w-4xl space-y-5">
+            <Button variant="ghost" className="px-0" onClick={() => navigate("/admin/webbuilder/footer")}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Footer
+            </Button>
 
-            <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                    <label className="block text-gray-700 mb-1" htmlFor="title">
-                        Title
-                    </label>
-                    <input
-                        type="text"
-                        id="title"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        className="w-full p-2 border rounded"
-                        required
-                    />
-                </div>
+            <Card>
+                <CardHeader className="py-4">
+                    <CardTitle className="text-base">Edit Section</CardTitle>
+                    <CardDescription className="text-xs">Update titles and manage section links.</CardDescription>
+                </CardHeader>
 
-                <div className="mb-4">
-                    <label className="block text-gray-700 mb-1" htmlFor="russianTitle">
-                        Russian Title
-                    </label>
-                    <input
-                        type="text"
-                        id="russianTitle"
-                        value={russianTitle}
-                        onChange={(e) => setRussianTitle(e.target.value)}
-                        className="w-full p-2 border rounded"
-                        required
-                    />
-                </div>
+                <form onSubmit={handleSubmit}>
+                    <CardContent className="space-y-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Title</Label>
+                            <Input id="title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
+                        </div>
 
-                <div className="mb-4 border rounded p-4 bg-gray-50">
-                    <h3 className="font-medium mb-2">Dropdown Items</h3>
+                        <div className="grid gap-2">
+                            <Label htmlFor="ru">Russian Title</Label>
+                            <Input id="ru" value={russianTitle} onChange={(e) => setRussianTitle(e.target.value)} required />
+                        </div>
 
-                    {dropdownItems.length > 0 ? (
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <SortableContext
-                                items={dropdownItems.map(link => `${link.title}-${link.url}`)}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                <ul className="mb-4">
-                                    {dropdownItems.map((link, index) => (
-                                        <SortableItem
-                                            key={`${link.title}-${link.url}`}
-                                            id={`${link.title}-${link.url}`}
-                                        >
-                                            <li className="flex justify-between items-center p-2 bg-white border rounded">
-                                                <div>
-                                                    <div className="font-medium">{link.title}</div>
-                                                    <div className="text-sm text-blue-600">{link.url}</div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleEditDropdownItem(index)}
-                                                        className="text-blue-500 hover:text-blue-700"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveDropdownItem(index)}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                </div>
-                                            </li>
-                                        </SortableItem>
-                                    ))}
-                                </ul>
-                            </SortableContext>
-                        </DndContext>
-                    ) : (
-                        <p className="text-gray-500 italic mb-4">No dropdown items</p>
-                    )}
+                        <Separator className="my-2" />
 
-                    <div className="border-t pt-3">
-                        <h4 className="font-medium mb-2">
-                            {editingItemIndex !== null ? 'Edit Item' : 'Add Item to Dropdown'}
-                        </h4>
-                        <div className="flex flex-col gap-2">
-                            <input
-                                type="text"
-                                placeholder="Title"
-                                value={tempLinkTitle}
-                                onChange={(e) => setTempLinkTitle(e.target.value)}
-                                className="border rounded px-3 py-2"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Russian Title"
-                                value={tempLinkRussianTitle}
-                                onChange={(e) => setTempLinkRussianTitle(e.target.value)}
-                                className="border rounded px-3 py-2"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Optional URL"
-                                value={tempLinkUrl}
-                                onChange={(e) => setTempLinkUrl(e.target.value)}
-                                className="border rounded px-3 py-2"
-                            />
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handleAddDropdownItem}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-medium">Section Items</h3>
+                            <span className="text-xs text-muted-foreground">{items.length} item(s)</span>
+                        </div>
+
+                        {items.length > 0 ? (
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                <SortableContext
+                                    items={items.map((i) => `${i.title}-${i.url}`)}
+                                    strategy={verticalListSortingStrategy}
                                 >
-                                    {editingItemIndex !== null ? 'Update Item' : 'Add Item'}
-                                </button>
-                                {editingItemIndex !== null && (
-                                    <button
-                                        type="button"
-                                        onClick={cancelEditingItem}
-                                        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
-                                    >
-                                        Cancel
-                                    </button>
+                                    <div className="space-y-1.5">
+                                        {items.map((link, index) => (
+                                            <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
+                                                <div className="flex w-full items-center justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <div className="truncate text-sm font-medium">{link.title}</div>
+                                                        <div className="truncate text-[11px] text-muted-foreground">{link.url}</div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button type="button" variant="ghost" size="sm" onClick={() => editItem(index)}>
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-destructive"
+                                                            onClick={() => removeItem(index)}
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </SortableItem>
+                                        ))}
+                                    </div>
+                                </SortableContext>
+                            </DndContext>
+                        ) : (
+                            <div className="rounded-md border p-3 text-xs text-muted-foreground">No items</div>
+                        )}
+
+                        <div className="rounded-md border p-4">
+                            <h4 className="mb-2 text-sm font-medium">
+                                {editingIndex !== null ? "Edit Item" : "Add Item"}
+                            </h4>
+                            <div className="grid gap-2 sm:grid-cols-3">
+                                <div className="grid gap-2">
+                                    <Label>Title</Label>
+                                    <Input value={tempTitle} onChange={(e) => setTempTitle(e.target.value)} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Russian Title</Label>
+                                    <Input value={tempRuTitle} onChange={(e) => setTempRuTitle(e.target.value)} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>URL (optional)</Label>
+                                    <Input value={tempUrl} onChange={(e) => setTempUrl(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="mt-3 flex gap-2">
+                                <Button type="button" onClick={addOrUpdateItem}>
+                                    {editingIndex !== null ? "Update Item" : "Add Item"}
+                                </Button>
+                                {editingIndex !== null && (
+                                    <Button type="button" variant="secondary" onClick={cancelEditingItem}>
+                                        <X className="mr-1 h-4 w-4" /> Cancel
+                                    </Button>
                                 )}
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </CardContent>
 
-                <div className="flex gap-4 mt-6">
-                    <button
-                        type="submit"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                    >
-                        Save Changes
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => navigate("/admin/webbuilder/footer")}
-                        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
-                    >
-                        Cancel
-                    </button>
-                </div>
-            </form>
+                    <Separator className="my-3" />
+
+                    <CardFooter className="flex items-center gap-2 py-3">
+                        <Button type="submit">
+                            <Save className="mr-2 h-4 w-4" /> Save Changes
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={() => navigate("/admin/webbuilder/footer")}>
+                            Cancel
+                        </Button>
+                    </CardFooter>
+                </form>
+            </Card>
         </div>
     );
 };
 
-export default EditHeaderItem;
+export default EditFooterSection;
