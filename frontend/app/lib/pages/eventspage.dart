@@ -6,6 +6,7 @@ import '../models/event_registration_summary.dart';
 import '../services/event_registration_service.dart';
 import '../widgets/enhanced_event_card.dart';
 import 'event_showcase.dart';
+import 'package:add_2_calendar/add_2_calendar.dart' as a2c;
 
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -362,13 +363,28 @@ class _EventsPageState extends State<EventsPage> {
     }
   }
 
-  void _onAddToCalendar(Event event) {
+  void _onAddToCalendar(Event event) async {
+    final DateTime start = event.date.toLocal();
+    final DateTime end = start.add(const Duration(hours: 1));
+
+    final calEvent = a2c.Event(
+      title: event.name,
+      description: event.description,
+      location: event.location,
+      startDate: start,
+      endDate: end,
+      allDay: false,
+      iosParams: const a2c.IOSParams(reminder: Duration(minutes: 60)),
+      androidParams: const a2c.AndroidParams(),
+    );
+
+    final ok = await a2c.Add2Calendar.addEvent2Cal(calEvent);
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add to Calendar tapped')),
+      SnackBar(content: Text(ok ? 'Opening calendar…' : 'Couldn\'t open calendar')),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
