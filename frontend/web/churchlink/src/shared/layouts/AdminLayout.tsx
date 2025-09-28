@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "@/features/admin/components/AdminDashboardSideBar";
 import { ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/shared/components/ui/sidebar";
+import MultiStateBadge from "../components/MultiStageBadge";
 
 interface AdminLayoutProps {
   children?: ReactNode;

@@ -2,8 +2,6 @@ import { useMemo, useState, type ComponentType } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   BarChart2,
-  Settings,
-  LogOut,
   Home,
   Shield,
   User,
@@ -14,8 +12,6 @@ import {
   Bell,
   DollarSign,
 } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { processStrapiRedirect } from "@/helpers/StrapiInteraction";
 import {
   Sidebar,
@@ -33,11 +29,10 @@ import {
   SidebarMenuSubButton,
 } from "@/shared/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/ui/collapsible";
-import { useAuth } from "@/features/auth/hooks/auth-context";
+import ProfilePill from "@/shared/components/ProfilePill";
 
 const AdminDashboardSideBar = () => {
   const location = useLocation();
-  const { user } = useAuth();
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
 
   const isActive = (path?: string) =>
@@ -74,7 +69,7 @@ const AdminDashboardSideBar = () => {
   };
 
   const items: Item[] = [
-    { title: "Home", url: "/pages/home", icon: Home },
+    { title: "Home", url: "/", icon: Home },
     { title: "Dashboard", url: "/admin", icon: BarChart2 },
     { title: "Manage Users", url: "/admin/users", icon: User },
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
@@ -88,8 +83,6 @@ const AdminDashboardSideBar = () => {
     { title: "Bible Plan Manager", url: "/admin/bible-plan-manager", icon: BookOpen },
     { title: "Finance", url: "/admin/finance", icon: DollarSign },
     { title: "Notifications", url: "/admin/notifications", icon: Bell },
-    { title: "Settings", url: "/admin/settings", icon: Settings },
-    { title: "Logout", icon: LogOut, onClick: () => signOut(auth) },
   ];
 
   return (
@@ -159,26 +152,7 @@ const AdminDashboardSideBar = () => {
       <SidebarRail />
 
       <SidebarFooter>
-        <div className="flex items-center justify-between gap-2 p-2 text-sm">
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            <span className="truncate max-w-[12rem]">
-              {user?.email ?? "You're not supposed to be here"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <SidebarMenuButton asChild>
-              <Link to="/admin/settings">
-                <Settings />
-                <span className="sr-only">Settings</span>
-              </Link>
-            </SidebarMenuButton>
-            <SidebarMenuButton onClick={() => signOut(auth)}>
-              <LogOut />
-              <span className="sr-only">Logout</span>
-            </SidebarMenuButton>
-          </div>
-        </div>
+        <ProfilePill className="mx-2 mb-2" />
       </SidebarFooter>
     </Sidebar>
   );

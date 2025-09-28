@@ -1,17 +1,11 @@
-import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown } from "lucide-react"
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-theme-quartz.css';
 
+// Register all community features
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+import { ChevronDown } from "lucide-react"
 import { Button } from "@/shared/components/ui/button"
 import {
   DropdownMenu,
@@ -20,14 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu"
 import { Input } from "@/shared/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/DataTable"
 
 import { CreatePermDialog } from "@/features/admin/components/Permissions/RoleTable/CreatePermDialog"
 import { EditPermDialog } from "@/features/admin/components/Permissions/RoleTable/EditPermDialog"
@@ -39,102 +25,212 @@ import {
 import { PermRoleMembersDialog } from "./PermRoleMembersDialog"
 
 import { UserInfo } from "@/shared/types/UserInfo"
-import { useState } from "react"
 import { getDisplayValue } from "@/helpers/DataFunctions"
+import { useState, useRef, useEffect } from "react"
+import { updateRole } from "@/helpers/PermissionsHelper"
+import { Checkbox } from "@/shared/components/ui/checkbox"
+import MultiStateBadge from "@/shared/components/MultiStageBadge"
 
 
 interface PermissionsTableProps {
-  data: AccountPermissions[]; // Define the expected data type
+  data: AccountPermissions[];
   userData: UserInfo[];
   onSave: () => Promise<void>;
 }
 
-// In the Table, this creates the Columns that display the permissions they have.
-const createPermColumn = (
-  accessorKey: keyof AccountPermissions,
-  userData: UserInfo[],
-  data: AccountPermissions[],
-  onSave: () => Promise<void>
-): ColumnDef<AccountPermissions> => {
-  const label = permissionLabels[accessorKey];
+// Cell renderer for the actions column
+const ActionsCellRenderer = (props: ICellRendererParams<AccountPermissions>) => {
+  const { data, context } = props;
+  if (!data) return null;
 
-  return {
-    accessorKey,
-    header: ({ column }) => (
-      <div className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-start" : "justify-center"
-        } text-center`} ><Button
-          variant="ghost"
-          className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          {label}
-          <ArrowUpDown />
-        </Button></div>
-
-    ),
-    cell: ({ row }) => {
-      const rowData = row.original; // Access the row data
-
-      return (
-        <div
-          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end" : "justify-center"
-            } text-center`}
-        >
-          <div>
-            {getDisplayValue(row.getValue(accessorKey), accessorKey)}
-          </div>
-
-          {/* Put EditPermDialog and DeletePermDialog */}
-          {accessorKey === "name" && (
-            <div className="ml-auto flex space-x-2">
-              {row.getValue("name") !== "Administrator" && (
-                <>
-                  <EditPermDialog permissions={rowData} onSave={onSave} />
-                  <DeletePermDialog permissions={rowData} onSave={onSave} />
-                </>
-              )}
-              <PermRoleMembersDialog permissions={rowData} userData={userData} permData={data} />
-            </div>
-          )}
-
-        </div>
-      );
-    },
+  const { userData, permData, onSave } = context as {
+    userData: UserInfo[],
+    permData: AccountPermissions[],
+    onSave: () => Promise<void>
   };
+
+  return (
+    <div className="flex space-x-2">
+      {data.name !== "Administrator" && (
+        <>
+          <EditPermDialog permissions={data} onSave={onSave} />
+          <DeletePermDialog permissions={data} onSave={onSave} />
+        </>
+      )}
+      <PermRoleMembersDialog permissions={data} userData={userData} permData={permData} />
+    </div>
+  );
+};
+
+// Cell renderer for permission columns
+const PermissionCellRenderer = (props: ICellRendererParams<AccountPermissions> & { permissionKey: keyof AccountPermissions }) => {
+  const { data, value, permissionKey, context } = props;
+  if (!data) return null;
+
+  const { onSave } = context as { onSave: () => Promise<void> };
+  const [badgeState, setBadgeState] = useState<"custom" | "processing" | "success" | "error">("custom");
+
+  const isDisabled = data.name === "Administrator" || badgeState !== "custom";
+
+  const handleTogglePermission = async (checked: boolean) => {
+    if (data.name === "Administrator") return; // Don't allow toggling Administrator permissions
+
+    setBadgeState("processing");
+
+    try {
+      const updatedRole = {
+        ...data,
+        [permissionKey]: checked
+      };
+
+      const result = await updateRole(updatedRole);
+      if (result) {
+        setBadgeState("success");
+        // Hold success for visibility, then refresh data and return to custom
+        setTimeout(async () => {
+          await onSave();
+          setBadgeState("custom");
+        }, 900);
+      } else {
+        setBadgeState("error");
+        // Hold error for visibility
+        setTimeout(() => setBadgeState("custom"), 1200);
+      }
+    } catch (error) {
+      console.error('Failed to update permission:', error);
+      setBadgeState("error");
+      setTimeout(() => setBadgeState("custom"), 1200);
+    } finally {
+      // no-op; badgeState handles visual state
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-full w-full overflow-visible">
+      {(() => {
+        return (
+      <MultiStateBadge
+        state={badgeState}
+        customComponent={
+          <Checkbox
+            checked={Boolean(value)}
+            onCheckedChange={(v) => handleTogglePermission(v === true)}
+            disabled={isDisabled}
+          />
+        }
+      />
+        );
+      })()}
+    </div>
+  );
 };
 
 
 
 export function PermissionsTable({ data, userData, onSave }: PermissionsTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
+  const [quickFilterText, setQuickFilterText] = useState('');
+  const gridRef = useRef<AgGridReact<AccountPermissions>>(null);
 
-  const columns: ColumnDef<AccountPermissions>[] = [];
+  // Initialize column visibility state - show all columns by default, load from localStorage if available
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const savedState = localStorage.getItem('permissions-table-column-visibility');
+    if (savedState) {
+      try {
+        return JSON.parse(savedState);
+      } catch (e) {
+        console.warn('Failed to parse saved column visibility state:', e);
+      }
+    }
 
-  Object.keys(permissionLabels).forEach((key) => {
-    columns.push(createPermColumn(key as keyof AccountPermissions, userData, data, onSave));
+    // Default: all columns visible
+    const initialState: Record<string, boolean> = {};
+    Object.keys(permissionLabels).forEach((key) => {
+      initialState[key] = true;
+    });
+    initialState.Actions = true; // Actions column is always visible
+    return initialState;
   });
 
-  const table = useReactTable({
-    data,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
+  // Save column visibility to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('permissions-table-column-visibility', JSON.stringify(columnVisibility));
+  }, [columnVisibility]);
+
+  // Create column definitions dynamically from permissionLabels
+  const columnDefs: ColDef<AccountPermissions>[] = Object.keys(permissionLabels).map((key) => {
+    const permissionKey = key as keyof AccountPermissions;
+
+    if (permissionKey === 'name') {
+      return {
+        field: permissionKey,
+        headerName: permissionLabels[permissionKey],
+        sortable: true,
+        filter: true,
+        flex: 2,
+        minWidth: 150,
+        valueFormatter: (params) => getDisplayValue(params.value, permissionKey),
+        cellClass: 'font-medium',
+        hide: !columnVisibility[permissionKey],
+      };
+    } else {
+      // Permission columns use the custom cell renderer
+      return {
+        field: permissionKey,
+        headerName: permissionLabels[permissionKey],
+        sortable: true,
+        filter: true,
+        flex: 1,
+        minWidth: 100,
+        cellClass: 'perm-cell',
+        cellStyle: { display: 'grid', placeItems: 'center', padding: 0 },
+        cellRenderer: (props: ICellRendererParams<AccountPermissions>) =>
+          PermissionCellRenderer({ ...props, permissionKey }),
+        hide: !columnVisibility[permissionKey],
+      };
+    }
   });
+
+  // Add actions column
+  columnDefs.push({
+    headerName: 'Actions',
+    cellRenderer: ActionsCellRenderer,
+    sortable: false,
+    filter: false,
+    width: 200,
+    suppressSizeToFit: true,
+    pinned: 'right',
+    hide: false,
+  });
+
+  const defaultColDef: ColDef = {
+    resizable: true,
+  };
+
+  const handleHideAllPermissions = () => {
+    const newVisibility = { ...columnVisibility };
+    Object.keys(permissionLabels).forEach((key) => {
+      newVisibility[key] = false;
+    });
+    newVisibility.name = true; // Keep name column visible
+    newVisibility.Actions = true; // Keep actions column visible
+    setColumnVisibility(newVisibility);
+  };
+
+  const handleShowAllPermissions = () => {
+    const newVisibility = { ...columnVisibility };
+    Object.keys(permissionLabels).forEach((key) => {
+      newVisibility[key] = true;
+    });
+    newVisibility.Actions = true; // Keep actions column visible
+    setColumnVisibility(newVisibility);
+  };
+
+  const handleColumnVisibilityChange = (columnId: string, visible: boolean) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [columnId]: visible,
+    }));
+  };
 
   return (
     <div className="container mx-start">
@@ -142,10 +238,8 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
         {/* Search Input */}
         <Input
           placeholder="Search Permission Name..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("name")?.setFilterValue(event.target.value)
-          }
+          value={quickFilterText}
+          onChange={(event) => setQuickFilterText(event.target.value)}
           className="max-w-sm"
         />
 
@@ -160,40 +254,31 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
             <Button
               variant="outline"
               className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-              onClick={() => {
-                table.getAllColumns().forEach((column) => {
-                  if (column.id !== "name") column.toggleVisibility(false);
-                });
-              }}
+              onClick={handleHideAllPermissions}
             >
               Hide All Permissions
             </Button>
             <Button
               variant="outline"
               className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-              onClick={() => {
-                table.getAllColumns().forEach((column) => {
-                  column.toggleVisibility(true);
-                });
-              }}
+              onClick={handleShowAllPermissions}
             >
               Show All Permissions
             </Button>
 
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide() && column.id !== "name")
-              .map((column) => (
+            {Object.keys(permissionLabels)
+              .filter((key) => key !== 'name')
+              .map((key) => (
                 <DropdownMenuCheckboxItem
-                  key={column.id}
+                  key={key}
                   className="capitalize"
-                  checked={column.getIsVisible()}
+                  checked={columnVisibility[key] ?? false}
                   onCheckedChange={(value) =>
-                    column.toggleVisibility(!!value)
+                    handleColumnVisibilityChange(key, !!value)
                   }
                   onSelect={(event) => event.preventDefault()}
                 >
-                  {permissionLabels[column.id as keyof typeof permissionLabels]}
+                  {permissionLabels[key as keyof typeof permissionLabels]}
                 </DropdownMenuCheckboxItem>
               ))}
           </DropdownMenuContent>
@@ -205,80 +290,21 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
         </div>
       </div>
 
-      {/* Scrollable Table Container */}
-      <div className="rounded-md border overflow-x-auto max-w-full">
-        <Table className="w-full min-w-max">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={header.column.id === "name" ? "sticky left-0 bg-white z-10 shadow-right" : ""}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cell.column.id === "name" ? "sticky left-0 bg-white z-10 shadow-right" : ""}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="text-sm text-gray-600">
-          {`Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-${Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
-          )} of ${table.getFilteredRowModel().rows.length}`}
-        </div>
-
-        <div className="space-x-2">
-          <Button
-            className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+      <div className="ag-theme-quartz" style={{ height: 400, width: '100%' }}>
+        <AgGridReact
+          key={JSON.stringify(columnVisibility)}
+          ref={gridRef}
+          rowData={data}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          context={{ userData, permData: data, onSave }}
+          pagination={true}
+          paginationPageSize={10}
+          paginationPageSizeSelector={[10, 25, 50]}
+          animateRows={true}
+          enableCellTextSelection={true}
+          quickFilterText={quickFilterText}
+        />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
 @plugin "tailwindcss-animate";
 
@@ -220,4 +221,16 @@ h1 {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Center AG Grid permission cells and allow badge overflow */
+.perm-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+.perm-cell .ag-cell-wrapper,
+.perm-cell .ag-cell-value {
+  overflow: visible !important;
 }
