@@ -172,7 +172,7 @@ async def unregister_user_from_event(event_id: str, request: Request):
 # Private Route
 # Get user's events (alias of /user)
 @event_person_registration_router.get("/my-events", response_model=dict)
-async def get_my_events(request: Request, include_family: bool = True):
+async def get_my_events(request: Request, include_family: bool = True, expand: bool = False):
     try:
         from mongo.churchuser import UserHandler
         import logging
