@@ -290,3 +290,38 @@ async def delete_user_family_member_route(request: Request, family_id:str):
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error deleting family member: {str(e)}")
+    
+    # Private Router
+@user_private_router.get("/me/people", response_model=dict)
+async def list_my_people_alias(request: Request):
+    """
+    Alias used by the web UI to fetch saved Event People.
+    Returns the same payload as /users/all-family-members but under 'people'.
+    """
+    from helpers.MongoHelper import serialize_objectid
+    try:
+        user_id = request.state.uid
+        family_members = await get_family_members(user_id)  # already implemented
+        # Normalize shape to what the UI expects
+        return {"success": True, "people": serialize_objectid(family_members)}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching people: {str(e)}")
+
+# Private Router
+@user_private_router.post("/me/people", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def add_person_alias(request: Request, family_member_data: PersonCreate = Body(...)):
+    """
+    Optional alias to create a new Event Person from the same screen.
+    Mirrors POST /users/add-family-member but returns { success, person }.
+    """
+    from helpers.MongoHelper import serialize_objectid
+    try:
+        user_id = request.state.uid
+        created_member = await add_family_member(user_id, family_member_data)
+        if not created_member:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error adding person")
+        return {"success": True, "person": serialize_objectid(created_member)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding person: {str(e)}")
