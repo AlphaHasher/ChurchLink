@@ -27,10 +27,14 @@ pytestmark = pytest.mark.anyio("asyncio")
 def anyio_backend():
     return "asyncio"
 
+_AUTH_HEADERS = None
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def auth_headers():
-    return get_auth_headers()
+    global _AUTH_HEADERS
+    if _AUTH_HEADERS is None:
+        _AUTH_HEADERS = get_auth_headers()
+    return _AUTH_HEADERS
 
 
 @pytest.fixture
