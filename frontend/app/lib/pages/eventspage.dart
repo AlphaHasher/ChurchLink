@@ -10,9 +10,6 @@ import 'event_showcase.dart';
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
 
-  // Static callback for deep linking navigation
-  static void Function(String eventId)? onNavigateToEvent;
-
   @override
   State<EventsPage> createState() => _EventsPageState();
 }
@@ -41,9 +38,6 @@ class _EventsPageState extends State<EventsPage> {
   void initState() {
     super.initState();
 
-    // Set up the deep linking callback
-    EventsPage.onNavigateToEvent = _handleDeepLinkNavigation;
-
     //Utilized for entering text into filters
     _nameController = TextEditingController(text: _nameQuery ?? '');
     _maxPriceController = TextEditingController(
@@ -62,9 +56,6 @@ class _EventsPageState extends State<EventsPage> {
 
   @override
   void dispose() {
-    // Clean up the deep linking callback
-    EventsPage.onNavigateToEvent = null;
-    
     _nameController.dispose();
     _maxPriceController.dispose();
     _ageController.dispose();
@@ -72,6 +63,8 @@ class _EventsPageState extends State<EventsPage> {
   }
 
   Future<void> _loadEvents() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
@@ -115,6 +108,9 @@ class _EventsPageState extends State<EventsPage> {
         '/v1/events/',
         queryParameters: queryParams,
       );
+
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = response.data;
         setState(() {
@@ -124,25 +120,38 @@ class _EventsPageState extends State<EventsPage> {
         // Load registration details for all events
         _loadRegistrationDetails();
       } else {
-        setState(() => _isLoading = false);
+        debugPrint("Failed to load events: ${response.statusCode}");
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      debugPrint("Error loading events: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _loadRegistrationDetails() async {
     for (final event in _events) {
+      if (!mounted) return; // Exit early if widget is disposed
+
       try {
         final summary =
             await EventRegistrationService.getEventRegistrationSummary(
               event.id,
             );
+
+        if (!mounted) return; // Check again after async operation
+
         setState(() {
           _registrationSummaries[event.id] = summary;
         });
       } catch (e) {
-        // Registration summary failed to load
+        debugPrint(
+          'Failed to load registration summary for event ${event.id}: $e',
+        );
       }
     }
   }
@@ -348,35 +357,8 @@ class _EventsPageState extends State<EventsPage> {
     );
 
     // Refresh the events data when returning from the showcase
-    _loadEvents();
-  }
-
-  // Handle deep linking navigation to specific event
-  void _handleDeepLinkNavigation(String eventId) async {
-    try {
-      // Find the event in our current events list
-      final event = _events.firstWhere(
-        (e) => e.id == eventId,
-        orElse: () => throw Exception('Event not found in current events list'),
-      );
-      
-      // Use the normal navigation method since the stack should be clean
-      _navigateToShowcase(event);
-      
-    } catch (e) {
-      // If event not found in current list, try to fetch it from API
-      try {
-        final api = ApiClient(baseUrl: 'https://churchlink-backend-production.up.railway.app'); // Update with your API base URL
-        final response = await api.dio.get('/v1/events/$eventId');
-        
-        if (response.statusCode == 200) {
-          final event = Event.fromJson(response.data);
-          // Use the normal navigation method
-          _navigateToShowcase(event);
-        }
-      } catch (apiError) {
-        // API fetch failed
-      }
+    if (mounted) {
+      _loadEvents();
     }
   }
 
@@ -394,14 +376,7 @@ class _EventsPageState extends State<EventsPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            // Check if we can pop normally (i.e., there's a route to go back to)
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              // If we can't pop (likely from deep linking), navigate to home
-              // This ensures we don't get a black screen
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-            }
+            Navigator.pop(context);
           },
         ),
       ),

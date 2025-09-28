@@ -11,6 +11,7 @@ import '../../firebase/firebase_auth_service.dart';
 import 'edit_profile.dart';
 import 'family_members_page.dart';
 import 'notification_settings_page.dart';
+import '../my_events_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class UserSettings extends StatefulWidget {
@@ -185,6 +186,17 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
+            'icon': Icons.event,
+            'title': 'My Events',
+            'subtitle': 'Your registrations and RSVPs',
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyEventsPage()),
+              );
+            },
+          },
+          {
             'icon': Icons.image,
             'title': 'Change Avatar',
             'subtitle': 'Update your profile picture',
@@ -293,12 +305,13 @@ class _UserSettingsState extends State<UserSettings> {
                     radius: 32,
                     backgroundColor: ssbcGray,
                     backgroundImage:
-                        user?.photoURL != null && user!.photoURL!.isNotEmpty
-                            ? NetworkImage(
-                              user.photoURL!,
-                            ) //  Load Firebase profile picture
-                            : const AssetImage('assets/user/ssbc-dove.png')
-                                as ImageProvider, // Default image
+                        _profileImage != null
+                            ? FileImage(_profileImage!) as ImageProvider
+                            : (user?.photoURL != null &&
+                                    user!.photoURL!.isNotEmpty
+                                ? NetworkImage(user.photoURL!)
+                                : const AssetImage('assets/user/ssbc-dove.png')
+                                    as ImageProvider),
                   ),
 
                   //  Show a loading spinner when uploading an image

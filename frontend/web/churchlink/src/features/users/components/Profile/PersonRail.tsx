@@ -1,4 +1,5 @@
 import * as React from "react";
+import { motion } from "framer-motion";
 import { PersonDetails } from "@/shared/types/Person";
 import { PersonTile } from "./PersonTile";
 import { AddPersonDialog } from "./AddPersonDialog";
@@ -15,7 +16,12 @@ export const PersonRail: React.FC<PersonRailProps> = ({ people, className }) => 
     React.useEffect(() => setList(people ?? []), [people]);
 
     return (
-        <aside className={["w-full lg:flex-1", className].filter(Boolean).join(" ")}>
+        <motion.aside 
+            className={["w-full lg:flex-1", className].filter(Boolean).join(" ")}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
+        >
             <div className="rounded-xl border bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center gap-2">
                     <h3 className="text-base font-semibold flex-1">{heading}</h3>
@@ -24,25 +30,36 @@ export const PersonRail: React.FC<PersonRailProps> = ({ people, className }) => 
 
                 {list.length > 0 ? (
                     <ul className="space-y-3">
-                        {list.map((p) => (
-                            <PersonTile
+                        {list.map((p, index) => (
+                            <motion.div
                                 key={p.id}
-                                person={p}
-                                onUpdated={(next) =>
-                                    setList((prev) => prev.map((it) => (it.id === next.id ? next : it)))
-                                }
-                                onDeleted={(id) =>
-                                    setList((prev) => prev.filter((it) => it.id !== id))
-                                }
-                            />
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 + index * 0.05, duration: 0.3, ease: "easeOut" }}
+                            >
+                                <PersonTile
+                                    person={p}
+                                    onUpdated={(next) =>
+                                        setList((prev) => prev.map((it) => (it.id === next.id ? next : it)))
+                                    }
+                                    onDeleted={(id) =>
+                                        setList((prev) => prev.filter((it) => it.id !== id))
+                                    }
+                                />
+                            </motion.div>
                         ))}
                     </ul>
                 ) : (
-                    <div className="text-sm text-gray-500">
+                    <motion.div 
+                        className="text-sm text-gray-500"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2, duration: 0.3, ease: "easeOut" }}
+                    >
                         You have not added any Family Members to your account.
-                    </div>
+                    </motion.div>
                 )}
             </div>
-        </aside>
+        </motion.aside>
     );
 };

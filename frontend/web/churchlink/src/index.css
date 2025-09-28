@@ -89,6 +89,12 @@ body,
   height: 100%;
 }
 
+/* Fix scrollbar jerking by always reserving space for scrollbar */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 a {
   font-weight: 500;
   text-decoration: inherit;
