@@ -80,7 +80,7 @@ async def unregister_user_from_event(event_id: str, request: Request):
 # Private Route
 # Get user's events
 @event_person_registration_router.get("/my-events", response_model=dict)
-async def get_my_events(request: Request, include_family: bool = True):
+async def get_my_events(request: Request, include_family: bool = True, expand: bool = False):
     try:
         from mongo.churchuser import UserHandler
         import json
@@ -91,14 +91,42 @@ async def get_my_events(request: Request, include_family: bool = True):
         if not request.state.uid:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User authentication required")
         
-        events = await UserHandler.list_my_events(request.state.uid)
+        # Get user's own events (excluding family member events)
+        user_events = await UserHandler.list_my_events(request.state.uid, expand=expand)
+        if user_events is None:
+            user_events = []
         
-        # Handle case where no events are found
-        if events is None:
-            events = []
+        # Filter to get only user's direct events (person_id is None)
+        user_only_events = [event for event in user_events if not event.get("person_id")]
+        all_events = list(user_only_events)
+        
+        # Include family member events if requested
+        if include_family:
+            # Get all family members
+            family_members = await UserHandler.list_people(request.state.uid)
+            
+            # Get events for each family member
+            for member in family_members:
+                member_id = member.get("_id")
+                if member_id:
+                    family_events = await UserHandler.list_my_events(
+                        request.state.uid, 
+                        expand=expand, 
+                        person_id=member_id
+                    )
+                    if family_events:
+                        # Add display_name to family member events
+                        for event in family_events:
+                            # Try both camelCase and snake_case field names for compatibility
+                            first_name = member.get('firstName') or member.get('first_name', '')
+                            last_name = member.get('lastName') or member.get('last_name', '')
+                            display_name = f"{first_name} {last_name}".strip()
+                            # Fallback to a descriptive name if no name fields are available
+                            event["display_name"] = display_name if display_name else "Family Member"
+                        all_events.extend(family_events)
         
         # Convert ObjectIds to strings for JSON serialization
-        events_serialized = serialize_objectid(events)
+        events_serialized = serialize_objectid(all_events)
         
         return {"success": True, "events": events_serialized}
     except HTTPException:
