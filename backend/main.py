@@ -26,6 +26,7 @@ from routes.bible_routes.bible_plan_routes import mod_bible_plan_router
 
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
+from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
 from routes.common_routes.youtube_routes import public_youtube_router
@@ -206,6 +207,7 @@ async def update_user_roles(role_update: RoleUpdate):
 public_router = APIRouter(prefix="/api/v1")
 
 public_router.include_router(public_event_router)
+public_router.include_router(public_sermon_router)
 public_router.include_router(public_youtube_router)
 public_router.include_router(public_footer_router)
 public_router.include_router(public_header_router)
@@ -227,6 +229,7 @@ private_router.include_router(bible_note_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)
+private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
 
 #####################################################
@@ -253,6 +256,11 @@ event_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Ev
 
 event_editing_protected_router.include_router(event_editing_router)
 
+# SERMON EDITING CORE
+sermon_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Sermons"], required_perms=["sermon_editing"])
+
+sermon_editing_protected_router.include_router(sermon_editing_router)
+
 # PERMISSIONS MANAGEMENT CORE
 permissions_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["permissions"], required_perms=['permissions_management'])
 
@@ -263,6 +271,7 @@ app.include_router(public_router)
 app.include_router(private_router)
 app.include_router(mod_router)
 app.include_router(event_editing_protected_router)
+app.include_router(sermon_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 
 

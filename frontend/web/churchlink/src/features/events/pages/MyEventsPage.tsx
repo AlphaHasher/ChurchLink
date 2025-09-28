@@ -4,7 +4,7 @@ import { useMyEvents } from '../hooks/useMyEvents';
 import { MyEventCard } from '../components/MyEventCard';
 import { EventFiltersComponent } from '../components/EventFilters';
 import { EventDetailsModal } from '../components/EventDetailsModal';
-import { myEventsApi } from '@/api/myEventsApi';
+import { myEventsApi } from '@/features/events/api/myEventsApi';
 import Layout from '@/shared/layouts/Layout';
 import { MyEvent, EventFilters, GroupedEvent } from '../types/myEvents';
 

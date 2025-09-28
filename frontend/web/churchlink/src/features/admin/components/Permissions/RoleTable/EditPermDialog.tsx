@@ -35,6 +35,8 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
         permissions_management: false,
         event_editing: false,
         event_management: false,
+        sermon_editing: false,
+        sermon_management: false,
         media_management: false,
     }
 

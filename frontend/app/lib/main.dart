@@ -9,6 +9,7 @@ import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/services/FirebaseMessaging_service.dart';
 import 'package:provider/provider.dart';
+import 'package:app/providers/sermons_provider.dart';
 import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,7 +36,8 @@ Future<void> main() async {
   setupFirebaseMessaging();
   await setupLocalNotifications();
 
-  RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
     initialNotificationData = initialMessage.data;
   }
@@ -43,11 +45,14 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) {
-          final provider = TabProvider();
-          TabProvider.instance = provider;
-          return provider;
-        }),
+        ChangeNotifierProvider(create: (_) => SermonsProvider()),
+        ChangeNotifierProvider(
+          create: (context) {
+            final provider = TabProvider();
+            TabProvider.instance = provider;
+            return provider;
+          },
+        ),
       ],
       child: const MyApp(),
     ),
@@ -59,7 +64,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60));
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: const Color.fromARGB(255, 22, 77, 60),
+    );
     return MaterialApp(
       title: 'ChurchLink',
       navigatorKey: navigatorKey, // Allows navigation from notifications
@@ -152,23 +159,47 @@ class _MyHomePageState extends State<MyHomePage> {
         items: const [
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/Home.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/Home.svg',
+              isActive: true,
+            ),
           ),
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/Bible.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/Bible.svg',
+              isActive: true,
+            ),
           ),
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: false),  
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/Sermons.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/Sermons.svg',
+              isActive: true,
+            ),
           ),
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/User.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/User.svg',
+              isActive: true,
+            ),
           ),
         ],
       ),
@@ -194,4 +225,3 @@ class _TintableSvg extends StatelessWidget {
     );
   }
 }
-

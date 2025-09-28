@@ -4,7 +4,7 @@ import { useMyEvents } from '../hooks/useMyEvents';
 import { MyEventCard } from './MyEventCard';
 import { EventFiltersComponent } from './EventFilters';
 import { EventDetailsModal } from './EventDetailsModal';
-import { myEventsApi } from '@/api/myEventsApi';
+import { myEventsApi } from '@/features/events/api/myEventsApi';
 import { MyEvent, EventFilters, GroupedEvent, EventWithGroupedData } from '../types/myEvents';
 
 export function MyEventsSection() {

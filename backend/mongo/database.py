@@ -28,6 +28,11 @@ class DB:
             "indexes": ["name"]
         },
         {
+            "name": "sermons",
+            "indexes": ["title", "video_id"],
+            "compound_indexes": [["published", "date_posted"]],
+        },
+        {
             "name": "pages",
             "indexes": ["title"]
         },
@@ -130,6 +135,15 @@ class DB:
                             name="_".join(compound_index) + "_compound_index"
                         )
                     ])
+
+            if collection_name == "sermons":
+                await DB.db[collection_name].create_index([("ministry", pymongo.ASCENDING)])
+                await DB.db[collection_name].create_index([("speaker", pymongo.ASCENDING)])
+                await DB.db[collection_name].create_index([("date_posted", pymongo.DESCENDING)])
+                await DB.db[collection_name].create_index(
+                    [("title", "text"), ("description", "text")],
+                    name="sermons_text_index"
+                )
 
             # Import migration data if collection is empty
             await DB.import_migration_data(collection_name)
