@@ -7,11 +7,14 @@ import '../services/event_registration_service.dart';
 import '../widgets/enhanced_event_card.dart';
 import 'event_showcase.dart';
 
-// ICS file opening
+// ICS sharing + open
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_filex/open_filex.dart';
+
+// NEW: direct Android Calendar insert intent (skips chooser)
+import 'package:android_intent_plus/android_intent.dart';
 
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -341,7 +344,7 @@ class _EventsPageState extends State<EventsPage> {
     }
   }
 
-  // Generate + open/share an .ics file for the event
+  // Generate + open/share an .ics file for the event (iOS + Android fallback)
   Future<void> _shareIcsForEvent(Event event) async {
     final DateTime startUtc = event.date.toUtc();
     final DateTime endUtc = startUtc.add(const Duration(hours: 1));
@@ -368,6 +371,11 @@ DTEND:${_fmt(endUtc)}
 SUMMARY:${_esc(event.name)}
 DESCRIPTION:${_esc(event.description)}
 LOCATION:${_esc(event.location)}
+BEGIN:VALARM
+TRIGGER:-PT60M
+ACTION:DISPLAY
+DESCRIPTION:Reminder
+END:VALARM
 END:VEVENT
 END:VCALENDAR
 ''';
@@ -386,10 +394,53 @@ END:VCALENDAR
         text: 'Open this to add the event to your calendar.',
       );
     }
-  } // <-- missing brace previously; now closed
+  }
 
-  void _onAddToCalendar(Event event) {
-    _shareIcsForEvent(event);
+  // ANDROID-ONLY: launch the Calendar "insert event" screen directly.
+  Future<bool> _openAndroidCalendarInsert(Event e, {String? packageName}) async {
+    try {
+      final start = e.date.toLocal();
+      final end = start.add(const Duration(hours: 1));
+
+      final intent = AndroidIntent(
+        action: 'android.intent.action.INSERT',
+        data: 'content://com.android.calendar/events',
+        package: packageName, // null => let Android pick
+        arguments: <String, dynamic>{
+          'title': e.name,
+          'description': e.description,
+          'eventLocation': e.location,
+          'beginTime': start.millisecondsSinceEpoch,
+          'endTime': end.millisecondsSinceEpoch,
+          // 'allDay': false,
+        },
+      );
+
+      await intent.launch();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _onAddToCalendar(Event event) async {
+    // For Android, attempt to open it in Google Calendar directly
+    // If it fails, use the same protocol but allow users to pick a calendar
+    // If it fails that, use generic file sharing
+    if (Platform.isAndroid) {
+      if (await _openAndroidCalendarInsert(event, packageName: 'com.google.android.calendar')) {
+        return;
+      }
+      if (await _openAndroidCalendarInsert(event)) {
+        return;
+      }
+      await _shareIcsForEvent(event);
+      return;
+    }
+
+    // On iOS, share as an .ics file
+    // NOTE: I'm unsure about how the OS handles this and can't test this
+    await _shareIcsForEvent(event);
   }
 
   @override
