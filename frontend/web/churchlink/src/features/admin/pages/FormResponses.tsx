@@ -267,6 +267,9 @@ const FormResponses = () => {
           Submitted: {formatDate(response.submitted_at)}
         </div>
         {formMeta.data.map((field: any, index: number) => {
+          if (!field || field.type === 'static' || field.type === 'price') {
+            return null;
+          }
           const value = response.response[field.name];
           let displayValue = '';
 
