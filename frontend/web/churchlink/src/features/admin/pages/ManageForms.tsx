@@ -1,55 +1,214 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AgGridReact } from 'ag-grid-react';
+import {
+  ColDef,
+  ICellRendererParams,
+  ModuleRegistry,
+  ClientSideRowModelModule,
+  PaginationModule,
+  RowSelectionModule
+} from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+// Register only the modules we need
+ModuleRegistry.registerModules([
+  ClientSideRowModelModule,
+  PaginationModule,
+  RowSelectionModule
+]);
+
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/shared/components/ui/pagination';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
-import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Switch } from '@/shared/components/ui/switch';
 import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, RefreshCcw } from 'lucide-react';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
+// Cell renderer for folder column
+const FolderCellRenderer = (props: ICellRendererParams) => {
+  const { data } = props;
+  if (!data) return null;
+
+  const folders = props.context.folders as { _id: string; name: string }[];
+
+  const folderName = (id?: string) => folders.find((f) => f._id === id)?.name || '';
+
+  return folderName(data.folder) ? (
+    <span className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
+      {folderName(data.folder)}
+    </span>
+  ) : (
+    <span className="text-muted-foreground">—</span>
+  );
+};
+
+// Cell renderer for links column
+const LinksCellRenderer = (props: ICellRendererParams) => {
+  const { data, context } = props;
+  if (!data) return null;
+
+  const {
+    openCreateSlug,
+    handleRemoveSlug
+  } = context;
+
+  return data.slug ? (
+    <div className={`inline-flex items-center gap-2 ${!data.visible ? 'text-muted-foreground' : ''}`}>
+      <a href={`/forms/${data.slug}`} target="_blank" rel="noreferrer" className={`${!data.visible ? 'pointer-events-none' : ''}`}>{`/forms/${data.slug}`}</a>
+      <div className={`inline-flex items-center ${!data.visible ? 'text-muted-foreground' : ''}`}>
+        <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
+        <Button size="icon" variant="ghost" onClick={() => handleRemoveSlug(data.id)} title="Remove slug"><Trash className="h-4 w-4" /></Button>
+      </div>
+    </div>
+  ) : (
+    <Button size="sm" variant="ghost" onClick={() => openCreateSlug(data.id)} className="text-muted-foreground">Create Link</Button>
+  );
+};
+
+// Cell renderer for visible column (switch)
+const VisibleCellRenderer = (props: ICellRendererParams) => {
+  const { data, context } = props;
+  if (!data) return null;
+
+  const { handleToggleVisible } = context;
+
+  return (
+    <Switch
+      checked={!!data.visible}
+      onCheckedChange={(c) => handleToggleVisible(data.id, !!c)}
+      aria-label="Toggle visibility"
+    />
+  );
+};
+
+// Cell renderer for actions column
+const ActionsCellRenderer = (props: ICellRendererParams) => {
+  const { data, context } = props;
+  if (!data) return null;
+
+  const {
+    navigate,
+    handleDuplicate,
+    handleExport,
+    handleExportCsv,
+    setRenameTarget,
+    setMoveTargetIds,
+    setConfirmDeleteIds
+  } = context;
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/form-builder?load=${data.id}`)}><FileEdit className="h-4 w-4 mr-1" /> Edit</Button>
+      <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/responses?formId=${data.id}`)}>View responses</Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem onClick={() => handleDuplicate(data.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExport(data.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Export CSV</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setRenameTarget({ id: data.id, title: data.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => { setMoveTargetIds([data.id]); context.setMoveToFolderId(); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-red-600" onClick={() => setConfirmDeleteIds([data.id])}><Trash className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
 const ManageForms = () => {
   const navigate = useNavigate();
-  const [forms, setForms] = useState<any[]>([]);
+  const gridRef = useRef<AgGridReact>(null);
+  const [allForms, setAllForms] = useState<any[]>([]);
   const [folders, setFolders] = useState<{ _id: string; name: string }[]>([]);
   const [searchName, setSearchName] = useState('');
   const [searchFolder, setSearchFolder] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
   const [moveTargetIds, setMoveTargetIds] = useState<string[] | null>(null);
   const [moveToFolderId, setMoveToFolderId] = useState<string>('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
-  const [duplicateNameDialog, setDuplicateNameDialog] = useState<{ 
-    formId: string; 
-    newTitle: string; 
+  const [duplicateNameDialog, setDuplicateNameDialog] = useState<{
+    formId: string;
+    newTitle: string;
     existingId: string;
   } | null>(null);
+
+  // Grid options
+  const gridOptions = {};
+
+  // Column definitions for ag-grid
+  const columnDefs: ColDef[] = [
+    {
+      headerName: 'Title',
+      field: 'title',
+      flex: 2,
+      minWidth: 200,
+      cellRenderer: (props: ICellRendererParams) => {
+        const { data } = props;
+        if (!data) return null;
+        return (
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{data.title}</span>
+            {data.description ? <span className="text-xs text-muted-foreground">{data.description}</span> : null}
+          </div>
+        );
+      },
+    },
+    {
+      headerName: 'Folder',
+      field: 'folder',
+      flex: 1,
+      minWidth: 120,
+      cellRenderer: FolderCellRenderer,
+    },
+    {
+      headerName: 'Links',
+      field: 'slug',
+      flex: 2,
+      minWidth: 200,
+      cellRenderer: LinksCellRenderer,
+    },
+    {
+      headerName: 'Visible',
+      field: 'visible',
+      flex: 1,
+      minWidth: 80,
+      cellRenderer: VisibleCellRenderer,
+    },
+    {
+      headerName: 'Actions',
+      field: 'actions',
+      flex: 3,
+      minWidth: 300,
+      cellRenderer: ActionsCellRenderer,
+      pinned: 'right',
+    },
+  ];
+
+  const defaultColDef: ColDef = {
+    resizable: true,
+  };
 
   const fetchForms = async () => {
     try {
       setLoading(true);
       const resp = await api.get('/v1/forms/');
-      setForms(resp.data || []);
+      setAllForms(resp.data || []);
     } catch (e) {
       console.error('Failed to fetch forms', e);
     } finally {
@@ -57,23 +216,27 @@ const ManageForms = () => {
     }
   };
 
-  const search = async () => {
-    // show the loading indicator only if the request takes longer than 250ms
-    let loadingTimer: ReturnType<typeof setTimeout> | null = null;
-    try {
-      loadingTimer = setTimeout(() => setLoading(true), 250);
-      const params: Record<string, string> = {};
-      if (searchName) params.name = searchName;
-      if (searchFolder && searchFolder !== 'all') params.folder = searchFolder;
-      const resp = await api.get('/v1/forms/search', { params });
-      setForms(resp.data || []);
-    } catch (e) {
-      console.error('Search failed', e);
-    } finally {
-      if (loadingTimer) clearTimeout(loadingTimer);
-      setLoading(false);
+  // Client-side filtering based on search criteria
+  const filteredForms = useMemo(() => {
+    if (!allForms.length) return [];
+
+    let filtered = allForms;
+
+    // Filter by name (substring match on title)
+    if (searchName && searchName.trim()) {
+      const searchTerm = searchName.toLowerCase().trim();
+      filtered = filtered.filter(form =>
+        form.title && form.title.toLowerCase().includes(searchTerm)
+      );
     }
-  };
+
+    // Filter by folder
+    if (searchFolder && searchFolder !== 'all') {
+      filtered = filtered.filter(form => form.folder === searchFolder);
+    }
+
+    return filtered;
+  }, [allForms, searchName, searchFolder]);
 
   const fetchFolders = async () => {
     try {
@@ -86,51 +249,15 @@ const ManageForms = () => {
 
   useEffect(() => { fetchForms(); fetchFolders(); }, []);
 
-  // Auto-run search or reload when filters change, debounced to avoid flicker and excessive API calls
-  useEffect(() => {
-    const isFiltering = (searchName && searchName.trim() !== '') || (searchFolder && searchFolder !== 'all');
-    const t = setTimeout(() => {
-      if (isFiltering) search();
-      else fetchForms();
-    }, 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchName, searchFolder]);
+  // Client-side filtering is handled by the filteredForms useMemo, no API calls needed
 
-  const pagedForms = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return forms.slice(start, end);
-  }, [forms, page, pageSize]);
-
-  const totalPages = Math.max(1, Math.ceil((forms.length || 0) / pageSize));
-
-  const folderName = (id?: string) => folders.find((f) => f._id === id)?.name || '';
-
-  const toggleSelectAll = (checked: boolean) => {
-    if (checked) setSelected(new Set(forms.map((f) => f.id)));
-    else setSelected(new Set());
-  };
-
-  const toggleSelect = (id: string, checked: boolean) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  };
 
   const handleDelete = async (ids: string[]) => {
     setStatus('Deleting...');
     try {
       await Promise.all(ids.map((id) => api.delete(`/v1/forms/${id}`)));
-      setForms((prev) => prev.filter((f) => !ids.includes(f.id)));
-      setSelected((prev) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
+      setAllForms((prev) => prev.filter((f) => !ids.includes(f.id)));
+      setSelectedRows((prev) => prev.filter((row) => !ids.includes(row.id)));
       setStatus('Deleted');
     } catch (e) {
       console.error('Delete failed', e);
@@ -217,7 +344,7 @@ const ManageForms = () => {
   const handleToggleVisible = async (id: string, visible: boolean) => {
     try {
       await api.put(`/v1/forms/${id}`, { visible });
-      setForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
+      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
     } catch (e) {
       console.error('Visibility update failed', e);
       setStatus('Visibility update failed');
@@ -245,7 +372,7 @@ const ManageForms = () => {
     if (!cleaned) { setSlugError('Slug cannot be empty'); return; }
     try {
       await api.put(`/v1/forms/${id}`, { slug: cleaned });
-      setForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
+      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
       setSlugDialog(null);
     } catch (err: any) {
       if (err?.response?.status === 409) {
@@ -259,7 +386,7 @@ const ManageForms = () => {
   const handleRemoveSlug = async (id: string) => {
     try {
       await api.put(`/v1/forms/${id}`, { slug: null });
-      setForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
+      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
     } catch (err) {
       setStatus('Failed to remove slug');
     }
@@ -269,7 +396,7 @@ const ManageForms = () => {
     if (!renameTarget) return;
     try {
       await api.put(`/v1/forms/${renameTarget.id}`, { title: renameTarget.title });
-      setForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
+      setAllForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
       setRenameTarget(null);
     } catch (e: any) {
       console.error('Rename failed', e);
@@ -298,8 +425,8 @@ const ManageForms = () => {
       await api.put(`/v1/forms/${duplicateNameDialog.existingId}`, { 
         title: duplicateNameDialog.newTitle
       });
-      setForms((prev) => prev.filter((f) => f.id !== duplicateNameDialog.formId));
-      setForms((prev) => prev.map((f) => 
+      setAllForms((prev) => prev.filter((f) => f.id !== duplicateNameDialog.formId));
+      setAllForms((prev) => prev.map((f) =>
         f.id === duplicateNameDialog.existingId ? { ...f, title: duplicateNameDialog.newTitle } : f
       ));
       
@@ -318,7 +445,7 @@ const ManageForms = () => {
     if (!moveTargetIds || !moveToFolderId) return;
     try {
       await Promise.all(moveTargetIds.map((id) => api.put(`/v1/forms/${id}`, { folder: moveToFolderId })));
-      setForms((prev) => prev.map((f) => (moveTargetIds.includes(f.id) ? { ...f, folder: moveToFolderId } : f)));
+      setAllForms((prev) => prev.map((f) => (moveTargetIds.includes(f.id) ? { ...f, folder: moveToFolderId } : f)));
       setMoveTargetIds(null);
       setMoveToFolderId('');
     } catch (e) {
@@ -357,184 +484,70 @@ const ManageForms = () => {
             </SelectContent>
           </Select>
           <Button onClick={() => { setSearchName(''); setSearchFolder('all'); fetchForms(); }}>Clear</Button>
-          {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}
-          <div className="ml-auto">
-            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
-              <SelectTrigger className="w-24">
-                <SelectValue placeholder="Rows" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>    
+          {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}    
         </div>
         {/* Bulk actions */}
-        {selected.size > 0 && (
+        {selectedRows.length > 0 && (
           <div className="flex items-center justify-between p-2 border rounded mb-3 bg-muted/30">
-            <div className="text-sm">{selected.size} selected</div>
+            <div className="text-sm">{selectedRows.length} selected</div>
             <div className="flex items-center gap-2">
-              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteIds(Array.from(selected))}><Trash className="h-4 w-4 mr-1" /> Delete</Button>
-              <Button size="sm" variant="outline" onClick={() => setMoveTargetIds(Array.from(selected))}><MoveRight className="h-4 w-4 mr-1" /> Move to...</Button>
-              <Button size="sm" variant="outline" onClick={async () => { for (const id of selected) await handleExport(id); }}><Download className="h-4 w-4 mr-1" /> Export</Button>
+              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteIds(selectedRows.map(row => row.id))}><Trash className="h-4 w-4 mr-1" /> Delete</Button>
+              <Button size="sm" variant="outline" onClick={() => setMoveTargetIds(selectedRows.map(row => row.id))}><MoveRight className="h-4 w-4 mr-1" /> Move to...</Button>
+              <Button size="sm" variant="outline" onClick={async () => { for (const row of selectedRows) await handleExport(row.id); }}><Download className="h-4 w-4 mr-1" /> Export</Button>
             </div>
           </div>
         )}
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-                <tr className="text-left text-muted-foreground">
-                <th className="w-8 p-2"><Checkbox checked={selected.size === forms.length && forms.length > 0} onCheckedChange={(c) => toggleSelectAll(!!c)} aria-label="Select all" /></th>
-                <th className="p-2">Title</th>
-                <th className="p-2">Folder</th>
-                <th className="p-2">Links</th>
-                <th className="p-2">Visible</th>
-                <th className="p-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                  <tr>
-                    <td colSpan={6} className="p-4">
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-1/3" />
-                        <div className="grid grid-cols-6 gap-3">
-                          <Skeleton className="h-8 col-span-1" />
-                          <Skeleton className="h-8 col-span-2" />
-                          <Skeleton className="h-8 col-span-1" />
-                          <Skeleton className="h-8 col-span-1" />
-                          <Skeleton className="h-8 col-span-1" />
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              {!loading && forms.length === 0 && (
-                <tr><td colSpan={5} className="p-4 text-muted-foreground">No forms found</td></tr>
-              )}
-              {!loading && pagedForms.map((f) => (
-                <tr key={f.id} className="border-t">
-                  <td className="p-2"><Checkbox checked={selected.has(f.id)} onCheckedChange={(c) => toggleSelect(f.id, !!c)} aria-label={`Select ${f.title}`} /></td>
-                  <td className="p-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{f.title}</span>
-                      {f.description ? <span className="text-xs text-muted-foreground">{f.description}</span> : null}
-                    </div>
-                  </td>
-                  <td className="p-2">
-                    {folderName(f.folder) ? (
-                      <span className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
-                        {folderName(f.folder)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="p-2">
-                    {f.slug ? (
-                      <div className={`inline-flex items-center gap-2 ${!f.visible ? 'text-muted-foreground' : ''}`}>
-                        <a href={`/forms/${f.slug}`} target="_blank" rel="noreferrer" className={`${!f.visible ? 'pointer-events-none' : ''}`}>{`/forms/${f.slug}`}</a>
-                          <div className={`inline-flex items-center ${!f.visible ? 'text-muted-foreground' : ''}`}>
-                            <Button size="icon" variant="ghost" onClick={() => openCreateSlug(f.id, f.slug)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
-                            <Button size="icon" variant="ghost" onClick={() => handleRemoveSlug(f.id)} title="Remove slug"><Trash className="h-4 w-4" /></Button>
-                          </div>
-                      </div>
-                    ) : (
-                      <Button size="sm" variant="ghost" onClick={() => openCreateSlug(f.id)} className="text-muted-foreground">Create Link</Button>
-                    )}
-                  </td>
-                  <td className="p-2">
-                    <Switch checked={!!f.visible} onCheckedChange={(c) => handleToggleVisible(f.id, !!c)} aria-label="Toggle visibility" />
-                  </td>
-                  <td className="p-2">
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/form-builder?load=${f.id}`)}><FileEdit className="h-4 w-4 mr-1" /> Edit</Button>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/responses?formId=${f.id}`)}>View responses</Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleDuplicate(f.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleExport(f.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleExportCsv(f.id)}><Download className="h-4 w-4 mr-2" /> Export CSV</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setRenameTarget({ id: f.id, title: f.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { setMoveTargetIds([f.id]); setMoveToFolderId(''); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600" onClick={() => setConfirmDeleteIds([f.id])}><Trash className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Ag-Grid Table */}
+        <div className="ag-theme-quartz" style={{ height: 500, width: '100%' }}>
+          {loading ? (
+            <div className="p-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <div className="grid grid-cols-5 gap-3">
+                  <Skeleton className="h-8 col-span-2" />
+                  <Skeleton className="h-8 col-span-1" />
+                  <Skeleton className="h-8 col-span-1" />
+                  <Skeleton className="h-8 col-span-1" />
+                </div>
+              </div>
+            </div>
+          ) : filteredForms.length === 0 ? (
+            <div className="p-4 text-muted-foreground">No forms found</div>
+          ) : (
+            <AgGridReact
+              ref={gridRef}
+              rowData={filteredForms}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              rowSelection={{ mode: 'multiRow' }}
+              gridOptions={gridOptions}
+              onSelectionChanged={(event) => {
+                const selectedNodes = event.api.getSelectedNodes();
+                setSelectedRows(selectedNodes.map(node => node.data));
+              }}
+              context={{
+                folders,
+                openCreateSlug,
+                handleRemoveSlug,
+                navigate,
+                handleDuplicate,
+                handleExport,
+                handleExportCsv,
+                setRenameTarget,
+                setMoveTargetIds,
+                setMoveToFolderId: () => setMoveToFolderId(''),
+                setConfirmDeleteIds,
+                handleToggleVisible,
+              }}
+              pagination={true}
+              paginationPageSizeSelector={[10, 20, 50]}
+              animateRows={true}
+              enableCellTextSelection={true}
+            />
+          )}
         </div>
 
-        {/* Pagination */}
-        <div className="mt-3">
-          <div className="flex items-center justify-center">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={(e: any) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
-                    href="#"
-                    className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
-                  />
-                </PaginationItem>
-                {(() => {
-                  const items: React.ReactNode[] = [];
-                  const maxToShow = 5;
-                  let start = Math.max(1, page - 2);
-                  let end = Math.min(totalPages, start + maxToShow - 1);
-                  if (end - start < maxToShow - 1) {
-                    start = Math.max(1, end - (maxToShow - 1));
-                  }
-                  if (start > 1) {
-                    items.push(
-                      <PaginationItem key={1}>
-                        <PaginationLink href="#" isActive={page === 1} onClick={(e: any) => { e.preventDefault(); setPage(1); }}>1</PaginationLink>
-                      </PaginationItem>
-                    );
-                    if (start > 2) items.push(<PaginationItem key="s-ellipsis"><span className="px-2">…</span></PaginationItem>);
-                  }
-                  for (let p = start; p <= end; p++) {
-                    items.push(
-                      <PaginationItem key={p}>
-                        <PaginationLink href="#" isActive={p === page} onClick={(e: any) => { e.preventDefault(); setPage(p); }}>{p}</PaginationLink>
-                      </PaginationItem>
-                    );
-                  }
-                  if (end < totalPages) {
-                    if (end < totalPages - 1) items.push(<PaginationItem key="e-ellipsis"><span className="px-2">…</span></PaginationItem>);
-                    items.push(
-                      <PaginationItem key={totalPages}>
-                        <PaginationLink href="#" isActive={page === totalPages} onClick={(e: any) => { e.preventDefault(); setPage(totalPages); }}>{totalPages}</PaginationLink>
-                      </PaginationItem>
-                    );
-                  }
-                  return items;
-                })()}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={(e: any) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
-                    href="#"
-                    className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-
-          {/* rows-per-page moved to top filters */}
-        </div>
       </div>
 
       {/* Delete confirm dialog */}
