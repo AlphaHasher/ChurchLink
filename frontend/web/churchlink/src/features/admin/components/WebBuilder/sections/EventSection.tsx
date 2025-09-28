@@ -92,7 +92,7 @@ function EventRegistrationForm({
   event,
   onClose,
   onSaved,
-  onAddPerson, // optional external flow
+  onAddPerson, // optional external flow; we keep it but also provide inline add
 }: {
   event: Event;
   onClose: () => void;
@@ -100,11 +100,11 @@ function EventRegistrationForm({
   onAddPerson?: () => void;
 }) {
   type Person = {
-    id: string;
+    _id: string;
     first_name: string;
     last_name: string;
-    gender?: "M" | "F" | null;
-    date_of_birth?: string | null; // expect "YYYY-MM-DD" from API or ISO; we handle both
+    gender?: Gender | null;
+    date_of_birth?: string | null; // ISO
   };
 
   type RegistrationSummary = {
@@ -133,17 +133,17 @@ function EventRegistrationForm({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
 
-  /** ---------- INLINE ADD PERSON (schema-conformant) ---------- **/
+  // --- Inline "Add Person" UI state ---
   const [showAdd, setShowAdd] = useState(false);
   const [newFirst, setNewFirst] = useState("");
   const [newLast, setNewLast] = useState("");
-  const [newGender, setNewGender] = useState<"" | "M" | "F">(""); // required by schema
-  const [newDob, setNewDob] = useState<string>("");               // "YYYY-MM-DD" from <input type="date" />
+  const [newGender, setNewGender] = useState<Gender | "unspecified">("unspecified");
+  const [newDob, setNewDob] = useState<string>("");
 
   const resetAddForm = () => {
     setNewFirst("");
     setNewLast("");
-    setNewGender("");
+    setNewGender("unspecified");
     setNewDob("");
   };
 
@@ -189,30 +189,9 @@ function EventRegistrationForm({
     [summary]
   );
 
-  // --- validation used for selection list (unchanged) ---
-  const validatePersonForEvent = (person: Person, ev: Event): string | null => {
-    const evGender = ev.gender ?? "all";
-    const pGender = person.gender ?? null;
-    if (evGender !== "all" && pGender && evGender.toUpperCase() !== (pGender as string).toUpperCase()) {
-      return `This event is ${evGender}-only.`;
-    }
-    if (person.date_of_birth && ev.min_age != null && ev.max_age != null) {
-      // Handle "YYYY-MM-DD" or ISO
-      const dob = person.date_of_birth.length === 10
-        ? new Date(`${person.date_of_birth}T00:00:00`)
-        : new Date(person.date_of_birth);
-      const on = new Date(ev.date);
-      let age = on.getFullYear() - dob.getFullYear();
-      const m = on.getMonth() - dob.getMonth();
-      if (m < 0 || (m === 0 && on.getDate() < dob.getDate())) age--;
-      if (age < ev.min_age || age > ev.max_age) return `Age restriction: ${ev.min_age}–${ev.max_age}.`;
-    }
-    return null;
-  };
-
   useEffect(() => {
-  const errs: Record<string, string | null> = {};
-  for (const p of people) errs[p.id] = validatePersonForEvent(p, event);
+    const errs: Record<string, string | null> = {};
+    for (const p of people) errs[p._id] = validatePersonForEvent(p, event);
     errs["__self__"] = null;
     setErrors(errs);
   }, [people, event]);
@@ -283,7 +262,7 @@ function EventRegistrationForm({
         await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}`);
       }
 
-      onSaved(); // parent refreshes + closes
+      onSaved(); // parent will refresh My Events and close modal
     } catch {
       alert("Failed to update registration.");
     } finally {
@@ -291,61 +270,34 @@ function EventRegistrationForm({
     }
   };
 
-  /** ---------- SUBMIT ADD PERSON (matches schema) ---------- **/
   const submitAddPerson = async () => {
-    // required by schema
+    // minimal client-side required fields
     if (!newFirst.trim() || !newLast.trim()) {
       alert("First and last name are required.");
       return;
     }
-    if (newGender !== "M" && newGender !== "F") {
-      alert("Please select gender (Male or Female).");
-      return;
-    }
-    if (!newDob) {
-      alert("Please select a date of birth.");
-      return;
-    }
-
     try {
       setSaving(true);
-      // EXACTLY what your PersonCreate expects:
-      //   first_name: str
-      //   last_name:  str
-      //   gender:     "M" | "F"
-      //   date_of_birth: "YYYY-MM-DD"
+      // shape matches your PersonCreate in models.user
       const payload = {
         first_name: newFirst.trim(),
-        last_name:  newLast.trim(),
-        gender:     newGender,  // "M" | "F"
-        date_of_birth: newDob,  // raw date string from input
-      };
+        last_name: newLast.trim(),
+        gender: newGender === "unspecified" ? null : newGender, // TS will complain about None; send null
+        date_of_birth: newDob ? new Date(newDob).toISOString() : null,
+      } as any;
+      if (payload.gender === undefined) payload.gender = null;
 
-      await api.post("/v1/users/me/people", payload, {
-        headers: { "Content-Type": "application/json" },
-      });
-
+      await api.post("/v1/users/me/people", payload);
       await fetchPeople();
       resetAddForm();
       setShowAdd(false);
-    } catch (e: any) {
-      console.error("Add person failed:", e?.response?.data || e);
-      alert(
-        "Failed to add person: " +
-          (e?.response?.data?.detail
-            ? JSON.stringify(e.response.data.detail)
-            : "Please check required fields.")
-      );
+    } catch (e) {
+      console.error(e);
+      alert("Failed to add person.");
     } finally {
       setSaving(false);
     }
   };
-
-  const canSavePerson =
-    newFirst.trim().length > 0 &&
-    newLast.trim().length > 0 &&
-    (newGender === "M" || newGender === "F") &&
-    !!newDob;
 
   if (loading) return <div>Loading…</div>;
 
@@ -366,9 +318,34 @@ function EventRegistrationForm({
       </div>
 
       {/* Already registered */}
-      {/* ...unchanged list with Remove buttons... */}
+      <div>
+        <h4 className="font-medium mb-2">Already Registered</h4>
+        {summary?.user_registrations?.length ? (
+          <div className="space-y-2">
+            {summary.user_registrations.map((r) => (
+              <div key={`${r.person_id ?? "__self__"}`} className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <div className="font-medium">{r.display_name}</div>
+                  <div className="text-xs text-gray-500">
+                    Registered on {new Date(r.registered_on).toLocaleString()}
+                  </div>
+                </div>
+                <button
+                  disabled={saving}
+                  className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  onClick={() => removeRegistered(r.person_id)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">No one is registered yet.</div>
+        )}
+      </div>
 
-      {/* Add Person CTA + Inline form */}
+      {/* Add Person CTA + Inline form toggle */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">Need to add a new Event Person?</div>
         <div className="flex gap-2">
@@ -397,37 +374,33 @@ function EventRegistrationForm({
               placeholder="First name"
               value={newFirst}
               onChange={(e) => setNewFirst(e.target.value)}
-              required
             />
             <input
               className="border rounded px-3 py-2"
               placeholder="Last name"
               value={newLast}
               onChange={(e) => setNewLast(e.target.value)}
-              required
             />
             <select
               className="border rounded px-3 py-2"
               value={newGender}
-              onChange={(e) => setNewGender(e.target.value as "M" | "F" | "")}
-              required
+              onChange={(e) => setNewGender(e.target.value as any)}
             >
-              <option value="">Select gender</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
+              <option value="unspecified">Gender (unspecified)</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
             </select>
             <input
               type="date"
               className="border rounded px-3 py-2"
               value={newDob}
               onChange={(e) => setNewDob(e.target.value)}
-              required
             />
           </div>
           <div className="flex justify-end">
             <button
-              disabled={saving || !canSavePerson}
-              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
               onClick={submitAddPerson}
             >
               Save Person
@@ -455,14 +428,14 @@ function EventRegistrationForm({
             <div className="text-sm text-gray-500">You have no saved Event People yet.</div>
           ) : (
             people.map((p) => {
-              const checked = selectedIds.has(p.id);
-              const err = errors[p.id];
+              const checked = selectedIds.has(p._id);
+              const err = errors[p._id];
               return (
                 <label
-                  key={p.id}
+                  key={p._id}
                   className={`flex items-center gap-3 rounded-lg border p-3 ${err ? "border-red-300 bg-red-50" : ""}`}
                 >
-                  <input type="checkbox" checked={checked} onChange={() => togglePerson(p.id)} />
+                  <input type="checkbox" checked={checked} onChange={() => togglePerson(p._id)} />
                   <div>
                     <div className="font-medium">
                       {p.first_name} {p.last_name}
