@@ -362,6 +362,14 @@ class _EventsPageState extends State<EventsPage> {
     }
   }
 
+  void _onAddToCalendar(Event event) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Add to Calendar tapped')),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
@@ -402,10 +410,23 @@ class _EventsPageState extends State<EventsPage> {
                     itemCount: _events.length,
                     itemBuilder: (context, index) {
                       final event = _events[index];
-                      return EnhancedEventCard(
-                        event: event,
-                        onViewPressed: () => _navigateToShowcase(event),
-                        registrationSummary: _registrationSummaries[event.id],
+                      return Stack(
+                        children: [
+                          EnhancedEventCard(
+                            event: event,
+                            onViewPressed: () => _navigateToShowcase(event),
+                            registrationSummary: _registrationSummaries[event.id],
+                          ),
+                          Positioned(
+                            bottom: 12,
+                            right: 12,
+                            child: IconButton(
+                              tooltip: 'Add to Calendar',
+                              icon: const Icon(Icons.calendar_month_outlined),
+                              onPressed: () => _onAddToCalendar(event),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
