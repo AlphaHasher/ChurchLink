@@ -40,6 +40,7 @@ const Sidebar = () => {
         </Link>
         <Link to="/admin/events" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><CalendarFold /> Events</Link>
         <Link to="/admin/bible-plan-manager" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><BookOpen /> Bible Plan Manager</Link>
+        <Link to="/admin/mobile-ui-tab" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">📱 Mobile UI Tab</Link>
         <Link to="/admin/webbuilder" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">🧱 Web Builder</Link>
         <Link to="/admin/finance" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">💰 Finance</Link>
         <Link to="/admin/notifications" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">📢 Notifications</Link>
