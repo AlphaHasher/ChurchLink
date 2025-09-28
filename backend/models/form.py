@@ -463,6 +463,8 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             provided = update.model_dump(exclude_unset=True)
         except Exception:
             provided = {k: getattr(update, k) for k in update.__dict__.keys()}
+        if "folder" in provided:
+            update_doc["folder"] = provided.get("folder")
         if "slug" in provided:
             update_doc["slug"] = provided.get("slug")
 
