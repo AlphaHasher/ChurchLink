@@ -6,7 +6,12 @@ import '../models/event_registration_summary.dart';
 import '../services/event_registration_service.dart';
 import '../widgets/enhanced_event_card.dart';
 import 'event_showcase.dart';
-import 'package:add_2_calendar/add_2_calendar.dart' as a2c;
+
+// ICS file opening
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
 
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -39,14 +44,12 @@ class _EventsPageState extends State<EventsPage> {
   void initState() {
     super.initState();
 
-    //Utilized for entering text into filters
+    // Utilized for entering text into filters
     _nameController = TextEditingController(text: _nameQuery ?? '');
-    _maxPriceController = TextEditingController(
-      text: _maxPrice?.toString() ?? '',
-    );
+    _maxPriceController = TextEditingController(text: _maxPrice?.toString() ?? '');
     _ageController = TextEditingController(text: _age?.toString() ?? '');
 
-    //Adjust the date slider so that it only shows one year in advance from the current date
+    // Adjust the date slider so that it only shows one year in advance from the current date
     _minDate = DateTime.now();
     _maxDate = DateTime.now().add(const Duration(days: 365));
     final totalDays = _maxDate.difference(_minDate).inDays.toDouble();
@@ -83,20 +86,18 @@ class _EventsPageState extends State<EventsPage> {
     };
 
     // Always include upcoming-only events
-    queryParams['date_after'] =
-        _minDate
-            .add(Duration(days: _dateRange.start.round()))
-            .toIso8601String()
-            .split('T')
-            .first;
+    queryParams['date_after'] = _minDate
+        .add(Duration(days: _dateRange.start.round()))
+        .toIso8601String()
+        .split('T')
+        .first;
 
     if (_dateRange.end < totalDays) {
-      queryParams['date_before'] =
-          _minDate
-              .add(Duration(days: _dateRange.end.round()))
-              .toIso8601String()
-              .split('T')
-              .first;
+      queryParams['date_before'] = _minDate
+          .add(Duration(days: _dateRange.end.round()))
+          .toIso8601String()
+          .split('T')
+          .first;
     }
 
     // Free events shortcut (max_price == 0)
@@ -140,9 +141,7 @@ class _EventsPageState extends State<EventsPage> {
 
       try {
         final summary =
-            await EventRegistrationService.getEventRegistrationSummary(
-              event.id,
-            );
+            await EventRegistrationService.getEventRegistrationSummary(event.id);
 
         if (!mounted) return; // Check again after async operation
 
@@ -150,9 +149,7 @@ class _EventsPageState extends State<EventsPage> {
           _registrationSummaries[event.id] = summary;
         });
       } catch (e) {
-        debugPrint(
-          'Failed to load registration summary for event ${event.id}: $e',
-        );
+        debugPrint('Failed to load registration summary for event ${event.id}: $e');
       }
     }
   }
@@ -183,88 +180,72 @@ class _EventsPageState extends State<EventsPage> {
                     "Filter Events",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-
                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: "Search by Name",
-                    ),
+                    decoration: const InputDecoration(labelText: "Search by Name"),
                     onChanged: (value) => setModalState(() => tempName = value),
                   ),
-
                   TextField(
                     controller: _maxPriceController,
                     decoration: const InputDecoration(labelText: "Max Price"),
                     keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) => setModalState(
-                          () => tempMaxPrice = double.tryParse(value),
-                        ),
+                    onChanged: (value) =>
+                        setModalState(() => tempMaxPrice = double.tryParse(value)),
                   ),
-
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
                     value: tempGender,
-                    items:
-                        [
-                          null, // Show all: no filtering
-                          'all', // Only "All Genders" events
-                          'male',
-                          'female',
-                        ].map((g) {
-                          String label;
-                          if (g == null) {
-                            label = 'Show All';
-                          } else if (g == 'all') {
-                            label = 'All Genders Allowed';
-                          } else {
-                            label =
-                                '${g[0].toUpperCase()}${g.substring(1)} Only';
-                          }
-                          return DropdownMenuItem<String>(
-                            value: g,
-                            child: Text(label),
-                          );
-                        }).toList(),
-                    onChanged:
-                        (value) => setModalState(() => tempGender = value),
+                    items: [
+                      null, // Show all: no filtering
+                      'all', // Only "All Genders" events
+                      'male',
+                      'female',
+                    ].map((g) {
+                      String label;
+                      if (g == null) {
+                        label = 'Show All';
+                      } else if (g == 'all') {
+                        label = 'All Genders Allowed';
+                      } else {
+                        label = '${g[0].toUpperCase()}${g.substring(1)} Only';
+                      }
+                      return DropdownMenuItem<String>(
+                        value: g,
+                        child: Text(label),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setModalState(() => tempGender = value),
                   ),
-
                   TextField(
                     controller: _ageController,
                     decoration: const InputDecoration(labelText: "Age"),
                     keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) =>
-                            setModalState(() => tempAge = int.tryParse(value)),
+                    onChanged: (value) =>
+                        setModalState(() => tempAge = int.tryParse(value)),
                   ),
-
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
                     value: tempMinistry,
-                    items:
-                        [
-                          null,
-                          'Children',
-                          'Education',
-                          'Family',
-                          'Music',
-                          'Quo Vadis Theater',
-                          'Skala Teens',
-                          'VBS',
-                          'United Service',
-                          'Women\'s Ministries',
-                          'Youth',
-                        ].map((m) {
-                          return DropdownMenuItem<String>(
-                            value: m,
-                            child: Text(m ?? 'All Ministries'),
-                          );
-                        }).toList(),
-                    onChanged:
-                        (value) => setModalState(() => tempMinistry = value),
+                    items: [
+                      null,
+                      'Children',
+                      'Education',
+                      'Family',
+                      'Music',
+                      'Quo Vadis Theater',
+                      'Skala Teens',
+                      'VBS',
+                      'United Service',
+                      'Women\'s Ministries',
+                      'Youth',
+                    ].map((m) {
+                      return DropdownMenuItem<String>(
+                        value: m,
+                        child: Text(m ?? 'All Ministries'),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setModalState(() => tempMinistry = value),
                   ),
-
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -287,13 +268,11 @@ class _EventsPageState extends State<EventsPage> {
                               .toString()
                               .split(' ')[0],
                         ),
-                        onChanged:
-                            (values) =>
-                                setModalState(() => tempDateRange = values),
+                        onChanged: (values) =>
+                            setModalState(() => tempDateRange = values),
                       ),
                     ],
                   ),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -331,8 +310,7 @@ class _EventsPageState extends State<EventsPage> {
                             _dateRange = tempDateRange;
 
                             _nameController.text = _nameQuery ?? '';
-                            _maxPriceController.text =
-                                _maxPrice?.toString() ?? '';
+                            _maxPriceController.text = _maxPrice?.toString() ?? '';
                             _ageController.text = _age?.toString() ?? '';
                           });
                           Navigator.pop(context);
@@ -363,27 +341,55 @@ class _EventsPageState extends State<EventsPage> {
     }
   }
 
-  void _onAddToCalendar(Event event) async {
-    final DateTime start = event.date.toLocal();
-    final DateTime end = start.add(const Duration(hours: 1));
+  // Generate + open/share an .ics file for the event
+  Future<void> _shareIcsForEvent(Event event) async {
+    final DateTime startUtc = event.date.toUtc();
+    final DateTime endUtc = startUtc.add(const Duration(hours: 1));
 
-    final calEvent = a2c.Event(
-      title: event.name,
-      description: event.description,
-      location: event.location,
-      startDate: start,
-      endDate: end,
-      allDay: false,
-      iosParams: const a2c.IOSParams(reminder: Duration(minutes: 60)),
-      androidParams: const a2c.AndroidParams(),
-    );
+    String _two(int n) => n.toString().padLeft(2, '0');
+    String _fmt(DateTime dt) =>
+        '${dt.year}${_two(dt.month)}${_two(dt.day)}T${_two(dt.hour)}${_two(dt.minute)}${_two(dt.second)}Z';
 
-    final ok = await a2c.Add2Calendar.addEvent2Cal(calEvent);
+    String _esc(String s) => s
+        .replaceAll('\\', '\\\\')
+        .replaceAll('\n', '\\n')
+        .replaceAll(',', '\\,')
+        .replaceAll(';', '\\;');
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Opening calendar…' : 'Couldn\'t open calendar')),
-    );
+    final ics = '''
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ChurchLink//Events//EN
+BEGIN:VEVENT
+UID:${event.id}@churchlink
+DTSTAMP:${_fmt(DateTime.now().toUtc())}
+DTSTART:${_fmt(startUtc)}
+DTEND:${_fmt(endUtc)}
+SUMMARY:${_esc(event.name)}
+DESCRIPTION:${_esc(event.description)}
+LOCATION:${_esc(event.location)}
+END:VEVENT
+END:VCALENDAR
+''';
+
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/event_${event.id}.ics';
+    final file = File(path);
+    await file.writeAsString(ics);
+
+    // Try opening directly (ACTION_VIEW). If no app can handle it, show share sheet.
+    final result = await OpenFilex.open(path);
+    if (result.type != ResultType.done) {
+      await Share.shareXFiles(
+        [XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics')],
+        subject: 'Add to Calendar',
+        text: 'Open this to add the event to your calendar.',
+      );
+    }
+  } // <-- missing brace previously; now closed
+
+  void _onAddToCalendar(Event event) {
+    _shareIcsForEvent(event);
   }
 
   @override
@@ -412,40 +418,41 @@ class _EventsPageState extends State<EventsPage> {
             children: [
               _isLoading
                   ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+                      padding: EdgeInsets.symmetric(vertical: 50),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
                   : _events.isEmpty
-                  ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Text("No events found."),
-                  )
-                  : ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: _events.length,
-                    itemBuilder: (context, index) {
-                      final event = _events[index];
-                      return Stack(
-                        children: [
-                          EnhancedEventCard(
-                            event: event,
-                            onViewPressed: () => _navigateToShowcase(event),
-                            registrationSummary: _registrationSummaries[event.id],
-                          ),
-                          Positioned(
-                            bottom: 12,
-                            right: 12,
-                            child: IconButton(
-                              tooltip: 'Add to Calendar',
-                              icon: const Icon(Icons.calendar_month_outlined),
-                              onPressed: () => _onAddToCalendar(event),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 50),
+                          child: Text("No events found."),
+                        )
+                      : ListView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: _events.length,
+                          itemBuilder: (context, index) {
+                            final event = _events[index];
+                            return Stack(
+                              children: [
+                                EnhancedEventCard(
+                                  event: event,
+                                  onViewPressed: () => _navigateToShowcase(event),
+                                  registrationSummary:
+                                      _registrationSummaries[event.id],
+                                ),
+                                Positioned(
+                                  bottom: 12,
+                                  right: 12,
+                                  child: IconButton(
+                                    tooltip: 'Add to Calendar',
+                                    icon: const Icon(Icons.calendar_month_outlined),
+                                    onPressed: () => _onAddToCalendar(event),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
             ],
           ),
         ),
