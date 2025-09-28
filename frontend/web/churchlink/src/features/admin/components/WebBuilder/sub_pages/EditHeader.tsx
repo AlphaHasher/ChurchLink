@@ -67,7 +67,11 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
     );
 };
 
-const EditHeader = () => {
+interface EditHeaderProps {
+    onHeaderDataChange?: (data: HeaderItem[]) => void;
+}
+
+const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [originalHeader, setOriginalHeader] = useState<Header | null>(null);
     const [header, setHeader] = useState<Header | null>(null);
     const [loading, setLoading] = useState(true);
@@ -83,6 +87,13 @@ const EditHeader = () => {
     useEffect(() => {
         fetchHeader();
     }, []);
+
+    // Call onHeaderDataChange whenever header data changes
+    useEffect(() => {
+        if (header?.items && onHeaderDataChange) {
+            onHeaderDataChange(header.items);
+        }
+    }, [header?.items, onHeaderDataChange]);
 
     const fetchHeader = async () => {
         try {

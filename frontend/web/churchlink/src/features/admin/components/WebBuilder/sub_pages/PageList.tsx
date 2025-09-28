@@ -1,6 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { AgGridReact } from "ag-grid-react";
+import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from "ag-grid-community";
+import "ag-grid-community/styles/ag-theme-quartz.css";
+import { Edit, Trash2 } from "lucide-react";
 import api from "@/api/api";
+import MultiStateBadge from "@/shared/components/MultiStageBadge";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
+
+// Register AG Grid modules
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface Page {
   _id: string;
@@ -10,9 +21,70 @@ interface Page {
   locked?: boolean;
 }
 
+// Cell renderer component for visibility column
+const VisibilityCellRendererComponent: React.FC<{ data: Page; value: boolean; setPages: React.Dispatch<React.SetStateAction<Page[]>> }> = ({ data, value, setPages }) => {
+  const [badgeState, setBadgeState] = useState<"custom" | "processing" | "success" | "error">("custom");
+
+  const handleToggleVisibility = async () => {
+    if (badgeState !== "custom") return;
+    const newVisibility = !value;
+    setBadgeState("processing");
+
+    try {
+      await api.put(`/v1/pages/${data._id}`, { visible: newVisibility });
+      setBadgeState("success");
+      setTimeout(() => {
+        setPages((prev: Page[]) =>
+          prev.map((p) => (p._id === data._id ? { ...p, visible: newVisibility } : p))
+        );
+        setBadgeState("custom");
+      }, 900);
+    } catch (error) {
+      console.error("Error updating page visibility:", error);
+      setBadgeState("error");
+      setTimeout(() => setBadgeState("custom"), 1200);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-full w-full overflow-visible">
+      <MultiStateBadge
+        state={badgeState}
+        onClick={handleToggleVisibility}
+        customComponent={
+          <span
+            className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
+              value
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {value ? "Visible" : "Hidden"}
+          </span>
+        }
+      />
+    </div>
+  );
+};
+
+// Cell renderer function for visibility column
+const VisibilityCellRenderer = (props: ICellRendererParams<Page>) => {
+  const { data, value, context } = props;
+  if (!data) return null;
+
+  const { setPages } = context as { setPages: React.Dispatch<React.SetStateAction<Page[]>> };
+
+  return <VisibilityCellRendererComponent data={data} value={value} setPages={setPages} />;
+};
+
 const WebBuilderPageList = () => {
   const [pages, setPages] = useState<Page[]>([]);
   const navigate = useNavigate();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newSlug, setNewSlug] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -26,16 +98,6 @@ const WebBuilderPageList = () => {
     fetchPages();
   }, []);
 
-  const toggleVisibility = async (id: string, current: boolean) => {
-    try {
-      await api.put(`/v1/pages/${id}`, { visible: !current });
-      setPages((prev) =>
-        prev.map((p) => (p._id === id ? { ...p, visible: !current } : p))
-      );
-    } catch (error) {
-      console.error("Error updating page visibility:", error);
-    }
-  };
 
   const toggleLock = async (id: string, current: boolean) => {
     try {
@@ -60,84 +122,169 @@ const WebBuilderPageList = () => {
     }
   };
 
+  const columnDefs = useMemo<ColDef[]>(() => [
+    {
+      headerName: "Title",
+      field: "title",
+      sortable: true,
+      filter: true,
+    },
+    {
+      headerName: "Slug",
+      field: "slug",
+      sortable: true,
+      filter: true,
+      cellStyle: { color: "#2563eb" } as any,
+    },
+    {
+      headerName: "Visibility",
+      field: "visible",
+      sortable: true,
+      filter: true,
+      width: 120,
+      cellClass: 'visibility-cell',
+      cellStyle: { display: 'grid', placeItems: 'center', padding: 0 },
+      cellRenderer: (props: ICellRendererParams<Page>) => VisibilityCellRenderer(props),
+    },
+    {
+      headerName: "Lock Status",
+      field: "locked",
+      sortable: true,
+      filter: true,
+      cellRenderer: (params: any) => (
+        <button
+          onClick={() => toggleLock(params.data._id, params.value ?? false)}
+          className="text-sm text-gray-600 hover:underline"
+        >
+          {params.value ? "Unlock" : "Lock"}
+        </button>
+      ),
+    },
+    {
+      headerName: "Actions",
+      field: "actions",
+      cellRenderer: (params: any) => (
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => navigate(`/admin/webbuilder/edit/${params.data.slug}`)}
+            className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+            title="Edit page"
+          >
+            <Edit size={16} />
+          </button>
+          <button
+            onClick={() => deletePage(params.data._id)}
+            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={params.data.locked}
+            title="Delete page"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ], [navigate]);
+
+  const defaultColDef = useMemo(() => ({
+    resizable: true,
+    sortable: true,
+    filter: true,
+  }), []);
+
+  const slugify = (s: string) => {
+    return s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+  };
+
+  const openAddDialog = () => {
+    setNewTitle("");
+    setNewSlug("");
+    setError(null);
+    setIsAddOpen(true);
+  };
+
+  const saveNewPage = async () => {
+    if (!newTitle.trim() || !newSlug.trim()) {
+      setError("Title and slug are required");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = { title: newTitle.trim(), slug: slugify(newSlug) } as any;
+      await api.post("/v1/pages/", payload);
+      // Fetch the created page to append to the table
+      const created = await api.get(`/v1/pages/preview/${payload.slug}`);
+      setPages((prev) => [created.data, ...prev]);
+      setIsAddOpen(false);
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail || "Failed to create page";
+      setError(typeof detail === "string" ? detail : "Failed to create page");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">Website Pages</h1>
-        <button
-          onClick={() => navigate("/admin/webbuilder/add")}
-          className="px-4 py-2 rounded bg-gray-900 text-white border border-transparent hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors flex items-center"
-        >
-          <span className="mr-1">+</span> Add Page
-        </button>
+        <Button onClick={openAddDialog} className="h-9">
+          + Add Page
+        </Button>
       </div>
-      <div className="bg-white rounded shadow-md overflow-hidden">
-        <table className="min-w-full table-auto text-left">
-          <thead className="bg-gray-100 text-gray-700 text-sm">
-            <tr>
-              <th className="px-4 py-3">Title</th>
-              <th className="px-4 py-3">Slug</th>
-              <th className="px-4 py-3">Visibility</th>
-              <th className="px-4 py-3">Lock Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pages.map((page) => (
-              <tr
-                key={page._id}
-                className="border-t hover:bg-gray-50 transition"
-              >
-                <td className="px-4 py-3 font-medium">{page.title}</td>
-                <td className="px-4 py-3 text-blue-600">{page.slug}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${page.visible ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                      }`}
-                  >
-                    {page.visible ? "Visible" : "Hidden"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => toggleLock(page._id, page.locked ?? false)}
-                    className="text-sm text-gray-600 hover:underline"
-                  >
-                    {page.locked ? "Unlock" : "Lock"}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-right space-x-2">
-                  <button
-                    onClick={() => navigate(`/admin/webbuilder/edit/${page.slug}`)}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => navigate(`/admin/webbuilder/preview/${page.slug}`)}
-                    className="text-sm text-green-600 hover:underline"
-                  >
-                    Preview
-                  </button>
-                  <button
-                    onClick={() => toggleVisibility(page._id, page.visible)}
-                    className="text-sm text-yellow-600 hover:underline"
-                  >
-                    {page.visible ? "Hide" : "Show"}
-                  </button>
-                  <button
-                    onClick={() => deletePage(page._id)}
-                    className="text-sm text-red-600 hover:underline disabled:opacity-50"
-                    disabled={page.locked}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="ag-theme-quartz" style={{ height: 600, width: "100%" }}>
+        <AgGridReact
+          rowData={pages}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          context={{ setPages }}
+          pagination={true}
+          paginationPageSize={20}
+          paginationPageSizeSelector={[10, 20, 50]}
+        />
       </div>
+
+      {/* Add Page Dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Page</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm">Title</label>
+              <Input
+                value={newTitle}
+                onChange={(e) => {
+                  setNewTitle(e.target.value);
+                  if (!newSlug) setNewSlug(slugify(e.target.value));
+                }}
+                placeholder="Home, About, Contact..."
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm">Slug</label>
+              <Input
+                value={newSlug}
+                onChange={(e) => setNewSlug(e.target.value)}
+                placeholder="about-us"
+                className="mt-1"
+              />
+            </div>
+            {error && <div className="text-xs text-destructive">{error}</div>}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsAddOpen(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={saveNewPage} disabled={saving}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

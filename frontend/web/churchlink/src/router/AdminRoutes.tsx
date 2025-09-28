@@ -10,7 +10,6 @@ const Permissions = lazy(() => import("../features/admin/pages/Permissions"));
 const Notification = lazy(() => import("../features/admin/pages/Notification"));
 const Finance = lazy(() => import("../features/admin/pages/Finance"));
 const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
-const AddPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AddPage"));
 const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditPage"));
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
@@ -41,7 +40,7 @@ export const AdminRoutes = () => {
         <Route path="/forms/form-builder" element={<FormBuilder />} />
         <Route path="/forms/manage-forms" element={<ManageForms />} />
         <Route path="/forms/responses" element={<FormResponses />} />
-        <Route path="/webbuilder/add" element={<AddPage />} />
+        {/** Add Page is now an inline dialog within the Web Builder page list */}
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
         <Route path="/webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />

@@ -34,15 +34,27 @@ interface Header {
     items: HeaderItem[];
 }
 
-export default function NavBar() {
-    const [headerItems, setHeaderItems] = useState<HeaderItem[]>([]);
-    const [loading, setLoading] = useState(true);
+interface NavBarProps {
+    headerData?: HeaderItem[];
+}
+
+export default function NavBar({ headerData }: NavBarProps = {}) {
+    const [headerItems, setHeaderItems] = useState<HeaderItem[]>(headerData || []);
+    const [loading, setLoading] = useState(!headerData);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
     const { user } = useAuth();
 
     const is_russian = false;
 
     useEffect(() => {
+        // If headerData is provided as props, use it directly
+        if (headerData) {
+            setHeaderItems(headerData);
+            setLoading(false);
+            return;
+        }
+
+        // Otherwise fetch from API
         const fetchHeaderItems = async () => {
             try {
                 const response = await api.get<Header>("/v1/header");
@@ -55,7 +67,7 @@ export default function NavBar() {
         };
 
         fetchHeaderItems();
-    }, []);
+    }, [headerData]);
 
     return (
         <NavigationMenu className="flex p-4 bg-[#000000] justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide!">

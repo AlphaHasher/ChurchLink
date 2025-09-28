@@ -468,12 +468,17 @@ const ManageForms = () => {
 
       <FormsTabs />
 
-      <div className="mt-4 p-4 bg-white border rounded">
+      <div className="mt-4 p-4 border rounded bg-card text-card-foreground">
         {/* Filters */}
         <div className="flex flex-wrap gap-2 items-center mb-4">
-          <Input placeholder="Search by name" value={searchName} onChange={(e) => setSearchName(e.target.value)} className="w-56" />
+          <Input
+            placeholder="Search by name"
+            value={searchName}
+            onChange={(e) => setSearchName(e.target.value)}
+            className="w-64 h-9 bg-background"
+          />
           <Select value={searchFolder} onValueChange={(v) => setSearchFolder(v)}>
-            <SelectTrigger className="w-56">
+            <SelectTrigger className="w-56 h-9 bg-background">
               <SelectValue placeholder="Filter by folder" />
             </SelectTrigger>
             <SelectContent>
@@ -483,7 +488,13 @@ const ManageForms = () => {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => { setSearchName(''); setSearchFolder('all'); fetchForms(); }}>Clear</Button>
+          <Button
+            variant="outline"
+            className="h-9"
+            onClick={() => { setSearchName(''); setSearchFolder('all'); fetchForms(); }}
+          >
+            Clear
+          </Button>
           {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}    
         </div>
         {/* Bulk actions */}

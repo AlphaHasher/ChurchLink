@@ -2,7 +2,6 @@
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
-
 // Register all community features
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -34,6 +33,7 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
 };
 
 export function UsersTable({ data, permData, onSave }: UsersTableProps) {
+
   const columnDefs: ColDef<BaseUserMask>[] = [
     {
       field: 'name',
