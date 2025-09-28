@@ -100,12 +100,19 @@ function EventRegistrationForm({
   };
 
   const fetchPeople = async () => {
-  const res = await api.get("/v1/users/me/people");
-  const raw = res.data?.people ?? res.data ?? [];
-  // normalize: ensure each person has .id
-  const ppl = raw.map((p: any) => ({ ...p, id: p.id ?? p._id }));
-  setPeople(ppl);
-};
+   const res = await api.get("/v1/users/all-family-members");
+   const ppl = res.data?.family_members ?? [];
+   // map to the shape used by this component (id, first_name, etc.)
+   setPeople(
+     (ppl as any[]).map((m) => ({
+       id: m.id, // already string
+       first_name: m.first_name,
+       last_name: m.last_name,
+       gender: (m.gender as "M" | "F" | null) ?? null,
+       date_of_birth: m.date_of_birth ?? null,
+     }))
+   );
+ };
 
   useEffect(() => {
     (async () => {
@@ -186,7 +193,7 @@ function EventRegistrationForm({
     try {
       setSaving(true);
       if (personId === null) {
-        await api.delete(`/v1/events/${event.id}/rsvp`);
+        await api.delete(`/v1/event-people/unregister/${event.id}`);
       } else {
         await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${personId}`);
       }
@@ -229,8 +236,8 @@ function EventRegistrationForm({
       }
 
       // self
-      if (wantSelf && !haveSelf) await api.post(`/v1/events/${event.id}/rsvp`);
-      else if (!wantSelf && haveSelf) await api.delete(`/v1/events/${event.id}/rsvp`);
+      if (wantSelf && !haveSelf) await api.post(`/v1/event-people/register/${event.id}`);
+      else if (!wantSelf && haveSelf) await api.delete(`/v1/event-people/unregister/${event.id}`);
 
       // family
       for (const id of toAdd) {
@@ -553,13 +560,13 @@ const EventSection: React.FC<EventSectionProps> = ({
   };
 
   const fetchMyEvents = async () => {
-    try {
-      const res = await api.get("/v1/event-people/user");
-      setMyEvents(res.data?.events ?? []);
-    } catch (err) {
-      console.error("Failed to fetch My Events:", err);
-    }
-  };
+  try {
+    const res = await api.get("/v1/event-people/user");
+    setMyEvents(res.data?.events ?? []);
+  } catch (err) {
+    console.error("Failed to fetch My Events:", err);
+  }
+};
 
   useEffect(() => {
     fetchMinistries();
@@ -583,7 +590,7 @@ const EventSection: React.FC<EventSectionProps> = ({
 
   // watch actions (unchanged except for removing datetime picker earlier)
   const addWatch = async (ev: Event, desiredScope?: MyEventScope) => {
-  const scopeToUse = desiredScope ?? getWatchScopeFor(ev);
+  const scopeToUse = desiredScope ?? getWatchScopeFor(ev); // "series" | "occurrence"
   setChanging(ev.id);
   try {
     const params = new URLSearchParams();
@@ -591,7 +598,7 @@ const EventSection: React.FC<EventSectionProps> = ({
     if (scopeToUse === "occurrence") {
       params.set("occurrenceStart", new Date(ev.date).toISOString());
     }
-    await api.post(`/v1/event-people/watch/${ev.id}?` + params.toString());
+    await api.post(`/v1/event-people/watch/${ev.id}?${params.toString()}`);
     await fetchMyEvents();
   } catch (e) {
     console.error(e);
@@ -601,18 +608,23 @@ const EventSection: React.FC<EventSectionProps> = ({
   }
 };
 
-  const removeWatch = async (ev: Event) => {
-    setChanging(ev.id);
-    try {
-      await api.delete(`/v1/event-people/watch/${ev.id}`);
-      await fetchMyEvents();
-    } catch (e) {
-      console.error(e);
-      alert("Failed to remove from My Events.");
-    } finally {
-      setChanging(null);
-    }
-  };
+const removeWatch = async (ev: Event) => {
+  setChanging(ev.id);
+  try {
+    // If you want to target a specific occurrence:
+    // const params = new URLSearchParams();
+    // params.set("scope", currentWatchScope(ev) ?? "series");
+    // await api.delete(`/v1/event-people/watch/${ev.id}?${params.toString()}`);
+
+    await api.delete(`/v1/event-people/watch/${ev.id}`);
+    await fetchMyEvents();
+  } catch (e) {
+    console.error(e);
+    alert("Failed to remove from My Events.");
+  } finally {
+    setChanging(null);
+  }
+};
 
   const switchWatchScope = async (ev: Event) => {
     if (changing === ev.id) return;
@@ -724,7 +736,7 @@ const EventSection: React.FC<EventSectionProps> = ({
           onClick={async () => {
             try {
               setChanging(ev.id);
-              const res = await api.delete(`/v1/events/${ev.id}/rsvp`);
+              const res = await api.delete(`/v1/event-people/unregister/${ev.id}`);
               if (!res.data?.success) throw new Error("Unregistration failed");
               await fetchMyEvents();
             } catch {
