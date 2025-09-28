@@ -839,55 +839,169 @@ const EventSection: React.FC<EventSectionProps> = ({
 
         {/* Event details modal */}
         {selectedEvent && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
-              >
-                ×
-              </button>
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+    <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
+      <button
+        onClick={() => setSelectedEvent(null)}
+        className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
+      >
+        ×
+      </button>
 
-              {/* Previous details UI */}
-              {selectedEvent.image_url && (
-                <img
-                  src={
-                    selectedEvent.image_url.startsWith("http")
-                      ? selectedEvent.image_url
-                      : "/assets/" + selectedEvent.image_url
-                  }
-                  alt={selectedEvent.name}
-                  className="w-full max-h-80 object-cover rounded-lg mb-6"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = "/assets/default-thumbnail.jpg";
-                  }}
-                />
-              )}
+      {/* Image */}
+      {selectedEvent.image_url && (
+        <img
+          src={
+            selectedEvent.image_url.startsWith("http")
+              ? selectedEvent.image_url
+              : "/assets/" + selectedEvent.image_url
+          }
+          alt={selectedEvent.name}
+          className="w-full max-h-80 object-cover rounded-lg mb-6"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.onerror = null;
+            target.src = "/assets/default-thumbnail.jpg";
+          }}
+        />
+      )}
 
-              <h2 className="text-3xl font-bold mb-2">{selectedEvent.name}</h2>
+      {/* Text */}
+      <h2 className="text-3xl font-bold mb-2">{selectedEvent.name}</h2>
 
-              {selectedEvent.description && (
-                <p className="text-gray-700 mb-4 text-lg">{selectedEvent.description}</p>
-              )}
+      {selectedEvent.description && (
+        <p className="text-gray-700 mb-4 text-lg">{selectedEvent.description}</p>
+      )}
 
-              <p className="text-gray-900 font-medium text-base mb-1">
-                📅 {new Date(selectedEvent.date).toLocaleString()}
-              </p>
+      <p className="text-gray-900 font-medium text-base mb-1">
+        📅 {new Date(selectedEvent.date).toLocaleString()}
+      </p>
 
-              {selectedEvent.location && (
-                <p className="text-gray-900 text-base mb-1">📍 {selectedEvent.location}</p>
-              )}
+      {selectedEvent.location && (
+        <p className="text-gray-900 text-base mb-1">📍 {selectedEvent.location}</p>
+      )}
 
-              <p className="text-gray-900 text-base mb-6">
-                💲 Price:{" "}
-                {selectedEvent.price != null && selectedEvent.price > 0
-                  ? `$${selectedEvent.price}`
-                  : "Free"}
-              </p>
+      <p className="text-gray-900 text-base mb-6">
+        💲 Price:{" "}
+        {selectedEvent.price != null && selectedEvent.price > 0
+          ? `$${selectedEvent.price}`
+          : "Free"}
+      </p>
 
-              <div className="grid grid-cols-2 gap-2">
+      {/* Actions */}
+      {selectedEvent.rsvp ? (
+        /* RSVP-required events: open registration */
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setSelectedEvent(null)}
+            className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
+          >
+            Close
+          </button>
+          <button
+            onClick={() => {
+              setRegEvent(selectedEvent);
+              setSelectedEvent(null);
+            }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
+          >
+            Register / Change
+          </button>
+        </div>
+      ) : (
+        /* Non-RSVP events: Add/Remove to My Events (with per-event scope) */
+        <div className="space-y-3">
+          {(() => {
+            const watched = isWatched(selectedEvent);
+            const recurring =
+              selectedEvent.recurring && selectedEvent.recurring !== "never";
+            const currentScope = currentWatchScope(selectedEvent); // null if not watched
+            const uiScope = getWatchScopeFor(selectedEvent); // "series" | "occurrence" (default "series")
+
+            const handleSwitchInModal = async () => {
+              const next: MyEventScope =
+                currentScope === "series" ? "occurrence" : "series";
+              await removeWatch(selectedEvent);
+              await addWatch(selectedEvent, next);
+            };
+
+            if (!recurring) {
+              // One-time event
+              return (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setSelectedEvent(null)}
+                    className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
+                  >
+                    Close
+                  </button>
+                  {!watched ? (
+                    <button
+                      disabled={changing === selectedEvent.id}
+                      onClick={async () => {
+                        await addWatch(selectedEvent); // no scope needed for one-time
+                        setSelectedEvent(null);
+                      }}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
+                    >
+                      Add to My Events
+                    </button>
+                  ) : (
+                    <button
+                      disabled={changing === selectedEvent.id}
+                      onClick={async () => {
+                        await removeWatch(selectedEvent);
+                        setSelectedEvent(null);
+                      }}
+                      className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-lg w-full"
+                    >
+                      Remove from My Events
+                    </button>
+                  )}
+                </div>
+              );
+            }
+
+            // Recurring event
+            return !watched ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm">Add as:</label>
+                  <select
+                    value={uiScope}
+                    onChange={(e) =>
+                      setWatchScopeFor(
+                        selectedEvent.id,
+                        e.target.value as MyEventScope
+                      )
+                    }
+                    className="border rounded px-2 py-1"
+                  >
+                    <option value="series">Recurring</option>
+                    <option value="occurrence">One time</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setSelectedEvent(null)}
+                    className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
+                  >
+                    Close
+                  </button>
+                  <button
+                    disabled={changing === selectedEvent.id}
+                    onClick={async () => {
+                      await addWatch(selectedEvent, uiScope); // pass per-event scope
+                      setSelectedEvent(null);
+                    }}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
+                  >
+                    Add to My Events ({uiScope})
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setSelectedEvent(null)}
                   className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
@@ -895,18 +1009,30 @@ const EventSection: React.FC<EventSectionProps> = ({
                   Close
                 </button>
                 <button
-                  onClick={() => {
-                    setRegEvent(selectedEvent);
+                  disabled={changing === selectedEvent.id}
+                  onClick={handleSwitchInModal}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-lg w-full"
+                >
+                  Switch to {currentScope === "series" ? "one time" : "recurring"}
+                </button>
+                <button
+                  disabled={changing === selectedEvent.id}
+                  onClick={async () => {
+                    await removeWatch(selectedEvent);
                     setSelectedEvent(null);
                   }}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
+                  className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-lg w-full"
                 >
-                  Register / Change
+                  Remove
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+            );
+          })()}
+        </div>
+       )}
+      </div>
+    </div>
+  )}
 
         {/* Registration modal */}
         {regEvent && (
