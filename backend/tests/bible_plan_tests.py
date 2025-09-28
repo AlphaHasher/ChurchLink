@@ -1,23 +1,47 @@
-
-from dotenv import load_dotenv
-import httpx
-import sys
 import os
+import sys
+import httpx
+import pytest
+from dotenv import load_dotenv
+
+TESTS_DIR = os.path.dirname(__file__)
+PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, "..", ".."))
+
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
 
 from backend.tests.test_auth_helpers import get_auth_headers
 
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(backend_dir)
-
 load_dotenv()
 
-BASE_URL = os.getenv("BACKEND_URL") 
+BASE_URL = os.getenv("BACKEND_URL")
+
+if not BASE_URL:
+    raise RuntimeError("Environment variable BACKEND_URL must be set for bible plan tests")
 
 
-def test_create_plan():
-    headers = get_auth_headers()
-    response = httpx.post(
-        f"{BASE_URL}/api/v1/bible-plans/",
+pytestmark = pytest.mark.anyio("asyncio")
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
+def auth_headers():
+    return get_auth_headers()
+
+
+@pytest.fixture
+async def async_client():
+    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+        yield client
+
+
+async def test_create_plan(async_client, auth_headers):
+    response = await async_client.post(
+        "/api/v1/bible-plans/",
         json={
             "name": "Test Plan",
             "duration": 1,
@@ -30,65 +54,71 @@ def test_create_plan():
                         "endChapter": 1,
                         "startVerse": 1,
                         "endVerse": 5,
-                        "reference": "Genesis 1:1-5"
+                        "reference": "Genesis 1:1-5",
                     }
                 ]
-            }
+            },
         },
-        headers=headers,
+        headers=auth_headers,
     )
     assert response.status_code == 201
-    assert "id" in response.json()
-    
-    # Delete the created plan
-    plan_id = response.json()["id"]
-    delete_response = httpx.delete(f"{BASE_URL}/api/v1/bible-plans/{plan_id}", headers=headers)
+    body = response.json()
+    assert "id" in body
+
+    plan_id = body["id"]
+    delete_response = await async_client.delete(f"/api/v1/bible-plans/{plan_id}", headers=auth_headers)
     assert delete_response.status_code == 200
 
-def test_list_plans():
-    headers = get_auth_headers()
-    response = httpx.get(f"{BASE_URL}/api/v1/bible-plans/", headers=headers)
+
+async def test_list_plans(async_client, auth_headers):
+    response = await async_client.get("/api/v1/bible-plans/", headers=auth_headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
-def test_list_bible_plan_templates():
-    headers = get_auth_headers()
-    response = httpx.get(f"{BASE_URL}/api/v1/bible-plans/templates", headers=headers)
+async def test_list_bible_plan_templates(async_client, auth_headers):
+    response = await async_client.get("/api/v1/bible-plans/templates", headers=auth_headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
-def test_get_bible_plan_template_by_id():
-    headers = get_auth_headers()
-    response = httpx.get(f"{BASE_URL}/api/v1/bible-plans/templates/id/test-template-id", headers=headers)
-    assert response.status_code in [200, 404]  # Template may or may not exist
-
-
-def test_get_bible_plan_template_by_name():
-    headers = get_auth_headers()
-    response = httpx.get(f"{BASE_URL}/api/v1/bible-plans/templates/test-template-name", headers=headers)
-    assert response.status_code in [200, 404]  # Template may or may not exist
-
-
-def test_get_user_plans():
-    headers = get_auth_headers()
-    response = httpx.get(f"{BASE_URL}/api/v1/bible-plans/user/test-user-id", headers=headers)
-    assert response.status_code == 200
-    assert isinstance(response.json(), list)
-
-
-def test_get_plan():
-    headers = get_auth_headers()
-    response = httpx.get(f"{BASE_URL}/api/v1/bible-plans/test-plan-id", headers=headers)
-    assert response.status_code in [200, 404]  # Plan may or may not exist - later we can create a plan and test against that
-
-
-def test_update_plan():
-    headers = get_auth_headers()
-    response = httpx.put(
-        f"{BASE_URL}/api/v1/bible-plans/test-plan-id",
-        json={"name": "Updated Plan", "description": "Updated description", "days": []},
-        headers=headers,
+async def test_get_bible_plan_template_by_id(async_client, auth_headers):
+    response = await async_client.get(
+        "/api/v1/bible-plans/templates/id/test-template-id",
+        headers=auth_headers,
     )
-    assert response.status_code in [200, 404]  # Plan may or may not exist
+    assert response.status_code in [200, 404]
+
+
+async def test_get_bible_plan_template_by_name(async_client, auth_headers):
+    response = await async_client.get(
+        "/api/v1/bible-plans/templates/test-template-name",
+        headers=auth_headers,
+    )
+    assert response.status_code in [200, 404]
+
+
+async def test_get_user_plans(async_client, auth_headers):
+    response = await async_client.get(
+        "/api/v1/bible-plans/user/test-user-id",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+async def test_get_plan(async_client, auth_headers):
+    response = await async_client.get(
+        "/api/v1/bible-plans/test-plan-id",
+        headers=auth_headers,
+    )
+    assert response.status_code in [200, 404]
+
+
+async def test_update_plan(async_client, auth_headers):
+    response = await async_client.put(
+        "/api/v1/bible-plans/test-plan-id",
+        json={"name": "Updated Plan", "description": "Updated description", "days": []},
+        headers=auth_headers,
+    )
+    assert response.status_code in [200, 404]
