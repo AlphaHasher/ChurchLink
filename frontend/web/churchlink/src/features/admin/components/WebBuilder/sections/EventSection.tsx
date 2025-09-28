@@ -43,8 +43,7 @@ interface EventSectionProps {
 function EventRegistrationForm({
   event,
   onClose,
-  onSaved,
-  onAddPerson, // optional external flow
+  onSaved, 
 }: {
   event: Event;
   onClose: () => void;
@@ -361,20 +360,12 @@ function EventRegistrationForm({
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">Need to add a new Event Person?</div>
         <div className="flex gap-2">
-          {onAddPerson && (
-            <button
-              className="px-3 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-              onClick={onAddPerson}
-            >
-              Open Full Add Screen
-            </button>
-          )}
           <button
             className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
             onClick={() => setShowAdd((s) => !s)}
-          >
-            {showAdd ? "Close Inline Add" : "Add Person Here"}
-          </button>
+            >
+              {showAdd ? "Close Inline Add" : "Add Person Here"}
+            </button>
         </div>
       </div>
 
