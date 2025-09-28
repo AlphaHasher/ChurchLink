@@ -100,10 +100,12 @@ function EventRegistrationForm({
   };
 
   const fetchPeople = async () => {
-    const res = await api.get("/v1/users/me/people");
-    const ppl = res.data?.people ?? res.data ?? [];
-    setPeople(ppl);
-  };
+  const res = await api.get("/v1/users/me/people");
+  const raw = res.data?.people ?? res.data ?? [];
+  // normalize: ensure each person has .id
+  const ppl = raw.map((p: any) => ({ ...p, id: p.id ?? p._id }));
+  setPeople(ppl);
+};
 
   useEffect(() => {
     (async () => {
@@ -143,24 +145,27 @@ function EventRegistrationForm({
 
   // --- validation used for selection list (unchanged) ---
   const validatePersonForEvent = (person: Person, ev: Event): string | null => {
-    const evGender = ev.gender ?? "all";
-    const pGender = person.gender ?? null;
-    if (evGender !== "all" && pGender && evGender.toUpperCase() !== (pGender as string).toUpperCase()) {
+  const evGender = ev.gender ?? "all"; // "male" | "female" | "all"
+  if (evGender !== "all" && person.gender) {
+    const personAsEventGender = person.gender === "M" ? "male" : "female";
+    if (personAsEventGender !== evGender) {
       return `This event is ${evGender}-only.`;
     }
-    if (person.date_of_birth && ev.min_age != null && ev.max_age != null) {
-      // Handle "YYYY-MM-DD" or ISO
-      const dob = person.date_of_birth.length === 10
+  }
+
+  if (person.date_of_birth && ev.min_age != null && ev.max_age != null) {
+    const dob =
+      person.date_of_birth.length === 10
         ? new Date(`${person.date_of_birth}T00:00:00`)
         : new Date(person.date_of_birth);
-      const on = new Date(ev.date);
-      let age = on.getFullYear() - dob.getFullYear();
-      const m = on.getMonth() - dob.getMonth();
-      if (m < 0 || (m === 0 && on.getDate() < dob.getDate())) age--;
-      if (age < ev.min_age || age > ev.max_age) return `Age restriction: ${ev.min_age}–${ev.max_age}.`;
-    }
-    return null;
-  };
+    const on = new Date(ev.date);
+    let age = on.getFullYear() - dob.getFullYear();
+    const m = on.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && on.getDate() < dob.getDate())) age--;
+    if (age < ev.min_age || age > ev.max_age) return `Age restriction: ${ev.min_age}–${ev.max_age}.`;
+  }
+  return null;
+};
 
   useEffect(() => {
   const errs: Record<string, string | null> = {};
@@ -494,7 +499,10 @@ const EventSection: React.FC<EventSectionProps> = ({
   // My Events + UI state
   const [myEvents, setMyEvents] = useState<MyEventRef[]>([]);
   const [changing, setChanging] = useState<string | null>(null);
-  const [watchScope, setWatchScope] = useState<MyEventScope>("series");
+  const [watchScopes, setWatchScopes] = useState<Record<string, MyEventScope>>({});
+  const getWatchScopeFor = (ev: Event) => watchScopes[ev.id] ?? "series";
+  const setWatchScopeFor = (eventId: string, scope: MyEventScope) =>
+        setWatchScopes((m) => ({ ...m, [eventId]: scope }));
 
   // NEW: registration modal event
   const [regEvent, setRegEvent] = useState<Event | null>(null);
@@ -575,23 +583,23 @@ const EventSection: React.FC<EventSectionProps> = ({
 
   // watch actions (unchanged except for removing datetime picker earlier)
   const addWatch = async (ev: Event, desiredScope?: MyEventScope) => {
-    const scopeToUse = desiredScope ?? watchScope;
-    setChanging(ev.id);
-    try {
-      const params = new URLSearchParams();
-      params.set("scope", scopeToUse);
-      if (scopeToUse === "occurrence") {
-        params.set("occurrenceStart", new Date(ev.date).toISOString()); // auto-use event start
-      }
-      await api.post(`/v1/event-people/watch/${ev.id}?` + params.toString());
-      await fetchMyEvents();
-    } catch (e) {
-      console.error(e);
-      alert("Failed to add to My Events.");
-    } finally {
-      setChanging(null);
+  const scopeToUse = desiredScope ?? getWatchScopeFor(ev);
+  setChanging(ev.id);
+  try {
+    const params = new URLSearchParams();
+    params.set("scope", scopeToUse);
+    if (scopeToUse === "occurrence") {
+      params.set("occurrenceStart", new Date(ev.date).toISOString());
     }
-  };
+    await api.post(`/v1/event-people/watch/${ev.id}?` + params.toString());
+    await fetchMyEvents();
+  } catch (e) {
+    console.error(e);
+    alert("Failed to add to My Events.");
+  } finally {
+    setChanging(null);
+  }
+};
 
   const removeWatch = async (ev: Event) => {
     setChanging(ev.id);
@@ -609,9 +617,8 @@ const EventSection: React.FC<EventSectionProps> = ({
   const switchWatchScope = async (ev: Event) => {
     if (changing === ev.id) return;
     const next: MyEventScope = currentWatchScope(ev) === "series" ? "occurrence" : "series";
-    setWatchScope(next);
     await removeWatch(ev);
-    await addWatch(ev, next); // pass intended scope directly (fixes the “two clicks” issue)
+    await addWatch(ev, next); // pass explicit next; no global state mutation
   };
 
   // registration open/close hooks
@@ -655,8 +662,8 @@ const EventSection: React.FC<EventSectionProps> = ({
             <div className="flex items-center gap-3">
               <label className="text-sm">Add as:</label>
               <select
-                value={watchScope}
-                onChange={(e) => setWatchScope(e.target.value as MyEventScope)}
+                value={getWatchScopeFor(ev)}
+                onChange={(e) => setWatchScopeFor(ev.id, e.target.value as MyEventScope)}
                 className="border rounded px-2 py-1"
               >
                 <option value="series">Recurring</option>
@@ -668,7 +675,7 @@ const EventSection: React.FC<EventSectionProps> = ({
               onClick={() => addWatch(ev)}
               className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700"
             >
-              Add to My Events ({watchScope})
+              Add to My Events ({getWatchScopeFor(ev)})
             </button>
           </>
         ) : (
