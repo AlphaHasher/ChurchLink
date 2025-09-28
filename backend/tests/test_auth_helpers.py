@@ -1,4 +1,4 @@
-from get_bearer_token import generate_test_token
+from ..get_bearer_token import generate_test_token
 
 def get_auth_headers():
     token = generate_test_token()
