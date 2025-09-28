@@ -40,54 +40,6 @@ interface EventSectionProps {
 
 /* ---------- Registration Form (modal content) ---------- */
 
-type Person = {
-  _id: string;
-  first_name: string;
-  last_name: string;
-  gender?: Gender | null;
-  date_of_birth?: string | null; // ISO
-};
-
-type RegistrationSummary = {
-  success: boolean;
-  user_registrations: Array<{
-    user_uid: string;
-    person_id: string | null;
-    person_name: string | null;
-    display_name: string;
-    registered_on: string;
-    kind: "rsvp";
-  }>;
-  total_registrations: number;
-  available_spots: number;
-  total_spots: number;
-  can_register: boolean;
-};
-
-function yearsBetween(d1: Date, d2: Date) {
-  let y = d2.getFullYear() - d1.getFullYear();
-  const m = d2.getMonth() - d1.getMonth();
-  if (m < 0 || (m === 0 && d2.getDate() < d1.getDate())) y--;
-  return y;
-}
-
-function validatePersonForEvent(person: Person, ev: Event): string | null {
-  const evGender = ev.gender ?? "all";
-  const pGender = person.gender ?? "all";
-  if (evGender !== "all" && pGender !== "all" && evGender !== pGender) {
-    return `This event is ${evGender}-only.`;
-  }
-  if (person.date_of_birth && ev.min_age != null && ev.max_age != null) {
-    const dob = new Date(person.date_of_birth);
-    const on = new Date(ev.date);
-    const age = yearsBetween(dob, on);
-    if (age < ev.min_age || age > ev.max_age) {
-      return `Age restriction: ${ev.min_age}–${ev.max_age}.`;
-    }
-  }
-  return null;
-}
-
 function EventRegistrationForm({
   event,
   onClose,
