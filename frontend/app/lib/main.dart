@@ -126,9 +126,15 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
-    
-    // Register FCM token if user is already logged in
-    if (isLoggedIn && user != null) {
+
+    // Force anonymous login if not signed in
+    if (!isLoggedIn) {
+      authService.signInAnonymously().then((anonUser) {
+        user = anonUser;
+        sendFcmTokenToBackend(user!.uid);
+      });
+    } else {
+      // Register FCM token if user is already logged in
       sendFcmTokenToBackend(user!.uid);
     }
     
