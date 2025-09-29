@@ -1083,7 +1083,76 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   const Spacer(flex: 1),
                   IconButton(
                     tooltip: 'Search',
-                    onPressed: null,
+                    onPressed: () async {
+                      String searchText = '';
+                      List<(VerseRef ref, String text)> filteredVerses = [];
+                      await showDialog(
+                        context: context,
+                        builder: (context) {
+                          return StatefulBuilder(
+                            builder: (context, setState) {
+                              return AlertDialog(
+                                title: const Text('Search Bible'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TextField(
+                                      autofocus: true,
+                                      decoration: const InputDecoration(hintText: 'Enter keyword, verse, or chapter'),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          searchText = value;
+                                          filteredVerses = _verses.where((v) =>
+                                            v.$2.toLowerCase().contains(searchText.toLowerCase()) ||
+                                            v.$1.book.toLowerCase().contains(searchText.toLowerCase()) ||
+                                            v.$1.chapter.toString().contains(searchText) ||
+                                            v.$1.verse.toString().contains(searchText)
+                                          ).toList();
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (searchText.isNotEmpty)
+                                      SizedBox(
+                                        height: 200,
+                                        width: 400,
+                                        child: filteredVerses.isEmpty
+                                          ? const Center(child: Text('No results found'))
+                                          : ListView.builder(
+                                              itemCount: filteredVerses.length,
+                                              itemBuilder: (context, idx) {
+                                                final verse = filteredVerses[idx];
+                                                return ListTile(
+                                                  title: Text(
+                                                    verse.$2,
+                                                    style: const TextStyle(fontSize: 14),
+                                                  ),
+                                                  subtitle: Text(
+                                                    '${verse.$1.book} ${verse.$1.chapter}:${verse.$1.verse}',
+                                                    style: const TextStyle(fontSize: 12),
+                                                  ),
+                                                  onTap: () {
+                                                    // Optionally jump to verse or close dialog
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                );
+                                              },
+                                            ),
+                                      ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text('Close'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
                     icon: const Icon(Icons.search, color: Colors.white60),
                   ),
                   IconButton(
