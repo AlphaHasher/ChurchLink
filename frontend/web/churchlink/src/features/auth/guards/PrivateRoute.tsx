@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../hooks/auth-context";
-import { getIsInit } from "../../../helpers/UserHelper";
+// src/components/ProtectedRoute.tsx
+import { useAuth } from '../hooks/auth-context';
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { LOGIN_PATH } from '@/router/paths';
+
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,6 +13,7 @@ const INIT_ROUTE = "/auth/init";
 
 export const PrivateRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   const [initLoading, setInitLoading] = useState(true);
   const [isInit, setIsInit] = useState<boolean | null>(null);
 
@@ -53,7 +56,11 @@ export const PrivateRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (isInit === false) {
-    return <Navigate to={INIT_ROUTE} replace />;
+    return <Navigate
+      to={LOGIN_PATH}
+      replace
+      state={{ redirectTo: location.pathname + location.search }}
+    />;
   }
 
   return <>{children}</>;

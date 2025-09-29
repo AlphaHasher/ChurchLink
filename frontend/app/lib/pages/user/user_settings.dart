@@ -16,6 +16,11 @@ import 'package:http/http.dart' as http;
 
 import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
+import '../../firebase/firebase_auth_service.dart';
+import 'edit_profile.dart';
+import 'family_members_page.dart';
+import '../my_events_page.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -267,6 +272,17 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
+            'icon': Icons.event,
+            'title': 'My Events',
+            'subtitle': 'Your registrations and RSVPs',
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyEventsPage()),
+              );
+            },
+          },
+          {
             'icon': Icons.image,
             'title': 'Change Avatar',
             'subtitle': 'Update your profile picture',
@@ -368,10 +384,13 @@ class _UserSettingsState extends State<UserSettings> {
                     radius: 32,
                     backgroundColor: ssbcGray,
                     backgroundImage:
-                        user?.photoURL != null && (user!.photoURL!.isNotEmpty)
-                            ? NetworkImage(user.photoURL!)
-                            : const AssetImage('assets/user/ssbc-dove.png')
-                                as ImageProvider,
+                        _profileImage != null
+                            ? FileImage(_profileImage!) as ImageProvider
+                            : (user?.photoURL != null &&
+                                    user!.photoURL!.isNotEmpty
+                                ? NetworkImage(user.photoURL!)
+                                : const AssetImage('assets/user/ssbc-dove.png')
+                                    as ImageProvider),
                   ),
                   if (_isUploading)
                     Positioned.fill(
@@ -411,7 +430,9 @@ class _UserSettingsState extends State<UserSettings> {
 
     for (final category in settingsCategories) {
       final catName = category['category'] as String;
-      if ((catName == 'Account' || catName == 'Privacy') && !loggedIn) continue;
+      if ((catName == 'Account' || catName == 'Privacy') && !loggedIn) {
+        continue;
+      }
       if (catName == 'Guest' && loggedIn) continue;
 
       pageWidgets.add(

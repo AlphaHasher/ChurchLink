@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "../hooks/auth-context";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Dove from "@/assets/Dove";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
 
@@ -19,10 +19,22 @@ function Login() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine where to go after login
+  const getRedirectTo = (): string => {
+    const state = location.state as { redirectTo?: string } | null;
+    const fromState = state?.redirectTo;
+    if (fromState) return fromState;
+    const params = new URLSearchParams(location.search);
+    const qp = params.get("redirectTo");
+    if (qp) return qp;
+    return "/pages/";
+  };
 
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate(getRedirectTo(), { replace: true });
     }
   }, [user]);
 
@@ -52,7 +64,7 @@ function Login() {
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
-      // Successful login - you can add navigation here
+      navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -69,7 +81,7 @@ function Login() {
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
-      // Successful login - you can add navigation here
+      navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

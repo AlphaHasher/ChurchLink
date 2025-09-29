@@ -1,17 +1,11 @@
 
-import {
-    ColumnDef,
-    ColumnFiltersState,
-    SortingState,
-    VisibilityState,
-    flexRender,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-} from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown } from "lucide-react"
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, ICellRendererParams } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+// Register all community features
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 import { Button } from "@/shared/components/ui/button"
 import {
@@ -21,111 +15,138 @@ import {
     DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu"
 import { Input } from "@/shared/components/ui/input"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/shared/components/ui/DataTable"
+import { ChevronDown } from "lucide-react"
 
-
-import {
-    permissionLabels
-} from "@/shared/types/AccountPermissions"
 
 import { UserPermMask } from "@/shared/types/UserInfo"
-import { useState } from "react"
-
+import { useState, useMemo, useCallback } from "react"
 
 // Explicitly for type safety copy the permissionLabels
-var userLabels: Record<string, string> = {
+const userLabels: Record<string, string> = {
     name: 'Full Name',
     email: 'Email Address',
+    admin: "Administrator",
+    permissions_management: "Permissions Manager",
+    event_editing: "Event Editor",
+    event_management: "Event Manager",
+    media_management: "Media Library Manager",
 };
-for (const [key, value] of Object.entries(permissionLabels)) {
-    if (key !== 'name') {
-        userLabels[key] = value;
-    }
-}
-
-//add Labels for name and email
-userLabels['name'] = 'Full Name'
-userLabels['email'] = 'Email Address'
 
 interface LogicalUserPermsTableProps {
-    data: UserPermMask[]; // Define the expected data type
+    data: UserPermMask[];
 }
 
-
-// In the Table, this creates the Columns that display the permissions they have.
-const createPermColumn = (accessorKey: keyof UserPermMask): ColumnDef<UserPermMask> => {
-    const label = userLabels[accessorKey];
-
-    return {
-        accessorKey,
-        header: ({ column }) => (
-            <div className={`flex items-center space-x-2 w-full justify-center text-center`}>
-                <Button
-                    variant="ghost"
-                    className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-                >
-                    {label}
-                    <ArrowUpDown />
-                </Button>
-            </div>
-
-        ),
-        cell: ({ row }) => {
-            return (
-                <div
-                    className={`flex items-center space-x-2 w-full justify-center text-center`}
-                >
-                    <div>
-                        {typeof row.getValue(accessorKey) === "boolean"
-                            ? row.getValue(accessorKey)
-                                ? "✅Yes"
-                                : "❌No"
-                            : row.getValue(accessorKey)}
-                    </div>
-                </div>
-            );
-        },
-    };
+const BooleanCellRenderer = (props: ICellRendererParams) => {
+    const value = props.value;
+    if (typeof value === "boolean") {
+        return <div className="text-center">{value ? "✅Yes" : "❌No"}</div>;
+    }
+    return <div className="text-center">{value}</div>;
 };
 
-export const columns: ColumnDef<UserPermMask>[] = [];
-
-Object.keys(userLabels).forEach((key) => {
-    columns.push(createPermColumn(key as keyof UserPermMask));
-});
-
 export function LogicalUserPermsTable({ data }: LogicalUserPermsTableProps) {
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-    const [rowSelection, setRowSelection] = useState({});
+    const [gridApi, setGridApi] = useState<any>(null);
+    const [columnApi, setColumnApi] = useState<any>(null);
 
-    const table = useReactTable({
-        data,
-        columns,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        onColumnVisibilityChange: setColumnVisibility,
-        onRowSelectionChange: setRowSelection,
-        state: {
-            sorting,
-            columnFilters,
-            columnVisibility,
-            rowSelection,
+    const columnDefs = useMemo<ColDef[]>(() => [
+        {
+            field: 'name',
+            headerName: userLabels.name,
+            sortable: true,
+            filter: true,
+            flex: 2,
+            minWidth: 150,
+            pinned: 'left',
         },
-    });
+        {
+            field: 'email',
+            headerName: userLabels.email,
+            sortable: true,
+            filter: true,
+            flex: 2,
+            minWidth: 200,
+        },
+        {
+            field: 'admin',
+            headerName: userLabels.admin,
+            sortable: true,
+            filter: true,
+            flex: 1,
+            minWidth: 120,
+            cellRenderer: BooleanCellRenderer,
+        },
+        {
+            field: 'permissions_management',
+            headerName: userLabels.permissions_management,
+            sortable: true,
+            filter: true,
+            flex: 1,
+            minWidth: 150,
+            cellRenderer: BooleanCellRenderer,
+        },
+        {
+            field: 'event_editing',
+            headerName: userLabels.event_editing,
+            sortable: true,
+            filter: true,
+            flex: 1,
+            minWidth: 120,
+            cellRenderer: BooleanCellRenderer,
+        },
+        {
+            field: 'event_management',
+            headerName: userLabels.event_management,
+            sortable: true,
+            filter: true,
+            flex: 1,
+            minWidth: 130,
+            cellRenderer: BooleanCellRenderer,
+        },
+        {
+            field: 'media_management',
+            headerName: userLabels.media_management,
+            sortable: true,
+            filter: true,
+            flex: 1,
+            minWidth: 150,
+            cellRenderer: BooleanCellRenderer,
+        },
+    ], []);
+
+    const defaultColDef: ColDef = {
+        resizable: true,
+    };
+
+    const onGridReady = useCallback((params: any) => {
+        setGridApi(params.api);
+        setColumnApi(params.columnApi);
+    }, []);
+
+    const hideAllPermissions = useCallback(() => {
+        if (columnApi) {
+            const columns = columnApi.getColumns();
+            columns.forEach((col: any) => {
+                if (col.getColId() !== 'name' && col.getColId() !== 'email') {
+                    columnApi.setColumnVisible(col.getColId(), false);
+                }
+            });
+        }
+    }, [columnApi]);
+
+    const showAllPermissions = useCallback(() => {
+        if (columnApi) {
+            const columns = columnApi.getColumns();
+            columns.forEach((col: any) => {
+                columnApi.setColumnVisible(col.getColId(), true);
+            });
+        }
+    }, [columnApi]);
+
+    const toggleColumnVisibility = useCallback((columnId: string, visible: boolean) => {
+        if (columnApi) {
+            columnApi.setColumnVisible(columnId, visible);
+        }
+    }, [columnApi]);
 
     return (
         <div className="container mx-start">
@@ -133,10 +154,11 @@ export function LogicalUserPermsTable({ data }: LogicalUserPermsTableProps) {
                 {/* Search Input */}
                 <Input
                     placeholder="Search Name..."
-                    value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                    onChange={(event) =>
-                        table.getColumn("name")?.setFilterValue(event.target.value)
-                    }
+                    onChange={(event) => {
+                        if (gridApi) {
+                            gridApi.setQuickFilter(event.target.value);
+                        }
+                    }}
                     className="max-w-sm"
                 />
 
@@ -151,120 +173,47 @@ export function LogicalUserPermsTable({ data }: LogicalUserPermsTableProps) {
                         <Button
                             variant="outline"
                             className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                            onClick={() => {
-                                table.getAllColumns().forEach((column) => {
-                                    if (column.id !== "name" && column.id !== "email") column.toggleVisibility(false);
-                                });
-                            }}
+                            onClick={hideAllPermissions}
                         >
                             Hide All Permissions
                         </Button>
                         <Button
                             variant="outline"
                             className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                            onClick={() => {
-                                table.getAllColumns().forEach((column) => {
-                                    column.toggleVisibility(true);
-                                });
-                            }}
+                            onClick={showAllPermissions}
                         >
                             Show All Permissions
                         </Button>
 
-                        {table
-                            .getAllColumns()
-                            .filter((column) => column.getCanHide() && column.id !== "name" && column.id !== "email")
-                            .map((column) => (
+                        {columnDefs
+                            .filter((col) => col.field !== 'name' && col.field !== 'email')
+                            .map((col) => (
                                 <DropdownMenuCheckboxItem
-                                    key={column.id}
+                                    key={col.field}
                                     className="capitalize"
-                                    checked={column.getIsVisible()}
-                                    onCheckedChange={(value) =>
-                                        column.toggleVisibility(!!value)
-                                    }
+                                    checked={columnApi ? columnApi.getColumn(col.field)?.isVisible() : true}
+                                    onCheckedChange={(value) => toggleColumnVisibility(col.field!, !!value)}
                                     onSelect={(event) => event.preventDefault()}
                                 >
-                                    {permissionLabels[column.id as keyof typeof permissionLabels]}
+                                    {col.headerName}
                                 </DropdownMenuCheckboxItem>
                             ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
 
-            {/* Scrollable Table Container */}
-            <div className="rounded-md border overflow-x-auto max-w-full">
-                <Table className="w-full min-w-max">
-                    <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead
-                                        key={header.id}
-                                        className={header.column.id === "name" ? "sticky left-0 bg-white z-10 shadow-right" : ""}
-                                    >
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(header.column.columnDef.header, header.getContext())}
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-
-                    <TableBody>
-                        {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            className={cell.column.id === "name" ? "sticky left-0 bg-white z-10 shadow-right" : ""}
-                                        >
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No results.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <div className="text-sm text-gray-600">
-                    {`Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-${Math.min(
-                        (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                        table.getFilteredRowModel().rows.length
-                    )} of ${table.getFilteredRowModel().rows.length}`}
-                </div>
-
-                <div className="space-x-2">
-                    <Button
-                        className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        Previous
-                    </Button>
-                    <Button
-                        className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        Next
-                    </Button>
-                </div>
+            <div className="ag-theme-quartz" style={{ height: 600, width: '100%' }}>
+                <AgGridReact
+                    rowData={data}
+                    columnDefs={columnDefs}
+                    defaultColDef={defaultColDef}
+                    onGridReady={onGridReady}
+                    pagination={true}
+                    paginationPageSize={10}
+                    paginationPageSizeSelector={[10, 25, 50]}
+                    animateRows={true}
+                    enableCellTextSelection={true}
+                />
             </div>
         </div>
     );
