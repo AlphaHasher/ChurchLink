@@ -8,8 +8,10 @@ from helpers.NotificationHelper import (
     api_schedule_notification as helper_api_schedule_notification,
     api_get_scheduled_notifications as helper_api_get_scheduled_notifications,
     api_remove_scheduled_notification as helper_api_remove_scheduled_notification,
-    # ... other helpers
+    extract_and_set_uid,fetch_notification_settings
 )
+from firebase_admin import auth as firebase_auth
+
 
 
 public_notification_router = APIRouter(prefix="/notification", tags=["Notification Public Route"])
@@ -18,6 +20,10 @@ private_notification_router = APIRouter(prefix="/notification", tags=["Notificat
 @public_notification_router.post('/save-fcm-token')
 async def save_fcm_token(request: dict):
     return await helper_save_fcm_token(request)
+
+@private_notification_router.get('/settings')
+async def get_notification_settings():
+    return await fetch_notification_settings()
 
 @private_notification_router.post('/settings')
 async def update_notification_settings(streamNotificationMessage: str = Body(...), streamNotificationTitle: str = Body(...)):
@@ -64,10 +70,13 @@ async def api_get_scheduled_notifications():
 async def api_remove_scheduled_notification(notification_id: str):
     return await helper_api_remove_scheduled_notification(notification_id)
 
-@private_notification_router.post('/preferences')
+@public_notification_router.post('/preferences')
 async def set_notification_preferences(request: Request, prefs: NotificationPrefsRequest):
+    # Allow all users, including anonymous, to update preferences
     return await update_notification_preferences(request, prefs)
 
-@private_notification_router.get('/preferences')
+@public_notification_router.get('/preferences')
 async def get_notification_preferences(request: Request):
+    
+    await extract_and_set_uid(request)
     return await fetch_notification_preferences(request)

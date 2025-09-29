@@ -1,8 +1,8 @@
+import logging
 import re
 import httpx
-import logging
 from mongo.database import DB
-from firebase_admin import messaging
+from firebase_admin import messaging, auth as firebase_auth
 from mongo.scheduled_notifications import (
 	schedule_notification, get_scheduled_notifications, remove_scheduled_notification, get_notification_history, log_notification
 )
@@ -10,12 +10,13 @@ from mongo.scheduled_notifications import (
 
 
 async def save_fcm_token(request: dict):
-	result = await DB.db['fcm_tokens'].update_one(
-		{'user_id': request['user_id']},
-		{'$set': {'token': request['token']}},
-		upsert=True
-	)
-	return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
+		# Update by token, not just user_id, to avoid duplicate tokens
+		result = await DB.db['fcm_tokens'].update_one(
+			{'token': request['token']},
+			{'$set': {'user_id': request['user_id']}},
+			upsert=True
+		)
+		return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
 
 	
 async def update_notification_settings(streamNotificationMessage: str, streamNotificationTitle: str):
@@ -39,7 +40,6 @@ async def notification_history(limit: int = 100):
 
 	
 async def send_push_notification(title, body, data, send_to_all, token, eventId, link, route, actionType):
-	logging.info(f"[DEBUG] send_push_notification args: title={title!r}, body={body!r}, data={data!r}, send_to_all={send_to_all!r}, token={token!r}, eventId={eventId!r}, link={link!r}, route={route!r}, actionType={actionType!r}")
 	responses = []
 	target = data.get('target', 'all')
 	query = {}
@@ -57,9 +57,29 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 			query = {'user_id': 'anonymous'}
 		elif target == 'logged_in':
 			query = {'user_id': {'$ne': 'anonymous'}}
-		tokens_cursor = DB.db['fcm_tokens'].find(query, {'_id': 0, 'token': 1})
-		tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
-		for t in tokens:
+		tokens_cursor = DB.db['fcm_tokens'].find(query, {'_id': 0, 'token': 1, 'user_id': 1})
+		tokens_docs = await tokens_cursor.to_list(length=1000)
+		filtered_tokens = []
+		for doc in tokens_docs:
+			t = doc.get('token')
+			user_id = doc.get('user_id')
+			if not t or not user_id:
+				continue
+			user = await DB.db['users'].find_one({'uid': user_id})
+			prefs = (user or {}).get('notification_preferences', {})
+			allow = True  # Default allow to True
+			# Event Reminders: actionType == 'event' or 'navigate to event'
+			if actionType == 'event':
+				allow = prefs.get('Event Notification', True)
+			# App Announcements: actionType in ['text', 'open link', 'open page']
+			elif actionType in ['text', 'link', 'route']:
+				allow = prefs.get('App Announcements', True)
+			# Live Stream Alerts: route == 'youtube_live_stream_notification'
+			elif route == 'youtube_live_stream_notification':
+				allow = prefs.get('Live Stream Alerts', True)
+			if allow:
+				filtered_tokens.append(t)
+		for t in filtered_tokens:
 			enhanced_data = {
 				**{k: str(v) if v is not None else None for k, v in data.items()},
 				**({"eventId": str(eventId)} if eventId is not None else {}),
@@ -82,8 +102,8 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 				responses.append({"token": t, "error": str(e)})
 				if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
 					await DB.db['fcm_tokens'].delete_many({"token": t})
-		await log_notification(DB.db, title, body, "mobile", tokens, actionType, link, route, eventId)
-		return {"success": True, "results": responses, "count": len(tokens)}
+		await log_notification(DB.db, title, body, "mobile", filtered_tokens, actionType, link, route, eventId)
+		return {"success": True, "results": responses, "count": len(filtered_tokens)}
 	elif token:
 		enhanced_data = {
 			**{k: str(v) if v is not None else None for k, v in data.items()},
@@ -112,8 +132,6 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 
 	
 async def api_schedule_notification(title, body, scheduled_time, send_to_all, token, data, eventId, link, route, actionType):
-	import logging
-	logging.info(f"[DEBUG] api_schedule_notification received route: {route!r}")
 	if actionType == "link" and link:
 		error = await validate_link(link)
 		if error:
@@ -172,6 +190,35 @@ async def validate_link(link: str) -> str:
 			if resp.status_code < 200 or resp.status_code >= 400:
 				return f"Link is not reachable: {normalized_link}"
 	except Exception as e:
-		logging.error(f"Link validation error: {e}")
 		return "Link validation failed. Please check the URL and try again."
 	return None
+
+
+async def extract_and_set_uid(request):
+	"""
+	Extract UID from request.state or Authorization header and set it on request.state.uid.
+	"""
+	uid = getattr(request.state, 'uid', None)
+	if not uid:
+		auth_header = request.headers.get('authorization')
+		if auth_header and auth_header.lower().startswith('bearer '):
+			token = auth_header.split(' ', 1)[1]
+			try:
+				decoded = firebase_auth.verify_id_token(token)
+				uid = decoded.get('uid')
+				request.state.uid = uid
+			except Exception as e:
+				logging.warning(f"Failed to decode Firebase token: {e}")
+	else:
+		request.state.uid = uid
+
+async def fetch_notification_settings():
+	settings = await DB.db["settings"].find_one({"type": "youtube"})
+	if not settings:
+		return {}
+	return {
+		"streamNotificationMessage": settings.get("streamNotificationMessage", "A new stream is live!"),
+		"streamNotificationTitle": settings.get("streamNotificationTitle", "Live Stream Started"),
+		"YOUTUBE_TIMEZONE": settings.get("YOUTUBE_TIMEZONE", "America/Los_Angeles"),
+		"envOverride": settings.get("envOverride", False)
+	}

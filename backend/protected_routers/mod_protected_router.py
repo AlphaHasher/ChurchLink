@@ -10,7 +10,7 @@ async def _attach_mod_user_to_state(
     uid: str = Depends(authenticate_uid),
 ) -> str:
     user = await UserHandler.find_by_uid(uid)
-    if user is None:
+    if not user or user is False:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not found in MongoDB",
