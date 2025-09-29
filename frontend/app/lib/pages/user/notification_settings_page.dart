@@ -125,14 +125,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                         _updateNotificationPrefs();
                       },
                     )),
-                if (_usedAnonymousForApi)
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'You are not logged in. These preferences are saved anonymously and will not sync to a real account.',
-                      style: TextStyle(color: Colors.red, fontSize: 14),
-                    ),
-                  ),
               ],
             ),
     );
