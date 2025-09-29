@@ -11,6 +11,8 @@ from helpers.NotificationHelper import (
     # ... other helpers
 )
 
+from mongo.database import DB
+
 
 public_notification_router = APIRouter(prefix="/notification", tags=["Notification Public Route"])
 private_notification_router = APIRouter(prefix="/notification", tags=["Notification Auth Route"], dependencies=[])
@@ -22,6 +24,13 @@ async def save_fcm_token(request: dict):
 @private_notification_router.post('/settings')
 async def update_notification_settings(streamNotificationMessage: str = Body(...), streamNotificationTitle: str = Body(...)):
     return await helper_update_notification_settings(streamNotificationMessage, streamNotificationTitle)
+
+@private_notification_router.get('/settings')
+async def get_notification_settings():
+    doc = await DB.db["settings"].find_one({"type": "youtube"})
+    if doc:
+        doc.pop('_id', None)
+    return doc or {}
 
 @private_notification_router.get('/history')
 async def notification_history(limit: int = 100):
