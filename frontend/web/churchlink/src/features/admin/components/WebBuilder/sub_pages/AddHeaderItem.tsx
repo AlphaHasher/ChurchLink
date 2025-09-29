@@ -31,7 +31,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/components/ui/tabs";
 import { Separator } from "@/shared/components/ui/separator";
-import { GripVertical, Plus, ArrowLeft } from "lucide-react";
+import { GripVertical, Plus, ArrowLeft, Trash2 } from "lucide-react";
 
 interface HeaderLink {
     title: string;
@@ -230,10 +230,12 @@ const AddHeaderItem = () => {
                                                                 <Button
                                                                     type="button"
                                                                     variant="ghost"
-                                                                    size="sm"
+                                                                    size="icon"
+                                                                    className="text-destructive"
+                                                                    aria-label="Remove"
                                                                     onClick={() => handleRemoveDropdownLink(index)}
                                                                 >
-                                                                    Remove
+                                                                    <Trash2 />
                                                                 </Button>
                                                             </div>
                                                         </SortableItem>

@@ -31,7 +31,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Separator } from "@/shared/components/ui/separator";
-import { GripVertical, Save, X, ArrowLeft } from "lucide-react";
+import { GripVertical, Save, X, ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 interface BaseSectionItem {
     title: string;
@@ -246,7 +246,7 @@ const EditFooterSection: React.FC = () => {
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Button type="button" variant="ghost" size="sm" onClick={() => editItem(index)}>
-                                                            Edit
+                                                            <Pencil />
                                                         </Button>
                                                         <Button
                                                             type="button"
@@ -255,7 +255,7 @@ const EditFooterSection: React.FC = () => {
                                                             className="text-destructive"
                                                             onClick={() => removeItem(index)}
                                                         >
-                                                            Remove
+                                                            <Trash2 />
                                                         </Button>
                                                     </div>
                                                 </div>

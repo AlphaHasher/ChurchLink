@@ -32,7 +32,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Separator } from "@/shared/components/ui/separator";
-import { GripVertical, Plus, ArrowLeft } from "lucide-react";
+import { GripVertical, Plus, ArrowLeft, Trash2 } from "lucide-react";
 
 interface FooterItem {
     title: string;
@@ -185,7 +185,7 @@ const AddFooterSection = () => {
                                                             onClick={() => removeItem(index)}
                                                             aria-label="Remove"
                                                         >
-                                                            <TrashIcon />
+                                                            <Trash2 />
                                                         </Button>
                                                     </div>
                                                 </SortableItem>
@@ -230,6 +230,5 @@ const AddFooterSection = () => {
     );
 };
 
-const TrashIcon = () => <span className="inline-flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2m-1 0v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V6h10Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span>;
 
 export default AddFooterSection;
