@@ -1457,14 +1457,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                                                   subtitle: Text('${verse.$1.book} ${verse.$1.chapter}:${verse.$1.verse}', style: const TextStyle(fontSize: 12)),
                                                                   trailing: const Icon(Icons.chevron_right),
                                                                   onTap: () {
-                                                                    if (!searchAllChapters && verse.$1.chapter == _chapter) {
-                                                                      highlightAndScroll(verse.$1);
-                                                                      Navigator.of(context).pop();
-                                                                    } else {
-                                                                      Navigator.of(context).pop();
+                                                                    Navigator.of(context).pop();
+                                                                    if (_chapter != verse.$1.chapter || _book != verse.$1.book) {
                                                                       setState(() {
+                                                                        _book = verse.$1.book;
                                                                         _chapter = verse.$1.chapter;
                                                                       });
+                                                                      _load();
                                                                       Future.microtask(() async {
                                                                         int tries = 0;
                                                                         while (_verses.isEmpty && tries < 20) {
@@ -1473,6 +1472,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                                                         }
                                                                         highlightAndScroll(verse.$1);
                                                                       });
+                                                                    } else {
+                                                                      highlightAndScroll(verse.$1);
                                                                     }
                                                                   },
                                                                 ),
