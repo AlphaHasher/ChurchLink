@@ -2,6 +2,7 @@ import 'package:app/pages/bible.dart';
 import 'package:app/pages/dashboard.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/pages/user/user_settings.dart';
+import 'package:app/services/connectivity_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,6 +14,7 @@ import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:app/gates/auth_gate.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -35,7 +37,11 @@ Future<void> main() async {
   setupFirebaseMessaging();
   await setupLocalNotifications();
 
-  RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  // Startup connectivity service
+  ConnectivityService().start();
+
+  RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
     initialNotificationData = initialMessage.data;
   }
@@ -43,11 +49,13 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) {
-          final provider = TabProvider();
-          TabProvider.instance = provider;
-          return provider;
-        }),
+        ChangeNotifierProvider(
+          create: (context) {
+            final provider = TabProvider();
+            TabProvider.instance = provider;
+            return provider;
+          },
+        ),
       ],
       child: const MyApp(),
     ),
@@ -59,7 +67,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60));
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: const Color.fromARGB(255, 22, 77, 60),
+    );
     return MaterialApp(
       title: 'ChurchLink',
       navigatorKey: navigatorKey, // Allows navigation from notifications
@@ -76,7 +86,7 @@ class MyApp extends StatelessWidget {
           showUnselectedLabels: false,
         ),
       ),
-      home: const MyHomePage(),
+      home: AuthGate(child: const MyHomePage()),
       routes: {
         '/home': (context) => const DashboardPage(),
         '/bible': (context) => const BiblePage(),
@@ -152,23 +162,47 @@ class _MyHomePageState extends State<MyHomePage> {
         items: const [
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/Home.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/Home.svg',
+              isActive: true,
+            ),
           ),
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/Bible.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/Bible.svg',
+              isActive: true,
+            ),
           ),
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: false),  
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/Sermons.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/Sermons.svg',
+              isActive: true,
+            ),
           ),
           BottomNavigationBarItem(
             label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: true),
+            icon: _TintableSvg(
+              path: 'assets/nav_icons/User.svg',
+              isActive: false,
+            ),
+            activeIcon: _TintableSvg(
+              path: 'assets/nav_icons/User.svg',
+              isActive: true,
+            ),
           ),
         ],
       ),
@@ -194,4 +228,3 @@ class _TintableSvg extends StatelessWidget {
     );
   }
 }
-
