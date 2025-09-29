@@ -3,12 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import DynamicPage from "@/shared/components/DynamicPage";
 
 const AdminPagePreview: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug: encodedSlug } = useParams<{ slug: string }>();
+  const slug = encodedSlug ? decodeURIComponent(encodedSlug) : undefined;
   const navigate = useNavigate();
 
   const handleEditClick = () => {
     if (slug) {
-      navigate(`/admin/webbuilder/edit/${slug}`);
+      navigate(`/admin/webbuilder/edit/${encodeURIComponent(slug)}`);
     }
   };
 

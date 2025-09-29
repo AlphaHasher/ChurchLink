@@ -37,13 +37,22 @@ interface FooterSection {
   visible?: boolean;
 }
 
+interface PageSection {
+  id: string;
+  type: "text" | "image" | "video" | "hero" | "paypal" | "service-times" | "menu" | "contact-info" | "map" | "event";
+  content: any;
+  settings?: { showFilters?: boolean; eventName?: string | string[]; lockedFilters?: { ministry?: string; ageRange?: string }; title?: string; showTitle?: boolean };
+}
+
 interface WebBuilderLayoutProps {
   children: React.ReactNode;
-  type: "header" | "footer";
+  type: "header" | "footer" | "page";
   headerData?: HeaderItem[];
   footerData?: FooterSection[];
+  pageData?: { slug: string; sections: PageSection[] };
   onHeaderDataChange?: (data: HeaderItem[]) => void;
   onFooterDataChange?: (data: FooterSection[]) => void;
+  onPageDataChange?: (data: { sections: PageSection[] }) => void;
 }
 
 const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
@@ -51,12 +60,15 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
   type,
   headerData: initialHeaderData,
   footerData: initialFooterData,
+  pageData: initialPageData,
   onHeaderDataChange,
-  onFooterDataChange
+  onFooterDataChange,
+  onPageDataChange
 }) => {
   const [activeTab, setActiveTab] = useState("edit");
   const [currentHeaderData, setCurrentHeaderData] = useState<HeaderItem[] | undefined>(initialHeaderData);
   const [currentFooterData, setCurrentFooterData] = useState<FooterSection[] | undefined>(initialFooterData);
+  const [currentPageData, setCurrentPageData] = useState<{ slug: string; sections: PageSection[] } | undefined>(initialPageData);
 
   const handleHeaderDataChange = (data: HeaderItem[]) => {
     setCurrentHeaderData(data);
@@ -68,25 +80,34 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
     onFooterDataChange?.(data);
   };
 
+  const handlePageDataChange = (data: { sections: PageSection[] }) => {
+    if (currentPageData) {
+      const updatedPageData = { ...currentPageData, ...data };
+      setCurrentPageData(updatedPageData);
+      onPageDataChange?.(data);
+    }
+  };
+
   return (
-    <div className="min-h-screen">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    <div className="min-h-screen flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
         <div className="border-b bg-white">
           <div className="container mx-auto px-4">
             <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="edit">Edit {type === "header" ? "Header" : "Footer"}</TabsTrigger>
+              <TabsTrigger value="edit">Edit {type === "header" ? "Header" : type === "footer" ? "Footer" : "Page"}</TabsTrigger>
               <TabsTrigger value="preview">Preview</TabsTrigger>
             </TabsList>
           </div>
         </div>
 
-        <TabsContent value="edit" className="mt-0">
+        <TabsContent value="edit" className="mt-0 flex-1 overflow-auto">
           <div className="container mx-auto px-4 py-6">
             {React.Children.map(children, (child) => {
               if (React.isValidElement(child)) {
                 return React.cloneElement(child, {
                   onHeaderDataChange: type === "header" ? handleHeaderDataChange : undefined,
                   onFooterDataChange: type === "footer" ? handleFooterDataChange : undefined,
+                  onPageDataChange: type === "page" ? handlePageDataChange : undefined,
                 } as any);
               }
               return child;
@@ -94,23 +115,37 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="preview" className="mt-0">
-          <div className="text-center py-4 text-gray-500">
-            <p className="mb-2">Preview of root page with {type} applied:</p>
-            <div className="border rounded-lg overflow-hidden bg-white">
-              {/* Header - use current edited data when editing header, otherwise fetch from API */}
-              <NavBar headerData={type === "header" ? currentHeaderData : undefined} />
-
-              {/* Page Content */}
-              <DynamicPage
-                isPreviewMode={true}
-                previewSlug="home"
-                showPreviewHeader={false}
-              />
-
-              {/* Footer - use current edited data when editing footer, otherwise fetch from API */}
-              <Footer footerData={type === "footer" ? currentFooterData : undefined} />
-            </div>
+        <TabsContent value="preview" className="mt-0 flex-1 flex flex-col min-h-0">
+          <div className="text-center py-4 text-gray-500 flex-shrink-0">
+            <p className="mb-2">
+              {type === "page"
+                ? `Preview of page: ${currentPageData?.slug || "unknown"}`
+                : `Preview of root page with ${type} applied:`
+              }
+            </p>
+          </div>
+          <div className="flex-1 mx-4 mb-4 min-h-0 relative">
+            {/* Full page preview via iframe to staging for pages; component render for header/footer */}
+            {type === "page" ? (
+              <>
+                <div className="absolute inset-0 border rounded-lg overflow-hidden bg-white" />
+                <iframe
+                  title="page-preview"
+                  src={`${location.origin}/${(currentPageData?.slug && currentPageData.slug !== "/" ? currentPageData.slug.replace(/^\/+/, "") : "")}?staging=1`}
+                  className="absolute inset-0 w-full h-full"
+                />
+              </>
+            ) : (
+              <div className="absolute inset-0 border rounded-lg overflow-hidden bg-white flex flex-col min-h-0">
+                <NavBar headerData={type === "header" ? currentHeaderData : undefined} />
+                <div className="flex-1 overflow-auto">
+                  <DynamicPage isPreviewMode={true} previewSlug="home" showPreviewHeader={false} />
+                </div>
+                <div className="shrink-0">
+                  <Footer footerData={type === "footer" ? currentFooterData : undefined} />
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

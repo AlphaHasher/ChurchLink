@@ -1,14 +1,16 @@
 import PaypalSection from "../sections/PaypalSection";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import api from "@/api/api";
+import api, { pageApi } from "@/api/api";
 import ServiceTimesSection from "@/features/admin/components/WebBuilder/sections/ServiceTimesSection";
 import HeroSection, { HeroContent } from "@/features/admin/components/WebBuilder/sections/HeroSection";
 import MenuSection, { MenuSectionContent } from "@/features/admin/components/WebBuilder/sections/MenuSection";
 import ContactInfoSection, { ContactInfoContent } from "@/features/admin/components/WebBuilder/sections/ContactInfoSection";
 import MapSection from "@/features/admin/components/WebBuilder/sections/MapSection";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
+import TextSection, { TextContent } from "@/features/admin/components/WebBuilder/sections/TextSection";
 import MultiTagInput from "@/helpers/MultiTagInput";
+import WebBuilderLayout from "../layout/WebBuilderLayout";
 import {
   DndContext,
   closestCenter,
@@ -24,6 +26,20 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Button } from "@/shared/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 
 interface ServiceTimesContent {
   title: string;
@@ -43,7 +59,7 @@ interface PaypalSectionContent {
 interface Section {
   id: string;
   type: "text" | "image" | "video" | "hero" | "paypal" | "service-times" | "menu" | "contact-info" | "map" | "event";
-  content: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | (PaypalSectionContent & { purpose?: string; amount?: number }) | { embedUrl?: string };
+  content: string | TextContent | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | (PaypalSectionContent & { purpose?: string; amount?: number }) | { embedUrl?: string };
   settings?: { showFilters?: boolean; eventName?: string | string[]; lockedFilters?: { ministry?: string; ageRange?: string }; title?: string; showTitle?: boolean };
 }
 
@@ -73,13 +89,22 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
   );
 };
 
-const EditPage = () => {
-  const { slug } = useParams();
+interface EditPageProps {
+  onPageDataChange?: (data: { sections: Section[] }) => void;
+}
+
+const EditPage = ({ onPageDataChange }: EditPageProps = {}) => {
+  const { slug: encodedSlug } = useParams();
+  const slug = encodedSlug ? decodeURIComponent(encodedSlug) : undefined;
   const [pageData, setPageData] = useState<PageData | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [eventSuggestions, setEventSuggestions] = useState<string[]>([]);
   const [newSectionType, setNewSectionType] = useState<Section["type"]>("text");
-  const [, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Dialog state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor));
   const handleDragEnd = (event: DragEndEvent) => {
@@ -94,11 +119,14 @@ const EditPage = () => {
   useEffect(() => {
     const fetchPage = async () => {
       try {
-        const res = await api.get(`/v1/pages/${slug}`);
+        // Use preview endpoint and encode the slug so "/" works
+        const res = await api.get(`/v1/pages/preview/${encodeURIComponent(slug as string)}`);
         setPageData(res.data);
         setSections(res.data.sections || []);
+        setLoadError(null);
       } catch (err) {
         console.error("Failed to fetch page", err);
+        setLoadError("Failed to load page.");
       }
     };
 
@@ -108,8 +136,11 @@ const EditPage = () => {
   useEffect(() => {
     const fetchEventNames = async () => {
       try {
-        const res = await api.get('/v1/events/names');
-        setEventSuggestions(res.data);
+        // Backend doesn't expose /events/names; pull unique names from /events
+        const res = await api.get('/v1/events?limit=200');
+        const list = Array.isArray(res.data) ? res.data : [];
+        const uniqueNames = Array.from(new Set(list.map((e: any) => e?.name).filter(Boolean)));
+        setEventSuggestions(uniqueNames);
       } catch (err) {
         console.error("Failed to fetch event names", err);
       }
@@ -117,34 +148,33 @@ const EditPage = () => {
     fetchEventNames();
   }, []);
 
-  const handleContentChange = (index: number, newContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent) => {
+  // Call onPageDataChange whenever sections change
+  useEffect(() => {
+    if (sections && onPageDataChange) {
+      onPageDataChange({ sections });
+    }
+  }, [sections, onPageDataChange]);
+
+  const handleContentChange = (index: number, newContent: string | TextContent | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent) => {
     const updatedSections = [...sections];
     updatedSections[index].content = newContent;
     setSections(updatedSections);
   };
 
-  const handleSave = async () => {
-    if (!pageData?._id) {
-      console.error("Missing page ID");
-      return;
-    }
-
-    const { _id, ...restPageData } = pageData;
-    console.log("Saving page with data:", JSON.stringify({ sections }));
-    try {
-      setSaving(true);
-      await api.put(`/v1/pages/${_id}`, {
-        ...restPageData,
-        sections,
-      });
-      alert("Page updated successfully");
-    } catch (err) {
-      console.error("Failed to save page:", err);
-      alert("Failed to save page. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Autosave to staging whenever sections change
+  useEffect(() => {
+    const save = async () => {
+      if (!slug) return;
+      try {
+        await pageApi.saveStaging(slug, { title: pageData?.title, slug, sections, visible: pageData?.visible });
+      } catch (e) {
+        console.error("Autosave (staging) failed", e);
+      }
+    };
+    // Debounce autosave
+    const t = setTimeout(save, 2000);
+    return () => clearTimeout(t);
+  }, [sections, slug, pageData?.title, pageData?.visible]);
 
   const handleAddSection = (type: Section["type"]) => {
     type PaypalSectionContent = {
@@ -156,7 +186,7 @@ const EditPage = () => {
       amount: number;
       note: string;
     };
-    let defaultContent: string | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | PaypalSectionContent | { embedUrl?: string } = "";
+    let defaultContent: string | TextContent | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | PaypalSectionContent | { embedUrl?: string } = "";
     let settings;
 
     if (type === "hero") {
@@ -204,54 +234,78 @@ const EditPage = () => {
   };
 
   const handleRemoveSection = (index: number) => {
-    const updatedSections = sections.filter((_, i) => i !== index);
-    setSections(updatedSections);
+    setSectionToDelete(index);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteSection = () => {
+    if (sectionToDelete !== null) {
+      const updatedSections = sections.filter((_, i) => i !== sectionToDelete);
+      setSections(updatedSections);
+    }
+    setIsDeleteModalOpen(false);
+    setSectionToDelete(null);
   };
 
   if (!slug) return <div className="text-red-500">Invalid page slug.</div>;
+  if (loadError) return <div className="text-red-500">{loadError}</div>;
   if (!pageData) return <div>Loading...</div>;
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Editing: {pageData.title}</h1>
-      <div className="flex items-center gap-2 mb-4">
-        <select
-          value={newSectionType}
-          onChange={(e) => setNewSectionType(e.target.value as Section["type"])}
-          className="border p-2 rounded"
-        >
-          <option value="text">Text</option>
-          <option value="image">Image</option>
-          <option value="video">Video</option>
-          <option value="hero">Hero</option>
-          <option value="paypal">Paypal</option>
-          <option value="service-times">Service Times</option>
-          <option value="menu">Menu</option>
-          <option value="contact-info">Contact Info</option>
-          <option value="map">Map</option>
-          <option value="event">Event</option>
-        </select>
-        <button
-          onClick={() => handleAddSection(newSectionType)}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-        >
-          Add Section
-        </button>
-      </div>
+    <WebBuilderLayout
+      type="page"
+      pageData={{ slug: slug || "", sections }}
+      onPageDataChange={onPageDataChange}
+    >
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle>Editing: {pageData.title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <Select
+              value={newSectionType}
+              onValueChange={(value) => setNewSectionType(value as Section["type"])}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">Text</SelectItem>
+                <SelectItem value="image">Image</SelectItem>
+                <SelectItem value="video">Video</SelectItem>
+                <SelectItem value="hero">Hero</SelectItem>
+                <SelectItem value="paypal">Paypal</SelectItem>
+                <SelectItem value="service-times">Service Times</SelectItem>
+                <SelectItem value="menu">Menu</SelectItem>
+                <SelectItem value="contact-info">Contact Info</SelectItem>
+                <SelectItem value="map">Map</SelectItem>
+                <SelectItem value="event">Event</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={() => handleAddSection(newSectionType)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Add Section
+            </Button>
+          </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-4">
             {sections.map((section, index) => (
               <SortableItem key={section.id} id={section.id}>
 
-                <div className="border p-4 rounded shadow bg-white">
-                  <h2 className="text-lg font-semibold capitalize p-1">{section.type.replace("-", " ")} Section</h2>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="capitalize">{section.type.replace("-", " ")} Section</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                   {section.type === "text" && (
-                    <textarea
-                      className="w-full border p-2 rounded"
-                      rows={4}
-                      value={typeof section.content === "string" ? section.content : ""}
-                      onChange={(e) => handleContentChange(index, e.target.value)}
+                    <TextSection
+                      data={section.content as TextContent}
+                      isEditing
+                      onChange={(newContent) => handleContentChange(index, newContent)}
                     />
                   )}
                   {section.type === "image" && (
@@ -259,9 +313,8 @@ const EditPage = () => {
                       {typeof section.content === "string" && section.content && (
                         <img src={section.content} alt="Preview" className="max-w-full h-auto rounded border mt-2" />
                       )}
-                      <input
+                      <Input
                         type="text"
-                        className="w-full border p-2 rounded"
                         placeholder="Image URL"
                         value={typeof section.content === "string" ? section.content : ""}
                         onChange={(e) => {
@@ -275,9 +328,8 @@ const EditPage = () => {
                   )}
                   {section.type === "video" && (
                     <div>
-                      <input
+                      <Input
                         type="text"
-                        className="w-full border p-2 rounded"
                         placeholder="YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
                         value={typeof section.content === "string" ? section.content : ""}
                         onChange={(e) => {
@@ -491,29 +543,56 @@ const EditPage = () => {
                       </label>
                     </div>
                   )}
-                  <button
-                    onClick={() => {
-                      if (window.confirm("Are you sure you want to remove this section?")) {
-                        handleRemoveSection(index);
-                      }
-                    }}
-                    className="mt-2 text-red-500 hover:underline"
-                  >
-                    Remove
-                  </button>
-                </div>
+                    <Button
+                      onClick={() => handleRemoveSection(index)}
+                      variant="destructive"
+                      className="mt-4"
+                    >
+                      Remove Section
+                    </Button>
+                  </CardContent>
+                </Card>
               </SortableItem>
             ))}
           </div>
         </SortableContext>
       </DndContext>
-      <button
-        onClick={handleSave}
-        className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+      <Button
+        onClick={async () => {
+          if (!slug) return;
+          try {
+            await pageApi.publish(slug);
+            alert("Published!");
+          } catch (e) {
+            console.error("Publish failed", e);
+            alert("Failed to publish. See console.");
+          }
+        }}
+        className="mt-6 bg-blue-600 hover:bg-blue-700"
       >
-        Save Changes
-      </button>
-    </div>
+        Publish
+      </Button>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently remove this section from the page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteSection} className="bg-red-600 hover:bg-red-700">
+              Delete Section
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </CardContent>
+      </Card>
+    </WebBuilderLayout>
   );
 };
 

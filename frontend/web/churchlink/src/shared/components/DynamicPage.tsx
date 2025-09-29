@@ -8,6 +8,7 @@ import MenuSection from "@/features/admin/components/WebBuilder/sections/MenuSec
 import ContactInfoSection from "@/features/admin/components/WebBuilder/sections/ContactInfoSection";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import MapSection from "@/features/admin/components/WebBuilder/sections/MapSection";
+import TextSection from "@/features/admin/components/WebBuilder/sections/TextSection";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
 
@@ -53,7 +54,7 @@ export interface DynamicPageProps {
   onBackClick?: () => void;
 }
 
-const DEFAULT_HOME_SLUG = "home";
+const DEFAULT_HOME_SLUG = "/";
 const OPTIONAL_BASE = "pages";
 
 const DynamicPage: React.FC<DynamicPageProps> = ({
@@ -81,6 +82,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     raw = raw?.replace(/\/+$/, "");
 
     if (!raw || raw === "") return DEFAULT_HOME_SLUG;
+    if (raw === "home") return "/";
 
     return raw;
   }, [paramSlug, location.pathname, isPreviewMode, previewSlug]);
@@ -102,9 +104,14 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     (async () => {
       try {
         // Choose API endpoint based on preview mode
-        const url = isPreviewMode
-          ? `/v1/pages/preview/${encodeURIComponent(slug)}`
-          : `/v1/pages/${encodeURIComponent(slug)}`;
+        // If preview mode + staging=1 in query, use staging endpoint
+        const searchParams = new URLSearchParams(location.search);
+        const useStaging = isPreviewMode && (searchParams.get("staging") === "1" || searchParams.get("staging") === "true");
+        const url = useStaging
+          ? `/v1/pages/staging/${encodeURIComponent(slug)}`
+          : (isPreviewMode
+              ? `/v1/pages/preview/${encodeURIComponent(slug)}`
+              : `/v1/pages/slug/${encodeURIComponent(slug)}`);
         console.log("DynamicPage: Fetching from:", url);
         const res = await api.get(url, {
           signal: ctrl.signal,
@@ -185,7 +192,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
             console.log("DynamicPage: Rendering section:", section.type, section);
             return (
               <React.Fragment key={section.id}>
-                {section.type === "text" && <p>{section.content}</p>}
+                {section.type === "text" && <TextSection data={section.content} isEditing={false} />}
 
                 {section.type === "image" && (
                   <div className="w-full">
