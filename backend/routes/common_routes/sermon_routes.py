@@ -17,7 +17,6 @@ from controllers.sermon_functions import (
 	register_sermon_favorite,
 	remove_sermon_favorite,
 )
-from helpers.MongoHelper import serialize_objectid_deep
 from models.sermon import (
 	SermonCreate,
 	SermonUpdate,
@@ -160,12 +159,6 @@ async def favorite_sermon(sermon_id: str, request: Request):
 @private_sermon_router.delete("/{sermon_id}/favorite")
 async def unfavorite_sermon(sermon_id: str, request: Request):
 	return await remove_sermon_favorite(sermon_id, request)
-
-
-@private_sermon_router.get("/favorites")
-async def list_favorites(request: Request, expand: bool = Query(default=False)):
-	favorites = await UserHandler.list_sermon_favorites(request.state.uid, expand=expand)
-	return serialize_objectid_deep(favorites)
 
 
 @sermon_editing_router.post("/")

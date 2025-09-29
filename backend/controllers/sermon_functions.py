@@ -26,7 +26,6 @@ def _require_sermon_permissions(request: Request) -> tuple[dict, list[str]]:
 	if not (
 		user_perms.get("admin")
 		or user_perms.get("sermon_editing")
-		or user_perms.get("sermon_management")
 	):
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
@@ -43,7 +42,7 @@ async def _ensure_role_assignment_allowed(
 	user_perms: dict,
 	action_detail: str,
 ) -> None:
-	if user_perms.get("admin") or user_perms.get("sermon_management"):
+	if user_perms.get("admin"):
 		return
 
 	missing = [role for role in requested_roles if role not in user_roles]
@@ -116,7 +115,8 @@ async def process_edit_sermon(
 			detail="Sermon not found",
 		)
 
-	if not (user_perms.get("admin") or user_perms.get("sermon_management")):
+	has_admin = user_perms.get("admin")
+	if not has_admin and existing_sermon.roles:
 		if not any(role in user_roles for role in existing_sermon.roles):
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
@@ -183,7 +183,8 @@ async def process_delete_sermon(sermon_id: str, request: Request):
 			detail="Sermon not found",
 		)
 
-	if not (user_perms.get("admin") or user_perms.get("sermon_management")):
+	has_admin = user_perms.get("admin")
+	if not has_admin and existing_sermon.roles:
 		if not any(role in user_roles for role in existing_sermon.roles):
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,

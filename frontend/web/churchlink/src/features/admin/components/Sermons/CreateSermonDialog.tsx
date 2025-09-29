@@ -69,10 +69,10 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
             const requestOptions: MyPermsRequest = { user_assignable_roles: false, event_editor_roles: true, user_role_ids: false };
             const result = await getMyPermissions(requestOptions);
             if (result?.success) {
-                if (result?.perms?.admin || result?.perms?.event_editing || result?.perms?.event_management || result?.perms?.sermon_editing || result?.perms?.sermon_management) {
+                if (result?.perms?.admin || result?.perms?.sermon_editing) {
                     setIsOpen(true);
                 } else {
-                    alert("You do not have permission to create sermons.");
+                    alert("You must have the Sermon Editor permission to create sermons.");
                 }
             } else {
                 alert(result?.msg || "Permission check failed.");

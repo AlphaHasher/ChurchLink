@@ -8,8 +8,7 @@ class RoleHandler:
         "event_editing":False,
         "event_management":False,
         "media_management":False,
-        "sermon_editing": False,
-        "sermon_management": False,
+    "sermon_editing": False,
 
     }
 
@@ -56,8 +55,6 @@ class RoleHandler:
         
         if permissions['event_management']:
             permissions['event_editing'] = True
-        if permissions['sermon_management']:
-            permissions['sermon_editing'] = True
         return permissions
 
     @staticmethod
@@ -99,7 +96,7 @@ class RoleHandler:
     async def get_user_sermon_editor_roles(role_ids, perms):
         returnable_roles = []
         roles = await RoleHandler.find_roles_with_permissions(['sermon_editing'])
-        if perms['admin'] or perms['sermon_management']:
+        if perms['admin']:
             returnable_roles = roles.copy()
             admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])
             for role in admin_roles:

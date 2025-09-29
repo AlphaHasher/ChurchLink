@@ -46,8 +46,30 @@ class SermonsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final favorites = await _mySermonsService.fetchFavorites(expand: expand);
-      _favorites = favorites;
+      List<Sermon> source = _items;
+
+      if (source.isEmpty || expand) {
+        try {
+          source = await _sermonsService.fetchSermons(
+            const SermonFilter(limit: 200, skip: 0),
+          );
+        } catch (_) {
+          // Fall back to items already loaded even if refresh fails.
+        }
+      }
+
+      _favorites =
+          source
+              .where((sermon) => sermon.isFavorited)
+              .map(
+                (sermon) => SermonFavorite(
+                  id: sermon.id,
+                  sermonId: sermon.id,
+                  addedOn: DateTime.now(),
+                  sermon: sermon.copyWith(isFavorited: true),
+                ),
+              )
+              .toList();
       _error = null;
     } catch (e) {
       _error = e.toString();

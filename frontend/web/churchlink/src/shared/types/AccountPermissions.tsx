@@ -6,7 +6,6 @@ export type AccountPermissions = {
   event_editing: boolean;
   event_management: boolean;
   sermon_editing: boolean;
-  sermon_management: boolean;
   media_management: boolean;
 };
 
@@ -27,7 +26,6 @@ export const permissionLabels: Record<string, string> = {
   event_editing: "Event Editor",
   event_management: "Event Manager",
   sermon_editing: "Sermon Editor",
-  sermon_management: "Sermon Manager",
   media_management: "Media Library Manager",
 };
 
