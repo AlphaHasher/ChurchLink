@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -12,8 +12,7 @@ class NotificationSettingsPage extends StatefulWidget {
 }
 
 class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
-  String? _idToken;
-  bool _usedAnonymousForApi = false;
+  String? _fcmToken;
   Map<String, bool> _notificationPrefs = {};
   final Map<String, bool> _defaultPrefs = {
     'Event Notification': true,
@@ -26,44 +25,42 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   @override
   void initState() {
     super.initState();
-    _authenticateAndFetchPrefs();
-    // Listen for auth state changes to automate sync
-    FirebaseAuth.instance.authStateChanges().listen((user) async {
-      if (user != null && !user.isAnonymous && _usedAnonymousForApi && _notificationPrefs.isNotEmpty) {
-        _idToken = await user.getIdToken();
-        await _updateNotificationPrefs();
-        setState(() {
-          _usedAnonymousForApi = false;
-        });
-      }
-    });
+    _fetchFcmTokenAndPrefs();
   }
 
-  Future<void> _authenticateAndFetchPrefs() async {
-  // Use anonymous sign-in only for API
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      UserCredential cred = await FirebaseAuth.instance.signInAnonymously();
-      user = cred.user;
-      _usedAnonymousForApi = true;
-    } else if (user.isAnonymous) {
-      _usedAnonymousForApi = true;
+  Future<void> _fetchFcmTokenAndPrefs() async {
+    setState(() { _loading = true; });
+    try {
+      // Get FCM token for this device
+      _fcmToken = await FirebaseMessaging.instance.getToken();
+      debugPrint('FCM token used for GET: $_fcmToken');
+      await _fetchNotificationPrefs();
+    } catch (e) {
+      debugPrint('Error fetching FCM token: $e');
+    } finally {
+      setState(() { _loading = false; });
     }
-    _idToken = await user?.getIdToken();
-    await _fetchNotificationPrefs();
   }
 
   Future<void> _fetchNotificationPrefs() async {
     setState(() { _loading = true; });
     try {
       final response = await http.get(
-        Uri.parse(_baseUrl),
-        headers: _idToken != null ? {'Authorization': 'Bearer $_idToken'} : {},
+        Uri.parse('$_baseUrl?token=$_fcmToken'),
       );
-      debugPrint('Notification prefs response: ${response.body}'); // Debug print
+      debugPrint('Notification prefs response: ${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        Map<String, bool> prefs = Map<String, bool>.from(data['notification_preferences'] ?? {});
+  final rawPrefs = data['notification_preferences'] ?? {};
+        Map<String, bool> prefs = Map.fromEntries(
+          (rawPrefs as Map<String, dynamic>).entries.map((entry) {
+            final key = entry.key;
+            final value = entry.value;
+            if (value is bool) return MapEntry(key, value);
+            if (value is String) return MapEntry(key, value.toLowerCase() == 'true');
+            return MapEntry(key, false);
+          }),
+        );
         if (prefs.isEmpty) {
           prefs = Map<String, bool>.from(_defaultPrefs);
         }
@@ -72,7 +69,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         });
       }
     } catch (e) {
-      debugPrint('Error fetching notification prefs: $e'); // Debug print
+      debugPrint('Error fetching notification prefs: $e');
     } finally {
       setState(() { _loading = false; });
     }
@@ -84,16 +81,18 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         Uri.parse(_baseUrl),
         headers: {
           'Content-Type': 'application/json',
-          if (_idToken != null) 'Authorization': 'Bearer $_idToken',
         },
-        body: json.encode({'notification_preferences': _notificationPrefs}),
+        body: json.encode({
+          'token': _fcmToken,
+          'preferences': _notificationPrefs,
+        }),
       );
-      debugPrint('Update notification prefs response: ${response.body}'); // Debug print
+      debugPrint('Update notification prefs response: ${response.body}');
       if (response.statusCode != 200) {
         debugPrint('Failed to update notification prefs: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error updating notification prefs: $e'); // Debug print
+      debugPrint('Error updating notification prefs: $e');
     }
   }
 

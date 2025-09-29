@@ -26,64 +26,6 @@ class PersonalInfo(BaseModel):
     birthday: Optional[datetime]
     gender: Optional[str]
 
-class NotificationPrefsRequest(BaseModel):
-    notification_preferences: Dict[str, bool]
-
-async def update_notification_preferences(request: Request, prefs: NotificationPrefsRequest):
-    uid = getattr(request.state, 'uid', None)
-    if not uid:
-        return {"success": False, "error": "No UID found in request."}
-    # Ensure user exists before updating notification_preferences
-    user = await UserHandler.find_by_uid(uid)
-    if not user or user is False:
-        try:
-            try:
-                fb_user = auth.get_user(uid)
-                email = fb_user.email if hasattr(fb_user, 'email') and fb_user.email else f"anon_{uid}@churchlink.app"
-            except Exception:
-                email = f"anon_{uid}@churchlink.app"
-            await UserHandler.create_user(
-                first_name="Anonymous",
-                last_name="User",
-                email=email,
-                uid=uid,
-                roles=[],
-                phone=None,
-                birthday=None,
-                address=None
-            )
-        except Exception as e:
-            return {"success": False, "error": "User not found and could not be created."}
-    result = await UserHandler.update_user({"uid": uid}, {"notification_preferences": prefs.notification_preferences})
-    return {"success": bool(result)}
-
-async def fetch_notification_preferences(request: Request):
-    uid = getattr(request.state, 'uid', None)
-    if not uid:
-        return {"success": False, "notification_preferences": {}, "error": "No UID found in request."}
-    user = await UserHandler.find_by_uid(uid)
-    if not user or user is False:
-        try:
-            try:
-                fb_user = auth.get_user(uid)
-                email = fb_user.email if hasattr(fb_user, 'email') and fb_user.email else f"anon_{uid}@churchlink.app"
-            except Exception:
-                email = f"anon_{uid}@churchlink.app"
-            await UserHandler.create_user(
-                first_name="Anonymous",
-                last_name="User",
-                email=email,
-                uid=uid,
-                roles=[],
-                phone=None,
-                birthday=None,
-                address=None
-            )
-            user = await UserHandler.find_by_uid(uid)
-        except Exception as e:
-            return {"success": False, "notification_preferences": {}, "error": "User not found and could not be created."}
-    prefs = user.get("notification_preferences", {}) if user else {}
-    return {"success": True, "notification_preferences": prefs}
 
 def is_valid_name(s: str) -> bool:
     if not s:

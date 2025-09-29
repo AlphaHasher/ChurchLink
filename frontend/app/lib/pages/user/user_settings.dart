@@ -151,8 +151,8 @@ class _UserSettingsState extends State<UserSettings> {
     List<Widget> pageWidgets = [];
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
   User? user = authService.getCurrentUser();
-  // Treat anonymous users as not logged in for UI purposes
-  bool loggedIn = user != null && !(user.isAnonymous);
+  // Consider any Firebase user as logged in
+  bool loggedIn = user != null;
 
     final List<Map<String, dynamic>> settingsCategories = [
       {

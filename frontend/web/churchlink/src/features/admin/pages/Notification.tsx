@@ -516,7 +516,7 @@ const Notification = () => {
           >
             <option value="all">All Users</option>
             <option value="logged_in">Logged-in Users</option>
-            <option value="anonymous">Anonymous Users</option>
+            <option value="anonymous">Non-Login Users</option>
           </select>
         </div>
 
