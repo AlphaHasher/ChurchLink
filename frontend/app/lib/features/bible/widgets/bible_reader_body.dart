@@ -1036,51 +1036,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     }
 
     // Helper for searching user notes (perTx and shared)
-    List<(VerseRef ref, String text)> _userNotes() {
-      final notes = <String, (VerseRef, String)>{};
-      // All per-translation notes
-      for (final tx in _notesPerTx.keys) {
-        _notesPerTx[tx]?.forEach((k, v) {
-          if (v.trim().isEmpty) return;
-          final parts = k.split('|');
-          if (parts.length == 3) {
-            final key = '${parts[0]}|${parts[1]}|${parts[2]}';
-            notes[key] = (
-              VerseRef(parts[0], int.tryParse(parts[1]) ?? 1, int.tryParse(parts[2]) ?? 1),
-              v,
-            );
-          }
-        });
-      }
-      // Shared notes (try to resolve clusterId to verse)
-      if (_matcher != null) {
-        if (kDebugMode) debugPrint('[DEBUG] _notesShared raw: ${_notesShared}');
-        _notesShared.forEach((cid, v) {
-          if (v.trim().isEmpty) return;
-          final parts = cid.split('|');
-          if (kDebugMode) debugPrint('[DEBUG] parsing cid: $cid parts: $parts');
-          if (parts.length == 4) {
-            // Format: tx|Book|Chapter|Verse
-            final key = '${parts[1]}|${parts[2]}|${parts[3]}';
-            notes[key] = (
-              VerseRef(parts[1], int.tryParse(parts[2]) ?? 1, int.tryParse(parts[3]) ?? 1),
-              v,
-            );
-          } else if (parts.length == 3) {
-            // Format: Book|Chapter|Verse
-            final key = cid;
-            notes[key] = (
-              VerseRef(parts[0], int.tryParse(parts[1]) ?? 1, int.tryParse(parts[2]) ?? 1),
-              v,
-            );
-          } else {
-            if (kDebugMode) debugPrint('[DEBUG] Unrecognized cid format: $cid');
-          }
-        });
-      }
-      if (kDebugMode) debugPrint('[DEBUG] _userNotes found: ${notes.values.map((n) => '${n.$1.book} ${n.$1.chapter}:${n.$1.verse} "${n.$2}"').toList()}');
-      return notes.values.toList();
-    }
+
 
     return Column(
       children: [
@@ -1207,7 +1163,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                       List<(VerseRef ref, String text)> filteredVerses = [];
                       List<(VerseRef ref, String text)> filteredNotes = [];
                       List<(VerseRef ref, String text)> allBookVerses = [];
-                      // Preload all verses for the current book
+                      List<(VerseRef ref, String text)> allBookNotes = [];
+                      // Preload all verses and notes for the current book
                       if (_booksReady) {
                         final chapters = _chapterCount(_book);
                         for (int ch = 1; ch <= chapters; ch++) {
@@ -1216,9 +1173,23 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                             book: _book,
                             chapter: ch,
                           );
-                          if (data is List<(VerseRef, String)>) {
-                            allBookVerses.addAll(data);
+                          allBookVerses.addAll(data);
+                        }
+                        // Fetch all notes for the current book (all chapters)
+                        try {
+                          final notes = await NotesApi.getNotesForChapterRangeApi(
+                            book: _book,
+                            chapterStart: 1,
+                            chapterEnd: chapters,
+                          );
+                          for (final rn in notes) {
+                            final ref = VerseRef(rn.book, rn.chapter, rn.verseStart);
+                            if (rn.note.trim().isNotEmpty) {
+                              allBookNotes.add((ref, rn.note));
+                            }
                           }
+                        } catch (e) {
+                          if (kDebugMode) debugPrint('[SearchDialog] Failed to fetch all notes: $e');
                         }
                       }
                       await showDialog(
@@ -1254,8 +1225,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                                 v.$1.verse.toString().contains(searchText);
                                             return matchesText;
                                           }).toList();
-                                          // User notes
-                                          filteredNotes = _userNotes().where((v) =>
+                                          // User notes (all chapters in current book)
+                                          filteredNotes = allBookNotes.where((v) =>
                                             v.$1.book.toLowerCase().contains(searchText.toLowerCase()) ||
                                             v.$1.chapter.toString().contains(searchText) ||
                                             v.$1.verse.toString().contains(searchText) ||
