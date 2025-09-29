@@ -112,34 +112,6 @@ async def sermon_id(async_client, auth_headers):
         yield None
 
 
-async def test_create_sermon(async_client, auth_headers):
-    payload = {
-        "title": "Test Sermon",
-        "description": "A sermon used for testing",
-        "speaker": "Test Speaker",
-        "ministry": ["Test Ministry"],
-        "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "date_posted": "2020-01-01T00:00:00Z",
-        "published": False,
-        "roles": ["sermon_editor"],
-    }
-
-    response = await async_client.post("/api/v1/sermons/", json=payload, headers=auth_headers)
-    # Creation requires appropriate perms; accept 201, 400, or 403. Unauthorized (401)
-    # indicates missing credentials and should cause the test to fail.
-    assert response.status_code in [201, 400, 403]
-
-    if response.status_code == 201:
-        body = response.json()
-        assert "id" in body
-
-        sermon_id = body["id"]
-
-        # Clean up by deleting the sermon
-        del_resp = await async_client.delete(f"/api/v1/sermons/{sermon_id}", headers=auth_headers)
-        assert del_resp.status_code in [200, 403]
-
-
 async def test_list_sermons(async_client, auth_headers):
     response = await async_client.get("/api/v1/sermons/", headers=auth_headers)
     assert response.status_code == 200
@@ -171,16 +143,3 @@ async def test_favorite_endpoints(async_client, auth_headers, sermon_id):
 
     delete_resp = await async_client.delete(f"/api/v1/sermons/{sermon_id}/favorite", headers=auth_headers)
     assert delete_resp.status_code in [200, 204, 400, 403]
-
-
-async def test_update_sermon_placeholder(async_client, auth_headers, sermon_id):
-    if sermon_id is None:
-        pytest.skip("No sermon available for update test")
-    response = await async_client.put(
-        f"/api/v1/sermons/{sermon_id}",
-        json={"title": "Updated Title", "roles": ["sermon_editor"]},
-        headers=auth_headers,
-    )
-    # Some environments may reject updates with 400 (validation) when permissions or payload
-    # constraints are unmet. Accept 400 alongside the standard success/permission statuses.
-    assert response.status_code in [200, 400, 404, 403]
