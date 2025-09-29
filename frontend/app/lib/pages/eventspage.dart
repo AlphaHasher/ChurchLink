@@ -26,7 +26,7 @@ class EventsPage extends StatefulWidget {
 class _EventsPageState extends State<EventsPage> {
   List<Event> _events = [];
   bool _isLoading = true;
-  Map<String, EventRegistrationSummary> _registrationSummaries = {};
+  final Map<String, EventRegistrationSummary> _registrationSummaries = {};
 
   // Declare variables for dynamic filter values
   int? _minAge;
@@ -197,27 +197,30 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
-                    value: tempGender,
-                    items: [
-                      null, // Show all: no filtering
-                      'all', // Only "All Genders" events
-                      'male',
-                      'female',
-                    ].map((g) {
-                      String label;
-                      if (g == null) {
-                        label = 'Show All';
-                      } else if (g == 'all') {
-                        label = 'All Genders Allowed';
-                      } else {
-                        label = '${g[0].toUpperCase()}${g.substring(1)} Only';
-                      }
-                      return DropdownMenuItem<String>(
-                        value: g,
-                        child: Text(label),
-                      );
-                    }).toList(),
-                    onChanged: (value) => setModalState(() => tempGender = value),
+                    initialValue: tempGender,
+                    items:
+                        [
+                          null, // Show all: no filtering
+                          'all', // Only "All Genders" events
+                          'male',
+                          'female',
+                        ].map((g) {
+                          String label;
+                          if (g == null) {
+                            label = 'Show All';
+                          } else if (g == 'all') {
+                            label = 'All Genders Allowed';
+                          } else {
+                            label =
+                                '${g[0].toUpperCase()}${g.substring(1)} Only';
+                          }
+                          return DropdownMenuItem<String>(
+                            value: g,
+                            child: Text(label),
+                          );
+                        }).toList(),
+                    onChanged:
+                        (value) => setModalState(() => tempGender = value),
                   ),
                   TextField(
                     controller: _ageController,
@@ -228,26 +231,28 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
-                    value: tempMinistry,
-                    items: [
-                      null,
-                      'Children',
-                      'Education',
-                      'Family',
-                      'Music',
-                      'Quo Vadis Theater',
-                      'Skala Teens',
-                      'VBS',
-                      'United Service',
-                      'Women\'s Ministries',
-                      'Youth',
-                    ].map((m) {
-                      return DropdownMenuItem<String>(
-                        value: m,
-                        child: Text(m ?? 'All Ministries'),
-                      );
-                    }).toList(),
-                    onChanged: (value) => setModalState(() => tempMinistry = value),
+                    initialValue: tempMinistry,
+                    items:
+                        [
+                          null,
+                          'Children',
+                          'Education',
+                          'Family',
+                          'Music',
+                          'Quo Vadis Theater',
+                          'Skala Teens',
+                          'VBS',
+                          'United Service',
+                          'Women\'s Ministries',
+                          'Youth',
+                        ].map((m) {
+                          return DropdownMenuItem<String>(
+                            value: m,
+                            child: Text(m ?? 'All Ministries'),
+                          );
+                        }).toList(),
+                    onChanged:
+                        (value) => setModalState(() => tempMinistry = value),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

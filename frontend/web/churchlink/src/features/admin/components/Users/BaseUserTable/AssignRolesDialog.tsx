@@ -195,7 +195,7 @@ export function AssignRolesDialog({
 
                     {/* Footer Buttons */}
                     <DialogFooter className="flex justify-end gap-2 mt-4">
-                        <Button variant="outline" className="text-white" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
+                        <Button variant="outline" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
                         <Button variant="default" onClick={handleSaveChanges} disabled={saving}>
                             {saving ? (
                                 <>
