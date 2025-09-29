@@ -1,11 +1,8 @@
 // -----------------------------------------------------------------------------
-// Middleman for accessing the formatting of the Books within
-// the Bible, as stored in books.json.
-// TODO: Implementation. Move away from individually listed Bible books
-// TODO: in separate files and consolidate it.
-// TODO: Implement the Bible revisions
-// TODO: KJV: "King James Version (1769)"
-// TODO: RST: "1876 (modern orthography)"
+// Middleman for accessing the formatting of the Books within 
+// the Bible, as stored in books.json. 
+// KJV: "King James Version (1769)"
+// RST: "1876 (modern orthography)"
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
@@ -138,6 +135,9 @@ class Books {
     for (final b in booksJson) {
       final key = b['key'] as String;
       final extra = (b['extra_aliases'] as List?)?.cast<String>() ?? const <String>[];
+      for (final a in extra) {
+        aliasMap[_norm(a)] = key;
+      }
       for (final a in extra) {
         aliasMap[_norm(a)] = key;
       }
