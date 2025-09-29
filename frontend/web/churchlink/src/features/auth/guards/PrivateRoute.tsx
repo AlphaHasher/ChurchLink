@@ -1,7 +1,8 @@
 // src/components/ProtectedRoute.tsx
 import { useAuth } from '../hooks/auth-context';
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import { LOGIN_PATH } from '@/router/paths';
 
 
 interface ProtectedRouteProps {
@@ -10,6 +11,7 @@ interface ProtectedRouteProps {
 
 export const PrivateRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   // Show a loading indicator while checking auth state
   if (loading) {
@@ -23,6 +25,14 @@ export const PrivateRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // If logged in, show the dashboard (or whatever content is wrapped)
-  return user ? <>{children}</> : <Navigate to="/auth/login" replace />;
+  return user ? (
+    <>{children}</>
+  ) : (
+    <Navigate
+      to={LOGIN_PATH}
+      replace
+      state={{ redirectTo: location.pathname + location.search }}
+    />
+  );
 };
 export default PrivateRoute;

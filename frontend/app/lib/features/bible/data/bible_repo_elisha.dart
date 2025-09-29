@@ -1,17 +1,17 @@
 // -----------------------------------------------------------------------------
 // This file contains code for interpreting and relaying data from the .JSON
-// bible files to other components as-needed. Essentially a middleman. 
+// bible files to other components as-needed. Essentially a middleman.
 // -----------------------------------------------------------------------------
 
 // lib/features/bible/data/bible_repo_elisha.dart
-// Uses this to standardize and clean up the formatting from a .JSON Bible file. 
+// Uses this to standardize and clean up the formatting from a .JSON Bible file.
 import 'elisha_json_source.dart';
 
 /// Create an object for every single verse
 /// Stores book, chapter, verse as properties
 /// "book" is stored as a canonical English name (e.g., 'John').
 class VerseRef {
-  final String book;  // canonical name (we normalize if the JSON uses an int)
+  final String book; // canonical name (we normalize if the JSON uses an int)
   final int chapter;
   final int verse;
   const VerseRef(this.book, this.chapter, this.verse);

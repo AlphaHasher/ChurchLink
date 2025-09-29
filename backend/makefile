@@ -1,11 +1,8 @@
 run:
-	@if [ "$$OS" != "Windows_NT" ]; then \
-		$(MAKE) mongo-start; \
-	fi
 	uv run main.py
 
-mongo-create:
-	docker run -d --name mongodb-ssbc -p 27017:27017 -v mongodb_data:/data/db mongo:latest
+run_mongo:
+	docker run -d --name mongo-container -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password mongo
 
 mongo-start:
 	docker start mongodb-ssbc
@@ -36,8 +33,7 @@ db_name = os.getenv('DB_NAME', 'SSBC_DB'); \
 client.drop_database(db_name); \
 print(f'Database {db_name} dropped')"
 
-run_mongo:
-	docker run -d --name mongo-container -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password mongo
+
 
 run_strapi:
 	cd strapi && npm run dev

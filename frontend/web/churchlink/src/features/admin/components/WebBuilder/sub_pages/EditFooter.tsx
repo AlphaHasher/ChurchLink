@@ -64,7 +64,11 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
     );
 };
 
-const EditFooter = () => {
+interface EditFooterProps {
+    onFooterDataChange?: (data: FooterSection[]) => void;
+}
+
+const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const [originalFooter, setOriginalFooter] = useState<Footer | null>(null);
     const [footer, setFooter] = useState<Footer | null>(null);
     const [loading, setLoading] = useState(true);
@@ -80,6 +84,13 @@ const EditFooter = () => {
     useEffect(() => {
         fetchFooter();
     }, []);
+
+    // Call onFooterDataChange whenever footer data changes
+    useEffect(() => {
+        if (footer?.items && onFooterDataChange) {
+            onFooterDataChange(footer.items);
+        }
+    }, [footer?.items, onFooterDataChange]);
 
     const fetchFooter = async () => {
         try {
