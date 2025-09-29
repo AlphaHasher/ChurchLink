@@ -74,6 +74,36 @@ class BibleReaderBody extends StatefulWidget {
 /// Stores more necessary information for the reader
 /// Visible Verses, Translation Remapping, Notes/Highlights
 class _BibleReaderBodyState extends State<BibleReaderBody> {
+  // Returns all verses for the current translation and book, across all chapters
+  // TODO: Properly load all verses from all chapters asynchronously
+  List<(VerseRef ref, String text)> _allVerses() {
+    // For now, just return current chapter's verses to avoid async errors
+    return _verses;
+  }
+  // Highlights occurrences of searchText in the given text
+  Widget _highlightText(String text, String searchText) {
+    if (searchText.isEmpty) return Text(text);
+    final matches = <TextSpan>[];
+    final lowerText = text.toLowerCase();
+    final lowerSearch = searchText.toLowerCase();
+    int start = 0;
+    while (true) {
+      final index = lowerText.indexOf(lowerSearch, start);
+      if (index < 0) {
+        matches.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+      if (index > start) {
+        matches.add(TextSpan(text: text.substring(start, index)));
+      }
+      matches.add(TextSpan(
+        text: text.substring(index, index + searchText.length),
+        style: const TextStyle(backgroundColor: Color(0xFFFFF59D), fontWeight: FontWeight.bold),
+      ));
+      start = index + searchText.length;
+    }
+    return RichText(text: TextSpan(style: const TextStyle(color: Colors.black), children: matches));
+  }
   final _repo = ElishaBibleRepo();
 
   // Current view
@@ -317,8 +347,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   /// ===== Server sync (read) =====
   Future<void> _syncFetchChapterNotes() async {
-    _noteIdByKey.clear();
-    _noteIdByCluster.clear();
+  _noteIdByKey.clear();
+  _noteIdByCluster.clear();
+  if (kDebugMode) debugPrint('[DEBUG] _syncFetchChapterNotes called for $_book $_chapter');
 
     // Belt & suspenders: never write unmapped data if matcher isn't ready
     final m = _matcher;
@@ -334,9 +365,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
     try {
       if (kDebugMode) {
-        debugPrint(
-          '[Sync.Read] $bookCanon ch=$c window=[$start..$end] tx=$_translation',
-        );
+        debugPrint('[Sync.Read] $bookCanon ch=$c window=[$start..$end] tx=$_translation');
       }
 
       final items = await getNotesForChapterRange(
@@ -344,6 +373,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         chapterStart: start,
         chapterEnd: end,
       );
+
+      if (kDebugMode) debugPrint('[DEBUG] Notes fetched: count=${items.length}');
+      for (final rn in items) {
+        debugPrint('[DEBUG] Note: id=${rn.id} book=${rn.book} ch=${rn.chapter} v=${rn.verseStart} note="${rn.note}" color=${rn.color}');
+      }
 
       items.sort((a, b) {
         final ax =
@@ -358,34 +392,27 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       });
 
       for (final rn in items) {
-        // Set which translation the backend uses
-        // It's set to KJV in our case but anything except RST uses the same numbering
         final String serverTx = 'kjv';
-
         final s = rn.verseStart;
         final e = rn.verseEnd ?? rn.verseStart;
         final color = HighlightColorServerCodec.fromApi(rn.color?.name);
         final noteText = rn.note;
-
         for (int v = s; v <= e; v++) {
           final key = '$bookCanon|${rn.chapter}|$v';
           _noteIdByKey[key] = rn.id;
-
-          // IMPORTANT: compute cluster from the SERVER numbering, not the UI tx.
           final cid = m.clusterId(
             serverTx,
             (book: bookCanon, chapter: rn.chapter, verse: v),
           );
-
           _noteIdByCluster[cid] = rn.id;
           if (noteText.isNotEmpty) _notesShared[cid] = noteText;
           if (color != HighlightColor.none) _hlShared[cid] = color;
-
-          // Purge any stale per-tx entry for the same spot
           _notesPerTx[_translation]?.remove(key);
           _hlPerTx[_translation]?.remove(key);
         }
       }
+      if (kDebugMode) debugPrint('[DEBUG] _notesShared keys: ${_notesShared.keys.toList()}');
+      if (kDebugMode) debugPrint('[DEBUG] _notesPerTx keys: ${_notesPerTx[_translation]?.keys.toList()}');
     } catch (e, st) {
       debugPrint('[_syncFetchChapterNotes] failed: $e');
       debugPrint('$st');
@@ -966,6 +993,68 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
 
+    // Add ScrollController for search navigation
+    final ScrollController _scrollController = ScrollController();
+    // Helper for searching chapter names (all books)
+    List<String> _chapterNames() {
+      if (!_booksReady) return [];
+      final names = <String>[];
+      for (final book in _bookNames) {
+        final chapters = _chapterCount(book);
+        for (int i = 1; i <= chapters; i++) {
+          names.add('$book $i');
+        }
+      }
+      return names;
+    }
+
+    // Helper for searching user notes (perTx and shared)
+    List<(VerseRef ref, String text)> _userNotes() {
+      final notes = <String, (VerseRef, String)>{};
+      // All per-translation notes
+      for (final tx in _notesPerTx.keys) {
+        _notesPerTx[tx]?.forEach((k, v) {
+          if (v.trim().isEmpty) return;
+          final parts = k.split('|');
+          if (parts.length == 3) {
+            final key = '${parts[0]}|${parts[1]}|${parts[2]}';
+            notes[key] = (
+              VerseRef(parts[0], int.tryParse(parts[1]) ?? 1, int.tryParse(parts[2]) ?? 1),
+              v,
+            );
+          }
+        });
+      }
+      // Shared notes (try to resolve clusterId to verse)
+      if (_matcher != null) {
+        if (kDebugMode) debugPrint('[DEBUG] _notesShared raw: ${_notesShared}');
+        _notesShared.forEach((cid, v) {
+          if (v.trim().isEmpty) return;
+          final parts = cid.split('|');
+          if (kDebugMode) debugPrint('[DEBUG] parsing cid: $cid parts: $parts');
+          if (parts.length == 4) {
+            // Format: tx|Book|Chapter|Verse
+            final key = '${parts[1]}|${parts[2]}|${parts[3]}';
+            notes[key] = (
+              VerseRef(parts[1], int.tryParse(parts[2]) ?? 1, int.tryParse(parts[3]) ?? 1),
+              v,
+            );
+          } else if (parts.length == 3) {
+            // Format: Book|Chapter|Verse
+            final key = cid;
+            notes[key] = (
+              VerseRef(parts[0], int.tryParse(parts[1]) ?? 1, int.tryParse(parts[2]) ?? 1),
+              v,
+            );
+          } else {
+            if (kDebugMode) debugPrint('[DEBUG] Unrecognized cid format: $cid');
+          }
+        });
+      }
+      if (kDebugMode) debugPrint('[DEBUG] _userNotes found: ${notes.values.map((n) => '${n.$1.book} ${n.$1.chapter}:${n.$1.verse} "${n.$2}"').toList()}');
+      return notes.values.toList();
+    }
+
     return Column(
       children: [
         Padding(
@@ -1085,7 +1174,26 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                     tooltip: 'Search',
                     onPressed: () async {
                       String searchText = '';
+                      int tabIndex = 0;
+                      bool searchAllChapters = false;
+                      List<String> filteredChapters = [];
                       List<(VerseRef ref, String text)> filteredVerses = [];
+                      List<(VerseRef ref, String text)> filteredNotes = [];
+                      List<(VerseRef ref, String text)> allBookVerses = [];
+                      // Preload all verses for the current book
+                      if (_booksReady) {
+                        final chapters = _chapterCount(_book);
+                        for (int ch = 1; ch <= chapters; ch++) {
+                          final data = await _repo.getChapter(
+                            translation: _translation,
+                            book: _book,
+                            chapter: ch,
+                          );
+                          if (data is List<(VerseRef, String)>) {
+                            allBookVerses.addAll(data);
+                          }
+                        }
+                      }
                       await showDialog(
                         context: context,
                         builder: (context) {
@@ -1102,43 +1210,310 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                       onChanged: (value) {
                                         setState(() {
                                           searchText = value;
-                                          filteredVerses = _verses.where((v) =>
-                                            v.$2.toLowerCase().contains(searchText.toLowerCase()) ||
+                                          if (searchText.trim().isEmpty) {
+                                            filteredChapters = [];
+                                            filteredVerses = [];
+                                            filteredNotes = [];
+                                            return;
+                                          }
+                                          // Chapter names
+                                          filteredChapters = _chapterNames().where((c) => c.toLowerCase().contains(searchText.toLowerCase())).toList();
+                                          // Bible content
+                                          final versesSource = searchAllChapters ? allBookVerses : _verses;
+                                          filteredVerses = versesSource.where((v) {
+                                            final matchesText = v.$2.toLowerCase().contains(searchText.toLowerCase()) ||
+                                                v.$1.book.toLowerCase().contains(searchText.toLowerCase()) ||
+                                                v.$1.chapter.toString().contains(searchText) ||
+                                                v.$1.verse.toString().contains(searchText);
+                                            return matchesText;
+                                          }).toList();
+                                          // User notes
+                                          filteredNotes = _userNotes().where((v) =>
                                             v.$1.book.toLowerCase().contains(searchText.toLowerCase()) ||
                                             v.$1.chapter.toString().contains(searchText) ||
-                                            v.$1.verse.toString().contains(searchText)
+                                            v.$1.verse.toString().contains(searchText) ||
+                                            v.$2.toLowerCase().contains(searchText.toLowerCase())
                                           ).toList();
                                         });
                                       },
                                     ),
                                     const SizedBox(height: 12),
-                                    if (searchText.isNotEmpty)
-                                      SizedBox(
-                                        height: 200,
-                                        width: 400,
-                                        child: filteredVerses.isEmpty
-                                          ? const Center(child: Text('No results found'))
-                                          : ListView.builder(
-                                              itemCount: filteredVerses.length,
-                                              itemBuilder: (context, idx) {
-                                                final verse = filteredVerses[idx];
-                                                return ListTile(
-                                                  title: Text(
-                                                    verse.$2,
-                                                    style: const TextStyle(fontSize: 14),
-                                                  ),
-                                                  subtitle: Text(
-                                                    '${verse.$1.book} ${verse.$1.chapter}:${verse.$1.verse}',
-                                                    style: const TextStyle(fontSize: 12),
-                                                  ),
-                                                  onTap: () {
-                                                    // Optionally jump to verse or close dialog
-                                                    Navigator.of(context).pop();
-                                                  },
-                                                );
-                                              },
+                                    DefaultTabController(
+                                      length: 3,
+                                      initialIndex: tabIndex,
+                                      child: Column(
+                                        children: [
+                                          TabBar(
+                                            onTap: (i) => setState(() => tabIndex = i),
+                                            tabs: [
+                                              Tab(
+                                                icon: Stack(
+                                                  clipBehavior: Clip.none,
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    const Icon(Icons.menu_book),
+                                                    if (filteredChapters.isNotEmpty)
+                                                      Positioned(
+                                                        right: -12,
+                                                        top: -10,
+                                                        child: Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.red,
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                                                          child: Text(
+                                                            '${filteredChapters.length}',
+                                                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                                            textAlign: TextAlign.center,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                                text: 'Chapters',
+                                              ),
+                                              Tab(
+                                                icon: Stack(
+                                                  clipBehavior: Clip.none,
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    const Icon(Icons.format_align_left),
+                                                    if (filteredVerses.isNotEmpty)
+                                                      Positioned(
+                                                        right: -12,
+                                                        top: -10,
+                                                        child: Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.red,
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                                                          child: Text(
+                                                            '${filteredVerses.length}',
+                                                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                                            textAlign: TextAlign.center,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                                text: 'Verses',
+                                              ),
+                                              Tab(
+                                                icon: Stack(
+                                                  clipBehavior: Clip.none,
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    const Icon(Icons.sticky_note_2),
+                                                    if (filteredNotes.isNotEmpty)
+                                                      Positioned(
+                                                        right: -12,
+                                                        top: -10,
+                                                        child: Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.red,
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                                                          child: Text(
+                                                            '${filteredNotes.length}',
+                                                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                                            textAlign: TextAlign.center,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                                text: 'Notes',
+                                              ),
+                                            ],
+                                            indicatorColor: Colors.blueAccent,
+                                            labelColor: Colors.blueAccent,
+                                            unselectedLabelColor: Colors.grey,
+                                            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                          Divider(height: 1, thickness: 1),
+                                          SizedBox(
+                                            height: 400,
+                                            width: 400,
+                                            child: IndexedStack(
+                                              index: tabIndex,
+                                              children: [
+                                                // Chapters
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Divider(height: 1),
+                                                    Expanded(
+                                                      child: filteredChapters.isEmpty && searchText.isNotEmpty
+                                                        ? const Center(child: Text('No chapters found'))
+                                                        : ListView.builder(
+                                                            itemCount: filteredChapters.length,
+                                                            itemBuilder: (context, idx) {
+                                                              final chapter = filteredChapters[idx];
+                                                              return Card(
+                                                                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                                                child: ListTile(
+                                                                  title: _highlightText(chapter, searchText),
+                                                                  trailing: const Icon(Icons.chevron_right),
+                                                                  onTap: () {
+                                                                    final parts = chapter.split(' ');
+                                                                    if (parts.length == 2) {
+                                                                      final chNum = int.tryParse(parts[1]);
+                                                                      if (chNum != null) {
+                                                                        setState(() {
+                                                                          _chapter = chNum;
+                                                                        });
+                                                                        _load();
+                                                                      }
+                                                                    }
+                                                                    Navigator.of(context).pop();
+                                                                  },
+                                                                ),
+                                                              );
+                                                            },
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                // Verses
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Divider(height: 1),
+                                                    Padding(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          const Text('All Chapters'),
+                                                          Switch(
+                                                            value: searchAllChapters,
+                                                            onChanged: (val) {
+                                                              setState(() {
+                                                                searchAllChapters = val;
+                                                                if (searchText.trim().isEmpty) {
+                                                                  filteredVerses = [];
+                                                                } else {
+                                                                  final versesSource = searchAllChapters ? allBookVerses : _verses;
+                                                                  filteredVerses = versesSource.where((v) {
+                                                                    final matchesText = v.$2.toLowerCase().contains(searchText.toLowerCase()) ||
+                                                                        v.$1.book.toLowerCase().contains(searchText.toLowerCase()) ||
+                                                                        v.$1.chapter.toString().contains(searchText) ||
+                                                                        v.$1.verse.toString().contains(searchText);
+                                                                    return matchesText;
+                                                                  }).toList();
+                                                                }
+                                                              });
+                                                            },
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      child: filteredVerses.isEmpty && searchText.isNotEmpty
+                                                        ? const Center(child: Text('No verses found'))
+                                                        : ListView.builder(
+                                                            itemCount: filteredVerses.length,
+                                                            itemBuilder: (context, idx) {
+                                                              final verse = filteredVerses[idx];
+                                                              return Card(
+                                                                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                                                child: ListTile(
+                                                                  title: _highlightText(verse.$2, searchText),
+                                                                  subtitle: Text('${verse.$1.book} ${verse.$1.chapter}:${verse.$1.verse}', style: const TextStyle(fontSize: 12)),
+                                                                  trailing: const Icon(Icons.chevron_right),
+                                                                  onTap: () {
+                                                                    if (!searchAllChapters && verse.$1.chapter == _chapter) {
+                                                                      final verseIndex = _verses.indexWhere((v) => v.$1.book == verse.$1.book && v.$1.chapter == verse.$1.chapter && v.$1.verse == verse.$1.verse);
+                                                                      if (verseIndex != -1) {
+                                                                        final offset = verseIndex * 48.0;
+                                                                        _scrollController.animateTo(
+                                                                          offset,
+                                                                          duration: const Duration(milliseconds: 400),
+                                                                          curve: Curves.easeInOut,
+                                                                        );
+                                                                      }
+                                                                      Navigator.of(context).pop();
+                                                                    } else {
+                                                                      Navigator.of(context).pop();
+                                                                      setState(() {
+                                                                        _chapter = verse.$1.chapter;
+                                                                      });
+                                                                      // Wait for the next frame and for verses to load
+                                                                      Future.microtask(() async {
+                                                                        // Wait until _verses is loaded for the new chapter
+                                                                        int tries = 0;
+                                                                        while (_verses.isEmpty && tries < 20) {
+                                                                          await Future.delayed(const Duration(milliseconds: 50));
+                                                                          tries++;
+                                                                        }
+                                                                        final verseIndex = _verses.indexWhere((v) => v.$1.book == verse.$1.book && v.$1.chapter == verse.$1.chapter && v.$1.verse == verse.$1.verse);
+                                                                        if (verseIndex != -1) {
+                                                                          final offset = verseIndex * 48.0;
+                                                                          _scrollController.animateTo(
+                                                                            offset,
+                                                                            duration: const Duration(milliseconds: 400),
+                                                                            curve: Curves.easeInOut,
+                                                                          );
+                                                                        }
+                                                                      });
+                                                                    }
+                                                                  },
+                                                                ),
+                                                              );
+                                                            },
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                // Notes
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Divider(height: 1),
+                                                    Expanded(
+                                                      child: filteredNotes.isEmpty && searchText.isNotEmpty
+                                                        ? const Center(child: Text('No notes found'))
+                                                        : ListView.builder(
+                                                            itemCount: filteredNotes.length,
+                                                            itemBuilder: (context, idx) {
+                                                              final note = filteredNotes[idx];
+                                                              return Card(
+                                                                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                                                child: ListTile(
+                                                                  title: _highlightText(note.$2, searchText),
+                                                                  subtitle: Text('${note.$1.book} ${note.$1.chapter}:${note.$1.verse}', style: const TextStyle(fontSize: 12)),
+                                                                  trailing: const Icon(Icons.chevron_right),
+                                                                  onTap: () {
+                                                                    final verseIndex = _verses.indexWhere((v) => v.$1.book == note.$1.book && v.$1.chapter == note.$1.chapter && v.$1.verse == note.$1.verse);
+                                                                    if (verseIndex != -1) {
+                                                                      final offset = verseIndex * 48.0;
+                                                                      _scrollController.animateTo(
+                                                                        offset,
+                                                                        duration: const Duration(milliseconds: 400),
+                                                                        curve: Curves.easeInOut,
+                                                                      );
+                                                                    }
+                                                                    Navigator.of(context).pop();
+                                                                  },
+                                                                ),
+                                                              );
+                                                            },
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
                                             ),
+                                          ),
+                                        ],
                                       ),
+                                    ),
                                   ],
                                 ),
                                 actions: [
@@ -1182,19 +1557,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
               _verses.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                    child: FlowingChapterText(
-                      verses: _verses,
-                      highlights: {
-                        for (final v in _verses) v.$1: _colorFor(v.$1),
-                      },
-                      onTapVerse: (vt) => _openActions(vt),
-                      baseStyle: Theme.of(context).textTheme.bodyLarge
-                          ?.copyWith(fontSize: 16, height: 1.6),
-                      runs: _currentRuns,
-                      verseBlocks: _currentBlocks,
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                      child: FlowingChapterText(
+                        verses: _verses,
+                        highlights: {
+                          for (final v in _verses) v.$1: _colorFor(v.$1),
+                        },
+                        onTapVerse: (vt) => _openActions(vt),
+                        baseStyle: Theme.of(context).textTheme.bodyLarge
+                            ?.copyWith(fontSize: 16, height: 1.6),
+                        runs: _currentRuns,
+                        verseBlocks: _currentBlocks,
+                      ),
                     ),
-                  ),
         ),
       ],
     );
