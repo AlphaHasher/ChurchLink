@@ -74,6 +74,9 @@ class BibleReaderBody extends StatefulWidget {
 /// Stores more necessary information for the reader
 /// Visible Verses, Translation Remapping, Notes/Highlights
 class _BibleReaderBodyState extends State<BibleReaderBody> {
+  // Persistent ScrollController for search navigation and chapter jumps
+  final ScrollController scrollController = ScrollController();
+
   // Returns all verses for the current translation and book, across all chapters
   // TODO: Properly load all verses from all chapters asynchronously
   List<(VerseRef ref, String text)> _allVerses() {
@@ -166,6 +169,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   List<Map<String, String>>? _currentRuns;
   Map<int, Map<String, dynamic>>? _currentBlocks; // verse -> block info
+
+  VerseRef? _tempAnimatedHighlight;
+
+  
 
   @override
   void initState() {
@@ -344,6 +351,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       }
     }
   }
+
 
   /// ===== Server sync (read) =====
   Future<void> _syncFetchChapterNotes() async {
@@ -993,10 +1001,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   Widget build(BuildContext context) {
     final tLabel = _translation.toUpperCase();
 
-    // Add ScrollController for search navigation
-    final ScrollController _scrollController = ScrollController();
+  // Use persistent scrollController
     // Helper for searching chapter names (all books)
-    List<String> _chapterNames() {
+    List<String> chapterNames() {
       if (!_booksReady) return [];
       final names = <String>[];
       for (final book in _bookNames) {
@@ -1006,6 +1013,26 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         }
       }
       return names;
+    }
+
+    void highlightAndScroll(VerseRef ref) {
+      setState(() {
+        _tempAnimatedHighlight = ref;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final verseIndex = _verses.indexWhere((v) => v.$1 == ref);
+        if (verseIndex != -1) {
+          final offset = verseIndex * 72.0; // Increased for more accurate scrolling
+          scrollController.animateTo(
+            offset,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+          );
+        }
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) setState(() => _tempAnimatedHighlight = null);
+        });
+      });
     }
 
     // Helper for searching user notes (perTx and shared)
@@ -1217,7 +1244,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                             return;
                                           }
                                           // Chapter names
-                                          filteredChapters = _chapterNames().where((c) => c.toLowerCase().contains(searchText.toLowerCase())).toList();
+                                          filteredChapters = chapterNames().where((c) => c.toLowerCase().contains(searchText.toLowerCase())).toList();
                                           // Bible content
                                           final versesSource = searchAllChapters ? allBookVerses : _verses;
                                           filteredVerses = versesSource.where((v) {
@@ -1363,9 +1390,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                                                   onTap: () {
                                                                     final parts = chapter.split(' ');
                                                                     if (parts.length == 2) {
+                                                                      final bookName = parts[0];
                                                                       final chNum = int.tryParse(parts[1]);
                                                                       if (chNum != null) {
                                                                         setState(() {
+                                                                          _book = bookName;
                                                                           _chapter = chNum;
                                                                         });
                                                                         _load();
@@ -1429,38 +1458,20 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                                                   trailing: const Icon(Icons.chevron_right),
                                                                   onTap: () {
                                                                     if (!searchAllChapters && verse.$1.chapter == _chapter) {
-                                                                      final verseIndex = _verses.indexWhere((v) => v.$1.book == verse.$1.book && v.$1.chapter == verse.$1.chapter && v.$1.verse == verse.$1.verse);
-                                                                      if (verseIndex != -1) {
-                                                                        final offset = verseIndex * 48.0;
-                                                                        _scrollController.animateTo(
-                                                                          offset,
-                                                                          duration: const Duration(milliseconds: 400),
-                                                                          curve: Curves.easeInOut,
-                                                                        );
-                                                                      }
+                                                                      highlightAndScroll(verse.$1);
                                                                       Navigator.of(context).pop();
                                                                     } else {
                                                                       Navigator.of(context).pop();
                                                                       setState(() {
                                                                         _chapter = verse.$1.chapter;
                                                                       });
-                                                                      // Wait for the next frame and for verses to load
                                                                       Future.microtask(() async {
-                                                                        // Wait until _verses is loaded for the new chapter
                                                                         int tries = 0;
                                                                         while (_verses.isEmpty && tries < 20) {
                                                                           await Future.delayed(const Duration(milliseconds: 50));
                                                                           tries++;
                                                                         }
-                                                                        final verseIndex = _verses.indexWhere((v) => v.$1.book == verse.$1.book && v.$1.chapter == verse.$1.chapter && v.$1.verse == verse.$1.verse);
-                                                                        if (verseIndex != -1) {
-                                                                          final offset = verseIndex * 48.0;
-                                                                          _scrollController.animateTo(
-                                                                            offset,
-                                                                            duration: const Duration(milliseconds: 400),
-                                                                            curve: Curves.easeInOut,
-                                                                          );
-                                                                        }
+                                                                        highlightAndScroll(verse.$1);
                                                                       });
                                                                     }
                                                                   },
@@ -1493,7 +1504,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                                                     final verseIndex = _verses.indexWhere((v) => v.$1.book == note.$1.book && v.$1.chapter == note.$1.chapter && v.$1.verse == note.$1.verse);
                                                                     if (verseIndex != -1) {
                                                                       final offset = verseIndex * 48.0;
-                                                                      _scrollController.animateTo(
+                                                                      scrollController.animateTo(
                                                                         offset,
                                                                         duration: const Duration(milliseconds: 400),
                                                                         curve: Curves.easeInOut,
@@ -1557,12 +1568,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
               _verses.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      controller: _scrollController,
+                      controller: scrollController,
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                       child: FlowingChapterText(
                         verses: _verses,
+                        // highlights: {
+                        //   for (final v in _verses) v.$1: _colorFor(v.$1),
+                        // },
                         highlights: {
-                          for (final v in _verses) v.$1: _colorFor(v.$1),
+                          for (final v in _verses)
+                            v.$1: (_tempAnimatedHighlight != null && v.$1 == _tempAnimatedHighlight)
+                              ? HighlightColor.yellow
+                              : _colorFor(v.$1),
                         },
                         onTapVerse: (vt) => _openActions(vt),
                         baseStyle: Theme.of(context).textTheme.bodyLarge
