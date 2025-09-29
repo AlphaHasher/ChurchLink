@@ -29,7 +29,7 @@ function Login() {
     const params = new URLSearchParams(location.search);
     const qp = params.get("redirectTo");
     if (qp) return qp;
-    return "/pages/";
+    return "/";
   };
 
   useEffect(() => {
