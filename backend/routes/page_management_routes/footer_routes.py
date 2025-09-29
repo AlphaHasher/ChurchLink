@@ -1,7 +1,17 @@
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, List
 from fastapi import APIRouter, HTTPException, Body, Path
 from pydantic import BaseModel
-from models.footer import *
+from models.footer import Footer, FooterItem, FooterSubItem
+from models.footer import (
+    get_footer,
+    get_footer_items,
+    change_visibility,
+    reorder_items,
+    remove_item_by_name,
+    add_item,
+    get_item_by_title,
+    update_item,
+)
 
 public_footer_router = APIRouter(prefix="/footer", tags=["public footer"])
 mod_footer_router = APIRouter(prefix="/footer", tags=["mod footer/editing"])
@@ -51,7 +61,7 @@ def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[
     if not isinstance(items, list):
         return False, {}, "Items must be a list."
 
-    cleaned_items = []
+    cleaned_items: List[Dict[str, Any]] = []
     for i, raw in enumerate(items, start=1):
         ok, cl, msg = validate_footer_item(raw)
         if not ok:
@@ -61,13 +71,15 @@ def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[
     cleaned = {
         "title": _clean(payload["title"]),
         "russian_title": _clean(payload["russian_title"]),
-        "items": cleaned_items,
+        "items": cleaned_items,  # keep as dicts for DB
         "visible": bool(payload.get("visible", True)),
     }
     return True, cleaned, ""
 
 
+# ------------------------
 # Public routes
+# ------------------------
 
 @public_footer_router.get("", response_model=Footer)
 async def get_footer_route():
@@ -85,7 +97,9 @@ async def get_footer_items_route():
     return footer
 
 
+# ------------------------
 # layout_management protected routes
+# ------------------------
 
 @mod_footer_router.put("/{title}/visibility", response_model=OpResult)
 async def change_footer_item_visibility_route(title: str = Path(...), visible: dict = Body(...)):
@@ -116,13 +130,16 @@ async def remove_footer_item_route(title: str = Path(...)):
 
 @mod_footer_router.post("/items", response_model=OpResult)
 async def add_footer_item_route(item: FooterItem = Body(...)):
-    ok, cleaned, msg = validate_footer_item(dict(item))
+    ok, cleaned, msg = validate_footer_section_update(item.dict())
     if not ok:
         return OpResult(success=False, msg=msg)
     try:
+        # Convert dicts into FooterSubItem models before calling add_item
+        cleaned["items"] = [FooterSubItem(**sub) for sub in cleaned["items"]]
         success = await add_item(cleaned)
         return OpResult(success=bool(success), msg="" if success else "Failed to add section.")
-    except Exception:
+    except Exception as e:
+        print(f"Error adding footer section: {e}")
         return OpResult(success=False, msg="Unexpected error while adding section.")
 
 
@@ -140,7 +157,9 @@ async def update_footer_item_route(title: str = Path(...), updated_item: dict = 
     if not ok:
         return OpResult(success=False, msg=msg)
     try:
+        # keep cleaned["items"] as dicts so Mongo can update safely
         success = await update_item(title, cleaned)
         return OpResult(success=bool(success), msg="" if success else "Failed to update section.")
-    except Exception:
+    except Exception as e:
+        print(f"Error updating footer section: {e}")
         return OpResult(success=False, msg="Unexpected error while updating section.")

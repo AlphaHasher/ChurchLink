@@ -1,6 +1,5 @@
 from mongo.roles import RoleHandler
 from pydantic import BaseModel, Field, create_model
-from mongo.roles import RoleHandler
 from mongo.churchuser import UserHandler
 from helpers.StrapiHelper import StrapiHelper
 from fastapi import Request
