@@ -150,8 +150,9 @@ class _UserSettingsState extends State<UserSettings> {
   Widget build(BuildContext context) {
     List<Widget> pageWidgets = [];
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
-    bool loggedIn = authService.getCurrentUser() != null;
-    User? user = authService.getCurrentUser();
+  User? user = authService.getCurrentUser();
+  // Treat anonymous users as not logged in for UI purposes
+  bool loggedIn = user != null && !(user.isAnonymous);
 
     final List<Map<String, dynamic>> settingsCategories = [
       {
@@ -318,9 +319,7 @@ class _UserSettingsState extends State<UserSettings> {
                   if (_isUploading)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withValues(
-                          alpha: 0.3,
-                        ), // Darken background
+                        color: Colors.black.withOpacity(0.3), // Darken background
                         child: const Center(
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
@@ -333,17 +332,16 @@ class _UserSettingsState extends State<UserSettings> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user?.displayName ?? "(Please set your display name)",
+                    user.displayName ?? "(Please set your display name)",
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (loggedIn)
-                    Text(
-                      user?.email ?? "(Please set your display email)",
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
+                  Text(
+                    user.email ?? "(Please set your display email)",
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                 ],
               ),
             ],

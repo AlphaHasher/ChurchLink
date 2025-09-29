@@ -126,11 +126,9 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
-    
-    // Register FCM token if user is already logged in
-    if (isLoggedIn && user != null) {
-      sendFcmTokenToBackend(user!.uid);
-    }
+
+    // Always sync FCM token for current user (anonymous or logged-in)
+    FCMTokenService.initializeForCurrentUser();
     
     // Handle initial notification navigation here using deep linking service
     if (initialNotificationData != null) {

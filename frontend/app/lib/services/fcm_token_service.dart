@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -93,4 +94,29 @@ class FCMTokenService {
 // Legacy function for backward compatibility
 Future<void> sendFcmTokenToBackend(String userId) async {
   return FCMTokenService.sendFcmTokenToBackend(userId);
+}
+
+/// Ensures FCM token is always synced with the current (anonymous) user after sign-in
+Future<void> syncFcmTokenWithCurrentUser() async {
+  User? user = FirebaseAuth.instance.currentUser;
+  if (user == null || user.isAnonymous) {
+    UserCredential cred = await FirebaseAuth.instance.signInAnonymously();
+    user = cred.user;
+  }
+  final uid = user?.uid;
+  final fcmToken = await FirebaseMessaging.instance.getToken();
+  if (uid != null && fcmToken != null) {
+    final backendUrl = dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
+    final url = Uri.parse('$backendUrl/api/v1/notification/save-fcm-token');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'user_id': uid, 'token': fcmToken}),
+      );
+      log('FCM token sync response: ${response.statusCode} ${response.body}');
+    } catch (e) {
+      log('Error syncing FCM token to backend: $e');
+    }
+  }
 }
