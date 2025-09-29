@@ -1,5 +1,5 @@
-from controllers.users_functions import update_notification_preferences, fetch_notification_preferences, NotificationPrefsRequest
-from fastapi import APIRouter, Body, Request
+
+from fastapi import APIRouter, Body
 from helpers.NotificationHelper import (
     save_fcm_token as helper_save_fcm_token,
     update_notification_settings as helper_update_notification_settings,
@@ -8,26 +8,41 @@ from helpers.NotificationHelper import (
     api_schedule_notification as helper_api_schedule_notification,
     api_get_scheduled_notifications as helper_api_get_scheduled_notifications,
     api_remove_scheduled_notification as helper_api_remove_scheduled_notification,
-    extract_and_set_uid,fetch_notification_settings
+    register_device_token as helper_register_device_token
 )
-from firebase_admin import auth as firebase_auth
 
+from mongo.database import DB
 
 
 public_notification_router = APIRouter(prefix="/notification", tags=["Notification Public Route"])
 private_notification_router = APIRouter(prefix="/notification", tags=["Notification Auth Route"], dependencies=[])
 
-@public_notification_router.post('/save-fcm-token')
-async def save_fcm_token(request: dict):
-    return await helper_save_fcm_token(request)
 
-@private_notification_router.get('/settings')
-async def get_notification_settings():
-    return await fetch_notification_settings()
+@public_notification_router.post('/registerToken')
+async def register_device_token(
+    token: str = Body(...),
+    platform: str = Body(...),
+    appVersion: str = Body(...),
+    userId: str = Body(default=None)
+):
+    return await helper_register_device_token(
+        token=token,
+        platform=platform,
+        appVersion=appVersion,
+        userId=userId
+    )
+
 
 @private_notification_router.post('/settings')
 async def update_notification_settings(streamNotificationMessage: str = Body(...), streamNotificationTitle: str = Body(...)):
     return await helper_update_notification_settings(streamNotificationMessage, streamNotificationTitle)
+
+@private_notification_router.get('/settings')
+async def get_notification_settings():
+    doc = await DB.db["settings"].find_one({"type": "youtube"})
+    if doc:
+        doc.pop('_id', None)
+    return doc or {}
 
 @private_notification_router.get('/history')
 async def notification_history(limit: int = 100):
@@ -69,13 +84,3 @@ async def api_get_scheduled_notifications():
 @private_notification_router.delete('/scheduled/{notification_id}')
 async def api_remove_scheduled_notification(notification_id: str):
     return await helper_api_remove_scheduled_notification(notification_id)
-
-@public_notification_router.post('/preferences')
-async def set_notification_preferences(request: Request, prefs: NotificationPrefsRequest):
-    await extract_and_set_uid(request)
-    return await update_notification_preferences(request, prefs)
-
-@public_notification_router.get('/preferences')
-async def get_notification_preferences(request: Request):
-    await extract_and_set_uid(request)
-    return await fetch_notification_preferences(request)

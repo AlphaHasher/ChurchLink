@@ -127,9 +127,9 @@ class _MyHomePageState extends State<MyHomePage> {
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
 
-    // Always sync FCM token for current user (anonymous or logged-in)
-    FCMTokenService.initializeForCurrentUser();
-    
+    // Register FCM token for every device (no consent logic)
+    FCMTokenService.registerDeviceToken(consent: {}, userId: user?.uid);
+
     // Handle initial notification navigation here using deep linking service
     if (initialNotificationData != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

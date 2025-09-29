@@ -1,6 +1,8 @@
+
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
+import Settings from "../features/admin/pages/Settings";
 
 
 // Lazy load admin components
@@ -21,7 +23,8 @@ const AddFooterSection = lazy(() => import("../features/admin/components/WebBuil
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
-const Settings = lazy(() => import("../features/admin/pages/Settings"));
+
+const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
 
 export const AdminRoutes = () => {
   return (
@@ -35,7 +38,8 @@ export const AdminRoutes = () => {
         <Route path="/finance" element={<Finance />} />
         <Route path="/events" element={<Events />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
-        <Route path="/settings" element={<Settings />} />
+  <Route path="/settings" element={<Settings />} />
+  <Route path="/mobile-ui-tab" element={<MobileUITab />} />
         <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
