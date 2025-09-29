@@ -1502,16 +1502,24 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                                                   subtitle: Text('${note.$1.book} ${note.$1.chapter}:${note.$1.verse}', style: const TextStyle(fontSize: 12)),
                                                                   trailing: const Icon(Icons.chevron_right),
                                                                   onTap: () {
-                                                                    final verseIndex = _verses.indexWhere((v) => v.$1.book == note.$1.book && v.$1.chapter == note.$1.chapter && v.$1.verse == note.$1.verse);
-                                                                    if (verseIndex != -1) {
-                                                                      final offset = verseIndex * 48.0;
-                                                                      scrollController.animateTo(
-                                                                        offset,
-                                                                        duration: const Duration(milliseconds: 400),
-                                                                        curve: Curves.easeInOut,
-                                                                      );
-                                                                    }
                                                                     Navigator.of(context).pop();
+                                                                    if (_chapter != note.$1.chapter || _book != note.$1.book) {
+                                                                      setState(() {
+                                                                        _book = note.$1.book;
+                                                                        _chapter = note.$1.chapter;
+                                                                      });
+                                                                      _load();
+                                                                      Future.microtask(() async {
+                                                                        int tries = 0;
+                                                                        while (_verses.isEmpty && tries < 20) {
+                                                                          await Future.delayed(const Duration(milliseconds: 50));
+                                                                          tries++;
+                                                                        }
+                                                                        highlightAndScroll(note.$1);
+                                                                      });
+                                                                    } else {
+                                                                      highlightAndScroll(note.$1);
+                                                                    }
                                                                   },
                                                                 ),
                                                               );
