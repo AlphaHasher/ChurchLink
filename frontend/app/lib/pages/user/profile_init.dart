@@ -79,9 +79,13 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
   @override
   Widget build(BuildContext context) {
     final (first, last) = _splitFirebaseName();
+    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Initialize Profile')),
+      appBar: AppBar(
+        title: const Text('Initialize Profile'),
+        backgroundColor: ssbcGray,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
