@@ -72,11 +72,10 @@ async def api_remove_scheduled_notification(notification_id: str):
 
 @public_notification_router.post('/preferences')
 async def set_notification_preferences(request: Request, prefs: NotificationPrefsRequest):
-    # Allow all users, including anonymous, to update preferences
+    await extract_and_set_uid(request)
     return await update_notification_preferences(request, prefs)
 
 @public_notification_router.get('/preferences')
 async def get_notification_preferences(request: Request):
-    
     await extract_and_set_uid(request)
     return await fetch_notification_preferences(request)

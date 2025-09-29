@@ -27,6 +27,16 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   void initState() {
     super.initState();
     _authenticateAndFetchPrefs();
+    // Listen for auth state changes to automate sync
+    FirebaseAuth.instance.authStateChanges().listen((user) async {
+      if (user != null && !user.isAnonymous && _usedAnonymousForApi && _notificationPrefs.isNotEmpty) {
+        _idToken = await user.getIdToken();
+        await _updateNotificationPrefs();
+        setState(() {
+          _usedAnonymousForApi = false;
+        });
+      }
+    });
   }
 
   Future<void> _authenticateAndFetchPrefs() async {
@@ -50,6 +60,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         Uri.parse(_baseUrl),
         headers: _idToken != null ? {'Authorization': 'Bearer $_idToken'} : {},
       );
+      debugPrint('Notification prefs response: ${response.body}'); // Debug print
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         Map<String, bool> prefs = Map<String, bool>.from(data['notification_preferences'] ?? {});
@@ -61,7 +72,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         });
       }
     } catch (e) {
-      // Optionally handle error
+      debugPrint('Error fetching notification prefs: $e'); // Debug print
     } finally {
       setState(() { _loading = false; });
     }
@@ -69,7 +80,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
 
   Future<void> _updateNotificationPrefs() async {
     try {
-      await http.post(
+      final response = await http.post(
         Uri.parse(_baseUrl),
         headers: {
           'Content-Type': 'application/json',
@@ -77,9 +88,12 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         },
         body: json.encode({'notification_preferences': _notificationPrefs}),
       );
-      // Optionally handle response
+      debugPrint('Update notification prefs response: ${response.body}'); // Debug print
+      if (response.statusCode != 200) {
+        debugPrint('Failed to update notification prefs: ${response.statusCode}');
+      }
     } catch (e) {
-      // Handle error
+      debugPrint('Error updating notification prefs: $e'); // Debug print
     }
   }
 
