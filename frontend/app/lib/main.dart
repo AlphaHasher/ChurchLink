@@ -127,17 +127,9 @@ class _MyHomePageState extends State<MyHomePage> {
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
 
-    // Force anonymous login if not signed in
-    if (!isLoggedIn) {
-      authService.signInAnonymously().then((anonUser) {
-        user = anonUser;
-        sendFcmTokenToBackend(user!.uid);
-      });
-    } else {
-      // Register FCM token if user is already logged in
-      sendFcmTokenToBackend(user!.uid);
-    }
-    
+    // Register FCM token for every device (no consent logic)
+    FCMTokenService.registerDeviceToken(consent: {}, userId: user?.uid);
+
     // Handle initial notification navigation here using deep linking service
     if (initialNotificationData != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

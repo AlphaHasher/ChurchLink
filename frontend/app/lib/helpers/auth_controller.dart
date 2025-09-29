@@ -16,14 +16,6 @@ class AuthController {
     if (token == null) return false;
 
     final verified = await backendHelper.verifyAndSyncUser(onError);
-    if (verified) {
-      // Update FCM token from anonymous to logged-in user
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        FCMTokenService.reset(); // Reset flag to allow sending new token
-        await FCMTokenService.sendFcmTokenToBackend(user.uid);
-      }
-    }
     return verified;
   }
 
@@ -32,14 +24,6 @@ class AuthController {
     if (token == null) return false;
 
     final verified = await backendHelper.verifyAndSyncUser(onError);
-    if (verified) {
-      // Update FCM token from anonymous to logged-in user
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        FCMTokenService.reset(); // Reset flag to allow sending new token
-        await FCMTokenService.sendFcmTokenToBackend(user.uid);
-      }
-    }
     return verified;
   }
 }

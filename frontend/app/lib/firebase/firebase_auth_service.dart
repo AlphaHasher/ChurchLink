@@ -4,16 +4,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../services/fcm_token_service.dart';
 
 class FirebaseAuthService {
-  // ✅ Anonymous Sign-In
-  Future<User?> signInAnonymously() async {
-    try {
-      final UserCredential userCredential = await _firebaseAuth.signInAnonymously();
-      return userCredential.user;
-    } catch (e) {
-      debugPrint("❌ Error during anonymous sign-in: $e");
-      return null;
-    }
-  }
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   // final String backendUrl = "http://10.0.2.2:8000"; // FastAPI backend URL

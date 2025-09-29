@@ -1,6 +1,7 @@
 import re
 import httpx
 import logging
+from datetime import datetime
 from mongo.database import DB
 from firebase_admin import messaging
 from mongo.scheduled_notifications import (
@@ -57,7 +58,7 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 			query = {'user_id': 'anonymous'}
 		elif target == 'logged_in':
 			query = {'user_id': {'$ne': 'anonymous'}}
-		tokens_cursor = DB.db['fcm_tokens'].find(query, {'_id': 0, 'token': 1})
+		tokens_cursor = DB.db['deviceTokens'].find(query, {'_id': 0, 'token': 1})
 		tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
 		for t in tokens:
 			enhanced_data = {
@@ -81,7 +82,7 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 			except Exception as e:
 				responses.append({"token": t, "error": str(e)})
 				if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
-					await DB.db['fcm_tokens'].delete_many({"token": t})
+					await DB.db['deviceTokens'].delete_many({"token": t})
 		await log_notification(DB.db, title, body, "mobile", tokens, actionType, link, route, eventId)
 		return {"success": True, "results": responses, "count": len(tokens)}
 	elif token:
@@ -105,7 +106,7 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 			return {"success": True, "response": response}
 		except Exception as e:
 			if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
-				await DB.db['fcm_tokens'].delete_many({"token": token})
+				await DB.db['deviceTokens'].delete_many({"token": token})
 			return {"success": False, "error": str(e)}
 	else:
 		return {"success": False, "error": "No token provided and send_to_all is False."}
@@ -175,3 +176,21 @@ async def validate_link(link: str) -> str:
 		logging.error(f"Link validation error: {e}")
 		return "Link validation failed. Please check the URL and try again."
 	return None
+
+
+async def register_device_token(token, platform, appVersion, userId=None):
+    # Validate required fields
+    if not token or not platform or not appVersion:
+        return {"success": False, "error": "Missing required fields."}
+
+    # Upsert to Firestore/mongo (example for mongo)
+    doc = {
+        "token": token,
+        "platform": platform,
+        "appVersion": appVersion,
+        "userId": userId,
+	"lastSeenAt": datetime.utcnow(),
+	"createdAt": datetime.utcnow(),
+    }
+    await DB.db["deviceTokens"].update_one({"token": token}, {"$set": doc}, upsert=True)
+    return {"success": True}

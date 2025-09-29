@@ -8,7 +8,7 @@ from helpers.NotificationHelper import (
     api_schedule_notification as helper_api_schedule_notification,
     api_get_scheduled_notifications as helper_api_get_scheduled_notifications,
     api_remove_scheduled_notification as helper_api_remove_scheduled_notification,
-    # ... other helpers
+    register_device_token as helper_register_device_token
 )
 
 from mongo.database import DB
@@ -17,9 +17,21 @@ from mongo.database import DB
 public_notification_router = APIRouter(prefix="/notification", tags=["Notification Public Route"])
 private_notification_router = APIRouter(prefix="/notification", tags=["Notification Auth Route"], dependencies=[])
 
-@public_notification_router.post('/save-fcm-token')
-async def save_fcm_token(request: dict):
-    return await helper_save_fcm_token(request)
+
+@public_notification_router.post('/registerToken')
+async def register_device_token(
+    token: str = Body(...),
+    platform: str = Body(...),
+    appVersion: str = Body(...),
+    userId: str = Body(default=None)
+):
+    return await helper_register_device_token(
+        token=token,
+        platform=platform,
+        appVersion=appVersion,
+        userId=userId
+    )
+
 
 @private_notification_router.post('/settings')
 async def update_notification_settings(streamNotificationMessage: str = Body(...), streamNotificationTitle: str = Body(...)):
