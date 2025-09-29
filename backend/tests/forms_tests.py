@@ -82,6 +82,8 @@ async def create_form_record(
 
 
 async def delete_form(async_client: httpx.AsyncClient, auth_headers: Dict[str, str], form_id: str) -> None:
+    purge = await async_client.delete(f"/api/v1/forms/{form_id}/responses", headers=auth_headers)
+    assert purge.status_code in {200, 404}
     await async_client.delete(f"/api/v1/forms/{form_id}", headers=auth_headers)
 
 
@@ -178,36 +180,58 @@ async def test_create_folder_success_and_duplicate(async_client, auth_headers):
     assert created.status_code == 201
     data = created.json()
     assert data.get("name").lower() == folder_name.lower()
+    folder_id = data.get("_id")
+    assert folder_id
 
-    duplicate = await async_client.post(
-        "/api/v1/forms/folders",
-        params={"name": folder_name},
-        headers=auth_headers,
-    )
-    assert duplicate.status_code == 409
+    try:
+        duplicate = await async_client.post(
+            "/api/v1/forms/folders",
+            params={"name": folder_name},
+            headers=auth_headers,
+        )
+        assert duplicate.status_code == 409
 
-    unauthorized = await async_client.post(
-        "/api/v1/forms/folders",
-        params={"name": f"folder-unauth-{unique_suffix()}"},
-    )
-    assert unauthorized.status_code in {401, 403}
+        unauthorized = await async_client.post(
+            "/api/v1/forms/folders",
+            params={"name": f"folder-unauth-{unique_suffix()}"},
+        )
+        assert unauthorized.status_code in {401, 403}
+    finally:
+        if folder_id:
+            deleted = await async_client.delete(
+                f"/api/v1/forms/folders/{folder_id}",
+                headers=auth_headers,
+            )
+            assert deleted.status_code == 200
 
 
 async def test_list_folders_requires_auth(async_client, auth_headers):
     folder_name = f"folder-{unique_suffix()}"
-    await async_client.post(
+    created = await async_client.post(
         "/api/v1/forms/folders",
         params={"name": folder_name},
         headers=auth_headers,
     )
+    assert created.status_code == 201
+    created_data = created.json()
+    folder_id = created_data.get("_id")
+    assert folder_id
 
-    response = await async_client.get("/api/v1/forms/folders", headers=auth_headers)
-    assert response.status_code == 200
-    folders = response.json()
-    assert any(folder.get("name", "").lower() == folder_name.lower() for folder in folders)
+    try:
+        response = await async_client.get("/api/v1/forms/folders", headers=auth_headers)
+        assert response.status_code == 200
+        folders = response.json()
+        assert any(folder.get("name", "").lower() == folder_name.lower() for folder in folders)
 
-    unauthorized = await async_client.get("/api/v1/forms/folders")
-    assert unauthorized.status_code in {401, 403}
+        unauthorized = await async_client.get("/api/v1/forms/folders")
+        assert unauthorized.status_code in {401, 403}
+    finally:
+        if folder_id:
+            deleted = await async_client.delete(
+                f"/api/v1/forms/folders/{folder_id}",
+                headers=auth_headers,
+            )
+            assert deleted.status_code == 200
 
 
 async def test_get_form_by_id_success_and_not_found(async_client, auth_headers):
@@ -389,6 +413,11 @@ async def test_submit_response_success_and_owner_can_list(async_client, auth_hea
         )
         assert unauthorized.status_code in {401, 403}
     finally:
+        purge = await async_client.delete(
+            f"/api/v1/forms/{created['id']}/responses",
+            headers=auth_headers,
+        )
+        assert purge.status_code == 200
         await delete_form(async_client, auth_headers, created["id"])
 
 
