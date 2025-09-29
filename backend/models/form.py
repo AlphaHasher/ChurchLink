@@ -463,6 +463,8 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             provided = update.model_dump(exclude_unset=True)
         except Exception:
             provided = {k: getattr(update, k) for k in update.__dict__.keys()}
+        if "folder" in provided:
+            update_doc["folder"] = provided.get("folder")
         if "slug" in provided:
             update_doc["slug"] = provided.get("slug")
 
@@ -485,7 +487,7 @@ async def delete_form(form_id: str, user_id: str) -> bool:
         return False
 
 
-async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: int = 100) -> Optional[dict]:
+async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: int | None = None) -> Optional[dict]:
     """Return responses for a form owned by the given user.
 
     Results include total count and a slice of items sorted by submitted_at DESC.
@@ -506,8 +508,12 @@ async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: i
         total = len(responses_sorted)
         # Apply pagination
         start = max(0, int(skip))
-        end = max(start, start + int(limit))
-        page_items = responses_sorted[start:end]
+        if limit is None:
+            # No limit - return all items from start
+            page_items = responses_sorted[start:]
+        else:
+            end = max(start, start + int(limit))
+            page_items = responses_sorted[start:end]
 
         items = []
         for r in page_items:

@@ -2,19 +2,20 @@ from datetime import datetime
 from typing import List, Optional, Final, Union
 from pydantic import BaseModel
 from mongo.database import DB
+from typing import ClassVar
 
 class HeaderLink(BaseModel):
     title: str
     russian_title: str
     url: str
-    type: Final[str] = "link"
+    type: ClassVar[str] = "link"
     visible: Optional[bool] = True
 
 class HeaderDropdown(BaseModel):
     title: str
     russian_title: str
     items: List[HeaderLink]
-    type: Final[str] = "dropdown"
+    type: ClassVar[str] = "dropdown"
     visible: Optional[bool] = True
 
 # Define HeaderItem as a Union type

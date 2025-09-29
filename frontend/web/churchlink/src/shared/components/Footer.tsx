@@ -20,14 +20,27 @@ interface FooterData {
     items: FooterSection[];
 }
 
+interface FooterProps {
+    footerData?: FooterSection[];
+}
+
 // TODO: consider looking into adding a spacer item to be rendered here, for possibility of a right-aligned item
 
-const Footer = () => {
-    const [footerData, setFooterData] = useState<FooterData | null>(null);
-    const [loading, setLoading] = useState(true);
+const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
+    const [footerData, setFooterData] = useState<FooterData | null>(propFooterData ? { items: propFooterData } : null);
+    const [loading, setLoading] = useState(!propFooterData);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // If footerData is provided as props, use it directly
+        if (propFooterData) {
+            setFooterData({ items: propFooterData });
+            setLoading(false);
+            setError(null);
+            return;
+        }
+
+        // Otherwise fetch from API
         const fetchFooterData = async () => {
             try {
                 setLoading(true);
@@ -43,7 +56,7 @@ const Footer = () => {
         };
 
         fetchFooterData();
-    }, []);
+    }, [propFooterData]);
 
     if (loading) return <div className="h-24 bg-neutral-300 flex items-center justify-center text-black/60 font-[Montserrat]!">Loading footer...</div>;
     if (error) return <div className="h-24 bg-neutral-300 flex items-center justify-center text-red-600 font-[Montserrat]!">{error}</div>;

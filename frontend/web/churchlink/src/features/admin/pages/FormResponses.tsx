@@ -1,18 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 import api from '@/api/api';
+import { fetchUserInfoByUId } from '@/helpers/UserHelper';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/components/ui/card';
-// pagination/select removed for simplified view
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/shared/components/ui/pagination';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { ArrowLeft, RefreshCcw, Download } from 'lucide-react';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
 import { Skeleton } from '@/shared/components/ui/skeleton';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInput,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
+  SidebarProvider,
+} from '@/shared/components/ui/sidebar';
 
 const useQuery = () => new URLSearchParams(useLocation().search);
+
 
 const FormResponses = () => {
   const navigate = useNavigate();
@@ -20,143 +33,92 @@ const FormResponses = () => {
   const formId = query.get('formId') || '';
 
   const [formMeta, setFormMeta] = useState<{ title: string; description?: string; data?: any[] } | null>(null);
-  type Col = { key: string; label: string };
-  const [columns, setColumns] = useState<Col[]>([]);
-  // We will display raw user_id as recorded in DB. No name resolution here.
-  const [count, setCount] = useState(0);
-  const [rawItems, setRawItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
-  const [items, setItems] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any> }[]>([]);
+  const [responses, setResponses] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any>; id?: string; _id?: string }[]>([]);
+  const [userInfo, setUserInfo] = useState<Record<string, { name: string; email: string }>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedResponseKey, setSelectedResponseKey] = useState<string | null>(null);
+  const userInfoRef = useRef(userInfo);
+
+  useEffect(() => {
+    userInfoRef.current = userInfo;
+  }, [userInfo]);
 
   useEffect(() => {
     const fetchMeta = async () => {
       if (!formId) return;
       try {
         const resp = await api.get(`/v1/forms/${formId}`);
-        const meta = { title: resp.data?.title || 'Form', description: resp.data?.description };
+        const meta = { title: resp.data?.title || 'Form', description: resp.data?.description, data: resp.data?.data };
         setFormMeta(meta);
-        setColumns([{ key: '__user__', label: 'User' }, { key: '__submitted__', label: 'Submitted' }]);
       } catch (e) {
         // ignore
       }
     };
     fetchMeta();
   }, [formId]);
-  const fetchResponses = async () => {
+
+  const preloadUserInfo = useCallback(async (userIds: string[]) => {
+    const idsToFetch = userIds.filter((id) => !userInfoRef.current[id]);
+    if (idsToFetch.length === 0) return;
+
+    const infoPromises = idsToFetch.map(async (uid) => {
+      try {
+        const userData = await fetchUserInfoByUId(uid);
+        if (userData) {
+          const name = userData.first_name && userData.last_name
+            ? `${userData.first_name} ${userData.last_name}`
+            : userData.first_name || userData.last_name || uid;
+          const email = userData.email || '';
+          return { uid, name, email };
+        }
+        return { uid, name: uid, email: '' };
+      } catch (error) {
+        console.error(`Failed to fetch info for user ${uid}:`, error);
+        return { uid, name: uid, email: '' };
+      }
+    });
+
+    try {
+      const results = await Promise.all(infoPromises);
+      const newUserInfo = results.reduce((acc, { uid, name, email }) => {
+        acc[uid] = { name, email };
+        return acc;
+      }, {} as Record<string, { name: string; email: string }>);
+
+      setUserInfo((prev) => ({ ...prev, ...newUserInfo }));
+    } catch (error) {
+      console.error('Error preloading user info:', error);
+    }
+  }, []);
+
+  const fetchResponses = useCallback(async () => {
     if (!formId) return;
-    const hasFilters = Object.values(filters).some((v) => v && v.trim() !== '');
-    const showLoading = !hasFilters; // avoid hiding table when user is typing filters
-    if (showLoading) setLoading(true);
+    setLoading(true);
     setError(null);
     try {
-      const skip = hasFilters ? 0 : (page - 1) * pageSize;
-      const fetchLimit = hasFilters ? 500 : pageSize; // backend enforces a 500 limit
-      const resp = await api.get(`/v1/forms/${formId}/responses`, { params: { skip, limit: fetchLimit } });
-      const total = resp.data?.count || 0;
+      const resp = await api.get(`/v1/forms/${formId}/responses`);
       let fetched = resp.data?.items || [];
       if (!Array.isArray(fetched)) fetched = [];
-      setRawItems(fetched);
-      // If no filters, show paginated fetched items directly and keep backend count
-      if (!hasFilters) {
-        setItems(fetched);
-        setCount(total);
-      }
-      // If filters are active and total exceeds fetchLimit, warn user that results are limited
-      if (hasFilters) {
-        if (total > fetchLimit) setNotice(`Filtering applied to first ${fetchLimit} responses (server limit). Results may be incomplete.`);
-        else setNotice(null);
-      } else {
-        setNotice(null);
-      }
+      setResponses(fetched);
 
-      // Only update columns when not actively filtering to avoid remounting inputs while user types
-      if (!hasFilters) {
-        // Union any extra keys from responses that aren't in columns yet
-        const existingKeys = new Set<string>(columns.map((c) => c.key));
-        const extra: Col[] = [];
-        for (const it of fetched) {
-          const respObj = it?.response || {};
-          Object.keys(respObj).forEach((k) => {
-            if (!existingKeys.has(k)) {
-              existingKeys.add(k);
-              extra.push({ key: k, label: k });
-            }
-          });
-        }
-        if (extra.length > 0) {
-          // Keep Submitted as first column; append extras at the end
-          setColumns((prev) => {
-            const userCol = prev.find((c) => c.key === '__user__');
-            const submitted = prev.find((c) => c.key === '__submitted__');
-            const others = prev.filter((c) => c.key !== '__submitted__' && c.key !== '__user__');
-            return [userCol!, submitted!, ...others, ...extra];
-          });
-        }
+      const uniqueUserIds = [...new Set(fetched.map((item: any) => item.user_id).filter(Boolean))] as string[];
+      if (uniqueUserIds.length > 0) {
+        preloadUserInfo(uniqueUserIds);
       }
-
-      // No user name resolution here; frontend will display raw user_id as-is.
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
-      // avoid storing/rendering non-string objects directly in the UI
       const msg = typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : 'Failed to load responses';
       setError(msg);
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false);
     }
-  };
+  }, [formId, preloadUserInfo]);
 
-  useEffect(() => { fetchResponses(); }, [formId, page, pageSize]);
-
-  // When rawItems or filters (or pagination) change, compute filtered items and paginated display
   useEffect(() => {
-    const applyFilters = () => {
-      const fkeys = Object.keys(filters).filter((k) => filters[k] && filters[k].trim() !== '');
-      let filtered = rawItems.slice();
-      if (fkeys.length > 0) {
-        filtered = filtered.filter((it) => {
-          const resp = it.response || {};
-          for (const k of fkeys) {
-            const want = (filters[k] || '').toLowerCase();
-            let val: any = undefined;
-            if (k === '__user__') val = (it as any).user_id;
-            else if (k === '__submitted__') val = it.submitted_at;
-            else val = resp[k];
-            const sval = val === null || val === undefined ? '' : String(val).toLowerCase();
-            if (!sval.includes(want)) return false;
-          }
-          return true;
-        });
-      }
-      // update count to filtered length
-      setCount(filtered.length);
-      // apply paging
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-      setItems(filtered.slice(start, end));
-    };
-    applyFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawItems, filters, page, pageSize]);
-
-  // Debounced fetch when filters change so typing doesn't trigger immediate fetches and steal focus
-  useEffect(() => {
-    const hasFilters = Object.values(filters).some((v) => v && v.trim() !== '');
-    if (!hasFilters) {
-      // filters cleared -> refresh immediately to show paginated backend results
-      fetchResponses();
-      return;
-    }
-    const t = setTimeout(() => {
-      fetchResponses();
-    }, 300);
-    return () => clearTimeout(t);
-  }, [filters]);
-  const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
+    fetchResponses();
+  }, [fetchResponses]);
 
   const formatDate = (iso?: string) => {
     if (!iso) return '—';
@@ -168,34 +130,112 @@ const FormResponses = () => {
     }
   };
 
-  const exportCsv = async () => {
-    if (!formId) return;
-    const existingColumns: Col[] = columns.slice();
+  const formatSidebarDate = (iso?: string) => {
+    if (!iso) return '—';
     try {
-      await fetchResponsesAndDownloadCsv(formId, { existingColumns, limit: 500, filename: `${formMeta?.title || 'responses'}.csv` });
-    } catch (e) {
+      const d = new Date(iso);
+      return d.toLocaleString('en-US', { month: 'short', day: '2-digit' });
+    } catch {
+      return iso;
     }
   };
 
-  // Ensure columns are unique by key before rendering to avoid duplicate React keys. Causes bunch of errors without this
-  const uniqueColumns = columns.filter((c, i, arr) => arr.findIndex((x) => x.key === c.key) === i);
-
-  const SubmittedCell = ({ iso }: { iso?: string }) => {
-    return <TableCell>{formatDate(iso)}</TableCell>;
+  const exportCsv = async () => {
+    if (!formId) return;
+    try {
+      await fetchResponsesAndDownloadCsv(formId, {
+        existingColumns: [],
+        limit: 500,
+        filename: `${formMeta?.title || 'responses'}.csv`,
+      });
+    } catch (e) {
+      // ignore
+    }
   };
 
-  const UserCell = ({ uid }: { uid?: string }) => {
-    return <TableCell>{uid ?? '—'}</TableCell>;
-  };
+  const responseItems = useMemo(() => {
+    return responses.map((response, index) => {
+      const userId = response.user_id;
+      const userData = userId ? userInfo[userId] : null;
+      const name = userData?.name || (userId ? 'Loading...' : 'Anonymous');
+      const email = userData?.email || '';
+      const key = response.id || response._id || `${userId || 'anonymous'}-${response.submitted_at || index}-${index}`;
 
-  const ValueCell = ({ value }: { value: any }) => {
-    let display = '';
-    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) display = '—';
-    else if (typeof value === 'boolean') display = value ? 'Yes' : 'No';
-    else if (Array.isArray(value)) display = value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ');
-    else if (typeof value === 'object') display = JSON.stringify(value);
-    else display = String(value);
-    return <TableCell>{display}</TableCell>;
+      return {
+        key,
+        name,
+        email,
+        submitted: response.submitted_at,
+        submittedLabel: formatSidebarDate(response.submitted_at),
+        response,
+      };
+    });
+  }, [responses, userInfo]);
+
+  const filteredResponseItems = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return responseItems;
+
+    return responseItems.filter((item) => {
+      return (
+        item.name.toLowerCase().includes(term) ||
+        (item.email && item.email.toLowerCase().includes(term))
+      );
+    });
+  }, [responseItems, searchTerm]);
+
+  useEffect(() => {
+    if (filteredResponseItems.length === 0) {
+      if (selectedResponseKey !== null) {
+        setSelectedResponseKey(null);
+      }
+      return;
+    }
+
+    const exists = filteredResponseItems.some((item) => item.key === selectedResponseKey);
+    if (!exists) {
+      setSelectedResponseKey(filteredResponseItems[0].key);
+    }
+  }, [filteredResponseItems, selectedResponseKey]);
+
+  const selectedItem = filteredResponseItems.find((item) => item.key === selectedResponseKey) ||
+    responseItems.find((item) => item.key === selectedResponseKey) ||
+    (filteredResponseItems.length > 0 ? filteredResponseItems[0] : null);
+
+  const renderFieldRows = () => {
+    if (!selectedItem || !formMeta?.data) return null;
+
+    return formMeta.data
+      .filter((field: any) => field && field.type !== 'static' && field.type !== 'price')
+      .map((field: any, index: number) => {
+        const fieldKey = field.id || field.name || index;
+        const value = selectedItem.response.response[field.name];
+        let displayValue = '';
+
+        if (value === null || value === undefined || value === '') {
+          displayValue = '—';
+        } else if (typeof value === 'boolean') {
+          displayValue = value ? 'Yes' : 'No';
+        } else if (Array.isArray(value)) {
+          displayValue = value
+            .map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v)))
+            .join(', ');
+        } else if (typeof value === 'object') {
+          displayValue = JSON.stringify(value, null, 2);
+        } else {
+          displayValue = String(value);
+        }
+
+        return (
+          <div
+            key={fieldKey}
+            className="grid grid-cols-1 gap-2 border-b py-3 last:border-b-0 sm:grid-cols-[minmax(0,220px)_1fr] sm:gap-6"
+          >
+            <div className="text-sm font-medium text-muted-foreground">{field.label || field.name}</div>
+            <div className="text-sm whitespace-pre-wrap break-words">{displayValue}</div>
+          </div>
+        );
+      });
   };
 
   return (
@@ -203,188 +243,146 @@ const FormResponses = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => navigate('/admin/forms/manage-forms')} title="Back to Manage Forms">
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            <ArrowLeft className="mr-1 h-4 w-4" /> Back
           </Button>
-          <h1 className="text-2xl font-semibold mb-4">Form Responses</h1>
+          <h1 className="mb-4 text-2xl font-semibold">Form Responses</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchResponses} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" onClick={exportCsv} title="Export responses as CSV"><Download className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" onClick={fetchResponses} title="Refresh">
+            <RefreshCcw className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportCsv} title="Export responses as CSV">
+            <Download className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       <FormsTabs />
 
-      <div className="mt-4">
+      <div className="mt-4 space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>
               {formMeta ? (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="font-medium">{formMeta.title}</div>
-                    {formMeta.description ? <div className="text-sm text-muted-foreground">{formMeta.description}</div> : null}
+                    {formMeta.description ? (
+                      <div className="text-sm text-muted-foreground">{formMeta.description}</div>
+                    ) : null}
                   </div>
-                  <div className="text-sm text-muted-foreground">{count === 0 ? 'No responses' : `${count} response${count === 1 ? '' : 's'}`}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {responses.length === 0
+                      ? 'No responses'
+                      : `${responses.length} response${responses.length === 1 ? '' : 's'}`}
+                  </div>
                 </div>
               ) : (
-                <div className="w-full">
+                <div className="w-full space-y-2">
                   <Skeleton className="h-6 w-1/3" />
-                  <Skeleton className="h-4 w-1/2 mt-2" />
+                  <Skeleton className="h-4 w-1/2" />
                 </div>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {error && <div className="text-sm text-destructive mb-3">{error}</div>}
-            {notice && <div className="text-sm text-yellow-800 mb-3 p-2 bg-yellow-50 border border-yellow-100 rounded">{notice}</div>}
-            {loading && (
-              <div className="space-y-3 mb-3">
-                <Skeleton className="h-4 w-1/4" />
-                <div className="grid grid-cols-6 gap-3">
-                  <Skeleton className="h-8 col-span-1" />
-                  <Skeleton className="h-8 col-span-2" />
-                  <Skeleton className="h-8 col-span-1" />
-                  <Skeleton className="h-8 col-span-1" />
-                  <Skeleton className="h-8 col-span-1" />
+            {error && <div className="mb-3 text-sm text-destructive">{error}</div>}
+
+            {loading ? (
+              <div className="flex flex-col gap-4 md:flex-row">
+                <div className="w-full space-y-3 md:w-72">
+                  <Skeleton className="h-8 w-full" />
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <SidebarMenuSkeleton key={idx} />
+                  ))}
+                </div>
+                <div className="flex-1 space-y-3">
+                  <Skeleton className="h-6 w-1/3" />
+                  <Skeleton className="h-32 w-full" />
                 </div>
               </div>
-            )}
-            {/* Always render table header + filter inputs so user can adjust filters even when there are no results */}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {uniqueColumns.map((col, idx) => (
-                      <TableHead key={col?.key ?? `col-${idx}`}>{col?.label ?? String(col?.key ?? `Column ${idx + 1}`)}</TableHead>
-                    ))}
-                  </TableRow>
-                  {/* filter inputs row */}
-                  <TableRow>
-                    {uniqueColumns.map((col, idx) => (
-                      <TableHead key={`f-${col?.key ?? idx}`}>
-                        <input
-                          className="w-full px-2 py-1 border rounded text-sm"
-                          placeholder="Filter"
-                          value={filters[col?.key ?? ''] || ''}
-                          onChange={(e) => {
-                            const key = col?.key ?? '';
-                            const v = e.target.value;
-                            setFilters((prev) => ({ ...prev, [key]: v }));
-                            setPage(1);
-                          }}
-                        />
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={Math.max(1, uniqueColumns.length)} className="text-sm text-muted-foreground p-4">
-                        {loading ? (
-                          <div className="space-y-2">
-                            <Skeleton className="h-4 w-1/4" />
-                            <Skeleton className="h-6" />
-                            <Skeleton className="h-6" />
+            ) : responses.length === 0 ? (
+              <div className="rounded-lg border bg-muted/20 p-6 text-sm text-muted-foreground">
+                No responses found.
+              </div>
+            ) : (
+              <div className="rounded-lg border">
+                <SidebarProvider className="flex h-full min-h-[420px] min-h-0">
+                  <Sidebar
+                    collapsible="none"
+                    className="w-72 border-r bg-muted/30"
+                  >
+                    <SidebarHeader className="gap-2">
+                      <SidebarInput
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Search responses"
+                        className="h-9"
+                      />
+                      <div className="px-2 text-xs text-muted-foreground">
+                        Showing {filteredResponseItems.length} of {responseItems.length}
+                      </div>
+                    </SidebarHeader>
+                    <SidebarContent>
+                      <SidebarGroup>
+                        <SidebarGroupContent>
+                          {filteredResponseItems.length === 0 ? (
+                            <div className="px-3 py-6 text-sm text-muted-foreground">
+                              No matches found.
+                            </div>
+                          ) : (
+                            <SidebarMenu>
+                              {filteredResponseItems.map((item) => (
+                                <SidebarMenuItem key={item.key}>
+                                  <SidebarMenuButton
+                                    isActive={item.key === selectedResponseKey}
+                                    onClick={() => setSelectedResponseKey(item.key)}
+                                    className="items-center justify-between gap-2"
+                                    size="lg"
+                                  >
+                                    <span className="truncate font-medium">{item.name}</span>
+                                    <span className="ml-2 shrink-0 text-right text-xs text-muted-foreground">
+                                      {item.submittedLabel}
+                                    </span>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              ))}
+                            </SidebarMenu>
+                          )}
+                        </SidebarGroupContent>
+                      </SidebarGroup>
+                    </SidebarContent>
+                  </Sidebar>
+                  <SidebarInset className="flex-1 overflow-y-auto bg-background p-6">
+                    {selectedItem ? (
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <div className="text-xl font-semibold">{selectedItem.name}</div>
+                          {selectedItem.email ? (
+                            <div className="text-sm text-muted-foreground">{selectedItem.email}</div>
+                          ) : null}
+                          <div className="text-sm text-muted-foreground">
+                            Submitted on {formatDate(selectedItem.submitted)}
                           </div>
-                        ) : (
-                          'No matching responses.'
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    items.map((it, idx) => {
-                      const resp = it.response || {};
-                      return (
-                        <TableRow key={`${it.submitted_at}-${idx}`}>
-                          {uniqueColumns.map((col, cidx) => {
-                            const key = col?.key ?? '';
-                            if (key === '__submitted__') return <SubmittedCell key={`s-${idx}-${cidx}`} iso={it.submitted_at} />;
-                            if (key === '__user__') {
-                              const uid = (it as any).user_id;
-                              // show raw user_id as recorded in DB
-                              return <UserCell key={`u-${idx}-${cidx}`} uid={uid} />;
-                            }
-                            const val = resp[key];
-                            return <ValueCell key={`${idx}-${key}-${cidx}`} value={val} />;
-                          })}
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-          <CardFooter className="flex items-center justify-between">
-            <div />
-            {count > 0 && (
-              <div className="flex items-center gap-2">
-                <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
-                  <SelectTrigger className="w-24">
-                    <SelectValue placeholder="Rows" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={(e: any) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
-                        href="#"
-                        className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
-                      />
-                    </PaginationItem>
-                    {(() => {
-                      const itemsNodes: React.ReactNode[] = [];
-                      const maxToShow = 5;
-                      let start = Math.max(1, page - 2);
-                      let end = Math.min(totalPages, start + maxToShow - 1);
-                      if (end - start < maxToShow - 1) {
-                        start = Math.max(1, end - (maxToShow - 1));
-                      }
-                      if (start > 1) {
-                        itemsNodes.push(
-                          <PaginationItem key={1}>
-                            <PaginationLink href="#" isActive={page === 1} onClick={(e: any) => { e.preventDefault(); setPage(1); }}>1</PaginationLink>
-                          </PaginationItem>
-                        );
-                        if (start > 2) itemsNodes.push(<PaginationItem key="s-ellipsis"><span className="px-2">…</span></PaginationItem>);
-                      }
-                      for (let p = start; p <= end; p++) {
-                        itemsNodes.push(
-                          <PaginationItem key={p}>
-                            <PaginationLink href="#" isActive={p === page} onClick={(e: any) => { e.preventDefault(); setPage(p); }}>{p}</PaginationLink>
-                          </PaginationItem>
-                        );
-                      }
-                      if (end < totalPages) {
-                        if (end < totalPages - 1) itemsNodes.push(<PaginationItem key="e-ellipsis"><span className="px-2">…</span></PaginationItem>);
-                        itemsNodes.push(
-                          <PaginationItem key={totalPages}>
-                            <PaginationLink href="#" isActive={page === totalPages} onClick={(e: any) => { e.preventDefault(); setPage(totalPages); }}>{totalPages}</PaginationLink>
-                          </PaginationItem>
-                        );
-                      }
-                      return itemsNodes;
-                    })()}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={(e: any) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
-                        href="#"
-                        className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+                        </div>
+                        <div className="space-y-2">
+                          {renderFieldRows() || (
+                            <div className="rounded-md border bg-muted/10 p-4 text-sm text-muted-foreground">
+                              No fields to display for this response.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        Select a response from the list.
+                      </div>
+                    )}
+                  </SidebarInset>
+                </SidebarProvider>
               </div>
             )}
-          </CardFooter>
+          </CardContent>
         </Card>
       </div>
     </div>
@@ -392,3 +390,4 @@ const FormResponses = () => {
 };
 
 export default FormResponses;
+

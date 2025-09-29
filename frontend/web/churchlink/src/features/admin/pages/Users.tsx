@@ -33,12 +33,12 @@ const Users = () => {
   if (loading) return <p>Loading users...</p>;
 
   return (
-    <div className="p-6">
+    <div className="p-6 overflow-x-hidden">
       <h1 className="text-xl font-bold mb-4">Users Overview</h1>
 
       <UsersTable data={applyBaseUserMask(users, perms)} permData={perms} onSave={loadData} />
 
-      <h1 className="text-xl font-bold mb-4">User Permissions Logical Overview</h1>
+      <h1 className="text-xl font-bold mb-4 mt-8">User Permissions Logical Overview</h1>
       <LogicalUserPermsTable data={applyUserPermLogicMask(users, perms)} />
     </div>
   );

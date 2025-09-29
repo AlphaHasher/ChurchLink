@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, status, Query
 from typing import List
+import re
 
 from models.form import (
     FormCreate,
@@ -28,7 +29,7 @@ mod_forms_router = APIRouter(prefix="/forms", tags=["Forms"])
 async def create_new_form(form: FormCreate, request: Request) -> FormOut:
     uid = request.state.uid
     # Prevent accidental duplicate form names — let client choose to override
-    existing = await DB.db.forms.find_one({"user_id": uid, "title": {"$regex": f"^{form.title}$", "$options": "i"}})
+    existing = await DB.db.forms.find_one({"user_id": uid, "title": {"$regex": f"^{re.escape(form.title)}$", "$options": "i"}})
     if existing:
         # Return 409 with existing id so client can prompt to override
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"message": "Form already exists", "existing_id": str(existing.get("_id"))})
@@ -61,7 +62,7 @@ async def search_user_forms(request: Request, name: str | None = None, folder: s
 async def create_new_folder(request: Request, name: str):
     uid = request.state.uid
     # Check for duplicate folder name (case-insensitive)
-    existing = await DB.db.form_folders.find_one({"user_id": uid, "name": {"$regex": f"^{name}$", "$options": "i"}})
+    existing = await DB.db.form_folders.find_one({"user_id": uid, "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}})
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Folder already exists')
 
@@ -97,6 +98,17 @@ async def get_form_by_slug_route(slug: str):
 @mod_forms_router.put("/{form_id}", response_model=FormOut)
 async def update_existing_form(form_id: str, update: FormUpdate, request: Request) -> FormOut:
     uid = request.state.uid
+    
+    # Check for duplicate form title (case-insensitive) if title is being updated
+    if "title" in getattr(update, "__fields_set__", set()) and update.title:
+        existing = await DB.db.forms.find_one({
+            "user_id": uid, 
+            "title": {"$regex": f"^{re.escape(update.title)}$", "$options": "i"},
+            "_id": {"$ne": ObjectId(form_id)}
+        })
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"message": "Form name already exists", "existing_id": str(existing.get("_id"))})
+    
     # If slug is provided in the update payload (including explicit null), validate uniqueness when not null
     if "slug" in getattr(update, "__fields_set__", set()):
         if update.slug is not None:
@@ -136,7 +148,7 @@ async def submit_response_by_slug(slug: str, request: Request):
 
 
 @mod_forms_router.get('/{form_id}/responses')
-async def list_form_responses(form_id: str, request: Request, skip: int = 0, limit: int = Query(100, le=500)):
+async def list_form_responses(form_id: str, request: Request, skip: int = 0, limit: int | None = None):
     """Return responses for a form belonging to the current user.
 
     Response shape: { count: number, items: [{ submitted_at: ISO, response: object }] }

@@ -1,5 +1,4 @@
 import 'api_client.dart';
-import 'backend_helper.dart';
 import 'logger.dart';
 
 class YoutubeHelper {

@@ -1,4 +1,4 @@
-import PaypalSection from "./sections/PaypalSection";
+import PaypalSection from "../sections/PaypalSection";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "@/api/api";

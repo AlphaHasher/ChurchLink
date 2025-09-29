@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/api/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { PreviewRendererClient } from "@/features/admin/components/Forms/PreviewRendererClient";
 import { useBuilderStore } from "@/features/admin/components/Forms/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { useAuth } from "@/features/auth/hooks/auth-context";
+import { Button } from "@/shared/components/ui/button";
+import { buildLoginPath } from "@/router/paths";
 
 export default function FormPublic() {
   const { slug } = useParams();
@@ -14,12 +17,20 @@ export default function FormPublic() {
   const schema = useBuilderStore((s) => s.schema);
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
+        // If user is not logged in, don't call the protected endpoint yet
+        if (!user) {
+          setLoading(false);
+          return;
+        }
         const resp = await api.get(`/v1/forms/slug/${slug}`);
         if (!mounted) return;
         const form = resp.data;
@@ -40,12 +51,21 @@ export default function FormPublic() {
         setLoading(false);
       } catch (err: any) {
         console.error("Failed to load public form", err);
+        const status = err?.response?.status as number | undefined;
+        const detail = err?.response?.data?.detail;
+        const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
+        // If not authenticated/forbidden, don't surface the error; show login prompt instead
+        if (status === 401 || status === 403 || status === 419 || detailStr.includes('not authenticated') || detailStr.includes('unauthorized') || detailStr.includes('forbidden')) {
+          setError(null);
+          setLoading(false);
+          return;
+        }
         setError(err?.response?.data?.detail || "Failed to load form");
         setLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, [slug, setSchema]);
+  }, [slug, setSchema, user]);
 
   const availableLocales = useMemo(() => {
     const set = new Set<string>();
@@ -66,6 +86,7 @@ export default function FormPublic() {
   }, [schema]);
 
   if (loading) return <div className="p-6">Loading...</div>;
+  // If an error occurred that isn't auth-related, show it
   if (error) return <div className="p-6 text-destructive">{error}</div>;
 
   return (
@@ -88,6 +109,26 @@ export default function FormPublic() {
           </div>
         </CardHeader>
         <CardContent>
+          {!user && (
+            <div className="mb-6 rounded-md border border-muted p-4 bg-muted/30">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground">
+                  You need to be logged in to submit this form.
+                </div>
+                <div>
+                  <Button
+                    onClick={() => {
+                      const redirectTo = location.pathname + location.search;
+                      navigate(buildLoginPath(redirectTo));
+                    }}
+                  >
+                    Log in to continue
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Render the form UI regardless so users can view it; submission can still be gated server-side */}
           <PreviewRendererClient slug={slug} />
         </CardContent>
         </Card>

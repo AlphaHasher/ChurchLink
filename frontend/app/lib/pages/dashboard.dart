@@ -20,56 +20,95 @@ class DashboardPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Helper to create a full-width card
-              Builder(builder: (ctx) {
-                Widget buildCard(String title, VoidCallback onTap, Color background) {
-                  final textColor = background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
-                  return Card(
-                    margin: EdgeInsets.zero,
-                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                    child: InkWell(
-                      onTap: onTap,
-                      child: Container(
-                        color: background,
-                        height: 150,
-                        width: double.infinity,
-                        child: Center(
-                          child: Text(
-                            title,
-                            style: Theme.of(ctx).textTheme.titleLarge?.copyWith(color: textColor),
+              Builder(
+                builder: (ctx) {
+                  Widget buildCard(
+                    String title,
+                    VoidCallback onTap,
+                    Color background,
+                  ) {
+                    final textColor =
+                        background.computeLuminance() > 0.5
+                            ? Colors.black
+                            : Colors.white;
+                    return Card(
+                      margin: EdgeInsets.zero,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      child: InkWell(
+                        onTap: onTap,
+                        child: Container(
+                          color: background,
+                          height: 150,
+                          width: double.infinity,
+                          child: Center(
+                            child: Text(
+                              title,
+                              style: Theme.of(ctx).textTheme.titleLarge
+                                  ?.copyWith(color: textColor),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }
+                    );
+                  }
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    buildCard('Join Live', () {
-                      Navigator.push(ctx, CupertinoPageRoute(builder: (_) => const JoinLive()));
-                    }, Colors.indigo.shade600),
-                    buildCard('Weekly Bulletin', () {
-                      Navigator.push(ctx, CupertinoPageRoute(builder: (_) => const WeeklyBulletin()));
-                    }, Colors.teal.shade600),
-                    buildCard('Events', () {
-                      Navigator.push(ctx, CupertinoPageRoute(builder: (_) => const EventsPage()));
-                    }, Colors.orange.shade600),
-                    buildCard('Giving', () {
-                      Navigator.push(ctx, CupertinoPageRoute(builder: (_) => const Giving()));
-                    }, Colors.green.shade600),
-                    buildCard('Ministries', () {
-                      Navigator.push(ctx, CupertinoPageRoute(builder: (_) => const Ministries()));
-                    }, Colors.purple.shade600),
-                    buildCard('Contact Us', () {
-                      Navigator.push(ctx, CupertinoPageRoute(builder: (_) => const Contact()));
-                    }, Colors.blueGrey.shade700),
-                    buildCard('Forms', () {
-                      Navigator.push(ctx, CupertinoPageRoute(builder: (_) => const Forms()));
-                    }, Colors.brown.shade600),
-                  ],
-                );
-              }),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      buildCard('Join Live', () {
+                        Navigator.push(
+                          ctx,
+                          CupertinoPageRoute(builder: (_) => const JoinLive()),
+                        );
+                      }, Colors.indigo.shade600),
+                      buildCard('Weekly Bulletin', () {
+                        Navigator.push(
+                          ctx,
+                          CupertinoPageRoute(
+                            builder: (_) => const WeeklyBulletin(),
+                          ),
+                        );
+                      }, Colors.teal.shade600),
+                      buildCard('Events', () {
+                        Navigator.push(
+                          ctx,
+                          CupertinoPageRoute(
+                            builder: (_) => const EventsPage(),
+                          ),
+                        );
+                      }, Colors.orange.shade600),
+                      buildCard('Giving', () {
+                        Navigator.push(
+                          ctx,
+                          CupertinoPageRoute(builder: (_) => const Giving()),
+                        );
+                      }, Colors.green.shade600),
+                      buildCard('Ministries', () {
+                        Navigator.push(
+                          ctx,
+                          CupertinoPageRoute(
+                            builder: (_) => const Ministries(),
+                          ),
+                        );
+                      }, Colors.purple.shade600),
+                      buildCard('Contact Us', () {
+                        Navigator.push(
+                          ctx,
+                          CupertinoPageRoute(builder: (_) => const Contact()),
+                        );
+                      }, Colors.blueGrey.shade700),
+                      buildCard('Forms', () {
+                        Navigator.push(
+                          ctx,
+                          CupertinoPageRoute(builder: (_) => const Forms()),
+                        );
+                      }, Colors.brown.shade600),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),
