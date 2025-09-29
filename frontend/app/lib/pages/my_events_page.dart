@@ -208,7 +208,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
             children: [
               Expanded(
                 child: _buildFilterChip(
-                  label: 'Upcoming',
+                  label: 'Show Upcoming',
                   isSelected: _filters.showUpcoming,
                   onTap:
                       () => setState(() {
@@ -222,7 +222,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildFilterChip(
-                  label: 'Past',
+                  label: 'Show Past',
                   isSelected: _filters.showPast,
                   onTap:
                       () => setState(() {
@@ -236,7 +236,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildFilterChip(
-                  label: 'Family',
+                  label: 'Toggle Family',
                   isSelected: _filters.showFamily,
                   onTap:
                       () => setState(() {
@@ -266,17 +266,39 @@ class _MyEventsPageState extends State<MyEventsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
-          color: isSelected ? ssbcGray : Colors.grey[200],
+          color: isSelected ? ssbcGray : Colors.grey[350],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? ssbcGray : Colors.grey[300]!),
+          border: Border.all(
+            color: isSelected ? ssbcGray.withOpacity(0.9) : Colors.grey[300]!,
+            width: isSelected ? 1.25 : 1.0,
+          ),
+          boxShadow:
+              isSelected
+                  ? [
+                    // very subtle elevation when active
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : null,
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
+            color:
+                isSelected
+                    ? Colors.white
+                    : const Color.fromARGB(221, 78, 78, 78),
             fontSize: 12,
             fontWeight: FontWeight.w500,
+            decoration:
+                isSelected ? TextDecoration.underline : TextDecoration.none,
+            decorationColor: isSelected ? Colors.white.withOpacity(0.95) : null,
+            decorationThickness: isSelected ? 1.5 : null,
+            decorationStyle: TextDecorationStyle.solid,
           ),
         ),
       ),
