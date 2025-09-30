@@ -1,5 +1,5 @@
-// NotesApi (refactored): uses BibleHelper for all network I/O,
-// preserves offline cache + outbox + retry behavior.
+// Communicates with the backend through API calls defined in backend\routes\bible_routes\bible_note_routes.py
+// Supports offline caching of notes
 
 import 'dart:async';
 import 'dart:convert';
@@ -10,13 +10,43 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:app/helpers/bible_notes_helper.dart';
 
+import 'package:http/http.dart' show ClientException;
+
 class NotesApi {
   static final StreamController<void> _syncedCtr =
       StreamController<void>.broadcast();
   static Stream<void> get onSynced => _syncedCtr.stream;
 
-  static bool _isOffline(Object e) =>
-      e is SocketException || e is HttpException || e is TimeoutException;
+  static bool _isOffline(Object e) {
+    // Common network-layer failures
+    if (e is SocketException ||
+        e is HttpException ||
+        e is TimeoutException) {
+      return true;
+    }
+
+    // package:http wrapper
+    if (e is ClientException) return true;
+
+    // TLS/handshake issues sometimes show up when wifi flips
+    try {
+      if (e.runtimeType.toString() == 'HandshakeException' ||
+          e.runtimeType.toString() == 'TlsException') {
+        return true;
+      }
+    } catch (_) {}
+
+    // Fallback: string match for platform-specific messages
+    final s = e.toString().toLowerCase();
+    if (s.contains('failed host lookup') ||
+        s.contains('network is unreachable') ||
+        s.contains('connection refused') ||
+        s.contains('software caused connection abort') ||
+        s.contains('no route to host')) {
+      return true;
+    }
+    return false;
+  }
 
   static Timer? _retryTimer;
   static void _scheduleRetry() {
@@ -49,32 +79,21 @@ class NotesApi {
         limit: limit,
       );
 
-      // Cache fresh server data
-      await _Cache.upsertMany(notes);
+      // Replace the cache for this window with the server truth,
+      // but keep any local temp_* rows (unsynced edits).
+      await _Cache.replaceRange(
+        book,
+        chapterStart: chapterStart,
+        chapterEnd: chapterEnd,
+        fresh: notes,
+      );
 
-      // Keep local temps visible until they sync
-      final cachedForRange = await _Cache.getRange(
+      // Return merged cache view (server + any temp_* still pending).
+      return await _Cache.getRange(
         book,
         chapterStart: chapterStart,
         chapterEnd: chapterEnd,
       );
-      final pendingTemps =
-          cachedForRange.where((n) => n.id.startsWith('temp_')).toList();
-
-      if (pendingTemps.isNotEmpty) {
-        final seenKey = <String>{};
-        for (final n in notes) {
-          seenKey.add('${n.chapter}|${n.verseStart}');
-        }
-        for (final tnote in pendingTemps) {
-          final key = '${tnote.chapter}|${tnote.verseStart}';
-          if (!seenKey.contains(key)) {
-            notes.add(tnote);
-          }
-        }
-      }
-
-      return notes;
     } catch (e) {
       if (_isOffline(e)) {
         if (kDebugMode) {
@@ -192,10 +211,47 @@ class NotesApi {
 
   // Public drain at boot/resume/reconnect
   static Future<void> drainOutbox() => _Outbox.drain();
+
+  // Prefetch all notes for the user into the local cache so they are available offline.
+  // Call this once after a user is signed in and books metadata is loaded.
+  static bool _primeAllOnce = false;
+
+  static Future<void> primeAllCache({required Map<String, int> books}) async {
+    if (_primeAllOnce) return;
+    _primeAllOnce = true;
+
+    for (final entry in books.entries) {
+      final book = entry.key;
+      final chapters = entry.value;
+      try {
+        // This fetch writes into the local cache via _Cache.replaceRange(...)
+        await getNotesForChapterRangeApi(
+          book: book,
+          chapterStart: 1,
+          chapterEnd: chapters,
+        );
+      } catch (e) {
+        if (_isOffline(e)) {
+          // If we went offline, allow re-try on the next schedule.
+          _primeAllOnce = false;
+          _scheduleRetry();
+          break;
+        } else {
+          if (kDebugMode) {
+            debugPrint('[NotesApi] primeAllCache error for $book: $e');
+          }
+        }
+      }
+    }
+
+    // Notify listeners that new data may now be available.
+    _syncedCtr.add(null);
+  }
+
 }
 
 // -----------------------------------------------------------------------------
-// Local cache (unchanged)
+// Local cache (UNCHANGED except: add replaceRange + tiny helpers reuse)
 // -----------------------------------------------------------------------------
 class _Cache {
   static const _fileName = 'notes_cache.json';
@@ -257,29 +313,6 @@ class _Cache {
     await _writeAll(all);
   }
 
-  static Future<void> upsertMany(List<RemoteNote> notes) async {
-    final all = await _readAll();
-    for (final n in notes) {
-      final idx = all.indexWhere((m) => (m['id']?.toString() ?? '') == n.id);
-      final noteJson = {
-        'id': n.id,
-        'book': n.book,
-        'chapter': n.chapter,
-        'verse_start': n.verseStart,
-        'verse_end': n.verseEnd,
-        'note': n.note,
-        'highlight_color': n.color?.name,
-        'created_at': n.createdAt?.toIso8601String(),
-        'updated_at': n.updatedAt?.toIso8601String(),
-      };
-      if (idx >= 0) {
-        all[idx] = noteJson;
-      } else {
-        all.add(noteJson);
-      }
-    }
-    await _writeAll(all);
-  }
 
   static Future<List<RemoteNote>> getRange(
     String book, {
@@ -336,6 +369,43 @@ class _Cache {
     } else {
       all[i]['id'] = newId;
     }
+    await _writeAll(all);
+  }
+
+  // *** New: replace the cache for a given window with the server truth,
+  // keeping any local temp_* rows in that same window.
+  static Future<void> replaceRange(
+    String book, {
+    required int chapterStart,
+    required int chapterEnd,
+    required List<RemoteNote> fresh,
+  }) async {
+    final all = await _readAll();
+
+    // Remove only non-temp rows in the requested range.
+    all.removeWhere((m) {
+      final b = (m['book'] as String?) ?? '';
+      final ch = (m['chapter'] as num?)?.toInt() ?? -1;
+      final id = (m['id']?.toString() ?? '');
+      final isTemp = id.startsWith('temp_');
+      return !isTemp && b == book && ch >= chapterStart && ch <= chapterEnd;
+    });
+
+    // Insert the fresh server rows.
+    for (final n in fresh) {
+      all.add({
+        'id': n.id,
+        'book': n.book,
+        'chapter': n.chapter,
+        'verse_start': n.verseStart,
+        'verse_end': n.verseEnd,
+        'note': n.note,
+        'highlight_color': n.color?.name,
+        'created_at': n.createdAt?.toIso8601String(),
+        'updated_at': n.updatedAt?.toIso8601String(),
+      });
+    }
+
     await _writeAll(all);
   }
 }

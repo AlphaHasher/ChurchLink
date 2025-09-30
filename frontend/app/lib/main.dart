@@ -1,7 +1,13 @@
 import 'package:app/pages/bible.dart';
 import 'package:app/pages/dashboard.dart';
 import 'package:app/pages/sermons.dart';
+import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/user/user_settings.dart';
+import 'package:app/pages/joinlive.dart';
+import 'package:app/pages/weeklybulletin.dart';
+import 'package:app/pages/giving.dart';
+import 'package:app/pages/ministries.dart';
+import 'package:app/pages/contact.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -11,8 +17,8 @@ import 'package:app/services/FirebaseMessaging_service.dart';
 import 'package:provider/provider.dart';
 import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:app/services/deep_linking_service.dart';
+import 'package:app/services/fcm_token_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -25,11 +31,14 @@ Future<void> main() async {
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    debugPrint("Failed to load .env file: $e");
+    // Environment file not found or invalid
   }
 
   // Initialize Firebase
   await Firebase.initializeApp();
+
+  // Initialize DeepLinkingService with the navigator key
+  DeepLinkingService.initialize(navigatorKey);
 
   // Setup messaging and notifications BEFORE checking for initial message
   setupFirebaseMessaging();
@@ -38,6 +47,10 @@ Future<void> main() async {
   RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
     initialNotificationData = initialMessage.data;
+    // Store the initial message for handling after the app is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkingService.handleNotificationData(initialMessage.data);
+    });
   }
 
   runApp(
@@ -46,6 +59,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (context) {
           final provider = TabProvider();
           TabProvider.instance = provider;
+          // Load tab configuration asynchronously
+          provider.loadTabConfiguration();
           return provider;
         }),
       ],
@@ -81,7 +96,13 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const DashboardPage(),
         '/bible': (context) => const BiblePage(),
         '/sermons': (context) => const SermonsPage(),
+        '/events': (context) => const EventsPage(),
         '/profile': (context) => const UserSettings(),
+        '/live': (context) => const JoinLive(),
+        '/bulletin': (context) => const WeeklyBulletin(),
+        '/giving': (context) => const Giving(),
+        '/ministries': (context) => const Ministries(),
+        '/contact': (context) => const Contact(),
       },
     );
   }
@@ -105,93 +126,209 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
-    // Handle initial notification navigation here
+
+    // Register FCM token for every device (no consent logic)
+    FCMTokenService.registerDeviceToken(consent: {}, userId: user?.uid);
+
+    // Handle initial notification navigation here using deep linking service
     if (initialNotificationData != null) {
-      final data = initialNotificationData!;
-      if (data['tab'] != null) {
-        final tabValue = data['tab'];
-        if (tabValue is String) {
-          TabProvider.instance?.setTabByName(tabValue);
-        } else if (tabValue is int) {
-          TabProvider.instance?.setTab(tabValue);
-        } else {
-          int? idx = int.tryParse(tabValue.toString());
-          if (idx != null) TabProvider.instance?.setTab(idx);
-        }
-      } else if (data['link'] != null) {
-        launchUrl(Uri.parse(data['link']));
-      } else if (data['route'] != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          navigatorKey.currentState?.pushNamed(data['route']);
-        });
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeepLinkingService.handleNotificationData(initialNotificationData!);
+      });
       initialNotificationData = null;
     }
   }
 
   List<Widget> get _screens {
-    return [
-      const DashboardPage(),
-      const BiblePage(),
-      const SermonsPage(),
-      const UserSettings(),
-    ];
+    final tabProvider = context.read<TabProvider>();
+    if (!tabProvider.isLoaded || tabProvider.tabs.isEmpty) {
+      return [const DashboardPage()]; // Fallback
+    }
+    
+    return tabProvider.tabs.map((tab) {
+      final tabName = tab['name'] as String;
+      return _getScreenForTab(tabName.toLowerCase());
+    }).toList();
+  }
+  
+  Widget _getScreenForTab(String tabName) {
+    switch (tabName) {
+      case 'home':
+        return const DashboardPage();
+      case 'bible':
+        return const BiblePage();
+      case 'sermons':
+        return const SermonsPage();
+      case 'events':
+        return const EventsPage();
+      case 'profile':
+        return const UserSettings();
+      case 'live':
+        return const JoinLive();
+      case 'bulletin':
+        return const WeeklyBulletin();
+      case 'giving':
+        return const Giving();
+      case 'ministries':
+        return const Ministries();
+      case 'contact':
+        return const Contact();
+      default:
+        return const DashboardPage(); // Fallback
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final tabProvider = Provider.of<TabProvider>(context);
+    
+    // Show loading indicator if tabs haven't loaded yet
+    if (!tabProvider.isLoaded) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     return Scaffold(
       body: _screens[tabProvider.currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: tabProvider.currentIndex,
         onTap: (value) => tabProvider.setTab(value),
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-            label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Home.svg', isActive: true),
-          ),
-          BottomNavigationBarItem(
-            label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Bible.svg', isActive: true),
-          ),
-          BottomNavigationBarItem(
-            label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: false),  
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/Sermons.svg', isActive: true),
-          ),
-          BottomNavigationBarItem(
-            label: '',
-            icon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: false),
-            activeIcon: _TintableSvg(path: 'assets/nav_icons/User.svg', isActive: true),
-          ),
-        ],
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedFontSize: 11,
+        unselectedFontSize: 9,
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w400,
+        ),
+        items: _buildNavItems(tabProvider.tabs),
       ),
     );
   }
-}
 
-class _TintableSvg extends StatelessWidget {
-  final String path;
-  final bool isActive;
-  const _TintableSvg({required this.path, required this.isActive});
+  List<BottomNavigationBarItem> _buildNavItems(List<Map<String, dynamic>> tabs) {
+    return tabs.map((tab) {
+      final name = tab['name'] as String;
+      final displayName = tab['displayName'] as String? ?? name; // fallback to name if displayName is null
+      final iconName = tab['icon'] as String? ?? name; // fallback to name if icon is null
+      
+      return BottomNavigationBarItem(
+        label: displayName,
+        icon: _getTabIcon(name, iconName, false),
+        activeIcon: _getTabIcon(name, iconName, true),
+      );
+    }).toList();
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return SvgPicture.asset(
-      path,
-      width: 40,
-      height: 40,
-      colorFilter: ColorFilter.mode(
-        isActive ? Colors.white : Colors.white70,
-        BlendMode.srcIn,
-      ),
-    );
+  Widget _getTabIcon(String tabName, String iconName, bool isActive) {
+    // First try to use the specific iconName from the database
+    switch (iconName.toLowerCase()) {
+      case 'home':
+        return Icon(
+          Icons.home,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'menu_book':
+      case 'bible':
+        return Icon(
+          Icons.menu_book,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'play_circle':
+      case 'cross':
+      case 'sermons':
+        return Icon(
+          Icons.church,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'event':
+      case 'events':
+        return Icon(
+          Icons.event, 
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'person':
+      case 'profile':
+        return Icon(
+          Icons.person,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'live_tv':
+      case 'live':
+        return Icon(
+          Icons.live_tv,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'article':
+      case 'bulletin':
+        return Icon(
+          Icons.article,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'volunteer_activism':
+      case 'giving':
+        return Icon(
+          Icons.volunteer_activism,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'groups':
+      case 'ministries':
+        return Icon(
+          Icons.groups,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'contact_mail':
+      case 'contact':
+        return Icon(
+          Icons.contact_mail,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      default:
+        // Fallback to tab name if icon doesn't match
+        return _getDefaultIconForTab(tabName, isActive);
+    }
+  }
+
+  Widget _getDefaultIconForTab(String tabName, bool isActive) {
+    switch (tabName.toLowerCase()) {
+      case 'home':
+        return Icon(
+          Icons.home,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'bible':
+        return Icon(
+          Icons.menu_book,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'sermons':
+        return Icon(Icons.church, color: isActive ? Colors.white : Colors.white70);
+      case 'events':
+        return Icon(Icons.event, color: isActive ? Colors.white : Colors.white70);
+      case 'profile':
+        return Icon(
+          Icons.person,
+          color: isActive ? Colors.white : Colors.white70,
+        );
+      case 'live':
+        return Icon(Icons.live_tv, color: isActive ? Colors.white : Colors.white70);
+      case 'bulletin':
+        return Icon(Icons.article, color: isActive ? Colors.white : Colors.white70);
+      case 'giving':
+        return Icon(Icons.volunteer_activism, color: isActive ? Colors.white : Colors.white70);
+      case 'ministries':
+        return Icon(Icons.groups, color: isActive ? Colors.white : Colors.white70);
+      case 'contact':
+        return Icon(Icons.contact_mail, color: isActive ? Colors.white : Colors.white70);
+      default:
+        return Icon(Icons.tab, color: isActive ? Colors.white : Colors.white70);
+    }
   }
 }
 

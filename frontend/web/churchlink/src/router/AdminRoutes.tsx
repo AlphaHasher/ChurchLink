@@ -1,6 +1,8 @@
+
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
+import Settings from "../features/admin/pages/Settings";
 import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
 
 
@@ -21,6 +23,8 @@ const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
 
+const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
+
 export const AdminRoutes = () => {
   return (
     <Routes>
@@ -33,9 +37,13 @@ export const AdminRoutes = () => {
         <Route path="/events" element={<Events />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/mobile-ui-tab" element={<MobileUITab />} />
+        <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/forms/form-builder" element={<FormBuilder />} />
         <Route path="/forms/manage-forms" element={<ManageForms />} />
         <Route path="/forms/responses" element={<FormResponses />} />
+        {/** Add Page is now an inline dialog within the Web Builder page list */}
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
         <Route path="/webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />

@@ -2,7 +2,7 @@ import { api } from "@/api";
 
 // ==== Types ====
 
-export type NotificationActionType = "text" | "link" | "route";
+export type NotificationActionType = "text" | "link" | "event" | "route";
 export type NotificationTarget = "all" | "logged_in" | "anonymous";
 
 export interface NotificationSettingsResponse {
@@ -20,6 +20,7 @@ export interface ScheduleNotificationPayload {
     target: NotificationTarget;
     actionType: NotificationActionType;
     link?: string;
+    eventId?: string;
     route?: string;
     data?: Record<string, unknown>;
 }
@@ -32,7 +33,6 @@ export interface ScheduledNotification {
     sent?: boolean;
     canceled?: boolean;
     link?: string;
-    route?: string;
     data?: Record<string, unknown>;
     [k: string]: unknown;
 }
@@ -45,6 +45,7 @@ export interface HistoryNotification {
     body?: string;
     link?: string;
     route?: string;
+    actionType?: NotificationActionType;
     recipients?: unknown[];
     sent_at?: string;
     scheduled_time?: string;
@@ -82,6 +83,31 @@ export const getNotificationHistory = async (): Promise<HistoryNotification[]> =
 
 export const scheduleNotification = async (payload: ScheduleNotificationPayload) => {
     const res = await api.post("/v1/notification/schedule", payload, {
+        headers: { "Content-Type": "application/json" },
+    });
+    return res;
+};
+
+export interface SendNotificationPayload {
+    title: string;
+    body: string;
+    target?: NotificationTarget;
+    actionType?: NotificationActionType;
+    link?: string;
+    eventId?: string;
+    route?: string;
+    data?: Record<string, unknown>;
+}
+
+export const sendNotificationNow = async (payload: SendNotificationPayload) => {
+    const res = await api.post("/v1/notification/send", {
+        ...payload,
+        send_to_all: true,
+        data: {
+            target: payload.target || "all",
+            ...payload.data
+        }
+    }, {
         headers: { "Content-Type": "application/json" },
     });
     return res;

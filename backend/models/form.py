@@ -199,6 +199,20 @@ async def list_folders(user_id: str) -> List[dict]:
         return []
 
 
+async def delete_folder(user_id: str, folder_id: str) -> bool:
+    try:
+        try:
+            folder_obj_id = ObjectId(folder_id)
+        except Exception:
+            return False
+
+        result = await DB.db.form_folders.delete_one({"_id": folder_obj_id, "user_id": user_id})
+        return result.deleted_count > 0
+    except Exception as e:
+        logger.error(f"Error deleting folder: {e}")
+        return False
+
+
 async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
     try:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "user_id": user_id})
@@ -480,10 +494,36 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
 
 async def delete_form(form_id: str, user_id: str) -> bool:
     try:
-        result = await DB.db.forms.delete_one({"_id": ObjectId(form_id), "user_id": user_id})
-        return result.deleted_count > 0
+        try:
+            form_obj_id = ObjectId(form_id)
+        except Exception:
+            return False
+
+        result = await DB.db.forms.delete_one({"_id": form_obj_id, "user_id": user_id})
+        if result.deleted_count > 0:
+            await DB.db.form_responses.delete_one({"form_id": form_obj_id})
+            return True
+        return False
     except Exception as e:
         logger.error(f"Error deleting form: {e}")
+        return False
+
+
+async def delete_form_responses(form_id: str, user_id: str) -> bool:
+    try:
+        try:
+            form_obj_id = ObjectId(form_id)
+        except Exception:
+            return False
+
+        owned_form = await DB.db.forms.find_one({"_id": form_obj_id, "user_id": user_id})
+        if not owned_form:
+            return False
+
+        await DB.db.form_responses.delete_one({"form_id": form_obj_id})
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting form responses: {e}")
         return False
 
 
@@ -538,3 +578,4 @@ async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: i
     except Exception as e:
         logger.error(f"Error getting form responses: {e}")
         return None
+

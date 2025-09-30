@@ -17,11 +17,8 @@ class VerseRef {
   const VerseRef(this.book, this.chapter, this.verse);
 
   @override
-  bool operator ==(Object o) =>
-      o is VerseRef &&
-      o.book == book &&
-      o.chapter == chapter &&
-      o.verse == verse;
+  bool operator ==(Object other) =>
+      other is VerseRef && other.book == book && other.chapter == chapter && other.verse == verse;
   @override
   int get hashCode => Object.hash(book, chapter, verse);
   @override
