@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign } from "lucide-react";
+import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat } from "lucide-react";
 import api from "@/api/api";
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -515,6 +515,18 @@ const EventSection: React.FC<EventSectionProps> = ({
   // NEW: registration modal event
   const [regEvent, setRegEvent] = useState<Event | null>(null);
 
+  const recurrenceLabel = (ev: Event) => {
+    if (!ev.recurring || ev.recurring === "never") return "One-time";
+    // daily | weekly | monthly | yearly
+    return `Repeats ${ev.recurring}`;
+  };
+
+  const RecurrenceBadge = ({ ev }: { ev: Event }) => (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+      {recurrenceLabel(ev)}
+    </span>
+  );
+
   const fetchMinistries = async () => {
     try {
       const response = await api.get("/v1/events/ministries");
@@ -643,73 +655,79 @@ const removeWatch = async (ev: Event) => {
   if (loading) return <div>Loading...</div>;
 
   const WatchButtons = ({ ev }: { ev: Event }) => {
-    const watched = isWatched(ev);
-    const scope = currentWatchScope(ev);
+   const watched = isWatched(ev);
+   const scope = currentWatchScope(ev);
+   const recurring = !!ev.recurring && ev.recurring !== "never";
 
-    if (!isRecurring(ev)) {
-      return watched ? (
-        <button
-          disabled={changing === ev.id}
-          onClick={() => removeWatch(ev)}
-          className="w-full px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300"
-        >
-          Remove from My Events
-        </button>
-      ) : (
-        <button
-          disabled={changing === ev.id}
-          onClick={() => addWatch(ev)}
-          className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700"
-        >
-          Add to My Events
-        </button>
-      );
-    }
+   if (!recurring) {
+     // One-time event
+     return watched ? (
+       <button
+         disabled={changing === ev.id}
+         onClick={() => removeWatch(ev)}
+         className="w-full px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300"
+       >
+         Remove from My Events
+       </button>
+     ) : (
+       <button
+         disabled={changing === ev.id}
+         onClick={() => addWatch(ev)} // one-time doesn't need scope param
+         className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700"
+       >
+         Add to My Events
+       </button>
+     );
+   }
 
-    return (
-      <div className="space-y-2">
-        {!watched ? (
-          <>
-            <div className="flex items-center gap-3">
-              <label className="text-sm">Add as:</label>
-              <select
-                value={getWatchScopeFor(ev)}
-                onChange={(e) => setWatchScopeFor(ev.id, e.target.value as MyEventScope)}
-                className="border rounded px-2 py-1"
-              >
-                <option value="series">Recurring</option>
-                <option value="occurrence">One time</option>
-              </select>
-            </div>
-            <button
-              disabled={changing === ev.id}
-              onClick={() => addWatch(ev)}
-              className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700"
-            >
-              Add to My Events ({getWatchScopeFor(ev)})
-            </button>
-          </>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              disabled={changing === ev.id}
-              onClick={() => switchWatchScope(ev)}
-              className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
-            >
-              Switch to {scope === "series" ? "one time" : "recurring"}
-            </button>
-            <button
-              disabled={changing === ev.id}
-              onClick={() => removeWatch(ev)}
-              className="px-3 py-2 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300"
-            >
-              Remove
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
+   // Recurring event
+   if (!watched) {
+     // Show two explicit buttons instead of a dropdown
+     return (
+       <div className="grid grid-cols-2 gap-2">
+         <button
+           disabled={changing === ev.id}
+           onClick={() => addWatch(ev, "series")}
+           className="px-3 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+         >
+           Watch series
+         </button>
+         <button
+           disabled={changing === ev.id}
+           onClick={() => addWatch(ev, "occurrence")}
+           className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+         >
+           Watch one time
+         </button>
+       </div>
+     );
+   }
+
+   // Already watched → Switch / Remove
+   return (
+     <div className="grid grid-cols-2 gap-2">
+       <button
+         disabled={changing === ev.id}
+         onClick={async () => {
+           const next: MyEventScope = scope === "series" ? "occurrence" : "series";
+           await removeWatch(ev);
+           await addWatch(ev, next);
+         }}
+         className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+       >
+         Switch to {scope === "series" ? "one time" : "recurring"}
+       </button>
+       <button
+         disabled={changing === ev.id}
+         onClick={() => removeWatch(ev)}
+         className="px-3 py-2 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300"
+       >
+         Remove
+       </button>
+     </div>
+   );
+ };
+
 
   // Replace your current RegisterButtons with this
 const RegisterButtons = ({ ev }: { ev: Event }) => {
@@ -731,8 +749,6 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
     </button>
   );
 };
-
-
 
   return (
     <section className="w-full bg-white">
@@ -792,6 +808,7 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                   <div className="flex flex-col justify-between flex-grow p-4">
                     <div>
                       <h2 className="text-xl font-semibold mb-2">{ev.name}</h2>
+                      <div className="mb-2"><RecurrenceBadge ev={ev} /></div>
                       <p className="text-sm text-gray-600 mb-2">{ev.description}</p>
                       <p className="text-sm text-gray-800 font-medium">{new Date(ev.date).toLocaleDateString()}</p>
                       <p className="text-sm text-gray-800 mb-1">{ev.location}</p>
@@ -832,11 +849,12 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
 
         {/* Event details modal */}
         {selectedEvent && (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
     <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
       <button
         onClick={() => setSelectedEvent(null)}
         className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
+        aria-label="Close"
       >
         ×
       </button>
@@ -859,37 +877,70 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
         />
       )}
 
-      {/* Text */}
-      <h2 className="text-3xl font-bold mb-2">{selectedEvent.name}</h2>
+      {/* Title + badges */}
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-3xl font-bold">{selectedEvent.name}</h2>
+        <div className="flex flex-wrap gap-2">
+          {/* Recurrence badge */}
+          {selectedEvent.recurring && selectedEvent.recurring !== "never" ? (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
+              <FiRepeat className="inline-block" /> Recurring
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 text-gray-700 text-xs font-medium">
+              One-time
+            </span>
+          )}
+          {/* Gender badge */}
+          {selectedEvent.gender && selectedEvent.gender !== "all" ? (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-medium">
+              {selectedEvent.gender === "male" ? "Men only" : "Women only"}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+              All welcome
+            </span>
+          )}
+          {/* Age badge */}
+          {typeof selectedEvent.min_age === "number" &&
+            typeof selectedEvent.max_age === "number" && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 text-yellow-700 text-xs font-medium">
+                Ages {selectedEvent.min_age}–{selectedEvent.max_age}
+              </span>
+            )}
+        </div>
+      </div>
 
+      {/* Description */}
       {selectedEvent.description && (
-        <p className="text-gray-700 mb-4 text-lg">{selectedEvent.description}</p>
+        <p className="text-gray-700 mt-3 mb-6 text-lg">{selectedEvent.description}</p>
       )}
 
-      <p className="text-gray-900 font-medium text-base mb-1 flex items-center gap-2">
-        <FiCalendar className="shrink-0" />
-        <span>{new Date(selectedEvent.date).toLocaleString()}</span>
-      </p>
-
-      {selectedEvent.location && (
-        <p className="text-gray-900 text-base mb-1 flex items-center gap-2">
-          <FiMapPin className="shrink-0" />
-          <span>{selectedEvent.location}</span>
-        </p>
-      )}
-
-      <p className="text-gray-900 text-base mb-6 flex items-center gap-2">
-        <FiDollarSign className="shrink-0" />
-        <span>
-          {selectedEvent.price != null && selectedEvent.price > 0
-            ? `$${selectedEvent.price}`
-            : "Free"}
-        </span>
-      </p>
+      {/* Meta rows with icons */}
+      <div className="space-y-2 mb-6 text-gray-900">
+        <div className="flex items-center gap-2">
+          <FiCalendar />
+          <span>{new Date(selectedEvent.date).toLocaleString()}</span>
+        </div>
+        {selectedEvent.location && (
+          <div className="flex items-center gap-2">
+            <FiMapPin />
+            <span>{selectedEvent.location}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <FiDollarSign />
+          <span>
+            {selectedEvent.price != null && selectedEvent.price > 0
+              ? `$${selectedEvent.price}`
+              : "Free"}
+          </span>
+        </div>
+      </div>
 
       {/* Actions */}
       {selectedEvent.rsvp ? (
-        /* RSVP-required events: open registration */
+        /* RSVP-required → open registration */
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setSelectedEvent(null)}
@@ -908,21 +959,12 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
           </button>
         </div>
       ) : (
-        /* Non-RSVP events: Add/Remove to My Events (with per-event scope) */
-        <div className="space-y-3">
+        /* Non-RSVP → Add/Remove to My Events with per-event scope buttons */
+        <div className="space-y-4">
           {(() => {
             const watched = isWatched(selectedEvent);
-            const recurring =
-              selectedEvent.recurring && selectedEvent.recurring !== "never";
+            const recurring = selectedEvent.recurring && selectedEvent.recurring !== "never";
             const currentScope = currentWatchScope(selectedEvent); // null if not watched
-            const uiScope = getWatchScopeFor(selectedEvent); // "series" | "occurrence" (default "series")
-
-            const handleSwitchInModal = async () => {
-              const next: MyEventScope =
-                currentScope === "series" ? "occurrence" : "series";
-              await removeWatch(selectedEvent);
-              await addWatch(selectedEvent, next);
-            };
 
             if (!recurring) {
               // One-time event
@@ -938,7 +980,7 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                     <button
                       disabled={changing === selectedEvent.id}
                       onClick={async () => {
-                        await addWatch(selectedEvent); // no scope needed for one-time
+                        await addWatch(selectedEvent); // scope not needed for one-time
                         setSelectedEvent(null);
                       }}
                       className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
@@ -961,24 +1003,33 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
               );
             }
 
-            // Recurring event
+            // Recurring events
             return !watched ? (
-              <div className="space-y-3">
+              <>
                 <div className="flex items-center gap-3">
-                  <label className="text-sm">Add as:</label>
-                  <select
-                    value={uiScope}
-                    onChange={(e) =>
-                      setWatchScopeFor(
-                        selectedEvent.id,
-                        e.target.value as MyEventScope
-                      )
-                    }
-                    className="border rounded px-2 py-1"
-                  >
-                    <option value="series">Recurring</option>
-                    <option value="occurrence">One time</option>
-                  </select>
+                  <span className="text-sm">Add as:</span>
+                  <div className="inline-flex rounded-lg overflow-hidden border">
+                    <button
+                      className={`px-3 py-1 text-sm ${
+                        (getWatchScopeFor(selectedEvent) ?? "series") === "series"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white text-gray-700"
+                      }`}
+                      onClick={() => setWatchScopeFor(selectedEvent.id, "series")}
+                    >
+                      Recurring
+                    </button>
+                    <button
+                      className={`px-3 py-1 text-sm ${
+                        (getWatchScopeFor(selectedEvent) ?? "series") === "occurrence"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white text-gray-700"
+                      }`}
+                      onClick={() => setWatchScopeFor(selectedEvent.id, "occurrence")}
+                    >
+                      One time
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -990,15 +1041,15 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                   <button
                     disabled={changing === selectedEvent.id}
                     onClick={async () => {
-                      await addWatch(selectedEvent, uiScope); // pass per-event scope
+                      await addWatch(selectedEvent, getWatchScopeFor(selectedEvent));
                       setSelectedEvent(null);
                     }}
                     className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
                   >
-                    Add to My Events ({uiScope})
+                    Add to My Events ({getWatchScopeFor(selectedEvent)})
                   </button>
                 </div>
-              </div>
+              </>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 <button
@@ -1009,7 +1060,12 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                 </button>
                 <button
                   disabled={changing === selectedEvent.id}
-                  onClick={handleSwitchInModal}
+                  onClick={async () => {
+                    const next = currentScope === "series" ? "occurrence" : "series";
+                    await removeWatch(selectedEvent);
+                    await addWatch(selectedEvent, next);
+                    setSelectedEvent(null);
+                  }}
                   className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-lg w-full"
                 >
                   Switch to {currentScope === "series" ? "one time" : "recurring"}
@@ -1028,10 +1084,10 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
             );
           })()}
         </div>
-       )}
-      </div>
+      )}
     </div>
-  )}
+  </div>
+)}
 
         {/* Registration modal */}
         {regEvent && (
@@ -1042,9 +1098,6 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                 onClose={() => setRegEvent(null)}
                 onSaved={handleRegistrationSaved}
                 onAddPerson={() => {
-                  // hook up your full “Add Event Person” screen if you have one
-                  // or rely on the inline form inside the modal
-                  alert("Open your Add Event Person flow.");
                 }}
               />
             </div>
