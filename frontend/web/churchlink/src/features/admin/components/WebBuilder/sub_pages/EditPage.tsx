@@ -105,6 +105,9 @@ const EditPage = ({ onPageDataChange }: EditPageProps = {}) => {
   // Dialog state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
+  const [isPublishSuccessOpen, setIsPublishSuccessOpen] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor));
   const handleDragEnd = (event: DragEndEvent) => {
@@ -588,18 +591,43 @@ const EditPage = ({ onPageDataChange }: EditPageProps = {}) => {
       <Button
         onClick={async () => {
           if (!slug) return;
+          setPublishError(null);
+          setIsPublishing(true);
           try {
+            // Ensure latest content is saved to staging before publishing
+            await pageApi.saveStaging(slug, { title: pageData?.title, slug, sections, visible: pageData?.visible });
             await pageApi.publish(slug);
-            alert("Published!");
-          } catch (e) {
+            setIsPublishSuccessOpen(true);
+          } catch (e: any) {
             console.error("Publish failed", e);
-            alert("Failed to publish. See console.");
+            setPublishError(e?.response?.data?.detail || "Failed to publish. See console.");
+            setIsPublishSuccessOpen(true); // reuse dialog to show error
+          } finally {
+            setIsPublishing(false);
           }
         }}
         className="mt-6 bg-blue-600 hover:bg-blue-700"
+        disabled={isPublishing}
       >
         Publish
       </Button>
+
+      {/* Publish Result Dialog */}
+      <AlertDialog open={isPublishSuccessOpen} onOpenChange={setIsPublishSuccessOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{publishError ? "Publish failed" : "Published successfully"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {publishError ? publishError : "Your draft has been published to the live site."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setIsPublishSuccessOpen(false)} className="bg-blue-600 hover:bg-blue-700">
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>

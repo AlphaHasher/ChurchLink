@@ -141,22 +141,29 @@ async def delete_staging_page(slug: str):
 @mod_page_router.post("/publish/{slug:path}")
 async def publish_staging_page(slug: str):
     """Publish staging page to live collection by slug, replacing or creating live page. Removes staging copy afterwards."""
-    staging = await DB.db["pages_staging"].find_one({"slug": slug})
+    # Normalize and safely decode slug to mirror preview/get behavior
+    decoded = unquote(unquote(slug or "")).strip()
+    if decoded == "" or decoded == "home":
+        decoded = "/"
+
+    staging = await DB.db["pages_staging"].find_one({"slug": decoded})
     if not staging:
         raise HTTPException(status_code=404, detail="Staging page not found")
 
     # Fields allowed to publish
     publish_fields = {k: staging.get(k) for k in ["title", "slug", "sections", "visible"] if k in staging}
+    # Ensure slug reflects normalized version
+    publish_fields["slug"] = decoded
     publish_fields["updated_at"] = datetime.utcnow()
 
     await DB.db["pages"].update_one(
-        {"slug": slug},
+        {"slug": decoded},
         {"$set": publish_fields, "$setOnInsert": {"created_at": datetime.utcnow()}},
         upsert=True,
     )
 
     # Optionally remove staging version after publish
-    await DB.db["pages_staging"].delete_one({"slug": slug})
+    await DB.db["pages_staging"].delete_one({"slug": decoded})
     return {"published": True}
 
 # Mod Router
