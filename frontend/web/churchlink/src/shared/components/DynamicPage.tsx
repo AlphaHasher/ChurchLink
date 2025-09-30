@@ -8,7 +8,7 @@ import MenuSection from "@/features/admin/components/WebBuilder/sections/MenuSec
 import ContactInfoSection from "@/features/admin/components/WebBuilder/sections/ContactInfoSection";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import MapSection from "@/features/admin/components/WebBuilder/sections/MapSection";
-import TextSection from "@/features/admin/components/WebBuilder/sections/TextSection";
+import TextSectionRenderer from "@/features/admin/components/WebBuilder/sections/TextSectionRenderer";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
 
@@ -103,10 +103,9 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
 
     (async () => {
       try {
-        // Choose API endpoint based on preview mode
-        // If preview mode + staging=1 in query, use staging endpoint
+        // Respect staging query param anywhere in the app (not only when isPreviewMode is true)
         const searchParams = new URLSearchParams(location.search);
-        const useStaging = isPreviewMode && (searchParams.get("staging") === "1" || searchParams.get("staging") === "true");
+        const useStaging = (searchParams.get("staging") === "1" || searchParams.get("staging") === "true");
         const url = useStaging
           ? `/v1/pages/staging/${encodeURIComponent(slug)}`
           : (isPreviewMode
@@ -140,7 +139,8 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   if (notFound || !pageData) return <NotFoundPage />;
 
   // In preview mode, don't check visibility; in public mode, check visibility
-  if (!isPreviewMode && pageData.visible === false) return <InConstructionPage />;
+  const isEffectivelyPreview = isPreviewMode || (new URLSearchParams(location.search).get("staging") === "1" || new URLSearchParams(location.search).get("staging") === "true");
+  if (!isEffectivelyPreview && pageData.visible === false) return <InConstructionPage />;
 
   console.log("DynamicPage: Rendering page:", pageData);
   console.log("DynamicPage: Page sections:", pageData.sections);
@@ -192,7 +192,11 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
             console.log("DynamicPage: Rendering section:", section.type, section);
             return (
               <React.Fragment key={section.id}>
-                {section.type === "text" && <TextSection data={section.content} isEditing={false} />}
+                {section.type === "text" && (
+                  <div className="container mx-auto px-4 py-6">
+                    <TextSectionRenderer data={section.content} />
+                  </div>
+                )}
 
                 {section.type === "image" && (
                   <div className="w-full">
@@ -247,7 +251,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
           })}
         </>
       ) : (
-        <p>No content available.</p>
+        <div className="container mx-auto px-4 py-8 text-gray-500">No content available.</div>
       )}
     </>
   );

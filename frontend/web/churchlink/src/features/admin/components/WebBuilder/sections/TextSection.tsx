@@ -4,7 +4,13 @@ import EditorJS, { OutputData } from "@editorjs/editorjs";
 import Paragraph from "@editorjs/paragraph";
 import Header from "@editorjs/header";
 import List from "@editorjs/list";
-import Image from "@editorjs/image";
+import Underline from "@editorjs/underline";
+import Marker from "@editorjs/marker";
+import InlineCode from "@editorjs/inline-code";
+import TextStyle from "@skchawala/editorjs-text-style";
+import ColorPicker from "editorjs-color-picker";
+import TextSectionRenderer from "./TextSectionRenderer";
+import "./editorjs-shared.css";
 
 
 // Editor.js data structure interfaces
@@ -22,6 +28,8 @@ export interface TextContent {
   text?: string;
 }
 
+// Community tools are used for color and font styles
+
 interface TextSectionProps {
   data: TextContent;
   isEditing: boolean;
@@ -32,6 +40,8 @@ const TextSection: React.FC<TextSectionProps> = ({ data, isEditing, onChange }) 
   const editorRef = useRef<EditorJS | null>(null);
   const editorHolderRef = useRef<HTMLDivElement>(null);
   const currentDataRef = useRef<TextContent>(data);
+  const lastSavedJsonRef = useRef<string | null>(data.editorjs ? JSON.stringify(data.editorjs) : null);
+  const skipExternalRenderRef = useRef<boolean>(false);
   const [isPreview, setIsPreview] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
 
@@ -45,12 +55,24 @@ const TextSection: React.FC<TextSectionProps> = ({ data, isEditing, onChange }) 
     if (editorRef.current) {
       try {
         const outputData = await editorRef.current.save();
+
+        // Safety: avoid wiping existing content with an empty payload
+        const hasBlocks = Array.isArray(outputData?.blocks) && outputData.blocks.length > 0;
+        const hadPrevious = !!lastSavedJsonRef.current;
+        if (!hasBlocks && hadPrevious) {
+          // Skip saving empty state to prevent accidental data loss
+          return;
+        }
+
         const newData = {
           editorjs: outputData,
           // Keep text fallback for backward compatibility
           text: undefined
         };
         currentDataRef.current = newData;
+        lastSavedJsonRef.current = JSON.stringify(outputData);
+        // We will receive the same data back from parent; don't re-render editor for that
+        skipExternalRenderRef.current = true;
         onChange?.(newData);
       } catch (error) {
         console.error('Saving failed: ', error);
@@ -65,10 +87,34 @@ const TextSection: React.FC<TextSectionProps> = ({ data, isEditing, onChange }) 
     const editor = new EditorJS({
       holder: editorHolderRef.current,
       tools: {
-        paragraph: Paragraph,
-        header: Header,
-        list: List,
-        image: Image,
+        paragraph: {
+          class: Paragraph,
+          inlineToolbar: ["bold", "italic", "marker", "underline", "inlineCode", "ColorPicker", "TextStyle"],
+        } as any,
+        header: {
+          class: Header,
+          inlineToolbar: ["bold", "italic", "marker", "underline", "inlineCode", "ColorPicker", "TextStyle"],
+        } as any,
+        list: {
+          class: List,
+          inlineToolbar: ["bold", "italic", "marker", "underline", "inlineCode", "ColorPicker", "TextStyle"],
+        } as any,
+        marker: Marker,
+        underline: Underline,
+        inlineCode: InlineCode,
+        ColorPicker: ColorPicker as any,
+        TextStyle: {
+          class: TextStyle as any,
+          config: {
+            controls: ["color", "fontSize", "fontFamily"],
+            fontFamilies: [
+              { label: "Default", value: "inherit" },
+              { label: "Inter", value: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" },
+              { label: "Serif", value: "ui-serif, Georgia, 'Times New Roman', serif" },
+              { label: "Mono", value: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace" },
+            ],
+          },
+        } as any,
       },
       data: data.editorjs || {
         time: Date.now(),
@@ -78,7 +124,10 @@ const TextSection: React.FC<TextSectionProps> = ({ data, isEditing, onChange }) 
         }] : [],
         version: "2.31.0"
       },
-      // Remove onChange to prevent re-renders during typing
+      // Per docs: save editor data on each change. We keep focus by skipping external re-renders.
+      onChange: async () => {
+        await saveToParent();
+      },
       placeholder: "Start writing your content here...",
     });
 
@@ -99,110 +148,44 @@ const TextSection: React.FC<TextSectionProps> = ({ data, isEditing, onChange }) 
     };
   }, [isEditing, data]);
 
-  // Load data when it changes externally
+  // Load data when it changes externally (e.g., server load or different section)
+  // Avoid re-rendering when the change came from this component's own save.
   useEffect(() => {
-    if (editorRef.current && isEditorReady && data.editorjs) {
+    if (!editorRef.current || !isEditorReady || !data.editorjs) return;
+
+    const incoming = JSON.stringify(data.editorjs);
+    const lastSaved = lastSavedJsonRef.current;
+
+    // If this update is the echo of our own save, skip rendering to preserve focus
+    if (skipExternalRenderRef.current && incoming === lastSaved) {
+      skipExternalRenderRef.current = false;
+      return;
+    }
+
+    if (incoming !== lastSaved) {
       editorRef.current.render(data.editorjs);
+      lastSavedJsonRef.current = incoming;
+      currentDataRef.current = data;
     }
-  }, [data.editorjs, isEditorReady]);
+  }, [data.editorjs, isEditorReady, data]);
 
-  // Render Editor.js output as HTML
-  const renderEditorJSContent = (editorData: EditorJSOutput): string => {
-    return editorData.blocks.map(block => {
-      switch (block.type) {
-        case 'paragraph':
-          return `<p>${block.data.text}</p>`;
-        case 'header':
-          const level = block.data.level || 3;
-          return `<h${level}>${block.data.text}</h${level}>`;
-        case 'list':
-          const listTag = block.data.style === 'ordered' ? 'ol' : 'ul';
-          const items = block.data.items.map((item: string) => `<li>${item}</li>`).join('');
-          return `<${listTag}>${items}</${listTag}>`;
-        case 'image':
-          return `<img src="${block.data.file?.url || block.data.url}" alt="${block.data.caption || ''}" />`;
-        case 'link':
-          return `<a href="${block.data.link}" target="_blank" rel="noopener noreferrer">${block.data.link}</a>`;
-        default:
-          return `<div>${JSON.stringify(block.data)}</div>`;
-      }
-    }).join('');
-  };
-
-  const getPreviewContent = (): string => {
-    if (data.editorjs) {
-      return renderEditorJSContent(data.editorjs);
-    } else if (data.text) {
-      return `<p>${data.text}</p>`;
+  // Toggle read-only mode for exact visual parity on preview
+  useEffect(() => {
+    if (!editorRef.current || !isEditorReady) return;
+    try {
+      editorRef.current.readOnly.toggle(isPreview || !isEditing);
+    } catch (e) {
+      // no-op
     }
-    return '';
-  };
+  }, [isPreview, isEditing, isEditorReady]);
+
+  // Renderer handles preview output for parity
+
+  // Note: preview rendering is handled by TextSectionRenderer for parity
 
   return (
     <section className="text-section">
-      {/* Basic Editor.js styles */}
-      <style>{`
-        .editorjs-holder {
-          min-height: 200px;
-          padding: 16px;
-          border: 1px solid #e5e7eb;
-          border-radius: 6px;
-          background: white;
-        }
-        .editorjs-holder .ce-block__content,
-        .editorjs-holder .ce-toolbar__content {
-          max-width: none;
-        }
-        .editorjs-holder .ce-paragraph[data-placeholder]:empty::before {
-          color: #9ca3af;
-          font-style: italic;
-        }
-        .editorjs-holder .ce-header {
-          margin: 1em 0 0.5em 0;
-        }
-        .editorjs-holder .ce-header h1 {
-          font-size: 2em;
-          font-weight: bold;
-          line-height: 1.2;
-          margin: 0.5em 0;
-        }
-        .editorjs-holder .ce-header h2 {
-          font-size: 1.5em;
-          font-weight: bold;
-          line-height: 1.3;
-          margin: 0.5em 0;
-        }
-        .editorjs-holder .ce-header h3 {
-          font-size: 1.25em;
-          font-weight: bold;
-          line-height: 1.4;
-          margin: 0.5em 0;
-        }
-        .editorjs-holder .ce-header h4 {
-          font-size: 1.1em;
-          font-weight: bold;
-          line-height: 1.4;
-          margin: 0.5em 0;
-        }
-        .editorjs-holder .ce-header h5 {
-          font-size: 1em;
-          font-weight: bold;
-          line-height: 1.4;
-          margin: 0.5em 0;
-        }
-        .editorjs-holder .ce-header h6 {
-          font-size: 0.9em;
-          font-weight: bold;
-          line-height: 1.4;
-          margin: 0.5em 0;
-        }
-        .editorjs-holder .ce-list {
-          margin: 1em 0;
-        }
-        .editorjs-holder .ce-list__item {
-          padding: 0.25em 0;
-        }
-      `}</style>
+      {/* Styles moved to shared CSS for parity with renderer */}
 
       {isEditing && (
         <div className="text-right mb-4">
@@ -221,15 +204,12 @@ const TextSection: React.FC<TextSectionProps> = ({ data, isEditing, onChange }) 
         </div>
       )}
 
-      {isEditing && !isPreview ? (
-        <div className="editor-container">
-          <div ref={editorHolderRef} className="editorjs-holder" />
-        </div>
-      ) : (
-        <div
-          className="prose prose-lg max-w-none"
-          dangerouslySetInnerHTML={{ __html: getPreviewContent() }}
-        />
+      {/* Show editor or renderer depending on preview */}
+      <div className="editor-container" style={{ display: isPreview ? 'none' : 'block' }}>
+        <div ref={editorHolderRef} className="editorjs-holder" />
+      </div>
+      {isPreview && (
+        <TextSectionRenderer data={data} />
       )}
     </section>
   );

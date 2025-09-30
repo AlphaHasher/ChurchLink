@@ -119,8 +119,21 @@ const EditPage = ({ onPageDataChange }: EditPageProps = {}) => {
   useEffect(() => {
     const fetchPage = async () => {
       try {
-        // Use preview endpoint and encode the slug so "/" works
-        const res = await api.get(`/v1/pages/preview/${encodeURIComponent(slug as string)}`);
+        // Prefer staging (draft) if exists; fallback to preview (live, bypass visibility)
+        const encoded = encodeURIComponent(slug as string);
+        try {
+          const staging = await pageApi.getStaging(slug as string);
+          setPageData(staging.data);
+          setSections(staging.data.sections || []);
+          setLoadError(null);
+          return;
+        } catch (err: any) {
+          if (err?.response?.status !== 404) {
+            throw err;
+          }
+        }
+
+        const res = await api.get(`/v1/pages/preview/${encoded}`);
         setPageData(res.data);
         setSections(res.data.sections || []);
         setLoadError(null);
@@ -188,6 +201,21 @@ const EditPage = ({ onPageDataChange }: EditPageProps = {}) => {
     };
     let defaultContent: string | TextContent | HeroContent | ServiceTimesContent | MenuSectionContent | ContactInfoContent | PaypalSectionContent | { embedUrl?: string } = "";
     let settings;
+
+    if (type === "text") {
+      defaultContent = {
+        editorjs: {
+          time: Date.now(),
+          version: "2.31.0",
+          blocks: [
+            {
+              type: "paragraph",
+              data: { text: "" },
+            },
+          ],
+        },
+      } as unknown as TextContent;
+    }
 
     if (type === "hero") {
       defaultContent = {
