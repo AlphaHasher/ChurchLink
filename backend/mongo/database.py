@@ -63,6 +63,14 @@ class DB:
         {
             "name": "bible_plan_templates",
             "indexes": ["name"]
+        },
+        {
+            "name": "app_config",
+            "indexes": ["config_type"]
+        },
+        {
+            "name": "fcm_tokens",
+            "indexes": ["user_id"]
         }
     ]
 

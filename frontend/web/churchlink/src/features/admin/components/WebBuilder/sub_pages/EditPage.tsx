@@ -130,7 +130,6 @@ const EditPage = () => {
     }
 
     const { _id, ...restPageData } = pageData;
-    console.log("Saving page with data:", JSON.stringify({ sections }));
     try {
       setSaving(true);
       await api.put(`/v1/pages/${_id}`, {

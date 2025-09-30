@@ -74,6 +74,7 @@ const AdminDashboardSideBar = () => {
     { title: "Manage Users", url: "/admin/users", icon: User },
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
     { title: "Web Builder", icon: Folder, children: webBuilderChildren },
+    { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Shield },  
     { title: "Media Library", icon: Folder, onClick: handleMediaRedirect, loadingKey: "media" },
     { title: "Events", url: "/admin/events", icon: CalendarFold },
     { title: "Forms", icon: Folder, children: [
