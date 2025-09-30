@@ -19,17 +19,14 @@ import { ChevronDown } from "lucide-react"
 
 
 import { UserPermMask } from "@/shared/types/UserInfo"
+import { permissionLabels } from "@/shared/types/AccountPermissions"
 import { useState, useMemo, useCallback } from "react"
 
-// Explicitly for type safety copy the permissionLabels
+// Create user-specific labels by extending permission labels
 const userLabels: Record<string, string> = {
     name: 'Full Name',
     email: 'Email Address',
-    admin: "Administrator",
-    permissions_management: "Permissions Manager",
-    event_editing: "Event Editor",
-    event_management: "Event Manager",
-    media_management: "Media Library Manager",
+    ...permissionLabels,
 };
 
 interface LogicalUserPermsTableProps {
@@ -44,74 +41,52 @@ const BooleanCellRenderer = (props: ICellRendererParams) => {
     return <div className="text-center">{value}</div>;
 };
 
+// Generate column definitions dynamically from permission labels
+const generateColumnDefs = (): ColDef[] => {
+    const columns: ColDef[] = [];
+
+    // Add name column (special case)
+    columns.push({
+        field: 'name',
+        headerName: userLabels.name,
+        sortable: true,
+        filter: true,
+        flex: 2,
+        minWidth: 150,
+        pinned: 'left',
+    });
+
+    // Add email column (special case)
+    columns.push({
+        field: 'email',
+        headerName: userLabels.email,
+        sortable: true,
+        filter: true,
+        flex: 2,
+        minWidth: 200,
+    });
+
+    // Generate permission columns dynamically from permissionLabels
+    Object.keys(permissionLabels).forEach((permissionKey) => {
+        columns.push({
+            field: permissionKey,
+            headerName: userLabels[permissionKey],
+            sortable: true,
+            filter: true,
+            flex: 1,
+            minWidth: 120,
+            cellRenderer: BooleanCellRenderer,
+        });
+    });
+
+    return columns;
+};
+
 export function LogicalUserPermsTable({ data }: LogicalUserPermsTableProps) {
     const [gridApi, setGridApi] = useState<any>(null);
     const [columnApi, setColumnApi] = useState<any>(null);
 
-    const columnDefs = useMemo<ColDef[]>(() => [
-        {
-            field: 'name',
-            headerName: userLabels.name,
-            sortable: true,
-            filter: true,
-            flex: 2,
-            minWidth: 150,
-            pinned: 'left',
-        },
-        {
-            field: 'email',
-            headerName: userLabels.email,
-            sortable: true,
-            filter: true,
-            flex: 2,
-            minWidth: 200,
-        },
-        {
-            field: 'admin',
-            headerName: userLabels.admin,
-            sortable: true,
-            filter: true,
-            flex: 1,
-            minWidth: 120,
-            cellRenderer: BooleanCellRenderer,
-        },
-        {
-            field: 'permissions_management',
-            headerName: userLabels.permissions_management,
-            sortable: true,
-            filter: true,
-            flex: 1,
-            minWidth: 150,
-            cellRenderer: BooleanCellRenderer,
-        },
-        {
-            field: 'event_editing',
-            headerName: userLabels.event_editing,
-            sortable: true,
-            filter: true,
-            flex: 1,
-            minWidth: 120,
-            cellRenderer: BooleanCellRenderer,
-        },
-        {
-            field: 'event_management',
-            headerName: userLabels.event_management,
-            sortable: true,
-            filter: true,
-            flex: 1,
-            minWidth: 130,
-            cellRenderer: BooleanCellRenderer,
-        },
-        {
-            field: 'media_management',
-            headerName: userLabels.media_management,
-            sortable: true,
-            filter: true,
-            flex: 1,
-            minWidth: 150,
-            cellRenderer: BooleanCellRenderer,
-        },
-    ], []);
+    const columnDefs = useMemo<ColDef[]>(() => generateColumnDefs(), []);
 
     const defaultColDef: ColDef = {
         resizable: true,
@@ -126,7 +101,8 @@ export function LogicalUserPermsTable({ data }: LogicalUserPermsTableProps) {
         if (columnApi) {
             const columns = columnApi.getColumns();
             columns.forEach((col: any) => {
-                if (col.getColId() !== 'name' && col.getColId() !== 'email') {
+                // Hide all permission columns except name and email
+                if (!['name', 'email'].includes(col.getColId())) {
                     columnApi.setColumnVisible(col.getColId(), false);
                 }
             });
@@ -185,19 +161,20 @@ export function LogicalUserPermsTable({ data }: LogicalUserPermsTableProps) {
                             Show All Permissions
                         </Button>
 
-                        {columnDefs
-                            .filter((col) => col.field !== 'name' && col.field !== 'email')
-                            .map((col) => (
+                        {Object.keys(permissionLabels).map((permissionKey) => {
+                            const column = columnApi?.getColumn(permissionKey);
+                            return (
                                 <DropdownMenuCheckboxItem
-                                    key={col.field}
+                                    key={permissionKey}
                                     className="capitalize"
-                                    checked={columnApi ? columnApi.getColumn(col.field)?.isVisible() : true}
-                                    onCheckedChange={(value) => toggleColumnVisibility(col.field!, !!value)}
+                                    checked={column ? column.isVisible() : true}
+                                    onCheckedChange={(value) => toggleColumnVisibility(permissionKey, !!value)}
                                     onSelect={(event) => event.preventDefault()}
                                 >
-                                    {col.headerName}
+                                    {userLabels[permissionKey]}
                                 </DropdownMenuCheckboxItem>
-                            ))}
+                            );
+                        })}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
