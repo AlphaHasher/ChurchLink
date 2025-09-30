@@ -153,7 +153,7 @@ class _SpanCrossChapterRule extends _Rule {
 
 /// Chapter Remap
 /// Moves a whole chapter to another chapter number, maintains verse numbering
-/// TODO: Redundant with range_shift, potentially remove. Simpler interface though. Unused in current mapping ruleset.
+/// Redundant with range_shift, potentially remove. Simpler interface though. Unused in current mapping ruleset.
 class _ChapterRemapRule extends _Rule {
   final int fromChapter;
   final int toChapter;
@@ -446,14 +446,13 @@ class VerseMatching {
   /// If no rules are present, falls back to same book/chapter/verse
   List<VerseKey> matchToOther({required String fromTx, required VerseKey key}) {
     final nk = (book: _canonBook(key.book), chapter: key.chapter, verse: key.verse);
-    bool blockIdentity = false;
 
     for (final r in _rules) {
       final mapped = r.map(fromTx, nk);
       if (mapped.isNotEmpty) return mapped;
     }
 
-    return blockIdentity ? const [] : [nk];
+    return [nk];
   }
 
   /// Rule-only mapping (no identity fallback). Useful for cluster traversal.
@@ -525,16 +524,16 @@ class VerseMatching {
       final curKey = (book: _canonBook(cur.$2.book), chapter: cur.$2.chapter, verse: cur.$2.verse);
 
       // RULE EDGES (primary traversal)
-      final _rt = _ruleEdgesOnly(curTx, curKey);
+      final rt = _ruleEdgesOnly(curTx, curKey);
 
       // --- Psalms anti-bridging guard (per-expansion) ---
       // If any cross-chapter edge exists for this source, drop same-chapter edges
       // for THIS expansion step. Prevents hops like RST 58:2 → KJV 58:1 sneaking in.
       final ruleTargets = (_canonBook(curKey.book) == 'Psalms')
-          ? (_rt.any((mk) => mk.chapter != curKey.chapter)
-              ? _rt.where((mk) => mk.chapter != curKey.chapter).toList()
-              : _rt)
-          : _rt;
+          ? (rt.any((mk) => mk.chapter != curKey.chapter)
+              ? rt.where((mk) => mk.chapter != curKey.chapter).toList()
+              : rt)
+          : rt;
 
       // Enqueue non-identity rule edges. (Identity co-target handled below)
       bool hasNonIdentity = false;
@@ -591,7 +590,7 @@ class VerseMatching {
     });
 
     final (repTx, rep) = list.first;
-    return '${repTx}|${_canonBook(rep.book)}|${rep.chapter}|${rep.verse}';
+    return '$repTx|${_canonBook(rep.book)}|${rep.chapter}|${rep.verse}';
   }
 
   // Mirrors clusterId() traversal exactly but returns members instead of an ID.
@@ -611,14 +610,14 @@ class VerseMatching {
       final curKey = (book: _canonBook(cur.$2.book), chapter: cur.$2.chapter, verse: cur.$2.verse);
 
       // RULE EDGES (same logic as in clusterId)
-      final _rt = _ruleEdgesOnly(curTx, curKey);
+      final rt = _ruleEdgesOnly(curTx, curKey);
 
       // Psalms anti-bridging guard (per-expansion)
       final ruleTargets = (_canonBook(curKey.book) == 'Psalms')
-          ? (_rt.any((mk) => mk.chapter != curKey.chapter)
-              ? _rt.where((mk) => mk.chapter != curKey.chapter).toList()
-              : _rt)
-          : _rt;
+          ? (rt.any((mk) => mk.chapter != curKey.chapter)
+              ? rt.where((mk) => mk.chapter != curKey.chapter).toList()
+              : rt)
+          : rt;
 
       bool hasNonIdentity = false;
       for (final m in ruleTargets) {
@@ -657,7 +656,7 @@ class VerseMatching {
     return seen.toList();
   }
 
-  // TODO: NEW — convenience: list same-translation siblings in the cluster (excludes the seed).
+  // list same-translation siblings in the cluster (excludes the seed).
   List<VerseKey> sameTxSiblings({required String tx, required VerseKey key}) {
     final all = clusterMembers(tx: tx, key: key);
     final t = tx.trim().toLowerCase();

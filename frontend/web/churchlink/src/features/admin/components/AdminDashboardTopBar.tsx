@@ -2,6 +2,7 @@ import { Bell, Search, User } from "lucide-react";
 import { useAuth } from '@/features/auth/hooks/auth-context';
 import { useLocation } from "react-router-dom";
 import WebBuilderTopBar from "./WebBuilder/WebBuilderTopBar";
+import { SidebarTrigger } from "@/shared/components/ui/sidebar";
 
 
 const TopBar = () => {
@@ -15,9 +16,12 @@ const TopBar = () => {
 
   return (
     <div className="w-full bg-white shadow-md p-4 flex justify-between items-center">
-      <div className="flex items-center gap-2 border px-2 py-1 rounded-md">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger />
+        <div className="flex items-center gap-2 border px-2 py-1 rounded-md">
         <Search />
         <input type="text" placeholder="Search..." className="outline-none" />
+        </div>
       </div>
       <div className="flex items-center gap-4">
         <Bell className="text-xl cursor-pointer" />
