@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign } from "lucide-react";
 import api from "@/api/api";
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -831,7 +832,7 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
 
         {/* Event details modal */}
         {selectedEvent && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
     <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
       <button
         onClick={() => setSelectedEvent(null)}
@@ -865,19 +866,25 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
         <p className="text-gray-700 mb-4 text-lg">{selectedEvent.description}</p>
       )}
 
-      <p className="text-gray-900 font-medium text-base mb-1">
-        📅 {new Date(selectedEvent.date).toLocaleString()}
+      <p className="text-gray-900 font-medium text-base mb-1 flex items-center gap-2">
+        <FiCalendar className="shrink-0" />
+        <span>{new Date(selectedEvent.date).toLocaleString()}</span>
       </p>
 
       {selectedEvent.location && (
-        <p className="text-gray-900 text-base mb-1">📍 {selectedEvent.location}</p>
+        <p className="text-gray-900 text-base mb-1 flex items-center gap-2">
+          <FiMapPin className="shrink-0" />
+          <span>{selectedEvent.location}</span>
+        </p>
       )}
 
-      <p className="text-gray-900 text-base mb-6">
-        💲 Price:{" "}
-        {selectedEvent.price != null && selectedEvent.price > 0
-          ? `$${selectedEvent.price}`
-          : "Free"}
+      <p className="text-gray-900 text-base mb-6 flex items-center gap-2">
+        <FiDollarSign className="shrink-0" />
+        <span>
+          {selectedEvent.price != null && selectedEvent.price > 0
+            ? `$${selectedEvent.price}`
+            : "Free"}
+        </span>
       </p>
 
       {/* Actions */}
