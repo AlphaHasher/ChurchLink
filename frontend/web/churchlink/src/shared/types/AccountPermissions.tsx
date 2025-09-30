@@ -3,8 +3,10 @@ export type AccountPermissions = {
   name: string;
   admin: boolean;
   permissions_management: boolean;
+  layout_management: boolean;
   event_editing: boolean;
   event_management: boolean;
+  sermon_editing: boolean;
   media_management: boolean;
 };
 
@@ -19,18 +21,17 @@ export type PermComp = {
 export const permissionLabels: Record<string, string> = {
   admin: "Administrator",
   permissions_management: "Permissions Manager",
+  layout_management: "Site Layout Manager",
   event_editing: "Event Editor",
   event_management: "Event Manager",
+  sermon_editing: "Sermon Editor",
   media_management: "Media Library Manager",
 };
-
-// Remove the 'name' key from permissionLabels
-const { name, ...remainingPermissionLabels } = permissionLabels;
 
 export const PermCompLabels: Record<string, string> = {
   status: "Since Changes Made",
   roles: "Permission Roles",
-  ...remainingPermissionLabels,  // Merging the remaining permissionLabels without 'name'
+  ...permissionLabels,
 };
 
 

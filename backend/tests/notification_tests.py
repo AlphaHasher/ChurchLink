@@ -3,7 +3,7 @@ import httpx
 import sys
 import os
 
-from backend.tests.test_auth_helpers import get_auth_headers
+from backend.tests.test_auth_helpers import get_admin_headers
 
 backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(backend_dir)
@@ -15,7 +15,7 @@ BASE_URL = os.getenv("BACKEND_URL")
 
 
 def test_register_device_token():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.post(
         f"{BASE_URL}/api/v1/notification/registerToken",
         json={
@@ -34,7 +34,7 @@ def test_register_device_token():
 
 
 def test_get_notification_settings():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.get(f"{BASE_URL}/api/v1/notification/settings", headers=headers)
     assert response.status_code == 200
     assert "streamNotificationMessage" in response.json()
@@ -42,7 +42,7 @@ def test_get_notification_settings():
 
 
 def test_update_notification_settings():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.post(
         f"{BASE_URL}/api/v1/notification/settings",
         json={
@@ -56,14 +56,14 @@ def test_update_notification_settings():
 
 
 def test_notification_history():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.get(f"{BASE_URL}/api/v1/notification/history", headers=headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
 def test_send_push_notification():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.post(
         f"{BASE_URL}/api/v1/notification/send",
         json={
@@ -79,7 +79,7 @@ def test_send_push_notification():
 
 
 def test_schedule_notification():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.post(
         f"{BASE_URL}/api/v1/notification/schedule",
         json={
@@ -97,14 +97,14 @@ def test_schedule_notification():
 
 
 def test_get_scheduled_notifications():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.get(f"{BASE_URL}/api/v1/notification/scheduled", headers=headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
 def test_remove_scheduled_notification():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     # First, schedule a notification to get an id
     schedule_response = httpx.post(
         f"{BASE_URL}/api/v1/notification/schedule",

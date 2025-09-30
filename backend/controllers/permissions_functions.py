@@ -1,6 +1,5 @@
 from mongo.roles import RoleHandler
 from pydantic import BaseModel, Field, create_model
-from mongo.roles import RoleHandler
 from mongo.churchuser import UserHandler
 from helpers.StrapiHelper import StrapiHelper
 from fastapi import Request
@@ -90,7 +89,8 @@ async def update_role(payload: RoleUpdateInput, request:Request):
             if getattr(payload, key) and not user_perms['admin']:
                 return {"success":False, "msg":f"You do not have the necessary permissions to edit a role with permission: {key}!"}
         else:
-            if (getattr(payload, key)!= role['permissions'][key]) and not value:
+            existing_value = role['permissions'].get(key, False)
+            if (getattr(payload, key) != existing_value) and not value:
                 return {"success":False, "msg":f"You do not have the necessary permissions to enable or disable the permission: {key}!"}
                 
     permStr = []

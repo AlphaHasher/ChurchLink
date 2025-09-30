@@ -8,6 +8,7 @@ import 'package:app/pages/weeklybulletin.dart';
 import 'package:app/pages/giving.dart';
 import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
+import 'package:app/services/connectivity_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,10 +16,12 @@ import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/services/FirebaseMessaging_service.dart';
 import 'package:provider/provider.dart';
+import 'package:app/providers/sermons_provider.dart';
 import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/services/deep_linking_service.dart';
 import 'package:app/services/fcm_token_service.dart';
+import 'package:app/gates/auth_gate.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -44,7 +47,11 @@ Future<void> main() async {
   setupFirebaseMessaging();
   await setupLocalNotifications();
 
-  RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  // Startup connectivity service
+  ConnectivityService().start();
+
+  RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
     initialNotificationData = initialMessage.data;
     // Store the initial message for handling after the app is built
@@ -56,13 +63,15 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) {
-          final provider = TabProvider();
-          TabProvider.instance = provider;
-          // Load tab configuration asynchronously
-          provider.loadTabConfiguration();
-          return provider;
-        }),
+        ChangeNotifierProvider(
+          create: (context) {
+            final provider = TabProvider();
+            TabProvider.instance = provider;
+            // Load tab configuration asynchronously
+            provider.loadTabConfiguration();
+            return provider;
+          },
+        ),
       ],
       child: const MyApp(),
     ),
@@ -74,7 +83,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 22, 77, 60));
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: const Color.fromARGB(255, 22, 77, 60),
+    );
     return MaterialApp(
       title: 'ChurchLink',
       navigatorKey: navigatorKey, // Allows navigation from notifications
@@ -91,7 +102,7 @@ class MyApp extends StatelessWidget {
           showUnselectedLabels: false,
         ),
       ),
-      home: const MyHomePage(),
+      home: AuthGate(child: const MyHomePage()),
       routes: {
         '/home': (context) => const DashboardPage(),
         '/bible': (context) => const BiblePage(),
@@ -144,13 +155,13 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!tabProvider.isLoaded || tabProvider.tabs.isEmpty) {
       return [const DashboardPage()]; // Fallback
     }
-    
+
     return tabProvider.tabs.map((tab) {
       final tabName = tab['name'] as String;
       return _getScreenForTab(tabName.toLowerCase());
     }).toList();
   }
-  
+
   Widget _getScreenForTab(String tabName) {
     switch (tabName) {
       case 'home':
@@ -181,16 +192,12 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     final tabProvider = Provider.of<TabProvider>(context);
-    
+
     // Show loading indicator if tabs haven't loaded yet
     if (!tabProvider.isLoaded) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    
+
     return Scaffold(
       body: _screens[tabProvider.currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -201,23 +208,24 @@ class _MyHomePageState extends State<MyHomePage> {
         showUnselectedLabels: true,
         selectedFontSize: 11,
         unselectedFontSize: 9,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w400,
-        ),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
         items: _buildNavItems(tabProvider.tabs),
       ),
     );
   }
 
-  List<BottomNavigationBarItem> _buildNavItems(List<Map<String, dynamic>> tabs) {
+  List<BottomNavigationBarItem> _buildNavItems(
+    List<Map<String, dynamic>> tabs,
+  ) {
     return tabs.map((tab) {
       final name = tab['name'] as String;
-      final displayName = tab['displayName'] as String? ?? name; // fallback to name if displayName is null
-      final iconName = tab['icon'] as String? ?? name; // fallback to name if icon is null
-      
+      final displayName =
+          tab['displayName'] as String? ??
+          name; // fallback to name if displayName is null
+      final iconName =
+          tab['icon'] as String? ?? name; // fallback to name if icon is null
+
       return BottomNavigationBarItem(
         label: displayName,
         icon: _getTabIcon(name, iconName, false),
@@ -250,7 +258,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'event':
       case 'events':
         return Icon(
-          Icons.event, 
+          Icons.event,
           color: isActive ? Colors.white : Colors.white70,
         );
       case 'person':
@@ -308,27 +316,47 @@ class _MyHomePageState extends State<MyHomePage> {
           color: isActive ? Colors.white : Colors.white70,
         );
       case 'sermons':
-        return Icon(Icons.church, color: isActive ? Colors.white : Colors.white70);
+        return Icon(
+          Icons.church,
+          color: isActive ? Colors.white : Colors.white70,
+        );
       case 'events':
-        return Icon(Icons.event, color: isActive ? Colors.white : Colors.white70);
+        return Icon(
+          Icons.event,
+          color: isActive ? Colors.white : Colors.white70,
+        );
       case 'profile':
         return Icon(
           Icons.person,
           color: isActive ? Colors.white : Colors.white70,
         );
       case 'live':
-        return Icon(Icons.live_tv, color: isActive ? Colors.white : Colors.white70);
+        return Icon(
+          Icons.live_tv,
+          color: isActive ? Colors.white : Colors.white70,
+        );
       case 'bulletin':
-        return Icon(Icons.article, color: isActive ? Colors.white : Colors.white70);
+        return Icon(
+          Icons.article,
+          color: isActive ? Colors.white : Colors.white70,
+        );
       case 'giving':
-        return Icon(Icons.volunteer_activism, color: isActive ? Colors.white : Colors.white70);
+        return Icon(
+          Icons.volunteer_activism,
+          color: isActive ? Colors.white : Colors.white70,
+        );
       case 'ministries':
-        return Icon(Icons.groups, color: isActive ? Colors.white : Colors.white70);
+        return Icon(
+          Icons.groups,
+          color: isActive ? Colors.white : Colors.white70,
+        );
       case 'contact':
-        return Icon(Icons.contact_mail, color: isActive ? Colors.white : Colors.white70);
+        return Icon(
+          Icons.contact_mail,
+          color: isActive ? Colors.white : Colors.white70,
+        );
       default:
         return Icon(Icons.tab, color: isActive ? Colors.white : Colors.white70);
     }
   }
 }
-
