@@ -248,8 +248,8 @@ async def sort_events(
         query["min_age"] = {"$lte": age}
         query["max_age"] = {"$gte": age}
 
-    if gender is not None:
-        query["gender"] = gender
+    if gender and gender in ("male", "female"):
+        query["gender"] = {"$in": ["all", gender]}
 
     if is_free is not None and is_free:
         # Only free events

@@ -517,40 +517,41 @@ const EventSection: React.FC<EventSectionProps> = ({
   };
 
   const fetchEvents = async () => {
-    setLoading(true);
-    try {
-      const isNameSet = Array.isArray(eventName)
-        ? eventName.length > 0
-        : typeof eventName === "string" && eventName.trim() !== "";
+  setLoading(true);
+  try {
+    const isNameSet = Array.isArray(eventName)
+      ? eventName.length > 0
+      : typeof eventName === "string" && eventName.trim() !== "";
 
-      if (isNameSet) {
-        const all = await api.get("/v1/events/upcoming?limit=999");
-        const names = Array.isArray(eventName) ? eventName : [eventName];
-        const matches = all.data.filter(
-          (e: Event) =>
-            typeof e.name === "string" &&
-            names.some((name) => typeof name === "string" && e.name!.toLowerCase().includes(name.toLowerCase()))
-        );
-        setEvents(matches);
-      } else {
-        const finalMinistry = lockedFilters?.ministry ?? ministry;
-        const finalAgeRange = lockedFilters?.ageRange ?? ageRange;
-        const params = new URLSearchParams();
-        if (finalMinistry) params.append("ministry", finalMinistry);
-        if (finalAgeRange) {
-          const [minAge, maxAge] = finalAgeRange.split("-");
-          if (minAge && maxAge) params.append("age", minAge);
-        }
-        params.append("limit", "999");
-        const response = await api.get(`/v1/events/upcoming?${params.toString()}`);
-        setEvents(response.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch events:", error);
-    } finally {
-      setLoading(false);
+    const finalMinistry = lockedFilters?.ministry ?? ministry;
+    const finalAgeRange = lockedFilters?.ageRange ?? ageRange;
+
+    const params = new URLSearchParams();
+    params.append("limit", "999");
+
+    if (finalMinistry) params.append("ministry", finalMinistry);
+
+    // Age filter (optional)
+    if (finalAgeRange) {
+      const [minAge] = finalAgeRange.split("-");
+      if (minAge) params.append("age", minAge);
     }
-  };
+
+    // ✅ Use backend "name" filtering instead of local includes()
+    if (isNameSet) {
+      const names = Array.isArray(eventName) ? eventName : [eventName];
+      // if your API expects a single name substring, send the first; or join with commas if supported
+      params.append("name", names.join(","));
+    }
+
+    const { data } = await api.get(`/v1/events/upcoming?${params.toString()}`);
+    setEvents(data);
+  } catch (error) {
+    console.error("Failed to fetch events:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchMyEvents = async () => {
   try {
