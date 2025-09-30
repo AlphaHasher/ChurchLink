@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../helpers/api_client.dart';
 
 class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({super.key});
@@ -77,20 +78,15 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
 
   Future<void> _updateNotificationPrefs() async {
     try {
-      final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
+      final response = await api.get(
+        '/v1/notification/preferences',
+        queryParameters: {
           'token': _fcmToken,
           'preferences': _notificationPrefs,
-        }),
+        },
       );
-      debugPrint('Update notification prefs response: ${response.body}');
-      if (response.statusCode != 200) {
-        debugPrint('Failed to update notification prefs: ${response.statusCode}');
-      }
+      debugPrint('Update notification prefs response: \\${response.data}');
+      // You may want to check response status or handle errors as needed
     } catch (e) {
       debugPrint('Error updating notification prefs: $e');
     }
