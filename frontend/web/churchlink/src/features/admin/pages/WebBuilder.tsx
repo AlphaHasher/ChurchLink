@@ -1,4 +1,4 @@
-import PageList from "@/features/admin/components/WebBuilder/PageList";
+import PageList from "@/features/admin/components/WebBuilder/sub_pages/PageList";
 
 
 const WebBuilderPage = () => {

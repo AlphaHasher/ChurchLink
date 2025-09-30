@@ -78,7 +78,9 @@ class MyEventsService {
       final event = eventRef.event;
 
       // Filter by family (works even when event == null)
-      if (!filters.showFamily && eventRef.isFamilyMember) return false;
+      if (!filters.showFamily && eventRef.isFamilyMember) {
+        return false;
+      }
 
       // If we don't have expanded event details, we can't evaluate time or
       // content-based filters. For usability show placeholders unless a
@@ -87,8 +89,9 @@ class MyEventsService {
         // If there's a search term or a specific ministry filter, the
         // placeholder cannot match content; exclude it.
         if (filters.searchTerm.isNotEmpty) return false;
-        if (filters.ministry != null && filters.ministry!.isNotEmpty)
+        if (filters.ministry != null && filters.ministry!.isNotEmpty) {
           return false;
+        }
 
         // Otherwise include the placeholder item.
         return true;
@@ -97,9 +100,12 @@ class MyEventsService {
       final isUpcoming = event.date.isAfter(DateTime.now());
 
       // Filter by time (upcoming/past) - mutually exclusive
-      if (filters.timeFilter == TimeFilter.upcoming && !isUpcoming)
+      if (filters.timeFilter == TimeFilter.upcoming && !isUpcoming) {
         return false;
-      if (filters.timeFilter == TimeFilter.past && isUpcoming) return false;
+      }
+      if (filters.timeFilter == TimeFilter.past && isUpcoming) {
+        return false;
+      }
 
       // Filter by search term against event fields
       if (filters.searchTerm.isNotEmpty) {
@@ -124,10 +130,8 @@ class MyEventsService {
       }
 
       // Filter by specific ministry
-      if (filters.ministry != null && filters.ministry!.isNotEmpty) {
-        if (!event.ministry.contains(filters.ministry)) {
-          return false;
-        }
+      if (filters.ministry != null && filters.ministry!.isNotEmpty && !event.ministry.contains(filters.ministry)) {
+        return false;
       }
 
       return true;
@@ -148,8 +152,7 @@ class MyEventsService {
         // Clone the eventRef but initialize registrants with current displayName
         // Determine initial registrant name: prefer displayName, else 'You' for user's own registration
         String? initialName = eventRef.displayName;
-        if ((initialName == null || initialName.isEmpty) &&
-            eventRef.personId == null) {
+        if ((initialName == null || initialName.isEmpty) && eventRef.personId == null) {
           initialName = 'You';
         }
 
