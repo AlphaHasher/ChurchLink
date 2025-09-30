@@ -148,8 +148,8 @@ export function Inspector() {
 
   return (
     <div className="space-y-3">
-        {/* Localization controls for field texts (hidden for price and static fields) */}
-        {field.type !== 'price' && field.type !== 'static' && (
+        {/* Localization controls for field texts (hidden for price fields) */}
+        {field.type !== 'price' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Localization</Label>
