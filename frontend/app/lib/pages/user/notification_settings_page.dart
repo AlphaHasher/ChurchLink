@@ -78,9 +78,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
 
   Future<void> _updateNotificationPrefs() async {
     try {
-      final response = await api.get(
+      final response = await api.post(
         '/v1/notification/preferences',
-        queryParameters: {
+        data: {
           'token': _fcmToken,
           'preferences': _notificationPrefs,
         },
