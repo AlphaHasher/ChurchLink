@@ -573,20 +573,12 @@ const EventSection: React.FC<EventSectionProps> = ({
   }, []);
 
   const isRecurring = (ev: Event) => ev.recurring && ev.recurring !== "never";
-  const requiresRSVP = (ev: Event) => !!ev.rsvp;
 
   const isWatched = (ev: Event) => myEvents.some((m) => m.event_id === ev.id && m.reason === "watch");
   const currentWatchScope = (ev: Event): MyEventScope | null => {
     const hit = myEvents.find((m) => m.event_id === ev.id && m.reason === "watch");
     return hit ? hit.scope : null;
   };
-  const isRegistered = (ev: Event) => myEvents.some((m) => m.event_id === ev.id && m.reason === "rsvp");
-
-  const hasAnyRegistration = (ev: Event) =>
-  myEvents.some(m => m.event_id === ev.id && m.reason === "rsvp");
-
-  const isSelfRegistered = (ev: Event) =>
-  myEvents.some(m => m.event_id === ev.id && m.reason === "rsvp" && !m.person_id);
 
   // watch actions (unchanged except for removing datetime picker earlier)
   const addWatch = async (ev: Event, desiredScope?: MyEventScope) => {
@@ -635,7 +627,6 @@ const removeWatch = async (ev: Event) => {
 
   // registration open/close hooks
   const openRegistration = (ev: Event) => setRegEvent(ev);
-  const closeRegistration = () => setRegEvent(null);
   const handleRegistrationSaved = async () => {
     await fetchMyEvents(); // reflect buttons instantly
     setRegEvent(null);
@@ -712,52 +703,27 @@ const removeWatch = async (ev: Event) => {
     );
   };
 
-  const RegisterButtons = ({ ev }: { ev: Event }) => {
-  const anyReg = hasAnyRegistration(ev);
-  const selfReg = isSelfRegistered(ev);
+  // Replace your current RegisterButtons with this
+const RegisterButtons = ({ ev }: { ev: Event }) => {
+  const anyReg = myEvents.some(
+    (m) => m.event_id === ev.id && m.reason === "rsvp"
+  );
 
-  // If event requires RSVP, open the modal; otherwise you already handle "watch" elsewhere
-  return !anyReg ? (
+  return (
     <button
       disabled={changing === ev.id}
       onClick={() => openRegistration(ev)}
-      className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700"
+      className={`w-full px-4 py-2 font-semibold rounded-xl ${
+        anyReg
+          ? "bg-indigo-600 text-white hover:bg-indigo-700"
+          : "bg-green-600 text-white hover:bg-green-700"
+      }`}
     >
-      Register For Event
+      {anyReg ? "Change Registration" : "Register For Event"}
     </button>
-  ) : (
-    <div className="space-y-2">
-      <button
-        disabled={changing === ev.id}
-        onClick={() => openRegistration(ev)}
-        className="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700"
-      >
-        Change Registration
-      </button>
+  );
+};
 
-      {selfReg && (
-        <button
-          disabled={changing === ev.id}
-          onClick={async () => {
-            try {
-              setChanging(ev.id);
-              const res = await api.delete(`/v1/events/${ev.id}/rsvp`);
-              if (!res.data?.success) throw new Error("Unregistration failed");
-              await fetchMyEvents();
-            } catch {
-              alert("Unregistration failed.");
-            } finally {
-              setChanging(null);
-            }
-          }}
-          className="w-full px-4 py-2 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700"
-        >
-          Cancel My Registration
-        </button>
-      )}
-     </div>
-   );
- };
 
 
   return (
