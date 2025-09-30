@@ -4,12 +4,9 @@ A Translation module.
 
 You can translate text using this module.
 """
-import random
 import json
 import time
-import secrets
 import typing
-import urllib.parse
 import httpx
 from httpx import Timeout
 from BulkTranslator.savedGoogleTrans.constants import (
@@ -116,11 +113,6 @@ class Translator:
                 )
         return json.dumps([allItems], separators=(",", ":"))
 
-    def _pick_service_url(self):
-        """Randomly select a service URL"""
-        if len(self.service_urls) == 1:
-            return self.service_urls[0]
-        return random.choice(self.service_urls)
 
     def _translate_with_retry(self, text, dest: str, src: str, is_multi_language=False, dest_languages=None):
         """
@@ -139,8 +131,6 @@ class Translator:
         used_urls = []
         
         for attempt in range(self.max_retries + 1):
-            # host = self._pick_service_url()  # Not needed for current implementation
-            # url = urls.TRANSLATE_RPC.format(host=host)
             url = "https://translate.google.com/_/TranslateWebserverUi/data/batchexecute"
             used_urls.append(url)
             
@@ -217,10 +207,6 @@ class Translator:
         else:
             return "", None, used_urls[-1] if used_urls else None
 
-    def _translate(self, text, dest: str, src: str):
-        """Legacy method for backward compatibility."""
-        response_text, response, used_url = self._translate_with_retry(text, dest, src)
-        return response_text, response
 
     def _translate_multi_language(self, text, dest_languages: list, src: str):
         """
@@ -469,13 +455,3 @@ class Translator:
 
 
 
-def generate_session_token():
-    # Generate a secure 28-character token (similar length to example)
-    token = secrets.token_urlsafe(21)  # 21 chars gives ~28-char base64 string
-    # Calculate timestamp 2 days (in ms) from now
-    expires_at = int((time.time() + 2 * 86400) * 1000)
-    # Combine token and timestamp
-    combined = f"{token}:{expires_at}"
-    # URL-encode the value
-    encoded = urllib.parse.quote(combined)
-    return f"at={encoded}"
