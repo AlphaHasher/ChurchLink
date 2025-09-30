@@ -8,6 +8,7 @@ class RoleHandler:
         "event_editing":False,
         "event_management":False,
         "media_management":False,
+    "sermon_editing": False,
 
     }
 
@@ -15,12 +16,25 @@ class RoleHandler:
     async def verify_admin_role():
         roleCheck = await RoleHandler.find_role("Administrator")
         if roleCheck and len(roleCheck) == 1:
+            existing_role = roleCheck[0]
+            permissions = existing_role.get("permissions", {}).copy()
+            updated = False
+            for key in RoleHandler.permission_template:
+                if not permissions.get(key, False):
+                    permissions[key] = True
+                    updated = True
+            if updated:
+                await RoleHandler.update_role(
+                    str(existing_role["_id"]),
+                    existing_role["name"],
+                    [perm for perm, enabled in permissions.items() if enabled],
+                )
             return
         else:
             perms = RoleHandler.permission_template.copy()
-            for key, value in perms.items():
+            for key in perms:
                 perms[key] = True
-            await RoleHandler.create_role("Administrator", perms)
+            await RoleHandler.create_role("Administrator", list(perms.keys()))
 
     @staticmethod
     async def infer_permissions(role_ids):
@@ -77,6 +91,23 @@ class RoleHandler:
                     returnable_roles.append(role)
         return returnable_roles
         
+
+    @staticmethod
+    async def get_user_sermon_editor_roles(role_ids, perms):
+        returnable_roles = []
+        roles = await RoleHandler.find_roles_with_permissions(['sermon_editing'])
+        if perms['admin']:
+            returnable_roles = roles.copy()
+            admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])
+            for role in admin_roles:
+                if role in returnable_roles:
+                    returnable_roles.remove(role)
+        else:
+            for role in roles:
+                if str(role['_id']) in role_ids:
+                    returnable_roles.append(role)
+        return returnable_roles
+
 
 
     @staticmethod

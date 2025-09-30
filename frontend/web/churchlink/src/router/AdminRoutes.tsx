@@ -23,6 +23,7 @@ const EditFooterSection = lazy(() => import("../features/admin/components/WebBui
 const AddFooterSection = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AddFooterSection"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
+const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
@@ -41,6 +42,7 @@ export const AdminRoutes = () => {
         <Route path="/notifications" element={<Notification />} />
         <Route path="/events" element={<Events />} />
         <Route path="/finance" element={<Finance />} />
+        <Route path="/sermons" element={<Sermons />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/mobile-ui-tab" element={<MobileUITab />} />

@@ -15,6 +15,7 @@ import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/services/FirebaseMessaging_service.dart';
 import 'package:provider/provider.dart';
+import 'package:app/providers/sermons_provider.dart';
 import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/services/deep_linking_service.dart';
@@ -144,13 +145,13 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!tabProvider.isLoaded || tabProvider.tabs.isEmpty) {
       return [const DashboardPage()]; // Fallback
     }
-    
+
     return tabProvider.tabs.map((tab) {
       final tabName = tab['name'] as String;
       return _getScreenForTab(tabName.toLowerCase());
     }).toList();
   }
-  
+
   Widget _getScreenForTab(String tabName) {
     switch (tabName) {
       case 'home':
@@ -181,7 +182,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     final tabProvider = Provider.of<TabProvider>(context);
-    
+
     // Show loading indicator if tabs haven't loaded yet
     if (!tabProvider.isLoaded) {
       return const Scaffold(
@@ -190,7 +191,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       );
     }
-    
+
     return Scaffold(
       body: _screens[tabProvider.currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -217,7 +218,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final name = tab['name'] as String;
       final displayName = tab['displayName'] as String? ?? name; // fallback to name if displayName is null
       final iconName = tab['icon'] as String? ?? name; // fallback to name if icon is null
-      
+
       return BottomNavigationBarItem(
         label: displayName,
         icon: _getTabIcon(name, iconName, false),
@@ -250,7 +251,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'event':
       case 'events':
         return Icon(
-          Icons.event, 
+          Icons.event,
           color: isActive ? Colors.white : Colors.white70,
         );
       case 'person':
