@@ -4,7 +4,7 @@ import { useMyEvents } from '../hooks/useMyEvents';
 import { MyEventCard } from '../components/MyEventCard';
 import { EventFiltersComponent } from '../components/EventFilters';
 import { EventDetailsModal } from '../components/EventDetailsModal';
-import { myEventsApi } from '@/api/myEventsApi';
+import { myEventsApi } from '@/features/events/api/myEventsApi';
 import Layout from '@/shared/layouts/Layout';
 import { MyEvent, EventFilters, GroupedEvent } from '../types/myEvents';
 
@@ -191,7 +191,7 @@ export default function MyEventsPage() {
                   <MyEventCard
                     groupedEvent={createGroupedEvent(eventRef)}
                     onClick={() => handleEventClick(eventRef)}
-                    onCancelRSVP={async () => await handleCancelRSVP(eventRef)}
+                    // onCancelRSVP={async () => await handleCancelRSVP(eventRef)}
                   />
                 </motion.div>
               );

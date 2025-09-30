@@ -5,6 +5,11 @@ import '../widgets/my_event_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'event_showcase.dart';
 import '../models/event.dart' as event_model;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:android_intent_plus/android_intent.dart';
 
 class MyEventsPage extends StatefulWidget {
   const MyEventsPage({super.key});
@@ -208,7 +213,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
             children: [
               Expanded(
                 child: _buildFilterChip(
-                  label: 'Upcoming',
+                  label: 'Show Upcoming',
                   isSelected: _filters.showUpcoming,
                   onTap:
                       () => setState(() {
@@ -222,7 +227,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildFilterChip(
-                  label: 'Past',
+                  label: 'Show Past',
                   isSelected: _filters.showPast,
                   onTap:
                       () => setState(() {
@@ -236,7 +241,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildFilterChip(
-                  label: 'Family',
+                  label: 'Toggle Family',
                   isSelected: _filters.showFamily,
                   onTap:
                       () => setState(() {
@@ -266,17 +271,39 @@ class _MyEventsPageState extends State<MyEventsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
-          color: isSelected ? ssbcGray : Colors.grey[200],
+          color: isSelected ? ssbcGray : Colors.grey[350],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? ssbcGray : Colors.grey[300]!),
+          border: Border.all(
+            color: isSelected ? ssbcGray.withOpacity(0.9) : Colors.grey[300]!,
+            width: isSelected ? 1.25 : 1.0,
+          ),
+          boxShadow:
+              isSelected
+                  ? [
+                    // very subtle elevation when active
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : null,
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
+            color:
+                isSelected
+                    ? Colors.white
+                    : const Color.fromARGB(221, 78, 78, 78),
             fontSize: 12,
             fontWeight: FontWeight.w500,
+            decoration:
+                isSelected ? TextDecoration.underline : TextDecoration.none,
+            decorationColor: isSelected ? Colors.white.withOpacity(0.95) : null,
+            decorationThickness: isSelected ? 1.5 : null,
+            decorationStyle: TextDecorationStyle.solid,
           ),
         ),
       ),
@@ -330,73 +357,105 @@ class _MyEventsPageState extends State<MyEventsPage> {
       itemCount: _filteredEvents.length,
       itemBuilder: (context, index) {
         final eventRef = _filteredEvents[index];
-        return MyEventCard(
-          eventRef: eventRef,
-          onTap: () async {
-            // Capture navigator before any async gaps so we don't use BuildContext after awaits
-            final navigator = Navigator.of(context);
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            MyEventCard(
+              eventRef: eventRef,
+              onTap: () async {
+                final navigator = Navigator.of(context);
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    await user.getIdToken();
+                  }
+                } catch (_) {}
+                if (!mounted) return;
 
-            // Try to refresh auth token so the ApiClient interceptor has a valid token
-            try {
-              final user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                await user.getIdToken();
-              }
-            } catch (_) {
-              // Ignore token refresh errors; EventShowcase will handle unauthenticated state
-            }
+                final d = eventRef.event;
+                if (d == null) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Event details could not be loaded. Please try again later.')),
+                  );
+                  return;
+                }
 
-            if (!mounted) return;
+                final evt = event_model.Event(
+                  id: d.id.isNotEmpty ? d.id : eventRef.eventId,
+                  name: d.name,
+                  ruName: d.ruName,
+                  description: d.description,
+                  ruDescription: d.ruDescription,
+                  date: d.date,
+                  location: d.location,
+                  price: d.price,
+                  ministry: d.ministry,
+                  minAge: d.minAge,
+                  maxAge: d.maxAge,
+                  gender: d.gender,
+                  imageUrl: d.imageUrl,
+                  spots: d.spots,
+                  rsvp: d.rsvp,
+                  recurring: d.recurring,
+                  roles: d.roles,
+                  published: d.published,
+                  seatsTaken: d.seatsTaken,
+                  attendeeKeys: d.attendeeKeys,
+                  attendees: d.attendees,
+                );
 
-            // Convert MyEventDetails -> Event model expected by EventShowcase
-            final d = eventRef.event;
-            if (d == null) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Event details could not be loaded. Please try again later.',
-                  ),
-                ),
-              );
-              return;
-            }
+                await navigator.push(MaterialPageRoute(builder: (context) => EventShowcase(event: evt)));
+                if (mounted) _loadEvents();
+              },
+              onCancel: () => _cancelRsvp(eventRef),
+            ),
 
-            final evt = event_model.Event(
-              id: d.id.isNotEmpty ? d.id : eventRef.eventId,
-              name: d.name,
-              ruName: d.ruName,
-              description: d.description,
-              ruDescription: d.ruDescription,
-              date: d.date,
-              location: d.location,
-              price: d.price,
-              ministry: d.ministry,
-              minAge: d.minAge,
-              maxAge: d.maxAge,
-              gender: d.gender,
-              imageUrl: d.imageUrl,
-              spots: d.spots,
-              rsvp: d.rsvp,
-              recurring: d.recurring,
-              roles: d.roles,
-              published: d.published,
-              seatsTaken: d.seatsTaken,
-              attendeeKeys: d.attendeeKeys,
-              attendees: d.attendees,
-            );
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: IconButton(
+                tooltip: 'Add to Calendar',
+                icon: const Icon(Icons.calendar_month_outlined),
+                onPressed: () async {
+                  final d = eventRef.event;
+                  if (d == null) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Event details could not be loaded. Please try again later.')),
+                    );
+                    return;
+                  }
 
-            // Push the EventShowcase page. EventShowcase will manage auth-sensitive content.
-            await navigator.push(
-              MaterialPageRoute(
-                builder: (context) => EventShowcase(event: evt),
+                  final evt = event_model.Event(
+                    id: d.id.isNotEmpty ? d.id : eventRef.eventId,
+                    name: d.name,
+                    ruName: d.ruName,
+                    description: d.description,
+                    ruDescription: d.ruDescription,
+                    date: d.date,
+                    location: d.location,
+                    price: d.price,
+                    ministry: d.ministry,
+                    minAge: d.minAge,
+                    maxAge: d.maxAge,
+                    gender: d.gender,
+                    imageUrl: d.imageUrl,
+                    spots: d.spots,
+                    rsvp: d.rsvp,
+                    recurring: d.recurring,
+                    roles: d.roles,
+                    published: d.published,
+                    seatsTaken: d.seatsTaken,
+                    attendeeKeys: d.attendeeKeys,
+                    attendees: d.attendees,
+                  );
+
+                  _onAddToCalendar(evt);
+                },
               ),
-            );
-
-            // Refresh after returning (if still mounted)
-            if (mounted) _loadEvents();
-          },
-          onCancel: () => _cancelRsvp(eventRef),
+            ),
+          ],
         );
       },
     );
@@ -438,5 +497,90 @@ class _MyEventsPageState extends State<MyEventsPage> {
         ],
       ),
     );
+  }
+
+  // Generate + open/share an .ics file (iOS + Android fallback)
+  Future<void> _shareIcsForEvent(event_model.Event event) async {
+    final DateTime startUtc = event.date.toUtc();
+    final DateTime endUtc = startUtc.add(const Duration(hours: 1));
+
+    String two(int n) => n.toString().padLeft(2, '0');
+    String fmt(DateTime dt) =>
+        '${dt.year}${two(dt.month)}${two(dt.day)}T${two(dt.hour)}${two(dt.minute)}${two(dt.second)}Z';
+    String esc(String s) => s
+        .replaceAll('\\', '\\\\')
+        .replaceAll('\n', '\\n')
+        .replaceAll(',', '\\,')
+        .replaceAll(';', '\\;');
+
+    final ics = '''
+  BEGIN:VCALENDAR
+  VERSION:2.0
+  PRODID:-//ChurchLink//Events//EN
+  BEGIN:VEVENT
+  UID:${event.id}@churchlink
+  DTSTAMP:${fmt(DateTime.now().toUtc())}
+  DTSTART:${fmt(startUtc)}
+  DTEND:${fmt(endUtc)}
+  SUMMARY:${esc(event.name)}
+  DESCRIPTION:${esc(event.description)}
+  LOCATION:${esc(event.location)}
+  BEGIN:VALARM
+  TRIGGER:-PT60M
+  ACTION:DISPLAY
+  DESCRIPTION:Reminder
+  END:VALARM
+  END:VEVENT
+  END:VCALENDAR
+  ''';
+
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/event_${event.id}.ics';
+    final file = File(path);
+    await file.writeAsString(ics);
+
+    final result = await OpenFilex.open(path);
+    if (result.type != ResultType.done) {
+      await Share.shareXFiles(
+        [XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics')],
+        subject: 'Add to Calendar',
+        text: 'Open this to add the event to your calendar.',
+      );
+    }
+  }
+
+  // ANDROID-ONLY: open the Calendar “insert event” screen
+  Future<bool> _openAndroidCalendarInsert(event_model.Event e, {String? packageName}) async {
+    try {
+      final start = e.date.toLocal();
+      final end = start.add(const Duration(hours: 1));
+      final intent = AndroidIntent(
+        action: 'android.intent.action.INSERT',
+        data: 'content://com.android.calendar/events',
+        package: packageName, // null => let Android pick
+        arguments: <String, dynamic>{
+          'title': e.name,
+          'description': e.description,
+          'eventLocation': e.location,
+          'beginTime': start.millisecondsSinceEpoch,
+          'endTime': end.millisecondsSinceEpoch,
+        },
+      );
+      await intent.launch();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _onAddToCalendar(event_model.Event event) async {
+    if (Platform.isAndroid) {
+      if (await _openAndroidCalendarInsert(event, packageName: 'com.google.android.calendar')) return;
+      if (await _openAndroidCalendarInsert(event)) return;
+      await _shareIcsForEvent(event);
+      return;
+    }
+    // iOS: share .ics
+    await _shareIcsForEvent(event);
   }
 }

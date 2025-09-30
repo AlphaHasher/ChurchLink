@@ -1,130 +1,66 @@
+
 from fastapi import APIRouter, Body
-from mongo.database import DB
-from firebase_admin import messaging
-from mongo.scheduled_notifications import (
-    schedule_notification, get_scheduled_notifications, remove_scheduled_notification, get_notification_history, log_notification
+from helpers.NotificationHelper import (
+    update_notification_settings as helper_update_notification_settings,
+    notification_history as helper_notification_history,
+    send_push_notification as helper_send_push_notification,
+    api_schedule_notification as helper_api_schedule_notification,
+    api_get_scheduled_notifications as helper_api_get_scheduled_notifications,
+    api_remove_scheduled_notification as helper_api_remove_scheduled_notification,
+    register_device_token as helper_register_device_token
 )
-from pydantic import BaseModel
 
-class FCMTokenRequest(BaseModel):
-    user_id: str
-    token: str
+from mongo.database import DB
 
-# Mod Protected Router from main
-# Consider changing to PermProtectedRouter down the line if perm is added
+
 public_notification_router = APIRouter(prefix="/notification", tags=["Notification Public Route"])
 private_notification_router = APIRouter(prefix="/notification", tags=["Notification Auth Route"], dependencies=[])
 
-# PUBLIC ROUTES
-# --- FCM Token Management (Public) ---
-@public_notification_router.post('/save-fcm-token')
-async def save_fcm_token(request: FCMTokenRequest):
-    result = await DB.db['fcm_tokens'].update_one(
-        {'user_id': request.user_id},
-        {'$set': {'token': request.token}},
-        upsert=True
+
+@public_notification_router.post('/registerToken')
+async def register_device_token(
+    token: str = Body(...),
+    platform: str = Body(...),
+    appVersion: str = Body(...),
+    userId: str = Body(default=None)
+):
+    return await helper_register_device_token(
+        token=token,
+        platform=platform,
+        appVersion=appVersion,
+        userId=userId
     )
-    return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
 
-# Mod Protected Router
-@private_notification_router.get('/get-fcm-tokens')
-async def get_fcm_tokens():
-    tokens = await DB.db['fcm_tokens'].find({}, {'_id': 0, 'token': 1, 'user_id': 1}).to_list(length=1000)
-    return tokens
 
-# --- Notification Settings ---
+@private_notification_router.post('/settings')
+async def update_notification_settings(streamNotificationMessage: str = Body(...), streamNotificationTitle: str = Body(...)):
+    return await helper_update_notification_settings(streamNotificationMessage, streamNotificationTitle)
 
-# Mod Protected Router
 @private_notification_router.get('/settings')
 async def get_notification_settings():
     doc = await DB.db["settings"].find_one({"type": "youtube"})
-    return {
-        "streamNotificationMessage": doc.get("streamNotificationMessage", "A new stream is live!") if doc else "A new stream is live!",
-        "streamNotificationTitle": doc.get("streamNotificationTitle", "YouTube Live Stream") if doc else "YouTube Live Stream"
-    }
+    if doc:
+        doc.pop('_id', None)
+    return doc or {}
 
-# Mod Protected Router
-# Add POST endpoint to update notification settings
-@private_notification_router.post('/settings')
-async def update_notification_settings(
-    streamNotificationMessage: str = Body(...),
-    streamNotificationTitle: str = Body(...)
-):
-    result = await DB.db["settings"].update_one(
-        {"type": "youtube"},
-        {"$set": {
-            "streamNotificationMessage": streamNotificationMessage,
-            "streamNotificationTitle": streamNotificationTitle
-        }},
-        upsert=True
-    )
-    return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
-
-# Mod Protected Router
-# --- Notification History ---
 @private_notification_router.get('/history')
 async def notification_history(limit: int = 100):
-    history = await get_notification_history(DB.db, limit)
-    for n in history:
-        if '_id' in n:
-            n['_id'] = str(n['_id'])
-    return history
+    return await helper_notification_history(limit)
 
-# Mod Protected Router
-# --- Send Push Notification (Instant) ---
 @private_notification_router.post('/send')
 async def send_push_notification(
     title: str = Body(...),
     body: str = Body(...),
     data: dict = Body(default={}),
     send_to_all: bool = Body(default=True),
-    token: str = Body(default=None)
+    token: str = Body(default=None),
+    eventId: str = Body(default=None),
+    link: str = Body(default=None),
+    route: str = Body(default=None),
+    actionType: str = Body(default="text")
 ):
-    responses = []
-    target = data.get('target', 'all')
-    query = {}
-    if send_to_all:
-        if target == 'anonymous':
-            query = {'user_id': 'anonymous'}
-        elif target == 'logged_in':
-            query = {'user_id': {'$ne': 'anonymous'}}
-        tokens_cursor = DB.db['fcm_tokens'].find(query, {'_id': 0, 'token': 1})
-        tokens = [doc['token'] for doc in await tokens_cursor.to_list(length=1000) if doc.get('token')]
-        for t in tokens:
-            message = messaging.Message(
-                notification=messaging.Notification(
-                    title=title,
-                    body=body,
-                ),
-                token=t,
-                data=data
-            )
-            try:
-                response = messaging.send(message)
-                responses.append({"token": t, "response": response})
-            except Exception as e:
-                responses.append({"token": t, "error": str(e)})
-        await log_notification(DB.db, title, body, "mobile", tokens, data.get("actionType"), data.get("link"), data.get("route"))
-        return {"success": True, "results": responses, "count": len(tokens)}
-    elif token:
-        message = messaging.Message(
-            notification=messaging.Notification(
-                title=title,
-                body=body,
-            ),
-            token=token,
-            data=data
-        )
-        try:
-            response = messaging.send(message)
-            return {"success": True, "response": response}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    else:
-        return {"success": False, "error": "No token provided and send_to_all is False."}
+    return await helper_send_push_notification(title, body, data, send_to_all, token, eventId, link, route, actionType)
 
-# Mod Protected Router
-# --- Schedule Notification ---
 @private_notification_router.post('/schedule')
 async def api_schedule_notification(
     title: str = Body(...),
@@ -132,33 +68,18 @@ async def api_schedule_notification(
     scheduled_time: str = Body(...),
     send_to_all: bool = Body(default=True),
     token: str = Body(default=None),
-    data: dict = Body(default={})
+    data: dict = Body(default={}),
+    eventId: str = Body(default=None),
+    link: str = Body(default=None),
+    route: str = Body(default=None),
+    actionType: str = Body(default="text")
 ):
-    payload = {
-        "title": title,
-        "body": body,
-        "scheduled_time": scheduled_time,
-        "send_to_all": send_to_all,
-        "token": token,
-        "data": data,
-        "sent": False
-    }
-    notification_id = await schedule_notification(DB.db, payload)
-    return {"success": True, "id": notification_id}
+    return await helper_api_schedule_notification(title, body, scheduled_time, send_to_all, token, data, eventId, link, route, actionType)
 
-# Mod Protected Router
-# --- List Scheduled Notifications ---
 @private_notification_router.get('/scheduled')
 async def api_get_scheduled_notifications():
-    notifications = await get_scheduled_notifications(DB.db)
-    for n in notifications:
-        if '_id' in n:
-            n['_id'] = str(n['_id'])
-    return notifications
+    return await helper_api_get_scheduled_notifications()
 
-# Mod Protected Router
-# --- Remove Scheduled Notification ---
 @private_notification_router.delete('/scheduled/{notification_id}')
 async def api_remove_scheduled_notification(notification_id: str):
-    success = await remove_scheduled_notification(DB.db, notification_id)
-    return {"success": success}
+    return await helper_api_remove_scheduled_notification(notification_id)

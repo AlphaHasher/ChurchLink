@@ -6,6 +6,7 @@ import '../models/family_member.dart';
 import '../models/event_registration_summary.dart';
 import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
+import '../providers/tab_provider.dart';
 import 'user/family_members_page.dart';
 
 class EventShowcase extends StatefulWidget {
@@ -19,7 +20,7 @@ class EventShowcase extends StatefulWidget {
 
 class _EventShowcaseState extends State<EventShowcase> {
   List<FamilyMember> _familyMembers = [];
-  Set<String> _selectedRegistrants = {};
+  final Set<String> _selectedRegistrants = {};
   bool _isRegistering = false;
   bool _isUserRegistered = false;
   Map<String, bool> _familyMemberRegistrations = {};
@@ -945,6 +946,20 @@ class _EventShowcaseState extends State<EventShowcase> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Since we used pushAndRemoveUntil, we should always be able to pop
+            // If not, ensure we go back to the Events tab
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              // Fallback: navigate to Events tab and then to home
+              TabProvider.instance?.setTabByName('events');
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+            }
+          },
+        ),
       ),
       backgroundColor: const Color.fromARGB(255, 240, 240, 240),
       body: SingleChildScrollView(
@@ -981,7 +996,7 @@ class _EventShowcaseState extends State<EventShowcase> {
       width: double.infinity,
       child: Stack(
         children: [
-          // TODO: Implement image loading from uploads API endpoint
+          // Load image from uploads API endpoint
           // For now, always show placeholder until backend image serving is implemented
           _buildImagePlaceholder(),
           // Registration button positioned in bottom right

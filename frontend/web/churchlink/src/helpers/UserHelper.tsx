@@ -52,7 +52,32 @@ export const fetchUsers = async () => {
     }
 };
 
+export const fetchUserNameByUId = async (userId: string) => {
+    try {
+        const res = await api.get(`/v1/users/get-user-by-uid/${userId}`);
+        const user = res.data;
+        if (user && user.first_name && user.last_name) {
+            return [user.first_name, user.last_name, user.email];
+        } else if (user && (user.first_name || user.last_name)) {
+            return [user.first_name || '', user.last_name || '', user.email].filter(Boolean);
+        } else {
+            return [userId, user?.email || ''];
+        }
+    } catch (err) {
+        console.error("Failed to fetch user by ID:", err);
+        return [userId, ''];
+    }
+}
 
+export const fetchUserInfoByUId = async (userId: string) => {
+    try {
+        const res = await api.get(`/v1/users/get-user-by-uid/${userId}`);
+        return res.data;
+    } catch (err) {
+        console.error("Failed to fetch user info by ID:", err);
+        return null;
+    }
+}
 
 export const getMyPermissions = async (options?: MyPermsRequest) => {
     try {
@@ -71,6 +96,18 @@ export const getMyPermissions = async (options?: MyPermsRequest) => {
         return null;
     }
 };
+
+export const getIsInit = async () => {
+    try {
+        const res = await api.get("v1/users/is-init");
+        return res.data
+    }
+    catch (err) {
+        console.error("Failed to get init stats:", err);
+        return { "verified": false, "init": false, "msg": "Error!" }
+    }
+}
+
 
 export const getMyProfileInfo = async () => {
     try {

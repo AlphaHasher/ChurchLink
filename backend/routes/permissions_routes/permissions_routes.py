@@ -1,8 +1,5 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from controllers.permissions_functions import fetch_perms, create_role, RoleCreateInput, RoleUpdateInput, UserRoleUpdateInput, update_role, delete_role, update_user_roles
-
-from protected_routers.mod_protected_router import ModProtectedRouter
-from protected_routers.perm_protected_router import PermProtectedRouter
 
 permissions_view_router = APIRouter(prefix="/permissions", tags=["permissions"])
 

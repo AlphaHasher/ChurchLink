@@ -7,6 +7,8 @@ const ArticlesListPage = lazy(() => import("../features/articles/pages/ArticlesL
 const ArticlePage = lazy(() => import("../features/articles/pages/ArticlePage"));
 const Streams = lazy(() => import("../features/misc/pages/Streams"));
 const PaypalThankYouPage = lazy(() => import("../features/paypal/pages/thank-you"));
+const SermonsPage = lazy(() => import("../features/sermons/pages/SermonsPage"));
+const FormPublicPage = lazy(() => import("../features/forms/pages/FormPublic"));
 
 export const PublicRoutes = () => {
   return (
@@ -21,6 +23,8 @@ export const PublicRoutes = () => {
         <Route path="live" element={<Streams />} />
         
         <Route path="thank-you" element={<PaypalThankYouPage />} />
+        <Route path="forms/:slug" element={<FormPublicPage />} />
+        <Route path="sermons" element={<SermonsPage />} />
       </Routes>
     </Layout>
   );

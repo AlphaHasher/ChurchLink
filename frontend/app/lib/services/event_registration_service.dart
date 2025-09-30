@@ -1,5 +1,4 @@
 import '../helpers/api_client.dart';
-import '../models/event_registration_details.dart';
 import '../models/event_registration_summary.dart';
 
 class EventRegistrationService {

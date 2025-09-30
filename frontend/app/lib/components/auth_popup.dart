@@ -1,5 +1,6 @@
 import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../firebase/firebase_auth_service.dart';
 import '../pages/user/use_email.dart';
 
@@ -135,22 +136,28 @@ class AuthPopup extends StatelessWidget {
   }
 
   void _continueWithGoogle(BuildContext context) async {
-    final authController = AuthController(); // or inject it however you like
-
-    bool verified = await authController.loginWithGoogleAndSync((
-      String errorMsg,
-    ) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+    try {
+      final String? token = await authService.signInWithGoogle();
+      
+      if (token != null) {
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+                       
+      } else {
+        // Google Sign-In was cancelled or failed
+        debugPrint("Google Sign-In returned null (cancelled or failed)");
       }
-    });
-
-    if (verified && context.mounted) {
-      Navigator.pop(context);
-    } else {
-      //Verification failed.
+    } catch (e) {
+      debugPrint("Google Sign-In error: $e");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign-in failed. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
