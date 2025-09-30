@@ -26,6 +26,7 @@ class UserBase(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    verified: bool
     phone: Optional[str] = None
     birthday: Optional[datetime] = None
     address: AddressSchema = Field(default_factory=AddressSchema)

@@ -28,14 +28,15 @@ class FirebaseSyncer:
             # If the email is incorrect in our local database, add it to the data update
             if checkUser['email'] != user['email']:
                 updateData['email'] = user['email']
+            # If the user now has google ensure they are verified
+            if (user['has_google'] or user['email_verified']) and not checkUser['verified']:
+                updateData['verified'] = True
             # Call the update data function if the requested amount of data to update is more than zero
             if len(updateData.items()) > 0:
                 await User.update_user(filterQuery, updateData)
             return
         else:
-            # If the user doesnt exist locally, create it.
-            # TODO Handle "real" name information
-            await User.create_user(first_name="Fake", last_name="Name", email=user['email'], uid = user['uid'], roles=[])
+            await User.create_user(first_name="Fake", last_name="Name", email=user['email'], uid = user['uid'], roles=[], verified=(user['has_google'] or user['email_verified']))
 
     # Method that syncs one particular user only by a requested UID
     @staticmethod
@@ -51,29 +52,43 @@ class FirebaseSyncer:
 
 
     # Method that fetches the users from FireBase
-    # Returns a list of dictionary objects with "email" and "uid" (the parts relevant to MongoDB)
+    # Returns a list of dictionary objects with "email", "uid", "has_google", and "email_verified"
     @staticmethod
     async def fetchFirebaseData():
         users = []
         page = auth.list_users()
         while page:
             for user in page.users:
+                has_google = any(
+                    (info.provider_id == "google.com")
+                    for info in (user.provider_data or [])
+                )
                 users.append({
                     "email": user.email,
-                    "uid": user.uid
+                    "uid": user.uid,
+                    "has_google": has_google,
+                    "email_verified": bool(user.email_verified),
                 })
             page = page.get_next_page()
         return users
-    
+
     # Method that fetches 1 particular user from FireBase
-    # Returns a single dictionary object with "email" and "uid"
+    # Returns a single dictionary object with "email", "uid", "has_google", and "email_verified"
     @staticmethod
     async def fetchFirebaseUserByUID(uid):
         try:
-            user = auth.get_user(uid)
+            user = auth.get_user(uid)  # firebase_admin.auth.UserRecord
+            has_google = any(
+                (info.provider_id == "google.com")
+                for info in (user.provider_data or [])
+            )
             return {
                 "email": user.email,
-                "uid": user.uid
+                "uid": user.uid,
+                "has_google": has_google,
+                "email_verified": bool(user.email_verified),
             }
         except auth.UserNotFoundError:
             return None
+
+

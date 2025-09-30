@@ -7,7 +7,9 @@ from typing import ClassVar
 class HeaderLink(BaseModel):
     title: str
     russian_title: str
-    url: str
+    url: Optional[str] = None  # For backward compatibility and hardcoded URLs
+    slug: Optional[str] = None  # For linking to pages by slug
+    is_hardcoded_url: bool = False  # Flag to indicate if URL is hardcoded or should use slug navigation
     type: ClassVar[str] = "link"
     visible: Optional[bool] = True
 
@@ -53,7 +55,9 @@ async def get_header() -> Optional[Header]:
                     header_items[item["index"]] = HeaderLink(
                         title=item["title"],
                         russian_title=item["russian_title"],
-                        url=item["url"],
+                        url=item.get("url"),
+                        slug=item.get("slug"),
+                        is_hardcoded_url=item.get("is_hardcoded_url", False),
                         visible=item["visible"]
                     )
 
@@ -89,7 +93,9 @@ async def get_header_items() -> Optional[Header]:
                 header_items[item["index"]] = HeaderLink(
                     title=item["title"],
                     russian_title=item["russian_title"],
-                    url=item["url"],
+                    url=item.get("url"),
+                    slug=item.get("slug"),
+                    is_hardcoded_url=item.get("is_hardcoded_url", False),
                     visible=item["visible"]
                 )
 
@@ -116,7 +122,13 @@ async def get_item_by_title(title: str) -> Optional[Union[HeaderLink, HeaderDrop
         if item["type"] == "dropdown":
             return HeaderDropdown(title=item["title"], russian_title=item["russian_title"], items=item["items"])
         elif item["type"] == "link":
-            return HeaderLink(title=item["title"], russian_title=item["russian_title"], url=item["url"])
+            return HeaderLink(
+                title=item["title"],
+                russian_title=item["russian_title"],
+                url=item.get("url"),
+                slug=item.get("slug"),
+                is_hardcoded_url=item.get("is_hardcoded_url", False)
+            )
 
         return None
     except Exception as e:
@@ -137,7 +149,14 @@ async def get_item_by_index(index: int) -> Optional[Union[HeaderLink, HeaderDrop
         if item["type"] == "dropdown":
             return HeaderDropdown(title=item["title"], russian_title=item["russian_title"], items=item["items"], visible=item.get("visible", True))
         elif item["type"] == "link":
-            return HeaderLink(title=item["title"], russian_title=item["russian_title"], url=item["url"], visible=item.get("visible", True))
+            return HeaderLink(
+                title=item["title"],
+                russian_title=item["russian_title"],
+                url=item.get("url"),
+                slug=item.get("slug"),
+                is_hardcoded_url=item.get("is_hardcoded_url", False),
+                visible=item.get("visible", True)
+            )
         return None
     except Exception as e:
         print(f"Error getting header item by index: {e}")
@@ -148,10 +167,23 @@ async def add_link(item: dict) -> bool:
     Adds a new navigation item to the header.
     """
     try:
-        item_input = item
-        item_input["type"] = "link"
-        item_input["index"] = len(await DB.find_documents(db_path, {}))
-        item_input["updated_at"] = datetime.utcnow()
+        item_input = {
+            "title": item["title"],
+            "russian_title": item["russian_title"],
+            "type": "link",
+            "index": len(await DB.find_documents(db_path, {})),
+            "visible": item.get("visible", True),
+            "updated_at": datetime.utcnow()
+        }
+
+        # Handle slug vs hardcoded URL
+        if item.get("is_hardcoded_url", False):
+            item_input["url"] = item.get("url", "")
+            item_input["is_hardcoded_url"] = True
+        else:
+            item_input["slug"] = item.get("slug", "")
+            item_input["is_hardcoded_url"] = False
+
         res = await DB.insert_document(db_path, item_input)
         return res is not None
     except Exception as e:
@@ -163,16 +195,29 @@ async def add_dropdown(item: dict) -> bool:
     Adds a new dropdown navigation item to the header.
     """
     try:
+        # Process dropdown items to handle slug vs hardcoded URL
+        processed_items = []
+        for subitem in item["items"]:
+            processed_item = {
+                "title": subitem.title,
+                "russian_title": subitem.russian_title,
+                "visible": getattr(subitem, 'visible', True)
+            }
+
+            # Handle slug vs hardcoded URL for dropdown items
+            if getattr(subitem, 'is_hardcoded_url', False):
+                processed_item["url"] = getattr(subitem, 'url', "")
+                processed_item["is_hardcoded_url"] = True
+            else:
+                processed_item["slug"] = getattr(subitem, 'slug', "")
+                processed_item["is_hardcoded_url"] = False
+
+            processed_items.append(processed_item)
+
         res = await DB.insert_document(db_path, {
             "title": item["title"],
             "russian_title": item["russian_title"],
-            "items": [
-                {
-                    "title": subitem.title,
-                    "russian_title": subitem.russian_title,
-                    "url": subitem.url
-                } for subitem in item["items"]
-            ],
+            "items": processed_items,
             "visible": item.get("visible", True),
             "type": "dropdown",
             "index": len(await DB.find_documents(db_path, {})),

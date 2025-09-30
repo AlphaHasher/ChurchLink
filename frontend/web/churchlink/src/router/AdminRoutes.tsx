@@ -12,17 +12,13 @@ const Permissions = lazy(() => import("../features/admin/pages/Permissions"));
 const Notification = lazy(() => import("../features/admin/pages/Notification"));
 const Finance = lazy(() => import("../features/admin/pages/Finance"));
 const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
-const AddPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AddPage"));
 const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditPage"));
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
-const EditHeaderItem = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeaderItem"));
-const AddHeaderItem = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AddHeaderItem"));
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
-const EditFooterSection = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooterSection"));
-const AddFooterSection = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AddFooterSection"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
+const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
@@ -41,22 +37,17 @@ export const AdminRoutes = () => {
         <Route path="/notifications" element={<Notification />} />
         <Route path="/events" element={<Events />} />
         <Route path="/finance" element={<Finance />} />
+        <Route path="/sermons" element={<Sermons />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/mobile-ui-tab" element={<MobileUITab />} />
-        <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/forms/form-builder" element={<FormBuilder />} />
         <Route path="/forms/manage-forms" element={<ManageForms />} />
         <Route path="/forms/responses" element={<FormResponses />} />
-        {/** Add Page is now an inline dialog within the Web Builder page list */}
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
         <Route path="/webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
-        <Route path="/webbuilder/header/edit/:title" element={<EditHeaderItem />} />
-        <Route path="/webbuilder/header/add" element={<AddHeaderItem />} />
         <Route path="/webbuilder/footer" element={<WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>} />
-        <Route path="/webbuilder/footer/edit/:title" element={<EditFooterSection />} />
-        <Route path="/webbuilder/footer/add" element={<AddFooterSection />} />
       </Route>
     </Routes>
   );

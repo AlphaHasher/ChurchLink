@@ -10,6 +10,7 @@ import { useAuth } from "@/features/auth/hooks/auth-context";
 import { Link } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
 import AvatarImg from "./AvatarImg";
+import { useSidebar } from "@/shared/components/ui/sidebar";
 
 interface ProfilePillProps {
   className?: string;
@@ -17,6 +18,8 @@ interface ProfilePillProps {
 
 export const ProfilePill = ({ className }: ProfilePillProps) => {
   const { user } = useAuth();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   // Helper function to get display name
   const getDisplayName = (): string => {
@@ -28,7 +31,12 @@ export const ProfilePill = ({ className }: ProfilePillProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className={`flex items-center gap-3 p-3 rounded-full border border-border bg-background hover:bg-accent cursor-pointer transition-colors ${className}`}>
+        <div
+          className={`flex items-center ${
+            isCollapsed ? "justify-center p-1.5" : "gap-3 p-3"
+          } rounded-full border border-border bg-background hover:bg-accent cursor-pointer transition-colors ${className}`}
+          title={!isCollapsed ? undefined : getDisplayName()}
+        >
           <Avatar className="h-8 w-8 rounded-full">
             <AvatarImg
               user={{
@@ -47,19 +55,21 @@ export const ProfilePill = ({ className }: ProfilePillProps) => {
                 .join("")}
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-sm font-medium truncate">
-              {getDisplayName()}
-            </span>
-            <span className="text-xs text-muted-foreground truncate">
-              {user?.email}
-            </span>
-          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-sm font-medium truncate">
+                {getDisplayName()}
+              </span>
+              <span className="text-xs text-muted-foreground truncate">
+                {user?.email}
+              </span>
+            </div>
+          )}
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         className="w-56"
-        align="start"
+        align={isCollapsed ? "center" : "start"}
         side="top"
       >
         <DropdownMenuItem asChild>

@@ -4,7 +4,7 @@
 export class DB {
   private static db: IDBDatabase | null = null;
   private static dbName = 'ChurchLinkCache';
-  private static version = 2;
+  private static version = 4;
   private static encryptionDisabled: Set<string> = new Set();
 
   /**

@@ -3,15 +3,17 @@ import { Canvas } from "./Canvas";
 import { PreviewRendererClient } from "./PreviewRendererClient";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from '@/features/auth/hooks/auth-context';
 import { useBuilderStore } from "./store";
+import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth } from "./types";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from '@/shared/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
-import { Save as SaveIcon, MoreHorizontal, Upload, Download, Trash } from 'lucide-react';
+import { Save as SaveIcon, MoreHorizontal, Upload, Download, Trash, Maximize2, Minimize2 } from 'lucide-react';
 import { Alert } from '@/shared/components/ui/alert';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import {
@@ -30,6 +32,8 @@ export function BuilderShell() {
   const schema = useBuilderStore((s) => s.schema);
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
+  const updateSchemaMeta = useBuilderStore((s) => s.updateSchemaMeta);
+  const formWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
   const availableLocales = useMemo(() => {
     const set = new Set<string>();
     const dl = (schema as any)?.defaultLocale || 'en';
@@ -61,8 +65,12 @@ export function BuilderShell() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showUpdateConfirmDialog, setShowUpdateConfirmDialog] = useState(false);
-  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], data: [] }));
+  const [previewExpanded, setPreviewExpanded] = useState(false);
+  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
+  const widthOptions = FORM_WIDTH_VALUES.map((value) => ({ value, label: `${value}%` }));
+  const handleFormWidthChange = (value: string) => {
+    updateSchemaMeta({ formWidth: normalizeFormWidth(value) });
+  };
 
   const getCurrentFormId = () => {
     const params = new URLSearchParams(window.location.search);
@@ -75,6 +83,28 @@ export function BuilderShell() {
       return () => clearTimeout(t);
     }
   }, [status]);
+
+  useEffect(() => {
+    if (!previewExpanded) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [previewExpanded]);
+
+  useEffect(() => {
+    if (!previewExpanded) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPreviewExpanded(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [previewExpanded]);
 
   const authCtx = useAuth();
 
@@ -108,19 +138,21 @@ export function BuilderShell() {
         const form = resp.data;
         if (form && form.data) {
           const dataArray = Array.isArray(form.data) ? form.data : (form.data?.data || []);
+          const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
           setSchema({
             title: form.title || '',
             description: form.description || '',
             folder: form.folder || null,
             defaultLocale: form.defaultLocale || 'en',
             locales: form.locales || [],
+            formWidth: formWidthValue,
             data: dataArray,
           } as any);
           setFormName(form.title || '');
           setDescription(form.description || '');
           setFolder(form.folder || null);
           setStatus(null);
-          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', folder: form.folder || null, defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], data: dataArray });
+          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', folder: form.folder || null, defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], formWidth: formWidthValue, data: dataArray });
         }
       } catch (err) {
         console.error('Failed to load form', err);
@@ -142,15 +174,16 @@ export function BuilderShell() {
       resetToBlank();
       return;
     }
-  const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: dataArray });
-  const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], data: [] });
+    const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: dataArray });
+    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] });
     if (isDirty) setShowDiscardDialog(true);
     else resetToBlank();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetToBlank = () => {
-  const blank: any = { title: '', description: '', folder: null, defaultLocale: 'en', locales: [], data: [] };
+  const blank: any = { title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
     setSchema(blank);
     setFormName('');
     setDescription('');
@@ -160,35 +193,26 @@ export function BuilderShell() {
 
   // Track dirty state and expose it for manager page via localStorage
   useEffect(() => {
-  const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: (schema as any)?.data || [] });
+    const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: (schema as any)?.data || [] });
     const isDirtyNow = snapshot !== lastSavedSnapshotRef.current;
     try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch {}
   }, [schema, formName, description, folder]);
 
   const handleSave = async () => {
-  // Persist name, folder and description into top-level schema so it stays with exported JSON
-  const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
-  setSchema(newSchema as any);
+    // Persist name, folder and description into top-level schema so it stays with exported JSON
+    const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
+    setSchema(newSchema as any);
 
-    const currentFormId = getCurrentFormId();
-    
-    // If editing existing form, check folder and show confirmation dialog
-    if (currentFormId) {
-      if (!folder) {
-        setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' });
-        return;
-      }
-      setShowUpdateConfirmDialog(true);
+    if (!folder) {
+      setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' });
       return;
     }
 
-    // Otherwise open save dialog for creation (user can select folder there)
-    setSaveDialogOpen(true);
-  };
-
-  const performSave = async () => {
+    // Perform the actual save
     const currentFormId = getCurrentFormId();
-    
+    const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+
     try {
       setStatus({ type: 'info', title: 'Saving', message: 'Saving to server...' });
       const payload = {
@@ -196,6 +220,7 @@ export function BuilderShell() {
         description: description,
         folder,
         visible: true,
+        form_width: normalizedWidth,
         data: (schema as any)?.data || [],
       };
 
@@ -208,8 +233,9 @@ export function BuilderShell() {
         await api.post('/v1/forms/', payload);
         setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
       }
-      
-  lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: (schema as any)?.data || [] });
+
+      const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: (schema as any)?.data || [] });
     } catch (err: any) {
       console.error('Failed to save form to server', err);
       if (err?.response?.status === 409) {
@@ -229,16 +255,19 @@ export function BuilderShell() {
     if (!overrideTargetId) return;
     try {
       setStatus({ type: 'info', title: 'Overriding', message: 'Overriding existing form...' });
+      const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
       const updatePayload = {
         title: formName,
         description,
         folder,
         visible: true,
+        form_width: normalizedWidth,
         data: (schema as any)?.data || [],
       };
-  await api.put(`/v1/forms/${overrideTargetId}`, updatePayload);
-  setStatus({ type: 'success', message: 'Form overridden' });
-  lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: (schema as any)?.data || [] });
+      await api.put(`/v1/forms/${overrideTargetId}`, updatePayload);
+      setStatus({ type: 'success', message: 'Form overridden' });
+      const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: (schema as any)?.data || [] });
       // Refresh folders list just in case
       const foldersResp = await api.get('/v1/forms/folders');
       setFolders(foldersResp.data || []);
@@ -258,6 +287,7 @@ export function BuilderShell() {
       folder: (schema as any)?.folder || null,
       defaultLocale: (schema as any)?.defaultLocale || 'en',
       locales: (schema as any)?.locales || [],
+      formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH),
       data: (schema as any)?.data || [],
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
@@ -277,6 +307,7 @@ export function BuilderShell() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
+        // Only support the canonical shape: top-level `data` array
         if (parsed && Array.isArray(parsed.data)) {
           setSchema({
             title: parsed.title || '',
@@ -284,6 +315,7 @@ export function BuilderShell() {
             folder: parsed.folder || null,
             defaultLocale: parsed.defaultLocale || 'en',
             locales: parsed.locales || [],
+            formWidth: normalizeFormWidth(parsed.formWidth ?? parsed.form_width ?? DEFAULT_FORM_WIDTH),
             data: parsed.data,
           });
           if (parsed.title) setFormName(parsed.title);
@@ -300,6 +332,33 @@ export function BuilderShell() {
     reader.readAsText(file);
     e.currentTarget.value = "";
   };
+
+  const previewOverlay = previewExpanded
+    ? createPortal(
+        <div className="fixed inset-0 z-[100] bg-background">
+          <div className="absolute right-4 top-4 flex items-center">
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="rounded-full shadow-lg"
+              onClick={() => setPreviewExpanded(false)}
+              aria-label="Collapse preview"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex h-full w-full flex-col overflow-auto p-6">
+            <div className="mx-auto w-full max-w-6xl">
+              <ErrorBoundary>
+                <PreviewRendererClient />
+              </ErrorBoundary>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
+    : null;
   return (
     <ErrorBoundary>
       <div className="p-2">
@@ -310,7 +369,7 @@ export function BuilderShell() {
           </div>
           <div className="flex items-center gap-2">
             {/* Status Alert to the left of Save button */}
-              {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && !showUpdateConfirmDialog && (
+              {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
               <div className="hidden md:block max-w-xs">
                 <Alert
                   variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
@@ -323,7 +382,7 @@ export function BuilderShell() {
               <Button variant="outline" onClick={() => setShowClearConfirm(true)} title="Clear form (start fresh)">
                 <Trash className="h-4 w-4 mr-2" /> Clear
               </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={() => setSaveDialogOpen(true)}>
               <SaveIcon className="h-4 w-4 mr-2" /> Save
             </Button>
             <DropdownMenu>
@@ -341,7 +400,7 @@ export function BuilderShell() {
           </div>
         </div>
         {/* Fallback status below header for smaller screens (hidden when dialog open) */}
-        {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && !showUpdateConfirmDialog && (
+        {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
           <div className="md:hidden mb-2">
             <Alert
               variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
@@ -412,7 +471,7 @@ export function BuilderShell() {
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
-              <Button onClick={async () => { if (!folder) { setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' }); return; } await performSave(); setSaveDialogOpen(false); }}>Save</Button>
+              <Button onClick={async () => { if (!folder) { setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' }); return; } await handleSave(); setSaveDialogOpen(false); }}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -469,21 +528,6 @@ export function BuilderShell() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        {/* Update existing form confirmation */}
-        <AlertDialog open={showUpdateConfirmDialog} onOpenChange={(open) => { if (!open) setShowUpdateConfirmDialog(false); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Update form?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to save changes to "{formName}"? This will update the existing form.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowUpdateConfirmDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={async () => { setShowUpdateConfirmDialog(false); await performSave(); }} className="bg-blue-600 hover:bg-blue-700">Update</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       <div className="grid grid-cols-12 gap-4 p-4">
         <div className="col-span-12 md:col-span-2">
           <ErrorBoundary>
@@ -500,9 +544,29 @@ export function BuilderShell() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Live Preview</CardTitle>
-                <div className="flex">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full"
+                    onClick={() => setPreviewExpanded(true)}
+                    aria-label="Expand preview"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                  <Select value={formWidth} onValueChange={handleFormWidthChange}>
+                    <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+                      <SelectValue placeholder="Width" />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {widthOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-                    <SelectTrigger className="h-8 w-[120px]">
+                    <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent align="end">
@@ -531,6 +595,7 @@ export function BuilderShell() {
           </Card>
         </div>
       </div>
+      {previewOverlay}
     </ErrorBoundary>
   );
 }
