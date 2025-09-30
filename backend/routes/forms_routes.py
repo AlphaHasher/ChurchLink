@@ -10,12 +10,14 @@ from models.form import (
     search_forms,
     create_folder,
     list_folders,
+    delete_folder,
     create_form,
     list_forms,
     get_form_by_id,
     update_form,
     delete_form,
     add_response_by_slug,
+    delete_form_responses,
     get_form_responses,
 )
 from mongo.database import DB
@@ -78,6 +80,15 @@ async def list_user_folders(request: Request):
     return await list_folders(uid)
 
 
+@mod_forms_router.delete('/folders/{folder_id}')
+async def delete_user_folder(folder_id: str, request: Request):
+    uid = request.state.uid
+    ok = await delete_folder(uid, folder_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
+    return {"message": "Folder deleted"}
+
+
 @mod_forms_router.get("/{form_id}", response_model=FormOut)
 async def get_form(form_id: str, request: Request) -> FormOut:
     uid = request.state.uid
@@ -128,6 +139,15 @@ async def remove_form(form_id: str, request: Request) -> dict:
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
     return {"message": "Form deleted"}
+
+
+@mod_forms_router.delete('/{form_id}/responses')
+async def purge_form_responses(form_id: str, request: Request) -> dict:
+    uid = request.state.uid
+    ok = await delete_form_responses(form_id, uid)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+    return {"message": "Responses deleted"}
 
 
 

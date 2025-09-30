@@ -13,22 +13,24 @@ load_dotenv()
 BASE_URL = os.getenv("BACKEND_URL")
 
 
-def test_save_fcm_token():
+
+def test_register_device_token():
     headers = get_auth_headers()
     response = httpx.post(
-        f"{BASE_URL}/api/v1/notification/save-fcm-token",
-        json={"user_id": "test-user-id", "token": "test-fcm-token"},
+        f"{BASE_URL}/api/v1/notification/registerToken",
+        json={
+            "token": "test-fcm-token",
+            "platform": "test-platform",
+            "appVersion": "test-version",
+            "userId": "test-user-id"
+        },
         headers=headers,
     )
     assert response.status_code == 200
     assert response.json().get("success") is True
 
 
-def test_get_fcm_tokens():
-    headers = get_auth_headers()
-    response = httpx.get(f"{BASE_URL}/api/v1/notification/get-fcm-tokens", headers=headers)
-    assert response.status_code == 200
-    assert isinstance(response.json(), list)
+
 
 
 def test_get_notification_settings():

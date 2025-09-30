@@ -1,6 +1,8 @@
+
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
+import Settings from "../features/admin/pages/Settings";
 import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
 
 
@@ -10,6 +12,7 @@ const Permissions = lazy(() => import("../features/admin/pages/Permissions"));
 const Notification = lazy(() => import("../features/admin/pages/Notification"));
 const Finance = lazy(() => import("../features/admin/pages/Finance"));
 const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
+const AddPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AddPage"));
 const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditPage"));
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
@@ -25,6 +28,8 @@ const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
 
+const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
+
 export const AdminRoutes = () => {
   return (
     <Routes>
@@ -37,6 +42,9 @@ export const AdminRoutes = () => {
         <Route path="/events" element={<Events />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/mobile-ui-tab" element={<MobileUITab />} />
+        <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/forms/form-builder" element={<FormBuilder />} />
         <Route path="/forms/manage-forms" element={<ManageForms />} />
         <Route path="/forms/responses" element={<FormResponses />} />

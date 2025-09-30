@@ -7,6 +7,15 @@ import '../services/event_registration_service.dart';
 import '../widgets/enhanced_event_card.dart';
 import 'event_showcase.dart';
 
+// ICS sharing + open
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
+
+// NEW: direct Android Calendar insert intent (skips chooser)
+import 'package:android_intent_plus/android_intent.dart';
+
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
 
@@ -38,14 +47,12 @@ class _EventsPageState extends State<EventsPage> {
   void initState() {
     super.initState();
 
-    //Utilized for entering text into filters
+    // Utilized for entering text into filters
     _nameController = TextEditingController(text: _nameQuery ?? '');
-    _maxPriceController = TextEditingController(
-      text: _maxPrice?.toString() ?? '',
-    );
+    _maxPriceController = TextEditingController(text: _maxPrice?.toString() ?? '');
     _ageController = TextEditingController(text: _age?.toString() ?? '');
 
-    //Adjust the date slider so that it only shows one year in advance from the current date
+    // Adjust the date slider so that it only shows one year in advance from the current date
     _minDate = DateTime.now();
     _maxDate = DateTime.now().add(const Duration(days: 365));
     final totalDays = _maxDate.difference(_minDate).inDays.toDouble();
@@ -82,20 +89,18 @@ class _EventsPageState extends State<EventsPage> {
     };
 
     // Always include upcoming-only events
-    queryParams['date_after'] =
-        _minDate
-            .add(Duration(days: _dateRange.start.round()))
-            .toIso8601String()
-            .split('T')
-            .first;
+    queryParams['date_after'] = _minDate
+        .add(Duration(days: _dateRange.start.round()))
+        .toIso8601String()
+        .split('T')
+        .first;
 
     if (_dateRange.end < totalDays) {
-      queryParams['date_before'] =
-          _minDate
-              .add(Duration(days: _dateRange.end.round()))
-              .toIso8601String()
-              .split('T')
-              .first;
+      queryParams['date_before'] = _minDate
+          .add(Duration(days: _dateRange.end.round()))
+          .toIso8601String()
+          .split('T')
+          .first;
     }
 
     // Free events shortcut (max_price == 0)
@@ -139,9 +144,7 @@ class _EventsPageState extends State<EventsPage> {
 
       try {
         final summary =
-            await EventRegistrationService.getEventRegistrationSummary(
-              event.id,
-            );
+            await EventRegistrationService.getEventRegistrationSummary(event.id);
 
         if (!mounted) return; // Check again after async operation
 
@@ -149,9 +152,7 @@ class _EventsPageState extends State<EventsPage> {
           _registrationSummaries[event.id] = summary;
         });
       } catch (e) {
-        debugPrint(
-          'Failed to load registration summary for event ${event.id}: $e',
-        );
+        debugPrint('Failed to load registration summary for event ${event.id}: $e');
       }
     }
   }
@@ -182,28 +183,21 @@ class _EventsPageState extends State<EventsPage> {
                     "Filter Events",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-
                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: "Search by Name",
-                    ),
+                    decoration: const InputDecoration(labelText: "Search by Name"),
                     onChanged: (value) => setModalState(() => tempName = value),
                   ),
-
                   TextField(
                     controller: _maxPriceController,
                     decoration: const InputDecoration(labelText: "Max Price"),
                     keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) => setModalState(
-                          () => tempMaxPrice = double.tryParse(value),
-                        ),
+                    onChanged: (value) =>
+                        setModalState(() => tempMaxPrice = double.tryParse(value)),
                   ),
-
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
-                    initialValue: tempGender,
+                    value: tempGender,
                     items:
                         [
                           null, // Show all: no filtering
@@ -228,19 +222,16 @@ class _EventsPageState extends State<EventsPage> {
                     onChanged:
                         (value) => setModalState(() => tempGender = value),
                   ),
-
                   TextField(
                     controller: _ageController,
                     decoration: const InputDecoration(labelText: "Age"),
                     keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) =>
-                            setModalState(() => tempAge = int.tryParse(value)),
+                    onChanged: (value) =>
+                        setModalState(() => tempAge = int.tryParse(value)),
                   ),
-
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
-                    initialValue: tempMinistry,
+                    value: tempMinistry,
                     items:
                         [
                           null,
@@ -263,7 +254,6 @@ class _EventsPageState extends State<EventsPage> {
                     onChanged:
                         (value) => setModalState(() => tempMinistry = value),
                   ),
-
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -286,13 +276,11 @@ class _EventsPageState extends State<EventsPage> {
                               .toString()
                               .split(' ')[0],
                         ),
-                        onChanged:
-                            (values) =>
-                                setModalState(() => tempDateRange = values),
+                        onChanged: (values) =>
+                            setModalState(() => tempDateRange = values),
                       ),
                     ],
                   ),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -330,8 +318,7 @@ class _EventsPageState extends State<EventsPage> {
                             _dateRange = tempDateRange;
 
                             _nameController.text = _nameQuery ?? '';
-                            _maxPriceController.text =
-                                _maxPrice?.toString() ?? '';
+                            _maxPriceController.text = _maxPrice?.toString() ?? '';
                             _ageController.text = _age?.toString() ?? '';
                           });
                           Navigator.pop(context);
@@ -362,6 +349,105 @@ class _EventsPageState extends State<EventsPage> {
     }
   }
 
+  // Generate + open/share an .ics file for the event (iOS + Android fallback)
+  Future<void> _shareIcsForEvent(Event event) async {
+    final DateTime startUtc = event.date.toUtc();
+    final DateTime endUtc = startUtc.add(const Duration(hours: 1));
+
+    String _two(int n) => n.toString().padLeft(2, '0');
+    String _fmt(DateTime dt) =>
+        '${dt.year}${_two(dt.month)}${_two(dt.day)}T${_two(dt.hour)}${_two(dt.minute)}${_two(dt.second)}Z';
+
+    String _esc(String s) => s
+        .replaceAll('\\', '\\\\')
+        .replaceAll('\n', '\\n')
+        .replaceAll(',', '\\,')
+        .replaceAll(';', '\\;');
+
+    final ics = '''
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ChurchLink//Events//EN
+BEGIN:VEVENT
+UID:${event.id}@churchlink
+DTSTAMP:${_fmt(DateTime.now().toUtc())}
+DTSTART:${_fmt(startUtc)}
+DTEND:${_fmt(endUtc)}
+SUMMARY:${_esc(event.name)}
+DESCRIPTION:${_esc(event.description)}
+LOCATION:${_esc(event.location)}
+BEGIN:VALARM
+TRIGGER:-PT60M
+ACTION:DISPLAY
+DESCRIPTION:Reminder
+END:VALARM
+END:VEVENT
+END:VCALENDAR
+''';
+
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/event_${event.id}.ics';
+    final file = File(path);
+    await file.writeAsString(ics);
+
+    // Try opening directly (ACTION_VIEW). If no app can handle it, show share sheet.
+    final result = await OpenFilex.open(path);
+    if (result.type != ResultType.done) {
+      await Share.shareXFiles(
+        [XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics')],
+        subject: 'Add to Calendar',
+        text: 'Open this to add the event to your calendar.',
+      );
+    }
+  }
+
+  // ANDROID-ONLY: launch the Calendar "insert event" screen directly.
+  Future<bool> _openAndroidCalendarInsert(Event e, {String? packageName}) async {
+    try {
+      final start = e.date.toLocal();
+      final end = start.add(const Duration(hours: 1));
+
+      final intent = AndroidIntent(
+        action: 'android.intent.action.INSERT',
+        data: 'content://com.android.calendar/events',
+        package: packageName, // null => let Android pick
+        arguments: <String, dynamic>{
+          'title': e.name,
+          'description': e.description,
+          'eventLocation': e.location,
+          'beginTime': start.millisecondsSinceEpoch,
+          'endTime': end.millisecondsSinceEpoch,
+          // 'allDay': false,
+        },
+      );
+
+      await intent.launch();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _onAddToCalendar(Event event) async {
+    // For Android, attempt to open it in Google Calendar directly
+    // If it fails, use the same protocol but allow users to pick a calendar
+    // If it fails that, use generic file sharing
+    if (Platform.isAndroid) {
+      if (await _openAndroidCalendarInsert(event, packageName: 'com.google.android.calendar')) {
+        return;
+      }
+      if (await _openAndroidCalendarInsert(event)) {
+        return;
+      }
+      await _shareIcsForEvent(event);
+      return;
+    }
+
+    // On iOS, share as an .ics file
+    // NOTE: I'm unsure about how the OS handles this and can't test this
+    await _shareIcsForEvent(event);
+  }
+
   @override
   Widget build(BuildContext context) {
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
@@ -388,27 +474,41 @@ class _EventsPageState extends State<EventsPage> {
             children: [
               _isLoading
                   ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+                      padding: EdgeInsets.symmetric(vertical: 50),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
                   : _events.isEmpty
-                  ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Text("No events found."),
-                  )
-                  : ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: _events.length,
-                    itemBuilder: (context, index) {
-                      final event = _events[index];
-                      return EnhancedEventCard(
-                        event: event,
-                        onViewPressed: () => _navigateToShowcase(event),
-                        registrationSummary: _registrationSummaries[event.id],
-                      );
-                    },
-                  ),
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 50),
+                          child: Text("No events found."),
+                        )
+                      : ListView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: _events.length,
+                          itemBuilder: (context, index) {
+                            final event = _events[index];
+                            return Stack(
+                              children: [
+                                EnhancedEventCard(
+                                  event: event,
+                                  onViewPressed: () => _navigateToShowcase(event),
+                                  registrationSummary:
+                                      _registrationSummaries[event.id],
+                                ),
+                                Positioned(
+                                  bottom: 12,
+                                  right: 12,
+                                  child: IconButton(
+                                    tooltip: 'Add to Calendar',
+                                    icon: const Icon(Icons.calendar_month_outlined),
+                                    onPressed: () => _onAddToCalendar(event),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
             ],
           ),
         ),

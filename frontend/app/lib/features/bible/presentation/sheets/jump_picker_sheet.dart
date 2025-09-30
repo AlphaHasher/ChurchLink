@@ -45,7 +45,7 @@ Future<(String, int)?> showJumpPicker({
                                 Text('Jump to', style: Theme.of(ctx).textTheme.titleMedium),
                                 const SizedBox(height: 12),
                                 DropdownButtonFormField<String>(
-                                  initialValue: selBook,
+                                  value: selBook,
                                   isExpanded: true,
                                   decoration: const InputDecoration(
                                     labelText: 'Book',

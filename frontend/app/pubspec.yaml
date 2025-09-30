@@ -60,8 +60,12 @@ dependencies:
   
 
   logger: ^2.0.2+1
-  webview_flutter_android: ^4.10.2
+  webview_flutter_android: 4.10.1
   webview_flutter_wkwebview: ^3.13.0
+  package_info_plus: ^9.0.0
+  share_plus: ^10.0.2
+  open_filex: ^4.5.0
+  android_intent_plus: ^5.2.0
   
 dev_dependencies:
   flutter_test:
