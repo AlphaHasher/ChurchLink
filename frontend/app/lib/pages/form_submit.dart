@@ -588,7 +588,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         } else {
           final current = _values[fieldName]?.toString();
           return DropdownButtonFormField<String>(
-            initialValue: current?.isNotEmpty == true ? current : null,
+            value: current?.isNotEmpty == true ? current : null,
             decoration: InputDecoration(labelText: label.toString()),
             validator:
                 required
