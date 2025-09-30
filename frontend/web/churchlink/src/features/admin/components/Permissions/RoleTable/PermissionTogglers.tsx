@@ -98,6 +98,14 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
                 disabled={!editor_permissions.admin && !editor_permissions.event_management}
             />
             <RadioToggler
+                name="sermon_editing"
+                label="Sermon Editor"
+                description="This option grants the user the ability to create, edit, and manage sermons across the site."
+                value={permissions.sermon_editing}
+                onChange={handleChange("sermon_editing")}
+                disabled={!editor_permissions.admin && !editor_permissions.sermon_editing}
+            />
+            <RadioToggler
                 name="media_management"
                 label="Media Management"
                 description="This option grants the user the ability to add or remove media from the site"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { myEventsApi } from '@/api/myEventsApi';
+import { myEventsApi } from '@/features/events/api/myEventsApi';
 import { MyEventsResponse } from '../types/myEvents';
 
 export const useMyEvents = (params?: {
