@@ -1,15 +1,15 @@
 // src/components/ProtectedRoute.tsx
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/auth-context';
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { LOGIN_PATH } from '@/router/paths';
+import { getIsInit } from '@/helpers/UserHelper';
 
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
-
-const INIT_ROUTE = "/auth/init";
 
 export const PrivateRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();

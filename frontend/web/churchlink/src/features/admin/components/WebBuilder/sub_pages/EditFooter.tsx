@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate } from "react-router-dom";
-
 import {
     DndContext,
     closestCenter,
@@ -19,19 +17,18 @@ import {
     arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-    CardFooter,
-} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { Switch } from "@/shared/components/ui/switch";
-import { Badge } from "@/shared/components/ui/badge";
-import { Separator } from "@/shared/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/shared/components/ui/Dialog";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -42,7 +39,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { GripVertical, Eye, EyeOff, Pencil, Trash2, Plus } from "lucide-react";
+import MultiStateBadge from "@/shared/components/MultiStageBadge";
 
 interface FooterItem {
     title: string;
@@ -58,44 +55,77 @@ interface FooterSection {
     visible?: boolean;
 }
 
+interface LinkItem extends FooterItem {
+    type?: "link";
+}
+
 interface Footer {
     items: FooterSection[];
 }
 
-interface PendingChanges {
-    removals: string[];
-    visibility: Record<string, boolean>;
-}
+// Visibility toggle component using MultiStateBadge
+const FooterVisibilityToggle: React.FC<{ section: FooterSection; onToggle: (title: string, currentVisibility: boolean) => void }> = ({ section, onToggle }) => {
+    const [badgeState, setBadgeState] = useState<"custom" | "processing" | "success" | "error">("custom");
 
+    const handleToggleVisibility = async () => {
+        if (badgeState !== "custom") return;
+        const currentVisibility = section.visible ?? false;
+        const newVisibility = !currentVisibility;
+        setBadgeState("processing");
 
-const SortableItem = ({
-    id,
-    children,
-}: {
-    id: string;
-    children: React.ReactNode;
-}) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id });
-
-    const style = { transform: CSS.Transform.toString(transform), transition };
+        try {
+            await api.put(`/v1/footer/${section.title}/visibility`, { visible: newVisibility });
+            setBadgeState("success");
+            setTimeout(() => {
+                onToggle(section.title, currentVisibility);
+                setBadgeState("custom");
+            }, 900);
+        } catch (error) {
+            console.error("Error updating footer visibility:", error);
+            setBadgeState("error");
+            setTimeout(() => setBadgeState("custom"), 1200);
+        }
+    };
 
     return (
-        <div ref={setNodeRef} style={style}>
-            <Card className={`border bg-background ${isDragging ? "ring-2 ring-primary/40" : ""}`}>
-                <CardContent className="flex items-center gap-2 p-2">
-                    <button
-                        type="button"
-                        {...attributes}
-                        {...listeners}
-                        className="cursor-grab rounded p-1 hover:bg-muted"
-                        aria-label="Drag to reorder"
+        <div className="flex items-center justify-center h-full w-full overflow-visible">
+            <MultiStateBadge
+                state={badgeState}
+                onClick={handleToggleVisibility}
+                customComponent={
+                    <span
+                        className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
+                            section.visible
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                        }`}
                     >
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                    <div className="flex-1">{children}</div>
-                </CardContent>
-            </Card>
+                        {section.visible ? "Visible" : "Hidden"}
+                    </span>
+                }
+            />
+        </div>
+    );
+};
+
+const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="border-b last:border-0">
+            <div className="flex items-center">
+                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
+                    &#x2630;
+                </div>
+                <div className="flex-grow">
+                    {children}
+                </div>
+            </div>
         </div>
     );
 };
@@ -105,24 +135,38 @@ interface EditFooterProps {
 }
 
 const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
-    const [originalFooter, setOriginalFooter] = useState<Footer | null>(null);
     const [footer, setFooter] = useState<Footer | null>(null);
     const [loading, setLoading] = useState(true);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    const [pending, setPending] = useState<PendingChanges>({
-        removals: [],
-        visibility: {},
-    });
-    const [dirty, setDirty] = useState(false);
+    // Modal states
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-    const [toRemove, setToRemove] = useState<string | null>(null);
-    const [confirmDiscard, setConfirmDiscard] = useState(false);
+    // Add section form state
+    const [newSectionTitle, setNewSectionTitle] = useState("");
+    const [newSectionRussianTitle, setNewSectionRussianTitle] = useState("");
+    const [sectionItems, setSectionItems] = useState<FooterItem[]>([]);
+    const [tempItemTitle, setTempItemTitle] = useState("");
+    const [tempItemRussianTitle, setTempItemRussianTitle] = useState("");
+    const [tempItemUrl, setTempItemUrl] = useState("");
 
-    const navigate = useNavigate();
+    // Edit section form state
+    const [editingSection, setEditingSection] = useState<FooterSection | null>(null);
+    const [editSectionTitle, setEditSectionTitle] = useState("");
+    const [editSectionRussianTitle, setEditSectionRussianTitle] = useState("");
+    const [editSectionItems, setEditSectionItems] = useState<LinkItem[]>([]);
+    const [editTempItemTitle, setEditTempItemTitle] = useState("");
+    const [editTempItemRussianTitle, setEditTempItemRussianTitle] = useState("");
+    const [editTempItemUrl, setEditTempItemUrl] = useState("");
+    const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+
     const sensors = useSensors(useSensor(PointerSensor));
 
     useEffect(() => {
-        void fetchFooter();
+        fetchFooter();
     }, []);
 
     // Call onFooterDataChange whenever footer data changes
@@ -135,11 +179,9 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const fetchFooter = async () => {
         try {
             setLoading(true);
-            const res = await api.get("/v1/footer/items");
-            setOriginalFooter(res.data);
-            setFooter(res.data);
-            setPending({ removals: [], visibility: {} });
-            setDirty(false);
+            const response = await api.get("/v1/footer/items");
+            setFooter(response.data);
+            setHasUnsavedChanges(false);
         } catch (err) {
             console.error("Failed to fetch footer:", err);
             toast.error("Failed to load footer data");
@@ -148,229 +190,570 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
         }
     };
 
-    const handleDragEnd = (event: DragEndEvent) => {
+    const handleDragEnd = async (event: DragEndEvent) => {
         if (!footer) return;
+
         const { active, over } = event;
-        if (!over || active.id === over.id) return;
+        if (active.id !== over?.id) {
+            const oldIndex = footer.items.findIndex(item => item.title === active.id);
+            const newIndex = footer.items.findIndex(item => item.title === over?.id);
 
-        const oldIndex = footer.items.findIndex((s) => s.title === active.id);
-        const newIndex = footer.items.findIndex((s) => s.title === over.id);
-        if (oldIndex === -1 || newIndex === -1) return;
-
-        const items = arrayMove(footer.items, oldIndex, newIndex);
-        setFooter({ ...footer, items });
-        setDirty(true);
-    };
-
-    const effectiveVisible = (section: FooterSection) =>
-        section.title in pending.visibility ? pending.visibility[section.title] : section.visible;
-
-    const toggleVisibility = (title: string, current: boolean) => {
-        setPending((p) => ({
-            ...p,
-            visibility: { ...p.visibility, [title]: !current },
-        }));
-        if (footer) {
-            const items = footer.items.map((s) => (s.title === title ? { ...s, visible: !current } : s));
-            setFooter({ ...footer, items });
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newItems = arrayMove(footer.items, oldIndex, newIndex);
+                setFooter({ ...footer, items: newItems });
+                setHasUnsavedChanges(true);
+            }
         }
-        setDirty(true);
     };
 
-    const stageRemoval = (title: string) => {
+    const handleSaveChanges = async () => {
         if (!footer) return;
-        setPending((p) => ({ ...p, removals: [...p.removals, title] }));
-        setFooter({ ...footer, items: footer.items.filter((s) => s.title !== title) });
-        setDirty(true);
-    };
 
-    const saveAll = async () => {
-        if (!footer) return;
         try {
-            for (const title of pending.removals) {
-                const del = await api.delete(`/v1/footer/${encodeURIComponent(title)}`);
-                if (!del.data?.success) {
-                    throw new Error(del.data?.msg || `Failed to remove "${title}"`);
-                }
-            }
+            // Save reordering
+            const currentTitles = footer.items.map(item => item.title);
+            await api.put("/v1/footer/reorder", { titles: currentTitles });
+            toast.success("Footer changes saved successfully");
 
-            for (const [title, visible] of Object.entries(pending.visibility)) {
-                const vis = await api.put(
-                    `/v1/footer/${encodeURIComponent(title)}/visibility`,
-                    { visible }
-                );
-                if (!vis.data?.success) {
-                    throw new Error(vis.data?.msg || `Failed to update visibility for "${title}"`);
-                }
-            }
-
-            const titles = footer.items.map((s) => s.title);
-            const order = await api.put("/v1/footer/reorder", { titles });
-            if (!order.data?.success) {
-                throw new Error(order.data?.msg || "Failed to reorder footer sections");
-            }
-
-            toast.success("Footer changes saved");
+            // Refresh data from server
             await fetchFooter();
-        } catch (err: any) {
+        } catch (err) {
             console.error("Failed to save footer changes:", err);
-            toast.error(err?.message || "Failed to save changes");
+            toast.error("Failed to save changes");
+            await fetchFooter(); // Revert to server state on failure
+        }
+    };
+
+    // Modal handlers
+    const handleAddSection = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newSectionTitle) {
+            toast.error("Section title is required");
+            return;
+        }
+
+        if (!newSectionRussianTitle) {
+            toast.error("Section russian title is required");
+            return;
+        }
+
+        try {
+            const res = await api.post("/v1/footer/items", {
+                "title": newSectionTitle,
+                "russian_title": newSectionRussianTitle,
+                "items": sectionItems,
+                "visible": false,
+            });
+            if (res) {
+                toast.success("Section added successfully!");
+                // Reset form
+                setNewSectionTitle("");
+                setNewSectionRussianTitle("");
+                setSectionItems([]);
+                setIsAddModalOpen(false);
+                // Refresh footer data
+                await fetchFooter();
+            }
+        } catch (err) {
+            console.error("Failed to add section:", err);
+            toast.error("Failed to add section");
+        }
+    };
+
+    const handleAddSectionItem = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!tempItemTitle || !tempItemRussianTitle) {
+            toast.error("Item title and Russian title are required");
+            return;
+        }
+        setSectionItems([...sectionItems, { title: tempItemTitle, russian_title: tempItemRussianTitle, url: tempItemUrl || null }]);
+        setTempItemTitle("");
+        setTempItemRussianTitle("");
+        setTempItemUrl("");
+    };
+
+    const handleRemoveSectionItem = (index: number) => {
+        setSectionItems(sectionItems.filter((_, i) => i !== index));
+    };
+
+    const handleEditSection = (section: FooterSection) => {
+        setEditingSection(section);
+        setEditSectionTitle(section.title);
+        setEditSectionRussianTitle(section.russian_title);
+        setEditSectionItems(section.items);
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!editingSection) return;
+
+        try {
+            const updatedSection = {
+                title: editSectionTitle,
+                russian_title: editSectionRussianTitle,
+                items: editSectionItems,
+            };
+
+            const response = await api.put(`/v1/footer/items/edit/${editingSection.title}`, updatedSection);
+
+            if (response.data) {
+                toast.success("Section updated successfully");
+                setIsEditModalOpen(false);
+                setEditingSection(null);
+                await fetchFooter();
+            }
+        } catch (err) {
+            console.error("Failed to update section:", err);
+            toast.error("Failed to update section");
+        }
+    };
+
+    const handleEditAddItem = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!editTempItemTitle || !editTempItemRussianTitle) {
+            toast.error("Item title and Russian title are required");
+            return;
+        }
+
+        if (editingItemIndex !== null) {
+            // Update existing item
+            const updatedItems = [...editSectionItems];
+            updatedItems[editingItemIndex] = {
+                title: editTempItemTitle,
+                russian_title: editTempItemRussianTitle,
+                url: editTempItemUrl || null,
+                visible: true,
+                type: "link"
+            };
+            setEditSectionItems(updatedItems);
+            setEditingItemIndex(null);
+        } else {
+            // Add new item
+            setEditSectionItems([...editSectionItems, {
+                title: editTempItemTitle,
+                russian_title: editTempItemRussianTitle,
+                url: editTempItemUrl || null,
+                visible: true,
+                type: "link"
+            }]);
+        }
+
+        // Reset form fields
+        setEditTempItemTitle("");
+        setEditTempItemRussianTitle("");
+        setEditTempItemUrl("");
+    };
+
+    const handleEditItem = (index: number) => {
+        const item = editSectionItems[index];
+        setEditTempItemTitle(item.title);
+        setEditTempItemRussianTitle(item.russian_title);
+        setEditTempItemUrl(item.url || "");
+        setEditingItemIndex(index);
+    };
+
+    const handleRemoveEditItem = (index: number) => {
+        setEditSectionItems(editSectionItems.filter((_, i) => i !== index));
+        // If we were editing this item, reset the form
+        if (editingItemIndex === index) {
+            setEditTempItemTitle("");
+            setEditTempItemRussianTitle("");
+            setEditTempItemUrl("");
+            setEditingItemIndex(null);
+        }
+    };
+
+    const cancelEditingItem = () => {
+        setEditTempItemTitle("");
+        setEditTempItemRussianTitle("");
+        setEditTempItemUrl("");
+        setEditingItemIndex(null);
+    };
+
+    const handleRemoveSection = (title: string) => {
+        setItemToDelete(title);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteSection = async () => {
+        if (!itemToDelete) return;
+
+        try {
+            await api.delete(`/v1/footer/${itemToDelete}`);
+            toast.success(`"${itemToDelete}" removed successfully`);
+
+            if (footer) {
+                // Update UI after successful deletion
+                const newItems = footer.items.filter(item => item.title !== itemToDelete);
+                setFooter({ ...footer, items: newItems });
+            }
+
+            // Refresh data from server to ensure consistency
             await fetchFooter();
+        } catch (err) {
+            console.error("Failed to remove section:", err);
+            toast.error(`Failed to remove "${itemToDelete}"`);
+            // Refresh to revert any optimistic UI updates
+            await fetchFooter();
+        } finally {
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
+        }
+    };
+
+    const handleChangeVisibility = (title: string, currentVisibility: boolean) => {
+        // Update local state after successful API call from FooterVisibilityToggle
+        if (footer) {
+            const newItems = footer.items.map(item =>
+                item.title === title ? { ...item, visible: !currentVisibility } : item
+            );
+            setFooter({ ...footer, items: newItems });
         }
     };
 
     if (loading) return <div className="p-6 text-center">Loading footer data...</div>;
 
     return (
-        <div className="mx-auto w-full max-w-4xl space-y-5">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-semibold">Edit Footer Sections</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Drag to reorder, toggle visibility, edit or remove sections. Changes are staged until you click{" "}
-                        <span className="font-medium">Save</span>.
-                    </p>
+        <Card className="w-full max-w-4xl mx-auto">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle>Edit Footer Sections</CardTitle>
+                    <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="default">
+                                Add Section
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>Add Footer Section</DialogTitle>
+                                <DialogDescription>
+                                    Create a new footer section with items.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleAddSection} className="flex flex-col gap-4">
+                                <Input
+                                    type="text"
+                                    placeholder="Section Title"
+                                    value={newSectionTitle}
+                                    onChange={(e) => setNewSectionTitle(e.target.value)}
+                                    required
+                                />
+                                <Input
+                                    type="text"
+                                    placeholder="Russian Title"
+                                    value={newSectionRussianTitle}
+                                    onChange={(e) => setNewSectionRussianTitle(e.target.value)}
+                                    required
+                                />
+                                <div className="border rounded p-4 bg-gray-50">
+                                    <h4 className="font-medium mb-2">Section Items</h4>
+
+                                    {sectionItems.length > 0 ? (
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
+                                        >
+                                            <SortableContext
+                                                items={sectionItems.map((item) => `${item.title}-${item.url}`)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                <ul className="mb-4">
+                                                    {sectionItems.map((item, index) => (
+                                                        <SortableItem key={`${item.title}-${item.url}`} id={`${item.title}-${item.url}`}>
+                                                            <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                <div>
+                                                                    <div className="font-medium">{item.title}</div>
+                                                                    <div className="text-sm text-blue-600">{item.url}</div>
+                                                                </div>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleRemoveSectionItem(index)}
+                                                                    className="text-red-500 hover:text-red-700"
+                                                                >
+                                                                    Remove
+                                                                </Button>
+                                                            </li>
+                                                        </SortableItem>
+                                                    ))}
+                                                </ul>
+                                            </SortableContext>
+                                        </DndContext>
+                                    ) : (
+                                        <p className="text-gray-500 italic mb-4">No links</p>
+                                    )}
+
+                                    <div className="border-t pt-3">
+                                        <h5 className="font-medium mb-2">Add Item to Section</h5>
+                                        <div className="flex flex-col gap-2">
+                                            <Input
+                                                type="text"
+                                                placeholder="Title"
+                                                value={tempItemTitle}
+                                                onChange={(e) => setTempItemTitle(e.target.value)}
+                                            />
+                                            <Input
+                                                type="text"
+                                                placeholder="Russian Title"
+                                                value={tempItemRussianTitle}
+                                                onChange={(e) => setTempItemRussianTitle(e.target.value)}
+                                            />
+                                            <Input
+                                                type="text"
+                                                placeholder="Item URL"
+                                                value={tempItemUrl}
+                                                onChange={(e) => setTempItemUrl(e.target.value)}
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={handleAddSectionItem}
+                                                size="sm"
+                                                className="self-start"
+                                            >
+                                                Add to Section
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <DialogFooter>
+                                    <Button type="submit" disabled={sectionItems.length === 0}>
+                                        Add Section
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Edit Section Dialog */}
+                    <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>Edit Footer Section</DialogTitle>
+                                <DialogDescription>
+                                    Update the section details and items.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+                                <Input
+                                    type="text"
+                                    placeholder="Section Title"
+                                    value={editSectionTitle}
+                                    onChange={(e) => setEditSectionTitle(e.target.value)}
+                                    required
+                                />
+                                <Input
+                                    type="text"
+                                    placeholder="Russian Title"
+                                    value={editSectionRussianTitle}
+                                    onChange={(e) => setEditSectionRussianTitle(e.target.value)}
+                                    required
+                                />
+
+                                <div className="border rounded p-4 bg-gray-50">
+                                    <h4 className="font-medium mb-2">Section Items</h4>
+
+                                    {editSectionItems.length > 0 ? (
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
+                                        >
+                                            <SortableContext
+                                                items={editSectionItems.map((link) => `${link.title}-${link.url}`)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                <ul className="mb-4">
+                                                    {editSectionItems.map((link, index) => (
+                                                        <SortableItem
+                                                            key={`${link.title}-${link.url}`}
+                                                            id={`${link.title}-${link.url}`}
+                                                        >
+                                                            <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                <div>
+                                                                    <div className="font-medium">{link.title}</div>
+                                                                    <div className="text-sm text-blue-600">{link.url}</div>
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleEditItem(index)}
+                                                                        className="text-blue-500 hover:text-blue-700"
+                                                                    >
+                                                                        Edit
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleRemoveEditItem(index)}
+                                                                        className="text-red-500 hover:text-red-700"
+                                                                    >
+                                                                        Remove
+                                                                    </Button>
+                                                                </div>
+                                                            </li>
+                                                        </SortableItem>
+                                                    ))}
+                                                </ul>
+                                            </SortableContext>
+                                        </DndContext>
+                                    ) : (
+                                        <p className="text-gray-500 italic mb-4">No items</p>
+                                    )}
+
+                                    <div className="border-t pt-3">
+                                        <h5 className="font-medium mb-2">
+                                            {editingItemIndex !== null ? 'Edit Item' : 'Add Item to Section'}
+                                        </h5>
+                                        <div className="flex flex-col gap-2">
+                                            <Input
+                                                type="text"
+                                                placeholder="Title"
+                                                value={editTempItemTitle}
+                                                onChange={(e) => setEditTempItemTitle(e.target.value)}
+                                            />
+                                            <Input
+                                                type="text"
+                                                placeholder="Russian Title"
+                                                value={editTempItemRussianTitle}
+                                                onChange={(e) => setEditTempItemRussianTitle(e.target.value)}
+                                            />
+                                            <Input
+                                                type="text"
+                                                placeholder="Optional URL"
+                                                value={editTempItemUrl}
+                                                onChange={(e) => setEditTempItemUrl(e.target.value)}
+                                            />
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    type="button"
+                                                    onClick={handleEditAddItem}
+                                                    size="sm"
+                                                    className="self-start"
+                                                >
+                                                    {editingItemIndex !== null ? 'Update Item' : 'Add Item'}
+                                                </Button>
+                                                {editingItemIndex !== null && (
+                                                    <Button
+                                                        type="button"
+                                                        onClick={cancelEditingItem}
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <DialogFooter>
+                                    <Button type="submit">
+                                        Save Changes
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Delete Confirmation Dialog */}
+                    <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently remove the footer section "{itemToDelete}" and all its items.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={confirmDeleteSection} className="bg-red-600 hover:bg-red-700">
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
-                <Button onClick={() => navigate("/admin/webbuilder/footer/add")}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Section
-                </Button>
+            </CardHeader>
+
+            <CardContent>
+
+            {/* Current footer items */}
+            <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Current Sections</h3>
+                {footer && footer.items.length > 0 ? (
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={footer.items.map(item => item.title)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <ul className="border rounded divide-y">
+                                {footer.items.map((item) => (
+                                    <SortableItem key={item.title} id={item.title}>
+                                        <li className="flex justify-between items-center p-2">
+                                            <div className="flex flex-1">
+                                                <div>
+                                                    <span className="font-medium">{item.title}</span>
+                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{(item as FooterItem).url}</span>}
+                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <FooterVisibilityToggle section={item} onToggle={handleChangeVisibility} />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleEditSection(item)}
+                                                    className="text-blue-600 hover:text-blue-700"
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRemoveSection(item.title)}
+                                                    className="text-red-600 hover:text-red-700"
+                                                >
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                        </li>
+                                    </SortableItem>
+                                ))}
+                            </ul>
+                        </SortableContext>
+                    </DndContext>
+                ) : (
+                    <p className="text-gray-500">No sections yet. Click "Add Section" to create one.</p>
+                )}
             </div>
 
-            <Card>
-                <CardHeader className="py-4">
-                    <CardTitle className="text-base">Current Sections</CardTitle>
-                    <CardDescription className="text-xs">The list below reflects your pending edits.</CardDescription>
-                </CardHeader>
-
-                <CardContent className="space-y-1.5">
-                    {footer && footer.items.length > 0 ? (
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={footer.items.map((s) => s.title)} strategy={verticalListSortingStrategy}>
-                                <div className="space-y-1.5">
-                                    {footer.items.map((section) => {
-                                        const visible = !!effectiveVisible(section);
-                                        return (
-                                            <SortableItem key={section.title} id={section.title}>
-                                                <div className="flex w-full items-center justify-between gap-2">
-                                                    <div className="min-w-0">
-                                                        <div className="truncate text-sm font-medium">{section.title}</div>
-                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                                            <Badge variant="secondary" className="px-1 py-0 text-[10px]">
-                                                                {section.items.length} item{section.items.length === 1 ? "" : "s"}
-                                                            </Badge>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-0.5">
-                                                        <div className="mr-0.5 flex items-center gap-1">
-                                                            <Switch
-                                                                checked={visible}
-                                                                onCheckedChange={() => toggleVisibility(section.title, visible)}
-                                                                aria-label="Toggle visibility"
-                                                            />
-                                                            {visible ? (
-                                                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            ) : (
-                                                                <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8"
-                                                            onClick={() =>
-                                                                navigate(`/admin/webbuilder/footer/edit/${encodeURIComponent(section.title)}`)
-                                                            }
-                                                            aria-label="Edit"
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-destructive"
-                                                            aria-label="Remove"
-                                                            onClick={() => setToRemove(section.title)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </SortableItem>
-                                        );
-                                    })}
-                                </div>
-                            </SortableContext>
-                        </DndContext>
-                    ) : (
-                        <div className="rounded-md border p-3 text-xs text-muted-foreground">
-                            No sections yet. Click <span className="font-medium">Add Section</span> to create one.
-                        </div>
-                    )}
-                </CardContent>
-
-                <Separator />
-
-                <CardFooter className="flex items-center gap-2 py-3">
-                    <Button onClick={saveAll} disabled={!dirty}>
+            {footer && footer.items.length > 0 && (
+                <div className="flex gap-4 justify-start mt-6">
+                    <Button
+                        onClick={handleSaveChanges}
+                        disabled={!hasUnsavedChanges}
+                    >
                         Save Changes
                     </Button>
-                    <Button variant="secondary" onClick={() => setConfirmDiscard(true)} disabled={!dirty}>
-                        Cancel
-                    </Button>
-                </CardFooter>
-            </Card>
-
-            <AlertDialog open={!!toRemove} onOpenChange={(open) => !open && setToRemove(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Remove “{toRemove ?? ""}”?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will remove the section from your footer. You can still revert before saving by cancelling your
-                            pending changes.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setToRemove(null)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            className="bg-destructive hover:bg-destructive/90"
-                            onClick={() => {
-                                if (toRemove) stageRemoval(toRemove);
-                                setToRemove(null);
-                            }}
-                        >
-                            Remove
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Discard all pending changes?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            You will lose all unsaved edits and revert to the last saved state.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Keep editing</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
-                                setFooter(originalFooter);
-                                setPending({ removals: [], visibility: {} });
-                                setDirty(false);
-                                setConfirmDiscard(false);
-                            }}
-                        >
-                            Discard
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+                </div>
+            )}
+        </CardContent>
+    </Card>
     );
 };
 

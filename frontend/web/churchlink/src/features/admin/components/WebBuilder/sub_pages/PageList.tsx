@@ -134,7 +134,15 @@ const WebBuilderPageList = () => {
       field: "slug",
       sortable: true,
       filter: true,
-      cellStyle: { color: "#2563eb" } as any,
+      cellRenderer: (params: any) => (
+        <button
+          onClick={() => navigate(params.value === '/' ? '/' : `/${params.value}`)}
+          className="w-full h-full text-left text-blue-600 hover:text-blue-800 cursor-pointer bg-transparent border-none p-0"
+          title={`Navigate to ${params.value}`}
+        >
+          {params.value}
+        </button>
+      ),
     },
     {
       headerName: "Visibility",
@@ -166,7 +174,7 @@ const WebBuilderPageList = () => {
       cellRenderer: (params: any) => (
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => navigate(`/admin/webbuilder/edit/${params.data.slug}`)}
+            onClick={() => navigate(`/admin/webbuilder/edit/${encodeURIComponent(params.data.slug)}`)}
             className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
             title="Edit page"
           >
@@ -215,7 +223,9 @@ const WebBuilderPageList = () => {
     setSaving(true);
     setError(null);
     try {
-      const payload = { title: newTitle.trim(), slug: slugify(newSlug) } as any;
+      // Allow "/" as a special case for home page
+      const processedSlug = newSlug === "/" ? "/" : slugify(newSlug);
+      const payload = { title: newTitle.trim(), slug: processedSlug } as any;
       await api.post("/v1/pages/", payload);
       // Fetch the created page to append to the table
       const created = await api.get(`/v1/pages/preview/${payload.slug}`);
@@ -273,7 +283,7 @@ const WebBuilderPageList = () => {
               <Input
                 value={newSlug}
                 onChange={(e) => setNewSlug(e.target.value)}
-                placeholder="about-us"
+                placeholder="about-us or / for home page"
                 className="mt-1"
               />
             </div>

@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate } from "react-router-dom";
-
 import {
     DndContext,
     closestCenter,
@@ -19,19 +17,20 @@ import {
     arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-    CardFooter,
-} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { Switch } from "@/shared/components/ui/switch";
-import { Badge } from "@/shared/components/ui/badge";
-import { Separator } from "@/shared/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/shared/components/ui/Dialog";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -42,12 +41,15 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { GripVertical, Eye, EyeOff, Pencil, Trash2, Plus } from "lucide-react";
+import MultiStateBadge from "@/shared/components/MultiStageBadge";
+import { ExternalLink, GripVertical } from "lucide-react";
 
 interface HeaderLink {
     title: string;
     russian_title: string;
-    url: string;
+    url?: string;
+    slug?: string;
+    is_hardcoded_url?: boolean;
     visible?: boolean;
     type: "link";
 }
@@ -57,17 +59,71 @@ interface HeaderDropdown {
     russian_title: string;
     items: HeaderLink[];
     visible?: boolean;
-    type: "dropdown";
+}
+
+interface LinkItem extends Omit<HeaderLink, 'type'> {
+    type: "link";
 }
 
 type HeaderItem = HeaderLink | HeaderDropdown;
+
+// Visibility toggle component using MultiStateBadge
+const VisibilityToggle: React.FC<{ item: HeaderItem; onToggle: (title: string, currentVisibility: boolean) => void }> = ({ item, onToggle }) => {
+    const [badgeState, setBadgeState] = useState<"custom" | "processing" | "success" | "error">("custom");
+
+    const handleToggleVisibility = async () => {
+        if (badgeState !== "custom") return;
+        const currentVisibility = item.visible ?? false;
+        const newVisibility = !currentVisibility;
+        setBadgeState("processing");
+
+        try {
+            await api.put(`/v1/header/${item.title}/visibility`, { visible: newVisibility });
+            setBadgeState("success");
+            setTimeout(() => {
+                onToggle(item.title, currentVisibility);
+                setBadgeState("custom");
+            }, 900);
+        } catch (error) {
+            console.error("Error updating visibility:", error);
+            setBadgeState("error");
+            setTimeout(() => setBadgeState("custom"), 1200);
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-center h-full w-full overflow-visible">
+            <MultiStateBadge
+                state={badgeState}
+                onClick={handleToggleVisibility}
+                customComponent={
+                    <span
+                        className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
+                            item.visible
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                        }`}
+                    >
+                        {item.visible ? "Visible" : "Hidden"}
+                    </span>
+                }
+            />
+        </div>
+    );
+};
 
 interface Header {
     items: HeaderItem[];
 }
 
+interface Page {
+    _id: string;
+    title: string;
+    slug: string;
+    visible: boolean;
+}
+
 interface PendingChanges {
-    removals: string[];
     visibility: Record<string, boolean>;
 }
 
@@ -112,20 +168,67 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [header, setHeader] = useState<Header | null>(null);
     const [loading, setLoading] = useState(true);
     const [pendingChanges, setPendingChanges] = useState<PendingChanges>({
-        removals: [],
-        visibility: {},
+        visibility: {}
     });
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    const [toRemove, setToRemove] = useState<string | null>(null);
-    const [confirmDiscard, setConfirmDiscard] = useState(false);
+    // Modal state
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+    const [itemType, setItemType] = useState<"link" | "dropdown">("link");
 
-    const navigate = useNavigate();
+    // For simple links
+    const [newLinkTitle, setNewLinkTitle] = useState("");
+    const [newLinkRussianTitle, setNewLinkRussianTitle] = useState("");
+    const [newLinkSlug, setNewLinkSlug] = useState("");
+    const [newLinkUrl, setNewLinkUrl] = useState("");
+    const [newLinkIsHardcoded, setNewLinkIsHardcoded] = useState(false);
+
+    // For dropdowns
+    const [newDropdownTitle, setNewDropdownTitle] = useState("");
+    const [newDropdownRussianTitle, setNewDropdownRussianTitle] = useState("");
+    const [dropdownLinks, setDropdownLinks] = useState<HeaderLink[]>([]);
+    const [tempLinkTitle, setTempLinkTitle] = useState("");
+    const [tempLinkRussianTitle, setTempLinkRussianTitle] = useState("");
+    const [tempLinkSlug, setTempLinkSlug] = useState("");
+    const [tempLinkUrl, setTempLinkUrl] = useState("");
+    const [tempLinkIsHardcoded, setTempLinkIsHardcoded] = useState(false);
+
+    // For editing
+    const [editingItem, setEditingItem] = useState<HeaderItem | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+    const [editRussianTitle, setEditRussianTitle] = useState("");
+    const [editSlug, setEditSlug] = useState("");
+    const [editUrl, setEditUrl] = useState("");
+    const [editIsHardcoded, setEditIsHardcoded] = useState(false);
+    const [editDropdownItems, setEditDropdownItems] = useState<LinkItem[]>([]);
+    const [editTempLinkTitle, setEditTempLinkTitle] = useState("");
+    const [editTempLinkRussianTitle, setEditTempLinkRussianTitle] = useState("");
+    const [editTempLinkSlug, setEditTempLinkSlug] = useState("");
+    const [editTempLinkUrl, setEditTempLinkUrl] = useState("");
+    const [editTempLinkIsHardcoded, setEditTempLinkIsHardcoded] = useState(false);
+    const [editingDropdownIndex, setEditingDropdownIndex] = useState<number | null>(null);
+
+    // Pages for dropdown
+    const [pages, setPages] = useState<Page[]>([]);
+
     const sensors = useSensors(useSensor(PointerSensor));
 
     useEffect(() => {
-        void fetchHeader();
+        fetchHeader();
+        fetchPages();
     }, []);
+
+    const fetchPages = async () => {
+        try {
+            const response = await api.get("/v1/pages/");
+            setPages(response.data);
+        } catch (error) {
+            console.error("Error fetching pages:", error);
+        }
+    };
 
     // Call onHeaderDataChange whenever header data changes
     useEffect(() => {
@@ -140,7 +243,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             const response = await api.get("/v1/header/items");
             setOriginalHeader(response.data);
             setHeader(response.data);
-            setPendingChanges({ removals: [], visibility: {} });
+            // Reset pending changes
+            setPendingChanges({ visibility: {} });
             setHasUnsavedChanges(false);
         } catch (err) {
             console.error("Failed to fetch header:", err);
@@ -164,245 +268,918 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         setHasUnsavedChanges(true);
     };
 
-    const getEffectiveVisibility = (item: HeaderItem) =>
-        item.title in pendingChanges.visibility
-            ? pendingChanges.visibility[item.title]
-            : item.visible;
+    const handleRemoveItem = (title: string) => {
+        setItemToDelete(title);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteItem = async () => {
+        if (!itemToDelete) return;
+
+        try {
+            await api.delete(`/v1/header/${itemToDelete}`);
+            toast.success(`"${itemToDelete}" removed successfully`);
+
+            if (header) {
+                // Update UI after successful deletion
+                const newItems = header.items.filter(item => item.title !== itemToDelete);
+                setHeader({ ...header, items: newItems });
+            }
+
+            // Refresh data from server to ensure consistency
+            await fetchHeader();
+        } catch (err) {
+            console.error("Failed to remove navigation item:", err);
+            toast.error(`Failed to remove "${itemToDelete}"`);
+            // Refresh to revert any optimistic UI updates
+            await fetchHeader();
+        } finally {
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
+        }
+    };
 
     const handleChangeVisibility = (title: string, currentVisibility: boolean) => {
-        setPendingChanges((prev) => ({
-            ...prev,
-            visibility: {
-                ...prev.visibility,
-                [title]: !currentVisibility,
-            },
-        }));
-
+        // Update local state after successful API call from VisibilityToggle
         if (header) {
-            const newItems = header.items.map((item) =>
+            const newItems = header.items.map(item =>
                 item.title === title ? { ...item, visible: !currentVisibility } : item
             );
             setHeader({ ...header, items: newItems });
         }
-
-        setHasUnsavedChanges(true);
-    };
-
-    const handleRemoveItem = (title: string) => setToRemove(title);
-
-    const actuallyRemove = (title: string) => {
-        if (!header) return;
-        setPendingChanges((prev) => ({
-            ...prev,
-            removals: [...prev.removals, title],
-        }));
-        const newItems = header.items.filter((i) => i.title !== title);
-        setHeader({ ...header, items: newItems });
-        setHasUnsavedChanges(true);
     };
 
     const handleSaveChanges = async () => {
         if (!header) return;
 
         try {
-            for (const title of pendingChanges.removals) {
-                const del = await api.delete(`/v1/header/${encodeURIComponent(title)}`);
-                if (!del.data?.success) {
-                    throw new Error(del.data?.msg || `Failed to remove "${title}"`);
-                }
-            }
+            // Apply all changes at once
 
+            // 1. Apply visibility changes
             for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                const vis = await api.put(
-                    `/v1/header/${encodeURIComponent(title)}/visibility`,
-                    { visible }
-                );
-                if (!vis.data?.success) {
-                    throw new Error(
-                        vis.data?.msg || `Failed to update visibility for "${title}"`
-                    );
-                }
+                await api.put(`/v1/header/${title}/visibility`, { visible });
             }
 
-            const currentTitles = header.items.map((i) => i.title);
-            const order = await api.put("/v1/header/reorder", { titles: currentTitles });
-            if (!order.data?.success) {
-                throw new Error(order.data?.msg || "Failed to reorder header items");
-            }
-
+            // 2. Save reordering
+            const currentTitles = header.items.map(item => item.title);
+            await api.put("/v1/header/reorder", { titles: currentTitles });
             toast.success("Navigation changes saved successfully");
             await fetchHeader();
         } catch (err: any) {
             console.error("Failed to save navigation changes:", err);
-            toast.error(err?.message || "Failed to save changes");
-            await fetchHeader();
+            toast.error("Failed to save changes");
+            await fetchHeader(); // Revert to server state on failure
         }
+    };
+
+    const handleCancelChanges = () => {
+        if (hasUnsavedChanges && confirm("Are you sure you want to discard all pending changes?")) {
+            setHeader(originalHeader);
+            setPendingChanges({ visibility: {} });
+            setHasUnsavedChanges(false);
+        }
+    };
+
+    // Modal functions
+    const handleAddLink = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newLinkTitle || !newLinkRussianTitle) {
+            toast.error("Title and Russian title are required");
+            return;
+        }
+
+        if (newLinkIsHardcoded && !newLinkUrl) {
+            toast.error("URL is required when hardcoded URL is enabled");
+            return;
+        }
+
+        if (!newLinkIsHardcoded && !newLinkSlug) {
+            toast.error("Page selection is required when not using hardcoded URL");
+            return;
+        }
+
+        try {
+            const linkData: any = {
+                "title": newLinkTitle,
+                "russian_title": newLinkRussianTitle,
+                "is_hardcoded_url": newLinkIsHardcoded,
+                "visible": false,
+            };
+
+            if (newLinkIsHardcoded) {
+                linkData.url = newLinkUrl;
+            } else {
+                linkData.slug = newLinkSlug;
+            }
+
+            const res = await api.post("/v1/header/items/links", linkData);
+            if (res) {
+                toast.success("Link added successfully!");
+                // Reset form
+                setNewLinkTitle("");
+                setNewLinkRussianTitle("");
+                setNewLinkSlug("");
+                setNewLinkUrl("");
+                setNewLinkIsHardcoded(false);
+                setIsAddModalOpen(false);
+                // Refresh header data
+                await fetchHeader();
+            }
+        } catch (err) {
+            console.error("Failed to add link:", err);
+            toast.error("Failed to add link");
+        }
+    };
+
+    const handleAddDropdown = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newDropdownTitle) {
+            toast.error("Dropdown title is required");
+            return;
+        }
+
+        if (!newDropdownRussianTitle) {
+            toast.error("Dropdown russian title is required");
+            return;
+        }
+
+        try {
+            const res = await api.post("/v1/header/items/dropdowns", {
+                "title": newDropdownTitle,
+                "russian_title": newDropdownRussianTitle,
+                "items": dropdownLinks,
+                "visible": false,
+            });
+            if (res) {
+                toast.success("Dropdown added successfully!");
+                // Reset form
+                setNewDropdownTitle("");
+                setNewDropdownRussianTitle("");
+                setDropdownLinks([]);
+                setIsAddModalOpen(false);
+                // Refresh header data
+                await fetchHeader();
+            }
+        } catch (err) {
+            console.error("Failed to add dropdown:", err);
+            toast.error("Failed to add dropdown");
+        }
+    };
+
+    const handleAddDropdownLink = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!tempLinkTitle || !tempLinkRussianTitle) {
+            toast.error("Link title and Russian title are required");
+            return;
+        }
+
+        if (tempLinkIsHardcoded && !tempLinkUrl) {
+            toast.error("URL is required when hardcoded URL is enabled");
+            return;
+        }
+
+        if (!tempLinkIsHardcoded && !tempLinkSlug) {
+            toast.error("Page selection is required when not using hardcoded URL");
+            return;
+        }
+
+        const linkData: HeaderLink = {
+            title: tempLinkTitle,
+            russian_title: tempLinkRussianTitle,
+            is_hardcoded_url: tempLinkIsHardcoded,
+            visible: true,
+            type: "link",
+        };
+
+        if (tempLinkIsHardcoded) {
+            linkData.url = tempLinkUrl;
+        } else {
+            linkData.slug = tempLinkSlug;
+        }
+
+        setDropdownLinks([...dropdownLinks, linkData]);
+        setTempLinkTitle("");
+        setTempLinkRussianTitle("");
+        setTempLinkSlug("");
+        setTempLinkUrl("");
+        setTempLinkIsHardcoded(false);
+    };
+
+    const handleRemoveDropdownLink = (index: number) => {
+        setDropdownLinks(dropdownLinks.filter((_, i) => i !== index));
+    };
+
+    // Edit functions
+    const handleEditItem = (item: HeaderItem) => {
+        setEditingItem(item);
+        setEditTitle(item.title);
+        setEditRussianTitle(item.russian_title);
+
+        if ('url' in item) {
+            setEditSlug(item.slug || "");
+            setEditUrl(item.url || "");
+            setEditIsHardcoded(item.is_hardcoded_url || false);
+            setEditDropdownItems([]);
+        } else if ('items' in item) {
+            setEditSlug("");
+            setEditUrl("");
+            setEditIsHardcoded(false);
+            setEditDropdownItems(item.items);
+        }
+
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!editingItem) return;
+
+        if (!editTitle || !editRussianTitle) {
+            toast.error("Title and Russian title are required");
+            return;
+        }
+
+        try {
+            const updatedItem: any = {
+                title: editTitle,
+                russian_title: editRussianTitle,
+            };
+
+            if ('url' in editingItem) {
+                updatedItem.is_hardcoded_url = editIsHardcoded;
+                if (editIsHardcoded) {
+                    if (!editUrl) {
+                        toast.error("URL is required when hardcoded URL is enabled");
+                        return;
+                    }
+                    updatedItem.url = editUrl;
+                } else {
+                    if (!editSlug) {
+                        toast.error("Page selection is required when not using hardcoded URL");
+                        return;
+                    }
+                    updatedItem.slug = editSlug;
+                }
+            } else if ('items' in editingItem) {
+                updatedItem.items = editDropdownItems;
+            }
+
+            const response = await api.put(`/v1/header/items/edit/${editingItem.title}`, updatedItem);
+
+            if (response.data) {
+                toast.success("Navigation item updated successfully");
+                setIsEditModalOpen(false);
+                setEditingItem(null);
+                await fetchHeader();
+            }
+        } catch (err) {
+            console.error("Failed to update navigation item:", err);
+            toast.error("Failed to update navigation item");
+        }
+    };
+
+    const handleEditAddDropdownItem = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!editTempLinkTitle || !editTempLinkRussianTitle) {
+            toast.error("Link title and Russian title are required");
+            return;
+        }
+
+        if (editTempLinkIsHardcoded && !editTempLinkUrl) {
+            toast.error("URL is required when hardcoded URL is enabled");
+            return;
+        }
+
+        if (!editTempLinkIsHardcoded && !editTempLinkSlug) {
+            toast.error("Page selection is required when not using hardcoded URL");
+            return;
+        }
+
+        const linkData: any = {
+            title: editTempLinkTitle,
+            russian_title: editTempLinkRussianTitle,
+            is_hardcoded_url: editTempLinkIsHardcoded,
+            visible: true,
+            type: "link"
+        };
+
+        if (editTempLinkIsHardcoded) {
+            linkData.url = editTempLinkUrl;
+        } else {
+            linkData.slug = editTempLinkSlug;
+        }
+
+        if (editingDropdownIndex !== null) {
+            // Update existing item
+            const updatedItems = [...editDropdownItems];
+            updatedItems[editingDropdownIndex] = linkData;
+            setEditDropdownItems(updatedItems);
+            setEditingDropdownIndex(null);
+        } else {
+            // Add new item
+            setEditDropdownItems([...editDropdownItems, linkData]);
+        }
+
+        // Reset form fields
+        setEditTempLinkTitle("");
+        setEditTempLinkRussianTitle("");
+        setEditTempLinkSlug("");
+        setEditTempLinkUrl("");
+        setEditTempLinkIsHardcoded(false);
+    };
+
+    const handleEditDropdownItem = (index: number) => {
+        const item = editDropdownItems[index];
+        setEditTempLinkTitle(item.title);
+        setEditTempLinkRussianTitle(item.russian_title);
+        setEditTempLinkSlug(item.slug || "");
+        setEditTempLinkUrl(item.url || "");
+        setEditTempLinkIsHardcoded(item.is_hardcoded_url || false);
+        setEditingDropdownIndex(index);
+    };
+
+    const handleRemoveEditDropdownItem = (index: number) => {
+        setEditDropdownItems(editDropdownItems.filter((_, i) => i !== index));
+        // If we were editing this item, reset the form
+        if (editingDropdownIndex === index) {
+            setEditTempLinkTitle("");
+            setEditTempLinkRussianTitle("");
+            setEditTempLinkUrl("");
+            setEditingDropdownIndex(null);
+        }
+    };
+
+    const cancelEditingDropdownItem = () => {
+        setEditTempLinkTitle("");
+        setEditTempLinkRussianTitle("");
+        setEditTempLinkSlug("");
+        setEditTempLinkUrl("");
+        setEditTempLinkIsHardcoded(false);
+        setEditingDropdownIndex(null);
     };
 
     if (loading) return <div className="p-6 text-center">Loading header data...</div>;
 
     return (
-        <div className="mx-auto w-full max-w-4xl space-y-5">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-semibold">Edit Header Navigation</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Drag to reorder, toggle visibility, edit or remove items. Changes are staged until you click{" "}
-                        <span className="font-medium">Save</span>.
-                    </p>
+        <Card className="w-full max-w-4xl mx-auto">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle>Edit Header Navigation</CardTitle>
+                    <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="default">
+                                Add Navigation Item
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>Add Navigation Item</DialogTitle>
+                                <DialogDescription>
+                                    Choose the type of navigation item you want to add.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="flex gap-4">
+                                    <Button
+                                        type="button"
+                                        variant={itemType === "link" ? "default" : "outline"}
+                                        onClick={() => setItemType("link")}
+                                    >
+                                        Link
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={itemType === "dropdown" ? "default" : "outline"}
+                                        onClick={() => setItemType("dropdown")}
+                                    >
+                                        Dropdown
+                                    </Button>
+                                </div>
+
+                                {itemType === "link" ? (
+                                    <form onSubmit={handleAddLink} className="flex flex-col gap-4">
+                                        <Input
+                                            type="text"
+                                            placeholder="Link Title"
+                                            value={newLinkTitle}
+                                            onChange={(e) => setNewLinkTitle(e.target.value)}
+                                            required
+                                        />
+                                        <Input
+                                            type="text"
+                                            placeholder="Russian Title"
+                                            value={newLinkRussianTitle}
+                                            onChange={(e) => setNewLinkRussianTitle(e.target.value)}
+                                            required
+                                        />
+                                        <div className="space-y-4">
+                                            <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id="hardcode-url"
+                                                    checked={newLinkIsHardcoded}
+                                                    onCheckedChange={(checked) => setNewLinkIsHardcoded(checked as boolean)}
+                                                />
+                                                <label
+                                                    htmlFor="hardcode-url"
+                                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                >
+                                                    Hardcode URL
+                                                </label>
+                                            </div>
+
+                                            {newLinkIsHardcoded ? (
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Link URL"
+                                                    value={newLinkUrl}
+                                                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                                                    required
+                                                />
+                                            ) : (
+                                                <Select value={newLinkSlug} onValueChange={setNewLinkSlug} required>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a page" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {pages.map((page) => (
+                                                            <SelectItem key={page._id} value={page.slug}>
+                                                                {page.title}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        </div>
+                                        <DialogFooter>
+                                            <Button type="submit">
+                                                Add Link
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                ) : (
+                                    <form onSubmit={handleAddDropdown} className="flex flex-col gap-4">
+                                        <Input
+                                            type="text"
+                                            placeholder="Dropdown Title"
+                                            value={newDropdownTitle}
+                                            onChange={(e) => setNewDropdownTitle(e.target.value)}
+                                            required
+                                        />
+                                        <Input
+                                            type="text"
+                                            placeholder="Russian Title"
+                                            value={newDropdownRussianTitle}
+                                            onChange={(e) => setNewDropdownRussianTitle(e.target.value)}
+                                            required
+                                        />
+                                        <div className="border rounded p-4 bg-gray-50">
+                                            <h4 className="font-medium mb-2">Dropdown Links</h4>
+
+                                            {dropdownLinks.length > 0 ? (
+                                                <DndContext
+                                                    sensors={sensors}
+                                                    collisionDetection={closestCenter}
+                                                    onDragEnd={handleDragEnd}
+                                                >
+                                                    <SortableContext
+                                                        items={dropdownLinks.map((link) => `${link.title}-${link.url}`)}
+                                                        strategy={verticalListSortingStrategy}
+                                                    >
+                                                        <ul className="mb-4">
+                                                            {dropdownLinks.map((link, index) => (
+                                                                <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
+                                                                    <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                        <div>
+                                                                            <div className="font-medium">{link.title}</div>
+                                                                            <div className="text-sm text-blue-600">{link.url}</div>
+                                                                        </div>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => handleRemoveDropdownLink(index)}
+                                                                            className="text-red-500 hover:text-red-700"
+                                                                        >
+                                                                            Remove
+                                                                        </Button>
+                                                                    </li>
+                                                                </SortableItem>
+                                                            ))}
+                                                        </ul>
+                                                    </SortableContext>
+                                                </DndContext>
+                                            ) : (
+                                                <p className="text-gray-500 italic mb-4">No links</p>
+                                            )}
+
+                                            <div className="border-t pt-3">
+                                                <h5 className="font-medium mb-2">Add Link to Dropdown</h5>
+                                                <div className="flex flex-col gap-2">
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="Link Title"
+                                                        value={tempLinkTitle}
+                                                        onChange={(e) => setTempLinkTitle(e.target.value)}
+                                                    />
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="Russian Title"
+                                                        value={tempLinkRussianTitle}
+                                                        onChange={(e) => setTempLinkRussianTitle(e.target.value)}
+                                                    />
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                                id="dropdown-hardcode-url"
+                                                                checked={tempLinkIsHardcoded}
+                                                                onCheckedChange={(checked) => setTempLinkIsHardcoded(checked as boolean)}
+                                                            />
+                                                            <label
+                                                                htmlFor="dropdown-hardcode-url"
+                                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                            >
+                                                                Hardcode URL
+                                                            </label>
+                                                        </div>
+
+                                                        {tempLinkIsHardcoded ? (
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="Link URL"
+                                                                value={tempLinkUrl}
+                                                                onChange={(e) => setTempLinkUrl(e.target.value)}
+                                                            />
+                                                        ) : (
+                                                            <Select value={tempLinkSlug} onValueChange={setTempLinkSlug}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select a page" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {pages.map((page) => (
+                                                                        <SelectItem key={page._id} value={page.slug}>
+                                                                            {page.title}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        onClick={handleAddDropdownLink}
+                                                        size="sm"
+                                                        className="self-start"
+                                                    >
+                                                        Add to Dropdown
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <DialogFooter>
+                                            <Button type="submit" disabled={dropdownLinks.length === 0}>
+                                                Add Dropdown
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                )}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Edit Item Dialog */}
+                    <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>Edit Navigation Item</DialogTitle>
+                                <DialogDescription>
+                                    Update the navigation item details.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+                                <Input
+                                    type="text"
+                                    placeholder="Title"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    required
+                                />
+                                <Input
+                                    type="text"
+                                    placeholder="Russian Title"
+                                    value={editRussianTitle}
+                                    onChange={(e) => setEditRussianTitle(e.target.value)}
+                                    required
+                                />
+
+                                {editingItem && 'url' in editingItem && (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="edit-hardcode-url"
+                                                checked={editIsHardcoded}
+                                                onCheckedChange={(checked) => setEditIsHardcoded(checked as boolean)}
+                                            />
+                                            <label
+                                                htmlFor="edit-hardcode-url"
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                Hardcode URL
+                                            </label>
+                                        </div>
+
+                                        {editIsHardcoded ? (
+                                            <Input
+                                                type="text"
+                                                placeholder="URL"
+                                                value={editUrl}
+                                                onChange={(e) => setEditUrl(e.target.value)}
+                                                required
+                                            />
+                                        ) : (
+                                            <Select value={editSlug} onValueChange={setEditSlug} required>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a page" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {pages.map((page) => (
+                                                        <SelectItem key={page._id} value={page.slug}>
+                                                            {page.title}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    </div>
+                                )}
+
+                                {editingItem && 'items' in editingItem && (
+                                    <div className="border rounded p-4 bg-gray-50">
+                                        <h4 className="font-medium mb-2">Dropdown Items</h4>
+
+                                        {editDropdownItems.length > 0 ? (
+                                            <DndContext
+                                                sensors={sensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={handleDragEnd}
+                                            >
+                                                <SortableContext
+                                                    items={editDropdownItems.map((link) => `${link.title}-${link.url}`)}
+                                                    strategy={verticalListSortingStrategy}
+                                                >
+                                                    <ul className="mb-4">
+                                                        {editDropdownItems.map((link, index) => (
+                                                            <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
+                                                                <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                    <div>
+                                                                        <div className="font-medium">{link.title}</div>
+                                                                        <div className="text-sm text-blue-600">{link.url}</div>
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => handleEditDropdownItem(index)}
+                                                                            className="text-blue-500 hover:text-blue-700"
+                                                                        >
+                                                                            Edit
+                                                                        </Button>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => handleRemoveEditDropdownItem(index)}
+                                                                            className="text-red-500 hover:text-red-700"
+                                                                        >
+                                                                            Remove
+                                                                        </Button>
+                                                                    </div>
+                                                                </li>
+                                                            </SortableItem>
+                                                        ))}
+                                                    </ul>
+                                                </SortableContext>
+                                            </DndContext>
+                                        ) : (
+                                            <p className="text-gray-500 italic mb-4">No dropdown items</p>
+                                        )}
+
+                                        <div className="border-t pt-3">
+                                            <h5 className="font-medium mb-2">
+                                                {editingDropdownIndex !== null ? 'Edit Item' : 'Add Item to Dropdown'}
+                                            </h5>
+                                            <div className="flex flex-col gap-2">
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Link Title"
+                                                    value={editTempLinkTitle}
+                                                    onChange={(e) => setEditTempLinkTitle(e.target.value)}
+                                                />
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Russian Title"
+                                                    value={editTempLinkRussianTitle}
+                                                    onChange={(e) => setEditTempLinkRussianTitle(e.target.value)}
+                                                />
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id="edit-dropdown-hardcode-url"
+                                                            checked={editTempLinkIsHardcoded}
+                                                            onCheckedChange={(checked) => setEditTempLinkIsHardcoded(checked as boolean)}
+                                                        />
+                                                        <label
+                                                            htmlFor="edit-dropdown-hardcode-url"
+                                                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                        >
+                                                            Hardcode URL
+                                                        </label>
+                                                    </div>
+
+                                                    {editTempLinkIsHardcoded ? (
+                                                        <Input
+                                                            type="text"
+                                                            placeholder="Link URL"
+                                                            value={editTempLinkUrl}
+                                                            onChange={(e) => setEditTempLinkUrl(e.target.value)}
+                                                        />
+                                                    ) : (
+                                                        <Select value={editTempLinkSlug} onValueChange={setEditTempLinkSlug}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select a page" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {pages.map((page) => (
+                                                                    <SelectItem key={page._id} value={page.slug}>
+                                                                        {page.title}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        onClick={handleEditAddDropdownItem}
+                                                        size="sm"
+                                                        className="self-start"
+                                                    >
+                                                        {editingDropdownIndex !== null ? 'Update Item' : 'Add Item'}
+                                                    </Button>
+                                                    {editingDropdownIndex !== null && (
+                                                        <Button
+                                                            type="button"
+                                                            onClick={cancelEditingDropdownItem}
+                                                            size="sm"
+                                                            variant="outline"
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <DialogFooter>
+                                    <Button type="submit">
+                                        Save Changes
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Delete Confirmation Dialog */}
+                    <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently remove the navigation item "{itemToDelete}" from your header.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={confirmDeleteItem} className="bg-red-600 hover:bg-red-700">
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
-                <Button onClick={() => navigate("/admin/webbuilder/header/add")}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Navigation Item
-                </Button>
+            </CardHeader>
+
+            <CardContent>
+
+            {/* Current header items */}
+            <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Current Navigation Items</h3>
+                {header && header.items.length > 0 ? (
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={header.items.map(item => item.title)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <ul className="border rounded divide-y">
+                                {header.items.map((item) => (
+                                    <SortableItem key={item.title} id={item.title}>
+                                        <li className="flex justify-between items-center p-2">
+                                            <div className="flex flex-1">
+                                                <div>
+                                                    <span className="font-medium">{item.title}</span>
+                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {/* Navigate (open page in new tab) */}
+                                                {(() => {
+                                                    // Determine a sensible href: prefer slug when present and not hardcoded url
+                                                    let href: string | null = null;
+                                                    if ('items' in item) {
+                                                        href = null; // dropdowns don't have direct destination
+                                                    } else if ('url' in item) {
+                                                        const link = item as any;
+                                                        if (link.is_hardcoded_url && link.url) {
+                                                            href = link.url as string;
+                                                        } else if (link.slug) {
+                                                            let p = link.slug as string;
+                                                            if (p === "home" || p === "") p = "/";
+                                                            if (!p.startsWith("/")) p = `/${p}`;
+                                                            p = p.replace(/^\/+/, "/");
+                                                            href = p;
+                                                        }
+                                                    }
+                                                    return href ? (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => window.open(href as string, "_blank")}
+                                                            title="Open in new tab"
+                                                            className="text-gray-600 hover:text-gray-800"
+                                                        >
+                                                            <ExternalLink className="h-4 w-4" />
+                                                        </Button>
+                                                    ) : null;
+                                                })()}
+                                                <VisibilityToggle item={item} onToggle={handleChangeVisibility} />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleEditItem(item)}
+                                                    className="text-blue-600 hover:text-blue-700"
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRemoveItem(item.title)}
+                                                    className="text-red-600 hover:text-red-700"
+                                                >
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                        </li>
+                                    </SortableItem>
+                                ))}
+                            </ul>
+                        </SortableContext>
+                    </DndContext>
+                ) : (
+                    <p className="text-gray-500">No navigation items yet. Click "Add Navigation Item" to create one.</p>
+                )}
             </div>
 
-            <Card>
-                <CardHeader className="py-4">
-                    <CardTitle className="text-base">Current Navigation Items</CardTitle>
-                    <CardDescription className="text-xs">
-                        The list below reflects your pending edits.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent className="space-y-1.5">
-                    {header && header.items.length > 0 ? (
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={header.items.map((i) => i.title)} strategy={verticalListSortingStrategy}>
-                                <div className="space-y-1.5">
-                                    {header.items.map((item) => {
-                                        const visible = !!getEffectiveVisibility(item);
-                                        const isDropdown = "items" in item;
-                                        return (
-                                            <SortableItem key={item.title} id={item.title}>
-                                                <div className="flex w-full items-center justify-between gap-2">
-                                                    <div className="min-w-0">
-                                                        <div className="truncate text-sm font-medium">{item.title}</div>
-                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                                            {isDropdown ? (
-                                                                <>
-                                                                    <Badge variant="secondary" className="px-1 py-0 text-[10px]">
-                                                                        {item.items.length} link{item.items.length === 1 ? "" : "s"}
-                                                                    </Badge>
-                                                                    <span>dropdown</span>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="truncate">{(item as HeaderLink).url}</span>
-                                                                    <Badge variant="secondary" className="px-1 py-0 text-[10px]">link</Badge>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-0.5">
-                                                        <div className="mr-0.5 flex items-center gap-1">
-                                                            <Switch
-                                                                checked={visible}
-                                                                onCheckedChange={() => handleChangeVisibility(item.title, visible)}
-                                                                aria-label="Toggle visibility"
-                                                            />
-                                                            {visible ? (
-                                                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            ) : (
-                                                                <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8"
-                                                            onClick={() =>
-                                                                navigate(`/admin/webbuilder/header/edit/${encodeURIComponent(item.title)}`)
-                                                            }
-                                                            aria-label="Edit"
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-destructive"
-                                                            aria-label="Remove"
-                                                            onClick={() => handleRemoveItem(item.title)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </SortableItem>
-                                        );
-                                    })}
-                                </div>
-                            </SortableContext>
-                        </DndContext>
-                    ) : (
-                        <div className="rounded-md border p-3 text-xs text-muted-foreground">
-                            No navigation items yet. Click <span className="font-medium">Add Navigation Item</span> to create one.
-                        </div>
-                    )}
-                </CardContent>
-
-                <Separator />
-
-                <CardFooter className="flex items-center gap-2 py-3">
-                    <Button onClick={handleSaveChanges} disabled={!hasUnsavedChanges}>
+            {header && header.items.length > 0 && (
+                <div className="flex gap-4 justify-start mt-6">
+                    <Button
+                        onClick={handleSaveChanges}
+                        disabled={!hasUnsavedChanges}
+                    >
                         Save Changes
                     </Button>
-                    <Button variant="secondary" onClick={() => setConfirmDiscard(true)} disabled={!hasUnsavedChanges}>
-                        Cancel
-                    </Button>
-                </CardFooter>
-            </Card>
-
-            <AlertDialog open={!!toRemove} onOpenChange={(open) => !open && setToRemove(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Remove “{toRemove ?? ""}”?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will remove the item from your header. You can still revert before saving by cancelling your pending changes.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setToRemove(null)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            className="bg-destructive hover:bg-destructive/90"
-                            onClick={() => {
-                                if (toRemove) actuallyRemove(toRemove);
-                                setToRemove(null);
-                            }}
+                    {hasUnsavedChanges && (
+                        <Button
+                            variant="outline"
+                            onClick={handleCancelChanges}
                         >
-                            Remove
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Discard all pending changes?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            You will lose all unsaved edits and revert to the last saved state.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Keep editing</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
-                                setHeader(originalHeader);
-                                setPendingChanges({ removals: [], visibility: {} });
-                                setHasUnsavedChanges(false);
-                                setConfirmDiscard(false);
-                            }}
-                        >
-                            Discard
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+                            Cancel
+                        </Button>
+                    )}
+                </div>
+            )}
+        </CardContent>
+    </Card>
     );
 };
 

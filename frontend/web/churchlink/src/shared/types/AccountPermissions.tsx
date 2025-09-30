@@ -11,8 +11,6 @@ export type AccountPermissions = {
 };
 
 
-// Create a type "Perm Mask", it masks AccountPermissions to ONLY have the permissions themselves
-// Thus the type is only the perm bools.
 export type PermMask = Omit<AccountPermissions, 'name' | '_id'>;
 
 export type PermComp = {
@@ -21,7 +19,6 @@ export type PermComp = {
 } & PermMask;
 
 export const permissionLabels: Record<string, string> = {
-  name: "Permission Name",
   admin: "Administrator",
   permissions_management: "Permissions Manager",
   layout_management: "Site Layout Manager",

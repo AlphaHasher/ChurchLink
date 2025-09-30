@@ -380,7 +380,7 @@ class _GivingState extends State<Giving> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _purpose,
+                    initialValue: _purpose,
                     decoration: const InputDecoration(
                       labelText: 'Purpose',
                       border: OutlineInputBorder(),
@@ -453,7 +453,7 @@ class _GivingState extends State<Giving> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _intervalUnit,
+                              initialValue: _intervalUnit,
                               decoration: const InputDecoration(
                                 labelText: 'Interval Unit',
                                 border: OutlineInputBorder(),
