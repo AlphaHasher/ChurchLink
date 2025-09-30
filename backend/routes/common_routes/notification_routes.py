@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Body, Request
 from helpers.NotificationHelper import (
-    save_fcm_token as helper_save_fcm_token,
     update_notification_settings as helper_update_notification_settings,
     notification_history as helper_notification_history,
     send_push_notification as helper_send_push_notification,

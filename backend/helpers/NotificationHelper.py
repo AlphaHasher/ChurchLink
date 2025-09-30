@@ -9,17 +9,6 @@ from mongo.scheduled_notifications import (
 )
 
 
-
-async def save_fcm_token(request: dict):
-		# Update by token, not just user_id, to avoid duplicate tokens
-		result = await DB.db['fcm_tokens'].update_one(
-			{'token': request['token']},
-			{'$set': {'user_id': request['user_id']}},
-			upsert=True
-		)
-		return {"success": True, "matched": result.matched_count, "modified": result.modified_count}
-
-	
 async def update_notification_settings(streamNotificationMessage: str, streamNotificationTitle: str):
 	result = await DB.db["settings"].update_one(
 		{"type": "youtube"},

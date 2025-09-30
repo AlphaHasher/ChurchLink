@@ -3,10 +3,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-
 class PaypalService {
-  static Future<Map<String, dynamic>?> createOrder(Map<String, dynamic> donation) async {
-    final backendUrl = dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
+  static Future<Map<String, dynamic>?> createOrder(
+    Map<String, dynamic> donation,
+  ) async {
+    final backendUrl =
+        dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
     final url = Uri.parse('$backendUrl/api/v1/paypal/orders');
     log('[PaypalService] Sending donation order creation to: $url');
     log('[PaypalService] Payload: ${jsonEncode({'donation': donation})}');
@@ -34,10 +36,18 @@ class PaypalService {
     }
   }
 
-  static Future<Map<String, dynamic>?> captureOrder(String orderId, String payerId) async {
-    final backendUrl = dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
-    final url = Uri.parse('$backendUrl/api/v1/paypal/orders/$orderId/capture?payer_id=$payerId');
-    log('[PaypalService] captureOrder called for $orderId with payerId $payerId');
+  static Future<Map<String, dynamic>?> captureOrder(
+    String orderId,
+    String payerId,
+  ) async {
+    final backendUrl =
+        dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
+    final url = Uri.parse(
+      '$backendUrl/api/v1/paypal/orders/$orderId/capture?payer_id=$payerId',
+    );
+    log(
+      '[PaypalService] captureOrder called for $orderId with payerId $payerId',
+    );
     try {
       final response = await http.post(url);
       log('[PaypalService] Capture response status: ${response.statusCode}');
@@ -53,8 +63,11 @@ class PaypalService {
     }
   }
 
-  static Future<Map<String, dynamic>?> createSubscription(Map<String, dynamic> donation) async {
-    final backendUrl = dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
+  static Future<Map<String, dynamic>?> createSubscription(
+    Map<String, dynamic> donation,
+  ) async {
+    final backendUrl =
+        dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
     final url = Uri.parse('$backendUrl/api/v1/paypal/subscription');
     log('[PaypalService] Sending subscription creation to: $url');
     log('[PaypalService] Payload: ${jsonEncode({'donation': donation})}');
