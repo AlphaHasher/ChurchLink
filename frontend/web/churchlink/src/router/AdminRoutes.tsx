@@ -39,11 +39,9 @@ export const AdminRoutes = () => {
         <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/mobile-ui-tab" element={<MobileUITab />} />
-        <Route path="/webbuilder/add" element={<AddPage />} />
         <Route path="/forms/form-builder" element={<FormBuilder />} />
         <Route path="/forms/manage-forms" element={<ManageForms />} />
         <Route path="/forms/responses" element={<FormResponses />} />
-        {/** Add Page is now an inline dialog within the Web Builder page list */}
         <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
         <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
         <Route path="/webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
