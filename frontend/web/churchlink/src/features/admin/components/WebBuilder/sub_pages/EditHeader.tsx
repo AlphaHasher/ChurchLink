@@ -1,9 +1,9 @@
-// EditHeader.tsx - Updated to batch changes
 import { useState, useEffect } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
+
 import {
     DndContext,
     closestCenter,
@@ -20,11 +20,36 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+    CardFooter,
+} from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Switch } from "@/shared/components/ui/switch";
+import { Badge } from "@/shared/components/ui/badge";
+import { Separator } from "@/shared/components/ui/separator";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
+import { GripVertical, Eye, EyeOff, Pencil, Trash2, Plus } from "lucide-react";
+
 interface HeaderLink {
     title: string;
     russian_title: string;
     url: string;
     visible?: boolean;
+    type: "link";
 }
 
 interface HeaderDropdown {
@@ -32,6 +57,7 @@ interface HeaderDropdown {
     russian_title: string;
     items: HeaderLink[];
     visible?: boolean;
+    type: "dropdown";
 }
 
 type HeaderItem = HeaderLink | HeaderDropdown;
@@ -45,24 +71,34 @@ interface PendingChanges {
     visibility: Record<string, boolean>;
 }
 
-const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+const SortableItem = ({
+    id,
+    children,
+}: {
+    id: string;
+    children: React.ReactNode;
+}) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+        useSortable({ id });
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
+    const style = { transform: CSS.Transform.toString(transform), transition };
 
     return (
-        <div ref={setNodeRef} style={style} className="border-b last:border-0">
-            <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
-                    &#x2630;
-                </div>
-                <div className="flex-grow">
-                    {children}
-                </div>
-            </div>
+        <div ref={setNodeRef} style={style}>
+            <Card className={`border bg-background ${isDragging ? "ring-2 ring-primary/40" : ""}`}>
+                <CardContent className="flex items-center gap-2 p-2">
+                    <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab rounded p-1 hover:bg-muted"
+                        aria-label="Drag to reorder"
+                    >
+                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <div className="flex-1">{children}</div>
+                </CardContent>
+            </Card>
         </div>
     );
 };
@@ -77,15 +113,18 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [loading, setLoading] = useState(true);
     const [pendingChanges, setPendingChanges] = useState<PendingChanges>({
         removals: [],
-        visibility: {}
+        visibility: {},
     });
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const navigate = useNavigate();
 
+    const [toRemove, setToRemove] = useState<string | null>(null);
+    const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+    const navigate = useNavigate();
     const sensors = useSensors(useSensor(PointerSensor));
 
     useEffect(() => {
-        fetchHeader();
+        void fetchHeader();
     }, []);
 
     // Call onHeaderDataChange whenever header data changes
@@ -101,7 +140,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             const response = await api.get("/v1/header/items");
             setOriginalHeader(response.data);
             setHeader(response.data);
-            // Reset pending changes
             setPendingChanges({ removals: [], visibility: {} });
             setHasUnsavedChanges(false);
         } catch (err) {
@@ -112,51 +150,36 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         }
     };
 
-    const handleDragEnd = async (event: DragEndEvent) => {
+    const handleDragEnd = (event: DragEndEvent) => {
         if (!header) return;
-
         const { active, over } = event;
-        if (active.id !== over?.id) {
-            const oldIndex = header.items.findIndex(item => item.title === active.id);
-            const newIndex = header.items.findIndex(item => item.title === over?.id);
+        if (!over || active.id === over.id) return;
 
-            if (oldIndex !== -1 && newIndex !== -1) {
-                const newItems = arrayMove(header.items, oldIndex, newIndex);
-                setHeader({ ...header, items: newItems });
-                setHasUnsavedChanges(true);
-            }
-        }
+        const oldIndex = header.items.findIndex((i) => i.title === active.id);
+        const newIndex = header.items.findIndex((i) => i.title === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newItems = arrayMove(header.items, oldIndex, newIndex);
+        setHeader({ ...header, items: newItems });
+        setHasUnsavedChanges(true);
     };
 
-    const handleRemoveItem = (title: string) => {
-        if (confirm(`Are you sure you want to remove "${title}" from navigation?`)) {
-            setPendingChanges(prev => ({
-                ...prev,
-                removals: [...prev.removals, title]
-            }));
-
-            if (header) {
-                // Update UI but don't send to backend yet
-                const newItems = header.items.filter(item => item.title !== title);
-                setHeader({ ...header, items: newItems });
-            }
-
-            setHasUnsavedChanges(true);
-        }
-    };
+    const getEffectiveVisibility = (item: HeaderItem) =>
+        item.title in pendingChanges.visibility
+            ? pendingChanges.visibility[item.title]
+            : item.visible;
 
     const handleChangeVisibility = (title: string, currentVisibility: boolean) => {
-        setPendingChanges(prev => ({
+        setPendingChanges((prev) => ({
             ...prev,
             visibility: {
                 ...prev.visibility,
-                [title]: !currentVisibility
-            }
+                [title]: !currentVisibility,
+            },
         }));
 
         if (header) {
-            // Update UI but don't send to backend yet
-            const newItems = header.items.map(item =>
+            const newItems = header.items.map((item) =>
                 item.title === title ? { ...item, visible: !currentVisibility } : item
             );
             setHeader({ ...header, items: newItems });
@@ -165,139 +188,220 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         setHasUnsavedChanges(true);
     };
 
+    const handleRemoveItem = (title: string) => setToRemove(title);
+
+    const actuallyRemove = (title: string) => {
+        if (!header) return;
+        setPendingChanges((prev) => ({
+            ...prev,
+            removals: [...prev.removals, title],
+        }));
+        const newItems = header.items.filter((i) => i.title !== title);
+        setHeader({ ...header, items: newItems });
+        setHasUnsavedChanges(true);
+    };
+
     const handleSaveChanges = async () => {
         if (!header) return;
 
         try {
-            // Apply all changes at once
-
-            // 1. Process removals
             for (const title of pendingChanges.removals) {
-                await api.delete(`/v1/header/${title}`);
+                const del = await api.delete(`/v1/header/${encodeURIComponent(title)}`);
+                if (!del.data?.success) {
+                    throw new Error(del.data?.msg || `Failed to remove "${title}"`);
+                }
             }
 
-            // 2. Apply visibility changes
             for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                await api.put(`/v1/header/${title}/visibility`, { visible });
+                const vis = await api.put(
+                    `/v1/header/${encodeURIComponent(title)}/visibility`,
+                    { visible }
+                );
+                if (!vis.data?.success) {
+                    throw new Error(
+                        vis.data?.msg || `Failed to update visibility for "${title}"`
+                    );
+                }
             }
 
-            // 3. Save reordering last (after removals are processed)
-            const currentTitles = header.items.map(item => item.title);
-            await api.put("/v1/header/reorder", { titles: currentTitles });
+            const currentTitles = header.items.map((i) => i.title);
+            const order = await api.put("/v1/header/reorder", { titles: currentTitles });
+            if (!order.data?.success) {
+                throw new Error(order.data?.msg || "Failed to reorder header items");
+            }
+
             toast.success("Navigation changes saved successfully");
-
-            // Refresh data from server
             await fetchHeader();
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to save navigation changes:", err);
-            toast.error("Failed to save changes");
-            await fetchHeader(); // Revert to server state on failure
+            toast.error(err?.message || "Failed to save changes");
+            await fetchHeader();
         }
-    };
-
-    const handleCancelChanges = () => {
-        if (hasUnsavedChanges && confirm("Are you sure you want to discard all pending changes?")) {
-            setHeader(originalHeader);
-            setPendingChanges({ removals: [], visibility: {} });
-            setHasUnsavedChanges(false);
-        }
-    };
-
-    const getEffectiveVisibility = (item: HeaderItem) => {
-        if (item.title in pendingChanges.visibility) {
-            return pendingChanges.visibility[item.title];
-        }
-        return item.visible;
     };
 
     if (loading) return <div className="p-6 text-center">Loading header data...</div>;
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Edit Header Navigation</h2>
-                <button
-                    onClick={() => navigate("/admin/webbuilder/header/add")}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                >
-                    Add Navigation Item
-                </button>
-            </div>
-
-            {/* Current header items */}
-            <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Current Navigation Items</h3>
-                {header && header.items.length > 0 ? (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <SortableContext
-                            items={header.items.map(item => item.title)}
-                            strategy={verticalListSortingStrategy}
-                        >
-                            <ul className="border rounded divide-y">
-                                {header.items.map((item) => (
-                                    <SortableItem key={item.title} id={item.title}>
-                                        <li className="flex justify-between items-center p-2">
-                                            <div className="flex flex-1">
-                                                <div>
-                                                    <span className="font-medium">{item.title}</span>
-                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{item.url}</span>}
-                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleChangeVisibility(item.title, !!getEffectiveVisibility(item))}
-                                                    className={getEffectiveVisibility(item) ? "text-green-500" : "text-red-500"}
-                                                >
-                                                    {getEffectiveVisibility(item) ? "Visible" : "Hidden"}
-                                                </button>
-                                                <button
-                                                    onClick={() => navigate(`/admin/webbuilder/header/edit/${item.title}`)}
-                                                    className="text-blue-600 hover:underline"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleRemoveItem(item.title)}
-                                                    className="text-red-500 hover:underline"
-                                                >
-                                                    Remove
-                                                </button>
-                                            </div>
-                                        </li>
-                                    </SortableItem>
-                                ))}
-                            </ul>
-                        </SortableContext>
-                    </DndContext>
-                ) : (
-                    <p className="text-gray-500">No navigation items yet. Click "Add Navigation Item" to create one.</p>
-                )}
-            </div>
-
-            {header && header.items.length > 0 && (
-                <div className="flex gap-4 justify-left mt-4">
-                    <button
-                        onClick={handleSaveChanges}
-                        className={`${hasUnsavedChanges ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400'} text-white px-4 py-2 rounded`}
-                        disabled={!hasUnsavedChanges}
-                    >
-                        Save Changes
-                    </button>
-                    {hasUnsavedChanges && (
-                        <button
-                            onClick={handleCancelChanges}
-                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
-                        >
-                            Cancel
-                        </button>
-                    )}
+        <div className="mx-auto w-full max-w-4xl space-y-5">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-xl font-semibold">Edit Header Navigation</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Drag to reorder, toggle visibility, edit or remove items. Changes are staged until you click{" "}
+                        <span className="font-medium">Save</span>.
+                    </p>
                 </div>
-            )}
+                <Button onClick={() => navigate("/admin/webbuilder/header/add")}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Navigation Item
+                </Button>
+            </div>
+
+            <Card>
+                <CardHeader className="py-4">
+                    <CardTitle className="text-base">Current Navigation Items</CardTitle>
+                    <CardDescription className="text-xs">
+                        The list below reflects your pending edits.
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-1.5">
+                    {header && header.items.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={header.items.map((i) => i.title)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-1.5">
+                                    {header.items.map((item) => {
+                                        const visible = !!getEffectiveVisibility(item);
+                                        const isDropdown = "items" in item;
+                                        return (
+                                            <SortableItem key={item.title} id={item.title}>
+                                                <div className="flex w-full items-center justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <div className="truncate text-sm font-medium">{item.title}</div>
+                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                                            {isDropdown ? (
+                                                                <>
+                                                                    <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                                                                        {item.items.length} link{item.items.length === 1 ? "" : "s"}
+                                                                    </Badge>
+                                                                    <span>dropdown</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <span className="truncate">{(item as HeaderLink).url}</span>
+                                                                    <Badge variant="secondary" className="px-1 py-0 text-[10px]">link</Badge>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-0.5">
+                                                        <div className="mr-0.5 flex items-center gap-1">
+                                                            <Switch
+                                                                checked={visible}
+                                                                onCheckedChange={() => handleChangeVisibility(item.title, visible)}
+                                                                aria-label="Toggle visibility"
+                                                            />
+                                                            {visible ? (
+                                                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                                            ) : (
+                                                                <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                                                            )}
+                                                        </div>
+
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            onClick={() =>
+                                                                navigate(`/admin/webbuilder/header/edit/${encodeURIComponent(item.title)}`)
+                                                            }
+                                                            aria-label="Edit"
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-destructive"
+                                                            aria-label="Remove"
+                                                            onClick={() => handleRemoveItem(item.title)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </SortableItem>
+                                        );
+                                    })}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <div className="rounded-md border p-3 text-xs text-muted-foreground">
+                            No navigation items yet. Click <span className="font-medium">Add Navigation Item</span> to create one.
+                        </div>
+                    )}
+                </CardContent>
+
+                <Separator />
+
+                <CardFooter className="flex items-center gap-2 py-3">
+                    <Button onClick={handleSaveChanges} disabled={!hasUnsavedChanges}>
+                        Save Changes
+                    </Button>
+                    <Button variant="secondary" onClick={() => setConfirmDiscard(true)} disabled={!hasUnsavedChanges}>
+                        Cancel
+                    </Button>
+                </CardFooter>
+            </Card>
+
+            <AlertDialog open={!!toRemove} onOpenChange={(open) => !open && setToRemove(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove “{toRemove ?? ""}”?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will remove the item from your header. You can still revert before saving by cancelling your pending changes.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setToRemove(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive hover:bg-destructive/90"
+                            onClick={() => {
+                                if (toRemove) actuallyRemove(toRemove);
+                                setToRemove(null);
+                            }}
+                        >
+                            Remove
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Discard all pending changes?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You will lose all unsaved edits and revert to the last saved state.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setHeader(originalHeader);
+                                setPendingChanges({ removals: [], visibility: {} });
+                                setHasUnsavedChanges(false);
+                                setConfirmDiscard(false);
+                            }}
+                        >
+                            Discard
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

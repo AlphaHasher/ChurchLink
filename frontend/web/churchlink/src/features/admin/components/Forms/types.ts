@@ -21,6 +21,40 @@ export type FieldType =
 
 export type Width = "full" | "half" | "third" | "quarter";
 
+export type FormWidthOption = "100" | "85" | "70" | "55" | "40" | "25" | "15";
+
+export const FORM_WIDTH_VALUES: FormWidthOption[] = ["100", "85", "70", "55", "40", "25", "15"];
+
+export const DEFAULT_FORM_WIDTH: FormWidthOption = "100";
+
+const LEGACY_FORM_WIDTH_MAP: Record<string, FormWidthOption> = {
+  full: "100",
+  "100": "100",
+  "100%": "100",
+  half: "55",
+  "50": "55",
+  "50%": "55",
+  third: "40",
+  "33": "40",
+  "33%": "40",
+  quarter: "25",
+  "25%": "25",
+};
+
+export const normalizeFormWidth = (value?: string | null): FormWidthOption => {
+  if (!value) return DEFAULT_FORM_WIDTH;
+  const trimmed = String(value).trim();
+  const normalized = trimmed.endsWith("%") ? trimmed.slice(0, -1) : trimmed;
+  if (FORM_WIDTH_VALUES.includes(normalized as FormWidthOption)) {
+    return normalized as FormWidthOption;
+  }
+  const legacyKey = normalized.toLowerCase();
+  if (legacyKey in LEGACY_FORM_WIDTH_MAP) {
+    return LEGACY_FORM_WIDTH_MAP[legacyKey];
+  }
+  return DEFAULT_FORM_WIDTH;
+};
+
 export interface BaseField {
   id: string;
   type: FieldType;
@@ -173,6 +207,7 @@ export interface FormSchema {
   locales?: string[];
   // Default/primary locale, used as base language for authoring
   defaultLocale?: string;
+  formWidth?: FormWidthOption;
   data: AnyField[];
 }
 
@@ -187,5 +222,26 @@ export const widthToCols = (w?: Width) => {
     case "full":
     default:
       return "sm:col-span-12";
+  }
+};
+
+export const formWidthToClass = (w?: string) => {
+  const normalized = normalizeFormWidth(w);
+  switch (normalized) {
+    case "15":
+      return "max-w-[15%]";
+    case "25":
+      return "max-w-[25%]";
+    case "40":
+      return "max-w-[40%]";
+    case "55":
+      return "max-w-[55%]";
+    case "70":
+      return "max-w-[70%]";
+    case "85":
+      return "max-w-[85%]";
+    case "100":
+    default:
+      return "max-w-full";
   }
 };

@@ -3,6 +3,7 @@ import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
+
 import {
     DndContext,
     closestCenter,
@@ -18,6 +19,30 @@ import {
     arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+    CardFooter,
+} from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Switch } from "@/shared/components/ui/switch";
+import { Badge } from "@/shared/components/ui/badge";
+import { Separator } from "@/shared/components/ui/separator";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
+import { GripVertical, Eye, EyeOff, Pencil, Trash2, Plus } from "lucide-react";
 
 interface FooterItem {
     title: string;
@@ -42,24 +67,35 @@ interface PendingChanges {
     visibility: Record<string, boolean>;
 }
 
-const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
+const SortableItem = ({
+    id,
+    children,
+}: {
+    id: string;
+    children: React.ReactNode;
+}) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+        useSortable({ id });
+
+    const style = { transform: CSS.Transform.toString(transform), transition };
 
     return (
-        <div ref={setNodeRef} style={style} className="border-b last:border-0">
-            <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
-                    &#x2630;
-                </div>
-                <div className="flex-grow">
-                    {children}
-                </div>
-            </div>
+        <div ref={setNodeRef} style={style}>
+            <Card className={`border bg-background ${isDragging ? "ring-2 ring-primary/40" : ""}`}>
+                <CardContent className="flex items-center gap-2 p-2">
+                    <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab rounded p-1 hover:bg-muted"
+                        aria-label="Drag to reorder"
+                    >
+                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <div className="flex-1">{children}</div>
+                </CardContent>
+            </Card>
         </div>
     );
 };
@@ -72,17 +108,21 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const [originalFooter, setOriginalFooter] = useState<Footer | null>(null);
     const [footer, setFooter] = useState<Footer | null>(null);
     const [loading, setLoading] = useState(true);
-    const [pendingChanges, setPendingChanges] = useState<PendingChanges>({
-        removals: [],
-        visibility: {}
-    });
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const navigate = useNavigate();
 
+    const [pending, setPending] = useState<PendingChanges>({
+        removals: [],
+        visibility: {},
+    });
+    const [dirty, setDirty] = useState(false);
+
+    const [toRemove, setToRemove] = useState<string | null>(null);
+    const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+    const navigate = useNavigate();
     const sensors = useSensors(useSensor(PointerSensor));
 
     useEffect(() => {
-        fetchFooter();
+        void fetchFooter();
     }, []);
 
     // Call onFooterDataChange whenever footer data changes
@@ -95,12 +135,11 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const fetchFooter = async () => {
         try {
             setLoading(true);
-            const response = await api.get("/v1/footer/items");
-            setOriginalFooter(response.data);
-            setFooter(response.data);
-            // Reset pending changes
-            setPendingChanges({ removals: [], visibility: {} });
-            setHasUnsavedChanges(false);
+            const res = await api.get("/v1/footer/items");
+            setOriginalFooter(res.data);
+            setFooter(res.data);
+            setPending({ removals: [], visibility: {} });
+            setDirty(false);
         } catch (err) {
             console.error("Failed to fetch footer:", err);
             toast.error("Failed to load footer data");
@@ -109,192 +148,228 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
         }
     };
 
-    const handleDragEnd = async (event: DragEndEvent) => {
+    const handleDragEnd = (event: DragEndEvent) => {
         if (!footer) return;
-
         const { active, over } = event;
-        if (active.id !== over?.id) {
-            const oldIndex = footer.items.findIndex(item => item.title === active.id);
-            const newIndex = footer.items.findIndex(item => item.title === over?.id);
+        if (!over || active.id === over.id) return;
 
-            if (oldIndex !== -1 && newIndex !== -1) {
-                const newItems = arrayMove(footer.items, oldIndex, newIndex);
-                setFooter({ ...footer, items: newItems });
-                setHasUnsavedChanges(true);
-            }
-        }
+        const oldIndex = footer.items.findIndex((s) => s.title === active.id);
+        const newIndex = footer.items.findIndex((s) => s.title === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const items = arrayMove(footer.items, oldIndex, newIndex);
+        setFooter({ ...footer, items });
+        setDirty(true);
     };
 
-    const handleRemoveItem = (title: string) => {
-        if (confirm(`Are you sure you want to remove "${title}"?`)) {
-            setPendingChanges(prev => ({
-                ...prev,
-                removals: [...prev.removals, title]
-            }));
+    const effectiveVisible = (section: FooterSection) =>
+        section.title in pending.visibility ? pending.visibility[section.title] : section.visible;
 
-            if (footer) {
-                // Update UI but don't send to backend yet
-                const newItems = footer.items.filter(item => item.title !== title);
-                setFooter({ ...footer, items: newItems });
-            }
-
-            setHasUnsavedChanges(true);
-        }
-    };
-
-    const handleChangeVisibility = (title: string, currentVisibility: boolean) => {
-        setPendingChanges(prev => ({
-            ...prev,
-            visibility: {
-                ...prev.visibility,
-                [title]: !currentVisibility
-            }
+    const toggleVisibility = (title: string, current: boolean) => {
+        setPending((p) => ({
+            ...p,
+            visibility: { ...p.visibility, [title]: !current },
         }));
-
         if (footer) {
-            // Update UI but don't send to backend yet
-            const newItems = footer.items.map(item =>
-                item.title === title ? { ...item, visible: !currentVisibility } : item
-            );
-            setFooter({ ...footer, items: newItems });
+            const items = footer.items.map((s) => (s.title === title ? { ...s, visible: !current } : s));
+            setFooter({ ...footer, items });
         }
-
-        setHasUnsavedChanges(true);
+        setDirty(true);
     };
 
-    const handleSaveChanges = async () => {
+    const stageRemoval = (title: string) => {
         if (!footer) return;
+        setPending((p) => ({ ...p, removals: [...p.removals, title] }));
+        setFooter({ ...footer, items: footer.items.filter((s) => s.title !== title) });
+        setDirty(true);
+    };
 
+    const saveAll = async () => {
+        if (!footer) return;
         try {
-            // Apply all changes at once
-
-            // 1. Process removals
-            for (const title of pendingChanges.removals) {
-                await api.delete(`/v1/footer/${title}`);
+            for (const title of pending.removals) {
+                const del = await api.delete(`/v1/footer/${encodeURIComponent(title)}`);
+                if (!del.data?.success) {
+                    throw new Error(del.data?.msg || `Failed to remove "${title}"`);
+                }
             }
 
-            // 2. Apply visibility changes
-            for (const [title, visible] of Object.entries(pendingChanges.visibility)) {
-                await api.put(`/v1/footer/${title}/visibility`, { visible });
+            for (const [title, visible] of Object.entries(pending.visibility)) {
+                const vis = await api.put(
+                    `/v1/footer/${encodeURIComponent(title)}/visibility`,
+                    { visible }
+                );
+                if (!vis.data?.success) {
+                    throw new Error(vis.data?.msg || `Failed to update visibility for "${title}"`);
+                }
             }
 
-            // 3. Save reordering last (after removals are processed)
-            const currentTitles = footer.items.map(item => item.title);
-            await api.put("/v1/footer/reorder", { titles: currentTitles });
-            toast.success("Footer changes saved successfully");
+            const titles = footer.items.map((s) => s.title);
+            const order = await api.put("/v1/footer/reorder", { titles });
+            if (!order.data?.success) {
+                throw new Error(order.data?.msg || "Failed to reorder footer sections");
+            }
 
-            // Refresh data from server
+            toast.success("Footer changes saved");
             await fetchFooter();
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to save footer changes:", err);
-            toast.error("Failed to save changes");
-            await fetchFooter(); // Revert to server state on failure
+            toast.error(err?.message || "Failed to save changes");
+            await fetchFooter();
         }
-    };
-
-    const handleCancelChanges = () => {
-        if (hasUnsavedChanges && confirm("Are you sure you want to discard all pending changes?")) {
-            setFooter(originalFooter);
-            setPendingChanges({ removals: [], visibility: {} });
-            setHasUnsavedChanges(false);
-        }
-    };
-
-    const getEffectiveSectionVisibility = (section: FooterSection) => {
-        if (section.title in pendingChanges.visibility) {
-            return pendingChanges.visibility[section.title];
-        }
-        return section.visible;
     };
 
     if (loading) return <div className="p-6 text-center">Loading footer data...</div>;
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-white shadow-md p-6 rounded">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Edit Footer Sections</h2>
-                <button
-                    onClick={() => navigate("/admin/webbuilder/footer/add")}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                >
-                    Add Section
-                </button>
-            </div>
-
-            {/* Current footer items */}
-            <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Current Sections</h3>
-                {footer && footer.items.length > 0 ? (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <SortableContext
-                            items={footer.items.map(item => item.title)}
-                            strategy={verticalListSortingStrategy}
-                        >
-                            <ul className="border rounded divide-y">
-                                {footer.items.map((item) => (
-                                    <SortableItem key={item.title} id={item.title}>
-                                        <li className="flex justify-between items-center p-2">
-                                            <div className="flex flex-1">
-                                                <div>
-                                                    <span className="font-medium">{item.title}</span>
-                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{(item as FooterItem).url}</span>}
-                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleChangeVisibility(item.title, !!getEffectiveSectionVisibility(item))}
-                                                    className={getEffectiveSectionVisibility(item) ? "text-green-500" : "text-red-500"}
-                                                >
-                                                    {getEffectiveSectionVisibility(item) ? "Visible" : "Hidden"}
-                                                </button>
-                                                <button
-                                                    onClick={() => navigate(`/admin/webbuilder/footer/edit/${item.title}`)}
-                                                    className="text-blue-600 hover:underline"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleRemoveItem(item.title)}
-                                                    className="text-red-500 hover:underline"
-                                                >
-                                                    Remove
-                                                </button>
-                                            </div>
-                                        </li>
-                                    </SortableItem>
-                                ))}
-                            </ul>
-                        </SortableContext>
-                    </DndContext>
-                ) : (
-                    <p className="text-gray-500">No sections yet. Click "Add Section" to create one.</p>
-                )}
-            </div>
-
-            {footer && footer.items.length > 0 && (
-                <div className="flex gap-4 justify-left mt-4">
-                    <button
-                        onClick={handleSaveChanges}
-                        className={`${hasUnsavedChanges ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400'} text-white px-4 py-2 rounded`}
-                        disabled={!hasUnsavedChanges}
-                    >
-                        Save Changes
-                    </button>
-                    {hasUnsavedChanges && (
-                        <button
-                            onClick={handleCancelChanges}
-                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
-                        >
-                            Cancel
-                        </button>
-                    )}
+        <div className="mx-auto w-full max-w-4xl space-y-5">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-xl font-semibold">Edit Footer Sections</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Drag to reorder, toggle visibility, edit or remove sections. Changes are staged until you click{" "}
+                        <span className="font-medium">Save</span>.
+                    </p>
                 </div>
-            )}
+                <Button onClick={() => navigate("/admin/webbuilder/footer/add")}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Section
+                </Button>
+            </div>
+
+            <Card>
+                <CardHeader className="py-4">
+                    <CardTitle className="text-base">Current Sections</CardTitle>
+                    <CardDescription className="text-xs">The list below reflects your pending edits.</CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-1.5">
+                    {footer && footer.items.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={footer.items.map((s) => s.title)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-1.5">
+                                    {footer.items.map((section) => {
+                                        const visible = !!effectiveVisible(section);
+                                        return (
+                                            <SortableItem key={section.title} id={section.title}>
+                                                <div className="flex w-full items-center justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <div className="truncate text-sm font-medium">{section.title}</div>
+                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                                            <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                                                                {section.items.length} item{section.items.length === 1 ? "" : "s"}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-0.5">
+                                                        <div className="mr-0.5 flex items-center gap-1">
+                                                            <Switch
+                                                                checked={visible}
+                                                                onCheckedChange={() => toggleVisibility(section.title, visible)}
+                                                                aria-label="Toggle visibility"
+                                                            />
+                                                            {visible ? (
+                                                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                                            ) : (
+                                                                <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                                                            )}
+                                                        </div>
+
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            onClick={() =>
+                                                                navigate(`/admin/webbuilder/footer/edit/${encodeURIComponent(section.title)}`)
+                                                            }
+                                                            aria-label="Edit"
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-destructive"
+                                                            aria-label="Remove"
+                                                            onClick={() => setToRemove(section.title)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </SortableItem>
+                                        );
+                                    })}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <div className="rounded-md border p-3 text-xs text-muted-foreground">
+                            No sections yet. Click <span className="font-medium">Add Section</span> to create one.
+                        </div>
+                    )}
+                </CardContent>
+
+                <Separator />
+
+                <CardFooter className="flex items-center gap-2 py-3">
+                    <Button onClick={saveAll} disabled={!dirty}>
+                        Save Changes
+                    </Button>
+                    <Button variant="secondary" onClick={() => setConfirmDiscard(true)} disabled={!dirty}>
+                        Cancel
+                    </Button>
+                </CardFooter>
+            </Card>
+
+            <AlertDialog open={!!toRemove} onOpenChange={(open) => !open && setToRemove(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove “{toRemove ?? ""}”?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will remove the section from your footer. You can still revert before saving by cancelling your
+                            pending changes.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setToRemove(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive hover:bg-destructive/90"
+                            onClick={() => {
+                                if (toRemove) stageRemoval(toRemove);
+                                setToRemove(null);
+                            }}
+                        >
+                            Remove
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Discard all pending changes?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You will lose all unsaved edits and revert to the last saved state.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setFooter(originalFooter);
+                                setPending({ removals: [], visibility: {} });
+                                setDirty(false);
+                                setConfirmDiscard(false);
+                            }}
+                        >
+                            Discard
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

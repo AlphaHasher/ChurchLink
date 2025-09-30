@@ -74,6 +74,14 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
                 disabled={!editor_permissions.admin}
             />
             <RadioToggler
+                name="layout_management"
+                label="Site Layout Manager"
+                description="This option grants the user the ability to manage the header and footer of the site, the basic navigational layout."
+                value={permissions.layout_management}
+                onChange={handleChange("layout_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.layout_management}
+            />
+            <RadioToggler
                 name="event_editing"
                 label="Event Editor"
                 description="This option grants the user the ability to create or edit events. In addition, this role becomes accessible as being able to be assigned for Events role-based access."

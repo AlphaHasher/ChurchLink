@@ -7,17 +7,20 @@ import { Button } from "@/shared/components/ui/button";
 import type { AnyField, DateField, SelectField } from "./types";
 import { format } from "date-fns";
 import api from '@/api/api';
-import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
+import { MailCheck } from 'lucide-react';
+import { formWidthToClass } from "./types";
+import { cn } from "@/lib/utils";
 
 export function PreviewRendererClient({ slug }: { slug?: string }) {
   const schema = useBuilderStore((s) => s.schema);
   const zodSchema = schemaToZodObject(schema);
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} });
   const values = form.watch();
-  const navigate = useNavigate();
-  const [status, setStatus] = useState<string | null>(null);
+  const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const formWidthClass = formWidthToClass((schema as any)?.formWidth);
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;
@@ -45,15 +48,23 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
     // If a slug prop is provided, submit to public endpoint and redirect to thank-you
     if (slug) {
       try {
-        setStatus('Submitting...');
+        setSubmitState('submitting');
+        setSubmitMessage('Submitting...');
         await api.post(`/v1/forms/slug/${slug}/responses`, data);
-        setStatus('Submitted');
-        navigate('/forms/thank-you');
+        setSubmitState('success');
+        setSubmitMessage('Thanks for your response! We have received it.');
+        form.reset();
       } catch (err: any) {
         console.error('Submit failed', err);
-        setStatus(err?.response?.data?.detail || 'Submit failed');
+        const detail = err?.response?.data?.detail || 'Submit failed';
+        setSubmitState('error');
+        setSubmitMessage(typeof detail === 'string' ? detail : 'Submit failed');
       }
+      return;
     }
+
+    setSubmitState('success');
+    setSubmitMessage('Preview submission captured.');
   });
 
   const computeTotal = (): number => {
@@ -151,7 +162,26 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
   };
   const showPricingBar = hasPricing();
 
+  if (slug && submitState === 'success' && submitMessage) {
+    return (
+      <div className={cn("mx-auto w-full", formWidthClass)}>
+        <div className="rounded-md border border-border bg-muted/30 p-8 text-center flex flex-col items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <MailCheck className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h2 className="text-xl font-semibold">Thank you!</h2>
+          <p className="text-muted-foreground max-w-md">
+            {submitMessage}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const isSubmitting = submitState === 'submitting' || form.formState.isSubmitting;
+
   return (
+  <div className={cn("mx-auto w-full", formWidthClass)}>
   <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
       {/* Show errors for hidden required fields too */}
       {hiddenErrors.length > 0 && (
@@ -178,8 +208,16 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
         />
       ))}
       <div className="col-span-12">
-        <Button type="submit">Submit</Button>
-        {status && <div className="text-sm text-muted-foreground mt-2">{status}</div>}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Submitting...' : 'Submit'}
+        </Button>
+        {submitMessage && submitState !== 'success' && (
+          <div
+            className={`text-sm mt-2 ${submitState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
+          >
+            {submitMessage}
+          </div>
+        )}
       </div>
       {showPricingBar && (
         <div className="col-span-12">
@@ -192,5 +230,6 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
         </div>
       )}
     </form>
+    </div>
   );
 }

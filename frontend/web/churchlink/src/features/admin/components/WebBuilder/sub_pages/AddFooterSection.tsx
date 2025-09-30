@@ -1,12 +1,38 @@
-// AddFooterItem.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, } from "@dnd-kit/sortable";
+
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+    CardFooter,
+} from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
+import { Separator } from "@/shared/components/ui/separator";
+import { GripVertical, Plus, ArrowLeft, Trash2 } from "lucide-react";
 
 interface FooterItem {
     title: string;
@@ -15,74 +41,93 @@ interface FooterItem {
     visible?: boolean;
 }
 
-const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
+const SortableItem = ({
+    id,
+    children,
+}: {
+    id: string;
+    children: React.ReactNode;
+}) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
+    const style = { transform: CSS.Transform.toString(transform), transition };
     return (
-        <div ref={setNodeRef} style={style} className="mb-2">
-            <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
-                    &#x2630;
-                </div>
-                <div className="flex-grow">
-                    {children}
-                </div>
-            </div>
+        <div ref={setNodeRef} style={style} className="mb-1.5">
+            <Card className="border bg-background">
+                <CardContent className="p-2 flex items-center gap-2">
+                    <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab rounded p-1 hover:bg-muted"
+                        aria-label="Drag to reorder"
+                    >
+                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <div className="flex-1">{children}</div>
+                </CardContent>
+            </Card>
         </div>
     );
 };
 
-const AddFooterItem = () => {
+const AddFooterSection = () => {
     const navigate = useNavigate();
     const sensors = useSensors(useSensor(PointerSensor));
 
-    // For sections
-    const [newSectionTitle, setNewSectionTitle] = useState("");
-    const [newSectionRussianTitle, setNewSectionRussianTitle] = useState("");
-    const [sectionItems, setSectionItems] = useState<FooterItem[]>([]);
-    const [tempItemTitle, setTempItemTitle] = useState("");
-    const [tempItemRussianTitle, setTempItemRussianTitle] = useState("");
-    const [tempItemUrl, setTempItemUrl] = useState("");
+    const [title, setTitle] = useState("");
+    const [ruTitle, setRuTitle] = useState("");
+    const [items, setItems] = useState<FooterItem[]>([]);
+
+    const [tempTitle, setTempTitle] = useState("");
+    const [tempRuTitle, setTempRuTitle] = useState("");
+    const [tempUrl, setTempUrl] = useState("");
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (active.id !== over?.id) {
-            const oldIndex = sectionItems.findIndex((item) => `${item.title}-${item.url}` === active.id);
-            const newIndex = sectionItems.findIndex((item) => `${item.title}-${item.url}` === over?.id);
-
-            if (oldIndex !== -1 && newIndex !== -1) {
-                setSectionItems(arrayMove(sectionItems, oldIndex, newIndex));
-            }
+            setItems((prev) => {
+                const oldIndex = prev.findIndex((i) => `${i.title}-${i.url}` === String(active.id));
+                const newIndex = prev.findIndex((i) => `${i.title}-${i.url}` === String(over?.id));
+                return oldIndex !== -1 && newIndex !== -1 ? arrayMove(prev, oldIndex, newIndex) : prev;
+            });
         }
     };
 
-    const handleAddSection = async (e: React.FormEvent) => {
+    const addItem = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newSectionTitle) {
-            toast.error("Section title is required");
+        if (!tempTitle || !tempRuTitle) {
+            toast.error("Item title and Russian title are required");
             return;
         }
+        setItems((prev) => [
+            ...prev,
+            { title: tempTitle, russian_title: tempRuTitle, url: (tempUrl || "").trim() },
+        ]);
+        setTempTitle(""); setTempRuTitle(""); setTempUrl("");
+    };
 
-        if (!newSectionRussianTitle) {
-            toast.error("Section russian title is required");
+    const removeItem = (idx: number) => {
+        setItems((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const createSection = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title || !ruTitle) {
+            toast.error("Section title and Russian title are required");
             return;
         }
-
         try {
             const res = await api.post("/v1/footer/items", {
-                "title": newSectionTitle,
-                "russian_title": newSectionRussianTitle,
-                "items": sectionItems,
-                "visible": false,
+                title: title.trim(),
+                russian_title: ruTitle.trim(),
+                items,
+                visible: false,
             });
-            if (res) {
+            if (res.data?.success) {
+                toast.success("Section added");
                 navigate("/admin/webbuilder/footer");
-                toast.success("Section added successfully!");
+            } else {
+                toast.error(res.data?.msg || "Failed to add section");
             }
         } catch (err) {
             console.error("Failed to add section:", err);
@@ -90,136 +135,100 @@ const AddFooterItem = () => {
         }
     };
 
-    const handleAddSectionItem = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!tempItemTitle || !tempItemRussianTitle) {
-            toast.error("Item title and URL are required");
-            return;
-        }
-        setSectionItems([...sectionItems, { title: tempItemTitle, russian_title: tempItemRussianTitle, url: tempItemUrl || "" }]);
-        setTempItemTitle("");
-        setTempItemRussianTitle("");
-        setTempItemUrl("");
-    };
-
-    const handleRemoveSectionItem = (index: number) => {
-        setSectionItems(sectionItems.filter((_, i) => i !== index));
-    };
-
     return (
-        <div className="max-w-xl mx-auto bg-white shadow-md p-6 rounded">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Add Section</h2>
-                <button
-                    onClick={() => navigate("/admin/webbuilder/footer")}
-                    className="text-white hover:underline"
-                >
-                    Back to Footer
-                </button>
-            </div>
+        <div className="mx-auto max-w-3xl space-y-5">
+            <Button variant="ghost" className="px-0" onClick={() => navigate("/admin/webbuilder/footer")}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Footer
+            </Button>
 
-            <div className="mb-4">
-                <form onSubmit={handleAddSection} className="flex flex-col gap-3">
-                    <input
-                        type="text"
-                        placeholder="Section Title"
-                        value={newSectionTitle}
-                        onChange={(e) => setNewSectionTitle(e.target.value)}
-                        className="border rounded px-3 py-2"
-                        required
-                    />
-                    <input
-                        type="text"
-                        placeholder="Russian Title"
-                        value={newSectionRussianTitle}
-                        onChange={(e) => setNewSectionRussianTitle(e.target.value)}
-                        className="border rounded px-3 py-2"
-                        required
-                    />
-                    <div className="border rounded p-4 bg-gray-50">
-                        <h4 className="font-medium mb-2">Section Items</h4>
+            <Card>
+                <CardHeader className="py-4">
+                    <CardTitle className="text-base">Add Section</CardTitle>
+                    <CardDescription className="text-xs">Create a footer section and its links.</CardDescription>
+                </CardHeader>
 
-                        {sectionItems.length > 0 ? (
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext
-                                    items={sectionItems.map((item) => `${item.title}-${item.url}`)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    <ul className="mb-4">
-                                        {sectionItems.map((item, index) => (
-                                            <SortableItem key={`${item.title}-${item.url}`} id={`${item.title}-${item.url}`}>
-                                                <li className="flex justify-between items-center p-2 bg-white border rounded">
-                                                    <div>
-                                                        <div className="font-medium">{item.title}</div>
-                                                        <div className="text-sm text-blue-600">{item.url}</div>
+                <CardContent>
+                    <form onSubmit={createSection} className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Section Title</Label>
+                            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="ru">Russian Title</Label>
+                            <Input id="ru" value={ruTitle} onChange={(e) => setRuTitle(e.target.value)} required />
+                        </div>
+
+                        <Separator className="my-2" />
+
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-medium">Section Items</h4>
+                                <span className="text-xs text-muted-foreground">{items.length} item(s)</span>
+                            </div>
+
+                            {items.length > 0 ? (
+                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                    <SortableContext items={items.map((i) => `${i.title}-${i.url}`)} strategy={verticalListSortingStrategy}>
+                                        <div className="space-y-1.5">
+                                            {items.map((link, index) => (
+                                                <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
+                                                    <div className="flex w-full items-center justify-between">
+                                                        <div className="min-w-0">
+                                                            <div className="truncate text-sm font-medium">{link.title}</div>
+                                                            <div className="truncate text-[11px] text-muted-foreground">{link.url}</div>
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="text-destructive"
+                                                            onClick={() => removeItem(index)}
+                                                            aria-label="Remove"
+                                                        >
+                                                            <Trash2 />
+                                                        </Button>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveSectionItem(index)}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                </li>
-                                            </SortableItem>
-                                        ))}
-                                    </ul>
-                                </SortableContext>
-                            </DndContext>
-                        ) : (
-                            <p className="text-gray-500 italic mb-4">No links</p>
-                        )}
+                                                </SortableItem>
+                                            ))}
+                                        </div>
+                                    </SortableContext>
+                                </DndContext>
+                            ) : (
+                                <div className="rounded-md border p-3 text-xs text-muted-foreground">No items</div>
+                            )}
 
-                        <div className="border-t pt-3">
-                            <h5 className="font-medium mb-2">Add Item to Section</h5>
-                            <div className="flex flex-col gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="Title"
-                                    value={tempItemTitle}
-                                    onChange={(e) => setTempItemTitle(e.target.value)}
-                                    className="border rounded px-3 py-2"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Russian Title"
-                                    value={tempItemRussianTitle}
-                                    onChange={(e) => setTempItemRussianTitle(e.target.value)}
-                                    className="border rounded px-3 py-2"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Item URL"
-                                    value={tempItemUrl}
-                                    onChange={(e) => setTempItemUrl(e.target.value)}
-                                    className="border rounded px-3 py-2"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={handleAddSectionItem}
-                                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
-                                >
-                                    Add to Section
-                                </button>
+                            <div className="rounded-md border p-4">
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                    <div className="grid gap-2">
+                                        <Label>Title</Label>
+                                        <Input value={tempTitle} onChange={(e) => setTempTitle(e.target.value)} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Russian Title</Label>
+                                        <Input value={tempRuTitle} onChange={(e) => setTempRuTitle(e.target.value)} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>URL (optional)</Label>
+                                        <Input value={tempUrl} onChange={(e) => setTempUrl(e.target.value)} />
+                                    </div>
+                                </div>
+                                <Button type="button" className="mt-3" onClick={addItem}>
+                                    <Plus className="mr-2 h-4 w-4" /> Add to Section
+                                </Button>
                             </div>
                         </div>
-                    </div>
 
-                    <button
-                        type="submit"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                        disabled={sectionItems.length === 0}
-                    >
-                        Add
-                    </button>
-                </form>
-            </div>
+                        <CardFooter className="px-0">
+                            <Button type="submit" disabled={items.length === 0} className="mt-1.5">
+                                Create Section
+                            </Button>
+                        </CardFooter>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     );
 };
 
-export default AddFooterItem;
+
+export default AddFooterSection;

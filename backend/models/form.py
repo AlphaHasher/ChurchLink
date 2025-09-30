@@ -13,6 +13,11 @@ from models.base.ssbc_base_model import MongoBaseModel
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_FORM_WIDTH = "100"
+FORM_WIDTH_ALLOWED = {"100", "85", "70", "55", "40", "25", "15"}
+FORM_WIDTH_ALLOWED_LIST = sorted(FORM_WIDTH_ALLOWED, key=int, reverse=False)
+FORM_WIDTH_ALLOWED_MESSAGE = ", ".join(FORM_WIDTH_ALLOWED_LIST)
+
 def _validate_slug(v: Optional[str], allow_none: bool = True) -> Optional[str]:
     if v is None:
         return None
@@ -34,12 +39,37 @@ def _validate_data_is_list(v: Any, allow_none: bool = True) -> Any:
         raise ValueError("Form data must be an array of field definitions")
     return v
 
+
+def _normalize_form_width_value(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return None
+    raw = str(v).strip()
+    if raw == "":
+        return None
+    if raw in FORM_WIDTH_ALLOWED:
+        return raw
+    raise ValueError(f"Invalid form width value. Allowed values: {FORM_WIDTH_ALLOWED_MESSAGE}")
+
+
+def _validate_form_width(v: Optional[str]) -> Optional[str]:
+    normalized = _normalize_form_width_value(v)
+    if normalized is None:
+        return None
+    if normalized not in FORM_WIDTH_ALLOWED:
+        raise ValueError(f"Invalid form width value. Allowed values: {FORM_WIDTH_ALLOWED_MESSAGE}")
+    return normalized
+
 class FormBase(BaseModel):
     title: str = Field(...)
     folder: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     visible: bool = Field(True)
     slug: Optional[str] = Field(None)
+    form_width: Optional[str] = Field(None)
+
+    @field_validator("form_width", mode="before")
+    def validate_form_width(cls, v):
+        return _validate_form_width(v)
 
 
 class FormCreate(FormBase):
@@ -61,6 +91,7 @@ class FormUpdate(BaseModel):
     visible: Optional[bool] = None
     slug: Optional[str] = None
     data: Optional[Any] = None
+    form_width: Optional[str] = None
 
     @field_validator("slug", mode="before")
     def validate_slug_update(cls, v):
@@ -70,11 +101,16 @@ class FormUpdate(BaseModel):
     def validate_update_data_is_list(cls, v):
         return _validate_data_is_list(v, allow_none=True)
 
+    @field_validator("form_width", mode="before")
+    def validate_form_width_update(cls, v):
+        return _validate_form_width(v)
+
 
 class Form(MongoBaseModel, FormBase):
     user_id: str
     data: Any = Field(default_factory=list)
     slug: Optional[str]
+    form_width: Optional[str]
 
 
 class FormOut(BaseModel):
@@ -88,9 +124,14 @@ class FormOut(BaseModel):
     data: Any
     created_at: datetime
     updated_at: datetime
+    form_width: Optional[str]
 
 
 def _doc_to_out(doc: dict) -> FormOut:
+    try:
+        normalized_width = _normalize_form_width_value(doc.get("form_width"))
+    except ValueError:
+        normalized_width = None
     return FormOut(
         id=str(doc.get("_id")),
         title=doc.get("title"),
@@ -102,6 +143,7 @@ def _doc_to_out(doc: dict) -> FormOut:
         data=doc.get("data", []),
         created_at=doc.get("created_at"),
         updated_at=doc.get("updated_at"),
+        form_width=normalized_width or DEFAULT_FORM_WIDTH,
     )
 
 
@@ -112,6 +154,7 @@ def _doc_to_out(doc: dict) -> FormOut:
 
 async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
     try:
+        width = _normalize_form_width_value(getattr(form, "form_width", None)) or DEFAULT_FORM_WIDTH
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
             "folder": form.folder,
@@ -120,6 +163,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "user_id": user_id,
             "visible": form.visible if hasattr(form, "visible") else True,
             "data": (form.data),
+            "form_width": width,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
         }
@@ -481,6 +525,8 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             update_doc["folder"] = provided.get("folder")
         if "slug" in provided:
             update_doc["slug"] = provided.get("slug")
+        if "form_width" in provided:
+            update_doc["form_width"] = _normalize_form_width_value(provided.get("form_width")) or DEFAULT_FORM_WIDTH
 
         result = await DB.db.forms.update_one({"_id": ObjectId(form_id), "user_id": user_id}, {"$set": update_doc})
         if result.matched_count:
