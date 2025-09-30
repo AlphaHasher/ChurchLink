@@ -61,13 +61,7 @@ export function BuilderShell() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showUpdateConfirmDialog, setShowUpdateConfirmDialog] = useState(false);
   const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], data: [] }));
-
-  const getCurrentFormId = () => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('load');
-  };
 
   useEffect(() => {
     if (status?.type === 'success') {
@@ -170,25 +164,11 @@ export function BuilderShell() {
   const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
   setSchema(newSchema as any);
 
-    const currentFormId = getCurrentFormId();
-    
-    // If editing existing form, check folder and show confirmation dialog
-    if (currentFormId) {
-      if (!folder) {
-        setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' });
-        return;
-      }
-      setShowUpdateConfirmDialog(true);
+    if (!folder) {
+      setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' });
       return;
     }
 
-    // Otherwise open save dialog for creation (user can select folder there)
-    setSaveDialogOpen(true);
-  };
-
-  const performSave = async () => {
-    const currentFormId = getCurrentFormId();
-    
     try {
       setStatus({ type: 'info', title: 'Saving', message: 'Saving to server...' });
       const payload = {
@@ -198,17 +178,8 @@ export function BuilderShell() {
         visible: true,
         data: (schema as any)?.data || [],
       };
-
-      if (currentFormId) {
-        // Update existing form
-        await api.put(`/v1/forms/${currentFormId}`, payload);
-        setStatus({ type: 'success', title: 'Updated', message: 'Form updated successfully' });
-      } else {
-        // Create new form
-        await api.post('/v1/forms/', payload);
-        setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
-      }
-      
+      await api.post('/v1/forms/', payload);
+      setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
   lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], data: (schema as any)?.data || [] });
     } catch (err: any) {
       console.error('Failed to save form to server', err);
@@ -277,6 +248,7 @@ export function BuilderShell() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
+        // Only support the canonical shape: top-level `data` array
         if (parsed && Array.isArray(parsed.data)) {
           setSchema({
             title: parsed.title || '',
@@ -310,7 +282,7 @@ export function BuilderShell() {
           </div>
           <div className="flex items-center gap-2">
             {/* Status Alert to the left of Save button */}
-              {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && !showUpdateConfirmDialog && (
+              {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
               <div className="hidden md:block max-w-xs">
                 <Alert
                   variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
@@ -323,7 +295,7 @@ export function BuilderShell() {
               <Button variant="outline" onClick={() => setShowClearConfirm(true)} title="Clear form (start fresh)">
                 <Trash className="h-4 w-4 mr-2" /> Clear
               </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={() => setSaveDialogOpen(true)}>
               <SaveIcon className="h-4 w-4 mr-2" /> Save
             </Button>
             <DropdownMenu>
@@ -341,7 +313,7 @@ export function BuilderShell() {
           </div>
         </div>
         {/* Fallback status below header for smaller screens (hidden when dialog open) */}
-        {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && !showUpdateConfirmDialog && (
+        {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
           <div className="md:hidden mb-2">
             <Alert
               variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
@@ -412,7 +384,7 @@ export function BuilderShell() {
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
-              <Button onClick={async () => { if (!folder) { setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' }); return; } await performSave(); setSaveDialogOpen(false); }}>Save</Button>
+              <Button onClick={async () => { if (!folder) { setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' }); return; } await handleSave(); setSaveDialogOpen(false); }}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -466,21 +438,6 @@ export function BuilderShell() {
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setShowClearConfirm(false)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={() => { resetToBlank(); setShowClearConfirm(false); }} className="bg-red-600 hover:bg-red-700">Clear</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        {/* Update existing form confirmation */}
-        <AlertDialog open={showUpdateConfirmDialog} onOpenChange={(open) => { if (!open) setShowUpdateConfirmDialog(false); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Update form?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to save changes to "{formName}"? This will update the existing form.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowUpdateConfirmDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={async () => { setShowUpdateConfirmDialog(false); await performSave(); }} className="bg-blue-600 hover:bg-blue-700">Update</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

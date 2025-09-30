@@ -212,50 +212,19 @@ export function Inspector() {
                       }}
                     />
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          </div>
-          )}
-        {/* Static text content with localization */}
-        {field.type === 'static' && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Content (Localized)</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                className="h-8 w-24"
-                placeholder="Add locale"
-                onKeyDown={(e) => {
-                  const v = (e.target as HTMLInputElement).value.trim();
-                  if (e.key === 'Enter' && v) {
-                    addLocale(v);
-                    (e.target as HTMLInputElement).value = '';
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            {availableLocales.map((loc) => (
-              <div key={loc} className="border rounded p-2 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">{loc}</div>
-                  {loc !== defaultLocale && (
-                    <Button size="sm" variant="ghost" onClick={() => removeLocale(loc)}>Remove</Button>
+                  {field.type === 'static' && (
+                    <div className="col-span-2">
+                      <Label className="text-xs">Content</Label>
+                      <Input
+                        value={(field as any).i18n?.[loc]?.content ?? ''}
+                        onChange={(e) => {
+                          const i18n = { ...((field as any).i18n || {}) };
+                          i18n[loc] = { ...(i18n[loc] || {}), content: e.target.value };
+                          update(field.id, { i18n } as any);
+                        }}
+                      />
+                    </div>
                   )}
-                </div>
-                <div>
-                  <Label className="text-xs">Content</Label>
-                  <Input
-                    value={(field as any).i18n?.[loc]?.content ?? ''}
-                    onChange={(e) => {
-                      const i18n = { ...((field as any).i18n || {}) };
-                      i18n[loc] = { ...(i18n[loc] || {}), content: e.target.value };
-                      update(field.id, { i18n } as any);
-                    }}
-                  />
                 </div>
               </div>
             ))}
@@ -265,9 +234,8 @@ export function Inspector() {
         {field.type === "static" && (
           <div className="space-y-2">
             <div className="space-y-1">
-              <Label>Default Content</Label>
+              <Label>Text content</Label>
               <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
-              <p className="text-xs text-muted-foreground">This content is used when no localized content is available.</p>
             </div>
             <div className="grid grid-cols-3 gap-2 items-end">
               <div className="space-y-1">
@@ -302,7 +270,7 @@ export function Inspector() {
           </div>
         )}
         {/* Removed base Label input; use Localization cards below to manage label per language */}
-        {field.type !== 'price' && field.type !== 'static' && (
+        {field.type !== 'price' && (
         <div className="space-y-1">
           <Label>Component Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
@@ -317,7 +285,7 @@ export function Inspector() {
             <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
           </div>
         )}
-        {field.type !== 'price' && field.type !== 'static' && (
+        {field.type !== 'price' && (
         <>
         <div className="space-y-1">
           <Label>Width</Label>
@@ -474,9 +442,7 @@ export function Inspector() {
             <Label>Allow multiple</Label>
           </div>
         )}
-    </>
-    )}
-    <div className="space-y-1">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Label>Conditional visibility</Label>
             <HoverCard>
@@ -511,6 +477,8 @@ export function Inspector() {
           </div>
     <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
     </div>
+    </>
+    )}
     {renderOptions()}
     </div>
   );
