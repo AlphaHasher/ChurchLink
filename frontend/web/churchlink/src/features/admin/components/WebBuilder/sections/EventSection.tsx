@@ -84,6 +84,8 @@ function EventRegistrationForm({
   const [selfSelected, setSelfSelected] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [selfLabel, setSelfLabel] = useState<string>("Myself");
+  const [me, setMe] = useState<{ first: string; last: string } | null>(null);
 
   /** ---------- INLINE ADD PERSON (schema-conformant) ---------- **/
   const [showAdd, setShowAdd] = useState(false);
@@ -100,31 +102,27 @@ function EventRegistrationForm({
   };
 
   const fetchPeople = async () => {
-   const res = await api.get("/v1/users/all-family-members");
-   const ppl = res.data?.family_members ?? [];
-   // map to the shape used by this component (id, first_name, etc.)
-   setPeople(
-     (ppl as any[]).map((m) => ({
-       id: m.id, // already string
-       first_name: m.first_name,
-       last_name: m.last_name,
-       gender: (m.gender as "M" | "F" | null) ?? null,
-       date_of_birth: m.date_of_birth ?? null,
-     }))
-   );
- };
+    const res = await api.get("/v1/users/me/people");
+    const ppl = res.data?.people ?? res.data ?? [];
+    setPeople(ppl);
+  };
 
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const [_, regRes] = await Promise.all([
-          fetchPeople(),
-          api.get(`/v1/events/${event.id}/registrations/summary`),
-        ]);
-        setSummary(regRes.data);
 
-        // seed selection from current registrations
+        const [_, regRes, profileRes] = await Promise.all([
+          fetchPeople(),
+           api.get(`/v1/events/${event.id}/registrations/summary`),
+           api.get(`/v1/users/get-profile`),
+         ]);
+
+        const p = profileRes?.data?.profile_info ?? {};
+        const first = p.first_name ?? "";
+        const last  = p.last_name  ?? "";
+        setMe(first || last ? { first, last } : null);
+
         const current = new Set<string>();
         let selfIsRegistered = false;
         (regRes.data?.user_registrations ?? []).forEach((r: any) => {
@@ -133,6 +131,9 @@ function EventRegistrationForm({
         });
         setSelectedIds(current);
         setSelfSelected(selfIsRegistered);
+      } catch (e) {
+        console.error("Failed to load registration form data:", e);
+        setSelfLabel((prev) => prev || "You");
       } finally {
         setLoading(false);
       }
@@ -424,11 +425,17 @@ function EventRegistrationForm({
 
         {/* Self */}
         <label className="flex items-center gap-3 rounded-lg border p-3 mb-2">
-          <input type="checkbox" checked={selfSelected} onChange={(e) => setSelfSelected(e.target.checked)} />
-          <div>
-            <div className="font-medium">Myself</div>
-            {errors["__self__"] && <div className="text-sm text-red-600">{errors["__self__"]}</div>}
-          </div>
+          <input
+            type="checkbox"
+            checked={selfSelected}
+            onChange={(e) => setSelfSelected(e.target.checked)}
+          />
+        <div>
+          <div className="font-medium">
+             {me ? `${me.first} ${me.last} (you)` : "You"}
+         </div>
+         {errors["__self__"] && <div className="text-sm text-red-600">{errors["__self__"]}</div>}
+        </div>
         </label>
 
         {/* Family */}
