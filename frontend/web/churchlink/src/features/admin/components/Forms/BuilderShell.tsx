@@ -65,7 +65,6 @@ export function BuilderShell() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showUpdateConfirmDialog, setShowUpdateConfirmDialog] = useState(false);
   const [previewExpanded, setPreviewExpanded] = useState(false);
   const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
   const widthOptions = FORM_WIDTH_VALUES.map((value) => ({ value, label: `${value}%` }));
@@ -201,23 +200,19 @@ export function BuilderShell() {
   }, [schema, formName, description, folder]);
 
   const handleSave = async () => {
-  // Persist name, folder and description into top-level schema so it stays with exported JSON
-  const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
-  setSchema(newSchema as any);
+    // Persist name, folder and description into top-level schema so it stays with exported JSON
+    const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
+    setSchema(newSchema as any);
 
     if (!folder) {
       setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' });
       return;
     }
 
-    // Otherwise open save dialog for creation (user can select folder there)
-    setSaveDialogOpen(true);
-  };
-
-  const performSave = async () => {
+    // Perform the actual save
     const currentFormId = getCurrentFormId();
     const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    
+
     try {
       setStatus({ type: 'info', title: 'Saving', message: 'Saving to server...' });
       const payload = {
@@ -238,9 +233,9 @@ export function BuilderShell() {
         await api.post('/v1/forms/', payload);
         setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
       }
-      
-    const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: (schema as any)?.data || [] });
+
+      const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: (schema as any)?.data || [] });
     } catch (err: any) {
       console.error('Failed to save form to server', err);
       if (err?.response?.status === 409) {

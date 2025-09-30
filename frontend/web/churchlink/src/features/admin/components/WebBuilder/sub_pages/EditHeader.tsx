@@ -42,7 +42,7 @@ import {
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, GripVertical } from "lucide-react";
 
 interface HeaderLink {
     title: string;
@@ -61,8 +61,8 @@ interface HeaderDropdown {
     visible?: boolean;
 }
 
-interface LinkItem extends HeaderLink {
-    type?: "link";
+interface LinkItem extends Omit<HeaderLink, 'type'> {
+    type: "link";
 }
 
 type HeaderItem = HeaderLink | HeaderDropdown;
@@ -448,6 +448,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             russian_title: tempLinkRussianTitle,
             is_hardcoded_url: tempLinkIsHardcoded,
             visible: true,
+            type: "link",
         };
 
         if (tempLinkIsHardcoded) {

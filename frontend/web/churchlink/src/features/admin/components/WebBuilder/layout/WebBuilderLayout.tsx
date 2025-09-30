@@ -104,19 +104,17 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
 
         <TabsContent value="edit" className="mt-0 flex-1 overflow-auto">
           <div className="container mx-auto px-4 py-6">
-            {type === "page"
-              ? children
-              : React.Children.map(children, (child) => {
-                  if (!React.isValidElement(child)) return child;
-                  // Avoid passing unknown props to host elements or UI primitives that forward to DOM
-                  const isHost = typeof child.type === 'string';
-                  if (isHost) return child;
-                  return React.cloneElement(child, {
-                    onHeaderDataChange: type === "header" ? handleHeaderDataChange : undefined,
-                    onFooterDataChange: type === "footer" ? handleFooterDataChange : undefined,
-                    onPageDataChange: undefined,
-                  } as any);
-                })}
+            {React.Children.map(children, (child) => {
+              if (!React.isValidElement(child)) return child;
+              // Avoid passing unknown props to host elements or UI primitives that forward to DOM
+              const isHost = typeof child.type === 'string';
+              if (isHost) return child;
+              return React.cloneElement(child, {
+                onHeaderDataChange: type === "header" ? handleHeaderDataChange : undefined,
+                onFooterDataChange: type === "footer" ? handleFooterDataChange : undefined,
+                onPageDataChange: type === "page" ? handlePageDataChange : undefined,
+              } as any);
+            })}
           </div>
         </TabsContent>
 

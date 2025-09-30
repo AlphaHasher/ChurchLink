@@ -166,7 +166,7 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const sensors = useSensors(useSensor(PointerSensor));
 
     useEffect(() => {
-        void fetchFooter();
+        fetchFooter();
     }, []);
 
     // Call onFooterDataChange whenever footer data changes
@@ -190,22 +190,25 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
         }
     };
 
-    const handleDragEnd = (event: DragEndEvent) => {
+    const handleDragEnd = async (event: DragEndEvent) => {
         if (!footer) return;
+
         const { active, over } = event;
-        if (!over || active.id === over.id) return;
+        if (active.id !== over?.id) {
+            const oldIndex = footer.items.findIndex(item => item.title === active.id);
+            const newIndex = footer.items.findIndex(item => item.title === over?.id);
 
-        const oldIndex = footer.items.findIndex((s) => s.title === active.id);
-        const newIndex = footer.items.findIndex((s) => s.title === over.id);
-        if (oldIndex === -1 || newIndex === -1) return;
-
-        const items = arrayMove(footer.items, oldIndex, newIndex);
-        setFooter({ ...footer, items });
-        setDirty(true);
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newItems = arrayMove(footer.items, oldIndex, newIndex);
+                setFooter({ ...footer, items: newItems });
+                setHasUnsavedChanges(true);
+            }
+        }
     };
 
-    const saveAll = async () => {
+    const handleSaveChanges = async () => {
         if (!footer) return;
+
         try {
             // Save reordering
             const currentTitles = footer.items.map(item => item.title);
@@ -214,7 +217,7 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
 
             // Refresh data from server
             await fetchFooter();
-        } catch (err: any) {
+        } catch (err) {
             console.error("Failed to save footer changes:", err);
             toast.error("Failed to save changes");
             await fetchFooter(); // Revert to server state on failure
@@ -685,67 +688,28 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
 
             <CardContent>
 
-            <Card>
-                <CardHeader className="py-4">
-                    <CardTitle className="text-base">Current Sections</CardTitle>
-                    <CardDescription className="text-xs">The list below reflects your pending edits.</CardDescription>
-                </CardHeader>
-
-                <CardContent className="space-y-1.5">
-                    {footer && footer.items.length > 0 ? (
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={footer.items.map((s) => s.title)} strategy={verticalListSortingStrategy}>
-                                <div className="space-y-1.5">
-                                    {footer.items.map((section) => {
-                                        const visible = !!effectiveVisible(section);
-                                        return (
-                                            <SortableItem key={section.title} id={section.title}>
-                                                <div className="flex w-full items-center justify-between gap-2">
-                                                    <div className="min-w-0">
-                                                        <div className="truncate text-sm font-medium">{section.title}</div>
-                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                                            <Badge variant="secondary" className="px-1 py-0 text-[10px]">
-                                                                {section.items.length} item{section.items.length === 1 ? "" : "s"}
-                                                            </Badge>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-0.5">
-                                                        <div className="mr-0.5 flex items-center gap-1">
-                                                            <Switch
-                                                                checked={visible}
-                                                                onCheckedChange={() => toggleVisibility(section.title, visible)}
-                                                                aria-label="Toggle visibility"
-                                                            />
-                                                            {visible ? (
-                                                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            ) : (
-                                                                <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8"
-                                                            onClick={() =>
-                                                                navigate(`/admin/webbuilder/footer/edit/${encodeURIComponent(section.title)}`)
-                                                            }
-                                                            aria-label="Edit"
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-destructive"
-                                                            aria-label="Remove"
-                                                            onClick={() => setToRemove(section.title)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
+            {/* Current footer items */}
+            <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Current Sections</h3>
+                {footer && footer.items.length > 0 ? (
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={footer.items.map(item => item.title)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <ul className="border rounded divide-y">
+                                {footer.items.map((item) => (
+                                    <SortableItem key={item.title} id={item.title}>
+                                        <li className="flex justify-between items-center p-2">
+                                            <div className="flex flex-1">
+                                                <div>
+                                                    <span className="font-medium">{item.title}</span>
+                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{(item as FooterItem).url}</span>}
+                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
