@@ -32,8 +32,15 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = window.document.documentElement
+    const isAdminRoute = window.location.pathname.startsWith('/admin')
+    const isEditorRoute = window.location.pathname.startsWith('/web-editor')
+    const urlParams = new URLSearchParams(window.location.search)
+    const isPreviewMode = urlParams.get('preview') === 'true' || window.self !== window.top
+    const isInIframe = window.self !== window.top
 
     root.classList.remove("light", "dark")
+
+    const allowDark = isAdminRoute || isEditorRoute
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
@@ -41,11 +48,16 @@ export function ThemeProvider({
         ? "dark"
         : "light"
 
-      root.classList.add(systemTheme)
+      // Only apply dark mode for admin/editor routes, otherwise use light mode
+      // Never apply dark mode in preview/iframe mode
+      const finalTheme = (allowDark && !isPreviewMode && !isInIframe) ? systemTheme : "light"
+      root.classList.add(finalTheme)
       return
     }
 
-    root.classList.add(theme)
+    // Only apply dark mode for admin/editor routes and not in preview/iframe mode
+    const finalTheme = (allowDark && theme === "dark" && !isPreviewMode && !isInIframe) ? "dark" : "light"
+    root.classList.add(finalTheme)
   }, [theme])
 
   const value = {

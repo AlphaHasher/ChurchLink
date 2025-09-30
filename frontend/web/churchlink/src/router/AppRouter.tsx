@@ -11,6 +11,7 @@ import PaypalThankYouPage from "../features/paypal/pages/thank-you";
 
 const Login = lazy(() => import("../features/auth/pages/Login"));
 const Signup = lazy(() => import("../features/auth/pages/Signup"));
+const WebEditor = lazy(() => import("@/features/webeditor/pages/WebEditor"));
 
 export const AppRouter = () => {
   return (
@@ -72,6 +73,15 @@ export const AppRouter = () => {
           element={
             <AdminRoute>
               <AdminRoutes />
+            </AdminRoute>
+          }
+        />
+        {/* Standalone Web Editor (admin-guarded, no AdminLayout) */}
+        <Route
+          path="/web-editor/:slug"
+          element={
+            <AdminRoute>
+              <WebEditor />
             </AdminRoute>
           }
         />

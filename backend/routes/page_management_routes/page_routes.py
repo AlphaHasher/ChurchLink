@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Path, HTTPException, Depends
+from fastapi import APIRouter, Body, Path, HTTPException
 from mongo.database import DB
 from models.page_models import Page
 from bson import ObjectId, errors as bson_errors
@@ -121,6 +121,10 @@ async def upsert_staging_page(
     data = {**data}
     data["slug"] = slug
     data["updated_at"] = datetime.utcnow()
+    # Sanitize client-sent fields that would conflict with $setOnInsert or DB internals
+    for forbidden in ["_id", "created_at", "createdAt", "updatedAt"]:
+        if forbidden in data:
+            data.pop(forbidden, None)
 
     result = await DB.db["pages_staging"].update_one(
         {"slug": slug},
@@ -150,8 +154,8 @@ async def publish_staging_page(slug: str):
     if not staging:
         raise HTTPException(status_code=404, detail="Staging page not found")
 
-    # Fields allowed to publish
-    publish_fields = {k: staging.get(k) for k in ["title", "slug", "sections", "visible"] if k in staging}
+    # Fields allowed to publish (include version to support v2 pages)
+    publish_fields = {k: staging.get(k) for k in ["title", "slug", "sections", "visible", "version"] if k in staging}
     # Ensure slug reflects normalized version
     publish_fields["slug"] = decoded
     publish_fields["updated_at"] = datetime.utcnow()

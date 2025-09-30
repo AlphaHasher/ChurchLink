@@ -246,21 +246,21 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
         {/* Permission Focus Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-4 !bg-white">
+            <Button variant="outline" className="ml-4 !bg-background">
               Permission Focus <ChevronDown />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <Button
               variant="outline"
-              className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+              className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
               onClick={handleHideAllPermissions}
             >
               Hide All Permissions
             </Button>
             <Button
               variant="outline"
-              className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+              className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
               onClick={handleShowAllPermissions}
             >
               Show All Permissions

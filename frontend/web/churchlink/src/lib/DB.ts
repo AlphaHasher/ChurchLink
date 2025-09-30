@@ -4,7 +4,6 @@
 export class DB {
   private static db: IDBDatabase | null = null;
   private static dbName = 'ChurchLinkCache';
-  private static version = 2;
   private static encryptionDisabled: Set<string> = new Set();
 
   /**
@@ -14,7 +13,8 @@ export class DB {
     if (this.db) return;
 
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
+      // Open without specifying version to use the current version
+      const request = indexedDB.open(this.dbName);
 
       request.onerror = () => {
         console.error('IndexedDB error:', request.error);

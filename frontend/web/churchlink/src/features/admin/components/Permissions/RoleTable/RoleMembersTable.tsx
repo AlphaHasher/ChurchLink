@@ -42,7 +42,7 @@ const createColumn = (accessorKey: keyof PermRoleMemberMask): ColumnDef<PermRole
     header: ({ column }) => (
       <Button
         variant="ghost"
-        className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+        className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         {label}
@@ -164,7 +164,7 @@ export function RoleMembersTable({ data }: RoleMembersTableProps) {
 
         <div className="space-x-2">
           <Button
-            className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+            className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
@@ -173,7 +173,7 @@ export function RoleMembersTable({ data }: RoleMembersTableProps) {
             Previous
           </Button>
           <Button
-            className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+            className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}

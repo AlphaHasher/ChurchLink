@@ -100,8 +100,8 @@ const VisibilityToggle: React.FC<{ item: HeaderItem; onToggle: (title: string, c
                     <span
                         className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
                             item.visible
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
+                                ? "bg-green-500/20 text-green-400 dark:bg-green-400 dark:text-green-900"
+                                : "bg-red-500/20 text-red-400 dark:bg-red-400 dark:text-red-900"
                         }`}
                     >
                         {item.visible ? "Visible" : "Hidden"}
@@ -138,7 +138,7 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
     return (
         <div ref={setNodeRef} style={style} className="border-b last:border-0">
             <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
+                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-muted-foreground">
                     &#x2630;
                 </div>
                 <div className="flex-grow">
@@ -727,7 +727,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                             onChange={(e) => setNewDropdownRussianTitle(e.target.value)}
                                             required
                                         />
-                                        <div className="border rounded p-4 bg-gray-50">
+                                        <div className="border rounded p-4 bg-muted">
                                             <h4 className="font-medium mb-2">Dropdown Links</h4>
 
                                             {dropdownLinks.length > 0 ? (
@@ -743,7 +743,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                         <ul className="mb-4">
                                                             {dropdownLinks.map((link, index) => (
                                                                 <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
-                                                                    <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                    <li className="flex justify-between items-center p-2 bg-card border rounded">
                                                                         <div>
                                                                             <div className="font-medium">{link.title}</div>
                                                                             <div className="text-sm text-blue-600">{link.url}</div>
@@ -764,7 +764,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     </SortableContext>
                                                 </DndContext>
                                             ) : (
-                                                <p className="text-gray-500 italic mb-4">No links</p>
+                                                <p className="text-muted-foreground italic mb-4">No links</p>
                                             )}
 
                                             <div className="border-t pt-3">
@@ -909,7 +909,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 )}
 
                                 {editingItem && 'items' in editingItem && (
-                                    <div className="border rounded p-4 bg-gray-50">
+                                    <div className="border rounded p-4 bg-muted">
                                         <h4 className="font-medium mb-2">Dropdown Items</h4>
 
                                         {editDropdownItems.length > 0 ? (
@@ -925,7 +925,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     <ul className="mb-4">
                                                         {editDropdownItems.map((link, index) => (
                                                             <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
-                                                                <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                <li className="flex justify-between items-center p-2 bg-card border rounded">
                                                                     <div>
                                                                         <div className="font-medium">{link.title}</div>
                                                                         <div className="text-sm text-blue-600">{link.url}</div>
@@ -957,7 +957,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                 </SortableContext>
                                             </DndContext>
                                         ) : (
-                                            <p className="text-gray-500 italic mb-4">No dropdown items</p>
+                                            <p className="text-muted-foreground italic mb-4">No dropdown items</p>
                                         )}
 
                                         <div className="border-t pt-3">
@@ -1090,7 +1090,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                             <div className="flex flex-1">
                                                 <div>
                                                     <span className="font-medium">{item.title}</span>
-                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                                                    {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
@@ -1118,7 +1118,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                             size="sm"
                                                             onClick={() => window.open(href as string, "_blank")}
                                                             title="Open in new tab"
-                                                            className="text-gray-600 hover:text-gray-800"
+                                                            className="text-muted-foreground hover:text-foreground"
                                                         >
                                                             <ExternalLink className="h-4 w-4" />
                                                         </Button>
@@ -1149,7 +1149,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                         </SortableContext>
                     </DndContext>
                 ) : (
-                    <p className="text-gray-500">No navigation items yet. Click "Add Navigation Item" to create one.</p>
+                    <p className="text-muted-foreground">No navigation items yet. Click "Add Navigation Item" to create one.</p>
                 )}
             </div>
 

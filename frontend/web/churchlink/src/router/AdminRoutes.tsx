@@ -26,20 +26,20 @@ export const AdminRoutes = () => {
     <Routes>
       <Route path="/" element={<AdminLayout></AdminLayout>}>
         <Route index element={<AdminDashboard />} />
-        <Route path="/webbuilder" element={<WebBuilder />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/permissions" element={<Permissions />} />
-        <Route path="/notifications" element={<Notification />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/finance" element={<Finance />} />
-        <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
-        <Route path="/forms/form-builder" element={<FormBuilder />} />
-        <Route path="/forms/manage-forms" element={<ManageForms />} />
-        <Route path="/forms/responses" element={<FormResponses />} />
-        <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
-        <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
-        <Route path="/webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
-        <Route path="/webbuilder/footer" element={<WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>} />
+        <Route path="webbuilder" element={<WebBuilder />} />
+        <Route path="users" element={<Users />} />
+        <Route path="permissions" element={<Permissions />} />
+        <Route path="notifications" element={<Notification />} />
+        <Route path="events" element={<Events />} />
+        <Route path="finance" element={<Finance />} />
+        <Route path="bible-plan-manager" element={<BiblePlanManager />} />
+        <Route path="forms/form-builder" element={<FormBuilder />} />
+        <Route path="forms/manage-forms" element={<ManageForms />} />
+        <Route path="forms/responses" element={<FormResponses />} />
+        <Route path="webbuilder/edit/:slug" element={<EditPage />} />
+        <Route path="webbuilder/preview/:slug" element={<AdminPagePreview />} />
+        <Route path="webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
+        <Route path="webbuilder/footer" element={<WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>} />
       </Route>
     </Routes>
   );

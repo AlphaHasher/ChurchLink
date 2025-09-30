@@ -11,6 +11,8 @@ import MapSection from "@/features/admin/components/WebBuilder/sections/MapSecti
 import TextSectionRenderer from "@/features/admin/components/WebBuilder/sections/TextSectionRenderer";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
+import DynamicPageV2Renderer from "@/shared/components/DynamicPageV2Renderer";
+import { PageV2 } from "@/shared/types/pageV2";
 
 export interface SectionSettings {
   showFilters?: boolean;
@@ -134,16 +136,38 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     return () => ctrl.abort();
   }, [slug, isPreviewMode]);
 
+  // In preview mode, don't check visibility; in public mode, check visibility
+  const isEffectivelyPreview =
+    isPreviewMode ||
+    (new URLSearchParams(location.search).get("staging") === "1" ||
+      new URLSearchParams(location.search).get("staging") === "true") ||
+    (new URLSearchParams(location.search).get("preview") === "true");
+
+  // Add preview class to body for CSS targeting (must be before any early returns to keep hook order stable)
+  React.useEffect(() => {
+    if (isEffectivelyPreview) {
+      document.body.classList.add("preview-content");
+    } else {
+      document.body.classList.remove("preview-content");
+    }
+  }, [isEffectivelyPreview]);
+
   if (loading) return <div className="text-center">Loading...</div>;
   if (error) return <div className="text-center text-red-500">{error}</div>;
   if (notFound || !pageData) return <NotFoundPage />;
 
-  // In preview mode, don't check visibility; in public mode, check visibility
-  const isEffectivelyPreview = isPreviewMode || (new URLSearchParams(location.search).get("staging") === "1" || new URLSearchParams(location.search).get("staging") === "true");
   if (!isEffectivelyPreview && pageData.visible === false) return <InConstructionPage />;
 
   console.log("DynamicPage: Rendering page:", pageData);
   console.log("DynamicPage: Page sections:", pageData.sections);
+
+  // If this is a v2 page, render with the v2 renderer
+  const maybeV2 = (pageData as any)?.version;
+  if (maybeV2 === 2) {
+    return (
+      <DynamicPageV2Renderer page={pageData as unknown as PageV2} />
+    );
+  }
 
   return (
     <>

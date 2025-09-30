@@ -178,7 +178,7 @@ export const editFamilyMember = async (person: PersonDetails) => {
     }
 }
 
-export const deleteFamilyMember = async (id: String) => {
+export const deleteFamilyMember = async (id: string) => {
     try {
         await api.delete(`/v1/users/family-member/${id}`);
         return { "success": true };
