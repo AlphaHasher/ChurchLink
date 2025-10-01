@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, HTTPException, status, Request, Body, Query, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from models.event import sort_events, EventCreate, search_events, delete_events
+from models.event import sort_events, EventCreate, search_events, delete_events, get_event_by_id
 from controllers.event_functions import process_create_event, process_edit_event, process_delete_event, register_rsvp, cancel_rsvp
 from models.user import get_family_member_by_id
 from models.event import rsvp_list
@@ -56,6 +56,15 @@ async def get_upcoming_events_alias(
 @public_event_router.get("/ministries", summary="Get all unique ministries")
 async def get_ministries_route():
     return await get_all_ministries()
+
+# Public Router
+@public_event_router.get("/{event_id}", summary="Get event by ID")
+async def get_event_by_id_route(event_id: str):
+    """Get a single event by its ID"""
+    event = await get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
 
 # Private Router
 @private_event_router.post("/{event_id}/rsvp")

@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, status, Request, Query
 from bson import ObjectId
 
 from models.user import get_family_member_by_id
@@ -9,137 +9,193 @@ event_person_registration_router = APIRouter(prefix="/event-people", tags=["Even
 event_person_management_router = APIRouter(prefix="/event-people", tags=["Event People Management"])
 
 #
-# --- Protected routes --- 
+# --- Protected routes ---
 #
 
 # Private Router
-# Get all events for a user
+# Add (watch) a non-RSVP event to "My Events"
+@event_person_registration_router.post("/watch/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def watch_event_route(
+    event_id: str,
+    request: Request,
+    scope: str = Query("series", regex="^(series|occurrence)$"),
+    occurrenceStart: Optional[str] = Query(None, description="ISO8601 start for single occurrence"),
+):
+    """
+    Adds an event to the user's 'My Events' as a 'watch' reference.
+    scope=series|occurrence; when scope=occurrence you may pass occurrenceStart (ISO8601).
+    """
+    try:
+        from mongo.churchuser import UserHandler
+        from datetime import datetime
+
+        ev_oid = ObjectId(event_id)
+        occurrence_dt = None
+        if scope == "occurrence" and occurrenceStart:
+            try:
+                occurrence_dt = datetime.fromisoformat(occurrenceStart)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid occurrenceStart; must be ISO8601")
+
+        added = await UserHandler.add_to_my_events(
+            uid=request.state.uid,
+            event_id=ev_oid,
+            reason="watch",
+            scope=scope,
+            occurrence_start=occurrence_dt,
+        )
+        if not added:
+            # Already present or user not found
+            return {"success": True, "added": False}
+        return {"success": True, "added": True, "event": serialize_objectid(added)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error adding event to My Events: {str(e)}")
+
+
+# Private Router
+# Remove (unwatch) from "My Events"
+@event_person_registration_router.delete("/watch/{event_id}", response_model=dict)
+async def unwatch_event_route(
+    event_id: str,
+    request: Request,
+    scope: Optional[str] = Query(None, regex="^(series|occurrence)$"),
+    occurrenceStart: Optional[str] = Query(None),
+):
+    """
+    Removes the user's 'watch' reference for this event.
+    If scope/occurrenceStart are provided, removal will target that specific reference.
+    Otherwise it removes any 'watch' entries for that event.
+    """
+    try:
+        from mongo.churchuser import UserHandler
+        from datetime import datetime
+
+        ev_oid = ObjectId(event_id)
+        occurrence_dt = None
+        if occurrenceStart:
+            try:
+                occurrence_dt = datetime.fromisoformat(occurrenceStart)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid occurrenceStart; must be ISO8601")
+
+        # Build a precise removal; only removes reason="watch"
+        removed = await UserHandler.remove_from_my_events(
+            uid=request.state.uid,
+            event_id=ev_oid,
+            reason="watch",
+            scope=scope,
+            occurrence_start=occurrence_dt,
+        )
+        return {"success": True, "removed": bool(removed)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error removing event from My Events: {str(e)}")
+
+
+# Private Router
+# Get all events for a user (My Events)
 @event_person_management_router.get("/user", response_model=dict)
 async def get_user_events_route(request: Request):
     try:
         from mongo.churchuser import UserHandler
-        from bson import ObjectId
-        
+
         events = await UserHandler.list_my_events(request.state.uid)
-        # Convert ObjectIds to strings for JSON serialization
-        events_serialized = serialize_objectid(events)
-        
-        return {"success": True, "events": events_serialized}
+        return {"success": True, "events": serialize_objectid(events)}
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching user events: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error fetching user events: {str(e)}")
 
 
 # Private Router
 @event_person_management_router.get("/status/{event_id}", response_model=dict)
 async def get_registration_status_route(event_id: str, request: Request):
+    """
+    Simple check whether the *user themself* (not family) is registered for this event.
+    Uses rsvp_list() which returns: { attendees: [...], seats_taken, spots }
+    Each attendee has: user_uid, person_id, key, kind, addedOn, ...
+    """
     try:
-        # Simple implementation using existing rsvp_list
         from models.event import rsvp_list
-        
-        rsvp_data = await rsvp_list(event_id)
-        user_registered = any(r.get('uid') == request.state.uid for r in rsvp_data.get('rsvp_list', []))
-        
-        return {"success": True, "status": {"event_id": event_id, "user_id": request.state.uid, "registered": user_registered}}
+
+        data = await rsvp_list(event_id)
+        attendees = data.get("attendees", [])
+        user_registered = any(a.get("user_uid") == request.state.uid and a.get("person_id") is None for a in attendees)
+
+        return {
+            "success": True,
+            "status": {
+                "event_id": event_id,
+                "user_id": request.state.uid,
+                "registered": user_registered
+            }
+        }
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching registration status: {str(e)}")
- 
+        raise HTTPException(status_code=400, detail=f"Error fetching registration status: {str(e)}")
+
+
 # Private Route
-# Add user to event
+# Add user to event (RSVP/register)
 @event_person_registration_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_user_for_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
-        
+
         result = await register_rsvp(event_id, request.state.uid)
         if not result:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration failed")
-        
-        return {"success": True, "registration": result}
+            raise HTTPException(status_code=400, detail="Registration failed")
+        return {"success": True, "registration": True}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error registering for event: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error registering for event: {str(e)}")
+
 
 # Private Route
-# Remove user from event
+# Remove user from event (cancel RSVP)
 @event_person_registration_router.delete("/unregister/{event_id}", response_model=dict)
 async def unregister_user_from_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
-        
+
         result = await cancel_rsvp(event_id, request.state.uid)
         if not result:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unregistration failed")
-        
+            raise HTTPException(status_code=400, detail="Unregistration failed")
         return {"success": True, "message": "Unregistered successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error unregistering from event: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error unregistering from event: {str(e)}")
+
 
 # Private Route
-# Get user's events
+# Get user's events (alias of /user)
 @event_person_registration_router.get("/my-events", response_model=dict)
 async def get_my_events(request: Request, include_family: bool = True, expand: bool = False):
     try:
         from mongo.churchuser import UserHandler
-        import json
-        from bson import ObjectId
         import logging
-        
-        # Validate user ID is present
+
         if not request.state.uid:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User authentication required")
-        
-        # Get user's own events (excluding family member events)
-        user_events = await UserHandler.list_my_events(request.state.uid, expand=expand)
-        if user_events is None:
-            user_events = []
-        
-        # Filter to get only user's direct events (person_id is None)
-        user_only_events = [event for event in user_events if not event.get("person_id")]
-        all_events = list(user_only_events)
-        
-        # Include family member events if requested
-        if include_family:
-            # Get all family members
-            family_members = await UserHandler.list_people(request.state.uid)
-            
-            # Get events for each family member
-            for member in family_members:
-                member_id = member.get("_id")
-                if member_id:
-                    family_events = await UserHandler.list_my_events(
-                        request.state.uid, 
-                        expand=expand, 
-                        person_id=member_id
-                    )
-                    if family_events:
-                        # Add display_name to family member events
-                        for event in family_events:
-                            # Try both camelCase and snake_case field names for compatibility
-                            first_name = member.get('firstName') or member.get('first_name', '')
-                            last_name = member.get('lastName') or member.get('last_name', '')
-                            display_name = f"{first_name} {last_name}".strip()
-                            # Fallback to a descriptive name if no name fields are available
-                            event["display_name"] = display_name if display_name else "Family Member"
-                        all_events.extend(family_events)
-        
-        # Convert ObjectIds to strings for JSON serialization
-        events_serialized = serialize_objectid(all_events)
-        
-        return {"success": True, "events": events_serialized}
+            raise HTTPException(status_code=401, detail="User authentication required")
+
+        events = await UserHandler.list_my_events(request.state.uid)
+        return {"success": True, "events": serialize_objectid(events)}
     except HTTPException:
         raise
     except ValueError as e:
-        logging.error(f"Invalid data format in user events for user {request.state.uid}: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid data format in user events")
+        import logging as _logging
+        _logging.error(f"Invalid data format in user events for user {request.state.uid}: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid data format in user events")
     except Exception as e:
-        logging.error(f"Unexpected error fetching user events for user {request.state.uid}: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while fetching user events")
-   
-# 
-# --- Family Member Event Routes --- 
+        import logging as _logging
+        _logging.error(f"Unexpected error fetching user events for user {request.state.uid}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching user events")
+
+
+#
+# --- Family Member Event Routes ---
 #
 
 # Private Route
@@ -148,21 +204,22 @@ async def get_my_events(request: Request, include_family: bool = True, expand: b
 async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
-        
+
         # Validate family member ownership
         member = await get_family_member_by_id(request.state.uid, family_member_id)
         if not member:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
-        
+            raise HTTPException(status_code=404, detail="Family member not found")
+
         result = await register_rsvp(event_id, request.state.uid, family_member_id)
         if not result:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration failed")
-        
-        return {"success": True, "registration": result}
+            raise HTTPException(status_code=400, detail="Registration failed")
+
+        return {"success": True, "registration": True}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error registering family member for event: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error registering family member for event: {str(e)}")
+
 
 # Private Route
 # Unregister a family member from an event
@@ -170,75 +227,74 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
 async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
-        
+
         # Validate family member ownership
         member = await get_family_member_by_id(request.state.uid, family_member_id)
         if not member:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found")
-        
+            raise HTTPException(status_code=404, detail="Family member not found")
+
         result = await cancel_rsvp(event_id, request.state.uid, family_member_id)
         if not result:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unregistration failed")
-        
+            raise HTTPException(status_code=400, detail="Unregistration failed")
+
         return {"success": True, "message": "Family member unregistered successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error unregistering family member from event: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error unregistering family member from event: {str(e)}")
+
 
 # Private Route
-# Get all events for user's family members
+# Get all events for user's family members (currently returns all; filter if needed)
 @event_person_registration_router.get("/my-family-members-events", response_model=dict)
 async def get_my_family_members_events(request: Request, filters: Optional[str] = None):
     try:
         from mongo.churchuser import UserHandler
-        
-        # Get family member events - using existing UserHandler functionality
         events = await UserHandler.list_my_events(request.state.uid)
-        # Filter for family member events specifically if needed
-        return {"success": True, "events": events}
+        return {"success": True, "events": serialize_objectid(events)}
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family member events: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error fetching family member events: {str(e)}")
+
 
 # Private Route
-# Get events for specific family member
+# Get events for a specific family member
 @event_person_registration_router.get("/family-member/{family_member_id}/events", response_model=dict)
 async def get_family_member_events(family_member_id: str, request: Request):
     try:
         from mongo.churchuser import UserHandler
         import logging
-        
-        # Validate user ID is present
+
         if not request.state.uid:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User authentication required")
-        
-        # Validate family member ID format
+            raise HTTPException(status_code=401, detail="User authentication required")
+
         try:
             family_member_object_id = ObjectId(family_member_id)
         except Exception:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid family member ID format")
-        
+            raise HTTPException(status_code=400, detail="Invalid family member ID format")
+
         # Validate family member ownership
         member = await get_family_member_by_id(request.state.uid, family_member_id)
         if not member:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found or not owned by user")
-        
-        # Get events for specific family member
+            raise HTTPException(status_code=404, detail="Family member not found or not owned by user")
+
+        # Filter by person_id
         events = await UserHandler.list_my_events(request.state.uid, person_id=family_member_object_id)
-        
-        # Handle case where no events are found
-        if events is None:
-            events = []
-        
-        events_serialized = serialize_objectid(events)
-        
-        return {"success": True, "events": events_serialized, "family_member_id": family_member_id}
+        return {
+            "success": True,
+            "events": serialize_objectid(events),
+            "family_member_id": family_member_id
+        }
     except HTTPException:
         raise
     except ValueError as e:
-        logging.error(f"Invalid data format in family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid data format in family member events")
+        logging.error(
+            f"Invalid data format in family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}"
+        )
+        raise HTTPException(status_code=400, detail="Invalid data format in family member events")
     except Exception as e:
-        logging.error(f"Unexpected error fetching family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while fetching family member events")
+        logging.error(
+            f"Unexpected error fetching family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}"
+        )
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching family member events")
+
 

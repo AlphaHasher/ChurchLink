@@ -3,6 +3,7 @@ from bson import ObjectId
 from mongo.database import DB
 from datetime import datetime
 from mongo.roles import RoleHandler
+from helpers.MongoHelper import serialize_objectid_deep
 
 
 _PERSON_ID_NOT_PROVIDED = object()
@@ -16,11 +17,12 @@ class UserHandler:
     ## Operations ##
     ################
     @staticmethod
-    async def create_schema(first_name:str, last_name:str, email:str, uid:str, roles:list, phone=None, birthday=None, address=None):
+    async def create_schema(first_name:str, last_name:str, email:str, verified:bool, uid:str, roles:list, phone=None, birthday=None, address=None):
         return {
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
+            "verified":verified,
             "uid": uid,
             "roles": await RoleHandler.names_to_ids(roles),
             "phone": phone,
@@ -37,12 +39,13 @@ class UserHandler:
 
             "people": [],
             "my_events": [],
+            "sermon_favorites": [],
             "bible_notes": [],
             "createdOn": datetime.now(),
         }
 
     @staticmethod
-    async def create_user(first_name, last_name, email, uid, roles, phone=None, birthday=None, address=None):
+    async def create_user(first_name, last_name, email, uid, roles, verified=False, phone=None, birthday=None, address=None):
         """
         'roles' is a list of role names
         """
@@ -55,6 +58,7 @@ class UserHandler:
                 first_name,
                 last_name,
                 email,
+                verified,
                 uid,
                 roles,
                 phone,
@@ -117,6 +121,21 @@ class UserHandler:
             "occurrence_start": occurrence_start,  # optional datetime
             "key": unique_key,          # used with $addToSet / $pull
             "meta": meta or {},         # room for notification prefs, etc.
+            "addedOn": datetime.now(),
+        }
+
+    @staticmethod
+    def create_sermon_ref_schema(
+        sermon_id: ObjectId,
+        *,
+        reason: str = "favorite",
+        meta: dict | None = None,
+    ):
+        return {
+            "sermon_id": sermon_id,
+            "reason": reason,
+            "key": f"{sermon_id}|{reason}",
+            "meta": meta or {},
             "addedOn": datetime.now(),
         }
 
@@ -233,6 +252,71 @@ class UserHandler:
         ])
         cursor = DB.db["users"].aggregate(pipeline)
         return [doc async for doc in cursor]
+
+    @staticmethod
+    async def add_to_sermon_favorites(
+        *,
+        uid: str,
+        sermon_id: ObjectId,
+        reason: str = "favorite",
+        meta: dict | None = None,
+    ):
+        ref = UserHandler.create_sermon_ref_schema(
+            sermon_id=sermon_id,
+            reason=reason,
+            meta=meta,
+        )
+
+        result = await DB.db["users"].update_one(
+            {"uid": uid, "sermon_favorites.sermon_id": {"$ne": sermon_id}},
+            {"$push": {"sermon_favorites": ref}},
+        )
+        return ref if result.modified_count == 1 else None
+
+    @staticmethod
+    async def remove_from_sermon_favorites(*, uid: str, sermon_id: ObjectId) -> bool:
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$pull": {"sermon_favorites": {"sermon_id": sermon_id}}},
+        )
+        return result.modified_count == 1
+
+    @staticmethod
+    async def list_sermon_favorites(uid: str, expand: bool = False):
+        if not expand:
+            user = await DB.db["users"].find_one(
+                {"uid": uid},
+                {"_id": 0, "sermon_favorites": 1},
+            )
+            return (user or {}).get("sermon_favorites", [])
+
+        pipeline = [
+            {"$match": {"uid": uid}},
+            {"$unwind": {"path": "$sermon_favorites", "preserveNullAndEmptyArrays": False}},
+            {
+                "$lookup": {
+                    "from": "sermons",
+                    "localField": "sermon_favorites.sermon_id",
+                    "foreignField": "_id",
+                    "as": "sermon",
+                }
+            },
+            {"$unwind": "$sermon"},
+            {
+                "$replaceRoot": {
+                    "newRoot": {
+                        "$mergeObjects": [
+                            "$sermon_favorites",
+                            {"sermon": "$sermon"},
+                        ]
+                    }
+                }
+            },
+        ]
+
+        cursor = DB.db["users"].aggregate(pipeline)
+        favorites = [serialize_objectid_deep(doc) async for doc in cursor]
+        return favorites
     
     @staticmethod
     async def list_people(uid: str):

@@ -1,11 +1,8 @@
 // -----------------------------------------------------------------------------
 // Middleman for accessing the formatting of the Books within 
 // the Bible, as stored in books.json. 
-// TODO: Implementation. Move away from individually listed Bible books
-// TODO: in separate files and consolidate it. 
-// TODO: Implement the Bible revisions
-// TODO: KJV: "King James Version (1769)"
-// TODO: RST: "1876 (modern orthography)"
+// KJV: "King James Version (1769)"
+// RST: "1876 (modern orthography)"
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
@@ -20,11 +17,11 @@ import 'package:flutter/widgets.dart' show BuildContext, Localizations;
 import 'package:flutter/foundation.dart' show FlutterError;
 
 class BookMeta {
-  final int order;          // 1..66
-  final String key;         // stable id, e.g., "GEN"
+  final int order; // 1..66
+  final String key; // stable id, e.g., "GEN"
   final int chapters;
   final Map<String, String> names; // localeCode -> name
-  final Map<String, String> abbr;  // localeCode -> abbr
+  final Map<String, String> abbr; // localeCode -> abbr
 
   const BookMeta({
     required this.order,
@@ -35,15 +32,17 @@ class BookMeta {
   });
 
   factory BookMeta.fromJson(Map<String, dynamic> j) => BookMeta(
-        order: j['order'] as int,
-        key: j['key'] as String,
-        chapters: j['chapters'] as int,
-        names: (j['names'] as Map).cast<String, String>(),
-        abbr:  (j['abbr']  as Map).cast<String, String>(),
-      );
+    order: j['order'] as int,
+    key: j['key'] as String,
+    chapters: j['chapters'] as int,
+    names: (j['names'] as Map).cast<String, String>(),
+    abbr: (j['abbr'] as Map).cast<String, String>(),
+  );
 
-  String nameFor(String locale, String fallback) => names[locale] ?? names[fallback] ?? names.values.first;
-  String abbrFor(String locale, String fallback) => abbr[locale]  ?? abbr[fallback]  ?? abbr.values.first;
+  String nameFor(String locale, String fallback) =>
+      names[locale] ?? names[fallback] ?? names.values.first;
+  String abbrFor(String locale, String fallback) =>
+      abbr[locale] ?? abbr[fallback] ?? abbr.values.first;
 }
 
 class Books {
@@ -58,15 +57,15 @@ class Books {
   late final Map<String, BookMeta> _byEn;    // canonical English name -> meta
   late final Map<String, String> _aliasToKey;// normalized alias -> key
 
-  String _uiLocale = 'en';       // current UI locale (2-letter)
-  String _fallbackLocale = 'en'; // fallback
+  String _uiLocale = 'en'; // current UI locale (2-letter)
+  final String _fallbackLocale = 'en'; // fallback
 
   // Normalize for lookups (case/space/punct-insensitive)
   String _norm(String s) => s
-      .toLowerCase()
-      .replaceAll('.', '')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
+          .toLowerCase()
+          .replaceAll('.', '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;
@@ -98,16 +97,22 @@ class Books {
       }
     }
     if (root == null) {
-      throw FlutterError('books.json not found or invalid. Tried: ${candidates.join(', ')} ($lastErr)');
+      throw FlutterError(
+        'books.json not found or invalid. Tried: ${candidates.join(', ')} ($lastErr)',
+      );
     }
 
     _locales = (root['locales'] as List?)?.cast<String>() ?? const ['en'];
 
-    final booksJson = (root['books'] as List).cast<Map>().cast<Map<String, dynamic>>();
-    final aliasJson = (root['aliases'] as Map?)?.cast<String, String>() ?? const <String, String>{};
+    final booksJson =
+        (root['books'] as List).cast<Map>().cast<Map<String, dynamic>>();
+    final aliasJson =
+        (root['aliases'] as Map?)?.cast<String, String>() ??
+        const <String, String>{};
 
-    final books = booksJson.map(BookMeta.fromJson).toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final books =
+        booksJson.map(BookMeta.fromJson).toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
 
     _byOrder = books;
     _byKey = {for (final b in books) b.key: b};
@@ -115,7 +120,9 @@ class Books {
     // Canonical English is required for stable internal naming:
     _byEn = {
       for (final b in books)
-        (b.names['en'] ?? (throw FlutterError('Missing English name for ${b.key}'))): b
+        (b.names['en'] ??
+                (throw FlutterError('Missing English name for ${b.key}'))):
+            b,
     };
 
     // Build alias index
@@ -128,12 +135,21 @@ class Books {
     for (final b in booksJson) {
       final key = b['key'] as String;
       final extra = (b['extra_aliases'] as List?)?.cast<String>() ?? const <String>[];
-      for (final a in extra) aliasMap[_norm(a)] = key;
+      for (final a in extra) {
+        aliasMap[_norm(a)] = key;
+      }
+      for (final a in extra) {
+        aliasMap[_norm(a)] = key;
+      }
       // Also index all known localized names/abbr as aliases:
       final names = (b['names'] as Map).cast<String, String>().values;
-      final abbrs = (b['abbr']  as Map).cast<String, String>().values;
-      for (final n in names) aliasMap[_norm(n)] = key;
-      for (final a2 in abbrs) aliasMap[_norm(a2)] = key;
+      final abbrs = (b['abbr'] as Map).cast<String, String>().values;
+      for (final n in names) {
+        aliasMap[_norm(n)] = key;
+      }
+      for (final a2 in abbrs) {
+        aliasMap[_norm(a2)] = key;
+      }
       // Index the raw key (e.g., GEN) as an alias to itself for USFM \id
       aliasMap[_norm(key)] = key;
     }
@@ -208,14 +224,17 @@ class Books {
   }
 
   /// Return the English canonical name for a 1-based order.
-  String englishByOrder(int order1based) => _byOrder[order1based - 1].names['en']!;
+  String englishByOrder(int order1based) =>
+      _byOrder[order1based - 1].names['en']!;
 
   // ----- Localized UI accessors -----
 
   /// Localized book names in canonical order for UI lists.
   List<String> names({String? locale}) {
     final lc = (locale ?? _uiLocale);
-    return _byOrder.map((b) => b.nameFor(lc, _fallbackLocale)).toList(growable: false);
+    return _byOrder
+        .map((b) => b.nameFor(lc, _fallbackLocale))
+        .toList(growable: false);
   }
 
   /// Localized abbreviation for any raw selector (key, alias, etc.).

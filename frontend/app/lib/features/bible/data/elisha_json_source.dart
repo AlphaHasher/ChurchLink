@@ -242,7 +242,7 @@ class ElishaJsonSource {
     s = s.replaceAllMapped(RegExp(r'\\\+?w\s+([^|\\]+?)(?:\|[^\\]*?)?\\\+?w\*'), (m) => m[1] ?? '');
 
     // Convert emphasis tags to lightweight markers our renderer understands
-    String wrap(String tag, String text) => '⟦'+tag+'⟧'+text+'⟦/'+tag+'⟧';
+    String wrap(String tag, String text) => '⟦$tag⟧$text⟦/$tag⟧';
     Map<String, String> tagMap = {
       'add': 'it',
       'it': 'it',
@@ -369,14 +369,17 @@ class ElishaJsonSource {
         final v = int.tryParse(parts.first) ?? 0;
         currentVerse = v;
         final text = rest.substring(parts.first.length).trim();
-        buffer = text.isEmpty ? '' : text + ' ';
+        buffer = text.isEmpty ? '' : '$text ';
         continue;
       }
       // Paragraph or poetry markers: \p, \m, \q1 etc. Add a space separator
       if (RegExp(r'^\\(p|m|q\d*)').hasMatch(line)) {
         final t = line.replaceFirst(RegExp(r'^\\\S+\s*'), '').trim();
-        if (t.isNotEmpty) buffer += t + ' ';
-        else buffer += ' ';
+        if (t.isNotEmpty) {
+          buffer += '$t ';
+        } else {
+          buffer += ' ';
+        }
         continue;
       }
       // Titles/section headings like \mt1, \s1 — skip in verse text here.
@@ -384,7 +387,7 @@ class ElishaJsonSource {
         continue;
       }
       // Default: append plain text
-      buffer += line + ' ';
+      buffer += '$line ';
     }
     flush();
     return rows;
