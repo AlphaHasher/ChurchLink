@@ -1,6 +1,7 @@
 import logging
 import re
 import httpx
+import inspect
 from datetime import datetime
 from mongo.database import DB
 from firebase_admin import messaging
@@ -172,21 +173,44 @@ async def validate_link(link: str) -> str:
 	return None
 
 async def register_device_token(token, platform, appVersion, userId=None):
-    # Validate required fields
-    if not token or not platform or not appVersion:
-        return {"success": False, "error": "Missing required fields."}
+	# Validate required fields
+	if not token or not platform or not appVersion:
+		return {"success": False, "error": "Missing required fields."}
 
-    # Upsert to Firestore/mongo (example for mongo)
-    doc = {
-        "token": token,
-        "platform": platform,
-        "appVersion": appVersion,
-        "userId": userId,
-	"lastSeenAt": datetime.utcnow(),
-	"createdAt": datetime.utcnow(),
-    }
-    await DB.db["deviceTokens"].update_one({"token": token}, {"$set": doc}, upsert=True)
-    return {"success": True}
+	# Compose document for upsert
+	doc = {
+		"token": token,
+		"platform": platform,
+		"appVersion": appVersion,
+		"userId": userId,
+		"lastSeenAt": datetime.utcnow(),
+		"createdAt": datetime.utcnow(),
+	}
+	# Add notification_preferences if provided
+	frame = inspect.currentframe()
+	try:
+		caller_locals = frame.f_back.f_locals
+		notification_preferences = caller_locals.get('notification_preferences', None)
+	finally:
+		del frame
+	if notification_preferences is not None:
+		doc["notification_preferences"] = notification_preferences
+
+	# If notification_preferences is provided, add/update it
+	# This expects the caller to pass notification_preferences as a keyword argument
+	frame = inspect.currentframe()
+	try:
+		# Get caller's local variables
+		caller_locals = frame.f_back.f_locals
+		notification_preferences = caller_locals.get('notification_preferences', None)
+	finally:
+		del frame
+
+	if notification_preferences is not None:
+		doc["notification_preferences"] = notification_preferences
+
+	await DB.db["deviceTokens"].update_one({"token": token}, {"$set": doc}, upsert=True)
+	return {"success": True, "doc": doc}
 
 
 # Device-based notification preferences helpers

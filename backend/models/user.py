@@ -33,6 +33,7 @@ class UserBase(BaseModel):
     roles: List[PydanticObjectId] = Field(default_factory=list)
     bible_notes: List[str] = Field(default_factory=list)
     createdOn: datetime = Field(default_factory=datetime.now)
+    notification_preferences: Optional[dict] = Field(default_factory=dict, description="User notification opt-out settings")
 
 class UserCreate(UserBase):
     # Input roles as names, will be converted to ObjectIds before saving

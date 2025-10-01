@@ -85,7 +85,6 @@ function EventRegistrationForm({
   const [selfSelected, setSelfSelected] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
-  const [selfLabel, setSelfLabel] = useState<string>("Myself");
   const [me, setMe] = useState<{ first: string; last: string } | null>(null);
 
   /** ---------- INLINE ADD PERSON (schema-conformant) ---------- **/
@@ -134,7 +133,6 @@ function EventRegistrationForm({
         setSelfSelected(selfIsRegistered);
       } catch (e) {
         console.error("Failed to load registration form data:", e);
-        setSelfLabel((prev) => prev || "You");
       } finally {
         setLoading(false);
       }
@@ -592,8 +590,6 @@ const EventSection: React.FC<EventSectionProps> = ({
     fetchMyEvents();
   }, []);
 
-  const isRecurring = (ev: Event) => ev.recurring && ev.recurring !== "never";
-
   const isWatched = (ev: Event) => myEvents.some((m) => m.event_id === ev.id && m.reason === "watch");
   const currentWatchScope = (ev: Event): MyEventScope | null => {
     const hit = myEvents.find((m) => m.event_id === ev.id && m.reason === "watch");
@@ -638,12 +634,6 @@ const removeWatch = async (ev: Event) => {
   }
 };
 
-  const switchWatchScope = async (ev: Event) => {
-    if (changing === ev.id) return;
-    const next: MyEventScope = currentWatchScope(ev) === "series" ? "occurrence" : "series";
-    await removeWatch(ev);
-    await addWatch(ev, next); // pass explicit next; no global state mutation
-  };
 
   // registration open/close hooks
   const openRegistration = (ev: Event) => setRegEvent(ev);

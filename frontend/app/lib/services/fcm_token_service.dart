@@ -1,6 +1,7 @@
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:http/http.dart' as http;
+// import 'package:http/http.dart' as http;
+import '../helpers/api_client.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -43,20 +44,25 @@ class FCMTokenService {
         });
         log('Request body: $requestBody');
 
-        final response = await http.post(
-          Uri.parse(fullUrl),
-          headers: {'Content-Type': 'application/json'},
-          body: requestBody,
+        final response = await api.post(
+          '/v1/notification/registerToken',
+          data: {
+            'token': token,
+            'platform': platform,
+            'appVersion': appVersion,
+            'consent': consent,
+            if (userId != null) 'userId': userId,
+          },
         );
 
-        log('FCM token registration response status: ${response.statusCode}');
-        log('FCM token registration response body: ${response.body}');
+        log('FCM token registration response status: \\${response.statusCode}');
+        log('FCM token registration response body: \\${response.data}');
 
         if (response.statusCode == 200) {
           log('✅ FCM token registered successfully!');
           _tokenSent = true;
         } else {
-          log('❌ FCM token registration failed with status: ${response.statusCode}');
+          log('❌ FCM token registration failed with status: \\${response.statusCode}');
         }
       } catch (e) {
         log('❌ Error registering FCM token to backend: $e');

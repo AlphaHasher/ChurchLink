@@ -1,5 +1,4 @@
-
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from helpers.NotificationHelper import (
     update_notification_settings as helper_update_notification_settings,
     notification_history as helper_notification_history,
@@ -7,7 +6,9 @@ from helpers.NotificationHelper import (
     api_schedule_notification as helper_api_schedule_notification,
     api_get_scheduled_notifications as helper_api_get_scheduled_notifications,
     api_remove_scheduled_notification as helper_api_remove_scheduled_notification,
-    register_device_token as helper_register_device_token
+    register_device_token as helper_register_device_token,
+    fetch_device_notification_preferences as helper_fetch_device_notification_preferences,
+    update_device_notification_preferences as helper_update_device_notification_preferences
 )
 
 from mongo.database import DB
@@ -15,6 +16,43 @@ from mongo.database import DB
 
 public_notification_router = APIRouter(prefix="/notification", tags=["Notification Public Route"])
 private_notification_router = APIRouter(prefix="/notification", tags=["Notification Auth Route"], dependencies=[])
+
+@public_notification_router.get('/preferences')
+async def fetch_device_notification_preferences(request: Request, token: str = None):
+    """Fetch notification preferences for a device token. Accepts token from query, body, or header."""
+    # Try to get token from query, body, or header
+    if not token:
+        # Try to get from JSON body
+        try:
+            body = await request.json()
+            token = body.get('token')
+        except Exception:
+            pass
+    if not token:
+        # Try to get from header
+        token = request.headers.get('X-Device-Token')
+    if not token:
+        return {"success": False, "error": "No device token provided."}
+    return await helper_fetch_device_notification_preferences(token)
+
+
+@public_notification_router.post('/preferences')
+async def update_device_notification_preferences(request: Request, token: str = None, preferences: dict = None):
+    """Update notification preferences for a device token. Accepts token from query, body, or header."""
+    # Try to get token and preferences from JSON body
+    if not token or preferences is None:
+        try:
+            body = await request.json()
+            token = token or body.get('token')
+            preferences = preferences or body.get('preferences')
+        except Exception:
+            pass
+    # Try to get token from header if still missing
+    if not token:
+        token = request.headers.get('X-Device-Token')
+    if not token or preferences is None:
+        return {"success": False, "error": "Device token and preferences are required."}
+    return await helper_update_device_notification_preferences(token, preferences)
 
 
 @public_notification_router.post('/registerToken')

@@ -191,7 +191,7 @@ export default function MyEventsPage() {
                   <MyEventCard
                     groupedEvent={createGroupedEvent(eventRef)}
                     onClick={() => handleEventClick(eventRef)}
-                    onCancelRSVP={async () => await handleCancelRSVP(eventRef)}
+                    // onCancelRSVP={async () => await handleCancelRSVP(eventRef)}
                   />
                 </motion.div>
               );

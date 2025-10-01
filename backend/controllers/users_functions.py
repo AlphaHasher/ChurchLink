@@ -26,6 +26,7 @@ class PersonalInfo(BaseModel):
     birthday: Optional[datetime]
     gender: Optional[str]
 
+
 def is_valid_name(s: str) -> bool:
     if not s:
         return False
