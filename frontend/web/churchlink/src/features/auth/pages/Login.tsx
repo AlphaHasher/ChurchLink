@@ -8,6 +8,7 @@ import {
 import { auth } from "@/lib/firebase";
 import { useAuth } from "../hooks/auth-context";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Dove from "@/assets/Dove";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
 

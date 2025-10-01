@@ -28,7 +28,7 @@ from routes.common_routes.event_person_routes import event_person_management_rou
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
-from routes.common_routes.user_routes import user_router, user_mod_router, user_private_router
+from routes.common_routes.user_routes import user_mod_router, user_private_router
 from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
 
@@ -44,6 +44,7 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
 
 from routes.forms_routes import mod_forms_router
+from routes.translator_routes import translator_router
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
@@ -222,6 +223,7 @@ public_router.include_router(app_config_public_router)
 public_router.include_router(paypal_public_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
+public_router.include_router(translator_router)
 
 
 #####################################################
