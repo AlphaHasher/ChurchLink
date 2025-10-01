@@ -389,6 +389,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         currentBook: _book,
         currentChapter: _chapter,
       );
+      await _loadAllNotes();
     } catch (e, st) {
       debugPrint('[ReaderActions] failed: $e');
       debugPrint('$st');
@@ -531,37 +532,56 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         if (_showSearch) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                DropdownButton<String>(
-                  value: _searchType,
-                  items: const [
-                    DropdownMenuItem(value: 'Book', child: Text('Book')),
-                    DropdownMenuItem(value: 'Verse', child: Text('Verse')),
-                    DropdownMenuItem(value: 'Note', child: Text('Note')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _searchType = val);
-                  },
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: _searchType == 'Verse'
-                          ? 'Search verse text, chapter, or number...'
-                          : 'Search...',
-                      border: const OutlineInputBorder(),
-                    ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white, width: 1.2),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  DropdownButton<String>(
+                    dropdownColor: Colors.black,
+                    value: _searchType,
+                    style: const TextStyle(color: Colors.white),
+                    iconEnabledColor: Colors.white,
+                    items: const [
+                      DropdownMenuItem(value: 'Book', child: Text('Book', style: TextStyle(color: Colors.white))),
+                      DropdownMenuItem(value: 'Verse', child: Text('Verse', style: TextStyle(color: Colors.white))),
+                      DropdownMenuItem(value: 'Note', child: Text('Note', style: TextStyle(color: Colors.white))),
+                    ],
                     onChanged: (val) {
-                      setState(() {
-                        _searchText = val;
-                      });
+                      if (val != null) setState(() => _searchType = val);
                     },
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: _searchType == 'Verse'
+                            ? 'Search verse text, chapter, or number...'
+                            : 'Search...',
+                        hintStyle: const TextStyle(color: Colors.white70),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                        isDense: true,
+                        filled: false,
+                      ),
+                      cursorColor: Colors.white,
+                      onChanged: (val) {
+                        setState(() {
+                          _searchText = val;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           if (_searchText.trim().isNotEmpty)
