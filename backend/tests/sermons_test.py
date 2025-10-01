@@ -31,19 +31,18 @@ _AUTH_HEADERS = None
 def auth_headers():
     global _AUTH_HEADERS
     if _AUTH_HEADERS is None:
-        email = os.getenv("TESTING_AUTH_EMAIL")
-        password = os.getenv("TESTING_AUTH_PASSWORD")
-        if not email or not password:
+        # Use hardcoded test user credentials
+        email = "noadmin@testing.com"
+        password = os.getenv("FIREBASE_WEB_API_KEY") + "!"
+        if not password:
             raise RuntimeError(
-                "TESTING_AUTH_EMAIL and TESTING_AUTH_PASSWORD must be set in the environment "
-                "to run sermons tests."
+                "FIREBASE_WEB_API_KEY must be set in the environment to run sermons tests."
             )
         _AUTH_HEADERS = get_auth_headers()
     authorization = _AUTH_HEADERS.get("Authorization")
     if not authorization or authorization.endswith("None"):
         raise RuntimeError(
-            "Failed to obtain authentication token. Check TESTING_AUTH_EMAIL, "
-            "TESTING_AUTH_PASSWORD, and FIREBASE_WEB_API_KEY."
+            "Failed to obtain authentication token. Check Firebase credentials and FIREBASE_WEB_API_KEY."
         )
     return _AUTH_HEADERS
 

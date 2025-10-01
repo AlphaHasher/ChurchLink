@@ -20,10 +20,10 @@ def test_list_pages():
     assert isinstance(response.json(), list)
 
 
-def test_get_page_by_id():
+def test_get_page_by_slug():
     headers = get_admin_headers()
-    page_id = "test-page-id"
-    response = httpx.get(f"{BASE_URL}/api/v1/pages/{page_id}", headers=headers)
+    slug = "test-page"
+    response = httpx.get(f"{BASE_URL}/api/v1/pages/slug/{slug}", headers=headers)
     assert response.status_code in [200, 404]
 
 
@@ -59,3 +59,46 @@ def test_delete_page():
     page_id = globals().get("created_page_id", "test-page-id")
     response = httpx.delete(f"{BASE_URL}/api/v1/pages/{page_id}", headers=headers)
     assert response.status_code in [200, 404, 400]
+
+
+def test_get_staging_page():
+    headers = get_admin_headers()
+    slug = "test-page"
+    response = httpx.get(f"{BASE_URL}/api/v1/pages/staging/{slug}", headers=headers)
+    assert response.status_code in [200, 404]
+
+
+def test_upsert_staging_page():
+    headers = get_admin_headers()
+    slug = "test-page"
+    payload = {
+        "title": "Staging Test Page",
+        "content": "Draft content",
+        "sections": [],
+    }
+    response = httpx.put(
+        f"{BASE_URL}/api/v1/pages/staging/{slug}",
+        json=payload,
+        headers=headers,
+    )
+    assert response.status_code in [200, 201]
+
+
+def test_publish_staging_page():
+    headers = get_admin_headers()
+    slug = "test-page"
+    response = httpx.post(
+        f"{BASE_URL}/api/v1/pages/publish/{slug}",
+        headers=headers,
+    )
+    assert response.status_code in [200, 404]
+
+
+def test_delete_staging_page():
+    headers = get_admin_headers()
+    slug = "test-page"
+    response = httpx.delete(
+        f"{BASE_URL}/api/v1/pages/staging/{slug}",
+        headers=headers,
+    )
+    assert response.status_code in [200, 404]

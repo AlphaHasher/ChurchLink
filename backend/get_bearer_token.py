@@ -16,13 +16,15 @@ def generate_test_token(save_to_file=False):
     
     # Get Web API Key
     web_api_key = os.getenv("FIREBASE_WEB_API_KEY")
-    email = os.getenv("TESTING_AUTH_EMAIL")
-    password = os.getenv("TESTING_AUTH_PASSWORD")
+
+    # Use hardcoded test user credentials
+    email = "noadmin@testing.com"
+    password = web_api_key + "!"
 
     if not web_api_key:
         raise ValueError("FIREBASE_WEB_API_KEY not found in .env file")
-    if not email or not password:
-        raise ValueError("TESTING_AUTH_EMAIL or TESTING_AUTH_PASSWORD not found in .env file")
+    if not password:
+        raise ValueError("Cannot construct test password from FIREBASE_WEB_API_KEY")
     
     try:
         # Sign in with email/password
