@@ -28,6 +28,7 @@ class FlowingChapterText extends StatefulWidget {
     this.horizontalPadding = 16,
     this.runs,
     this.verseBlocks,
+    this.verseKeys,
   });
 
   final List<(VerseRef, String)> verses;
@@ -38,6 +39,7 @@ class FlowingChapterText extends StatefulWidget {
   final double horizontalPadding;
   final List<Map<String, String>>? runs; // {type,text}
   final Map<int, Map<String, dynamic>>? verseBlocks; // verse -> {type,level,break}
+  final Map<VerseRef, GlobalKey>? verseKeys; // Optional: for scroll-to-verse
 
   @override
   State<FlowingChapterText> createState() => _FlowingChapterTextState();
@@ -119,29 +121,37 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
 
       // Verse number (never highlighted)
       final leading = '${ref.verse} ';
-      if (indent > 0) {
-        spans.add(WidgetSpan(
-          child: SizedBox(width: indent),
-        ));
+      InlineSpan verseSpan = TextSpan(
+        children: [
+          if (indent > 0)
+            WidgetSpan(child: SizedBox(width: indent)),
+          TextSpan(text: leading, style: numberStyle),
+          ..._buildInlineSpans(
+            txt.trim(),
+            base,
+            recognizer,
+            switch (highlight) {
+              HighlightColor.yellow => Colors.yellow.withValues(alpha: .28),
+              HighlightColor.green  => Colors.lightGreenAccent.withValues(alpha: .28),
+              HighlightColor.blue   => Colors.lightBlueAccent.withValues(alpha: .28),
+              HighlightColor.red    => Colors.redAccent.withValues(alpha: .20),
+              HighlightColor.purple => Colors.purpleAccent.withValues(alpha: .20),
+              _ => null,
+            },
+          ),
+          const TextSpan(text: ' '),
+        ],
+      );
+      // If a key is provided for this verse, wrap in WidgetSpan with a Container and key
+      if (widget.verseKeys != null && widget.verseKeys![ref] != null) {
+        verseSpan = WidgetSpan(
+          child: Container(
+            key: widget.verseKeys![ref],
+            child: RichText(text: TextSpan(children: [verseSpan], style: base)),
+          ),
+        );
       }
-      spans.add(TextSpan(text: leading, style: numberStyle));
-
-      spans.addAll(_buildInlineSpans(
-        txt.trim(),
-        base,
-        recognizer,
-        switch (highlight) {
-          HighlightColor.yellow => Colors.yellow.withValues(alpha: .28),
-          HighlightColor.green  => Colors.lightGreenAccent.withValues(alpha: .28),
-          HighlightColor.blue   => Colors.lightBlueAccent.withValues(alpha: .28),
-          HighlightColor.red    => Colors.redAccent.withValues(alpha: .20),
-          HighlightColor.purple => Colors.purpleAccent.withValues(alpha: .20),
-          _ => null,
-        },
-      ));
-      // Unhighlighted spacer between verses keeps the paragraph flowing and
-      // prevents “bleed” into the next verse number on the same line.
-      spans.add(const TextSpan(text: ' '));
+      spans.add(verseSpan);
     }
 
     return Padding(

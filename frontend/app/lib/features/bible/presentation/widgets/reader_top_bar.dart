@@ -15,6 +15,7 @@ class ReaderTopBar extends StatelessWidget {
     required this.onNextChapter,
     required this.onOpenJumpPicker,
     required this.onSelectTranslation,
+    required this.onSearchPressed,
   });
 
   final String displayLabel;
@@ -28,6 +29,7 @@ class ReaderTopBar extends StatelessWidget {
   final VoidCallback? onNextChapter;
   final VoidCallback onOpenJumpPicker;
   final ValueChanged<String> onSelectTranslation;
+  final VoidCallback onSearchPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +104,7 @@ class ReaderTopBar extends StatelessWidget {
 
           IconButton(
             tooltip: 'Search',
-            onPressed: null,
+            onPressed: onSearchPressed,
             icon: Icon(Icons.search, color: onSurface70),
           ),
           IconButton(

@@ -197,7 +197,7 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
-                    initialValue: tempGender,
+                    value: tempGender,
                     items:
                         [
                           null, // Show all: no filtering
@@ -231,7 +231,7 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
-                    initialValue: tempMinistry,
+                    value: tempMinistry,
                     items:
                         [
                           null,
