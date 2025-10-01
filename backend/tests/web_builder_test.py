@@ -3,7 +3,7 @@ import httpx
 import sys
 import os
 
-from backend.tests.test_auth_helpers import get_auth_headers
+from backend.tests.test_auth_helpers import get_admin_headers
 
 backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(backend_dir)
@@ -14,21 +14,21 @@ BASE_URL = os.getenv("BACKEND_URL")
 
 
 def test_list_pages():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     response = httpx.get(f"{BASE_URL}/api/v1/pages/", headers=headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
 def test_get_page_by_id():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     page_id = "test-page-id"
     response = httpx.get(f"{BASE_URL}/api/v1/pages/{page_id}", headers=headers)
     assert response.status_code in [200, 404]
 
 
 def test_create_page():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     payload = {
         "title": "Test Page",
         "content": "This is a test page.",
@@ -44,7 +44,7 @@ def test_create_page():
 
 
 def test_update_page():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     page_id = globals().get("created_page_id", "test-page-id")
     payload = {
         "title": "Updated Test Page",
@@ -55,7 +55,7 @@ def test_update_page():
 
 
 def test_delete_page():
-    headers = get_auth_headers()
+    headers = get_admin_headers()
     page_id = globals().get("created_page_id", "test-page-id")
     response = httpx.delete(f"{BASE_URL}/api/v1/pages/{page_id}", headers=headers)
     assert response.status_code in [200, 404, 400]

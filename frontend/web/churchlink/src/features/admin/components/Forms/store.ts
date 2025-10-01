@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 import type { AnyField, FormSchema, FieldType, OptionItem } from "./types";
+import { normalizeFormWidth, DEFAULT_FORM_WIDTH } from "./types";
 
 const DEFAULT_META = { title: "Untitled Form", description: "" };
 
@@ -18,6 +19,7 @@ export type BuilderState = {
   setActiveLocale: (locale: string) => void;
   addLocale: (locale: string) => void;
   removeLocale: (locale: string) => void;
+  updateSchemaMeta: (patch: Partial<FormSchema>) => void;
 };
 
 const newField = (type: FieldType): AnyField => {
@@ -65,7 +67,7 @@ const newField = (type: FieldType): AnyField => {
 };
 
 export const useBuilderStore = create<BuilderState>((set, get) => ({
-  schema: { title: DEFAULT_META.title, description: DEFAULT_META.description, defaultLocale: 'en', locales: [], data: [] },
+  schema: { title: DEFAULT_META.title, description: DEFAULT_META.description, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] },
   selectedId: undefined,
   activeLocale: 'en',
   select: (id?: string) => set({ selectedId: id }),
@@ -94,13 +96,21 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   })),
   setSchema: (schema) => set({
     schema: {
+      ...schema,
       defaultLocale: schema.defaultLocale || 'en',
       locales: schema.locales || [],
-      ...schema,
+      formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width),
     },
     activeLocale: schema.defaultLocale || get().activeLocale || 'en',
   }),
   setActiveLocale: (locale: string) => set({ activeLocale: locale }),
+  updateSchemaMeta: (patch) => set((s) => {
+    const next: Partial<FormSchema> = { ...patch };
+    if (Object.prototype.hasOwnProperty.call(next, 'formWidth')) {
+      next.formWidth = normalizeFormWidth((next as any).formWidth as string | null | undefined);
+    }
+    return { schema: { ...s.schema, ...next } };
+  }),
   addLocale: (locale: string) => set((s) => {
     const existing = new Set([...(s.schema.locales || [])]);
     // avoid adding defaultLocale into locales list

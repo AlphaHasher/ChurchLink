@@ -31,7 +31,9 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         permissions_management: false,
         event_editing: false,
         event_management: false,
+        sermon_editing: false,
         media_management: false,
+        layout_management: false,
     }
 
     const initialEditorPermissions: PermMask = {
@@ -39,7 +41,9 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         permissions_management: false,
         event_editing: false,
         event_management: false,
+        sermon_editing: false,
         media_management: false,
+        layout_management: false,
     }
 
 
