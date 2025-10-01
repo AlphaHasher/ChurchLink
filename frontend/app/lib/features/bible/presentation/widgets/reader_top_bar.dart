@@ -15,6 +15,7 @@ class ReaderTopBar extends StatelessWidget {
     required this.onNextChapter,
     required this.onOpenJumpPicker,
     required this.onSelectTranslation,
+    required this.onSearchPressed,
   });
 
   final String displayLabel;
@@ -28,12 +29,11 @@ class ReaderTopBar extends StatelessWidget {
   final VoidCallback? onNextChapter;
   final VoidCallback onOpenJumpPicker;
   final ValueChanged<String> onSelectTranslation;
+  final VoidCallback onSearchPressed;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final onSurface70 = cs.onSurface.withValues(alpha: 0.70);
-    final onSurface35 = cs.onSurface.withValues(alpha: 0.35);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
@@ -44,7 +44,7 @@ class ReaderTopBar extends StatelessWidget {
             onPressed: isAtFirstChapter ? null : onPrevChapter,
             icon: Icon(
               Icons.chevron_left,
-              color: isAtFirstChapter ? onSurface35 : onSurface70,
+              color: Colors.white,
             ),
           ),
 
@@ -92,7 +92,7 @@ class ReaderTopBar extends StatelessWidget {
                 children: [
                   Text(translation.toUpperCase()),
                   const SizedBox(width: 4),
-                  const Icon(Icons.arrow_drop_down, size: 18),
+                  const Icon(Icons.arrow_drop_down, size: 18, color: Colors.white),
                 ],
               ),
             ),
@@ -102,20 +102,20 @@ class ReaderTopBar extends StatelessWidget {
 
           IconButton(
             tooltip: 'Search',
-            onPressed: null,
-            icon: Icon(Icons.search, color: onSurface70),
+            onPressed: onSearchPressed,
+            icon: Icon(Icons.search, color: Colors.white),
           ),
           IconButton(
             tooltip: 'Read aloud',
             onPressed: null,
-            icon: Icon(Icons.volume_up_outlined, color: onSurface70),
+            icon: Icon(Icons.volume_up_outlined, color: Colors.white),
           ),
           IconButton(
             tooltip: 'Next chapter',
             onPressed: isAtLastChapter ? null : onNextChapter,
             icon: Icon(
               Icons.chevron_right,
-              color: isAtLastChapter ? onSurface35 : onSurface70,
+              color: Colors.white,
             ),
           ),
         ],

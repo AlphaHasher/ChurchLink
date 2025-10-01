@@ -1,3 +1,4 @@
+import 'package:app/helpers/bible_notes_helper.dart' as bh;
 // Renders the bible reader itself
 // Top bar extracted earlier; now also extracts loader, actions, and jump picker sheet.
 
@@ -47,6 +48,32 @@ class BibleReaderBody extends StatefulWidget {
 }
 
 class _BibleReaderBodyState extends State<BibleReaderBody> {
+  // Map to hold GlobalKeys for each verse for scrolling
+  final Map<VerseRef, GlobalKey> _verseKeys = {};
+
+  // Helper to scroll to a verse after loading
+  void _scrollToVerse(VerseRef ref) {
+    final key = _verseKeys[ref];
+    if (key != null && key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+        alignment: 0.1,
+      );
+    }
+  }
+
+  static const int _verseSearchPageSize = 100;
+  List<(VerseRef ref, String text)> _verseSearchResults = [];
+  int _verseSearchLoaded = 0;
+  bool _isLoadingVersePage = false;
+  String _lastVerseSearchQuery = '';
+  bool _isLoadingNotePage = false;
+  ScrollController _searchScrollController = ScrollController();
+  String _searchType = 'Verse';
+  bool _showSearch = false;
+  String _searchText = '';
   // Convert VerseRef -> record expected by reader_logic helpers.
   ({String book, int chapter, int verse}) _r(VerseRef v) =>
       (book: v.book, chapter: v.chapter, verse: v.verse);
@@ -131,6 +158,36 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     },
   );
 
+  // Fast note search: cache all notes for instant search
+  List<(VerseRef, String, String)> _allUserNotes = [];
+  bool _allNotesLoaded = false;
+
+  Future<void> _loadAllNotes() async {
+    List<(VerseRef, String, String)> notes = [];
+    for (final book in Books.instance.names()) {
+      final chapterCount = Books.instance.chapterCount(book);
+      final bookNotes = await bh.getNotesForChapterRange(
+        book: book,
+        chapterStart: 1,
+        chapterEnd: chapterCount,
+      );
+      for (final n in bookNotes) {
+        final chapterVerses = await _repo.getChapter(translation: _translation, book: n.book, chapter: n.chapter);
+        final v = chapterVerses.firstWhere(
+          (v) => v.$1.book == n.book && v.$1.chapter == n.chapter && v.$1.verse == n.verseStart,
+          orElse: () => (VerseRef(n.book, n.chapter, n.verseStart), ''),
+        );
+        notes.add((v.$1, v.$2, n.note));
+        debugPrint('[NOTE-LOAD] ${n.book} ${n.chapter}:${n.verseStart} note="${n.note}" text="${v.$2}"');
+      }
+    }
+    debugPrint('[NOTE-LOAD] Total notes loaded: \\${notes.length}');
+    setState(() {
+      _allUserNotes = notes;
+      _allNotesLoaded = true;
+    });
+  }
+
   // Helpers
   ReaderLoader get _loader => ReaderLoader(_repo, ElishaJsonSource());
   ReaderActions get _actions => ReaderActions(_ctx, api.NotesApi());
@@ -138,6 +195,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   @override
   void initState() {
     super.initState();
+
+    // Fast note search: load all notes at startup
+    Books.instance.ensureLoaded().then((_) {
+      _loadAllNotes();
+    });
 
     _translation = widget.initialTranslation;
     _book = widget.initialBook;
@@ -327,6 +389,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
         currentBook: _book,
         currentChapter: _chapter,
       );
+      await _loadAllNotes();
     } catch (e, st) {
       debugPrint('[ReaderActions] failed: $e');
       debugPrint('$st');
@@ -337,6 +400,107 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
 
   @override
   Widget build(BuildContext context) {
+    List<(VerseRef ref, String text)> filteredVerses = _verses;
+    final trimmedSearch = _searchText.trim();
+    final query = trimmedSearch.toLowerCase();
+    if (trimmedSearch.isNotEmpty && _booksReady) {
+      if (_searchType == 'Book') {
+        final allBookNames = Books.instance.names();
+        filteredVerses = allBookNames
+            .where((book) => book.toLowerCase().contains(query))
+            .map((book) {
+              final verse = _verses.firstWhere(
+                (v) => v.$1.book == book,
+                orElse: () => (VerseRef(book, 1, 1), ''),
+              );
+              return verse;
+            })
+            .toList();
+      } else if (_searchType == 'Verse') {
+        // Global async paged search for Verse
+        if (_lastVerseSearchQuery != trimmedSearch) {
+          _verseSearchResults = [];
+          _verseSearchLoaded = 0;
+          _lastVerseSearchQuery = trimmedSearch;
+        }
+        void loadMoreVerses() async {
+          if (_isLoadingVersePage) return;
+          _isLoadingVersePage = true;
+          final List<(VerseRef ref, String text)> newResults = [];
+          int loaded = 0;
+          outer:
+          for (final book in Books.instance.names()) {
+            final chapterCount = Books.instance.chapterCount(book);
+            for (int ch = 1; ch <= chapterCount; ch++) {
+              final chapterVerses = await _repo.getChapter(translation: _translation, book: book, chapter: ch);
+              for (final v in chapterVerses) {
+                final ref = v.$1;
+                final text = v.$2.toLowerCase();
+                final chapterMatch = ref.chapter.toString().contains(query);
+                final verseMatch = ref.verse.toString().contains(query);
+                final verseTextMatch = text.contains(query);
+                if (chapterMatch || verseMatch || verseTextMatch) {
+                  if (loaded >= _verseSearchLoaded && newResults.length < _verseSearchPageSize) {
+                    newResults.add(v);
+                  }
+                  loaded++;
+                  if (newResults.length >= _verseSearchPageSize) break outer;
+                }
+              }
+            }
+          }
+          setState(() {
+            _verseSearchResults.addAll(newResults);
+            _verseSearchLoaded += newResults.length;
+            _isLoadingVersePage = false;
+          });
+        }
+        if (_verseSearchResults.isEmpty && !_isLoadingVersePage) {
+          loadMoreVerses();
+        }
+        filteredVerses = _verseSearchResults.where((v) {
+          final ref = v.$1;
+          final text = v.$2.toLowerCase();
+          final chapterMatch = ref.chapter.toString().contains(query);
+          final verseMatch = ref.verse.toString().contains(query);
+          final verseTextMatch = text.contains(query);
+          return chapterMatch || verseMatch || verseTextMatch;
+        }).toList();
+      } else if (_searchType == 'Note') {
+        // Global async paged search for Note
+        if (!_allNotesLoaded) {
+          _isLoadingNotePage = true;
+          filteredVerses = [];
+        } else {
+          debugPrint('[NOTE-SEARCH] Query: "$query"');
+          int matchCount = 0;
+          for (final n in _allUserNotes) {
+            final noteLower = n.$3.toLowerCase();
+            final contains = noteLower.contains(query);
+            debugPrint('[NOTE-SEARCH] Check: ${n.$1.book} ${n.$1.chapter}:${n.$1.verse} note="${n.$3}" containsQuery=$contains');
+            if (contains) matchCount++;
+          }
+          final filtered = _allUserNotes.where((n) => n.$3.toLowerCase().contains(query)).toList();
+          debugPrint('[NOTE-SEARCH] Matches found: $matchCount, Filtered list length: ${filtered.length}');
+          filteredVerses = filtered.map((n) => (n.$1, n.$2)).toList();
+          _isLoadingNotePage = false;
+        }
+      } else {
+        filteredVerses = _verses.where((v) {
+          final ref = v.$1;
+          final text = v.$2.toLowerCase();
+          final bookMatch = ref.book.toLowerCase().contains(query);
+          final chapterMatch = ref.chapter.toString().contains(query);
+          final verseMatch = ref.verse.toString().contains(query);
+          final verseTextMatch = text.contains(query);
+          final noteShared = _notesShared[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
+          final notePerTx = _notesPerTx[_translation]?[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
+          final noteMatch = noteShared.toLowerCase().contains(query) || notePerTx.toLowerCase().contains(query);
+          return bookMatch || chapterMatch || verseMatch || verseTextMatch || noteMatch;
+        }).toList();
+      }
+    }
+
     return Column(
       children: [
         ReaderTopBar(
@@ -358,26 +522,238 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             });
             _load();
           },
+          onSearchPressed: () {
+            setState(() {
+              _showSearch = !_showSearch;
+              if (!_showSearch) _searchText = '';
+            });
+          },
         ),
+        if (_showSearch) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white, width: 1.2),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  DropdownButton<String>(
+                    dropdownColor: Colors.black,
+                    value: _searchType,
+                    style: const TextStyle(color: Colors.white),
+                    iconEnabledColor: Colors.white,
+                    items: const [
+                      DropdownMenuItem(value: 'Book', child: Text('Book', style: TextStyle(color: Colors.white))),
+                      DropdownMenuItem(value: 'Verse', child: Text('Verse', style: TextStyle(color: Colors.white))),
+                      DropdownMenuItem(value: 'Note', child: Text('Note', style: TextStyle(color: Colors.white))),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => _searchType = val);
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: _searchType == 'Verse'
+                            ? 'Search verse text, chapter, or number...'
+                            : 'Search...',
+                        hintStyle: const TextStyle(color: Colors.white70),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                        isDense: true,
+                        filled: false,
+                      ),
+                      cursorColor: Colors.white,
+                      onChanged: (val) {
+                        setState(() {
+                          _searchText = val;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_searchText.trim().isNotEmpty)
+            Container(
+              constraints: const BoxConstraints(maxHeight: 220),
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border.all(color: Theme.of(context).dividerColor),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: (_isLoadingVersePage && _searchType == 'Verse' && _verseSearchResults.isEmpty) ||
+                      (_isLoadingNotePage && _searchType == 'Note' && filteredVerses.isEmpty)
+                  ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                  : filteredVerses.isEmpty
+                      ? ListTile(title: Text('No ${_searchType.toLowerCase()} results found'))
+                      : ListView.builder(
+                          controller: _searchScrollController,
+                          shrinkWrap: true,
+                          itemCount: filteredVerses.length + ((_isLoadingVersePage && _searchType == 'Verse' && _verseSearchResults.isNotEmpty) || (_isLoadingNotePage && _searchType == 'Note' && filteredVerses.isNotEmpty) ? 1 : 0),
+                          itemBuilder: (ctx, i) {
+                            if ((_isLoadingVersePage && _searchType == 'Verse' && i == filteredVerses.length) ||
+                                (_isLoadingNotePage && _searchType == 'Note' && i == filteredVerses.length)) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+                            final v = filteredVerses[i];
+                            final ref = v.$1;
+                            final noteShared = _notesShared[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
+                            final notePerTx = _notesPerTx[_translation]?[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
+                            final note = noteShared.isNotEmpty ? noteShared : notePerTx;
+                            if (_searchType == 'Book') {
+                              final bookName = ref.book;
+                              final chapterCount = _booksReady ? Books.instance.chapterCount(bookName) : 0;
+                              return ListTile(
+                                dense: true,
+                                title: Text(bookName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: chapterCount > 0
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: List.generate(chapterCount, (i) {
+                                            final chapNum = i + 1;
+                                            return ActionChip(
+                                              label: Text('Ch $chapNum'),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _book = bookName;
+                                                  _chapter = chapNum;
+                                                  _showSearch = false;
+                                                  _searchText = '';
+                                                });
+                                                _load();
+                                              },
+                                            );
+                                          }),
+                                        ),
+                                      )
+                                    : null,
+                              );
+                            } else if (_searchType == 'Note') {
+                              String noteContent = '';
+                              final match = _allUserNotes.firstWhere(
+                                (n) => n.$1 == ref,
+                                orElse: () => (ref, v.$2, ''),
+                              );
+                              noteContent = match.$3;
+                              return ListTile(
+                                dense: true,
+                                title: Text(noteContent, maxLines: 3, overflow: TextOverflow.ellipsis),
+                                subtitle: Text('${ref.book} ${ref.chapter}:${ref.verse}', style: const TextStyle(fontSize: 13, color: Colors.blueGrey)),
+                                onTap: () async {
+                                  if (_book != ref.book || _chapter != ref.chapter) {
+                                    setState(() {
+                                      _book = ref.book;
+                                      _chapter = ref.chapter;
+                                      _showSearch = false;
+                                      _searchText = '';
+                                    });
+                                    await _load();
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      _scrollToVerse(ref);
+                                      _openActions(v);
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _showSearch = false;
+                                      _searchText = '';
+                                    });
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      _scrollToVerse(ref);
+                                      _openActions(v);
+                                    });
+                                  }
+                                },
+                              );
+                            } else {
+                              return ListTile(
+                                dense: true,
+                                title: Text('${ref.book} ${ref.chapter}:${ref.verse}'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(v.$2, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                    if (note.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text('Note: $note', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                                      ),
+                                  ],
+                                ),
+                                onTap: () async {
+                                  if (_searchType == 'Verse') {
+                                    if (_book != ref.book || _chapter != ref.chapter) {
+                                      setState(() {
+                                        _book = ref.book;
+                                        _chapter = ref.chapter;
+                                        _showSearch = false;
+                                        _searchText = '';
+                                      });
+                                      await _load();
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        _scrollToVerse(ref);
+                                      });
+                                    } else {
+                                      setState(() {
+                                        _showSearch = false;
+                                        _searchText = '';
+                                      });
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        _scrollToVerse(ref);
+                                      });
+                                    }
+                                  } else {
+                                    _openActions(v);
+                                  }
+                                },
+                              );
+                            }
+                          },
+                        ),
+            ),
+        ],
         const Divider(height: 12),
         Expanded(
           child: Stack(
             children: [
-              _verses.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
+              filteredVerses.isEmpty
+                  ? const Center(child: Text('No results found'))
                   : RefreshIndicator(
                       onRefresh: _handlePullToRefresh,
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(12, 8, 12, _offline ? 96 : 24),
-                        child: FlowingChapterText(
-                          verses: _verses,
-                          highlights: { for (final v in _verses) v.$1: colorFor(_ctx, _r(v.$1)) },
-                          onTapVerse: (vt) => _openActions(vt),
-                          baseStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.6),
-                          runs: _currentRuns,
-                          verseBlocks: _currentBlocks,
-                        ),
+                        child: (() {
+                          for (final v in filteredVerses) {
+                            _verseKeys.putIfAbsent(v.$1, () => GlobalKey());
+                          }
+                          return FlowingChapterText(
+                            verses: filteredVerses,
+                            highlights: { for (final v in filteredVerses) v.$1: colorFor(_ctx, _r(v.$1)) },
+                            onTapVerse: (vt) => _openActions(vt),
+                            baseStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.6),
+                            runs: _currentRuns,
+                            verseBlocks: _currentBlocks,
+                            verseKeys: _verseKeys,
+                          );
+                        })(),
                       ),
                     ),
               if (_offline)
