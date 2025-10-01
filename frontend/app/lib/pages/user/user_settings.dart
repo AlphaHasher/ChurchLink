@@ -19,6 +19,7 @@ import '../../components/password_reset.dart';
 import '../../firebase/firebase_auth_service.dart';
 import 'edit_profile.dart';
 import 'family_members_page.dart';
+import 'notification_settings_page.dart';
 import '../my_events_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -328,6 +329,14 @@ class _UserSettingsState extends State<UserSettings> {
             'icon': Icons.notifications,
             'title': 'Notifications',
             'subtitle': 'Customize alert preferences',
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationSettingsPage(),
+                ),
+              );
+            },
           },
         ],
       },
