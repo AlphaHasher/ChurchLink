@@ -1,3 +1,4 @@
+// EditHeader.tsx - Updated to batch changes
 import { useState, useEffect } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
@@ -42,7 +43,7 @@ import {
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
-import { ExternalLink, GripVertical } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 interface HeaderLink {
     title: string;
@@ -51,7 +52,6 @@ interface HeaderLink {
     slug?: string;
     is_hardcoded_url?: boolean;
     visible?: boolean;
-    type: "link";
 }
 
 interface HeaderDropdown {
@@ -61,8 +61,8 @@ interface HeaderDropdown {
     visible?: boolean;
 }
 
-interface LinkItem extends Omit<HeaderLink, 'type'> {
-    type: "link";
+interface LinkItem extends HeaderLink {
+    type?: "link";
 }
 
 type HeaderItem = HeaderLink | HeaderDropdown;
@@ -127,34 +127,24 @@ interface PendingChanges {
     visibility: Record<string, boolean>;
 }
 
-const SortableItem = ({
-    id,
-    children,
-}: {
-    id: string;
-    children: React.ReactNode;
-}) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id });
+const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
-    const style = { transform: CSS.Transform.toString(transform), transition };
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
 
     return (
-        <div ref={setNodeRef} style={style}>
-            <Card className={`border bg-background ${isDragging ? "ring-2 ring-primary/40" : ""}`}>
-                <CardContent className="flex items-center gap-2 p-2">
-                    <button
-                        type="button"
-                        {...attributes}
-                        {...listeners}
-                        className="cursor-grab rounded p-1 hover:bg-muted"
-                        aria-label="Drag to reorder"
-                    >
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                    <div className="flex-1">{children}</div>
-                </CardContent>
-            </Card>
+        <div ref={setNodeRef} style={style} className="border-b last:border-0">
+            <div className="flex items-center">
+                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
+                    &#x2630;
+                </div>
+                <div className="flex-grow">
+                    {children}
+                </div>
+            </div>
         </div>
     );
 };
@@ -254,18 +244,20 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         }
     };
 
-    const handleDragEnd = (event: DragEndEvent) => {
+    const handleDragEnd = async (event: DragEndEvent) => {
         if (!header) return;
+
         const { active, over } = event;
-        if (!over || active.id === over.id) return;
+        if (active.id !== over?.id) {
+            const oldIndex = header.items.findIndex(item => item.title === active.id);
+            const newIndex = header.items.findIndex(item => item.title === over?.id);
 
-        const oldIndex = header.items.findIndex((i) => i.title === active.id);
-        const newIndex = header.items.findIndex((i) => i.title === over.id);
-        if (oldIndex === -1 || newIndex === -1) return;
-
-        const newItems = arrayMove(header.items, oldIndex, newIndex);
-        setHeader({ ...header, items: newItems });
-        setHasUnsavedChanges(true);
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newItems = arrayMove(header.items, oldIndex, newIndex);
+                setHeader({ ...header, items: newItems });
+                setHasUnsavedChanges(true);
+            }
+        }
     };
 
     const handleRemoveItem = (title: string) => {
@@ -324,8 +316,10 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             const currentTitles = header.items.map(item => item.title);
             await api.put("/v1/header/reorder", { titles: currentTitles });
             toast.success("Navigation changes saved successfully");
+
+            // Refresh data from server
             await fetchHeader();
-        } catch (err: any) {
+        } catch (err) {
             console.error("Failed to save navigation changes:", err);
             toast.error("Failed to save changes");
             await fetchHeader(); // Revert to server state on failure
@@ -448,7 +442,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             russian_title: tempLinkRussianTitle,
             is_hardcoded_url: tempLinkIsHardcoded,
             visible: true,
-            type: "link",
         };
 
         if (tempLinkIsHardcoded) {
