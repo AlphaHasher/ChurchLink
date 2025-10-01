@@ -6,10 +6,13 @@ from dotenv import load_dotenv
 FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
 FIREBASE_AUTH_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
 
-AUTH_EMAIL = os.environ.get("TESTING_AUTH_EMAIL")
-AUTH_PASSWORD = os.environ.get("TESTING_AUTH_PASSWORD")
-ADMIN_EMAIL = os.environ.get("TESTING_ADMIN_EMAIL")
-ADMIN_PASSWORD = os.environ.get("TESTING_ADMIN_PASSWORD")
+# Hardcoded test user emails
+AUTH_EMAIL = "noadmin@testing.com"
+ADMIN_EMAIL = "admin@testing.com"
+
+# Password is FIREBASE_WEB_API_KEY + "!"
+AUTH_PASSWORD = FIREBASE_WEB_API_KEY + "!"
+ADMIN_PASSWORD = FIREBASE_WEB_API_KEY + "!"
 
 def token_from_email_password(email: str, password: str) -> str:
     """
