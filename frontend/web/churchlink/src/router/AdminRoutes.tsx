@@ -1,6 +1,9 @@
+
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
+import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
+import Settings from "../features/admin/pages/Settings";
 import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
 
 
@@ -16,10 +19,13 @@ const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/su
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
+const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
+
+const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
 
 export const AdminRoutes = () => {
   return (
@@ -33,6 +39,8 @@ export const AdminRoutes = () => {
         <Route path="events" element={<Events />} />
         <Route path="finance" element={<Finance />} />
         <Route path="bible-plan-manager" element={<BiblePlanManager />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/mobile-ui-tab" element={<MobileUITab />} />
         <Route path="forms/form-builder" element={<FormBuilder />} />
         <Route path="forms/manage-forms" element={<ManageForms />} />
         <Route path="forms/responses" element={<FormResponses />} />

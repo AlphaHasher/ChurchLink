@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/api/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { PreviewRendererClient } from "@/features/admin/components/Forms/PreviewRendererClient";
 import { useBuilderStore } from "@/features/admin/components/Forms/store";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { formWidthToClass, normalizeFormWidth, DEFAULT_FORM_WIDTH } from "@/features/admin/components/Forms/types";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import { Button } from "@/shared/components/ui/button";
 import { buildLoginPath } from "@/router/paths";
+import { cn } from "@/lib/utils";
 
 export default function FormPublic() {
   const { slug } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const setSchema = useBuilderStore((s) => s.setSchema);
-  const schema = useBuilderStore((s) => s.schema);
-  const activeLocale = useBuilderStore((s) => s.activeLocale);
-  const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
+  const formWidth = useBuilderStore((s) => normalizeFormWidth(s.schema.formWidth ?? DEFAULT_FORM_WIDTH));
+  const formWidthClass = formWidthToClass(formWidth);
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,6 +39,7 @@ export default function FormPublic() {
           setLoading(false);
           return;
         }
+  const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
         // set schema into builder store for rendering
         setSchema({
           title: form.title,
@@ -46,6 +47,7 @@ export default function FormPublic() {
           folder: form.folder,
           defaultLocale: form.defaultLocale || 'en',
           locales: form.locales || [],
+          formWidth: formWidthValue,
           data: Array.isArray(form.data) ? form.data : (form.data?.data || []),
         });
         setLoading(false);
@@ -67,49 +69,16 @@ export default function FormPublic() {
     return () => { mounted = false; };
   }, [slug, setSchema, user]);
 
-  const availableLocales = useMemo(() => {
-    const set = new Set<string>();
-    const dl = (schema as any)?.defaultLocale || 'en';
-    if (dl) set.add(dl);
-    for (const l of ((schema as any)?.locales || [])) set.add(l);
-    for (const f of ((schema as any)?.data || [])) {
-      const i18n = (f as any)?.i18n as Record<string, any> | undefined;
-      if (i18n) for (const k of Object.keys(i18n)) set.add(k);
-      if ((f as any)?.options) {
-        for (const o of (f as any).options) {
-          const oi = o?.i18n as Record<string, any> | undefined;
-          if (oi) for (const k of Object.keys(oi)) set.add(k);
-        }
-      }
-    }
-    return Array.from(set);
-  }, [schema]);
-
   if (loading) return <div className="p-6">Loading...</div>;
   // If an error occurred that isn't auth-related, show it
   if (error) return <div className="p-6 text-destructive">{error}</div>;
 
   return (
     <div className="py-6">
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
-        <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Public Form</CardTitle>
-            <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-              <SelectTrigger className="h-8 w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {availableLocales.map((l) => (
-                  <SelectItem key={l} value={l}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {!user && (
+      <div className="px-4 sm:px-6 lg:px-8">
+        <Card className={cn("mx-auto w-full", formWidthClass)}>
+          <CardContent>
+            {!user && (
             <div className="mb-6 rounded-md border border-muted p-4 bg-muted/30">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-muted-foreground">
@@ -127,10 +96,10 @@ export default function FormPublic() {
                 </div>
               </div>
             </div>
-          )}
-          {/* Render the form UI regardless so users can view it; submission can still be gated server-side */}
-          <PreviewRendererClient slug={slug} />
-        </CardContent>
+            )}
+            {/* Render the form UI regardless so users can view it; submission can still be gated server-side */}
+            <PreviewRendererClient slug={slug} />
+          </CardContent>
         </Card>
       </div>
     </div>

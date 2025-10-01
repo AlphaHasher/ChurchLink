@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../services/fcm_token_service.dart';
 
 class FirebaseAuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -38,29 +39,6 @@ class FirebaseAuthService {
 
       debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
-      // // ✅ Send Firebase ID Token to FastAPI backend
-      // final response = await http.post(
-      //   Uri.parse("$backendUrl/auth/google"),
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     "Authorization": "Bearer $idToken",
-      //   },
-      // );
-
-      // if (response.statusCode == 200) {
-      //   final responseData = jsonDecode(response.body);
-      //   print("✅ Google Sign-In Successful: ${response.body}");
-
-      //   // ✅ Return the backend token if available
-      //   if (responseData.containsKey("token")) {
-      //     return responseData["token"];  // ✅ FIXED: Return backend token
-      //   } else {
-      //     print("❌ Unexpected Backend Response: ${response.body}");
-      //     return null;
-      //   }
-      // } else {
-      //   throw Exception("❌ Backend Error: ${response.body}");
-      // }
     } catch (e) {
       debugPrint("❌ Error during Google Sign-In: $e");
       return null;
@@ -92,29 +70,6 @@ class FirebaseAuthService {
       }
       debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
-
-      // final response = await http.post(
-      //   Uri.parse("$backendUrl/auth/token"),
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     "Authorization": "Bearer $idToken",
-      //   },
-      // );
-
-      // print("🔍 Backend Response: ${response.body}");
-
-      // if (response.statusCode == 200) {
-      //   final responseData = jsonDecode(response.body);
-      //   print("✅ Login Successful: ${response.body}");
-
-      //   if (responseData.containsKey("access_token")) {
-      //     return responseData["access_token"];
-      //   } else {
-      //     throw Exception("❌ No token received in response.");
-      //   }
-      // } else {
-      //   throw Exception("❌ Backend Error: ${response.body}");
-      // }
     } catch (e) {
       debugPrint("❌ Error signing in with email: $e");
       return null;
@@ -143,23 +98,6 @@ class FirebaseAuthService {
 
       debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
-      // final response = await http.post(
-      //   Uri.parse("$backendUrl/auth/register"),
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     "Authorization": "Bearer $idToken", // ✅ Send ID token in Authorization header
-      //   },
-      // );
-
-      // print("🔍 Backend Response: ${response.body}");
-
-      // if (response.statusCode == 200) {
-      //   final responseData = jsonDecode(response.body);
-      //   print("✅ Registration Successful: ${response.body}");
-      //   return responseData["email"]; // ✅ Return registered email
-      // } else {
-      //   throw Exception("❌ Backend Error: ${response.body}");
-      // }
     } catch (e) {
       debugPrint("❌ Error during registration: $e");
       return null;
@@ -178,6 +116,8 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _firebaseAuth.signOut();
+    // Reset FCM token flag when user logs out
+    FCMTokenService.reset();
   }
 
   // ✅ Check User Login Status

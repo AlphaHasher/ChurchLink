@@ -4,6 +4,7 @@ from models.page_models import Page
 from bson import ObjectId, errors as bson_errors
 from datetime import datetime
 from urllib.parse import unquote
+from urllib.parse import unquote
 
 # TODO: make page perms
 mod_page_router = APIRouter(prefix="/pages", tags=["pages mod"])
@@ -33,6 +34,8 @@ async def create_page(page: Page = Body(...)):
 
 # Public Router - Get page by slug (moved under /slug to avoid conflict with list endpoint)
 @public_page_router.get("/slug/{slug:path}")
+# Public Router - Get page by slug (moved under /slug to avoid conflict with list endpoint)
+@public_page_router.get("/slug/{slug:path}")
 async def get_page_by_slug(slug: str):
     # Normalize and safely decode slug (handles double-encoding)
     decoded = unquote(unquote(slug or "")).strip()
@@ -40,7 +43,23 @@ async def get_page_by_slug(slug: str):
         decoded = "/"
 
     # Try exact match first
+    # Normalize and safely decode slug (handles double-encoding)
+    decoded = unquote(unquote(slug or "")).strip()
+    if decoded == "" or decoded == "home":
+        decoded = "/"
+
+    # Try exact match first
     page = await DB.db["pages"].find_one({
+        "slug": decoded,
+        "visible": True
+    })
+
+    # Fallback: if root not found, try "home"
+    if not page and decoded == "/":
+        page = await DB.db["pages"].find_one({
+            "slug": "home",
+            "visible": True
+        })
         "slug": decoded,
         "visible": True
     })
@@ -229,6 +248,10 @@ async def preview_page_by_slug(slug: str):
     Preview any page by slug for admin purposes (bypasses visibility checks)
     This allows admins to preview pages even when they're hidden
     """
+    decoded = unquote(unquote(slug or "")).strip()
+    if decoded == "" or decoded == "home":
+        decoded = "/"
+    page = await DB.db["pages"].find_one({"slug": decoded})
     decoded = unquote(unquote(slug or "")).strip()
     if decoded == "" or decoded == "home":
         decoded = "/"

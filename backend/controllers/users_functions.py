@@ -26,6 +26,7 @@ class PersonalInfo(BaseModel):
     birthday: Optional[datetime]
     gender: Optional[str]
 
+
 def is_valid_name(s: str) -> bool:
     if not s:
         return False
@@ -90,6 +91,22 @@ async def get_my_permissions(payload: MyPermsRequest, request:Request):
         retDict['user_role_ids'] = user['roles']
     
     return retDict
+
+async def get_is_init(request: Request):
+    user = request.state.user
+    birthday = user.get("birthday")
+    gender = user.get("gender")
+    verified = user.get("verified")
+    init = False
+    if birthday is None or gender is None:
+        msg = "This user has not initialized their profile!"
+    else:
+        init = True
+        msg = "This user has initialized their profile!"
+    if not verified:
+        msg = " However, they have not verified their email!"
+    return {"init": init, "verified":verified, "msg":msg}
+    
 
 async def fetch_profile_info(request: Request):
     user = request.state.user

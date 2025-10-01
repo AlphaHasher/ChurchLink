@@ -13,7 +13,7 @@ from models.user import (
     update_user_roles, delete_user,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, MyPermsRequest, PersonalInfo
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, MyPermsRequest, PersonalInfo
 
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
@@ -189,6 +189,11 @@ async def process_get_profile(request:Request):
 async def process_update_profile(request:Request, profile_data: PersonalInfo = Body(...)):
     return await update_profile(request, profile_data)
 
+# Private Router
+@user_private_router.get("/is-init")
+async def process_is_init(request: Request):
+    return await get_is_init(request)
+
 # Mod Router
 @user_mod_router.get("/check-mod")
 async def process_check_mod(request:Request):
@@ -300,3 +305,38 @@ async def delete_user_family_member_route(request: Request, family_id:str):
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error deleting family member: {str(e)}")
+    
+    # Private Router
+@user_private_router.get("/me/people", response_model=dict)
+async def list_my_people_alias(request: Request):
+    """
+    Alias used by the web UI to fetch saved Event People.
+    Returns the same payload as /users/all-family-members but under 'people'.
+    """
+    from helpers.MongoHelper import serialize_objectid
+    try:
+        user_id = request.state.uid
+        family_members = await get_family_members(user_id)  # already implemented
+        # Normalize shape to what the UI expects
+        return {"success": True, "people": serialize_objectid(family_members)}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching people: {str(e)}")
+
+# Private Router
+@user_private_router.post("/me/people", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def add_person_alias(request: Request, family_member_data: PersonCreate = Body(...)):
+    """
+    Optional alias to create a new Event Person from the same screen.
+    Mirrors POST /users/add-family-member but returns { success, person }.
+    """
+    from helpers.MongoHelper import serialize_objectid
+    try:
+        user_id = request.state.uid
+        created_member = await add_family_member(user_id, family_member_data)
+        if not created_member:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error adding person")
+        return {"success": True, "person": serialize_objectid(created_member)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding person: {str(e)}")

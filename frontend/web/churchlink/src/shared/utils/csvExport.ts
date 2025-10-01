@@ -1,4 +1,5 @@
 import api from '@/api/api';
+import { fetchUserInfoByUId } from '@/helpers/UserHelper';
 
 export type Col = { key: string; label: string };
 
@@ -18,11 +19,12 @@ export const buildCsvAndDownload = (rows: any[], cols: Col[], filename?: string)
   for (const r of rows) {
     const line = cols
       .map((col) => {
-        const key = col.key;
-        let val: any = undefined;
-        if (key === '__user__') val = (r as any).user_id;
-        else if (key === '__submitted__') val = (r as any).submitted_at;
-        else val = (r as any).response?.[key];
+  const key = col.key;
+  let val: any = undefined;
+  if (key === '__first_name__') val = (r as any).__first_name__;
+  else if (key === '__last_name__') val = (r as any).__last_name__;
+  else if (key === '__submitted__') val = (r as any).submitted_at;
+  else val = (r as any).response?.[key];
         if (val === null || val === undefined || (typeof val === 'string' && val.trim() === '')) return escape('');
         if (Array.isArray(val)) return escape(val.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', '));
         if (typeof val === 'object') return escape(JSON.stringify(val));
@@ -52,6 +54,41 @@ export const fetchResponsesAndDownloadCsv = async (
   let rows = resp.data?.items || [];
   if (!Array.isArray(rows)) rows = [];
 
+  const uniqueUserIds = [...new Set(rows.map((row: any) => row?.user_id).filter(Boolean))] as string[];
+  const userInfoMap: Record<string, { first_name?: string; last_name?: string }> = {};
+
+  if (uniqueUserIds.length > 0) {
+    const infoResults = await Promise.all(
+      uniqueUserIds.map(async (uid) => {
+        try {
+          const info = await fetchUserInfoByUId(uid);
+          return { uid, info };
+        } catch (error) {
+          console.error('Failed to fetch user info for CSV export:', error);
+          return { uid, info: null };
+        }
+      })
+    );
+
+    infoResults.forEach(({ uid, info }) => {
+      if (info) {
+        userInfoMap[uid] = { first_name: info.first_name, last_name: info.last_name };
+      }
+    });
+  }
+
+  const enrichedRows = rows.map((row: any) => {
+    const uid = row?.user_id;
+    const info = uid ? userInfoMap[uid] : null;
+    const firstName = info?.first_name || (uid ? uid : 'Anonymous');
+    const lastName = info?.last_name || '';
+    return {
+      ...row,
+      __first_name__: firstName,
+      __last_name__: lastName,
+    };
+  });
+
   const existing = new Set<string>((options?.existingColumns?.map((c) => c.key) || options?.existingColumnKeys) || []);
   const extra: Col[] = [];
   for (const it of rows) {
@@ -65,10 +102,16 @@ export const fetchResponsesAndDownloadCsv = async (
   }
 
   const baseExisting: Col[] = options?.existingColumns
-    ? options!.existingColumns!.filter((c) => c.key !== '__user__' && c.key !== '__submitted__')
+    ? options!.existingColumns!.filter((c) => c.key !== '__user__' && c.key !== '__submitted__' && c.key !== '__first_name__' && c.key !== '__last_name__')
     : (options?.existingColumnKeys || []).map((k) => ({ key: k, label: k }));
 
-  const cols = [{ key: '__user__', label: 'User' }, { key: '__submitted__', label: 'Submitted' }, ...baseExisting, ...extra];
+  const cols = [
+    { key: '__first_name__', label: 'First Name' },
+    { key: '__last_name__', label: 'Last Name' },
+    { key: '__submitted__', label: 'Submitted' },
+    ...baseExisting,
+    ...extra,
+  ];
   const uniq: Col[] = [];
   const seen = new Set<string>();
   for (const c of cols) {
@@ -78,6 +121,6 @@ export const fetchResponsesAndDownloadCsv = async (
     }
   }
 
-  buildCsvAndDownload(rows, uniq, options?.filename);
-  return { rows, cols: uniq };
+  buildCsvAndDownload(enrichedRows, uniq, options?.filename);
+  return { rows: enrichedRows, cols: uniq };
 };

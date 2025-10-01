@@ -26,12 +26,14 @@ class UserBase(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    verified: bool
     phone: Optional[str] = None
     birthday: Optional[datetime] = None
     address: AddressSchema = Field(default_factory=AddressSchema)
     roles: List[PydanticObjectId] = Field(default_factory=list)
     bible_notes: List[str] = Field(default_factory=list)
     createdOn: datetime = Field(default_factory=datetime.now)
+    notification_preferences: Optional[dict] = Field(default_factory=dict, description="User notification opt-out settings")
 
 class UserCreate(UserBase):
     # Input roles as names, will be converted to ObjectIds before saving

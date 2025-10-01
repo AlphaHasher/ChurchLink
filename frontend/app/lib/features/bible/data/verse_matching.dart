@@ -153,7 +153,7 @@ class _SpanCrossChapterRule extends _Rule {
 
 /// Chapter Remap
 /// Moves a whole chapter to another chapter number, maintains verse numbering
-/// TODO: Redundant with range_shift, potentially remove. Simpler interface though. Unused in current mapping ruleset.
+/// Redundant with range_shift, potentially remove. Simpler interface though. Unused in current mapping ruleset.
 class _ChapterRemapRule extends _Rule {
   final int fromChapter;
   final int toChapter;
@@ -656,7 +656,7 @@ class VerseMatching {
     return seen.toList();
   }
 
-  // TODO: NEW — convenience: list same-translation siblings in the cluster (excludes the seed).
+  // list same-translation siblings in the cluster (excludes the seed).
   List<VerseKey> sameTxSiblings({required String tx, required VerseKey key}) {
     final all = clusterMembers(tx: tx, key: key);
     final t = tx.trim().toLowerCase();

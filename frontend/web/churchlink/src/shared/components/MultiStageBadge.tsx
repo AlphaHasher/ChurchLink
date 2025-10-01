@@ -120,26 +120,48 @@ export default function MultiStateBadge({ state, onClick, className = "", label,
   // If custom state and customComponent is provided, render it directly
   if (state === "custom" && customComponent) {
     return (
-      <motion.button
-        type="button"
-        onClick={onClick}
-        className={["relative inline-flex items-center gap-2 rounded-full px-3.5 py-1.5", className].join(" ")}
+      <motion.div
+        className={["relative inline-flex items-center gap-2", className].join(" ")}
         layout="size"
         transition={SPRING}
-        whileTap={{ scale: 0.98 }}
       >
-        {customComponent}
-        {label && (
-          <motion.div layout="size" transition={SPRING} className="relative inline-flex overflow-hidden">
-            <motion.span
-              layout
-              className="block text-xs font-medium tracking-wide"
-            >
-              {label}
-            </motion.span>
-          </motion.div>
+        {onClick ? (
+          <motion.button
+            type="button"
+            onClick={onClick}
+            className="relative inline-flex items-center gap-2 rounded-full px-3.5 py-1.5"
+            layout="size"
+            transition={SPRING}
+            whileTap={{ scale: 0.98 }}
+          >
+            {customComponent}
+            {label && (
+              <motion.div layout="size" transition={SPRING} className="relative inline-flex overflow-hidden">
+                <motion.span
+                  layout
+                  className="block text-xs font-medium tracking-wide"
+                >
+                  {label}
+                </motion.span>
+              </motion.div>
+            )}
+          </motion.button>
+        ) : (
+          <>
+            {customComponent}
+            {label && (
+              <motion.div layout="size" transition={SPRING} className="relative inline-flex overflow-hidden">
+                <motion.span
+                  layout
+                  className="block text-xs font-medium tracking-wide"
+                >
+                  {label}
+                </motion.span>
+              </motion.div>
+            )}
+          </>
         )}
-      </motion.button>
+      </motion.div>
     )
   }
 
