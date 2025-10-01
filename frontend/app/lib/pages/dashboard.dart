@@ -22,32 +22,64 @@ class DashboardPage extends StatelessWidget {
               // Helper to create a full-width card
               Builder(
                 builder: (ctx) {
+                  // Add optional named param: {String? imageAsset}
                   Widget buildCard(
                     String title,
                     VoidCallback onTap,
-                    Color background,
-                  ) {
-                    final textColor =
-                        background.computeLuminance() > 0.5
-                            ? Colors.black
-                            : Colors.white;
+                    Color background, {
+                    String? imageAsset,
+                  }) {
+                    // If using an image, force white text; otherwise compute from background
+                    final Color textColor = (imageAsset != null)
+                        ? Colors.white
+                        : (background.computeLuminance() > 0.5 ? Colors.black : Colors.white);
+
                     return Card(
                       margin: EdgeInsets.zero,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      child: InkWell(
-                        onTap: onTap,
-                        child: Container(
-                          color: background,
-                          height: 150,
-                          width: double.infinity,
-                          child: Center(
-                            child: Text(
-                              title,
-                              style: Theme.of(ctx).textTheme.titleLarge
-                                  ?.copyWith(color: textColor),
-                            ),
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                      clipBehavior: Clip.hardEdge, // keeps ripple & image clipped to card
+                      child: Ink(
+                        height: 150,
+                        width: double.infinity,
+                        // Image background when imageAsset is provided; else solid color
+                        decoration: imageAsset != null
+                            ? BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(imageAsset),
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : BoxDecoration(color: background),
+                        child: InkWell(
+                          onTap: onTap,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // Dark gradient overlay only when an image is used
+                              if (imageAsset != null)
+                                const DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [Colors.black54, Colors.transparent],
+                                    ),
+                                  ),
+                                ),
+                              Center(
+                                child: Text(
+                                  title,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                                        color: textColor,
+                                        // small shadow helps on busy photos
+                                        shadows: imageAsset != null
+                                            ? const [Shadow(blurRadius: 2, color: Colors.black45)]
+                                            : null,
+                                      ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -62,7 +94,10 @@ class DashboardPage extends StatelessWidget {
                           ctx,
                           CupertinoPageRoute(builder: (_) => const JoinLive()),
                         );
-                      }, Colors.indigo.shade600),
+                      }, 
+                        Colors.indigo.shade600,
+                        imageAsset: 'assets/dashboard/joinlive.jpeg',
+                      ),
                       buildCard('Weekly Bulletin', () {
                         Navigator.push(
                           ctx,
@@ -70,7 +105,10 @@ class DashboardPage extends StatelessWidget {
                             builder: (_) => const WeeklyBulletin(),
                           ),
                         );
-                      }, Colors.teal.shade600),
+                      }, 
+                        Colors.teal.shade600,
+                        imageAsset: 'assets/dashboard/bulletin.jpeg',
+                      ),
                       buildCard('Events', () {
                         Navigator.push(
                           ctx,
@@ -78,13 +116,19 @@ class DashboardPage extends StatelessWidget {
                             builder: (_) => const EventsPage(),
                           ),
                         );
-                      }, Colors.orange.shade600),
+                      }, 
+                        Colors.orange.shade600,
+                        imageAsset: 'assets/dashboard/events.jpeg',
+                      ),
                       buildCard('Giving', () {
                         Navigator.push(
                           ctx,
                           CupertinoPageRoute(builder: (_) => const Giving()),
                         );
-                      }, Colors.green.shade600),
+                      }, 
+                        Colors.green.shade600,
+                        imageAsset: 'assets/dashboard/giving.jpeg',
+),
                       buildCard('Ministries', () {
                         Navigator.push(
                           ctx,
@@ -92,19 +136,28 @@ class DashboardPage extends StatelessWidget {
                             builder: (_) => const Ministries(),
                           ),
                         );
-                      }, Colors.purple.shade600),
+                      }, 
+                        Colors.purple.shade600,
+                        imageAsset: 'assets/dashboard/ministries.jpeg',
+                      ),
                       buildCard('Contact Us', () {
                         Navigator.push(
                           ctx,
                           CupertinoPageRoute(builder: (_) => const Contact()),
                         );
-                      }, Colors.blueGrey.shade700),
+                      }, 
+                        Colors.blueGrey.shade700,
+                        imageAsset: 'assets/dashboard/contact.jpeg',  
+                      ),
                       buildCard('Forms', () {
                         Navigator.push(
                           ctx,
                           CupertinoPageRoute(builder: (_) => const Forms()),
                         );
-                      }, Colors.brown.shade600),
+                      }, 
+                        Colors.brown.shade600,
+                        imageAsset: 'assets/dashboard/forms.jpeg',
+                      ),
                     ],
                   );
                 },
