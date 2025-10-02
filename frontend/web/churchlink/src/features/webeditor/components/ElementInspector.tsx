@@ -4,14 +4,18 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Separator } from "@/shared/components/ui/separator";
 import { Label } from "@/shared/components/ui/label";
 import { Input } from "@/shared/components/ui/input";
+import { NumericDragInput } from "@/shared/components/NumericDragInput";
+import { Switch } from "@/shared/components/ui/switch";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Button } from "@/shared/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group";
 import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from "lucide-react";
 import FontPicker from "./FontPicker";
+import { getFontByFamily, getFontById } from "@/shared/constants/googleFonts";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { ColorPicker, ColorPickerAlpha, ColorPickerHue, ColorPickerSelection, ColorPickerOutput } from "@/shared/components/ui/shadcn-io/color-picker";
+import { BuilderState } from "@/features/webeditor/state/BuilderState";
 
 interface ElementInspectorProps {
   open: boolean;
@@ -19,9 +23,246 @@ interface ElementInspectorProps {
   selectedNode: Node | null;
   onUpdateNode: (updater: (node: Node) => Node) => void;
   fontManager?: any; // Font manager from useFontManager hook
+  gridSize?: number; // px per grid unit for converting wu/hu ⇄ px/rem
 }
 
-const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node) => Node) => void; fontManager?: any }> = ({ node, onUpdate, fontManager }) => {
+// Layout size controls with numeric inputs + units, real-time updates and drag-to-adjust
+const LayoutSizeControls: React.FC<{
+  node: Node;
+  onUpdateNode: (updater: (node: Node) => Node) => void;
+  gridSize?: number;
+}> = ({ node, onUpdateNode, gridSize }) => {
+  const grid = gridSize ?? 16;
+  const wu = node.layout?.units?.wu ?? 12;
+  const hu = node.layout?.units?.hu ?? 8;
+
+  const [widthUnit, setWidthUnit] = React.useState<'units' | 'px' | 'rem'>('px');
+  const [heightUnit, setHeightUnit] = React.useState<'units' | 'px' | 'rem'>('px');
+  const [widthVal, setWidthVal] = React.useState<number>(wu * grid);
+  const [heightVal, setHeightVal] = React.useState<number>(hu * grid);
+
+  React.useEffect(() => {
+    const pxW = wu * grid;
+    const pxH = hu * grid;
+    setWidthVal(widthUnit === 'units' ? wu : widthUnit === 'px' ? Math.round(pxW) : Number((pxW / 16).toFixed(2)));
+    setHeightVal(heightUnit === 'units' ? hu : heightUnit === 'px' ? Math.round(pxH) : Number((pxH / 16).toFixed(2)));
+  }, [wu, hu, grid, widthUnit, heightUnit]);
+
+  const commitWidth = (val: number) => {
+    const px = widthUnit === 'units' ? val * grid : widthUnit === 'px' ? val : val * 16;
+    const nextWu = Math.max(1, Math.round(px / grid));
+    onUpdateNode((n) => ({
+      ...n,
+      layout: {
+        ...n.layout,
+        units: {
+          xu: n.layout?.units?.xu ?? 0,
+          yu: n.layout?.units?.yu ?? 0,
+          wu: nextWu,
+          hu: n.layout?.units?.hu ?? 8,
+        },
+      },
+    } as Node));
+  };
+
+  const commitHeight = (val: number) => {
+    const px = heightUnit === 'units' ? val * grid : heightUnit === 'px' ? val : val * 16;
+    const nextHu = Math.max(1, Math.round(px / grid));
+    onUpdateNode((n) => ({
+      ...n,
+      layout: {
+        ...n.layout,
+        units: {
+          xu: n.layout?.units?.xu ?? 0,
+          yu: n.layout?.units?.yu ?? 0,
+          wu: n.layout?.units?.wu ?? 12,
+          hu: nextHu,
+        },
+      },
+    } as Node));
+  };
+
+  const getStep = (unit: 'units' | 'px' | 'rem') => (unit === 'rem' ? 0.25 : 1);
+
+  // Drag-to-adjust now handled by shared NumericDragInput
+
+  // drag handled by NumericDragInput now
+
+  return (
+    <div className="rounded-lg border p-3 bg-muted/40">
+      <div className="text-sm font-semibold mb-2">Layout Size</div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Width</Label>
+          <div className="flex items-center gap-2">
+            <NumericDragInput
+              min={1}
+              step={getStep(widthUnit)}
+              value={Number.isFinite(widthVal) ? widthVal : 0}
+              onChange={(val) => {
+                setWidthVal(val);
+                commitWidth(val);
+              }}
+            />
+            <Select value={widthUnit} onValueChange={(v) => setWidthUnit(v as any)}>
+              <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="units">units</SelectItem>
+                <SelectItem value="px">px</SelectItem>
+                <SelectItem value="rem">rem</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Height</Label>
+          <div className="flex items-center gap-2">
+            <NumericDragInput
+              min={1}
+              step={getStep(heightUnit)}
+              value={Number.isFinite(heightVal) ? heightVal : 0}
+              onChange={(val) => {
+                setHeightVal(val);
+                commitHeight(val);
+              }}
+            />
+            <Select value={heightUnit} onValueChange={(v) => setHeightUnit(v as any)}>
+              <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="units">units</SelectItem>
+                <SelectItem value="px">px</SelectItem>
+                <SelectItem value="rem">rem</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground mt-1">Grid size: {grid}px per unit</div>
+    </div>
+  );
+};
+
+const PositionControls: React.FC<{
+  node: Node;
+  onUpdateNode: (updater: (node: Node) => Node) => void;
+  gridSize?: number;
+}> = ({ node, onUpdateNode, gridSize }) => {
+  const grid = gridSize ?? 16;
+  const xu = node.layout?.units?.xu ?? 0;
+  const yu = node.layout?.units?.yu ?? 0;
+
+  const [xUnit, setXUnit] = React.useState<'units' | 'px' | 'rem'>('px');
+  const [yUnit, setYUnit] = React.useState<'units' | 'px' | 'rem'>('px');
+  const [xVal, setXVal] = React.useState<number>(xu * grid);
+  const [yVal, setYVal] = React.useState<number>(yu * grid);
+
+  React.useEffect(() => {
+    const pxX = xu * grid;
+    const pxY = yu * grid;
+    setXVal(xUnit === 'units' ? xu : xUnit === 'px' ? Math.round(pxX) : Number((pxX / 16).toFixed(2)));
+    setYVal(yUnit === 'units' ? yu : yUnit === 'px' ? Math.round(pxY) : Number((pxY / 16).toFixed(2)));
+  }, [xu, yu, grid, xUnit, yUnit]);
+
+  const commitX = (val: number) => {
+    const px = xUnit === 'units' ? val * grid : xUnit === 'px' ? val : val * 16;
+    const nextXu = Math.max(0, Math.round(px / grid));
+    onUpdateNode((n) => ({
+      ...n,
+      layout: {
+        ...n.layout,
+        units: {
+          xu: nextXu,
+          yu: n.layout?.units?.yu ?? 0,
+          wu: n.layout?.units?.wu ?? 12,
+          hu: n.layout?.units?.hu ?? 8,
+        },
+      },
+    } as Node));
+  };
+  const commitY = (val: number) => {
+    const px = yUnit === 'units' ? val * grid : yUnit === 'px' ? val : val * 16;
+    const nextYu = Math.max(0, Math.round(px / grid));
+    onUpdateNode((n) => ({
+      ...n,
+      layout: {
+        ...n.layout,
+        units: {
+          xu: n.layout?.units?.xu ?? 0,
+          yu: nextYu,
+          wu: n.layout?.units?.wu ?? 12,
+          hu: n.layout?.units?.hu ?? 8,
+        },
+      },
+    } as Node));
+  };
+
+  // numeric drag now handled by shared NumericDragInput
+  // numeric drag now handled by shared NumericDragInput
+
+  // drag handled by NumericDragInput now
+
+  return (
+    <div className="rounded-lg border p-3 bg-muted/40">
+      <div className="text-sm font-semibold mb-2">Position</div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>X</Label>
+          <div className="flex items-center gap-2">
+            <NumericDragInput
+              min={0}
+              step={xUnit === 'rem' ? 0.25 : 1}
+              value={Number.isFinite(xVal) ? xVal : 0}
+              onChange={(val) => {
+                setXVal(val);
+                commitX(val);
+              }}
+            />
+            <Select value={xUnit} onValueChange={(v) => setXUnit(v as any)}>
+              <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="units">units</SelectItem>
+                <SelectItem value="px">px</SelectItem>
+                <SelectItem value="rem">rem</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Y</Label>
+          <div className="flex items-center gap-2">
+            <NumericDragInput
+              min={0}
+              step={yUnit === 'rem' ? 0.25 : 1}
+              value={Number.isFinite(yVal) ? yVal : 0}
+              onChange={(val) => {
+                setYVal(val);
+                commitY(val);
+              }}
+            />
+            <Select value={yUnit} onValueChange={(v) => setYUnit(v as any)}>
+              <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="units">units</SelectItem>
+                <SelectItem value="px">px</SelectItem>
+                <SelectItem value="rem">rem</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground mt-1">Grid size: {grid}px per unit</div>
+    </div>
+  );
+};
+
+const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node) => Node) => void; fontManager?: any; gridSize?: number }> = ({ node, onUpdate, fontManager, gridSize }) => {
+  const [customFontActive, setCustomFontActive] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    const fam = (node.style as any)?.fontFamily as string | undefined;
+    const match = getFontByFamily(fontManager?.fontOptions ?? [], fam || undefined);
+    setCustomFontActive(match ? false : Boolean(fam));
+  }, [node.style, fontManager?.fontOptions]);
   const [localHtml, setLocalHtml] = React.useState(node.props?.html || node.props?.text || "");
 
   React.useEffect(() => {
@@ -84,57 +325,6 @@ const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node)
 
       <Separator />
 
-      <div className="space-y-2">
-        <Label>Text Styles</Label>
-        <ToggleGroup 
-          type="multiple" 
-          value={textStyles}
-          onValueChange={handleStyleToggle}
-          className="justify-start"
-        >
-          <ToggleGroupItem value="bold" aria-label="Bold">
-            <Bold className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="italic" aria-label="Italic">
-            <Italic className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="underline" aria-label="Underline">
-            <Underline className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-
-      {textStyles.includes('underline') && (
-        <div className="space-y-2">
-          <Label htmlFor="underline-thickness">Underline Thickness (px)</Label>
-          <Input
-            id="underline-thickness"
-            type="number"
-            min={1}
-            max={10}
-            step={0.5}
-            value={(node.style as any)?.underlineThickness || 1}
-            onChange={(e) =>
-              onUpdate((n) =>
-                n.type === "text"
-                  ? ({
-                      ...n,
-                      style: {
-                        ...(n.style || {}),
-                        underlineThickness: Number(e.target.value),
-                      },
-                    } as Node)
-                  : n
-              )
-            }
-            placeholder="1"
-          />
-          <p className="text-xs text-muted-foreground">
-            Default is 1px. Increase for thicker underlines.
-          </p>
-        </div>
-      )}
-
       {fontManager && (
         <>
           <div className="space-y-2">
@@ -160,9 +350,40 @@ const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node)
                         } as Node)
                       : n
                   );
+                  setCustomFontActive(fontFamily ? !getFontByFamily(fontManager?.fontOptions ?? [], fontFamily) : false);
                 }
               }}
               {...fontManager}
+              selectedFontId={(customFontActive ? 'custom' : (getFontByFamily(fontManager?.fontOptions ?? [], (node.style as any)?.fontFamily || undefined)?.id ?? 'system'))}
+              fontButtonLabel={(customFontActive && (node.style as any)?.fontFamily) || (getFontByFamily(fontManager?.fontOptions ?? [], (node.style as any)?.fontFamily || undefined)?.label || 'System Default')}
+              fontButtonDescription={(customFontActive && 'Custom CSS family') || (getFontByFamily(fontManager?.fontOptions ?? [], (node.style as any)?.fontFamily || undefined)?.fontFamily || 'Browser default stack')}
+              customFontActive={customFontActive}
+              handleSelectFont={(fontId: string) => {
+                // System default clears element font
+                if (!fontId || fontId === 'system') {
+                  setCustomFontActive(false);
+                  onUpdate((n) => n.type === 'text' ? ({ ...n, style: { ...(n.style || {}), fontFamily: undefined } } as Node) : n);
+                  return;
+                }
+                if (fontId === 'custom') {
+                  setCustomFontActive(true);
+                  return;
+                }
+                const meta = getFontById(fontManager?.fontOptions ?? [], fontId);
+                if (meta) {
+                  // Ensure font CSS is loaded by injecting a <link> once
+                  const linkId = `google-font-link-${meta.id}`;
+                  if (!document.getElementById(linkId)) {
+                    const link = document.createElement('link');
+                    link.id = linkId;
+                    link.rel = 'stylesheet';
+                    link.href = meta.cssUrl;
+                    document.head.appendChild(link);
+                  }
+                  setCustomFontActive(false);
+                  onUpdate((n) => n.type === 'text' ? ({ ...n, style: { ...(n.style || {}), fontFamily: meta.fontFamily } } as Node) : n);
+                }
+              }}
             />
           </div>
           <Separator />
@@ -274,21 +495,20 @@ const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node)
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label htmlFor="font-size">Font Size (rem)</Label>
-          <Input
+          <NumericDragInput
             id="font-size"
-            type="number"
             min={0.5}
             max={10}
             step={0.125}
-            value={(node.style as any)?.fontSize || 1}
-            onChange={(e) =>
+            value={(node.style as any)?.fontSize ?? 1}
+            onChange={(val) =>
               onUpdate((n) =>
                 n.type === "text"
                   ? ({
                       ...n,
                       style: {
                         ...(n.style || {}),
-                        fontSize: Number(e.target.value),
+                        fontSize: val,
                       },
                     } as Node)
                   : n
@@ -299,21 +519,20 @@ const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node)
         </div>
         <div className="space-y-2">
           <Label htmlFor="font-weight">Font Weight</Label>
-          <Input
+          <NumericDragInput
             id="font-weight"
-            type="number"
             min={100}
             max={900}
             step={100}
-            value={(node.style as any)?.fontWeight || 400}
-            onChange={(e) =>
+            value={(node.style as any)?.fontWeight ?? 400}
+            onChange={(val) =>
               onUpdate((n) =>
                 n.type === "text"
                   ? ({
                       ...n,
                       style: {
                         ...(n.style || {}),
-                        fontWeight: Number(e.target.value),
+                        fontWeight: val,
                       },
                     } as Node)
                   : n
@@ -323,6 +542,56 @@ const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node)
           />
         </div>
       </div>
+
+      <div className="space-y-2">
+        <Label>Text Styles</Label>
+        <ToggleGroup 
+          type="multiple" 
+          value={textStyles}
+          onValueChange={handleStyleToggle}
+          className="justify-start"
+        >
+          <ToggleGroupItem value="bold" aria-label="Bold">
+            <Bold className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="italic" aria-label="Italic">
+            <Italic className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="underline" aria-label="Underline">
+            <Underline className="h-4 w-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      {textStyles.includes('underline') && (
+        <div className="space-y-2">
+          <Label htmlFor="underline-thickness">Underline Thickness (px)</Label>
+          <NumericDragInput
+            id="underline-thickness"
+            min={1}
+            max={10}
+            step={0.5}
+            value={(node.style as any)?.underlineThickness ?? 1}
+            onChange={(val) =>
+              onUpdate((n) =>
+                n.type === "text"
+                  ? ({
+                      ...n,
+                      style: {
+                        ...(n.style || {}),
+                        underlineThickness: val,
+                      },
+                    } as Node)
+                  : n
+              )
+            }
+            placeholder="1"
+          />
+          <p className="text-xs text-muted-foreground">
+            Default is 1px. Increase for thicker underlines.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="text-align">Text Alignment</Label>
@@ -395,62 +664,7 @@ const TextInspector: React.FC<{ node: TextNode; onUpdate: (updater: (node: Node)
 
       <Separator />
 
-      <div className="space-y-2">
-        <Label>Padding</Label>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Top/Bottom</div>
-            <Input
-              type="number"
-              min={0}
-              max={20}
-              step={1}
-              value={(node.style as any)?.paddingY || 0}
-              onChange={(e) =>
-                onUpdate((n) =>
-                  n.type === "text"
-                    ? ({
-                        ...n,
-                        style: {
-                          ...(n.style || {}),
-                          paddingY: Number(e.target.value),
-                        },
-                      } as Node)
-                    : n
-                )
-              }
-              placeholder="0"
-            />
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Left/Right</div>
-            <Input
-              type="number"
-              min={0}
-              max={20}
-              step={1}
-              value={(node.style as any)?.paddingX || 0}
-              onChange={(e) =>
-                onUpdate((n) =>
-                  n.type === "text"
-                    ? ({
-                        ...n,
-                        style: {
-                          ...(n.style || {}),
-                          paddingX: Number(e.target.value),
-                        },
-                      } as Node)
-                    : n
-                )
-              }
-              placeholder="0"
-            />
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Padding in rem units (1 = 0.25rem, 4 = 1rem)
-        </p>
-      </div>
+      <PaddingControls node={node} onUpdate={onUpdate} gridSize={gridSize} />
 
       <Separator />
 
@@ -564,17 +778,16 @@ const ContainerInspector: React.FC<{ node: Node; onUpdate: (updater: (node: Node
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="container-px">Padding X</Label>
-          <Input
+          <NumericDragInput
             id="container-px"
-            type="number"
             min={0}
             max={12}
             step={2}
-            value={node.props?.paddingX || 4}
-            onChange={(e) =>
+            value={node.props?.paddingX ?? 4}
+            onChange={(val) =>
               onUpdate((n) =>
                 n.type === "container"
-                  ? ({ ...n, props: { ...(n.props || {}), paddingX: Number(e.target.value) } } as Node)
+                  ? ({ ...n, props: { ...(n.props || {}), paddingX: val } } as Node)
                   : n
               )
             }
@@ -582,17 +795,16 @@ const ContainerInspector: React.FC<{ node: Node; onUpdate: (updater: (node: Node
         </div>
         <div className="space-y-2">
           <Label htmlFor="container-py">Padding Y</Label>
-          <Input
+          <NumericDragInput
             id="container-py"
-            type="number"
             min={0}
             max={12}
             step={2}
-            value={node.props?.paddingY || 6}
-            onChange={(e) =>
+            value={node.props?.paddingY ?? 6}
+            onChange={(val) =>
               onUpdate((n) =>
                 n.type === "container"
-                  ? ({ ...n, props: { ...(n.props || {}), paddingY: Number(e.target.value) } } as Node)
+                  ? ({ ...n, props: { ...(n.props || {}), paddingY: val } } as Node)
                   : n
               )
             }
@@ -657,12 +869,167 @@ const EventListInspector: React.FC<{ node: Node; onUpdate: (updater: (node: Node
   );
 };
 
+const usePaddingOverlay = (sectionId: string | null, nodeId: string) => {
+  React.useEffect(() => {
+    if (!sectionId) return;
+    return () => {
+      BuilderState.hidePaddingOverlay(sectionId, nodeId);
+    };
+  }, [sectionId, nodeId]);
+};
+
+const PaddingControls: React.FC<{ node: Node; onUpdate: (updater: (node: Node) => Node) => void; gridSize?: number }> = ({ node, onUpdate }) => {
+  const sectionId = BuilderState.selection?.sectionId ?? null;
+  usePaddingOverlay(sectionId, node.id);
+
+  const padding = React.useMemo(() => {
+    const style = { ...(node.style || {}) } as any;
+    const y = style.paddingY ?? 0;
+    const x = style.paddingX ?? y;
+    return {
+      top: style.paddingTop ?? y,
+      right: style.paddingRight ?? x,
+      bottom: style.paddingBottom ?? y,
+      left: style.paddingLeft ?? x,
+    };
+  }, [node.style]);
+
+  const [split, setSplit] = React.useState(() => {
+    const { top, right, bottom, left } = padding;
+    return !(top === bottom && right === left && top === right);
+  });
+
+  React.useEffect(() => {
+    if (!sectionId) return;
+    BuilderState.showPaddingOverlay(sectionId, node.id, [padding.top, padding.right, padding.bottom, padding.left]);
+    return () => {
+      BuilderState.hidePaddingOverlay(sectionId, node.id);
+    };
+  }, [sectionId, node.id, padding.top, padding.right, padding.bottom, padding.left]);
+
+  const publishOverlay = React.useCallback((values: [number, number, number, number]) => {
+    if (!sectionId) return;
+    BuilderState.showPaddingOverlay(sectionId, node.id, values);
+  }, [sectionId, node.id]);
+
+  const updateStyle = React.useCallback((mutator: (current: any) => any) => {
+    onUpdate((n) => {
+      if (n.type !== "text") return n;
+      const style = { ...(n.style || {}) } as any;
+      const next = mutator(style);
+      return { ...n, style: next } as Node;
+    });
+  }, [onUpdate]);
+
+  const handleGlobal = React.useCallback((val: number) => {
+    updateStyle((style) => {
+      style.paddingY = val;
+      style.paddingX = val;
+      delete style.paddingTop;
+      delete style.paddingRight;
+      delete style.paddingBottom;
+      delete style.paddingLeft;
+      return style;
+    });
+    publishOverlay([val, val, val, val]);
+  }, [updateStyle, publishOverlay]);
+
+  const handleSplit = React.useCallback((side: "top" | "right" | "bottom" | "left", val: number) => {
+    updateStyle((style) => {
+      style[`padding${side[0].toUpperCase()}${side.slice(1)}`] = val;
+      return style;
+    });
+    publishOverlay([
+      side === "top" ? val : padding.top,
+      side === "right" ? val : padding.right,
+      side === "bottom" ? val : padding.bottom,
+      side === "left" ? val : padding.left,
+    ]);
+  }, [updateStyle, publishOverlay, padding.top, padding.right, padding.bottom, padding.left]);
+
+  const toggleSplit = React.useCallback((checked: boolean) => {
+    setSplit(checked);
+    if (checked) {
+      updateStyle((style) => {
+        const y = style.paddingY ?? 0;
+        const x = style.paddingX ?? y;
+        style.paddingTop = style.paddingTop ?? y;
+        style.paddingBottom = style.paddingBottom ?? y;
+        style.paddingLeft = style.paddingLeft ?? x;
+        style.paddingRight = style.paddingRight ?? x;
+        delete style.paddingY;
+        delete style.paddingX;
+        return style;
+      });
+      publishOverlay([padding.top, padding.right, padding.bottom, padding.left]);
+    } else {
+      const vertical = Math.max(padding.top, padding.bottom);
+      const horizontal = Math.max(padding.left, padding.right);
+      updateStyle((style) => {
+        style.paddingY = vertical;
+        style.paddingX = horizontal;
+        delete style.paddingTop;
+        delete style.paddingRight;
+        delete style.paddingBottom;
+        delete style.paddingLeft;
+        return style;
+      });
+      publishOverlay([vertical, horizontal, vertical, horizontal]);
+    }
+  }, [updateStyle, publishOverlay, padding.top, padding.right, padding.bottom, padding.left]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm">Padding</Label>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Split sides</span>
+          <Switch checked={split} onCheckedChange={toggleSplit} />
+        </div>
+      </div>
+      {!split ? (
+        <div className="space-y-2">
+          <Label>All sides</Label>
+          <NumericDragInput
+            min={0}
+            max={40}
+            step={0.5}
+            value={Math.max(padding.top, padding.right, padding.bottom, padding.left)}
+            onChange={handleGlobal}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">Top</div>
+            <NumericDragInput min={0} max={40} step={0.5} value={padding.top} onChange={(val) => handleSplit("top", val)} />
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">Right</div>
+            <NumericDragInput min={0} max={40} step={0.5} value={padding.right} onChange={(val) => handleSplit("right", val)} />
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">Bottom</div>
+            <NumericDragInput min={0} max={40} step={0.5} value={padding.bottom} onChange={(val) => handleSplit("bottom", val)} />
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">Left</div>
+            <NumericDragInput min={0} max={40} step={0.5} value={padding.left} onChange={(val) => handleSplit("left", val)} />
+          </div>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">Padding values are in Tailwind spacing units (1 = 0.25rem).</p>
+    </div>
+  );
+};
+
 const ElementInspector: React.FC<ElementInspectorProps> = ({
   open,
   onOpenChange,
   selectedNode,
   onUpdateNode,
   fontManager,
+  gridSize,
 }) => {
   if (!selectedNode) {
     return (
@@ -714,6 +1081,10 @@ const ElementInspector: React.FC<ElementInspectorProps> = ({
           </div>
 
           <Separator />
+
+          {/* Common layout controls for ALL elements */}
+          <PositionControls node={selectedNode} onUpdateNode={onUpdateNode} gridSize={gridSize} />
+          <LayoutSizeControls node={selectedNode} onUpdateNode={onUpdateNode} gridSize={gridSize} />
 
           {selectedNode.type === "text" && (
             <TextInspector node={selectedNode as TextNode} onUpdate={onUpdateNode} fontManager={fontManager} />

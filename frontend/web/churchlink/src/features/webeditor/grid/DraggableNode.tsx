@@ -1,21 +1,51 @@
 // DraggableNode.tsx - Draggable node with grid snapping
 import React, { useCallback, useRef, useState } from 'react';
-import { pxToUnits, snapToGrid, unitsToPx } from './gridMath';
+import { pxToUnits, unitsToPx, edgeSnap } from './gridMath';
 import { Node } from '@/shared/types/pageV2';
+import { BuilderState, ResizeHandle } from '@/features/webeditor/state/BuilderState';
+
+function mergeClassNames(...classes: Array<string | undefined | null | false>) {
+  return classes.filter(Boolean).join(' ');
+}
+
+function enforceFullSize(content: React.ReactNode): React.ReactNode {
+  if (!React.isValidElement(content)) return content;
+
+  // Narrow props type to any so we can safely clone with merges
+  const element: React.ReactElement<any> = content as React.ReactElement<any>;
+  const existingStyle = (element.props && element.props.style) || {};
+  const existingClass = (element.props && element.props.className) || '';
+
+  const mergedStyle: React.CSSProperties = {
+    ...existingStyle,
+    width: existingStyle.width ?? '100%',
+    height: existingStyle.height ?? '100%',
+  };
+  const mergedClassName = mergeClassNames(existingClass, 'w-full', 'h-full');
+
+  return React.cloneElement(element, {
+    className: mergedClassName,
+    style: mergedStyle,
+  });
+}
 
 type DragNodeProps = {
+  sectionId: string;
   node: Node;
   gridSize: number;
-  onCommitLayout: (nodeId: string, units: { xu: number; yu: number }) => void;
+  onCommitLayout: (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void;
   // Optionally provide starting width/height in px for a hover frame, etc.
   defaultSize?: { w?: number; h?: number };
   // For highlighting selection
   selected?: boolean;
   render: (node: Node) => React.ReactNode;
   onSelect?: () => void;
+  containerId?: string;
+  enforceChildFullSize?: boolean;
 };
 
 export function DraggableNode({
+  sectionId,
   node,
   gridSize,
   onCommitLayout,
@@ -23,79 +53,328 @@ export function DraggableNode({
   selected,
   render,
   onSelect,
+  containerId,
+  enforceChildFullSize,
 }: DragNodeProps) {
   const [dragging, setDragging] = useState(false);
   const [tempPos, setTempPos] = useState<{ x: number; y: number } | null>(null);
-  const startRef = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number } | null>(null);
+  const [tempSize, setTempSize] = useState<{ w: number; h: number } | null>(null);
+  const startRef = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number; w0: number; h0: number } | null>(null);
+  const resizeRef = useRef<
+    | null
+    | {
+        mode: ResizeHandle;
+        startX: number;
+        startY: number;
+        x0: number;
+        y0: number;
+        w0: number;
+        h0: number;
+      }
+  >(null);
+  const pressedRef = useRef<boolean>(false);
 
-  const x = node.layout?.px?.x ?? unitsToPx(node.layout?.units.xu ?? 0, gridSize);
-  const y = node.layout?.px?.y ?? unitsToPx(node.layout?.units.yu ?? 0, gridSize);
+  const activeEditing = BuilderState.editing;
+  const isEditing = activeEditing?.sectionId === sectionId && activeEditing?.nodeId === node.id;
+
+  const cachedLayout = BuilderState.getNodePixelLayout(node.id);
+  const x = cachedLayout?.x ?? node.layout?.px?.x ?? unitsToPx(node.layout?.units.xu ?? 0, gridSize);
+  const y = cachedLayout?.y ?? node.layout?.px?.y ?? unitsToPx(node.layout?.units.yu ?? 0, gridSize);
+  const baseWidth = cachedLayout?.w ?? node.layout?.px?.w ?? (node.layout?.units.wu ? unitsToPx(node.layout.units.wu, gridSize) : undefined);
+  const baseHeight = cachedLayout?.h ?? node.layout?.px?.h ?? (node.layout?.units.hu ? unitsToPx(node.layout.units.hu, gridSize) : undefined);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    const el = (e.currentTarget.parentElement as HTMLElement); // the absolute wrapper
-    if (!el.parentElement) return;
-    const rect = el.parentElement.getBoundingClientRect();
+    if (isEditing) return; // Disable drag when editing text
+    const wrapper = e.currentTarget as HTMLElement;
+    const innerRect = wrapper.getBoundingClientRect();
+    const parent = wrapper.offsetParent as HTMLElement | null;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
     const pointerY = e.clientY - rect.top;
-    startRef.current = { pointerX, pointerY, x0: x, y0: y };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setDragging(true);
+    startRef.current = { pointerX, pointerY, x0: x, y0: y, w0: innerRect.width, h0: innerRect.height };
+    setTempSize(null);
+    wrapper.setPointerCapture(e.pointerId);
+    pressedRef.current = true;
     onSelect?.();
     e.stopPropagation();
-  }, [x, y]);
+  }, [isEditing, x, y, onSelect]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging || !startRef.current) return;
-    const el = (e.currentTarget.parentElement as HTMLElement);
-    if (!el.parentElement) return;
-    const rect = el.parentElement.getBoundingClientRect();
-    const pointerX = e.clientX - rect.left;
-    const pointerY = e.clientY - rect.top;
-    const dx = pointerX - startRef.current.pointerX;
-    const dy = pointerY - startRef.current.pointerY;
-    setTempPos({ x: startRef.current.x0 + dx, y: startRef.current.y0 + dy });
+    const wrapper = e.currentTarget as HTMLElement;
+    const container = wrapper.offsetParent as HTMLElement | null;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const pointerX = e.clientX - containerRect.left;
+    const pointerY = e.clientY - containerRect.top;
+      const dx = pointerX - startRef.current.pointerX;
+      const dy = pointerY - startRef.current.pointerY;
+
+    // If resizing, keep opposite edges pinned and do NOT snap while dragging
+    if (resizeRef.current) {
+      const { mode, x0, y0, w0, h0 } = resizeRef.current;
+      let nx = x0;
+      let ny = y0;
+      let nw = w0;
+      let nh = h0;
+      if (mode.includes('e')) nw = Math.max(8, w0 + dx);
+      if (mode.includes('s')) nh = Math.max(8, h0 + dy);
+      if (mode.includes('w')) { nx = x0 + dx; nw = Math.max(8, w0 - dx); }
+      if (mode.includes('n')) { ny = y0 + dy; nh = Math.max(8, h0 - dy); }
+
+      // Clamp within container while dragging
+      if (containerId) {
+        const parentEl = document.getElementById(containerId);
+        if (parentEl) {
+          const parentWidth = parentEl.clientWidth;
+          const parentHeight = parentEl.clientHeight;
+          nx = Math.max(0, Math.min(nx, parentWidth - nw));
+          ny = Math.max(0, Math.min(ny, parentHeight - nh));
+        }
+      }
+
+      setTempPos({ x: nx, y: ny });
+      setTempSize({ w: nw, h: nh });
+      e.stopPropagation();
+      return;
+    }
+
+    const rawX = startRef.current.x0 + dx;
+    const rawY = startRef.current.y0 + dy;
+    let snappedX = edgeSnap(rawX, startRef.current.w0, gridSize);
+    let snappedY = edgeSnap(rawY, startRef.current.h0, gridSize);
+
+    if (containerId && startRef.current) {
+      const parentEl = document.getElementById(containerId);
+      if (parentEl) {
+        const parentWidth = parentEl.clientWidth;
+        const parentHeight = parentEl.clientHeight;
+        snappedX = Math.max(0, Math.min(snappedX, parentWidth - startRef.current.w0));
+        snappedY = Math.max(0, Math.min(snappedY, parentHeight - startRef.current.h0));
+      }
+    }
+
+    setTempPos({ x: snappedX, y: snappedY });
     e.stopPropagation();
-  }, [dragging]);
+  }, [dragging, gridSize, containerId]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (!dragging || !startRef.current) return;
-    const finalX = snapToGrid((tempPos?.x ?? x), gridSize);
-    const finalY = snapToGrid((tempPos?.y ?? y), gridSize);
-    const xu = pxToUnits(finalX, gridSize);
-    const yu = pxToUnits(finalY, gridSize);
+
+    if (resizeRef.current) {
+      const nx = tempPos?.x ?? startRef.current.x0;
+      const ny = tempPos?.y ?? startRef.current.y0;
+      const w = tempSize?.w ?? startRef.current.w0;
+      const h = tempSize?.h ?? startRef.current.h0;
+      let xu = pxToUnits(nx, gridSize);
+      let yu = pxToUnits(ny, gridSize);
+      let wu = pxToUnits(w, gridSize);
+      let hu = pxToUnits(h, gridSize);
+
+      if (containerId) {
+        const parentEl = document.getElementById(containerId);
+        if (parentEl) {
+          const parentWidth = parentEl.clientWidth / gridSize;
+          const parentHeight = parentEl.clientHeight / gridSize;
+          wu = Math.max(1, Math.min(wu, parentWidth));
+          hu = Math.max(1, Math.min(hu, parentHeight));
+          xu = Math.max(0, Math.min(xu, parentWidth - wu));
+          yu = Math.max(0, Math.min(yu, parentHeight - hu));
+        }
+      }
+
+      onCommitLayout(node.id, { xu, yu, wu, hu });
+      BuilderState.setNodePixelLayout(sectionId, node.id, { x: nx, y: ny, w, h });
+      resizeRef.current = null;
+      setTempSize(null);
+      setDragging(false);
+      setTempPos(null);
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      startRef.current = null;
+      BuilderState.stopResizing();
+      BuilderState.stopDragging();
+      e.stopPropagation();
+      return;
+    }
+
+    if (!tempPos) return;
+    let xu = pxToUnits(tempPos.x, gridSize);
+    let yu = pxToUnits(tempPos.y, gridSize);
+
+    if (containerId && startRef.current) {
+      const parentEl = document.getElementById(containerId);
+      if (parentEl) {
+        const parentWidth = parentEl.clientWidth / gridSize;  // in units
+        const parentHeight = parentEl.clientHeight / gridSize;
+        const nodeWu = startRef.current.w0 / gridSize;
+        const nodeHu = startRef.current.h0 / gridSize;
+        xu = Math.max(0, Math.min(xu, parentWidth - nodeWu));
+        yu = Math.max(0, Math.min(yu, parentHeight - nodeHu));
+      }
+    }
 
     onCommitLayout(node.id, { xu, yu });
-
+    BuilderState.setNodePixelLayout(sectionId, node.id, { x: tempPos.x, y: tempPos.y, w: tempSize?.w ?? startRef.current.w0, h: tempSize?.h ?? startRef.current.h0 });
     setDragging(false);
     setTempPos(null);
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     startRef.current = null;
+    BuilderState.stopDragging();
+    if (dragging) {
+      e.preventDefault();
+    }
     e.stopPropagation();
-  }, [dragging, gridSize, tempPos, x, y, node.id, onCommitLayout]);
+  }, [dragging, gridSize, tempPos, node.id, onCommitLayout, containerId]);
 
   // Position to render (during drag show temp, otherwise snap)
   const renderX = tempPos?.x ?? x;
   const renderY = tempPos?.y ?? y;
+  const renderW = tempSize?.w ?? baseWidth ?? defaultSize?.w;
+  const renderH = tempSize?.h ?? baseHeight ?? defaultSize?.h;
+
+  // Activate dragging or resizing only after small movement threshold
+  const onWrapperPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!startRef.current) return;
+    if (!isEditing && !dragging && pressedRef.current && !resizeRef.current) {
+      const dx = e.clientX - (startRef.current.pointerX + (e.currentTarget.offsetParent as HTMLElement).getBoundingClientRect().left - (e.currentTarget.offsetParent as HTMLElement).getBoundingClientRect().left);
+      const dy = e.clientY - (startRef.current.pointerY + 0);
+      const dist = Math.abs(dx) + Math.abs(dy);
+      if (dist > 3) {
+        setDragging(true);
+        BuilderState.startDragging(node.id);
+      }
+    }
+    if (!isEditing) onPointerMove(e);
+  }, [dragging, onPointerMove, isEditing]);
+
+  const onWrapperPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging && pressedRef.current) {
+      // simple click -> just select, no drag
+      pressedRef.current = false;
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      e.stopPropagation();
+      BuilderState.stopDragging();
+      return;
+    }
+    pressedRef.current = false;
+    onPointerUp(e);
+  }, [dragging, onPointerUp]);
+
+  const renderedContent = enforceChildFullSize ? enforceFullSize(render(node)) : render(node);
 
   return (
     <div
-      className="absolute"
+      className={`absolute ${dragging ? 'select-none' : ''}`}
       style={{
         left: renderX,
         top: renderY,
-        width: defaultSize?.w,
-        height: defaultSize?.h,
+        width: renderW,
+        height: renderH,
         transform: 'translateZ(0)', // GPU hint
       }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onWrapperPointerMove}
+      onPointerUp={onWrapperPointerUp}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        BuilderState.startEditing(sectionId, node.id);
+      }}
+      data-draggable="true"
     >
       <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        className={`cursor-move select-none ${selected ? 'ring-2 ring-blue-500' : ''} ${dragging ? 'opacity-70' : ''}`}
+        className="w-full h-full"
+        style={{
+          pointerEvents: isEditing ? ('auto' as const) : ('none' as const),
+          userSelect: isEditing ? ('text' as const) : ('none' as const),
+        }}
+        onBlur={() => BuilderState.stopEditing(sectionId, node.id)}
       >
-        {render(node)}
+        {renderedContent}
       </div>
+      {/* True selection outline (no ring classes) */}
+      {selected && !isEditing && (
+        <div className="absolute inset-0 border border-blue-500 pointer-events-none" />
+      )}
+      {/* Resize handles */}
+      {selected && !isEditing && (
+        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+          {['n','s','e','w','ne','nw','se','sw'].map((dir) => {
+            const style: React.CSSProperties = {};
+            let cursor = 'default';
+            if (dir === 'n' || dir === 's') cursor = 'ns-resize';
+            if (dir === 'e' || dir === 'w') cursor = 'ew-resize';
+            if (dir === 'nw' || dir === 'se') cursor = 'nwse-resize';
+            if (dir === 'ne' || dir === 'sw') cursor = 'nesw-resize';
+
+            // Edge hit areas leave a gap for corner boxes so corners get priority/correct cursor
+            if (dir === 'n') { style.top = -3; style.left = 6; style.right = 6; style.height = 6; }
+            if (dir === 's') { style.bottom = -3; style.left = 6; style.right = 6; style.height = 6; }
+            if (dir === 'w') { style.left = -3; style.top = 6; style.bottom = 6; style.width = 6; }
+            if (dir === 'e') { style.right = -3; style.top = 6; style.bottom = 6; style.width = 6; }
+
+            if (dir === 'nw') { style.top = -6; style.left = -6; style.width = 12; style.height = 12; }
+            if (dir === 'ne') { style.top = -6; style.right = -6; style.width = 12; style.height = 12; }
+            if (dir === 'sw') { style.bottom = -6; style.left = -6; style.width = 12; style.height = 12; }
+            if (dir === 'se') { style.bottom = -6; style.right = -6; style.width = 12; style.height = 12; }
+
+            const isCorner = dir.length === 2;
+
+            return (
+              <div
+                key={dir}
+                className="absolute pointer-events-auto"
+                style={{
+                  ...style,
+                  cursor,
+                  backgroundColor: isCorner ? '#ffffff' : 'rgba(59,130,246,0.15)',
+                  border: isCorner ? '1px solid #3b82f6' : 'none',
+                  borderRadius: isCorner ? 2 : 0,
+                  zIndex: isCorner ? 2 : 1,
+                }}
+                onPointerDown={(e) => {
+                  const wrapper = e.currentTarget.parentElement?.parentElement as HTMLElement | null;
+                  if (!wrapper) return;
+                  const offsetParent = wrapper.offsetParent as HTMLElement | null;
+                  if (!offsetParent) return;
+                  const rect = wrapper.getBoundingClientRect();
+                  const parentRect = offsetParent.getBoundingClientRect();
+                  resizeRef.current = {
+                    mode: dir as ResizeHandle,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    x0: rect.left - parentRect.left,
+                    y0: rect.top - parentRect.top,
+                    w0: rect.width,
+                    h0: rect.height,
+                  };
+                  startRef.current = {
+                    pointerX: e.clientX - parentRect.left,
+                    pointerY: e.clientY - parentRect.top,
+                    x0: resizeRef.current.x0,
+                    y0: resizeRef.current.y0,
+                    w0: rect.width,
+                    h0: rect.height,
+                  };
+                  BuilderState.startResizing(sectionId, node.id, dir as ResizeHandle);
+                  wrapper.setPointerCapture(e.pointerId);
+                  pressedRef.current = true;
+                  setDragging(true);
+                  setTempPos({ x: resizeRef.current.x0, y: resizeRef.current.y0 });
+                  setTempSize({ w: rect.width, h: rect.height });
+                  e.stopPropagation();
+                }}
+                onPointerUp={(e) => {
+                  (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
+      {selected && isEditing && (
+        <div className="absolute inset-0 border border-blue-500 pointer-events-none" />
+      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { useSectionManager } from "../hooks/useSectionManager";
 import { useFontManager } from "../hooks/useFontManager";
 import { ELEMENTS, SECTION_PRESETS } from "../utils/sectionHelpers";
 import { Node } from "@/shared/types/pageV2";
+import { BuilderState } from "@/features/webeditor/state/BuilderState";
 
 const WebEditor: React.FC = () => {
   const { slug: encoded } = useParams();
@@ -92,11 +93,44 @@ const WebEditor: React.FC = () => {
     setOpenInspector(false);
     setOpenElementInspector(true);
     setHighlightNodeId(nodeId);
+    BuilderState.stopEditing();
   }, [onSelectNode, setSelectedSectionId, setHighlightNodeId]);
 
   const handleNodeHover = React.useCallback((nodeId: string | null) => {
     setHoveredNodeId(nodeId);
   }, [setHoveredNodeId]);
+
+  const handleCanvasMouseDown = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const draggable = target.closest('[data-draggable="true"]');
+    if (draggable) return;
+
+    if (target.closest('button')) return;
+    if (target.closest('[data-toolbar-ignore="true"]')) return;
+
+    const targetSectionId = target.closest('[data-section-id]')?.getAttribute('data-section-id');
+    if (targetSectionId) {
+      if (selectedSectionId !== targetSectionId) {
+        setSelectedSectionId(targetSectionId);
+      }
+      setSelection(null);
+      setHighlightNodeId(null);
+      setHoveredNodeId(null);
+      setOpenElementInspector(false);
+      setOpenInspector(true);
+      BuilderState.clearSelection();
+      BuilderState.stopEditing();
+      return;
+    }
+
+    BuilderState.clearSelection();
+    setSelection(null);
+    setSelectedSectionId(null);
+    setHighlightNodeId(null);
+    setHoveredNodeId(null);
+    setOpenElementInspector(false);
+    BuilderState.stopEditing();
+  }, [selectedSectionId, setSelection, setHighlightNodeId, setHoveredNodeId, setSelectedSectionId, setOpenElementInspector, setOpenInspector]);
 
   // Find the selected node from the sections tree
   const findNode = React.useCallback((nodeId: string): Node | null => {
@@ -119,6 +153,8 @@ const WebEditor: React.FC = () => {
   }, [managedSections]);
 
   const selectedNode = selection?.nodeId ? findNode(selection.nodeId) : null;
+  const selectedSectionForNode = selection?.sectionId ? managedSections.find(s => s.id === selection.sectionId) : undefined;
+  const selectedGridSize = selectedSectionForNode?.builderGrid?.gridSize ?? 16;
 
   // Debug: log font changes (must be before conditional return)
   React.useEffect(() => {
@@ -183,14 +219,20 @@ const WebEditor: React.FC = () => {
 
       {/* Canvas - full available width/height */}
       <SidebarInset className="h-[calc(100vh-48px)] mt-12 overflow-auto bg-white text-gray-900">
-        <div className="min-h-full">
+        <div className="min-h-full" onMouseDown={handleCanvasMouseDown}>
           {showHeader && (
             <div className="border-b">
               <NavBar />
             </div>
           )}
           {managedSections.map((s) => (
-            <div id={`section-${s.id}`} key={s.id} className={s.fullHeight ? "min-h-screen border-b group/section relative" : "border-b group/section relative"}>
+            <div
+              id={`section-${s.id}`}
+              key={s.id}
+              data-section-id={s.id}
+              className={"border-b group/section relative h-full"}
+              style={{ minHeight: `${(s.heightPercent ?? 100)}vh` }}
+            >
               <button
                 className="opacity-0 group-hover/section:opacity-100 transition-opacity absolute top-2 right-2 z-10 rounded bg-red-600 text-white text-xs px-2 py-1"
                 onClick={() => setDeleteSectionId(s.id)}
@@ -247,6 +289,7 @@ const WebEditor: React.FC = () => {
         selectedNode={selectedNode}
         onUpdateNode={updateSelectedNode}
         fontManager={fontManager}
+        gridSize={selectedGridSize}
       />
 
       {/* Delete Section Confirm */}

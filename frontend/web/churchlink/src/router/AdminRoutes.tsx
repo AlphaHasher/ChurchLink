@@ -4,7 +4,6 @@ import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
 import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
 import Settings from "../features/admin/pages/Settings";
-import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
 
 
 // Lazy load admin components

@@ -1,8 +1,28 @@
 import { useState, useRef, useCallback } from "react";
 import { Node, SectionV2 } from "@/shared/types/pageV2";
 import { newId, defaultSection, createPresetSection } from "../utils/sectionHelpers";
+import { BuilderState } from "@/features/webeditor/state/BuilderState";
 
 type EditorSelection = { sectionId?: string; nodeId?: string } | null;
+
+// Add helper function to initialize layouts recursively
+const initializeLayouts = (nodes: Node[], parentYu = 0, isNested = false): Node[] => {
+  let currentYu = parentYu;
+  return nodes.map((node) => {
+    const newNode = { ...node };
+    if (!newNode.layout) {
+      newNode.layout = { units: { xu: 0, yu: currentYu } };
+      currentYu += isNested ? 1 : 2;  // Tighter spacing for nested, looser for top-level
+    } else if (!newNode.layout.units) {
+      newNode.layout.units = { xu: 0, yu: currentYu };
+      currentYu += isNested ? 1 : 2;
+    }
+    if (newNode.children && newNode.children.length > 0) {
+      newNode.children = initializeLayouts(newNode.children, 0, true);  // Reset yu for nested
+    }
+    return newNode;
+  });
+};
 
 export function useSectionManager() {
   const [sections, setSections] = useState<SectionV2[]>([]);
@@ -13,24 +33,57 @@ export function useSectionManager() {
   const [deleteSectionId, setDeleteSectionId] = useState<string | null>(null);
   const isAddingRef = useRef(false);
 
-  const addSection = useCallback(() => {
-    setSections((prev) => [...prev, defaultSection()]);
+  // Update setSections to always initialize layouts
+  const setSectionsWithLayouts = useCallback((updater: SectionV2[] | ((prev: SectionV2[]) => SectionV2[])) => {
+    setSections((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return next.map((section) => ({
+        ...section,
+        children: initializeLayouts(section.children || []),
+      }));
+    });
   }, []);
+
+  const addSection = useCallback(() => {
+    setSectionsWithLayouts((prev) => [...prev, defaultSection()]);
+  }, [setSectionsWithLayouts]);
 
   const addSectionPreset = useCallback((key: string) => {
     const newSection = createPresetSection(key);
     if (newSection) {
-      setSections((prev) => [...prev, newSection]);
+      setSectionsWithLayouts((prev) => [...prev, newSection]);
     }
-  }, []);
+  }, [setSectionsWithLayouts]);
 
   const addElement = useCallback((type: Node["type"]) => {
     if (isAddingRef.current) return;
     isAddingRef.current = true;
 
-    setSections((prev) => {
+    setSectionsWithLayouts((prev) => {
+      let newNode: Node;
+      let nextYu = 0;
+
+      if (type === "text") {
+        newNode = { id: `${newId()}-t`, type: "text", props: { html: "Edit me" } };
+      } else if (type === "button") {
+        newNode = { id: `${newId()}-b`, type: "button", props: { label: "Click" } };
+      } else if (type === "eventList") {
+        newNode = { id: `${newId()}-e`, type: "eventList", props: { showFilters: true } };
+      } else {
+        newNode = { id: `${newId()}-c`, type: "container", props: { maxWidth: "xl", paddingX: 4, paddingY: 6 }, children: [] };
+      }
+
+      newNode.layout = {
+        units: {
+          xu: 0,
+          yu: nextYu
+        }
+      };
+
       if (prev.length === 0) {
+        const container = { id: `${newId()}-c0`, type: "container", props: { maxWidth: "xl", paddingX: 4, paddingY: 6 }, children: [] } as Node;
         const s = defaultSection();
+        s.children = [container, newNode];
         isAddingRef.current = false;
         return [s];
       }
@@ -38,36 +91,23 @@ export function useSectionManager() {
       const copy = [...prev];
       const last = copy[copy.length - 1];
 
-      const findContainer = (nodes: Node[]): Node | null => {
-        for (const node of nodes) {
-          if (node.type === "container") return node;
-          if (node.children && node.children.length > 0) {
-            const found = findContainer(node.children);
-            if (found) return found;
+      // Compute nextYu based on existing absolute children
+      if (last.children) {
+        for (const child of last.children) {
+          if (child.layout?.units?.yu !== undefined) {
+            nextYu = Math.max(nextYu, child.layout.units.yu + 1);
           }
         }
-        return null;
-      };
-
-      const target = findContainer(last.children || []);
-
-      if (target && target.type === "container") {
-        const newNode: Node =
-          type === "text"
-            ? { id: `${newId()}-t`, type: "text", props: { html: "Edit me" } }
-            : type === "button"
-            ? { id: `${newId()}-b`, type: "button", props: { label: "Click" } }
-            : type === "eventList"
-            ? { id: `${newId()}-e`, type: "eventList", props: { showFilters: true } }
-            : { id: `${newId()}-c`, type: "container", props: { maxWidth: "xl", paddingX: 4, paddingY: 6 }, children: [] };
-
-        target.children = [...(target.children ?? []), newNode];
       }
 
+      // Update newNode yu
+      (newNode.layout as any).units.yu = nextYu;
+
+      last.children = [...(last.children ?? []), newNode];
       isAddingRef.current = false;
       return copy;
     });
-  }, []);
+  }, [setSectionsWithLayouts]);
 
   const onSelectNode = useCallback((sectionId: string, nodeId: string) => {
     setSelection({ sectionId, nodeId });
@@ -75,7 +115,7 @@ export function useSectionManager() {
   }, []);
 
   const updateSelectedNode = useCallback((updater: (node: Node) => Node) => {
-    setSections((prev) =>
+    setSectionsWithLayouts((prev) =>
       prev.map((s) => {
         if (!selection?.sectionId || s.id !== selection.sectionId) return s;
         const walk = (nodes: Node[]): Node[] =>
@@ -87,29 +127,43 @@ export function useSectionManager() {
         return { ...s, children: walk(s.children) };
       })
     );
-  }, [selection]);
+
+    if (selection?.sectionId && selection?.nodeId) {
+      setTimeout(() => {
+        const cache = BuilderState.getNodePixelLayout(selection.nodeId);
+        if (cache) {
+          BuilderState.showPaddingOverlay(selection.sectionId!, selection.nodeId, [0, 0, 0, 0]);
+        }
+      }, 0);
+    }
+  }, [selection, setSectionsWithLayouts]);
 
   const deleteSection = useCallback(() => {
     if (!deleteSectionId) return;
-    setSections((prev) => prev.filter((x) => x.id !== deleteSectionId));
+    setSectionsWithLayouts((prev) => prev.filter((x) => x.id !== deleteSectionId));
     setDeleteSectionId(null);
-  }, [deleteSectionId]);
+  }, [deleteSectionId, setSectionsWithLayouts]);
 
   const updateNodeLayout = useCallback(
-    (sectionId: string, nodeId: string, units: { xu: number; yu: number }) => {
-      setSections((prev) =>
+    (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
+      setSectionsWithLayouts((prev) =>
         prev.map((s) => {
           if (s.id !== sectionId) return s;
           const walk = (nodes: Node[]): Node[] =>
-            nodes.map((n) => {
+            nodes.map((n): Node => {
               if (n.id === nodeId) {
+                const prevUnits = { ...(n.layout?.units || {}) };
+                const nextUnits = {
+                  xu: units.xu ?? n.layout?.units?.xu ?? 0,
+                  yu: units.yu ?? n.layout?.units?.yu ?? 0,
+                  wu: units.wu ?? n.layout?.units?.wu,
+                  hu: units.hu ?? n.layout?.units?.hu,
+                };
+                BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
                 return {
                   ...n,
-                  layout: {
-                    units: { ...n.layout?.units, ...units },
-                    // px will be re-derived next render
-                  },
-                };
+                  layout: { units: nextUnits },
+                } as Node;
               }
               if (n.children && n.children.length) {
                 return { ...n, children: walk(n.children) } as Node;
@@ -120,12 +174,12 @@ export function useSectionManager() {
         })
       );
     },
-    []
+    [setSectionsWithLayouts]
   );
 
   return {
     sections,
-    setSections,
+    setSections: setSectionsWithLayouts,
     selection,
     setSelection,
     selectedSectionId,

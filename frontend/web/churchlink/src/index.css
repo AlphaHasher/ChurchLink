@@ -261,31 +261,7 @@ h1 {
   }
 }
 
-/* Force light theme for iframe/preview content */
-iframe body,
-body.iframe-content,
-.preview-content,
-.preview-content * {
-  --background: rgb(255, 255, 255) !important;
-  --foreground: rgb(31, 41, 55) !important;
-  --card: rgb(255, 255, 255) !important;
-  --card-foreground: rgb(31, 41, 55) !important;
-  --popover: rgb(255, 255, 255) !important;
-  --popover-foreground: rgb(31, 41, 55) !important;
-  --primary: rgb(37, 99, 235) !important;
-  --primary-foreground: rgb(255, 255, 255) !important;
-  --secondary: rgb(243, 244, 246) !important;
-  --secondary-foreground: rgb(31, 41, 55) !important;
-  --muted: rgb(243, 244, 246) !important;
-  --muted-foreground: rgb(107, 114, 128) !important;
-  --accent: rgb(243, 244, 246) !important;
-  --accent-foreground: rgb(31, 41, 55) !important;
-  --destructive: rgb(220, 38, 38) !important;
-  --destructive-foreground: rgb(255, 255, 255) !important;
-  --border: rgb(229, 231, 235) !important;
-  --input: rgb(229, 231, 235) !important;
-  --ring: rgb(59, 130, 246) !important;
-}
+/* Removed forced light theme for iframe content - now respects theme settings */
 
 /* Custom Church-themed Scrollbar Styles */
 @layer base {

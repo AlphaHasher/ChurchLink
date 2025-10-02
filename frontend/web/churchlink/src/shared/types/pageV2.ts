@@ -80,6 +80,8 @@ export interface SectionV2 {
   id: string;
   kind: "section";
   fullHeight?: boolean;
+  // If set, section min-height is applied as percentage of viewport height
+  heightPercent?: number;
   background?: Record<string, any>;
   grid?: Record<string, any>;
   styleTokens?: Record<string, any>;

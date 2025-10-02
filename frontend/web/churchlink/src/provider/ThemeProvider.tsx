@@ -35,8 +35,8 @@ export function ThemeProvider({
     const isAdminRoute = window.location.pathname.startsWith('/admin')
     const isEditorRoute = window.location.pathname.startsWith('/web-editor')
     const urlParams = new URLSearchParams(window.location.search)
-    const isPreviewMode = urlParams.get('preview') === 'true' || window.self !== window.top
-    const isInIframe = window.self !== window.top
+    const isPreviewMode = urlParams.get('preview') === 'true'
+    const isInIframe = window.self !== window.top && window.parent !== window
 
     root.classList.remove("light", "dark")
 

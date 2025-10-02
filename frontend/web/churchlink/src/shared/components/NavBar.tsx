@@ -97,11 +97,11 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     }, [headerData]);
 
     return (
-        <NavigationMenu className="flex p-4 bg-[#000000] justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide!">
+        <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide!">
             <div className="h-30 w-full lg:h-24 flex flex-row justify-between align-center">
                 {/* Logo Section */}
                 <NavigationMenuList className="flex gap-4 justify-between xl:pl-8">
-                    <Link to="/">
+                    <Link to="/" className="hover:opacity-80 transition-opacity">
                         <HeaderDove className="w-60 xs:w-70 sm:w-90 lg:w-70 lg:h-24 h-32 max-w-[70vw]" />
                     </Link>
                 </NavigationMenuList>
@@ -112,11 +112,11 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                         <NavigationMenuItem
                             key={item.title}
                             className="hidden lg:block px-[20px]! py-[12px]! text-white! font-medium text-[15px]! tracking-wide!
-                                       hover:bg-transparent! hover:text-gray-400! transition-colors duration-200 rounded-none!"
+                                       hover:bg-white/10 hover:text-gray-300! transition-colors duration-200 rounded-none!"
                         >
                             {'url' in item || 'slug' in item ? (
                                 <button
-                                    className="text-white! font-medium text-[15px]! tracking-wide! hover:text-gray-400! transition-colors duration-200 font-[Montserrat]! bg-transparent border-none cursor-pointer"
+                                    className="text-white! font-medium text-[15px]! tracking-wide! hover:text-gray-300! transition-colors duration-200 font-[Montserrat]! bg-transparent border-none cursor-pointer"
                                     onClick={() => handleNavigation(item as HeaderLink)}
                                 >
                                     {is_russian ? item.russian_title : item.title}
@@ -127,7 +127,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                                     onMouseEnter={() => setActiveDropdown(item.title)}
                                     onMouseLeave={() => setActiveDropdown(null)}
                                 >
-                                    <div className="cursor-pointer flex items-center gap-1 text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! hover:text-gray-400! transition-colors duration-200">
+                                    <div className="cursor-pointer flex items-center gap-1 text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! hover:text-gray-300! transition-colors duration-200">
                                         <span>
                                             {is_russian ? item.russian_title : item.title}
                                         </span>
@@ -143,13 +143,13 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
 
                                     {activeDropdown === item.title && (
                                         <div
-                                            className="absolute top-full right-0 translate-y-3 bg-neutral-800 p-2 rounded-lg min-w-[180px] shadow-lg"
+                                            className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 p-2 rounded-lg min-w-[180px] shadow-lg"
                                         >
                                             {'items' in item && item.items.filter((subItem: HeaderLink) => subItem.visible !== false).map((subItem: HeaderLink) => (
                                                 <button
                                                     key={`${item.title}-${subItem.title}`}
                                                     onClick={() => handleNavigation(subItem)}
-                                                    className="block py-2 px-4 rounded-md transition-colors duration-150 hover:bg-neutral-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left w-full"
+                                                    className="block py-2 px-4 rounded-md transition-colors duration-150 hover:bg-slate-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left w-full"
                                                 >
                                                     {is_russian ? subItem.russian_title : subItem.title}
                                                 </button>
@@ -165,14 +165,14 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                     {user ? (
                         // Authenticated user - show profile dropdown
                         <div className="hidden lg:flex items-center justify-center h-full w-9">
-                            <ProfileDropDown className="hover:bg-white/10 transition-colors duration-200 p-0! text-black rounded-full!" />
+                            <ProfileDropDown className="hover:bg-white/10 hover:text-gray-300 transition-colors duration-200 p-0! rounded-full!" />
                         </div>
                     ) : (
                         // Unauthenticated user - show login button
                         <div className="hidden lg:flex items-center ml-4">
                             <Link
                                 to="/auth/login"
-                                className="block bg-black hover:bg-gray-700 px-4 py-2 rounded-lg text-white font-medium text-[15px]! tracking-wide! font-[Montserrat]!"
+                                className="block bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white font-medium text-[15px]! tracking-wide! font-[Montserrat]! transition-colors duration-200"
                             >
                                 Login
                             </Link>
