@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
+from fastapi import HTTPException, status
 
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
@@ -49,6 +50,7 @@ class BiblePassage(BaseModel):
 class ReadingPlanBase(BaseModel):
     name: str = Field('', min_length=0)
     duration: int = Field(..., ge=1)
+    visible: bool = Field(default=False)
 
 class ReadingPlanCreate(ReadingPlanBase):
     readings: Dict[str, List[BiblePassage]] = Field(default_factory=dict)
@@ -57,6 +59,7 @@ class ReadingPlanUpdate(BaseModel):
     name: Optional[str] = None
     duration: Optional[int] = Field(None, ge=1)
     readings: Optional[Dict[str, List[BiblePassage]]] = None
+    visible: Optional[bool] = None
 
 class ReadingPlan(MongoBaseModel, ReadingPlanBase):
     user_id: str
@@ -69,6 +72,7 @@ class ReadingPlanOut(BaseModel):
     duration: int
     readings: Dict[str, List[BiblePassage]]
     user_id: str
+    visible: bool
     created_at: datetime
     updated_at: datetime
 
@@ -90,6 +94,7 @@ def _convert_plan_doc_to_out(doc: dict) -> ReadingPlanOut:
         duration=doc["duration"],
         readings=readings,
         user_id=doc["user_id"],
+        visible=doc.get("visible", False),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )
@@ -108,28 +113,33 @@ async def create_reading_plan(plan: ReadingPlanCreate, user_id: str) -> Optional
             ], unique=True, name="uniq_user_plan_name")
         except Exception:
             pass  # index already exists or cannot be created now
+
         name = (plan.name or "").strip() or "Untitled Plan"
         doc = {
             "name": name,
             "duration": plan.duration,
             "readings": {k: [p.model_dump() for p in v] for k, v in plan.readings.items()},
             "user_id": user_id,
+            "visible": plan.visible,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
         }
+
         try:
             result = await DB.db.bible_plans.insert_one(doc)
         except DuplicateKeyError:
-            print("Duplicate reading plan name for user")
-            return None
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Duplicate reading plan name for user")
+
         if result.inserted_id:
             created = await DB.db.bible_plans.find_one({"_id": result.inserted_id})
             if created:
                 return _convert_plan_doc_to_out(created)
+
         return None
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error creating reading plan: {e}")
-        return None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating reading plan: {e}")
 
 
 async def list_reading_plans(user_id: str, skip: int = 0, limit: int = 100) -> List[ReadingPlanOut]:
@@ -143,27 +153,30 @@ async def list_reading_plans(user_id: str, skip: int = 0, limit: int = 100) -> L
         )
         docs = await cursor.to_list(length=limit)
         return [_convert_plan_doc_to_out(d) for d in docs]
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error listing reading plans: {e}")
-        return []
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error listing reading plans: {e}")
 
 
 async def get_reading_plan_by_id(plan_id: str, user_id: str) -> Optional[ReadingPlanOut]:
     try:
         doc = await DB.db.bible_plans.find_one({"_id": ObjectId(plan_id), "user_id": user_id})
         return _convert_plan_doc_to_out(doc) if doc else None
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error fetching reading plan: {e}")
-        return None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching reading plan: {e}")
 
 async def get_reading_plans_from_user(user_id: str) -> List[ReadingPlanOut]:
     try:
         cursor = DB.db.bible_plans.find({"user_id": user_id}).sort([("created_at", -1)])
         docs = await cursor.to_list(length=None)
         return [_convert_plan_doc_to_out(d) for d in docs]
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error fetching reading plans for user: {e}")
-        return []
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching reading plans for user: {e}")
 
 
 async def update_reading_plan(plan_id: str, user_id: str, update: ReadingPlanUpdate) -> Optional[ReadingPlanOut]:
@@ -183,6 +196,8 @@ async def update_reading_plan(plan_id: str, user_id: str, update: ReadingPlanUpd
             update_doc["duration"] = update.duration
         if update.readings is not None:
             update_doc["readings"] = {k: [p.model_dump() for p in v] for k, v in update.readings.items()}
+        if update.visible is not None:
+            update_doc["visible"] = update.visible
         
         result = await DB.db.bible_plans.update_one(
             {"_id": ObjectId(plan_id), "user_id": user_id},
@@ -194,20 +209,73 @@ async def update_reading_plan(plan_id: str, user_id: str, update: ReadingPlanUpd
             return _convert_plan_doc_to_out(doc) if doc else None
         return None
     except DuplicateKeyError:
-        print("Duplicate reading plan name for user on update")
-        return None
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Duplicate reading plan name for user on update")
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error updating reading plan: {e}")
-        return None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating reading plan: {e}")
 
 
 async def delete_reading_plan(plan_id: str, user_id: str) -> bool:
     try:
         result = await DB.db.bible_plans.delete_one({"_id": ObjectId(plan_id), "user_id": user_id})
         return result.deleted_count > 0
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error deleting reading plan: {e}")
-        return False
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting reading plan: {e}")
+
+
+async def get_all_reading_plans() -> List[ReadingPlanOut]:
+    """Get all bible plans from all users"""
+    try:
+        cursor = DB.db.bible_plans.find({}).sort([("created_at", -1)])
+        docs = await cursor.to_list(length=None)
+        return [_convert_plan_doc_to_out(d) for d in docs]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching all reading plans: {e}")
+
+
+async def duplicate_reading_plan(plan_id: str, user_id: str) -> Optional[ReadingPlanOut]:
+    """Duplicate a reading plan for the same user"""
+    try:
+        # Get the original plan
+        original = await DB.db.bible_plans.find_one({"_id": ObjectId(plan_id)})
+        if not original:
+            return None
+        
+        # Create a copy with a new name
+        original_name = original.get("name", "Untitled Plan")
+        new_name = f"{original_name} (Copy)"
+        
+        # Check for duplicate names and add a number if needed
+        counter = 1
+        while await DB.db.bible_plans.find_one({"user_id": user_id, "name": new_name}):
+            counter += 1
+            new_name = f"{original_name} (Copy {counter})"
+        
+        doc = {
+            "name": new_name,
+            "duration": original["duration"],
+            "readings": original.get("readings", {}),
+            "user_id": user_id,
+            "visible": False,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+        }
+        
+        result = await DB.db.bible_plans.insert_one(doc)
+        if result.inserted_id:
+            created = await DB.db.bible_plans.find_one({"_id": result.inserted_id})
+            if created:
+                return _convert_plan_doc_to_out(created)
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error duplicating reading plan: {e}")
 
 
 async def get_all_bible_plan_templates() -> List[ReadingPlanTemplateOut]:
@@ -218,9 +286,10 @@ async def get_all_bible_plan_templates() -> List[ReadingPlanTemplateOut]:
             readings = {k: [BiblePassage(**p) for p in v] for k, v in doc.get("readings", {}).items()}
             out.append(ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings))
         return out
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error fetching bible plan templates: {e}")
-        return []
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching bible plan templates: {e}")
 
 async def get_bible_plan_template_by_name(template_name: str) -> Optional[ReadingPlanTemplateOut]:
     try:
@@ -229,9 +298,10 @@ async def get_bible_plan_template_by_name(template_name: str) -> Optional[Readin
             return None
         readings = {k: [BiblePassage(**p) for p in v] for k, v in doc.get("readings", {}).items()}
         return ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings)
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error fetching bible plan template by name: {e}")
-        return None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching bible plan template by name: {e}")
 
 async def get_bible_plan_template_by_id(template_id: str) -> Optional[ReadingPlanTemplateOut]:
     try:
@@ -240,6 +310,7 @@ async def get_bible_plan_template_by_id(template_id: str) -> Optional[ReadingPla
             return None
         readings = {k: [BiblePassage(**p) for p in v] for k, v in doc.get("readings", {}).items()}
         return ReadingPlanTemplateOut(id=str(doc.get("_id")), name=doc["name"], duration=doc["duration"], readings=readings)
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error fetching bible plan template by id: {e}")
-        return None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching bible plan template by id: {e}")

@@ -29,6 +29,7 @@ interface PlanSidebarProps {
   setPlan: React.Dispatch<React.SetStateAction<ReadingPlan>>;
   selectedDay?: number | null;
   onCreatePassageForDay?: (day: number, passage: BiblePassage) => void;
+  initialPlanId?: string | null;
 }
 
 type ReadingPlanWithId = ReadingPlan & { id: string };
@@ -39,9 +40,9 @@ let templatesInFlight: Promise<ReadingPlanWithId[]> | null = null;
 let userPlansCache: ReadingPlanWithId[] | null = null;
 let userPlansInFlight: Promise<ReadingPlanWithId[]> | null = null;
 
-const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: PlanSidebarProps) => {
+const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initialPlanId }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
-  const [planId, setPlanId] = useState<string | null>(null);
+  const [planId, setPlanId] = useState<string | null>(initialPlanId || null);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | null; title?: string; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [templates, setTemplates] = useState<ReadingPlanWithId[]>([]);
@@ -54,7 +55,10 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay }: Plan
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<ReadingPlanWithId | null>(null);
 
-  // keep plan name wired to parent for persistence
+  useEffect(() => {
+    setPlanName(plan.name);
+  }, [plan.name]);
+
   const commitName = (name: string) => setPlan(prev => ({ ...prev, name }));
 
   const handleDurationChange = (value: string) => {

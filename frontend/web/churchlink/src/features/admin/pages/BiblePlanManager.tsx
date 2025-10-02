@@ -1,16 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core';
 import PlanSidebar from '../components/BiblePlanManager/PlanSidebar';
 import PlanCalendar from '../components/BiblePlanManager/PlanCalendar';
 import PassageBadge from '../components/BiblePlanManager/PassageBadge';
 import { BiblePassage, ReadingPlan } from '@/shared/types/BiblePlan';
+import api from '@/api/api';
 
 const BiblePlanManager = () => {
+  const [searchParams] = useSearchParams();
+  const planIdFromUrl = searchParams.get('id');
+  
   const [plan, setPlan] = useState<ReadingPlan>({
     name: '',
     duration: 30,
     readings: {}
   });
+  const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+  
+  // Load plan from URL parameter if provided
+  useEffect(() => {
+    if (planIdFromUrl) {
+      setIsLoadingPlan(true);
+      api.get(`/v1/bible-plans/${planIdFromUrl}`)
+        .then(response => {
+          const loadedPlan = response.data;
+          setPlan({
+            name: loadedPlan.name || '',
+            duration: loadedPlan.duration || 30,
+            readings: loadedPlan.readings || {}
+          });
+        })
+        .catch(error => {
+          console.error('Failed to load plan:', error);
+        })
+        .finally(() => {
+          setIsLoadingPlan(false);
+        });
+    }
+  }, [planIdFromUrl]);
   
   const [activePassage, setActivePassage] = useState<BiblePassage | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -73,22 +101,28 @@ const BiblePlanManager = () => {
 
   return (
     <div className="h-screen flex bg-gray-50">
-      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* Sidebar */}
-        <PlanSidebar 
-          plan={plan} 
-          setPlan={setPlan}
-          selectedDay={selectedDay}
-          onCreatePassageForDay={(day, passage) => {
-            setPlan(prev => ({
-              ...prev,
-              readings: {
-                ...prev.readings,
-                [String(day)]: [...(prev.readings[String(day)] || []), passage]
-              }
-            }));
-          }}
-        />
+      {isLoadingPlan ? (
+        <div className="flex items-center justify-center w-full">
+          <div className="text-lg text-gray-600">Loading plan...</div>
+        </div>
+      ) : (
+        <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          {/* Sidebar */}
+          <PlanSidebar 
+            plan={plan} 
+            setPlan={setPlan}
+            selectedDay={selectedDay}
+            initialPlanId={planIdFromUrl}
+            onCreatePassageForDay={(day, passage) => {
+              setPlan(prev => ({
+                ...prev,
+                readings: {
+                  ...prev.readings,
+                  [String(day)]: [...(prev.readings[String(day)] || []), passage]
+                }
+              }));
+            }}
+          />
         
         {/* Main Content Area */}
         <div className="flex-1 p-6">
@@ -109,6 +143,7 @@ const BiblePlanManager = () => {
           {activePassage ? <PassageBadge passage={activePassage} /> : null}
         </DragOverlay>
       </DndContext>
+      )}
     </div>
   );
 };
