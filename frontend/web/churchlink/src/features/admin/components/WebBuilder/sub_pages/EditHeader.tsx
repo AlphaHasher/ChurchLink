@@ -367,7 +367,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
 
             const res = await api.post("/v1/header/items/links", linkData);
-            if (res) {
+            
+            // Check if the response indicates success
+            if (res?.data?.success) {
                 toast.success("Link added successfully!");
                 // Reset form
                 setNewLinkTitle("");
@@ -378,10 +380,20 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 setIsAddModalOpen(false);
                 // Refresh header data
                 await fetchHeader();
+            } else {
+                // Show specific error message from backend
+                const errorMsg = res?.data?.msg || "Failed to add link";
+                toast.error(errorMsg);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to add link:", err);
-            toast.error("Failed to add link");
+            
+            // Try to extract error message from response
+            const errorMsg = err?.response?.data?.msg || 
+                           err?.response?.data?.message || 
+                           err?.message || 
+                           "Failed to add link";
+            toast.error(errorMsg);
         }
     };
 
@@ -404,7 +416,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 "items": dropdownLinks,
                 "visible": false,
             });
-            if (res) {
+            
+            // Check if the response indicates success
+            if (res?.data?.success) {
                 toast.success("Dropdown added successfully!");
                 // Reset form
                 setNewDropdownTitle("");
@@ -413,10 +427,20 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 setIsAddModalOpen(false);
                 // Refresh header data
                 await fetchHeader();
+            } else {
+                // Show specific error message from backend
+                const errorMsg = res?.data?.msg || "Failed to add dropdown";
+                toast.error(errorMsg);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to add dropdown:", err);
-            toast.error("Failed to add dropdown");
+            
+            // Try to extract error message from response
+            const errorMsg = err?.response?.data?.msg || 
+                           err?.response?.data?.message || 
+                           err?.message || 
+                           "Failed to add dropdown";
+            toast.error(errorMsg);
         }
     };
 
@@ -520,15 +544,26 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
             const response = await api.put(`/v1/header/items/edit/${editingItem.title}`, updatedItem);
 
-            if (response.data) {
+            // Check if the response indicates success
+            if (response?.data?.success) {
                 toast.success("Navigation item updated successfully");
                 setIsEditModalOpen(false);
                 setEditingItem(null);
                 await fetchHeader();
+            } else {
+                // Show specific error message from backend
+                const errorMsg = response?.data?.msg || "Failed to update navigation item";
+                toast.error(errorMsg);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to update navigation item:", err);
-            toast.error("Failed to update navigation item");
+            
+            // Try to extract error message from response
+            const errorMsg = err?.response?.data?.msg || 
+                           err?.response?.data?.message || 
+                           err?.message || 
+                           "Failed to update navigation item";
+            toast.error(errorMsg);
         }
     };
 
