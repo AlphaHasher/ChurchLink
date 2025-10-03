@@ -322,6 +322,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   late UserBiblePlanWithDetails _localPlanDetails;
   bool _isUpdating = false;
   bool _isRestarting = false;
+  bool _isCompleting = false;
   double _previousProgressPercent = 0;
   double _currentProgressPercent = 0;
   // Pagination window start day (1-based). We show 5 days at a time.
@@ -551,32 +552,62 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _isRestarting ? null : _promptRestartPlan,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _isRestarting ? null : _promptRestartPlan,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      icon: _isRestarting
+                                          ? SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor: AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(Icons.refresh),
+                                      label: Text(_isRestarting ? 'Restarting…' : 'Restart Plan'),
                                     ),
                                   ),
-                                  icon: _isRestarting
-                                      ? SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor: AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                          ),
-                                        )
-                                      : const Icon(Icons.refresh),
-                                  label: Text(_isRestarting ? 'Restarting…' : 'Restart Plan'),
-                                ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _isCompleting ? null : _confirmCompletePlan,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color.fromRGBO(50, 205, 50, 1),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      icon: _isCompleting
+                                          ? SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor: AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(Icons.check_circle_outline),
+                                      label: const Text('Complete Plan'),
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 12),
                             ],
@@ -880,6 +911,77 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _confirmCompletePlan() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
+        title: const Text(
+          'Complete Plan?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Marking the plan as complete will unsubscribe you from the plan. Your progress will be kept in case you re-subscribe later. Continue?',
+          style: TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Complete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _completePlan();
+    }
+  }
+
+  Future<void> _completePlan() async {
+    if (_isCompleting) return;
+
+    setState(() {
+      _isCompleting = true;
+    });
+
+    try {
+      await _service.unsubscribeFromPlan(widget.planWithDetails.subscription.planId);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Plan marked complete and unsubscribed'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+  // Refresh parent list after completion (don't call the parent's onDelete
+  // because that shows an unsubscribe confirmation menu). This was interesting
+  await Future.delayed(const Duration(milliseconds: 200));
+  widget.onProgressUpdate();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error completing plan: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCompleting = false;
+        });
+      }
     }
   }
 
