@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/bible_plan.dart';
 import '../services/bible_plan_service.dart';
+import '../widgets/days_window.dart';
 import 'bible_plans_list_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/days_pagination_header.dart';
 
 /// Main page showing user's subscribed Bible plans with progress tracking
 class MyBiblePlansPage extends StatefulWidget {
@@ -325,42 +326,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   bool _isCompleting = false;
   double _previousProgressPercent = 0;
   double _currentProgressPercent = 0;
-  // Pagination window start day (1-based). We show 5 days at a time.
-  static const int _daysPageSize = 5;
-  int _windowStartDay = 1;
-
-  // Persistence key format: 'plan_window_<planId>' -> integer start day
-  String get _prefsKey => 'plan_window_${widget.planWithDetails.subscription.planId}';
-
-  Future<void> _loadSavedWindowStart() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getInt(_prefsKey);
-      if (saved != null && mounted) {
-        setState(() {
-          _windowStartDay = saved.clamp(1, widget.planWithDetails.plan.duration).toInt();
-        });
-      }
-    } catch (_) {
-      // ignore errors silently - non-critical
-    }
-  }
-
-  Future<void> _persistWindowStart() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_prefsKey, _windowStartDay);
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  void _seekWindowBy(int delta, int total) {
-    setState(() {
-      _windowStartDay = (_windowStartDay + delta).clamp(1, total).toInt();
-    });
-    _persistWindowStart();
-  }
 
   @override
   void initState() {
@@ -368,11 +333,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     _localPlanDetails = widget.planWithDetails;
     _currentProgressPercent = _localPlanDetails.progressPercentage;
     _previousProgressPercent = _currentProgressPercent;
-    // Initialize window so the current display day is visible
-    final displayDay = _localPlanDetails.displayCurrentDay;
-    _windowStartDay = _computeWindowStartForDay(displayDay);
-    // Load persisted window start for this plan (if any)
-    _loadSavedWindowStart();
   }
 
   @override
@@ -396,9 +356,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           _currentProgressPercent = newPercent;
         }
         _localPlanDetails = widget.planWithDetails;
-        // Ensure current display day stays visible in the paged view
-          _windowStartDay = _computeWindowStartForDay(_localPlanDetails.displayCurrentDay);
-          _persistWindowStart();
+        // No-op: DaysWindow manages the persisted window start
       });
     }
   }
@@ -657,76 +615,89 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   }
 
   Widget _buildDaysList(BiblePlan plan, UserBiblePlanSubscription subscription) {
-    // Determine window bounds
     final total = plan.duration;
-      final start = _windowStartDay.clamp(1, total).toInt();
-      final end = (_windowStartDay + _daysPageSize - 1).clamp(1, total).toInt();
 
-    // Header with paging controls
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                color: Colors.white,
-                tooltip: 'Previous $_daysPageSize days',
-                onPressed: start > 1
-                    ? () => _seekWindowBy(-_daysPageSize, total)
-                    : null,
-              ),
-              Text(
-                  'Days $start - $end',
-                style: const TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                color: Colors.white,
-                tooltip: 'Next $_daysPageSize days',
-                onPressed: end < total
-                    ? () => _seekWindowBy(_daysPageSize, total)
-                    : null,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: end - start + 1,
-          itemBuilder: (context, index) {
-            final day = start + index;
-            final readings = plan.getReadingsForDay(day);
-            final dayProgress = subscription.getProgressForDay(day);
-            final dayDate = _localPlanDetails.dateForDay(day);
-            final dateLabel = DateFormat('MMM d').format(dayDate);
-            final isRestDay = readings.isEmpty;
+  // If plan is short, show the full list without pagination header
+  if (total <= 5) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: total,
+        itemBuilder: (context, index) {
+          final day = index + 1;
+          final readings = plan.getReadingsForDay(day);
+          final dayProgress = subscription.getProgressForDay(day);
+          final dayDate = _localPlanDetails.dateForDay(day);
+          final dateLabel = DateFormat('MMM d').format(dayDate);
+          final isRestDay = readings.isEmpty;
 
-            return _DayExpansionTile(
-              key: ValueKey('${widget.planWithDetails.subscription.planId}_day_$day'),
-              day: day,
-              readings: readings,
-              progress: dayProgress,
-              dateLabel: dateLabel,
-              isRestDay: isRestDay,
-              isUnlocked: _localPlanDetails.isDayUnlocked(day),
-              onPassageToggle: _handlePassageToggle,
-            );
-          },
-        ),
-      ],
+          return _DayExpansionTile(
+            key: ValueKey('${widget.planWithDetails.subscription.planId}_day_$day'),
+            day: day,
+            readings: readings,
+            progress: dayProgress,
+            dateLabel: dateLabel,
+            isRestDay: isRestDay,
+            isUnlocked: _localPlanDetails.isDayUnlocked(day),
+            onPassageToggle: _handlePassageToggle,
+          );
+        },
+      );
+    }
+
+    return DaysWindow(
+      storageKey: 'plan_window_${widget.planWithDetails.subscription.planId}',
+      totalDays: total,
+      pageSize: 5,
+      initialDay: _localPlanDetails.displayCurrentDay,
+      builder: (context, start, end, onPrev, onNext) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Column(
+                children: [
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            DaysPaginationHeader(
+              start: start,
+              end: end,
+              total: total,
+              pageSize: 5,
+              onPrev: onPrev,
+              onNext: onNext,
+            ),
+            const SizedBox(height: 4),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: end - start + 1,
+              itemBuilder: (context, index) {
+                final day = start + index;
+                final readings = plan.getReadingsForDay(day);
+                final dayProgress = subscription.getProgressForDay(day);
+                final dayDate = _localPlanDetails.dateForDay(day);
+                final dateLabel = DateFormat('MMM d').format(dayDate);
+                final isRestDay = readings.isEmpty;
+
+                return _DayExpansionTile(
+                  key: ValueKey('${widget.planWithDetails.subscription.planId}_day_$day'),
+                  day: day,
+                  readings: readings,
+                  progress: dayProgress,
+                  dateLabel: dateLabel,
+                  isRestDay: isRestDay,
+                  isUnlocked: _localPlanDetails.isDayUnlocked(day),
+                  onPassageToggle: _handlePassageToggle,
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
-  }
-
-  int _computeWindowStartForDay(int day) {
-    if (day <= 0) return 1;
-    final zeroBased = day - 1;
-    final pageIndex = zeroBased ~/ _daysPageSize;
-    return pageIndex * _daysPageSize + 1;
   }
 
   Future<void> _handlePassageToggle(

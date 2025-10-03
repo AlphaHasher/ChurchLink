@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/bible_plan.dart';
 import '../services/bible_plan_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/days_pagination_header.dart';
+import '../widgets/day_preview_card.dart';
+import '../widgets/days_window.dart';
 
 /// Detail page for a Bible plan where users can view and subscribe
 class BiblePlanDetailPage extends StatefulWidget {
@@ -28,37 +30,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   bool _notificationEnabled = true;
   bool _isSubscribing = false;
 
-  // Pagination for detail reading preview: show 5 days at a time
-  static const int _daysPageSize = 5;
-  int _windowStartDay = 1; // 1-based
-
-  String get _prefsKey => 'plan_detail_window_${widget.plan.id}';
-
-  Future<void> _loadSavedWindowStart() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getInt(_prefsKey);
-      if (saved != null && mounted) {
-        setState(() {
-          _windowStartDay = saved.clamp(1, widget.plan.duration).toInt();
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _persistWindowStart() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_prefsKey, _windowStartDay);
-    } catch (_) {}
-  }
-
-  void _seekWindowBy(int delta, int total) {
-    setState(() {
-      _windowStartDay = (_windowStartDay + delta).clamp(1, total).toInt();
-    });
-    _persistWindowStart();
-  }
+  // pagination is handled by DaysWindow widget
 
   bool get _isAlreadySubscribed => widget.existingSubscription != null;
 
@@ -80,9 +52,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           }
         }
       }
-      // Ensure the preview window is aligned to day 1 initially
-      _windowStartDay = _computeWindowStartForDay(1);
-      _loadSavedWindowStart();
     }
   }
 
@@ -264,11 +233,36 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   }
 
   Widget _buildReadingPreviewSection() {
-    // Paged window showing 5 days at a time with prev/next controls
     final total = widget.plan.duration;
-    final start = _windowStartDay.clamp(1, total).toInt();
-    final end = (_windowStartDay + _daysPageSize - 1).clamp(1, total).toInt();
+    // If the plan is short, show all days without pagination controls
+    if (total <= 5) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Reading Preview',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ...List.generate(total, (index) {
+              final day = index + 1;
+              final readings = widget.plan.getReadingsForDay(day);
+              return _buildDayPreviewCard(day, readings);
+            }),
+          ],
+        ),
+      );
+    }
 
+    // Paged window with header controls for longer plans
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -285,52 +279,47 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
               ),
             ),
           ),
-          // Header with paging controls
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  color: Colors.white,
-                  tooltip: 'Previous $_daysPageSize days',
-                  onPressed: start > 1
-                      ? () => _seekWindowBy(-_daysPageSize, total)
-                      : null,
-                ),
-                Text(
-                  'Days $start - $end',
-                  style: const TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  color: Colors.white,
-                  tooltip: 'Next $_daysPageSize days',
-                  onPressed: end < total
-                      ? () => _seekWindowBy(_daysPageSize, total)
-                      : null,
-                ),
-              ],
-            ),
+          DaysWindow(
+            storageKey: 'plan_detail_window_${widget.plan.id}',
+            totalDays: total,
+            pageSize: 5,
+            initialDay: 1,
+            builder: (context, start, end, onPrev, onNext) {
+              return Column(
+                children: [
+                  DaysPaginationHeader(
+                    start: start,
+                    end: end,
+                    total: total,
+                    pageSize: 5,
+                    onPrev: onPrev,
+                    onNext: onNext,
+                  ),
+                  ...List.generate(end - start + 1, (index) {
+                    final day = start + index;
+                    final readings = widget.plan.getReadingsForDay(day);
+                    return DayPreviewCard(day: day, readings: readings);
+                  }),
+                  if (end < total)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        '... and ${total - end} more days',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
-
-          // Days list for the current window
-          ...List.generate(end - start + 1, (index) {
-            final day = start + index;
-            final readings = widget.plan.getReadingsForDay(day);
-            return _buildDayPreviewCard(day, readings);
-          })
         ],
       ),
     );
-  }
-
-  int _computeWindowStartForDay(int day) {
-    if (day <= 0) return 1;
-    final zeroBased = day - 1;
-    final pageIndex = zeroBased ~/ _daysPageSize;
-    return pageIndex * _daysPageSize + 1;
   }
 
   Widget _buildDayPreviewCard(int day, List<BiblePassage> readings) {
