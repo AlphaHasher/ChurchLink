@@ -319,6 +319,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   bool _isExpanded = false;
   late UserBiblePlanWithDetails _localPlanDetails;
   bool _isUpdating = false;
+  bool _isRestarting = false;
   double _previousProgressPercent = 0;
   double _currentProgressPercent = 0;
 
@@ -361,6 +362,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     final subscription = _localPlanDetails.subscription;
     final progressPercent = _currentProgressPercent;
     final displayDay = _localPlanDetails.displayCurrentDay;
+  final isComplete = _localPlanDetails.isComplete;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -482,6 +484,60 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                   ),
                   const SizedBox(height: 12),
                   
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final curved = CurvedAnimation(parent: animation, curve: Curves.easeInOut);
+                      return FadeTransition(
+                        opacity: curved,
+                        child: SizeTransition(
+                          sizeFactor: curved,
+                          axisAlignment: -1.0,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: isComplete
+                        ? Column(
+                            key: const ValueKey('complete_banner'),
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isRestarting ? null : _promptRestartPlan,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  icon: _isRestarting
+                                      ? SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor: AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(Icons.refresh),
+                                  label: Text(_isRestarting ? 'Restarting…' : 'Restart Plan'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                          )
+                        : const SizedBox.shrink(key: ValueKey('complete_banner_hidden')),
+                  ),
+
                   // Expand/Collapse indicator
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -634,6 +690,98 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           _isUpdating = false;
         });
       }
+    }
+  }
+
+  Future<void> _promptRestartPlan() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
+        title: const Text(
+          'Restart Plan?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Restarting will reset your progress and set your start date to today. Are you sure you want to restart? ',
+          style: TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color.fromRGBO(150, 130, 255, 1),
+            ),
+            child: const Text('Restart'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _restartPlan();
+    }
+  }
+
+  Future<void> _restartPlan() async {
+    if (_isRestarting) return;
+
+    setState(() {
+      _isRestarting = true;
+    });
+
+    try {
+      final requestedStart = DateTime.now();
+      final effectiveStart = await _service.restartPlan(
+        planId: widget.planWithDetails.subscription.planId,
+        startDate: requestedStart,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        final updatedSubscription = _localPlanDetails.subscription.copyWith(
+          startDate: effectiveStart,
+          progress: [],
+        );
+        _localPlanDetails = UserBiblePlanWithDetails(
+          plan: _localPlanDetails.plan,
+          subscription: updatedSubscription,
+        );
+        _previousProgressPercent = _currentProgressPercent;
+        _currentProgressPercent = 0;
+        _isRestarting = false;
+      });
+
+      widget.onProgressUpdate();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Plan restarted from day 1'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isRestarting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error restarting plan: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

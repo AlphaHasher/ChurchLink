@@ -86,5 +86,22 @@ async def update_user_bible_plan_notifications(
     return result.modified_count > 0
 
 
+async def reset_user_bible_plan(
+    uid: str,
+    plan_id: str,
+    start_date: Optional[datetime] = None,
+) -> bool:
+    result = await DB.db[_COLLECTION_NAME].update_one(
+        {"uid": uid, "plan_id": plan_id},
+        {
+            "$set": {
+                "progress": [],
+                "start_date": start_date or datetime.now(),
+            }
+        },
+    )
+    return result.matched_count > 0
+
+
 async def find_user_plan(uid: str, plan_id: str) -> Optional[dict]:
     return await DB.db[_COLLECTION_NAME].find_one({"uid": uid, "plan_id": plan_id})

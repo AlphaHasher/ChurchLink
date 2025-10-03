@@ -13,6 +13,7 @@ from models.bible_plan_tracker import (
     update_user_bible_plan_progress,
     update_user_bible_plan_notifications,
     find_user_plan,
+    reset_user_bible_plan,
 )
 
 # Auth-protected router for user Bible plan operations
@@ -139,3 +140,28 @@ async def update_notification_settings(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update notification settings")
     
     return {"success": True, "message": "Notification settings updated successfully"}
+
+
+@auth_bible_plan_router.post("/restart/{plan_id}")
+async def restart_bible_plan(
+    request: Request,
+    plan_id: str,
+    start_date: Optional[datetime] = Body(None, embed=True),
+):
+    """Reset progress for a Bible plan and optionally set a new start date"""
+    uid = request.state.uid
+    existing = await find_user_plan(uid, plan_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not subscribed to this plan")
+
+    effective_start = start_date or datetime.now()
+    restarted = await reset_user_bible_plan(uid, plan_id, effective_start)
+
+    if not restarted:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restart Bible plan")
+
+    return {
+        "success": True,
+        "message": "Bible plan restarted successfully",
+        "start_date": effective_start,
+    }

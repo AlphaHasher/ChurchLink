@@ -145,6 +145,34 @@ class BiblePlanService {
     }
   }
 
+  /// Restart a completed Bible plan and reset progress
+  Future<DateTime> restartPlan({
+    required String planId,
+    DateTime? startDate,
+  }) async {
+    try {
+      final response = await _client.post(
+        '$_baseUrl/my-bible-plans/restart/$planId',
+        data: {
+          if (startDate != null) 'start_date': startDate.toIso8601String(),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map<String, dynamic> && data['start_date'] != null) {
+          return DateTime.parse(data['start_date'] as String);
+        }
+        return startDate ?? DateTime.now();
+      }
+
+      throw Exception('Unexpected response when restarting plan (code: ${response.statusCode})');
+    } catch (e) {
+      logger.e('Error restarting Bible plan: $e');
+      rethrow;
+    }
+  }
+
   /// Get combined data of user's subscribed plans with full plan details
   Future<List<UserBiblePlanWithDetails>> getMyPlansWithDetails() async {
     try {
