@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/bible_plan.dart';
 import '../services/bible_plan_service.dart';
 import 'bible_plans_list_page.dart';
@@ -588,12 +589,18 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         final day = index + 1;
         final readings = plan.getReadingsForDay(day);
         final dayProgress = subscription.getProgressForDay(day);
+        final dayDate = _localPlanDetails.dateForDay(day);
+        final dateLabel = DateFormat('MMM d').format(dayDate);
+        final isRestDay = readings.isEmpty;
         
         return _DayExpansionTile(
           key: ValueKey('${widget.planWithDetails.subscription.planId}_day_$day'),
           day: day,
           readings: readings,
           progress: dayProgress,
+          dateLabel: dateLabel,
+          isRestDay: isRestDay,
+          isUnlocked: _localPlanDetails.isDayUnlocked(day),
           onPassageToggle: _handlePassageToggle,
         );
       },
@@ -1020,6 +1027,9 @@ class _DayExpansionTile extends StatefulWidget {
   final int day;
   final List<BiblePassage> readings;
   final DayProgress? progress;
+  final String dateLabel;
+  final bool isRestDay;
+  final bool isUnlocked;
   final Future<void> Function(int day, String passageId, List<String> currentCompleted, int totalPassages) onPassageToggle;
 
   const _DayExpansionTile({
@@ -1027,6 +1037,9 @@ class _DayExpansionTile extends StatefulWidget {
     required this.day,
     required this.readings,
     required this.progress,
+    required this.dateLabel,
+    required this.isRestDay,
+    required this.isUnlocked,
     required this.onPassageToggle,
   });
 
@@ -1059,6 +1072,8 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
   Widget build(BuildContext context) {
     final isCompleted = _localProgress?.isCompleted ?? false;
     final completedPassages = _localProgress?.completedPassages ?? [];
+    final isLocked = !widget.isUnlocked;
+    final isRestDay = widget.isRestDay;
 
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -1066,19 +1081,35 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
       title: Row(
         children: [
           Icon(
-            isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: isCompleted 
-                ? const Color.fromRGBO(120, 200, 150, 1)
-                : const Color.fromRGBO(120, 120, 120, 1),
+            isRestDay
+                ? Icons.do_not_disturb_on
+                : (isCompleted
+                    ? Icons.check_circle
+                    : Icons.radio_button_unchecked),
+            color: isRestDay
+                ? const Color.fromRGBO(255, 193, 7, 1)
+                : (isCompleted
+                    ? const Color.fromRGBO(120, 200, 150, 1)
+                    : (isLocked
+                        ? const Color.fromRGBO(90, 90, 90, 1)
+                        : const Color.fromRGBO(120, 120, 120, 1))),
             size: 20,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Day ${widget.day}',
+              'Day ${widget.day}, ${widget.dateLabel}',
               style: TextStyle(
-                color: isCompleted ? Colors.white : const Color.fromRGBO(200, 200, 200, 1),
-                fontWeight: isCompleted ? FontWeight.w600 : FontWeight.normal,
+                color: isRestDay
+                    ? Colors.white
+                    : (isLocked
+                        ? const Color.fromRGBO(150, 150, 150, 1)
+                        : (isCompleted
+                            ? Colors.white
+                            : const Color.fromRGBO(200, 200, 200, 1))),
+                fontWeight: isCompleted && !isLocked && !isRestDay
+                    ? FontWeight.w600
+                    : FontWeight.w500,
                 fontSize: 15,
               ),
             ),
@@ -1086,42 +1117,140 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
           Text(
             '${completedPassages.length}/${widget.readings.length}',
             style: TextStyle(
-              color: isCompleted 
-                  ? const Color.fromRGBO(120, 200, 150, 1)
-                  : const Color.fromRGBO(150, 150, 150, 1),
+              color: isRestDay
+                  ? const Color.fromRGBO(255, 213, 79, 1)
+                  : (isCompleted
+                      ? const Color.fromRGBO(120, 200, 150, 1)
+                      : (isLocked
+                          ? const Color.fromRGBO(110, 110, 110, 1)
+                          : const Color.fromRGBO(150, 150, 150, 1))),
               fontSize: 13,
             ),
           ),
+          if (isLocked)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(80, 80, 80, 1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Locked',
+                  style: TextStyle(
+                    color: Color.fromRGBO(200, 200, 200, 1),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          if (isRestDay)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(255, 215, 64, 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color.fromRGBO(255, 213, 79, 1),
+                    width: 1,
+                  ),
+                ),
+                child: const Text(
+                  'Rest Day',
+                  style: TextStyle(
+                    color: Color.fromRGBO(255, 213, 79, 1),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
       iconColor: const Color.fromRGBO(150, 130, 255, 1),
       collapsedIconColor: const Color.fromRGBO(150, 130, 255, 1),
-      children: widget.readings.map((passage) {
-        final isPassageCompleted = completedPassages.contains(passage.id);
-        return _buildPassageTile(passage, isPassageCompleted, completedPassages);
-      }).toList(),
+      children: _buildChildren(isLocked, completedPassages, isRestDay),
     );
+  }
+
+  List<Widget> _buildChildren(bool isLocked, List<String> completedPassages, bool isRestDay) {
+    final items = <Widget>[];
+
+    if (isRestDay) {
+      items.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          child: Text(
+            'Enjoy a moment of rest. This day has no assigned readings.',
+            style: const TextStyle(
+              color: Color.fromRGBO(200, 200, 200, 1),
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+      return items;
+    }
+
+    if (isLocked) {
+      items.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8, left: 4, right: 4, top: 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Complete previous days to unlock Day ${widget.day}.',
+              style: const TextStyle(
+                color: Color.fromRGBO(190, 190, 190, 1),
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    items.addAll(widget.readings.map((passage) {
+      final isPassageCompleted = completedPassages.contains(passage.id);
+      return _buildPassageTile(
+        passage,
+        isPassageCompleted,
+        completedPassages,
+        isLocked,
+      );
+    }));
+
+    return items;
   }
 
   Widget _buildPassageTile(
     BiblePassage passage,
     bool isCompleted,
     List<String> currentCompletedPassages,
+    bool isLocked,
   ) {
     return CheckboxListTile(
       dense: true,
       value: isCompleted,
-      onChanged: (value) => _handlePassageToggle(
-        passage.id,
-        currentCompletedPassages,
-      ),
+      onChanged: isLocked
+          ? null
+          : (value) => _handlePassageToggle(
+                passage.id,
+                currentCompletedPassages,
+              ),
       title: Text(
         passage.reference,
         style: TextStyle(
-          color: isCompleted 
-              ? const Color.fromRGBO(180, 180, 180, 1)
-              : const Color.fromRGBO(220, 220, 220, 1),
-          decoration: isCompleted ? TextDecoration.lineThrough : null,
+          color: isLocked
+              ? const Color.fromRGBO(140, 140, 140, 1)
+              : (isCompleted
+                  ? const Color.fromRGBO(180, 180, 180, 1)
+                  : const Color.fromRGBO(220, 220, 220, 1)),
+          decoration: isCompleted && !isLocked ? TextDecoration.lineThrough : null,
           fontSize: 14,
         ),
       ),
@@ -1135,6 +1264,10 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
     String passageId,
     List<String> currentCompleted,
   ) async {
+    if (!widget.isUnlocked) {
+      return;
+    }
+
     // Optimistic update - toggle locally first
     setState(() {
       _isUpdating = true;

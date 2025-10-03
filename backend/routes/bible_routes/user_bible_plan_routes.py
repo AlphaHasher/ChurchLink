@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, HTTPException, status, Body
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bson import ObjectId
+from bson.errors import InvalidId
 
 from mongo.database import DB
 from models.bible_plan_tracker import (
@@ -18,6 +19,50 @@ from models.bible_plan_tracker import (
 
 # Auth-protected router for user Bible plan operations
 auth_bible_plan_router = APIRouter(prefix="/my-bible-plans", tags=["User Bible Plans"])
+
+
+def _is_rest_day(readings_by_day: Dict[str, Any], day: int) -> bool:
+    day_key = str(day)
+    day_readings = readings_by_day.get(day_key)
+    if not day_readings:
+        return True
+    if isinstance(day_readings, list):
+        return len(day_readings) == 0
+    return False
+
+
+def _next_sequential_day(
+    progress: List[dict],
+    readings_by_day: Dict[str, Any],
+    plan_duration: int,
+) -> int:
+    progress_by_day = {}
+    for entry in progress:
+        day_value = entry.get("day")
+        if isinstance(day_value, int):
+            progress_by_day[day_value] = entry
+
+    max_known_day = max(
+        plan_duration,
+        max(progress_by_day.keys(), default=0),
+    )
+
+    day_pointer = 1
+    while day_pointer <= max_known_day:
+        if _is_rest_day(readings_by_day, day_pointer):
+            day_pointer += 1
+            continue
+
+        entry = progress_by_day.get(day_pointer)
+        if entry and entry.get("is_completed"):
+            day_pointer += 1
+            continue
+        break
+
+    while day_pointer <= plan_duration and _is_rest_day(readings_by_day, day_pointer):
+        day_pointer += 1
+
+    return day_pointer
 
 
 @auth_bible_plan_router.get("/", response_model=List[UserBiblePlanSubscription])
@@ -39,7 +84,12 @@ async def subscribe_to_bible_plan(
     """Subscribe the current user to a Bible plan"""
     uid = request.state.uid
     # Check if plan exists
-    plan_doc = await DB.db.bible_plans.find_one({"_id": ObjectId(plan_id), "visible": True})
+    try:
+        plan_object_id = ObjectId(plan_id)
+    except InvalidId:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Bible plan ID")
+
+    plan_doc = await DB.db.bible_plans.find_one({"_id": plan_object_id, "visible": True})
     if not plan_doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bible plan not found or not published")
     
@@ -93,7 +143,29 @@ async def update_plan_progress(
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not subscribed to this plan")
     
+    try:
+        plan_object_id = ObjectId(plan_id)
+    except InvalidId:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Bible plan ID")
+
+    plan_doc = await DB.db.bible_plans.find_one({"_id": plan_object_id})
+    if not plan_doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bible plan not found")
+
     progress = existing.get("progress", [])
+    if day < 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Day must be 1 or greater")
+
+    readings_by_day = plan_doc.get("readings", {})
+    plan_duration = plan_doc.get("duration", 0) or len(readings_by_day)
+
+    allowed_day = _next_sequential_day(progress, readings_by_day, plan_duration)
+    if day > allowed_day:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Complete previous days before updating this day",
+        )
+
     day_progress_index = None
     for i, dp in enumerate(progress):
         if dp.get("day") == day:
@@ -112,6 +184,8 @@ async def update_plan_progress(
     else:
         # Add new progress
         progress.append(new_progress.model_dump())
+
+    progress.sort(key=lambda entry: entry.get("day", 0))
     
     updated = await update_user_bible_plan_progress(uid, plan_id, progress)
 

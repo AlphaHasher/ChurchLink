@@ -112,6 +112,24 @@ class BiblePlan {
   List<BiblePassage> getReadingsForDay(int day) {
     return readings[day.toString()] ?? [];
   }
+
+  bool isRestDay(int day) {
+    return getReadingsForDay(day).isEmpty;
+  }
+
+  int get readingDaysCount {
+    if (duration <= 0) {
+      return 0;
+    }
+
+    var count = 0;
+    for (var day = 1; day <= duration; day++) {
+      if (!isRestDay(day)) {
+        count += 1;
+      }
+    }
+    return count;
+  }
 }
 
 /// Tracks progress for a single day in a Bible plan
@@ -240,11 +258,24 @@ class UserBiblePlanSubscription {
     }
   }
 
-  /// Calculate overall progress percentage
-  double getProgressPercentage(int totalDays) {
-    if (totalDays == 0) return 0.0;
-    final completedDays = progress.where((p) => p.isCompleted).length;
-    return (completedDays / totalDays) * 100;
+  double getProgressPercentageForPlan(BiblePlan plan) {
+    final totalReadingDays = plan.readingDaysCount;
+    if (totalReadingDays == 0) {
+      return 0.0;
+    }
+
+    var completedReadingDays = 0;
+    for (final entry in progress) {
+      if (!entry.isCompleted) {
+        continue;
+      }
+      if (plan.isRestDay(entry.day)) {
+        continue;
+      }
+      completedReadingDays += 1;
+    }
+
+    return (completedReadingDays / totalReadingDays) * 100;
   }
 
   /// Create a copy with updated fields
@@ -265,6 +296,30 @@ class UserBiblePlanSubscription {
       subscribedAt: subscribedAt ?? this.subscribedAt,
     );
   }
+
+  /// Returns the earliest day the user can work on, enforcing sequential completion.
+  /// If all prior days are fully completed, unlocks the next day in sequence.
+  int get nextSequentialDay {
+    if (progress.isEmpty) {
+      return 1;
+    }
+
+    final progressByDay = {
+      for (final entry in progress) entry.day: entry,
+    };
+
+    var day = 1;
+    while (true) {
+      final entry = progressByDay[day];
+      if (entry != null && entry.isCompleted) {
+        day += 1;
+        continue;
+      }
+      break;
+    }
+
+    return day;
+  }
 }
 
 /// Combined model with both the plan and subscription details
@@ -279,7 +334,7 @@ class UserBiblePlanWithDetails {
 
   /// Get progress percentage for this plan
   double get progressPercentage =>
-      subscription.getProgressPercentage(plan.duration);
+    subscription.getProgressPercentageForPlan(plan);
 
   /// Get current day based on subscription start date
   int get currentDay {
@@ -305,7 +360,54 @@ class UserBiblePlanWithDetails {
   }
 
   /// Check if plan is complete
-  bool get isComplete => subscription.progress
-      .where((p) => p.isCompleted)
-      .length == plan.duration;
+  bool get isComplete {
+    final totalReadingDays = plan.readingDaysCount;
+    if (totalReadingDays == 0) {
+      return true;
+    }
+
+    var completedReadingDays = 0;
+    for (final entry in subscription.progress) {
+      if (entry.isCompleted && !plan.isRestDay(entry.day)) {
+        completedReadingDays += 1;
+      }
+    }
+
+    return completedReadingDays >= totalReadingDays;
+  }
+
+  /// Whether a specific day is unlocked for progress based on sequential completion rules.
+  bool isDayUnlocked(int day) {
+    final progressByDay = {
+      for (final entry in subscription.progress) entry.day: entry,
+    };
+
+    var pointer = 1;
+    while (pointer <= plan.duration) {
+      final readings = plan.getReadingsForDay(pointer);
+      final isRestDay = readings.isEmpty;
+
+      if (isRestDay || (progressByDay[pointer]?.isCompleted ?? false)) {
+        pointer += 1;
+        continue;
+      }
+
+      break;
+    }
+
+    if (day <= pointer) {
+      return true;
+    }
+
+    // Always allow rest days even if pointer hasn't advanced to them yet.
+    return plan.getReadingsForDay(day).isEmpty;
+  }
+
+  /// Returns the calendar date corresponding to the requested plan day (1-indexed).
+  DateTime dateForDay(int day) {
+    if (day <= 1) {
+      return subscription.startDate;
+    }
+    return subscription.startDate.add(Duration(days: day - 1));
+  }
 }
