@@ -22,7 +22,8 @@ from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
 
 from routes.bible_routes.bible_note_routes import bible_note_router
-from routes.bible_routes.bible_plan_routes import mod_bible_plan_router
+from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, public_bible_plan_router
+from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
 
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
@@ -224,6 +225,7 @@ public_router.include_router(paypal_public_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
+public_router.include_router(public_bible_plan_router)
 
 
 #####################################################
@@ -232,6 +234,7 @@ public_router.include_router(translator_router)
 private_router = AuthProtectedRouter(prefix="/api/v1")
 
 private_router.include_router(bible_note_router)
+private_router.include_router(auth_bible_plan_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)

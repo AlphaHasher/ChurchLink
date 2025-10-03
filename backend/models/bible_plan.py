@@ -314,3 +314,16 @@ async def get_bible_plan_template_by_id(template_id: str) -> Optional[ReadingPla
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching bible plan template by id: {e}")
+
+
+async def get_published_reading_plans() -> List[ReadingPlanOut]:
+    """Get all published Bible plans (visible=True) for public access"""
+    try:
+        cursor = DB.db.bible_plans.find({"visible": True}).sort([("name", -1)])
+        docs = await cursor.to_list(length=None)
+        return [_convert_plan_doc_to_out(d) for d in docs]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching published reading plans: {e}")
+

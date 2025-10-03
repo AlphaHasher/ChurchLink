@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../features/bible/presentation/pages/bible_reader_body.dart';
 import '../features/bible/data/bible_repo_elisha.dart';
+import 'my_bible_plans_page.dart';
 
 class BiblePage extends StatefulWidget {
   const BiblePage({super.key});
@@ -27,6 +28,20 @@ class _BiblePageState extends State<BiblePage> {
           padding: EdgeInsets.only(left: 60, right: 60),
           child: Text('Bible', style: TextStyle(color: Colors.white)),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.list_alt),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyBiblePlansPage(),
+                ),
+              );
+            },
+            tooltip: 'My Reading Plans',
+          ),
+        ],
       ),
       backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
       body: FutureBuilder<void>(

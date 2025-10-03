@@ -17,13 +17,23 @@ from models.bible_plan import (
     get_all_bible_plan_templates,
     get_bible_plan_template_by_name,
     get_bible_plan_template_by_id,
+    get_published_reading_plans,
 )
 
+
+public_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans Public"])
 
 # This is renamed to mod bible plan router because it specifically requires mod permissions.
 # Consider changing in future to be based on PermProtectedRouter if specific perm is implemented
 # The name is a proactive change because in the future, we will also need public routes, so the name change is pre-empitive
 mod_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans"])
+
+
+# Public Route - Get all published Bible plans (visible=True)
+@public_bible_plan_router.get("/published", response_model=List[ReadingPlanOut])
+async def list_published_plans() -> List[ReadingPlanOut]:
+    """Get all published Bible plans that are visible to users"""
+    return await get_published_reading_plans()
 
 
 # Mod Route
