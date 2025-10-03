@@ -1,9 +1,14 @@
 import os
 import requests
-from get_bearer_token import generate_test_token
+from backend.get_bearer_token import generate_test_token
 from dotenv import load_dotenv
 
+load_dotenv()
+
 FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
+if not FIREBASE_WEB_API_KEY:
+    raise RuntimeError("Environment variable FIREBASE_WEB_API_KEY must be set for auth tests")
+
 FIREBASE_AUTH_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
 
 # Hardcoded test user emails
