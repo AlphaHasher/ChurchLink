@@ -27,6 +27,10 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   bool _notificationEnabled = true;
   bool _isSubscribing = false;
 
+  // Pagination for detail reading preview: show 5 days at a time
+  static const int _daysPageSize = 5;
+  int _windowStartDay = 1; // 1-based
+
   bool get _isAlreadySubscribed => widget.existingSubscription != null;
 
   @override
@@ -47,6 +51,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           }
         }
       }
+      // Ensure the preview window is aligned to day 1 initially
+      _windowStartDay = _computeWindowStartForDay(1);
     }
   }
 
@@ -228,8 +234,10 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   }
 
   Widget _buildReadingPreviewSection() {
-    // Show first few days as preview
-    final previewDays = widget.plan.duration > 3 ? 3 : widget.plan.duration;
+    // Paged window showing 5 days at a time with prev/next controls
+    final total = widget.plan.duration;
+    final start = _windowStartDay.clamp(1, total).toInt();
+    final end = (_windowStartDay + _daysPageSize - 1).clamp(1, total).toInt();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -247,27 +255,56 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
               ),
             ),
           ),
-          ...List.generate(previewDays, (index) {
-            final day = index + 1;
+          // Header with paging controls
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  color: Colors.white,
+                  tooltip: 'Previous $_daysPageSize days',
+                  onPressed: start > 1
+                      ? () => setState(() {
+                            _windowStartDay = (_windowStartDay - _daysPageSize).clamp(1, total).toInt();
+                          })
+                      : null,
+                ),
+                Text(
+                  'Days $start - $end',
+                  style: const TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  color: Colors.white,
+                  tooltip: 'Next $_daysPageSize days',
+                  onPressed: end < total
+                      ? () => setState(() {
+                            _windowStartDay = (_windowStartDay + _daysPageSize).clamp(1, total).toInt();
+                          })
+                      : null,
+                ),
+              ],
+            ),
+          ),
+
+          // Days list for the current window
+          ...List.generate(end - start + 1, (index) {
+            final day = start + index;
             final readings = widget.plan.getReadingsForDay(day);
             return _buildDayPreviewCard(day, readings);
-          }),
-          if (widget.plan.duration > 3)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                '... and ${widget.plan.duration - 3} more days',
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
+          })
         ],
       ),
     );
+  }
+
+  int _computeWindowStartForDay(int day) {
+    if (day <= 0) return 1;
+    final zeroBased = day - 1;
+    final pageIndex = zeroBased ~/ _daysPageSize;
+    return pageIndex * _daysPageSize + 1;
   }
 
   Widget _buildDayPreviewCard(int day, List<BiblePassage> readings) {
