@@ -7,162 +7,186 @@ import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
 import 'package:app/pages/forms.dart';
+import 'package:app/services/dashboard_tiles_service.dart';
 
-class DashboardPage extends StatelessWidget {
+// URL for Strapi, currently hardcoded to the Android emulator default value.
+// Potentially migrate this into the .env later
+const String StrapiUrl = "http://10.0.2.2:1339";
+
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  late final Future<Map<String, String>> _tilesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _tilesFuture = DashboardTilesService(StrapiUrl).fetchImageUrls(); // created once
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Helper to create a full-width card
-              Builder(
-                builder: (ctx) {
-                  // Add optional named param: {String? imageAsset}
-                  Widget buildCard(
-                    String title,
-                    VoidCallback onTap,
-                    Color background, {
-                    String? imageAsset,
-                  }) {
-                    // If using an image, force white text; otherwise compute from background
-                    final Color textColor = (imageAsset != null)
-                        ? Colors.white
-                        : (background.computeLuminance() > 0.5 ? Colors.black : Colors.white);
+          child: FutureBuilder<Map<String, String>>(
+            future: DashboardTilesService(StrapiUrl).fetchImageUrls(),
+            builder: (context, snapshot) {
+              // Use Strapi results when ready; empty map while loading/error
+              final images = snapshot.data ?? const <String, String>{};
 
-                    return Card(
-                      margin: EdgeInsets.zero,
-                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                      clipBehavior: Clip.hardEdge, // keeps ripple & image clipped to card
-                      child: Ink(
-                        height: 150,
-                        width: double.infinity,
-                        // Image background when imageAsset is provided; else solid color
-                        decoration: imageAsset != null
-                            ? BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(imageAsset),
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : BoxDecoration(color: background),
-                        child: InkWell(
-                          onTap: onTap,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              // Dark gradient overlay only when an image is used
-                              if (imageAsset != null)
-                                const DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: [Colors.black54, Colors.transparent],
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Helper to create a full-width card
+                  Builder(
+                    builder: (ctx) {
+                      Widget buildCard(
+                        String title,
+                        VoidCallback onTap,
+                        Color background, {
+                        String? imageUrl,
+                      }) {
+                        // If using an image, force white text; otherwise compute from background
+                        final Color textColor = (imageUrl != null)
+                            ? Colors.white
+                            : (background.computeLuminance() > 0.5 ? Colors.black : Colors.white);
+
+                        return Card(
+                          margin: EdgeInsets.zero,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                          clipBehavior: Clip.hardEdge, // keeps ripple & image clipped to card
+                          child: Ink(
+                            height: 150,
+                            width: double.infinity,
+                            // Image background when imageAsset is provided; else solid color
+                            decoration: imageUrl != null
+                                ? BoxDecoration(
+                                    image: DecorationImage(
+                                      image: NetworkImage(imageUrl),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : BoxDecoration(color: background),
+                            child: InkWell(
+                              onTap: onTap,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  // Dark gradient overlay only when an image is used
+                                  if (imageUrl != null)
+                                    const DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.bottomCenter,
+                                          end: Alignment.topCenter,
+                                          colors: [Colors.black54, Colors.transparent],
+                                        ),
+                                      ),
+                                    ),
+                                  Center(
+                                    child: Text(
+                                      title,
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                                            color: textColor,
+                                            // small shadow helps on busy photos
+                                            shadows: imageUrl != null
+                                                ? const [Shadow(blurRadius: 2, color: Colors.black45)]
+                                                : null,
+                                          ),
                                     ),
                                   ),
-                                ),
-                              Center(
-                                child: Text(
-                                  title,
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                                        color: textColor,
-                                        // small shadow helps on busy photos
-                                        shadows: imageAsset != null
-                                            ? const [Shadow(blurRadius: 2, color: Colors.black45)]
-                                            : null,
-                                      ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  }
+                        );
+                      }
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      buildCard('Join Live', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const JoinLive()),
-                        );
-                      }, 
-                        Colors.indigo.shade600,
-                        imageAsset: 'assets/dashboard/joinlive.jpeg',
-                      ),
-                      buildCard('Weekly Bulletin', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(
-                            builder: (_) => const WeeklyBulletin(),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          buildCard('Join Live', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(builder: (_) => const JoinLive()),
+                            );
+                          },
+                              Colors.indigo.shade600,
+                              imageUrl: images['join-live'],
                           ),
-                        );
-                      }, 
-                        Colors.teal.shade600,
-                        imageAsset: 'assets/dashboard/bulletin.jpeg',
-                      ),
-                      buildCard('Events', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(
-                            builder: (_) => const EventsPage(),
+                          buildCard('Weekly Bulletin', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(
+                                builder: (_) => const WeeklyBulletin(),
+                              ),
+                            );
+                          },
+                              Colors.teal.shade600,
+                              imageUrl: images['weekly-bulletin'],
                           ),
-                        );
-                      }, 
-                        Colors.orange.shade600,
-                        imageAsset: 'assets/dashboard/events.jpeg',
-                      ),
-                      buildCard('Giving', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const Giving()),
-                        );
-                      }, 
-                        Colors.green.shade600,
-                        imageAsset: 'assets/dashboard/giving.jpeg',
-),
-                      buildCard('Ministries', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(
-                            builder: (_) => const Ministries(),
+                          buildCard('Events', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(
+                                builder: (_) => const EventsPage(),
+                              ),
+                            );
+                          },
+                              Colors.orange.shade600,
+                              imageUrl: images['events'],
                           ),
-                        );
-                      }, 
-                        Colors.purple.shade600,
-                        imageAsset: 'assets/dashboard/ministries.jpeg',
-                      ),
-                      buildCard('Contact Us', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const Contact()),
-                        );
-                      }, 
-                        Colors.blueGrey.shade700,
-                        imageAsset: 'assets/dashboard/contact.jpeg',  
-                      ),
-                      buildCard('Forms', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const Forms()),
-                        );
-                      }, 
-                        Colors.brown.shade600,
-                        imageAsset: 'assets/dashboard/forms.jpeg',
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
+                          buildCard('Giving', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(builder: (_) => const Giving()),
+                            );
+                          },
+                              Colors.green.shade600,
+                              imageUrl: images['giving'],
+                          ),
+                          buildCard('Ministries', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(
+                                builder: (_) => const Ministries(),
+                              ),
+                            );
+                          },
+                              Colors.purple.shade600,
+                              imageUrl: images['ministries'],
+                          ),
+                          buildCard('Contact Us', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(builder: (_) => const Contact()),
+                            );
+                          },
+                              Colors.blueGrey.shade700,
+                              imageUrl: images['contact'],
+                          ),
+                          buildCard('Forms', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(builder: (_) => const Forms()),
+                            );
+                          },
+                              Colors.brown.shade600,
+                              imageUrl: images['forms'],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
