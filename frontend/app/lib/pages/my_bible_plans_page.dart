@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/bible_plan.dart';
 import '../services/bible_plan_service.dart';
 import 'bible_plans_list_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Main page showing user's subscribed Bible plans with progress tracking
 class MyBiblePlansPage extends StatefulWidget {
@@ -327,6 +328,39 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   static const int _daysPageSize = 5;
   int _windowStartDay = 1;
 
+  // Persistence key format: 'plan_window_<planId>' -> integer start day
+  String get _prefsKey => 'plan_window_${widget.planWithDetails.subscription.planId}';
+
+  Future<void> _loadSavedWindowStart() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(_prefsKey);
+      if (saved != null && mounted) {
+        setState(() {
+          _windowStartDay = saved.clamp(1, widget.planWithDetails.plan.duration).toInt();
+        });
+      }
+    } catch (_) {
+      // ignore errors silently - non-critical
+    }
+  }
+
+  Future<void> _persistWindowStart() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsKey, _windowStartDay);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  void _seekWindowBy(int delta, int total) {
+    setState(() {
+      _windowStartDay = (_windowStartDay + delta).clamp(1, total).toInt();
+    });
+    _persistWindowStart();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -336,6 +370,8 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     // Initialize window so the current display day is visible
     final displayDay = _localPlanDetails.displayCurrentDay;
     _windowStartDay = _computeWindowStartForDay(displayDay);
+    // Load persisted window start for this plan (if any)
+    _loadSavedWindowStart();
   }
 
   @override
@@ -360,7 +396,8 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         }
         _localPlanDetails = widget.planWithDetails;
         // Ensure current display day stays visible in the paged view
-        _windowStartDay = _computeWindowStartForDay(_localPlanDetails.displayCurrentDay);
+          _windowStartDay = _computeWindowStartForDay(_localPlanDetails.displayCurrentDay);
+          _persistWindowStart();
       });
     }
   }
@@ -605,11 +642,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
               IconButton(
                 icon: const Icon(Icons.chevron_left),
                 color: Colors.white,
-                  tooltip: 'Previous $_daysPageSize days',
+                tooltip: 'Previous $_daysPageSize days',
                 onPressed: start > 1
-                    ? () => setState(() {
-                          _windowStartDay = (_windowStartDay - _daysPageSize).clamp(1, total);
-                        })
+                    ? () => _seekWindowBy(-_daysPageSize, total)
                     : null,
               ),
               Text(
@@ -619,11 +654,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
               IconButton(
                 icon: const Icon(Icons.chevron_right),
                 color: Colors.white,
-                  tooltip: 'Next $_daysPageSize days',
+                tooltip: 'Next $_daysPageSize days',
                 onPressed: end < total
-                    ? () => setState(() {
-                          _windowStartDay = (_windowStartDay + _daysPageSize).clamp(1, total);
-                        })
+                    ? () => _seekWindowBy(_daysPageSize, total)
                     : null,
               ),
             ],
@@ -1015,7 +1048,7 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
               'Daily Reminder',
               style: TextStyle(color: Colors.white),
             ),
-            activeColor: const Color.fromRGBO(150, 130, 255, 1),
+            activeThumbColor: const Color.fromRGBO(150, 130, 255, 1),
           ),
           if (_enabled) ...[
             const SizedBox(height: 16),

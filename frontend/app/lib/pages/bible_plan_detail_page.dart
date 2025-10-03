@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/bible_plan.dart';
 import '../services/bible_plan_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Detail page for a Bible plan where users can view and subscribe
 class BiblePlanDetailPage extends StatefulWidget {
@@ -31,6 +32,34 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   static const int _daysPageSize = 5;
   int _windowStartDay = 1; // 1-based
 
+  String get _prefsKey => 'plan_detail_window_${widget.plan.id}';
+
+  Future<void> _loadSavedWindowStart() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(_prefsKey);
+      if (saved != null && mounted) {
+        setState(() {
+          _windowStartDay = saved.clamp(1, widget.plan.duration).toInt();
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistWindowStart() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsKey, _windowStartDay);
+    } catch (_) {}
+  }
+
+  void _seekWindowBy(int delta, int total) {
+    setState(() {
+      _windowStartDay = (_windowStartDay + delta).clamp(1, total).toInt();
+    });
+    _persistWindowStart();
+  }
+
   bool get _isAlreadySubscribed => widget.existingSubscription != null;
 
   @override
@@ -53,6 +82,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       }
       // Ensure the preview window is aligned to day 1 initially
       _windowStartDay = _computeWindowStartForDay(1);
+      _loadSavedWindowStart();
     }
   }
 
@@ -92,7 +122,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   }
 
   Widget _buildHeaderSection() {
-    return Container(
+  return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -126,7 +156,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withAlpha(20),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -266,9 +296,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                   color: Colors.white,
                   tooltip: 'Previous $_daysPageSize days',
                   onPressed: start > 1
-                      ? () => setState(() {
-                            _windowStartDay = (_windowStartDay - _daysPageSize).clamp(1, total).toInt();
-                          })
+                      ? () => _seekWindowBy(-_daysPageSize, total)
                       : null,
                 ),
                 Text(
@@ -280,9 +308,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                   color: Colors.white,
                   tooltip: 'Next $_daysPageSize days',
                   onPressed: end < total
-                      ? () => setState(() {
-                            _windowStartDay = (_windowStartDay + _daysPageSize).clamp(1, total).toInt();
-                          })
+                      ? () => _seekWindowBy(_daysPageSize, total)
                       : null,
                 ),
               ],
@@ -563,7 +589,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                   _notificationEnabled = value;
                 });
               },
-              activeColor: const Color.fromRGBO(150, 130, 255, 1),
+              activeThumbColor: const Color.fromRGBO(150, 130, 255, 1),
             ),
           ],
         ),
