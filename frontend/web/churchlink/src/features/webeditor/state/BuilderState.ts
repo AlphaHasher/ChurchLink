@@ -28,6 +28,7 @@ class BuilderStateClass {
   private _draggingNodeId: string | null = null;
   private _resizing: ActiveResize = null;
   private _editing: ActiveEditing = null;
+  private _gridAdjustingSectionId: string | null = null;
   private _undoStack: Action[] = [];
   private _redoStack: Action[] = [];
   private listeners: Set<() => void> = new Set();
@@ -39,6 +40,7 @@ class BuilderStateClass {
   get draggingNodeId() { return this._draggingNodeId; }
   get resizing() { return this._resizing; }
   get editing() { return this._editing; }
+  get gridAdjustingSectionId() { return this._gridAdjustingSectionId; }
   get paddingOverlay() { return this._paddingOverlay; }
   get canUndo() { return this._undoStack.length > 0; }
   get canRedo() { return this._redoStack.length > 0; }
@@ -58,6 +60,19 @@ class BuilderStateClass {
 
   startDragging(nodeId: string) { this._draggingNodeId = nodeId; this.notify(); }
   stopDragging() { this._draggingNodeId = null; this.notify(); }
+
+  startAdjustingGrid(sectionId: string) {
+    if (this._gridAdjustingSectionId === sectionId) return;
+    this._gridAdjustingSectionId = sectionId;
+    this.notify();
+  }
+
+  stopAdjustingGrid(sectionId?: string) {
+    if (!this._gridAdjustingSectionId) return;
+    if (sectionId && this._gridAdjustingSectionId !== sectionId) return;
+    this._gridAdjustingSectionId = null;
+    this.notify();
+  }
 
   startResizing(sectionId: string, nodeId: string, handle: ResizeHandle) {
     this._resizing = { sectionId, nodeId, handle };

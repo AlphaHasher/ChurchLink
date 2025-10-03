@@ -10,6 +10,25 @@ function cn(...classes: Array<string | undefined | false | null>) {
 const highlightClass = (node: Node, highlightNodeId?: string) =>
   node.id === highlightNodeId ? "outline outline-2 outline-red-500/70" : undefined;
 
+function enforceFullSize(content: React.ReactNode): React.ReactNode {
+  if (!React.isValidElement(content)) return content;
+
+  const element = content as React.ReactElement<any>;
+  const existingStyle = element.props?.style || {};
+  const existingClassName = element.props?.className || "";
+
+  const mergedStyle: React.CSSProperties = {
+    ...existingStyle,
+    width: existingStyle.width ?? "100%",
+    height: existingStyle.height ?? "100%",
+  };
+
+  return React.cloneElement(element, {
+    className: cn(existingClassName, "w-full", "h-full"),
+    style: mergedStyle,
+  });
+}
+
 const renderNode = (
   node: Node,
   highlightNodeId?: string,
@@ -149,15 +168,22 @@ const renderNode = (
           if (typeof wu === "number") style.width = unitsToPx(wu, gridSize);
           if (typeof hu === "number") style.height = unitsToPx(hu, gridSize);
 
+          const enforcedChild = enforceFullSize(childRendered);
+
           return (
             <div key={child.id} className="absolute" style={style}>
-              <div className="w-full h-full">{childRendered}</div>
+              <div className="w-full h-full">{enforcedChild}</div>
             </div>
           );
         }
 
+        const isContainer = child.type === "container";
         return (
-          <div key={child.id} className="relative">
+          <div
+            key={child.id}
+            className={cn("relative", !isContainer && "inline-block")}
+            style={{ width: !isContainer ? "fit-content" : undefined }}
+          >
             {childRendered}
           </div>
         );
@@ -237,15 +263,22 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string }
                   if (typeof wu === "number") style.width = unitsToPx(wu, gridSize);
                   if (typeof hu === "number") style.height = unitsToPx(hu, gridSize);
 
+                  const enforcedRendered = enforceFullSize(rendered);
+
                   return (
                     <div key={node.id} className="absolute" style={style}>
-                      <div className="w-full h-full">{rendered}</div>
+                      <div className="w-full h-full">{enforcedRendered}</div>
                     </div>
                   );
                 }
 
+                const isContainer = node.type === "container";
                 return (
-                  <div key={node.id} className="relative">
+                  <div
+                    key={node.id}
+                    className={cn("relative", !isContainer && "inline-block")}
+                    style={{ width: !isContainer ? "fit-content" : undefined }}
+                  >
                     {rendered}
                   </div>
                 );

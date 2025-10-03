@@ -5,7 +5,7 @@ import { DraggableNode } from './DraggableNode';
 import { defaultGridSize, unitsToPx } from './gridMath';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
 import EventSection from '@/features/admin/components/WebBuilder/sections/EventSection';
-import { BuilderState } from '@/features/webeditor/state/BuilderState';
+import { ActivePaddingOverlay, BuilderState } from '@/features/webeditor/state/BuilderState';
 
 const PADDING_COLORS = {
   top: 'rgba(239,68,68,0.28)',
@@ -14,16 +14,31 @@ const PADDING_COLORS = {
   left: 'rgba(59,130,246,0.28)',
 } as const;
 
+const TAILWIND_SPACING_UNIT_PX = 4;
+
+function tailwindSpacingToPx(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 0;
+  return value * TAILWIND_SPACING_UNIT_PX;
+}
+
+function tailwindSpacingToRem(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return undefined;
+  if (value === 0) return '0';
+  const rem = value * 0.25;
+  const formatted = rem.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+  return formatted.length ? `${formatted}rem` : `${rem}rem`;
+}
+
 type PaddingOverlayProps = {
-  layer: ReturnType<typeof BuilderState['paddingOverlay']>;
+  layer: ActivePaddingOverlay | null;
   gridSize: number;
 };
 
 const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, gridSize }) => {
-  const [overlay, setOverlay] = React.useState(layer ?? BuilderState.paddingOverlay);
+  const [overlay, setOverlay] = React.useState<ActivePaddingOverlay | null>(layer ?? BuilderState.paddingOverlay);
 
   React.useEffect(() => {
-    const unsub = BuilderState.onPaddingOverlayChange(setOverlay);
+    const unsub = BuilderState.onPaddingOverlayChange((next) => setOverlay(next));
     return unsub;
   }, []);
 
@@ -50,8 +65,9 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, gridSize }) => {
           <div
             className="absolute inset-x-0"
             style={{
-              height: top * gridSize,
+              height: tailwindSpacingToPx(top),
               backgroundColor: PADDING_COLORS.top,
+              top: 0,
             }}
           />
         )}
@@ -59,7 +75,7 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, gridSize }) => {
           <div
             className="absolute inset-x-0"
             style={{
-              height: bottom * gridSize,
+              height: tailwindSpacingToPx(bottom),
               backgroundColor: PADDING_COLORS.bottom,
               bottom: 0,
             }}
@@ -69,8 +85,9 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, gridSize }) => {
           <div
             className="absolute inset-y-0"
             style={{
-              width: left * gridSize,
+              width: tailwindSpacingToPx(left),
               backgroundColor: PADDING_COLORS.left,
+              left: 0,
             }}
           />
         )}
@@ -78,7 +95,7 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, gridSize }) => {
           <div
             className="absolute inset-y-0"
             style={{
-              width: right * gridSize,
+              width: tailwindSpacingToPx(right),
               backgroundColor: PADDING_COLORS.right,
               right: 0,
             }}
@@ -146,62 +163,83 @@ const renderNode = (
       const html = (node as any).props?.html ?? (node as any).props?.text ?? '';
       const align = (node as any).props?.align ?? 'left';
       const variant = (node as any).props?.variant ?? 'p';
-      const paddingY = (node as any).style?.paddingY ?? 0;
-      const paddingX = (node as any).style?.paddingX ?? 0;
-      const textStyles = (node as any).style?.textStyles || [];
-      const fontSize = (node as any).style?.fontSize;
-      const fontWeight = (node as any).style?.fontWeight;
-      const width = (node as any).style?.width;
-      const elementFontFamily = (node as any).style?.fontFamily;
-      const underlineThickness = (node as any).style?.underlineThickness;
-      const color = (node as any).style?.color;
-      const backgroundColor = (node as any).style?.backgroundColor;
-      
+      const nodeStyleRaw = (node as any).style || {};
+      const paddingY = nodeStyleRaw?.paddingY ?? 0;
+      const paddingX = nodeStyleRaw?.paddingX ?? 0;
+      const textStyles = nodeStyleRaw?.textStyles || [];
+      const fontSize = nodeStyleRaw?.fontSize;
+      const fontWeight = nodeStyleRaw?.fontWeight;
+      const width = nodeStyleRaw?.width;
+      const elementFontFamily = nodeStyleRaw?.fontFamily;
+      const underlineThickness = nodeStyleRaw?.underlineThickness;
+      const color = nodeStyleRaw?.color;
+      const backgroundColor = nodeStyleRaw?.backgroundColor;
+
+      const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
+      const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
+      const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX ?? paddingY;
+      const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX ?? paddingY;
+
       const Tag = ['h1', 'h2', 'h3'].includes(variant) ? (variant as any) : 'p';
-      
-      // Build padding classes dynamically
-      const pyClass = paddingY > 0 ? `py-${paddingY}` : '';
-      const pxClass = paddingX > 0 ? `px-${paddingX}` : '';
-      
+
       // Build text style classes
       const isBold = textStyles.includes('bold');
       const isItalic = textStyles.includes('italic');
       const isUnderline = textStyles.includes('underline');
       
       // Build inline styles
-      const inlineStyles: React.CSSProperties = {
+
+      const paddingStyles: React.CSSProperties = {
+        ...(typeof paddingTop === 'number' ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
+        ...(typeof paddingBottom === 'number' ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
+        ...(typeof paddingLeft === 'number' ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
+        ...(typeof paddingRight === 'number' ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+      };
+
+      const wrapperStyle: React.CSSProperties = {
         ...nodeStyle,
+        ...(width && width !== 'auto' ? { width, display: 'inline-block' } : { display: 'inline-block' }),
+        ...(backgroundColor ? { backgroundColor } : {}),
+        ...paddingStyles,
+      };
+
+      const innerStyle: React.CSSProperties = {
         ...(fontSize && fontSize !== 1 ? { fontSize: `${fontSize}rem` } : {}),
         ...(fontWeight && fontWeight !== 400 ? { fontWeight } : {}),
-        ...(width && width !== 'auto' ? { width, display: 'inline-block' } : {}),
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
         ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness}px` } : {}),
         ...(color ? { color } : {}),
-        ...(backgroundColor ? { backgroundColor } : {}),
       };
-      
+
+      const nodeClassName = nodeStyleRaw?.className;
+
       return (
-        <Tag
+        <div
           className={cn(
-            align === 'center' && 'text-center',
-            align === 'right' && 'text-right',
-            pyClass,
-            pxClass,
-            isBold && 'font-bold',
-            isItalic && 'italic',
-            isUnderline && 'underline',
-            (node as any).style?.className,
-            !elementFontFamily && nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
             'inline-block max-w-full w-fit align-top break-words',
             interactiveClass,
-            outlineClass
+            outlineClass,
+            nodeClassName,
+            !elementFontFamily && nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
           )}
-          style={inlineStyles}
-          dangerouslySetInnerHTML={{ __html: html }}
+          style={wrapperStyle}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
-        />
+        >
+          <Tag
+            className={cn(
+              align === 'center' && 'text-center',
+              align === 'right' && 'text-right',
+              isBold && 'font-bold',
+              isItalic && 'italic',
+              isUnderline && 'underline',
+              nodeClassName
+            )}
+            style={innerStyle}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        </div>
       );
     }
     case 'button': {
@@ -308,7 +346,7 @@ const renderNode = (
               onSelect={() => onNodeClick?.(sectionId, c.id)}
               render={() => childRendered}
               containerId={node.id}
-              enforceChildFullSize={c.type === 'container'}
+              enforceChildFullSize
             />
           );
         } else {
@@ -363,14 +401,26 @@ export const DynamicPageV2RendererBuilder: React.FC<{
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
 
-  const paddingOverlay = BuilderState.paddingOverlay;
+  const [isInteracting, setIsInteracting] = useState<boolean>(
+    Boolean(BuilderState.draggingNodeId || BuilderState.resizing || BuilderState.gridAdjustingSectionId)
+  );
 
-  const [isInteracting, setIsInteracting] = useState<boolean>(Boolean(BuilderState.draggingNodeId || BuilderState.resizing));
+  const [activePaddingOverlay, setActivePaddingOverlay] = useState(BuilderState.paddingOverlay);
 
   useEffect(() => {
-    return BuilderState.subscribe(() => {
-      setIsInteracting(Boolean(BuilderState.draggingNodeId || BuilderState.resizing));
+    const unsubscribe = BuilderState.subscribe(() => {
+      setIsInteracting(Boolean(BuilderState.draggingNodeId || BuilderState.resizing || BuilderState.gridAdjustingSectionId));
     });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = BuilderState.onPaddingOverlayChange((payload) => setActivePaddingOverlay(payload));
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return (
@@ -422,16 +472,73 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                 let rendered: React.ReactNode;
                 if (hasLayout) {
                   const cachedPx = BuilderState.getNodePixelLayout(node.id);
-                  const hasCustomPx = cachedPx && cachedPx.sectionId === section.id;
+        const hasCustomPx = cachedPx && cachedPx.sectionId === section.id;
                   const x = hasCustomPx ? cachedPx!.x : unitsToPx(node.layout!.units.xu, gridSize);
                   const y = hasCustomPx ? cachedPx!.y : unitsToPx(node.layout!.units.yu, gridSize);
                   const w = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (node.layout?.units.wu ? unitsToPx(node.layout!.units.wu!, gridSize) : undefined);
                   const h = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (node.layout?.units.hu ? unitsToPx(node.layout!.units.hu!, gridSize) : undefined);
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+        rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+
+        const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
+          if (node.type !== 'container') {
+            onUpdateNodeLayout(section.id, nodeId, units as any);
+            return;
+          }
+
+  const prevUnits = node.layout?.units ?? {
+    xu: 0,
+    yu: 0,
+    wu: node.layout?.units?.wu,
+    hu: node.layout?.units?.hu,
+  };
+
+          const nextUnits = {
+            xu: units.xu ?? prevUnits.xu ?? 0,
+            yu: units.yu ?? prevUnits.yu ?? 0,
+            wu: units.wu ?? prevUnits.wu,
+            hu: units.hu ?? prevUnits.hu,
+          };
+
+          onUpdateNodeLayout(section.id, nodeId, nextUnits);
+
+          const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+          const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
+
+          if ((!deltaXu && !deltaYu) || !Array.isArray((node as any).children) || !(node as any).children.length) {
+            return;
+          }
+
+          const deltaPxX = unitsToPx(deltaXu, gridSize);
+          const deltaPxY = unitsToPx(deltaYu, gridSize);
+
+          (node.children ?? []).forEach((child) => {
+            if (!child.layout?.units) return;
+
+            const childUnits = child.layout.units;
+            const updatedChildUnits = {
+              xu: (childUnits.xu ?? 0) + deltaXu,
+              yu: (childUnits.yu ?? 0) + deltaYu,
+              wu: childUnits.wu,
+              hu: childUnits.hu,
+            };
+
+            onUpdateNodeLayout(section.id, child.id, updatedChildUnits);
+
+            const childCache = BuilderState.getNodePixelLayout(child.id);
+            if (childCache && childCache.sectionId === section.id) {
+              BuilderState.setNodePixelLayout(section.id, child.id, {
+                x: (childCache.x ?? 0) + deltaPxX,
+                y: (childCache.y ?? 0) + deltaPxY,
+                w: childCache.w,
+                h: childCache.h,
+              });
+            }
+          });
+        };
 
                   return (
                     <DraggableNode
-                      key={node.id}
+              key={node.id}
                       sectionId={section.id}
                       node={{
                         ...node,
@@ -440,11 +547,11 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                       gridSize={gridSize}
                       defaultSize={{ w, h }}
                       selected={node.id === selectedNodeId}
-                      onCommitLayout={(nodeId, units) => onUpdateNodeLayout(section.id, nodeId, units as any)}
+            onCommitLayout={handleCommitLayout}
                       onSelect={() => onNodeClick?.(section.id, node.id)}
                       render={() => rendered}
                       containerId={`section-content-${section.id}`}
-                      enforceChildFullSize={node.type === 'container'}
+                      enforceChildFullSize
                     />
                   );
                 } else {
@@ -455,8 +562,8 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                 }
               })}
 
-              {paddingOverlay && paddingOverlay.sectionId === section.id && paddingOverlay.nodeId && (
-                <PaddingOverlay layer={paddingOverlay} gridSize={gridSize} />
+              {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && (
+                <PaddingOverlay layer={activePaddingOverlay} gridSize={gridSize} />
               )}
             </div>
           </section>

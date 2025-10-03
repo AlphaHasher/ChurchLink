@@ -283,10 +283,12 @@ export function DraggableNode({
       data-draggable="true"
     >
       <div
-        className="w-full h-full"
+        className={enforceChildFullSize ? 'w-full h-full' : undefined}
         style={{
           pointerEvents: isEditing ? ('auto' as const) : ('none' as const),
           userSelect: isEditing ? ('text' as const) : ('none' as const),
+          width: enforceChildFullSize ? '100%' : undefined,
+          height: enforceChildFullSize ? '100%' : undefined,
         }}
         onBlur={() => BuilderState.stopEditing(sectionId, node.id)}
       >

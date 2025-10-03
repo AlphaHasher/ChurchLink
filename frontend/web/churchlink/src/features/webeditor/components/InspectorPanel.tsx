@@ -6,6 +6,7 @@ import { ColorPicker, ColorPickerAlpha, ColorPickerHue, ColorPickerSelection, Co
 import { NumericDragInput } from "@/shared/components/NumericDragInput";
 import ElementTree from "./ElementTree";
 import FontPicker from "./FontPicker";
+import { BuilderState } from "@/features/webeditor/state/BuilderState";
 
 interface InspectorPanelProps {
   open: boolean;
@@ -251,6 +252,8 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         max={64}
                         step={4}
                         value={sections.find((s) => s.id === selectedSectionId)?.builderGrid?.gridSize ?? 16}
+                        onFocus={() => selectedSectionId && BuilderState.startAdjustingGrid(selectedSectionId)}
+                        onMouseDown={() => selectedSectionId && BuilderState.startAdjustingGrid(selectedSectionId)}
                         onChange={(val) => {
                           setSections((prev) =>
                             prev.map((s) =>
@@ -260,6 +263,10 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
                             )
                           );
                         }}
+                        onBlur={() => selectedSectionId && BuilderState.stopAdjustingGrid(selectedSectionId)}
+                        onMouseUp={() => selectedSectionId && BuilderState.stopAdjustingGrid(selectedSectionId)}
+                        onTouchStart={() => selectedSectionId && BuilderState.startAdjustingGrid(selectedSectionId)}
+                        onTouchEnd={() => selectedSectionId && BuilderState.stopAdjustingGrid(selectedSectionId)}
                         className="w-full"
                       />
                       <div className="text-xs text-muted-foreground mt-1">Grid cell size in pixels (8-64)</div>
