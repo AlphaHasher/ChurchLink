@@ -13,7 +13,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 // URL for Strapi, currently hardcoded to the Android emulator default value.
 // Potentially migrate this into the .env later
-const String StrapiUrl = "http://10.0.2.2:1339";
+const String strapiUrl = "http://10.0.2.2:1339";
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -28,7 +28,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _tilesFuture = DashboardTilesService(StrapiUrl).fetchImageUrls(); // created once
+    _tilesFuture = DashboardTilesService(strapiUrl).fetchImageUrls(); // created once
     _readyFuture = _tilesFuture.then((map) async {
       // Precache *before* first paint
       final futures = <Future<void>>[];
