@@ -47,9 +47,185 @@ class BibleReaderBody extends StatefulWidget {
   State<BibleReaderBody> createState() => _BibleReaderBodyState();
 }
 
-class _BibleReaderBodyState extends State<BibleReaderBody> {
+class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderStateMixin {
   // Map to hold GlobalKeys for each verse for scrolling
   final Map<VerseRef, GlobalKey> _verseKeys = {};
+
+  // Animation controllers for page slide transitions
+  late AnimationController _slideAnimationController;
+  late Animation<Offset> _slideAnimation;
+  bool _isAnimating = false;
+
+  // Interactive drag gesture tracking
+  bool _isDragging = false;
+  double _dragStartX = 0.0;
+  double _dragCurrentX = 0.0;
+  double _dragProgress = 0.0;
+  bool _dragDirection = true; // true = next chapter (left swipe), false = prev chapter (right swipe)
+  
+  // Drag thresholds
+  static const double _dragThreshold = 0.3; // 30% of screen width to trigger page change
+  static const double _velocityThreshold = 300.0; // pixels per second
+
+  // Interactive drag animation
+  void _updateDragAnimation(double progress, bool isNext) {
+    final offset = isNext ? Offset(-progress, 0.0) : Offset(progress, 0.0);
+    _slideAnimation = Tween<Offset>(
+      begin: offset,
+      end: offset,
+    ).animate(_slideAnimationController);
+    
+    if (!_slideAnimationController.isAnimating) {
+      _slideAnimationController.value = 1.0;
+    }
+  }
+
+  // Complete or cancel drag animation
+  Future<void> _completeDragAnimation(bool shouldChangePage, bool isNext) async {
+    _isAnimating = true;
+    
+    if (shouldChangePage) {
+      // Pre-load the new chapter content while animating
+      final contentFuture = _preloadNewChapter(isNext);
+      
+      // Complete the swipe - animate to full offset
+      final targetOffset = isNext ? const Offset(-1.0, 0.0) : const Offset(1.0, 0.0);
+      _slideAnimation = Tween<Offset>(
+        begin: _slideAnimation.value,
+        end: targetOffset,
+      ).animate(CurvedAnimation(
+        parent: _slideAnimationController,
+        curve: Curves.easeOut,
+      ));
+      
+      _slideAnimationController.reset();
+      
+      // Wait for both animation and content loading to complete
+      await Future.wait([
+        _slideAnimationController.forward(),
+        contentFuture,
+      ]);
+      
+      // Now apply the new chapter state and reset animation
+      if (isNext) {
+        _applyNextChapter();
+      } else {
+        _applyPrevChapter();
+      }
+      
+      // Reset slide animation to center for new content
+      _slideAnimation = Tween<Offset>(
+        begin: Offset.zero,
+        end: Offset.zero,
+      ).animate(_slideAnimationController);
+      _slideAnimationController.reset();
+      _slideAnimationController.value = 0.0;
+      
+    } else {
+      // Cancel the swipe - animate back to center
+      _slideAnimation = Tween<Offset>(
+        begin: _slideAnimation.value,
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: _slideAnimationController,
+        curve: Curves.easeOut,
+      ));
+      
+      _slideAnimationController.reset();
+      await _slideAnimationController.forward();
+    }
+    
+    _isAnimating = false;
+    _isDragging = false;
+  }
+
+  // Pre-load new chapter content without changing UI state
+  Future<void> _preloadNewChapter(bool isNext) async {
+    await ElishaBibleRepo.ensureInitialized();
+    
+    if (!_booksReady) return;
+    
+    // Calculate the next chapter/book to preload
+    if (isNext) {
+      final i = _bookIndex(_book);
+      final count = _chapterCount(_book);
+      if (_chapter < count) {
+        // Next chapter in same book - preload it
+        await _repo.getChapter(translation: _translation, book: _book, chapter: _chapter + 1);
+      } else {
+        // Next book - preload first chapter
+        final ni = (i + 1) % _bookNames.length;
+        final nextBook = Books.instance.englishByOrder(ni + 1);
+        await _repo.getChapter(translation: _translation, book: nextBook, chapter: 1);
+      }
+    } else {
+      final i = _bookIndex(_book);
+      if (_chapter > 1) {
+        // Previous chapter in same book - preload it
+        await _repo.getChapter(translation: _translation, book: _book, chapter: _chapter - 1);
+      } else {
+        // Previous book - preload last chapter
+        final pi = (i - 1 + _bookNames.length) % _bookNames.length;
+        final prevBook = Books.instance.englishByOrder(pi + 1);
+        final prevBookChapterCount = _chapterCount(prevBook);
+        await _repo.getChapter(translation: _translation, book: prevBook, chapter: prevBookChapterCount);
+      }
+    }
+  }
+
+  // Apply next chapter state after content is ready
+  void _applyNextChapter() {
+    if (!_booksReady) return;
+    final i = _bookIndex(_book);
+    final count = _chapterCount(_book);
+    if (_chapter < count) {
+      setState(() => _chapter += 1);
+    } else {
+      final ni = (i + 1) % _bookNames.length;
+      setState(() {
+        _book = Books.instance.englishByOrder(ni + 1);
+        _chapter = 1;
+      });
+    }
+    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_mainScrollController.hasClients) {
+        _mainScrollController.jumpTo(0.0);
+      }
+    });
+  }
+
+  // Apply previous chapter state after content is ready
+  void _applyPrevChapter() {
+    if (!_booksReady) return;
+    final i = _bookIndex(_book);
+    if (_chapter > 1) {
+      setState(() => _chapter -= 1);
+    } else {
+      final pi = (i - 1 + _bookNames.length) % _bookNames.length;
+      setState(() {
+        _book = Books.instance.englishByOrder(pi + 1);
+        _chapter = _chapterCount(_book);
+      });
+    }
+    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_mainScrollController.hasClients) {
+        _mainScrollController.jumpTo(0.0);
+      }
+    });
+  }
+
+  // Helper to scroll to the top after loading
+  void _scrollToTop() {
+    if (_mainScrollController.hasClients) {
+      _mainScrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
 
   // Helper to scroll to a verse after loading
   void _scrollToVerse(VerseRef ref) {
@@ -71,6 +247,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   String _lastVerseSearchQuery = '';
   bool _isLoadingNotePage = false;
   ScrollController _searchScrollController = ScrollController();
+  ScrollController _mainScrollController = ScrollController();
   String _searchType = 'Verse';
   bool _showSearch = false;
   String _searchText = '';
@@ -196,6 +373,19 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   void initState() {
     super.initState();
 
+    // Initialize slide animation controller
+    _slideAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideAnimationController,
+      curve: Curves.easeInOut,
+    ));
+
     // Fast note search: load all notes at startup
     Books.instance.ensureLoaded().then((_) {
       _loadAllNotes();
@@ -234,6 +424,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
   @override
   void dispose() {
     _sync.dispose();
+    _searchScrollController.dispose();
+    _mainScrollController.dispose();
+    _slideAnimationController.dispose();
     super.dispose();
   }
 
@@ -279,6 +472,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     return _chapter == _chapterCount(_book) && i == lastBookIndex;
   }
 
+  // Regular navigation (for buttons and jump picker)
   void _nextChapter() {
     if (!_booksReady) return;
     final i = _bookIndex(_book);
@@ -293,6 +487,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       });
     }
     _load();
+    // Reset scroll position to top when changing chapters
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToTop();
+    });
   }
 
   void _prevChapter() {
@@ -308,6 +506,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       });
     }
     _load();
+    // Reset scroll position to top when changing chapters
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToTop();
+    });
   }
 
   Future<void> _openJumpPicker() async {
@@ -332,6 +534,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
       }
 
       _load();
+      // Reset scroll position to top when jumping to a different chapter
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToTop();
+      });
     }
   }
 
@@ -735,10 +941,62 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             children: [
               filteredVerses.isEmpty
                   ? const Center(child: Text('No results found'))
-                  : RefreshIndicator(
-                      onRefresh: _handlePullToRefresh,
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
+                  : GestureDetector(
+                      onHorizontalDragStart: (details) {
+                        if (_isAnimating) return;
+                        _isDragging = true;
+                        _dragStartX = details.globalPosition.dx;
+                        _dragCurrentX = details.globalPosition.dx;
+                        _dragProgress = 0.0;
+                      },
+                      onHorizontalDragUpdate: (details) {
+                        if (!_isDragging || _isAnimating) return;
+                        
+                        _dragCurrentX = details.globalPosition.dx;
+                        final screenWidth = MediaQuery.of(context).size.width;
+                        final dragDistance = _dragCurrentX - _dragStartX;
+                        
+                        // Calculate progress (0.0 to 1.0)
+                        _dragProgress = (dragDistance.abs() / screenWidth).clamp(0.0, 1.0);
+                        
+                        // Determine direction
+                        _dragDirection = dragDistance < 0; // true = next (left swipe), false = prev (right swipe)
+                        
+                        // Check if we can navigate in this direction
+                        final canNavigate = _dragDirection ? !_isAtLastChapter : !_isAtFirstChapter;
+                        
+                        if (canNavigate) {
+                          setState(() {
+                            _updateDragAnimation(_dragProgress, _dragDirection);
+                          });
+                        }
+                      },
+                      onHorizontalDragEnd: (details) {
+                        if (!_isDragging || _isAnimating) return;
+                        
+                        final velocity = details.primaryVelocity ?? 0.0;
+                        final shouldChangePage = _dragProgress > _dragThreshold || 
+                                               velocity.abs() > _velocityThreshold;
+                        
+                        final canNavigate = _dragDirection ? !_isAtLastChapter : !_isAtFirstChapter;
+                        
+                        if (canNavigate && shouldChangePage) {
+                          _completeDragAnimation(true, _dragDirection);
+                        } else {
+                          _completeDragAnimation(false, _dragDirection);
+                        }
+                      },
+                      onHorizontalDragCancel: () {
+                        if (!_isDragging || _isAnimating) return;
+                        _completeDragAnimation(false, _dragDirection);
+                      },
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child: RefreshIndicator(
+                          onRefresh: _handlePullToRefresh,
+                          child: SingleChildScrollView(
+                            controller: _mainScrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(12, 8, 12, _offline ? 96 : 24),
                         child: (() {
                           for (final v in filteredVerses) {
@@ -756,6 +1014,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         })(),
                       ),
                     ),
+                  ),
+                ),
               if (_offline)
                 Positioned(
                   left: 12,
