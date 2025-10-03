@@ -8,6 +8,8 @@ import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 // URL for Strapi, currently hardcoded to the Android emulator default value.
 // Potentially migrate this into the .env later
@@ -21,11 +23,21 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   late final Future<Map<String, String>> _tilesFuture;
+  late final Future<Map<String, String>> _readyFuture;
 
   @override
   void initState() {
     super.initState();
     _tilesFuture = DashboardTilesService(StrapiUrl).fetchImageUrls(); // created once
+    _readyFuture = _tilesFuture.then((map) async {
+      // Precache *before* first paint
+      final futures = <Future<void>>[];
+      for (final url in map.values) {
+        futures.add(precacheImage(NetworkImage(url), context));
+      }
+      await Future.wait(futures);
+      return map;
+    });
   }
 
   @override
@@ -34,7 +46,7 @@ class _DashboardPageState extends State<DashboardPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: FutureBuilder<Map<String, String>>(
-            future: DashboardTilesService(StrapiUrl).fetchImageUrls(),
+            future: _readyFuture,
             builder: (context, snapshot) {
               // Use Strapi results when ready; empty map while loading/error
               final images = snapshot.data ?? const <String, String>{};
@@ -67,7 +79,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             decoration: imageUrl != null
                                 ? BoxDecoration(
                                     image: DecorationImage(
-                                      image: NetworkImage(imageUrl),
+                                      image: CachedNetworkImageProvider(imageUrl),
                                       fit: BoxFit.cover,
                                     ),
                                   )
@@ -84,7 +96,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                         gradient: LinearGradient(
                                           begin: Alignment.bottomCenter,
                                           end: Alignment.topCenter,
-                                          colors: [Colors.black54, Colors.transparent],
+                                          colors: [Color(0xB3000000), Colors.transparent],
                                         ),
                                       ),
                                     ),
