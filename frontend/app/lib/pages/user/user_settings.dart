@@ -194,6 +194,56 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
+  // Show the theme selection bottom sheet
+  void _showThemeSheet() {
+    final current = ThemeController.instance.mode;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.wb_sunny_outlined),
+                title: const Text('Light'),
+                trailing: current == ThemeMode.light ? const Icon(Icons.check) : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.light);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.brightness_auto),
+                title: const Text('System'),
+                trailing: current == ThemeMode.system ? const Icon(Icons.check) : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.system);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.nights_stay_outlined),
+                title: const Text('Dark'),
+                trailing: current == ThemeMode.dark ? const Icon(Icons.check) : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.dark);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
@@ -218,6 +268,13 @@ class _UserSettingsState extends State<UserSettings> {
           if (email != null && email.trim().isNotEmpty) return email.trim();
           return user?.email ?? "(Please set your display email)";
         })();
+
+    final mode = ThemeController.instance.mode;
+    final themeLabel = switch (mode) {
+      ThemeMode.light  => 'Light',
+      ThemeMode.dark   => 'Dark',
+      ThemeMode.system => 'System',
+    };
 
     final List<Map<String, dynamic>> settingsCategories = [
       {
@@ -320,23 +377,8 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.dark_mode,
             'title': 'Theme',
-            'subtitle': 'Light / System / Dark',
-            // No 'ontap' here; the control is inline:
-            'trailing': AnimatedBuilder(
-              animation: ThemeController.instance,
-              builder: (context, _) {
-                final mode = ThemeController.instance.mode;
-                return DropdownButton<ThemeMode>(
-                  value: mode,
-                  onChanged: (m) => ThemeController.instance.setMode(m!),
-                  items: const [
-                    DropdownMenuItem(value: ThemeMode.light,  child: Text('Light')),
-                    DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
-                    DropdownMenuItem(value: ThemeMode.dark,   child: Text('Dark')),
-                  ],
-                );
-              },
-            ),
+            'subtitle': themeLabel,
+            'ontap': _showThemeSheet,
           },
           {
             'icon': Icons.language,
