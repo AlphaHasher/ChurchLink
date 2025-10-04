@@ -23,8 +23,8 @@ class AppTheme {
       border: OutlineInputBorder(),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFF5F5F7),
-      foregroundColor: Color(0xFF222222),
+      backgroundColor: Color(0xFF7CA6A6), // was 0xFFF5F5F7
+      foregroundColor: Colors.white,      // was 0xFF222222
       elevation: 0,
     ),
   );
@@ -51,7 +51,7 @@ class AppTheme {
       border: OutlineInputBorder(),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF232323),
+      backgroundColor: Color(0xFF1B1B1B), // was 0xFF232323 (now darker than page)
       foregroundColor: Color(0xFFF5F5F7),
       elevation: 0,
     ),
