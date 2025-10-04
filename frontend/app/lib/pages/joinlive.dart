@@ -49,7 +49,6 @@ class _JoinLiveState extends State<JoinLive> {
       appBar: AppBar(
         title: const Text('YouTube Live'),
         centerTitle: true,
-        // no colors here — they come from AppTheme.appBarTheme
       ),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),

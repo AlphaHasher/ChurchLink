@@ -21,14 +21,13 @@ class _BiblePageState extends State<BiblePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromRGBO(37, 37, 37, 1),
-        iconTheme: const IconThemeData(color: Colors.white),
+        //iconTheme: const IconThemeData(color: Colors.white),
         title: const Padding(
           padding: EdgeInsets.only(left: 60, right: 60),
-          child: Text('Bible', style: TextStyle(color: Colors.white)),
+          //child: Text('Bible', style: TextStyle(color: Colors.white)),
+          child: Text('Bible'),
         ),
       ),
-      backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
       body: FutureBuilder<void>(
         future: _boot,
         builder: (context, snap) {
