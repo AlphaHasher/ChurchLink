@@ -589,7 +589,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                   _notificationEnabled = value;
                 });
               },
-              activeThumbColor: const Color.fromRGBO(150, 130, 255, 1),
+              activeColor: const Color.fromRGBO(150, 130, 255, 1),
             ),
           ],
         ),

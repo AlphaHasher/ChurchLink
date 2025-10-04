@@ -131,7 +131,7 @@ class BiblePlanService {
   }) async {
     try {
       final response = await _client.put(
-        '$_baseUrl/my-bible-plans/notification-settings/$planId',
+        '$_baseUrl/bible-plan-notifications/user-preference/$planId',
         data: {
           'notification_time': notificationTime,
           'notification_enabled': notificationEnabled,
@@ -230,6 +230,127 @@ class BiblePlanService {
       );
     } catch (e) {
       logger.e('Error toggling passage completion: $e');
+      rethrow;
+    }
+  }
+
+  // Bible Plan Notification Methods
+
+  /// Get available notification preference types
+  Future<Map<String, dynamic>> getAvailableNotificationPreferences() async {
+    try {
+      final response = await _client.get('$_baseUrl/bible-plan-notifications/available-preferences');
+      
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      
+      return {};
+    } catch (e) {
+      logger.e('Error fetching available notification preferences: $e');
+      rethrow;
+    }
+  }
+
+  /// Get current user's notification preferences for all Bible plans
+  Future<List<BiblePlanNotificationPreference>> getMyNotificationPreferences() async {
+    try {
+      final response = await _client.get('$_baseUrl/bible-plan-notifications/my-preferences');
+      
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final preferences = data['preferences'] as List<dynamic>? ?? [];
+        
+        return preferences
+            .map((pref) => BiblePlanNotificationPreference.fromJson(pref as Map<String, dynamic>))
+            .toList();
+      }
+      
+      return [];
+    } catch (e) {
+      logger.e('Error fetching notification preferences: $e');
+      rethrow;
+    }
+  }
+
+  /// Update notification preferences for a specific Bible plan
+  Future<bool> updateBiblePlanNotificationPreference({
+    required String planId,
+    String? notificationTime,
+    required bool notificationEnabled,
+    String? userTimezone,
+  }) async {
+    try {
+      final response = await _client.put(
+        '$_baseUrl/bible-plan-notifications/user-preference/$planId',
+        data: {
+          'notification_time': notificationTime,
+          'notification_enabled': notificationEnabled,
+          'user_timezone': userTimezone,
+        },
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      logger.e('Error updating Bible plan notification preference: $e');
+      rethrow;
+    }
+  }
+
+  /// Update device-level Bible plan notification preference
+  Future<bool> updateDeviceBiblePlanPreference({
+    required String deviceToken,
+    required bool enabled,
+  }) async {
+    try {
+      final response = await _client.put(
+        '$_baseUrl/bible-plan-notifications/device-preference',
+        data: {
+          'token': deviceToken,
+          'enabled': enabled,
+        },
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      logger.e('Error updating device Bible plan preference: $e');
+      rethrow;
+    }
+  }
+
+  /// Send immediate Bible plan notification to current user
+  Future<bool> sendImmediateNotification({
+    required String planId,
+    String? customMessage,
+  }) async {
+    try {
+      final response = await _client.post(
+        '$_baseUrl/bible-plan-notifications/send-immediate',
+        data: {
+          'plan_id': planId,
+          if (customMessage != null) 'message': customMessage,
+        },
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      logger.e('Error sending immediate notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Get notification statistics (admin endpoint)
+  Future<Map<String, dynamic>> getNotificationStats() async {
+    try {
+      final response = await _client.get('$_baseUrl/bible-plan-notifications/stats');
+      
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      
+      return {};
+    } catch (e) {
+      logger.e('Error fetching notification stats: $e');
       rethrow;
     }
   }

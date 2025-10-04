@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bson import ObjectId
 from bson.errors import InvalidId
+import os
 
 from mongo.database import DB
 from models.bible_plan_tracker import (
@@ -113,6 +114,11 @@ async def subscribe_to_bible_plan(
     if not inserted:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to subscribe to plan")
     
+    # Set user timezone to LOCAL_TIMEZONE for proper notification timing
+    if notification_time:
+        local_timezone = os.getenv('LOCAL_TIMEZONE', 'America/Los_Angeles')
+        await update_user_bible_plan_notifications(uid, plan_id, notification_time, notification_enabled, local_timezone)
+
     return {"success": True, "message": "Successfully subscribed to Bible plan"}
 
 
@@ -208,7 +214,9 @@ async def update_notification_settings(
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not subscribed to this plan")
     
-    updated = await update_user_bible_plan_notifications(uid, plan_id, notification_time, notification_enabled)
+    # Use LOCAL_TIMEZONE for proper notification timing
+    local_timezone = os.getenv('LOCAL_TIMEZONE', 'America/Los_Angeles')
+    updated = await update_user_bible_plan_notifications(uid, plan_id, notification_time, notification_enabled, local_timezone)
 
     if not updated:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update notification settings")
