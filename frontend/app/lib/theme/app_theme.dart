@@ -1,0 +1,59 @@
+import 'package:flutter/material.dart';
+
+class AppTheme {
+  static ThemeData light = ThemeData(
+    useMaterial3: true,
+    colorScheme: const ColorScheme(
+      brightness: Brightness.light,
+      primary: Color(0xFF7CA6A6), // Accent (logo blue-green)
+      onPrimary: Colors.white,
+      secondary: Color(0xFF3F51B5), // Secondary accent (nav icon)
+      onSecondary: Colors.white,
+      background: Color(0xFFF5F5F7), // Light gray background
+      onBackground: Color(0xFF222222), // Main text
+      surface: Color(0xFFFFFFFF), // Card/input background
+      onSurface: Color(0xFF222222),
+      error: Color(0xFFB00020),
+      onError: Colors.white,
+    ),
+    scaffoldBackgroundColor: const Color(0xFFF5F5F7),
+    inputDecorationTheme: const InputDecorationTheme(
+      fillColor: Color(0xFFF0F0F0), // Input background
+      filled: true,
+      border: OutlineInputBorder(),
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFFF5F5F7),
+      foregroundColor: Color(0xFF222222),
+      elevation: 0,
+    ),
+  );
+
+  static ThemeData dark = ThemeData(
+    useMaterial3: true,
+    colorScheme: const ColorScheme(
+      brightness: Brightness.dark,
+      primary: Color(0xFF7CA6A6), // Accent (logo blue-green)
+      onPrimary: Colors.black,
+      secondary: Color(0xFF3F51B5), // Secondary accent (nav icon)
+      onSecondary: Colors.white,
+      background: Color(0xFF232323), // Dark background
+      onBackground: Color(0xFFF5F5F7), // Main text
+      surface: Color(0xFF2C2C2C), // Card/input background
+      onSurface: Color(0xFFF5F5F7),
+      error: Color(0xFFCF6679),
+      onError: Colors.black,
+    ),
+    scaffoldBackgroundColor: const Color(0xFF232323),
+    inputDecorationTheme: const InputDecorationTheme(
+      fillColor: Color(0xFF2C2C2C), // Input background
+      filled: true,
+      border: OutlineInputBorder(),
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF232323),
+      foregroundColor: Color(0xFFF5F5F7),
+      elevation: 0,
+    ),
+  );
+}
