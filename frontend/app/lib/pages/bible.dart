@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../features/bible/presentation/pages/bible_reader_body.dart';
 import '../features/bible/data/bible_repo_elisha.dart';
-import 'my_bible_plans_page.dart';
+import '../helpers/bible_plan_auth_utils.dart';
 
 class BiblePage extends StatefulWidget {
   const BiblePage({super.key});
@@ -32,11 +32,11 @@ class _BiblePageState extends State<BiblePage> {
           IconButton(
             icon: const Icon(Icons.list_alt),
             onPressed: () {
-              Navigator.push(
+              // Allow navigation to page to show the login reminder card
+              BiblePlanAuthUtils.navigateToMyBiblePlans(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const MyBiblePlansPage(),
-                ),
+                allowPageAccess: true,
+                showLoginReminder: false,
               );
             },
             tooltip: 'My Reading Plans',

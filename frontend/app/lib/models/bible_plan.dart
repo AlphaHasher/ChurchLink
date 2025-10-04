@@ -411,3 +411,61 @@ class UserBiblePlanWithDetails {
     return subscription.startDate.add(Duration(days: day - 1));
   }
 }
+
+/// Bible plan notification preference for a specific plan
+class BiblePlanNotificationPreference {
+  final String planId;
+  final bool notificationEnabled;
+  final String? notificationTime;
+  final DateTime startDate;
+  final DateTime subscribedAt;
+
+  BiblePlanNotificationPreference({
+    required this.planId,
+    required this.notificationEnabled,
+    this.notificationTime,
+    required this.startDate,
+    required this.subscribedAt,
+  });
+
+  factory BiblePlanNotificationPreference.fromJson(Map<String, dynamic> json) {
+    return BiblePlanNotificationPreference(
+      planId: json['plan_id'] as String,
+      notificationEnabled: json['notification_enabled'] as bool,
+      notificationTime: json['notification_time'] as String?,
+      startDate: DateTime.parse(json['start_date'] as String),
+      subscribedAt: DateTime.parse(json['subscribed_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'plan_id': planId,
+      'notification_enabled': notificationEnabled,
+      'notification_time': notificationTime,
+      'start_date': startDate.toIso8601String(),
+      'subscribed_at': subscribedAt.toIso8601String(),
+    };
+  }
+}
+
+/// Available notification preference type
+class NotificationPreferenceType {
+  final String key;
+  final String description;
+  final bool defaultValue;
+
+  NotificationPreferenceType({
+    required this.key,
+    required this.description,
+    required this.defaultValue,
+  });
+
+  factory NotificationPreferenceType.fromJson(String key, Map<String, dynamic> json) {
+    return NotificationPreferenceType(
+      key: key,
+      description: json['description'] as String,
+      defaultValue: json['default'] as bool,
+    );
+  }
+}

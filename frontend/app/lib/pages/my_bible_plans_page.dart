@@ -6,6 +6,9 @@ import '../services/bible_plan_service.dart';
 import '../widgets/days_window.dart';
 import 'bible_plans_list_page.dart';
 import '../widgets/days_pagination_header.dart';
+import '../firebase/firebase_auth_service.dart';
+import '../widgets/login_reminder.dart';
+import '../components/auth_popup.dart';
 
 /// Main page showing user's subscribed Bible plans with progress tracking
 class MyBiblePlansPage extends StatefulWidget {
@@ -17,6 +20,7 @@ class MyBiblePlansPage extends StatefulWidget {
 
 class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBindingObserver {
   final BiblePlanService _service = BiblePlanService();
+  final FirebaseAuthService _authService = FirebaseAuthService();
   List<UserBiblePlanWithDetails>? _plans;
   bool _isLoading = false;
   String? _errorMessage;
@@ -42,8 +46,22 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
     }
   }
 
+  bool _isUserLoggedIn() {
+    return _authService.getCurrentUser() != null;
+  }
+
   Future<void> _refreshPlans({bool showLoader = true}) async {
     if (!mounted) return;
+
+    // Check if user is logged in first
+    if (!_isUserLoggedIn()) {
+      setState(() {
+        _plans = null;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      return;
+    }
 
     setState(() {
       if (showLoader || _plans == null) {
@@ -77,8 +95,9 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
   @override
   Widget build(BuildContext context) {
     final hasPlansLoaded = _plans != null;
+    final isLoggedIn = _isUserLoggedIn();
 
-    if (_isLoading && !hasPlansLoaded) {
+    if (_isLoading && !hasPlansLoaded && isLoggedIn) {
       return Scaffold(
         appBar: _buildAppBar(),
         backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
@@ -114,17 +133,32 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
         'My Reading Plans',
         style: TextStyle(color: Colors.white),
       ),
-      actions: [
+      actions: _isUserLoggedIn() ? [
         IconButton(
           icon: const Icon(Icons.add),
           onPressed: _navigateToAddPlan,
           tooltip: 'Add New Plan',
         ),
-      ],
+      ] : [],
     );
   }
 
   Widget _buildPlansContent() {
+    // Check if user is logged in first
+    if (!_isUserLoggedIn()) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          LoginReminderCard(
+            onLoginSuccess: () {
+              // Refresh the page after successful login
+              _refreshPlans();
+            },
+          ),
+        ],
+      );
+    }
+
     if (_errorMessage != null && (_plans == null || _plans!.isEmpty)) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -235,6 +269,37 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
   }
 
   void _navigateToAddPlan() async {
+    // Additional safety check for authentication
+    if (!_isUserLoggedIn()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.lock_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('Please sign in to add new reading plans'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+          action: SnackBarAction(
+            label: 'Sign In',
+            textColor: Colors.white,
+            onPressed: () async {
+              await AuthPopup.show(context);
+              // Refresh after potential login
+              await Future.delayed(const Duration(milliseconds: 500));
+              if (_isUserLoggedIn()) {
+                _navigateToAddPlan(); // Retry navigation
+              }
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -1121,7 +1186,7 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
               'Daily Reminder',
               style: TextStyle(color: Colors.white),
             ),
-            activeThumbColor: const Color.fromRGBO(150, 130, 255, 1),
+            activeColor: const Color.fromRGBO(150, 130, 255, 1),
           ),
           if (_enabled) ...[
             const SizedBox(height: 16),

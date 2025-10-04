@@ -73,15 +73,20 @@ async def update_user_bible_plan_notifications(
     plan_id: str,
     notification_time: Optional[str],
     notification_enabled: bool,
+    user_timezone: Optional[str] = None,
 ) -> bool:
+    update_data = {
+        "notification_time": notification_time,
+        "notification_enabled": notification_enabled,
+    }
+    
+    # Only update user_timezone if provided
+    if user_timezone is not None:
+        update_data["user_timezone"] = user_timezone
+    
     result = await DB.db[_COLLECTION_NAME].update_one(
         {"uid": uid, "plan_id": plan_id},
-        {
-            "$set": {
-                "notification_time": notification_time,
-                "notification_enabled": notification_enabled,
-            }
-        },
+        {"$set": update_data},
     )
     return result.modified_count > 0
 
