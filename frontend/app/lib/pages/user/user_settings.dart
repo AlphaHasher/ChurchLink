@@ -22,6 +22,8 @@ import 'family_members_page.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/theme/theme_controller.dart';
+
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -318,7 +320,23 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.dark_mode,
             'title': 'Theme',
-            'subtitle': 'Light or dark mode',
+            'subtitle': 'Light / System / Dark',
+            // No 'ontap' here; the control is inline:
+            'trailing': AnimatedBuilder(
+              animation: ThemeController.instance,
+              builder: (context, _) {
+                final mode = ThemeController.instance.mode;
+                return DropdownButton<ThemeMode>(
+                  value: mode,
+                  onChanged: (m) => ThemeController.instance.setMode(m!),
+                  items: const [
+                    DropdownMenuItem(value: ThemeMode.light,  child: Text('Light')),
+                    DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
+                    DropdownMenuItem(value: ThemeMode.dark,   child: Text('Dark')),
+                  ],
+                );
+              },
+            ),
           },
           {
             'icon': Icons.language,
@@ -404,7 +422,7 @@ class _UserSettingsState extends State<UserSettings> {
                   if (_isUploading)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withOpacity(0.3),
                         child: const Center(
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
@@ -465,7 +483,8 @@ class _UserSettingsState extends State<UserSettings> {
               leading: Icon(item['icon'] as IconData, color: ssbcGray),
               title: Text(item['title'] as String),
               subtitle: Text(item['subtitle'] as String),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              trailing: item['trailing'] as Widget? 
+                  ?? const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: item['ontap'] as void Function()?,
             ),
           ),
