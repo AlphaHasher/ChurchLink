@@ -22,6 +22,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/services/deep_linking_service.dart';
 import 'package:app/services/fcm_token_service.dart';
 import 'package:app/gates/auth_gate.dart';
+import 'package:app/theme/app_theme.dart';
+import 'package:app/theme/theme_controller.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -39,6 +42,9 @@ Future<void> main() async {
 
   // Initialize Firebase
   await Firebase.initializeApp();
+
+  // Load saved theme mode BEFORE runApp
+  await ThemeController.instance.load();
 
   // Initialize DeepLinkingService with the navigator key
   DeepLinkingService.initialize(navigatorKey);
@@ -83,41 +89,37 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color.fromARGB(255, 22, 77, 60),
-    );
-    return MaterialApp(
-      title: 'ChurchLink',
-      navigatorKey: navigatorKey, // Allows navigation from notifications
-      theme: ThemeData(
-        useMaterial3: false,
-        colorScheme: colorScheme,
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Colors.black,
-          elevation: 0,
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white70,
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-        ),
-      ),
-      home: AuthGate(child: const MyHomePage()),
-      routes: {
-        '/home': (context) => const DashboardPage(),
-        '/bible': (context) => const BiblePage(),
-        '/sermons': (context) => const SermonsPage(),
-        '/events': (context) => const EventsPage(),
-        '/profile': (context) => const UserSettings(),
-        '/live': (context) => const JoinLive(),
-        '/bulletin': (context) => const WeeklyBulletin(),
-        '/giving': (context) => const Giving(),
-        '/ministries': (context) => const Ministries(),
-        '/contact': (context) => const Contact(),
+    final c = ThemeController.instance;
+
+    return AnimatedBuilder(
+      animation: c,
+      builder: (_, __) {
+        return MaterialApp(
+          title: 'ChurchLink',
+          navigatorKey: navigatorKey,
+          theme: AppTheme.light,        // from app_theme.dart
+          darkTheme: AppTheme.dark,     // from app_theme.dart
+          themeMode: c.mode,            // reacts to toggle
+
+          home: AuthGate(child: const MyHomePage()),
+          routes: {
+            '/home': (context) => const DashboardPage(),
+            '/bible': (context) => const BiblePage(),
+            '/sermons': (context) => const SermonsPage(),
+            '/events': (context) => const EventsPage(),
+            '/profile': (context) => const UserSettings(),
+            '/live': (context) => const JoinLive(),
+            '/bulletin': (context) => const WeeklyBulletin(),
+            '/giving': (context) => const Giving(),
+            '/ministries': (context) => const Ministries(),
+            '/contact': (context) => const Contact(),
+          },
+        );
       },
     );
   }
 }
+
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -198,6 +200,8 @@ class _MyHomePageState extends State<MyHomePage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: _screens[tabProvider.currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -210,6 +214,10 @@ class _MyHomePageState extends State<MyHomePage> {
         unselectedFontSize: 9,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
+        // Use Theme Colors
+        backgroundColor: theme.colorScheme.surface,
+        selectedItemColor: theme.colorScheme.primary,
+        unselectedItemColor: theme.colorScheme.onSurfaceVariant,
         items: _buildNavItems(tabProvider.tabs),
       ),
     );
@@ -240,62 +248,52 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'home':
         return Icon(
           Icons.home,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'menu_book':
       case 'bible':
         return Icon(
           Icons.menu_book,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'play_circle':
       case 'cross':
       case 'sermons':
         return Icon(
           Icons.church,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'event':
       case 'events':
         return Icon(
           Icons.event,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'person':
       case 'profile':
         return Icon(
           Icons.person,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'live_tv':
       case 'live':
         return Icon(
           Icons.live_tv,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'article':
       case 'bulletin':
         return Icon(
           Icons.article,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'volunteer_activism':
       case 'giving':
         return Icon(
           Icons.volunteer_activism,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'groups':
       case 'ministries':
         return Icon(
           Icons.groups,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'contact_mail':
       case 'contact':
         return Icon(
           Icons.contact_mail,
-          color: isActive ? Colors.white : Colors.white70,
         );
       default:
         // Fallback to tab name if icon doesn't match
@@ -308,55 +306,45 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'home':
         return Icon(
           Icons.home,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'bible':
         return Icon(
           Icons.menu_book,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'sermons':
         return Icon(
           Icons.church,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'events':
         return Icon(
           Icons.event,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'profile':
         return Icon(
           Icons.person,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'live':
         return Icon(
           Icons.live_tv,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'bulletin':
         return Icon(
           Icons.article,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'giving':
         return Icon(
           Icons.volunteer_activism,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'ministries':
         return Icon(
           Icons.groups,
-          color: isActive ? Colors.white : Colors.white70,
         );
       case 'contact':
         return Icon(
           Icons.contact_mail,
-          color: isActive ? Colors.white : Colors.white70,
         );
       default:
-        return Icon(Icons.tab, color: isActive ? Colors.white : Colors.white70);
+        return Icon(Icons.tab);
     }
   }
 }
