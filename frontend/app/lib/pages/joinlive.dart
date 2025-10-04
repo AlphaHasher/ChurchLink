@@ -47,27 +47,16 @@ class _JoinLiveState extends State<JoinLive> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 255, 0, 0),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('YouTube Live'),
         centerTitle: true,
-        title: const Text(
-          "YouTube Live",
-          style: TextStyle(color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        // no colors here — they come from AppTheme.appBarTheme
       ),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
         child: Center(
-          child:
-              (_streamIds.isEmpty)
-                  ? NoLivestreams(channelLink: _channelLink)
-                  : StreamViewer(streamIds: _streamIds),
+          child: (_streamIds.isEmpty)
+              ? NoLivestreams(channelLink: _channelLink)
+              : StreamViewer(streamIds: _streamIds),
         ),
       ),
     );
