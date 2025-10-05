@@ -100,10 +100,10 @@ const BiblePlanManager = () => {
   };
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="flex h-full min-h-screen bg-background text-foreground">
       {isLoadingPlan ? (
         <div className="flex items-center justify-center w-full">
-          <div className="text-lg text-gray-600">Loading plan...</div>
+          <div className="text-lg text-muted-foreground">Loading plan...</div>
         </div>
       ) : (
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -127,8 +127,8 @@ const BiblePlanManager = () => {
         {/* Main Content Area */}
         <div className="flex-1 p-6">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Bible Plan Manager</h1>
-            <p className="text-gray-600 mt-2">Create and manage Bible reading plans for your congregation</p>
+            <h1 className="text-2xl font-bold text-foreground">Bible Plan Manager</h1>
+            <p className="mt-2 text-muted-foreground">Create and manage Bible reading plans for your congregation</p>
           </div>
           
           <PlanCalendar 

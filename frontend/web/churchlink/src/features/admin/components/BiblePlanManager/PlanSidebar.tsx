@@ -252,14 +252,14 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
             >
               <div className="flex flex-col">
                 <div className="font-medium">{planItem.name}</div>
-                <div className="text-xs text-gray-400">{planItem.duration} days</div>
+                <div className="text-xs text-muted-foreground">{planItem.duration} days</div>
               </div>
               {type === 'userPlan' && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={(e) => handleDeletePlan(planItem, e)}
-                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
@@ -405,7 +405,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
   };
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 p-6 overflow-y-auto">
+    <div className="w-80 border-r border-border bg-card p-6 overflow-y-auto">
       <div className="space-y-6">
         {/* Plan Name */}
         <div className="space-y-2">
@@ -483,7 +483,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
         )}
 
         {/* Action Buttons */}
-        <div className="space-y-3 pt-6 border-t border-gray-200">
+  <div className="space-y-3 border-t border-border pt-6">
           <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileSelected} />
           <Button onClick={handleSavePlan} className="w-full">
             <Save className="w-4 h-4 mr-2" />
@@ -528,7 +528,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
                   applyPlan(selectedPlan.plan, selectedPlan.type);
                 }
               }}
-              className="bg-red-600 hover:bg-red-700"
+              variant="destructive"
             >
               Yes, Replace Plan
             </AlertDialogAction>
@@ -546,7 +546,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowNameConflictDialog(false); setOverrideTargetId(null); }}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmOverride} className="bg-red-600 hover:bg-red-700">Override</AlertDialogAction>
+            <AlertDialogAction onClick={confirmOverride} variant="destructive">Override</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -561,7 +561,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setPlanToDelete(null); }}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeletePlan} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+    <AlertDialogAction onClick={confirmDeletePlan} variant="destructive">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
