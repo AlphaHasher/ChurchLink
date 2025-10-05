@@ -61,21 +61,25 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    
     // Base style (caller’s style > theme > default), with consistent line height.
     final base = (widget.baseStyle ??
-            Theme.of(context).textTheme.bodyLarge ??
-            const TextStyle(
-              fontSize: 16,
-            ))
-        .copyWith(height: widget.lineHeight);
+            theme.textTheme.bodyLarge ??
+            const TextStyle(fontSize: 16))
+        .copyWith(
+          height: widget.lineHeight,
+          color: (widget.baseStyle?.color ?? theme.textTheme.bodyLarge?.color) ?? cs.onSurface,
+        );
 
     final numberStyle = base.copyWith(
       fontSize: (base.fontSize ?? 16) * 0.70,
-      color: Color.fromRGBO(255, 255, 255, 0.5),
+      color: cs.onSurface.withOpacity(0.60),
     );
 
     final headingStyle = base.copyWith(
-      color: Colors.white,
+      color: cs.onSurface,
       fontSize: (base.fontSize ?? 16) * 1.4,
       fontWeight: FontWeight.w700,
     );
@@ -129,6 +133,7 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
           ..._buildInlineSpans(
             txt.trim(),
             base,
+            cs,
             recognizer,
             switch (highlight) {
               HighlightColor.yellow => Colors.yellow.withValues(alpha: .28),
@@ -166,24 +171,25 @@ extension on _FlowingChapterTextState {
   List<InlineSpan> _buildInlineSpans(
     String text,
     TextStyle base,
+    ColorScheme cs,
     GestureRecognizer recognizer,
     Color? bg,
   ) {
     // Split by our marker ⟦tag⟧...⟦/tag⟧
     final spans = <InlineSpan>[];
-    TextStyle current = base.copyWith(color: Colors.white, backgroundColor: bg);
+    TextStyle current = base.copyWith(backgroundColor: bg);
     final regex = RegExp(r'⟦(/?)(it|bd|bdit|sc|wj)⟧');
     int idx = 0;
     final matches = regex.allMatches(text).toList();
     final stack = <String>[];
     void pushStyle(String tag) {
       stack.add(tag);
-      current = _applyTagStyle(base, bg, stack);
+      current = _applyTagStyle(base, cs, bg, stack);
     }
     void popStyle(String tag) {
       if (stack.isNotEmpty && stack.last == tag) {
         stack.removeLast();
-        current = _applyTagStyle(base, bg, stack);
+        current = _applyTagStyle(base, cs, bg, stack);
       }
     }
 
@@ -206,8 +212,8 @@ extension on _FlowingChapterTextState {
     return spans;
   }
 
-  TextStyle _applyTagStyle(TextStyle base, Color? bg, List<String> stack) {
-    TextStyle s = base.copyWith(color: Colors.white, backgroundColor: bg);
+  TextStyle _applyTagStyle(TextStyle base, ColorScheme cs, Color? bg, List<String> stack) {
+    TextStyle s = base.copyWith(backgroundColor: bg);
     bool ital = false, bold = false, smallCaps = false, red = false;
     for (final t in stack) {
       if (t == 'it') ital = true;
@@ -219,7 +225,7 @@ extension on _FlowingChapterTextState {
     if (bold) s = s.copyWith(fontWeight: FontWeight.w600);
     if (ital) s = s.copyWith(fontStyle: FontStyle.italic);
     if (smallCaps) s = s.copyWith(letterSpacing: 0.5, fontFeatures: const [FontFeature.enable('smcp')]);
-    if (red) s = s.copyWith(color: Colors.redAccent);
+    if (red) s = s.copyWith(color: cs.error);
     return s;
   }
 }
