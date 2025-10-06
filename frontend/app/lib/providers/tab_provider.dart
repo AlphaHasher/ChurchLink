@@ -146,4 +146,11 @@ class TabProvider extends ChangeNotifier {
   bool hasTab(String name) {
     return getTabIndexByName(name) != null;
   }
+
+  void setTabsForTest(List<Map<String, dynamic>> t) {
+    _tabs = t;
+    _isLoaded = true;
+    _currentIndex = 0;
+    notifyListeners();
+  }
 }

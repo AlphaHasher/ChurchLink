@@ -452,6 +452,7 @@ END:VCALENDAR
   Widget build(BuildContext context) {
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
+      key: const ValueKey('screen-events'),
       appBar: AppBar(
         backgroundColor: ssbcGray,
         iconTheme: const IconThemeData(color: Colors.white),

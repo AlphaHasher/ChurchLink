@@ -11,6 +11,7 @@ class _MinistriesState extends State<Ministries> {
   @override
   Widget build(BuildContext context) {
           return Scaffold(
+            key: const ValueKey('screen-ministries'),
             appBar: AppBar(
             backgroundColor: const Color.fromARGB(159, 144, 79, 230),
              iconTheme: const IconThemeData(

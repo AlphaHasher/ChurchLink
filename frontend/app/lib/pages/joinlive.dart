@@ -46,6 +46,7 @@ class _JoinLiveState extends State<JoinLive> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('screen-joinlive'),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 255, 0, 0),
         iconTheme: const IconThemeData(color: Colors.white),
