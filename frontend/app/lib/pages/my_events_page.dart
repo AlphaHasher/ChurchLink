@@ -110,6 +110,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
       if (success) {
         // Show success message
         if (mounted) {
+          final theme = Theme.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -117,7 +118,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
                     ? 'RSVP cancelled for ${eventRef.effectiveDisplayName}'
                     : 'Your RSVP has been cancelled',
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: theme.colorScheme.primary,
             ),
           );
         }
@@ -128,10 +129,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
         }
       } else {
         if (mounted) {
+          final theme = Theme.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to cancel RSVP'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Failed to cancel RSVP'),
+              backgroundColor: theme.colorScheme.error,
             ),
           );
         }
@@ -141,10 +143,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
       if (mounted) Navigator.of(context).pop();
 
       if (mounted) {
+        final theme = Theme.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: theme.colorScheme.error,
           ),
         );
       }
@@ -153,16 +156,8 @@ class _MyEventsPageState extends State<MyEventsPage> {
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
-
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('My Events', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-      ),
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
+      appBar: AppBar(title: const Text('My Events'), centerTitle: true),
       body: Column(
         children: [
           // Filter Controls
@@ -181,14 +176,16 @@ class _MyEventsPageState extends State<MyEventsPage> {
   }
 
   Widget _buildFilterControls() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surfaceContainerLow,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withAlpha((0.1 * 255).round()),
-            blurRadius: 4,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            spreadRadius: 0,
             offset: const Offset(0, 2),
           ),
         ],
@@ -198,11 +195,14 @@ class _MyEventsPageState extends State<MyEventsPage> {
           // Search Field
           TextField(
             controller: _searchController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Search events...',
-              prefixIcon: Icon(Icons.search, color: Colors.grey),
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              prefixIcon: Icon(Icons.search, color: theme.colorScheme.primary),
+              border: const OutlineInputBorder(borderRadius: BorderRadius.zero),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
             ),
           ),
 
@@ -238,20 +238,6 @@ class _MyEventsPageState extends State<MyEventsPage> {
                       }),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildFilterChip(
-                  label: 'Toggle Family',
-                  isSelected: _filters.showFamily,
-                  onTap:
-                      () => setState(() {
-                        _filters = _filters.copyWith(
-                          showFamily: !_filters.showFamily,
-                        );
-                        _applyFilters();
-                      }),
-                ),
-              ),
             ],
           ),
         ],
@@ -264,30 +250,43 @@ class _MyEventsPageState extends State<MyEventsPage> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
-          color: isSelected ? ssbcGray : Colors.grey[350],
+          color:
+              isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? ssbcGray.withOpacity(0.9) : Colors.grey[300]!,
-            width: isSelected ? 1.25 : 1.0,
+            color:
+                isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline.withOpacity(0.3),
+            width: 2,
           ),
           boxShadow:
               isSelected
                   ? [
-                    // very subtle elevation when active
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 6,
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 8,
+                      spreadRadius: 0,
                       offset: const Offset(0, 3),
                     ),
                   ]
-                  : null,
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
         ),
         child: Text(
           label,
@@ -295,15 +294,10 @@ class _MyEventsPageState extends State<MyEventsPage> {
           style: TextStyle(
             color:
                 isSelected
-                    ? Colors.white
-                    : const Color.fromARGB(221, 78, 78, 78),
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurface,
             fontSize: 12,
-            fontWeight: FontWeight.w500,
-            decoration:
-                isSelected ? TextDecoration.underline : TextDecoration.none,
-            decorationColor: isSelected ? Colors.white.withOpacity(0.95) : null,
-            decorationThickness: isSelected ? 1.5 : null,
-            decorationStyle: TextDecorationStyle.solid,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
       ),
@@ -316,23 +310,27 @@ class _MyEventsPageState extends State<MyEventsPage> {
     }
 
     if (_errorMessage != null) {
+      final theme = Theme.of(context);
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
             const SizedBox(height: 16),
             Text(
               _errorMessage!,
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 16,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadEvents,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-                foregroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(
                   vertical: 12,
                   horizontal: 24,
@@ -376,7 +374,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
                 if (d == null) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Event details could not be loaded. Please try again later.')),
+                    const SnackBar(
+                      content: Text(
+                        'Event details could not be loaded. Please try again later.',
+                      ),
+                    ),
                   );
                   return;
                 }
@@ -405,7 +407,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
                   attendees: d.attendees,
                 );
 
-                await navigator.push(MaterialPageRoute(builder: (context) => EventShowcase(event: evt)));
+                await navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => EventShowcase(event: evt),
+                  ),
+                );
                 if (mounted) _loadEvents();
               },
               onCancel: () => _cancelRsvp(eventRef),
@@ -422,7 +428,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
                   if (d == null) {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Event details could not be loaded. Please try again later.')),
+                      const SnackBar(
+                        content: Text(
+                          'Event details could not be loaded. Please try again later.',
+                        ),
+                      ),
                     );
                     return;
                   }
@@ -473,25 +483,33 @@ class _MyEventsPageState extends State<MyEventsPage> {
       subMessage = "Try adjusting your search or filter settings";
     }
 
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.event_busy, size: 64, color: Colors.grey),
+          Icon(
+            Icons.event_busy,
+            size: 64,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+          ),
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: Colors.grey,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             subMessage,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withOpacity(0.5),
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -550,7 +568,10 @@ class _MyEventsPageState extends State<MyEventsPage> {
   }
 
   // ANDROID-ONLY: open the Calendar “insert event” screen
-  Future<bool> _openAndroidCalendarInsert(event_model.Event e, {String? packageName}) async {
+  Future<bool> _openAndroidCalendarInsert(
+    event_model.Event e, {
+    String? packageName,
+  }) async {
     try {
       final start = e.date.toLocal();
       final end = start.add(const Duration(hours: 1));
@@ -575,7 +596,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
 
   void _onAddToCalendar(event_model.Event event) async {
     if (Platform.isAndroid) {
-      if (await _openAndroidCalendarInsert(event, packageName: 'com.google.android.calendar')) return;
+      if (await _openAndroidCalendarInsert(
+        event,
+        packageName: 'com.google.android.calendar',
+      ))
+        return;
       if (await _openAndroidCalendarInsert(event)) return;
       await _shareIcsForEvent(event);
       return;

@@ -16,18 +16,20 @@ class MyEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
 
     if (eventRef.event == null) {
       return Card(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: const Padding(
-          padding: EdgeInsets.all(10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
           child: Text(
             'Event details unavailable',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
           ),
         ),
       );
@@ -36,14 +38,14 @@ class MyEventCard extends StatelessWidget {
     final event = eventRef.event!;
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         // Intentionally disable card-wide tap. Only the 'View Details' button
         // should trigger navigation. The button already calls `onTap`.
         onTap: null,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -52,7 +54,7 @@ class MyEventCard extends StatelessWidget {
             if (event.imageUrl != null)
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
+                  top: Radius.circular(16),
                 ),
                 child: SizedBox(
                   height: 150,
@@ -66,19 +68,21 @@ class MyEventCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder:
                               (context, error, stackTrace) => Container(
-                                color: Colors.grey[200],
-                                child: const Center(
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                child: Center(
                                   child: Icon(
                                     Icons.image_not_supported,
                                     size: 40,
-                                    color: Colors.grey,
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.4),
                                   ),
                                 ),
                               ),
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return Container(
-                              color: Colors.grey[200],
+                              color: theme.colorScheme.surfaceContainerHighest,
                               child: const Center(
                                 child: CircularProgressIndicator(),
                               ),
@@ -93,14 +97,14 @@ class MyEventCard extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: onTap,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: ssbcGray,
-                            foregroundColor: Colors.white,
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 6,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             elevation: 6,
                           ),
@@ -118,7 +122,7 @@ class MyEventCard extends StatelessWidget {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -129,10 +133,8 @@ class MyEventCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           event.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -140,12 +142,12 @@ class MyEventCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       // Cost / status badge (mirrors EnhancedEventCard behavior)
-                      _buildCostBadge(event, ssbcGray),
+                      _buildCostBadge(context, event),
                     ],
                   ),
                   // Registrants preview (aggregated names) — render as chips
                   if (eventRef.registrants.isNotEmpty) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -158,14 +160,16 @@ class MyEventCard extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: ssbcGray.withAlpha((0.08 * 255).round()),
+                              color: theme.colorScheme.primary.withOpacity(
+                                0.12,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               'RSVPs',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: ssbcGray,
+                                color: theme.colorScheme.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -183,7 +187,6 @@ class MyEventCard extends StatelessWidget {
                                   final int showLimit = 3;
 
                                   final toShow = names.take(showLimit).toList();
-                                  // Theme not needed for unified ssbcGray chips
                                   String firstName(String s) {
                                     final trimmed = s.trim();
                                     if (trimmed.isEmpty) {
@@ -200,14 +203,20 @@ class MyEventCard extends StatelessWidget {
 
                                   for (final n in toShow) {
                                     final bool isYou = n.toLowerCase() == 'you';
-                                    // 'You' uses white background with ssbcGray text.
-                                    // Family members use solid ssbcGray with white text.
+                                    // 'You' uses surface with primary text.
+                                    // Family members use primary with onPrimary text.
                                     final Color bgColor =
-                                        isYou ? Colors.white : ssbcGray;
+                                        isYou
+                                            ? theme.colorScheme.surface
+                                            : theme.colorScheme.primary;
                                     final Color textColor =
-                                        isYou ? ssbcGray : Colors.white;
-                                    final Color borderColor = ssbcGray
-                                        .withAlpha((0.12 * 255).round());
+                                        isYou
+                                            ? theme.colorScheme.primary
+                                            : theme.colorScheme.onPrimary;
+                                    final Color borderColor = theme
+                                        .colorScheme
+                                        .primary
+                                        .withOpacity(0.3);
 
                                     chips.add(
                                       Container(
@@ -222,6 +231,7 @@ class MyEventCard extends StatelessWidget {
                                           ),
                                           border: Border.all(
                                             color: borderColor,
+                                            width: 1.5,
                                           ),
                                         ),
                                         child: Text(
@@ -244,24 +254,23 @@ class MyEventCard extends StatelessWidget {
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: ssbcGray.withAlpha(
-                                            (0.10 * 255).round(),
-                                          ),
+                                          color: theme.colorScheme.primary
+                                              .withOpacity(0.15),
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
                                           border: Border.all(
-                                            color: ssbcGray.withAlpha(
-                                              (0.12 * 255).round(),
-                                            ),
+                                            color: theme.colorScheme.primary
+                                                .withOpacity(0.3),
+                                            width: 1.5,
                                           ),
                                         ),
                                         child: Text(
                                           '+${names.length - showLimit} more',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w500,
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -276,37 +285,37 @@ class MyEventCard extends StatelessWidget {
                       ],
                     ),
                   ],
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 16, color: Colors.grey),
-                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.schedule,
+                        size: 16,
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      const SizedBox(width: 6),
                       Text(
                         _formatDateTime(event.date),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.location_on,
                         size: 16,
-                        color: Colors.grey,
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           event.location,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -330,7 +339,8 @@ class MyEventCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCostBadge(MyEventDetails? event, Color ssbcGray) {
+  Widget _buildCostBadge(BuildContext context, MyEventDetails? event) {
+    final theme = Theme.of(context);
     // Handle null-safety for event wrapper
     final e = event!;
 
@@ -339,13 +349,13 @@ class MyEventCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: theme.colorScheme.error,
           borderRadius: BorderRadius.circular(15),
         ),
-        child: const Text(
+        child: Text(
           'FULL',
           style: TextStyle(
-            color: Colors.white,
+            color: theme.colorScheme.onError,
             fontWeight: FontWeight.bold,
             fontSize: 12,
           ),
@@ -357,13 +367,13 @@ class MyEventCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: ssbcGray,
+          color: theme.colorScheme.primary,
           borderRadius: BorderRadius.circular(15),
         ),
-        child: const Text(
+        child: Text(
           'FREE',
           style: TextStyle(
-            color: Colors.white,
+            color: theme.colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 12,
           ),
@@ -374,13 +384,13 @@ class MyEventCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: ssbcGray,
+        color: theme.colorScheme.primary,
         borderRadius: BorderRadius.circular(15),
       ),
       child: Text(
         '\$${e.price.toStringAsFixed(2)}',
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: theme.colorScheme.onPrimary,
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),

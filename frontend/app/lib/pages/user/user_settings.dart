@@ -16,14 +16,9 @@ import 'package:http/http.dart' as http;
 
 import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
-import '../../firebase/firebase_auth_service.dart';
-import 'edit_profile.dart';
-import 'family_members_page.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/theme/theme_controller.dart';
-
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -43,6 +38,7 @@ class _UserSettingsState extends State<UserSettings> {
   StreamSubscription<User?>? _userSub;
 
   ProfileInfo? _profile; // backend truth (cached/online)
+  String _selectedLanguage = 'English'; // Language preference
 
   @override
   void initState() {
@@ -210,7 +206,8 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.wb_sunny_outlined),
                 title: const Text('Light'),
-                trailing: current == ThemeMode.light ? const Icon(Icons.check) : null,
+                trailing:
+                    current == ThemeMode.light ? const Icon(Icons.check) : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.light);
                   Navigator.pop(context);
@@ -220,7 +217,10 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.brightness_auto),
                 title: const Text('System'),
-                trailing: current == ThemeMode.system ? const Icon(Icons.check) : null,
+                trailing:
+                    current == ThemeMode.system
+                        ? const Icon(Icons.check)
+                        : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.system);
                   Navigator.pop(context);
@@ -230,7 +230,8 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.nights_stay_outlined),
                 title: const Text('Dark'),
-                trailing: current == ThemeMode.dark ? const Icon(Icons.check) : null,
+                trailing:
+                    current == ThemeMode.dark ? const Icon(Icons.check) : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.dark);
                   Navigator.pop(context);
@@ -244,9 +245,103 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
+  // Show language selection bottom sheet
+  void _showLanguageSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Select Language',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: const Text('English'),
+                trailing:
+                    _selectedLanguage == 'English'
+                        ? const Icon(Icons.check)
+                        : null,
+                onTap: () {
+                  setState(() => _selectedLanguage = 'English');
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Language set to English'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: const Text('Russian (Русский)'),
+                trailing:
+                    _selectedLanguage == 'Russian'
+                        ? const Icon(Icons.check)
+                        : null,
+                onTap: () {
+                  setState(() => _selectedLanguage = 'Russian');
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Язык установлен на русский'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Show Terms and Policies popup
+  void _showTermsAndPolicies(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Terms & Policies'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Trust me bro',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('.'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
     final user = authService.getCurrentUser();
     final bool loggedIn = user != null;
 
@@ -271,8 +366,8 @@ class _UserSettingsState extends State<UserSettings> {
 
     final mode = ThemeController.instance.mode;
     final themeLabel = switch (mode) {
-      ThemeMode.light  => 'Light',
-      ThemeMode.dark   => 'Dark',
+      ThemeMode.light => 'Light',
+      ThemeMode.dark => 'Dark',
       ThemeMode.system => 'System',
     };
 
@@ -383,7 +478,8 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.language,
             'title': 'Language',
-            'subtitle': 'Change app language',
+            'subtitle': _selectedLanguage,
+            'ontap': _showLanguageSheet,
           },
           {
             'icon': Icons.notifications,
@@ -404,11 +500,6 @@ class _UserSettingsState extends State<UserSettings> {
         'category': 'Privacy',
         'items': [
           {
-            'icon': Icons.visibility,
-            'title': 'Account Visibility',
-            'subtitle': 'Who can see your profile',
-          },
-          {
             'icon': Icons.delete,
             'title': 'Delete Account',
             'subtitle': 'Permanently remove your data',
@@ -419,19 +510,10 @@ class _UserSettingsState extends State<UserSettings> {
         'category': 'Support',
         'items': [
           {
-            'icon': Icons.help,
-            'title': 'Help Center',
-            'subtitle': 'FAQ and support resources',
-          },
-          {
-            'icon': Icons.feedback,
-            'title': 'Send Feedback',
-            'subtitle': 'Help us improve',
-          },
-          {
             'icon': Icons.policy,
             'title': 'Terms & Policies',
             'subtitle': 'Privacy policy and terms of use',
+            'ontap': () => _showTermsAndPolicies(context),
           },
         ],
       },
@@ -451,12 +533,12 @@ class _UserSettingsState extends State<UserSettings> {
                 children: [
                   CircleAvatar(
                     radius: 32,
-                    backgroundColor: ssbcGray,
+                    backgroundColor: theme.colorScheme.primary,
                     backgroundImage:
                         _profileImage != null
                             ? FileImage(_profileImage!) as ImageProvider
-                            : (user?.photoURL != null &&
-                                    user!.photoURL!.isNotEmpty
+                            : (user.photoURL != null &&
+                                    user.photoURL!.isNotEmpty
                                 ? NetworkImage(user.photoURL!)
                                 : const AssetImage('assets/user/ssbc-dove.png')
                                     as ImageProvider),
@@ -518,16 +600,39 @@ class _UserSettingsState extends State<UserSettings> {
         pageWidgets.add(
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: theme.colorScheme.primary.withOpacity(0.2),
+                width: 3,
+              ),
             ),
-            child: ListTile(
-              leading: Icon(item['icon'] as IconData, color: ssbcGray),
-              title: Text(item['title'] as String),
-              subtitle: Text(item['subtitle'] as String),
-              trailing: item['trailing'] as Widget? 
-                  ?? const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: item['ontap'] as void Function()?,
+            shadowColor: Colors.black.withOpacity(0.1),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                leading: Icon(
+                  item['icon'] as IconData,
+                  color: theme.colorScheme.primary,
+                ),
+                title: Text(item['title'] as String),
+                subtitle: Text(item['subtitle'] as String),
+                trailing:
+                    item['trailing'] as Widget? ??
+                    const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: item['ontap'] as void Function()?,
+              ),
             ),
           ),
         );
@@ -541,6 +646,17 @@ class _UserSettingsState extends State<UserSettings> {
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
           width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                spreadRadius: 0,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: ElevatedButton(
             onPressed: () async {
               authService.signOut();
@@ -548,11 +664,17 @@ class _UserSettingsState extends State<UserSettings> {
               await UserHelper.clearCachedProfile();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: ssbcGray,
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 12),
+              elevation: 0,
+              shadowColor: Colors.transparent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  width: 4,
+                ),
               ),
             ),
             child: const Text('Logout', style: TextStyle(fontSize: 16)),
@@ -562,16 +684,10 @@ class _UserSettingsState extends State<UserSettings> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          "User Settings",
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-      ),
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
+      appBar: AppBar(title: const Text("User Settings"), centerTitle: true),
+      backgroundColor: theme.brightness == Brightness.dark
+          ? theme.colorScheme.surface
+          : theme.colorScheme.surfaceContainerLow,
       body: SafeArea(
         child: ListView(
           controller: _scrollController,
@@ -580,12 +696,5 @@ class _UserSettingsState extends State<UserSettings> {
         ),
       ),
     );
-  }
-}
-
-extension _SplitName on String {
-  String? get firstOrNull {
-    final parts = trim().split(RegExp(r'\s+'));
-    return parts.isEmpty ? null : parts.first;
   }
 }

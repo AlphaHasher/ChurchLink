@@ -25,7 +25,6 @@ import 'package:app/gates/auth_gate.dart';
 import 'package:app/theme/app_theme.dart';
 import 'package:app/theme/theme_controller.dart';
 
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Map<String, dynamic>? initialNotificationData;
@@ -78,6 +77,7 @@ Future<void> main() async {
             return provider;
           },
         ),
+        ChangeNotifierProvider(create: (_) => SermonsProvider()),
       ],
       child: const MyApp(),
     ),
@@ -97,9 +97,9 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'ChurchLink',
           navigatorKey: navigatorKey,
-          theme: AppTheme.light,        // from app_theme.dart
-          darkTheme: AppTheme.dark,     // from app_theme.dart
-          themeMode: c.mode,            // reacts to toggle
+          theme: AppTheme.light, // from app_theme.dart
+          darkTheme: AppTheme.dark, // from app_theme.dart
+          themeMode: c.mode, // reacts to toggle
 
           home: AuthGate(child: const MyHomePage()),
           routes: {
@@ -119,7 +119,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -246,55 +245,35 @@ class _MyHomePageState extends State<MyHomePage> {
     // First try to use the specific iconName from the database
     switch (iconName.toLowerCase()) {
       case 'home':
-        return Icon(
-          Icons.home,
-        );
+        return Icon(Icons.home);
       case 'menu_book':
       case 'bible':
-        return Icon(
-          Icons.menu_book,
-        );
+        return Icon(Icons.menu_book);
       case 'play_circle':
       case 'cross':
       case 'sermons':
-        return Icon(
-          Icons.church,
-        );
+        return Icon(Icons.church);
       case 'event':
       case 'events':
-        return Icon(
-          Icons.event,
-        );
+        return Icon(Icons.event);
       case 'person':
       case 'profile':
-        return Icon(
-          Icons.person,
-        );
+        return Icon(Icons.person);
       case 'live_tv':
       case 'live':
-        return Icon(
-          Icons.live_tv,
-        );
+        return Icon(Icons.live_tv);
       case 'article':
       case 'bulletin':
-        return Icon(
-          Icons.article,
-        );
+        return Icon(Icons.article);
       case 'volunteer_activism':
       case 'giving':
-        return Icon(
-          Icons.volunteer_activism,
-        );
+        return Icon(Icons.volunteer_activism);
       case 'groups':
       case 'ministries':
-        return Icon(
-          Icons.groups,
-        );
+        return Icon(Icons.groups);
       case 'contact_mail':
       case 'contact':
-        return Icon(
-          Icons.contact_mail,
-        );
+        return Icon(Icons.contact_mail);
       default:
         // Fallback to tab name if icon doesn't match
         return _getDefaultIconForTab(tabName, isActive);
@@ -304,45 +283,25 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _getDefaultIconForTab(String tabName, bool isActive) {
     switch (tabName.toLowerCase()) {
       case 'home':
-        return Icon(
-          Icons.home,
-        );
+        return Icon(Icons.home);
       case 'bible':
-        return Icon(
-          Icons.menu_book,
-        );
+        return Icon(Icons.menu_book);
       case 'sermons':
-        return Icon(
-          Icons.church,
-        );
+        return Icon(Icons.church);
       case 'events':
-        return Icon(
-          Icons.event,
-        );
+        return Icon(Icons.event);
       case 'profile':
-        return Icon(
-          Icons.person,
-        );
+        return Icon(Icons.person);
       case 'live':
-        return Icon(
-          Icons.live_tv,
-        );
+        return Icon(Icons.live_tv);
       case 'bulletin':
-        return Icon(
-          Icons.article,
-        );
+        return Icon(Icons.article);
       case 'giving':
-        return Icon(
-          Icons.volunteer_activism,
-        );
+        return Icon(Icons.volunteer_activism);
       case 'ministries':
-        return Icon(
-          Icons.groups,
-        );
+        return Icon(Icons.groups);
       case 'contact':
-        return Icon(
-          Icons.contact_mail,
-        );
+        return Icon(Icons.contact_mail);
       default:
         return Icon(Icons.tab);
     }

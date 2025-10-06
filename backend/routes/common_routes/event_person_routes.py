@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Request, Query
 from bson import ObjectId
 
-from models.user import get_family_member_by_id
+from models.user import get_family_member_by_id, get_family_members
 from helpers.MongoHelper import serialize_objectid
 
 event_person_registration_router = APIRouter(prefix="/event-people", tags=["Event Registration"])
@@ -175,12 +175,36 @@ async def unregister_user_from_event(event_id: str, request: Request):
 async def get_my_events(request: Request, include_family: bool = True, expand: bool = False):
     try:
         from mongo.churchuser import UserHandler
+        from bson import ObjectId
         import logging
 
         if not request.state.uid:
             raise HTTPException(status_code=401, detail="User authentication required")
 
-        events = await UserHandler.list_my_events(request.state.uid)
+        # Pass the expand parameter to the handler
+        events = await UserHandler.list_my_events(request.state.uid, expand=expand)
+        
+        # If include_family is True, aggregate family member events
+        if include_family:
+            try:
+                # Get user's family members
+                family_members = await get_family_members(request.state.uid)
+                
+                # Fetch events for each family member
+                for member in family_members:
+                    member_id = member.id
+                    if member_id:
+                        person_oid = ObjectId(str(member_id))
+                        family_events = await UserHandler.list_my_events(
+                            request.state.uid, 
+                            expand=expand, 
+                            person_id=person_oid
+                        )
+                        events.extend(family_events)
+            except Exception as e:
+                logging.warning(f"Could not fetch family member events: {e}")
+                # Continue without family events rather than failing completely
+        
         return {"success": True, "events": serialize_objectid(events)}
     except HTTPException:
         raise

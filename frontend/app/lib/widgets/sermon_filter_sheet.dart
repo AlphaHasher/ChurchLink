@@ -224,9 +224,10 @@ class _DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formatted = value != null ? _format(value!) : 'Any';
-    return OutlinedButton(
-      onPressed: () async {
+    final theme = Theme.of(context);
+    final formatted = value != null ? _format(value!) : 'Select date';
+    return InkWell(
+      onTap: () async {
         final picked = await showDatePicker(
           context: context,
           initialDate: value ?? DateTime.now(),
@@ -235,22 +236,21 @@ class _DateField extends StatelessWidget {
         );
         onSelected(picked);
       },
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        alignment: Alignment.centerLeft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelMedium),
-          const SizedBox(height: 4),
-          Text(
-            formatted,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(borderRadius: BorderRadius.zero),
+          suffixIcon: const Icon(Icons.calendar_today),
+        ),
+        child: Text(
+          formatted,
+          style: TextStyle(
+            color:
+                value == null
+                    ? theme.colorScheme.onSurface.withOpacity(0.5)
+                    : theme.colorScheme.onSurface,
           ),
-        ],
+        ),
       ),
     );
   }
