@@ -118,7 +118,7 @@ class MyApp extends StatelessWidget {
           showUnselectedLabels: false,
         ),
       ),
-      home: AuthGate(child: const MyHomePage()),
+      home: kTestMode ? const MyHomePage() : AuthGate(child: const MyHomePage()),
       routes: {
         '/home': (context) => const DashboardPage(),
         '/bible': (context) => const BiblePage(),

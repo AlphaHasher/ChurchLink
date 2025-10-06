@@ -1,51 +1,45 @@
 // integration_test/main_nav_test.dart
-import 'dart:async';
-
-import 'package:flutter/material.dart';                 // for ValueKey
-import 'package:flutter_test/flutter_test.dart' show
-  find, expect;                                         // Flutter finders + expect
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart' show find, expect;
 import 'package:patrol/patrol.dart';
+import 'package:app/main.dart' as app;
 
-import 'package:app/main.dart' as app;                  // <-- adjust package name if needed
-
-Future<void> expectVisible(PatrolFinder f, {Duration timeout = const Duration(seconds: 10)}) async {
+Future<void> expectVisible(PatrolFinder f) async {
   try {
-    await f.waitUntilVisible(timeout: timeout);
+    await f.waitUntilVisible(timeout: const Duration(seconds: 10));
   } catch (_) {
     expect(await f.exists, true);
   }
 }
 
 void main() {
-
   patrolTest('launch -> home -> switch tabs', ($) async {
-    // Launch the app
     app.main();
     await $.pumpAndSettle();
 
-    // Home visible
     await expectVisible($(find.byKey(const ValueKey('screen-home'))));
 
-    // Tap Bible tab (we wrapped icons with Semantics(label: 'tab-bible'))
-    await $(find.bySemanticsLabel('tab-bible')).tap();
+    // Bible
+    await $(find.byIcon(Icons.menu_book)).tap();
     await $.pumpAndSettle();
     await expectVisible($(find.byKey(const ValueKey('screen-bible'))));
 
-    // Tap Sermons
-    await $(find.bySemanticsLabel('tab-sermons')).tap();
+    // Sermons
+    await $(find.byIcon(Icons.church)).tap();
     await $.pumpAndSettle();
     await expectVisible($(find.byKey(const ValueKey('screen-sermons'))));
 
-    // Tap Events
-    await $(find.bySemanticsLabel('tab-events')).tap();
+    // Events
+    await $(find.byIcon(Icons.event)).tap();
     await $.pumpAndSettle();
     await expectVisible($(find.byKey(const ValueKey('screen-events'))));
 
-    // Back to Home
-    await $(find.bySemanticsLabel('tab-home')).tap();
+    // Home
+    await $(find.byIcon(Icons.home)).tap();
     await $.pumpAndSettle();
     await expectVisible($(find.byKey(const ValueKey('screen-home'))));
   });
 }
+
 
 
