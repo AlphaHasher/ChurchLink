@@ -118,4 +118,23 @@ For more details, check the Flutter documentation: [Flutter Docs](https://flutte
 2/ duplicate .envexample rename it to .env
 3/ Fill in info API, Upload Present, cloud name
 
+### **11. Integrated Testing (Patrol + Flutter Integration Tests)
+This project includes a fully integrated UI testing setup using
+Patrol and Flutter’s built-in integration_test framework.
+Patrol allows Flutter UI tests to interact with both Flutter widgets
+and native Android/iOS elements (e.g. permission dialogs, notifications, WebViews).
 
+#### Install Patrol CLI
+dart pub global activate patrol_cli 
+
+#### Ensure Patrol is correctly working
+patrol doctor
+
+#### Example / Template Test
+Included in integration_test is example_test.dart, this is a basic test that will
+always pass. Can be used as a template for other tests
+
+#### How to run a Patrol Test
+patrol test --target integration_test --dart-define=TEST_MODE=true
+This command assumes you are running it from frontend/app, the last flag
+of the command is necessary for it to run correctly, do not omit it.
