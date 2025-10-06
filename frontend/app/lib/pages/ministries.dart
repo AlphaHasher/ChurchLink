@@ -12,7 +12,7 @@ class _MinistriesState extends State<Ministries> {
   Widget build(BuildContext context) {
           return Scaffold(
             appBar: AppBar(
-            backgroundColor: const Color.fromARGB(159, 144, 79, 230),
+            //backgroundColor: const Color.fromARGB(159, 144, 79, 230),
              iconTheme: const IconThemeData(
                     color: Colors.white), // back arrow color
               title: Padding(
@@ -30,7 +30,7 @@ class _MinistriesState extends State<Ministries> {
                  },
               ),
             ),
-            backgroundColor: const Color.fromARGB(246, 244, 236, 255), //old: const Color.fromARGB(156, 102, 133, 161),
+            //backgroundColor: const Color.fromARGB(246, 244, 236, 255), //old: const Color.fromARGB(156, 102, 133, 161),
              body: SafeArea(
               minimum: const EdgeInsets.symmetric(horizontal: 10),
               child: SingleChildScrollView(
