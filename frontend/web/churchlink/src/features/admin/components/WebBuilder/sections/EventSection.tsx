@@ -760,7 +760,7 @@ const EventSection: React.FC<EventSectionProps> = ({
               return (
                 <div key={ev.id} className="rounded-2xl shadow-md overflow-hidden bg-white flex flex-col h-full">
                   <div
-                    className="h-40 w-full bg-cover bg-center"
+                    className="h-100 w-full bg-cover bg-center"
                     style={{
                       backgroundImage: bg,
                     }}
