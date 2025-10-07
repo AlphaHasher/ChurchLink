@@ -54,3 +54,12 @@ export default tseslint.config({
 ```
 npm install
 npm run dev
+
+### Cypress Testing
+To run Cypress, use the script "npm run test", which will run the equivalent of "npx cypress open"
+
+In-case it claims that dependencies are missing (they shouldn't be), run the following command to install them locally.
+"npm i -D cypress @testing-library/cypress typescript"
+
+Two basic smoke specs, app.cy.ts and events_flow.cy.ts, are provided in churchlink/cypress/e2e/smoke for template
+usage and as a general example. 

@@ -124,6 +124,10 @@ Patrol and Flutter’s built-in integration_test framework.
 Patrol allows Flutter UI tests to interact with both Flutter widgets
 and native Android/iOS elements (e.g. permission dialogs, notifications, WebViews).
 
+*** Note ***
+IOS patrol testing is currently unimplemented due to not having a proper testing
+environment to implement on available. Android emulator only.
+
 #### Install Patrol CLI
 dart pub global activate patrol_cli 
 
