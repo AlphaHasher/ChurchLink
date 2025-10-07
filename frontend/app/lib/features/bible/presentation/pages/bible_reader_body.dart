@@ -534,22 +534,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white, width: 1.2),
+                border: Border.all(width: 1.2),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
                   DropdownButton<String>(
-                    dropdownColor: Colors.black,
                     value: _searchType,
-                    style: const TextStyle(color: Colors.white),
-                    iconEnabledColor: Colors.white,
                     items: const [
-                      DropdownMenuItem(value: 'Book', child: Text('Book', style: TextStyle(color: Colors.white))),
-                      DropdownMenuItem(value: 'Verse', child: Text('Verse', style: TextStyle(color: Colors.white))),
-                      DropdownMenuItem(value: 'Note', child: Text('Note', style: TextStyle(color: Colors.white))),
+                      DropdownMenuItem(value: 'Book', child: Text('Book')),
+                      DropdownMenuItem(value: 'Verse', child: Text('Verse')),
+                      DropdownMenuItem(value: 'Note', child: Text('Note')),
                     ],
                     onChanged: (val) {
                       if (val != null) setState(() => _searchType = val);
@@ -559,12 +555,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   Expanded(
                     child: TextField(
                       autofocus: true,
-                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: _searchType == 'Verse'
                             ? 'Search verse text, chapter, or number...'
                             : 'Search...',
-                        hintStyle: const TextStyle(color: Colors.white70),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -572,7 +566,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         isDense: true,
                         filled: false,
                       ),
-                      cursorColor: Colors.white,
                       onChanged: (val) {
                         setState(() {
                           _searchText = val;
