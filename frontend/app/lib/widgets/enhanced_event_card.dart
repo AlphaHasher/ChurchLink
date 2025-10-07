@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../models/event_registration_summary.dart';
+import '../helpers/strapi_helper.dart';
 
 class EnhancedEventCard extends StatelessWidget {
   final Event event;
@@ -115,7 +116,8 @@ class EnhancedEventCard extends StatelessWidget {
         children: [
           // Load image from uploads API endpoint
           // For now, always show placeholder until backend image serving is implemented
-          _buildPlaceholderImage(),
+          // _buildPlaceholderImage(),
+          _buildEventThumb(),
 
           // View Details button positioned in bottom right
           Positioned(
@@ -155,6 +157,33 @@ class EnhancedEventCard extends StatelessWidget {
         child: Icon(Icons.event, size: 50, color: Colors.grey),
       ),
     );
+  }
+
+  Widget _buildEventThumb() {
+    if (event.imageUrl == null || event.imageUrl!.trim().isEmpty) {
+      return _buildPlaceholderImage();
+    } else {
+      final url = StrapiHelper.getTrueImageURL(event.imageUrl!);
+
+      // CHECK IF EVENT_URL RESOLVES TO REAL IMAGE
+      // IF IT DOES, USE THAT IMAGE
+      // IF IT DOESNT DEFAULT TO PLACEHOLDER IMAGE
+      return SizedBox.expand(
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          // While loading, show the placeholder (keeps the card pretty)
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildPlaceholderImage();
+          },
+          // On error (404, invalid URL, etc.), show the placeholder
+          errorBuilder: (context, error, stackTrace) {
+            return _buildPlaceholderImage();
+          },
+        ),
+      );
+    }
   }
 
   Widget _buildCostLabel() {

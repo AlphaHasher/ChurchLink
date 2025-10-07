@@ -13,6 +13,6 @@ class StrapiHelper {
   }
 
   static String getTrueImageURL(String base_url) {
-    return '${StrapiHelper.strapiBase}/${base_url}';
+    return '${StrapiHelper.strapiBase}/uploads/${base_url}';
   }
 }
