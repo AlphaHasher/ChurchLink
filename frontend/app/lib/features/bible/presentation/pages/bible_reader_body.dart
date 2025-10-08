@@ -605,7 +605,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(width: 1.2),
+                border: Border.all(color: Theme.of(context).dividerColor, width: 1.2),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
@@ -617,21 +617,18 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         value: 'Book',
                         child: Text(
                           'Book',
-                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                       DropdownMenuItem(
                         value: 'Verse',
                         child: Text(
                           'Verse',
-                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                       DropdownMenuItem(
                         value: 'Note',
                         child: Text(
                           'Note',
-                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                     ],
@@ -650,7 +647,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                             _searchType == 'Verse'
                                 ? 'Search verse text, chapter, or number...'
                                 : 'Search...',
-                        hintStyle: const TextStyle(color: Colors.white70),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
