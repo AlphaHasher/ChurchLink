@@ -22,7 +22,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/services/deep_linking_service.dart';
 import 'package:app/services/fcm_token_service.dart';
 import 'package:app/gates/auth_gate.dart';
-import 'package:flutter/services.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
