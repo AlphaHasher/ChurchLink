@@ -79,11 +79,11 @@ export default function FormPublic() {
   if (error) return <div className="p-6 text-destructive">{error}</div>;
 
   return (
-    <div className="py-6">
+    <div className="py-6 bg-background min-h-screen">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className={cn("mx-auto w-full", formWidthClass)}>
-          <Card className="w-full gap-0 py-4 sm:py-6">
-            <CardContent className="px-4 sm:px-6">
+          <Card className="w-full gap-0 py-4 sm:py-6 bg-transparent shadow-none">
+            <CardContent className="px-4 sm:px-6 bg-transparent">
               {!user && (
                 <div className="mb-6 rounded-md border border-muted bg-muted/30 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
