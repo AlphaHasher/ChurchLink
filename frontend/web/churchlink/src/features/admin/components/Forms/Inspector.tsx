@@ -212,19 +212,6 @@ export function Inspector() {
                       }}
                     />
                   </div>
-                  {field.type === 'static' && (
-                    <div className="col-span-2">
-                      <Label className="text-xs">Content</Label>
-                      <Input
-                        value={(field as any).i18n?.[loc]?.content ?? ''}
-                        onChange={(e) => {
-                          const i18n = { ...((field as any).i18n || {}) };
-                          i18n[loc] = { ...(i18n[loc] || {}), content: e.target.value };
-                          update(field.id, { i18n } as any);
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
@@ -233,10 +220,6 @@ export function Inspector() {
           )}
         {field.type === "static" && (
           <div className="space-y-2">
-            <div className="space-y-1">
-              <Label>Text content</Label>
-              <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
-            </div>
             <div className="grid grid-cols-3 gap-2 items-end">
               <div className="space-y-1">
                 <Label>As</Label>

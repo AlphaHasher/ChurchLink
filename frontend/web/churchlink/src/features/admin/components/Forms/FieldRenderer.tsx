@@ -25,7 +25,7 @@ export function FieldRenderer({ field, control, error }: Props) {
   if (field.type === "price") return null;
   const colClass = cn("col-span-12", widthToCols(field.width));
   const activeLocale = useBuilderStore((s) => s.activeLocale);
-  const t = (key: 'label'|'placeholder'|'helpText'|'content', base?: string) => {
+  const t = (key: 'label'|'placeholder'|'helpText', base?: string) => {
     const map = (field as any).i18n as Record<string, any> | undefined;
     const val = map?.[activeLocale]?.[key];
     return (val != null && val !== '') ? val : base;
@@ -33,9 +33,44 @@ export function FieldRenderer({ field, control, error }: Props) {
   const localizedLabel = t('label', field.label);
   const localizedPlaceholder = t('placeholder', (field as any).placeholder);
   const localizedHelp = t('helpText', (field as any).helpText);
+  if (field.type === "static") {
+    const f: any = field as any;
+    const Tag = (f.as || "p") as any;
+    const sizeClass = (() => {
+      switch (f.as) {
+        case "h1":
+          return "text-4xl";
+        case "h2":
+          return "text-3xl";
+        case "h3":
+          return "text-2xl";
+        case "h4":
+          return "text-xl";
+        case "small":
+          return "text-sm";
+        case "p":
+        default:
+          return "text-base";
+      }
+    })();
+    const style: React.CSSProperties = {
+      color: f.color || undefined,
+      fontWeight: f.bold ? 600 : undefined,
+      textDecoration: f.underline ? "underline" : undefined,
+    };
+    const staticText = localizedLabel || f.label || field.name;
+    return (
+      <div className={cn("flex flex-col gap-2", colClass)}>
+        <Tag className={sizeClass} style={style}>{staticText}</Tag>
+        {localizedHelp && (
+          <p className="text-sm text-muted-foreground">{localizedHelp}</p>
+        )}
+      </div>
+    );
+  }
   return (
     <div className={cn("flex flex-col gap-2", colClass)}>
-      {field.type !== "static" && localizedLabel && (
+      {localizedLabel && (
         <Label htmlFor={field.name} className="text-sm font-medium flex items-center gap-1">
           <span>{localizedLabel}</span>
           {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
@@ -47,34 +82,6 @@ export function FieldRenderer({ field, control, error }: Props) {
         control={control}
         render={({ field: rhf }) => {
           switch (field.type) {
-            case "static": {
-              const f: any = field as any;
-              const Tag = (f.as || "p") as any;
-              const sizeClass = (() => {
-                switch (f.as) {
-                  case "h1":
-                    return "text-4xl";
-                  case "h2":
-                    return "text-3xl";
-                  case "h3":
-                    return "text-2xl";
-                  case "h4":
-                    return "text-xl";
-                  case "small":
-                    return "text-sm";
-                  case "p":
-                  default:
-                    return "text-base";
-                }
-              })();
-              const style: React.CSSProperties = {
-                color: f.color || undefined,
-                fontWeight: f.bold ? 600 : undefined,
-                textDecoration: f.underline ? "underline" : undefined,
-              };
-              const localizedContent = t('content', f.content || f.label);
-              return <Tag className={sizeClass} style={style}>{localizedContent}</Tag>;
-            }
             case "text":
               return (
                 <Input id={field.name} placeholder={localizedPlaceholder} {...rhf} />

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from '@/features/auth/hooks/auth-context';
 import { useBuilderStore } from "./store";
-import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth } from "./types";
+import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth, collectAvailableLocales } from "./types";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from '@/shared/components/ui/input';
@@ -34,23 +34,7 @@ export function BuilderShell() {
   const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
   const updateSchemaMeta = useBuilderStore((s) => s.updateSchemaMeta);
   const formWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-  const availableLocales = useMemo(() => {
-    const set = new Set<string>();
-    const dl = (schema as any)?.defaultLocale || 'en';
-    if (dl) set.add(dl);
-    for (const l of ((schema as any)?.locales || [])) set.add(l);
-    for (const f of ((schema as any)?.data || [])) {
-      const i18n = (f as any)?.i18n as Record<string, any> | undefined;
-      if (i18n) for (const k of Object.keys(i18n)) set.add(k);
-      if ((f as any)?.options) {
-        for (const o of (f as any).options) {
-          const oi = o?.i18n as Record<string, any> | undefined;
-          if (oi) for (const k of Object.keys(oi)) set.add(k);
-        }
-      }
-    }
-    return Array.from(set);
-  }, [schema]);
+  const availableLocales = useMemo(() => collectAvailableLocales(schema as any), [schema]);
   const setSchema = useBuilderStore((s) => s.setSchema);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -199,6 +183,42 @@ export function BuilderShell() {
     try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch {}
   }, [schema, formName, description, folder]);
 
+  const sanitizeFieldForLocale = (field: any, defaultLocale: string): any => {
+    const clone: any = { ...field };
+    if (field.i18n) {
+      clone.i18n = { ...field.i18n };
+      const localeEntry = clone.i18n?.[defaultLocale];
+      if (localeEntry?.label && String(localeEntry.label).trim().length > 0) {
+        delete clone.label;
+      }
+      if (localeEntry?.placeholder && String(localeEntry.placeholder).trim().length > 0) {
+        delete clone.placeholder;
+      }
+      if (localeEntry?.helpText && String(localeEntry.helpText).trim().length > 0) {
+        delete clone.helpText;
+      }
+    }
+    if ((field.type === 'select' || field.type === 'radio') && Array.isArray(field.options)) {
+      clone.options = field.options.map((opt: any) => {
+        const optClone: any = { ...opt };
+        if (opt.i18n) {
+          optClone.i18n = { ...opt.i18n };
+          const optLocale = optClone.i18n?.[defaultLocale];
+          if (optLocale?.label && String(optLocale.label).trim().length > 0) {
+            delete optClone.label;
+          }
+        }
+        return optClone;
+      });
+    }
+    return clone;
+  };
+
+  const sanitizeSchemaData = (data: any[], defaultLocale: string): any[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map((field) => sanitizeFieldForLocale(field, defaultLocale));
+  };
+
   const handleSave = async () => {
     // Persist name, folder and description into top-level schema so it stays with exported JSON
     const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
@@ -212,6 +232,8 @@ export function BuilderShell() {
     // Perform the actual save
     const currentFormId = getCurrentFormId();
     const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+    const defaultLocale = (schema as any)?.defaultLocale || 'en';
+    const cleanedData = sanitizeSchemaData(((schema as any)?.data || []), defaultLocale);
 
     try {
       setStatus({ type: 'info', title: 'Saving', message: 'Saving to server...' });
@@ -220,7 +242,7 @@ export function BuilderShell() {
         description: description,
         folder,
         form_width: normalizedWidth,
-        data: (schema as any)?.data || [],
+        data: cleanedData,
       };
 
       if (currentFormId) {
@@ -234,7 +256,7 @@ export function BuilderShell() {
       }
 
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: (schema as any)?.data || [] });
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
     } catch (err: any) {
       console.error('Failed to save form to server', err);
       if (err?.response?.status === 409) {
@@ -255,18 +277,20 @@ export function BuilderShell() {
     try {
       setStatus({ type: 'info', title: 'Overriding', message: 'Overriding existing form...' });
       const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
+      const defaultLocale = (schema as any)?.defaultLocale || 'en';
+      const cleanedData = sanitizeSchemaData(((schema as any)?.data || []), defaultLocale);
       const updatePayload = {
         title: formName,
         description,
         folder,
         visible: true,
         form_width: normalizedWidth,
-        data: (schema as any)?.data || [],
+        data: cleanedData,
       };
       await api.put(`/v1/forms/${overrideTargetId}`, updatePayload);
       setStatus({ type: 'success', message: 'Form overridden' });
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: (schema as any)?.data || [] });
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
       // Refresh folders list just in case
       const foldersResp = await api.get('/v1/forms/folders');
       setFolders(foldersResp.data || []);
@@ -280,6 +304,7 @@ export function BuilderShell() {
   };
 
   const onExport = () => {
+    const defaultLocale = (schema as any)?.defaultLocale || 'en';
     const exportObj: any = {
       title: formName || (schema as any)?.title || 'Untitled Form',
       description: description || (schema as any)?.description || '',
@@ -287,7 +312,7 @@ export function BuilderShell() {
       defaultLocale: (schema as any)?.defaultLocale || 'en',
       locales: (schema as any)?.locales || [],
       formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH),
-      data: (schema as any)?.data || [],
+      data: sanitizeSchemaData(((schema as any)?.data || []), defaultLocale),
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);

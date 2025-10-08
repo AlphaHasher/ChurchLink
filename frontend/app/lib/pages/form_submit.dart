@@ -1,4 +1,5 @@
 import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/form_localization_helper.dart';
 import 'package:app/pages/forms/checkbox_form_component.dart';
 import 'package:app/pages/forms/date_form_component.dart';
 import 'package:app/pages/forms/email_form_component.dart';
@@ -11,6 +12,7 @@ import 'package:app/pages/forms/switch_form_component.dart';
 import 'package:app/pages/forms/text_form_component.dart';
 import 'package:app/pages/forms/textarea_form_component.dart';
 import 'package:app/pages/forms/time_form_component.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class FormSubmitPage extends StatefulWidget {
@@ -30,11 +32,25 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
   late Map<String, dynamic> _form; // local, refreshable copy of the form
   int _formInstanceId = 0; // bump to reset Form state after refresh
   bool _isDirty = false; // tracks whether user has typed/changed anything
+  List<String> _availableLocales = <String>[];
+  late String _activeLocale;
 
   @override
   void initState() {
     super.initState();
     _form = Map<String, dynamic>.from(widget.form);
+    _setupLocales();
+  }
+
+  @override
+  void didUpdateWidget(covariant FormSubmitPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!mapEquals(oldWidget.form, widget.form)) {
+      setState(() {
+        _form = Map<String, dynamic>.from(widget.form);
+        _setupLocales(preferredLocale: _activeLocale);
+      });
+    }
   }
 
   // Helper to extract field list from form
@@ -42,6 +58,34 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     final data = _form['data'];
     if (data is List) return List<Map<String, dynamic>>.from(data);
     return [];
+  }
+
+  String get _defaultLocale => FormLocalizationHelper.defaultLocale(_form);
+
+  void _setupLocales({String? preferredLocale}) {
+    final localeState = FormLocalizationHelper.initializeLocales(
+      _form,
+      preferredLocale: preferredLocale,
+    );
+    _availableLocales = List<String>.from(localeState.locales);
+    _activeLocale = localeState.activeLocale;
+  }
+
+  String? _getLocalizedString(Map<String, dynamic> source, String key) {
+    return FormLocalizationHelper.getLocalizedString(
+      source,
+      key,
+      activeLocale: _activeLocale,
+      defaultLocale: _defaultLocale,
+    );
+  }
+
+  Map<String, dynamic> _localizedField(Map<String, dynamic> field) {
+    return FormLocalizationHelper.localizedField(
+      field,
+      activeLocale: _activeLocale,
+      defaultLocale: _defaultLocale,
+    );
   }
 
   // Basic visibleIf evaluator similar to web: `name op value` where op in == != >= <= > <
@@ -261,6 +305,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             _error = null;
             _formInstanceId++;
             _isDirty = false;
+            _setupLocales(preferredLocale: _activeLocale);
           });
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -319,23 +364,44 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
 
   Widget _buildField(Map<String, dynamic> f) {
     if (!_isVisible(f)) return const SizedBox.shrink();
-    final type = (f['type'] ?? 'text').toString();
+    final field = _localizedField(f);
+    final type = (field['type'] ?? f['type'] ?? 'text').toString();
     final fieldName =
-        (f['name'] ??
+        (field['name'] ??
+                f['name'] ??
                 f['key'] ??
                 f['id'] ??
                 f['label'] ??
                 UniqueKey().toString())
             .toString();
-    final labelText = (f['label'] ?? f['name'] ?? fieldName).toString();
-    final placeholder = (f['placeholder'] ?? f['hint'])?.toString();
-    final helperText = (f['helperText'] ?? f['description'])?.toString();
+    final labelText =
+        (field['label'] ?? f['label'] ?? f['name'] ?? fieldName).toString();
+    final placeholder =
+        (field['placeholder'] ?? field['hint'] ?? f['placeholder'] ?? f['hint'])
+            ?.toString();
+    final helperText =
+        (field['helpText'] ??
+                field['helperText'] ??
+                field['description'] ??
+                f['helperText'] ??
+                f['description'])
+            ?.toString();
     final inlineLabel =
-        (f['inlineLabel'] ?? f['inline_label'] ?? f['inline'])?.toString();
-    final requiredField = f['required'] == true;
+        (field['inlineLabel'] ??
+                field['inline_label'] ??
+                field['inline'] ??
+                f['inlineLabel'] ??
+                f['inline_label'] ??
+                f['inline'])
+            ?.toString();
+    final requiredField = (field['required'] ?? f['required']) == true;
     switch (type) {
       case 'static':
-        return StaticFormComponent(field: f);
+        return StaticFormComponent(
+          field: field,
+          labelOverride: labelText,
+          helperOverride: helperText,
+        );
       case 'price':
         return const PriceFormComponent();
       case 'textarea':
@@ -427,7 +493,12 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         );
       case 'select':
         final rawOptions =
-            (f['options'] ?? f['choices'] ?? const <dynamic>[]) as List;
+            (field['options'] ??
+                    field['choices'] ??
+                    f['options'] ??
+                    f['choices'] ??
+                    const <dynamic>[])
+                as List;
         final opts =
             rawOptions
                 .map((opt) {
@@ -436,7 +507,11 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                         (opt['value'] ?? opt['id'] ?? opt['label'] ?? '')
                             .toString();
                     final label =
-                        (opt['label'] ?? opt['value'] ?? opt['id'] ?? '')
+                        (opt['label'] ??
+                                opt['value'] ??
+                                opt['id'] ??
+                                f['label'] ??
+                                '')
                             .toString();
                     return SelectOption(value: value, label: label);
                   }
@@ -445,10 +520,12 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 })
                 .where((opt) => opt.value.isNotEmpty || opt.label.isNotEmpty)
                 .toList();
-        final multiple = f['multiple'] == true;
+        final multiple = (field['multiple'] ?? f['multiple']) == true;
         return SelectFormComponent(
           label: labelText,
-          placeholder: (f['buttonLabel'] ?? placeholder)?.toString(),
+          placeholder:
+              (field['buttonLabel'] ?? f['buttonLabel'] ?? placeholder)
+                  ?.toString(),
           helperText: helperText,
           requiredField: requiredField,
           options: opts,
@@ -471,19 +548,19 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         );
       case 'radio':
         return RadioFormComponent(
-          field: f,
+          field: field,
           value: _values[fieldName]?.toString(),
           onChanged: (v) => _updateValue(fieldName, v),
         );
       case 'date':
         return DateFormComponent(
-          field: f,
+          field: field,
           value: _values[fieldName],
           onChanged: (val) => _updateValue(fieldName, val),
         );
       case 'time':
         return TimeFormComponent(
-          field: f,
+          field: field,
           value: _values[fieldName]?.toString(),
           onChanged: (val) => _updateValue(fieldName, val),
         );
@@ -550,8 +627,10 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
 
   @override
   Widget build(BuildContext context) {
-    final title = _form['title'] ?? 'Form';
-    final description = _form['description'] ?? '';
+    final title =
+        _getLocalizedString(_form, 'title') ?? _form['title'] ?? 'Form';
+    final description =
+        _getLocalizedString(_form, 'description') ?? _form['description'] ?? '';
     final String slug = (_form['slug']?.toString() ?? '').trim();
     final bool canSubmit = slug.isNotEmpty && slug.toLowerCase() != 'null';
     final List<Map<String, dynamic>> visibleFields =
@@ -573,6 +652,30 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Text(description),
+                ),
+              if (_availableLocales.length > 1)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _activeLocale,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _activeLocale = value;
+                        });
+                      },
+                      items:
+                          _availableLocales
+                              .map(
+                                (locale) => DropdownMenuItem<String>(
+                                  value: locale,
+                                  child: Text(locale.toUpperCase()),
+                                ),
+                              )
+                              .toList(),
+                    ),
+                  ),
                 ),
               if (!canSubmit)
                 Container(

@@ -58,7 +58,7 @@ const newField = (type: FieldType): AnyField => {
     case "time":
       return { ...base, type: "time", placeholder: "HH:MM" } as any;
     case "static":
-      return { ...base, type: "static", name: `static_${id}`, label: "Static Text", content: "Sample text", as: "p" } as any;
+      return { ...base, type: "static", name: `static_${id}`, label: "Static Text", as: "p" } as any;
     case "price":
       return { ...base, type: "price", label: "Price", amount: 0 } as any;
     default:

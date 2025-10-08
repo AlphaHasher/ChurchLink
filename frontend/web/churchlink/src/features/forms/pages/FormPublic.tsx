@@ -1,25 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/api/api";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { PreviewRendererClient } from "@/features/admin/components/Forms/PreviewRendererClient";
 import { useBuilderStore } from "@/features/admin/components/Forms/store";
-import { formWidthToClass, normalizeFormWidth, DEFAULT_FORM_WIDTH } from "@/features/admin/components/Forms/types";
+import { formWidthToClass, normalizeFormWidth, DEFAULT_FORM_WIDTH, collectAvailableLocales } from "@/features/admin/components/Forms/types";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import { Button } from "@/shared/components/ui/button";
 import { buildLoginPath } from "@/router/paths";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 
 export default function FormPublic() {
   const { slug } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const setSchema = useBuilderStore((s) => s.setSchema);
+  const schema = useBuilderStore((s) => s.schema);
+  const activeLocale = useBuilderStore((s) => s.activeLocale);
+  const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
   const formWidth = useBuilderStore((s) => normalizeFormWidth(s.schema.formWidth ?? DEFAULT_FORM_WIDTH));
   const formWidthClass = formWidthToClass(formWidth);
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const availableLocales = useMemo(() => collectAvailableLocales(schema), [schema]);
 
   useEffect(() => {
     let mounted = true;
@@ -99,6 +104,22 @@ export default function FormPublic() {
                 </div>
               )}
               {/* Render the form UI regardless so users can view it; submission can still be gated server-side */}
+              {availableLocales.length > 1 && (
+                <div className="mb-4 flex justify-end">
+                  <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+                    <SelectTrigger className="w-[160px]" aria-label="Select language">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {availableLocales.map((locale) => (
+                        <SelectItem key={locale} value={locale}>
+                          {locale}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <PreviewRendererClient slug={slug} applyFormWidth={false} />
             </CardContent>
           </Card>
