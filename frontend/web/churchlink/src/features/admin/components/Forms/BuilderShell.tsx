@@ -219,18 +219,17 @@ export function BuilderShell() {
         title: formName,
         description: description,
         folder,
-        visible: true,
         form_width: normalizedWidth,
         data: (schema as any)?.data || [],
       };
 
       if (currentFormId) {
         // Update existing form
-        await api.put(`/v1/forms/${currentFormId}`, payload);
+        await api.put(`/v1/forms/${currentFormId}`, { ...payload, visible: true });
         setStatus({ type: 'success', title: 'Updated', message: 'Form updated successfully' });
       } else {
-        // Create new form
-        await api.post('/v1/forms/', payload);
+        // Create new form - default to not visible
+        await api.post('/v1/forms/', { ...payload, visible: false });
         setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
       }
 

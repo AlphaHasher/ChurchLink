@@ -63,12 +63,12 @@ const LinksCellRenderer = (props: ICellRendererParams) => {
     <div className={`inline-flex items-center gap-2 ${!data.visible ? 'text-muted-foreground' : ''}`}>
       <a href={`/forms/${data.slug}`} target="_blank" rel="noreferrer" className={`${!data.visible ? 'pointer-events-none' : ''}`}>{`/forms/${data.slug}`}</a>
       <div className={`inline-flex items-center ${!data.visible ? 'text-muted-foreground' : ''}`}>
-        <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
+  <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug, true)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
         <Button size="icon" variant="ghost" onClick={() => handleRemoveSlug(data.id)} title="Remove slug"><Trash className="h-4 w-4" /></Button>
       </div>
     </div>
   ) : (
-    <Button size="sm" variant="ghost" onClick={() => openCreateSlug(data.id)} className="text-muted-foreground">Create Link</Button>
+    <Button size="sm" variant="ghost" onClick={() => openCreateSlug(data.id, context?.slugify ? context.slugify(data.title || '') : '', false)} className="text-muted-foreground">Create Link</Button>
   );
 };
 
@@ -140,7 +140,7 @@ const ManageForms = () => {
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
   const [moveTargetIds, setMoveTargetIds] = useState<string[] | null>(null);
   const [moveToFolderId, setMoveToFolderId] = useState<string>('');
-  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string } | null>(null);
+  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
   const [duplicateNameDialog, setDuplicateNameDialog] = useState<{
     formId: string;
@@ -343,6 +343,18 @@ const ManageForms = () => {
 
   const handleToggleVisible = async (id: string, visible: boolean) => {
     try {
+      // If trying to enable visibility, ensure the form has a slug first
+      if (visible) {
+        const form = allForms.find((f) => f.id === id);
+        const hasSlug = !!(form && (form.slug || form.slug === 0));
+        if (!hasSlug) {
+          // Prompt user to create a slug before making the form visible
+          setStatus('Please create a link/slug before making the form visible');
+          openCreateSlug(id, slugify((form && form.title) || ''), false);
+          return;
+        }
+      }
+
       await api.put(`/v1/forms/${id}`, { visible });
       setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
     } catch (e) {
@@ -360,9 +372,9 @@ const ManageForms = () => {
       .replace(/-+/g, '-');
   };
 
-  const openCreateSlug = (id: string, currentSlug?: string) => {
+  const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false) => {
     setSlugError(null);
-    setSlugDialog({ id, slug: currentSlug || '' });
+    setSlugDialog({ id, slug: currentSlug || '', isExisting });
   };
 
   const saveSlug = async () => {
@@ -550,6 +562,7 @@ const ManageForms = () => {
                 setMoveToFolderId: () => setMoveToFolderId(''),
                 setConfirmDeleteIds,
                 handleToggleVisible,
+                slugify,
               }}
               pagination={true}
               paginationPageSizeSelector={[10, 20, 50]}
@@ -594,8 +607,8 @@ const ManageForms = () => {
       {/* Slug create/edit dialog */}
       <Dialog open={!!slugDialog} onOpenChange={(open) => { if (!open) setSlugDialog(null); }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{slugDialog?.slug ? 'Edit link' : 'Create link'}</DialogTitle>
+            <DialogHeader>
+            <DialogTitle>{slugDialog?.isExisting ? 'Edit link' : 'Create link'}</DialogTitle>
           </DialogHeader>
           <Input value={slugDialog?.slug || ''} onChange={(e) => setSlugDialog((s) => s ? ({ ...s, slug: e.target.value }) : s)} placeholder="Enter slug (letters, numbers, dashes)" />
           {slugError && <div className="text-xs text-destructive mt-2">{slugError}</div>}
