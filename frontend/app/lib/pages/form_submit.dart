@@ -219,10 +219,13 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     return total;
   }
 
-  void _markDirty() {
-    if (!_isDirty) {
-      setState(() => _isDirty = true);
-    }
+  void _updateValue(String fieldName, dynamic value) {
+    setState(() {
+      _values[fieldName] = value;
+      if (!_isDirty) {
+        _isDirty = true;
+      }
+    });
   }
 
   bool _hasAnyInput() {
@@ -261,20 +264,26 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           });
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Form reloaded. All inputs were cleared.')),
+            const SnackBar(
+              content: Text('Form reloaded. All inputs were cleared.'),
+            ),
           );
           return;
         }
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to reload form${response?.statusCode != null ? ' (${response.statusCode})' : ''}')),
+        SnackBar(
+          content: Text(
+            'Failed to reload form${response?.statusCode != null ? ' (${response.statusCode})' : ''}',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error reloading form: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error reloading form: $e')));
     }
   }
 
@@ -285,21 +294,23 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     }
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reload form?'),
-        content: const Text(
-            'Reloading will fetch the latest form and clear all data you\'ve entered. Continue?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Reload form?'),
+            content: const Text(
+              'Reloading will fetch the latest form and clear all data you\'ve entered. Continue?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Reload'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reload'),
-          ),
-        ],
-      ),
     );
     if (confirm == true) {
       await _reloadForm();
@@ -316,6 +327,12 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 f['label'] ??
                 UniqueKey().toString())
             .toString();
+    final labelText = (f['label'] ?? f['name'] ?? fieldName).toString();
+    final placeholder = (f['placeholder'] ?? f['hint'])?.toString();
+    final helperText = (f['helperText'] ?? f['description'])?.toString();
+    final inlineLabel =
+        (f['inlineLabel'] ?? f['inline_label'] ?? f['inline'])?.toString();
+    final requiredField = f['required'] == true;
     switch (type) {
       case 'static':
         return StaticFormComponent(field: f);
@@ -323,116 +340,169 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         return const PriceFormComponent();
       case 'textarea':
         return TextareaFormComponent(
-          field: f,
-          value: _values[fieldName]?.toString(),
-          onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
-          },
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
+          initialValue: _values[fieldName]?.toString(),
+          onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
       case 'email':
         return EmailFormComponent(
-          field: f,
-          value: _values[fieldName]?.toString(),
-          onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
-          },
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
+          initialValue: _values[fieldName]?.toString(),
+          onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
       case 'number':
+        final current = _values[fieldName];
+        num? initial;
+        if (current is num) {
+          initial = current;
+        } else if (current is String) {
+          initial = double.tryParse(current);
+        }
+        final allowedValuesSource = f['allowedValues'] ?? f['allowed'];
+        final allowedValues = <num>[];
+        if (allowedValuesSource is List) {
+          for (final item in allowedValuesSource) {
+            if (item is num) {
+              allowedValues.add(item);
+            } else if (item is String) {
+              final parsed = double.tryParse(item);
+              if (parsed != null) allowedValues.add(parsed);
+            }
+          }
+        } else if (allowedValuesSource is String) {
+          final parts = allowedValuesSource.split(',');
+          for (final part in parts) {
+            final parsed = double.tryParse(part.trim());
+            if (parsed != null) allowedValues.add(parsed);
+          }
+        }
+        num? parseNum(dynamic raw) {
+          if (raw is num) return raw;
+          if (raw is String) return double.tryParse(raw.trim());
+          return null;
+        }
+        final minValue = parseNum(f['min'] ?? f['minimum']);
+        final maxValue = parseNum(f['max'] ?? f['maximum']);
+        final stepValue = parseNum(f['step']);
         return NumberFormComponent(
-          field: f,
-          value: _values[fieldName]?.toString(),
-          onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
-          },
-          onSaved: (v) =>
-              _values[fieldName] =
-                  v != null && v.isNotEmpty ? double.tryParse(v) : null,
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
+          initialValue: initial,
+          min: minValue,
+          max: maxValue,
+          step: stepValue,
+          allowedValues: allowedValues.isEmpty ? const <num>[] : allowedValues,
+          onChanged: (v) => _updateValue(fieldName, v),
+          onSaved: (v) => _values[fieldName] = v,
         );
       case 'checkbox':
         return CheckboxFormComponent(
-          field: f,
+          label: labelText,
+          inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
+          helperText: helperText,
+          requiredField: requiredField,
           value: _values[fieldName] == true,
-          onChanged: (val) {
-            setState(() {
-              _values[fieldName] = val;
-            });
-            _markDirty();
-          },
+          onChanged: (val) => _updateValue(fieldName, val),
+          onSaved: (val) => _values[fieldName] = val,
         );
       case 'switch':
         return SwitchFormComponent(
-          field: f,
+          label: labelText,
+          inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
+          helperText: helperText,
+          requiredField: requiredField,
           value: _values[fieldName] == true,
-          onChanged: (val) {
-            setState(() {
-              _values[fieldName] = val;
-            });
-            _markDirty();
-          },
+          onChanged: (val) => _updateValue(fieldName, val),
+          onSaved: (val) => _values[fieldName] = val,
         );
       case 'select':
+        final rawOptions =
+            (f['options'] ?? f['choices'] ?? const <dynamic>[]) as List;
+        final opts =
+            rawOptions
+                .map((opt) {
+                  if (opt is Map) {
+                    final value =
+                        (opt['value'] ?? opt['id'] ?? opt['label'] ?? '')
+                            .toString();
+                    final label =
+                        (opt['label'] ?? opt['value'] ?? opt['id'] ?? '')
+                            .toString();
+                    return SelectOption(value: value, label: label);
+                  }
+                  final value = opt?.toString() ?? '';
+                  return SelectOption(value: value, label: value);
+                })
+                .where((opt) => opt.value.isNotEmpty || opt.label.isNotEmpty)
+                .toList();
+        final multiple = f['multiple'] == true;
         return SelectFormComponent(
-          field: f,
+          label: labelText,
+          placeholder: (f['buttonLabel'] ?? placeholder)?.toString(),
+          helperText: helperText,
+          requiredField: requiredField,
+          options: opts,
+          multiple: multiple,
           value: _values[fieldName],
-          onChanged: (selection) {
-            setState(() {
-              _values[fieldName] = selection;
-            });
-            _markDirty();
+          onChanged: (selection) => _updateValue(fieldName, selection),
+          onSaved: (selection) {
+            if (multiple) {
+              final list =
+                  (selection as List?)
+                      ?.map((e) => e.toString())
+                      .where((e) => e.isNotEmpty)
+                      .toList() ??
+                  <String>[];
+              _values[fieldName] = list;
+            } else {
+              _values[fieldName] = selection?.toString();
+            }
           },
         );
       case 'radio':
         return RadioFormComponent(
           field: f,
           value: _values[fieldName]?.toString(),
-          onChanged: (v) {
-            setState(() {
-              _values[fieldName] = v;
-            });
-            _markDirty();
-          },
+          onChanged: (v) => _updateValue(fieldName, v),
         );
       case 'date':
         return DateFormComponent(
           field: f,
           value: _values[fieldName],
-          onChanged: (val) {
-            setState(() {
-              _values[fieldName] = val;
-            });
-            _markDirty();
-          },
+          onChanged: (val) => _updateValue(fieldName, val),
         );
       case 'time':
         return TimeFormComponent(
           field: f,
           value: _values[fieldName]?.toString(),
-          onChanged: (val) {
-            _values[fieldName] = val;
-            _markDirty();
-          },
+          onChanged: (val) => _updateValue(fieldName, val),
         );
       default:
         return TextFormComponent(
-          field: f,
-          value: _values[fieldName]?.toString(),
-          onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
-          },
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
+          initialValue: _values[fieldName]?.toString(),
+          onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
     }
   }
 
   Future<void> _submit() async {
-  if (!_scaffoldFormKey.currentState!.validate()) return;
-  _scaffoldFormKey.currentState!.save();
+    if (!_scaffoldFormKey.currentState!.validate()) return;
+    _scaffoldFormKey.currentState!.save();
 
     setState(() {
       _submitting = true;
@@ -484,18 +554,16 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     final description = _form['description'] ?? '';
     final String slug = (_form['slug']?.toString() ?? '').trim();
     final bool canSubmit = slug.isNotEmpty && slug.toLowerCase() != 'null';
-  final List<Map<String, dynamic>> visibleFields = _fields
-    .where(_isVisible)
-    .where((f) => (f['type'] ?? 'text').toString() != 'price')
-    .toList();
+    final List<Map<String, dynamic>> visibleFields =
+        _fields
+            .where(_isVisible)
+            .where((f) => (f['type'] ?? 'text').toString() != 'price')
+            .toList();
     final bool showPricing = _hasPricing();
     final double total = _computeTotal();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: Colors.black,
-      ),
+      appBar: AppBar(title: Text(title), backgroundColor: Colors.black),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12.0),

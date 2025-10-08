@@ -14,50 +14,59 @@ class RadioFormComponent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  final label = (field['label'] ?? field['name'] ?? '').toString();
+    final label = (field['label'] ?? field['name'] ?? '').toString();
     final List options = field['options'] ?? field['choices'] ?? [];
     final requiredField = field['required'] == true;
 
     return FormField<String>(
       initialValue: value,
-      validator: requiredField
-          ? (v) => (v == null || v.isEmpty) ? 'Required' : null
-          : null,
-      builder: (state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (label.isNotEmpty) Text(label),
-          ...options.map<Widget>((opt) {
-            final val = opt is Map
-                ? (opt['value'] ?? opt['id'] ?? opt['label'])
-                : opt;
-            final display = opt is Map
-                ? (opt['label'] ?? opt['value'] ?? opt['id'] ?? opt.toString())
-                : opt.toString();
-            final sel = state.value == val.toString();
-            return ListTile(
-              leading: Icon(
-                sel ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                color: sel ? Theme.of(context).colorScheme.primary : null,
-              ),
-              title: Text(display.toString()),
-              onTap: () {
-                final vstr = val.toString();
-                state.didChange(vstr);
-                onChanged(vstr);
-              },
-            );
-          }),
-          if (state.hasError)
-            Padding(
-              padding: const EdgeInsets.only(left: 12.0, top: 4),
-              child: Text(
-                state.errorText ?? '',
-                style: TextStyle(color: Colors.red[700], fontSize: 12),
-              ),
-            ),
-        ],
-      ),
+      validator:
+          requiredField
+              ? (v) => (v == null || v.isEmpty) ? 'Required' : null
+              : null,
+      builder:
+          (state) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (label.isNotEmpty) Text(label),
+              ...options.map<Widget>((opt) {
+                final val =
+                    opt is Map
+                        ? (opt['value'] ?? opt['id'] ?? opt['label'])
+                        : opt;
+                final display =
+                    opt is Map
+                        ? (opt['label'] ??
+                            opt['value'] ??
+                            opt['id'] ??
+                            opt.toString())
+                        : opt.toString();
+                final sel = state.value == val.toString();
+                return ListTile(
+                  leading: Icon(
+                    sel
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: sel ? Theme.of(context).colorScheme.primary : null,
+                  ),
+                  title: Text(display.toString()),
+                  onTap: () {
+                    final vstr = val.toString();
+                    state.didChange(vstr);
+                    onChanged(vstr);
+                  },
+                );
+              }),
+              if (state.hasError)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12.0, top: 4),
+                  child: Text(
+                    state.errorText ?? '',
+                    style: TextStyle(color: Colors.red[700], fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
     );
   }
 }

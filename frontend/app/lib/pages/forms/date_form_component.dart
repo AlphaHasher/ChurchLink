@@ -21,7 +21,7 @@ class DateFormComponent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  final label = (field['label'] ?? field['name'] ?? '').toString();
+    final label = (field['label'] ?? field['name'] ?? '').toString();
     final mode = (field['mode'] ?? 'single').toString();
 
     if (mode == 'range') {
@@ -68,19 +68,28 @@ class DateFormComponent extends StatelessWidget {
                     context: context,
                     firstDate: DateTime(1900),
                     lastDate: DateTime(2100),
-                    initialDateRange: (sFrom != null && sTo != null)
-                        ? DateTimeRange(
-                            start: DateTime.tryParse(sFrom) ?? initial,
-                            end: DateTime.tryParse(sTo) ?? initial,
-                          )
-                        : null,
+                    initialDateRange:
+                        (sFrom != null && sTo != null)
+                            ? DateTimeRange(
+                              start: DateTime.tryParse(sFrom) ?? initial,
+                              end: DateTime.tryParse(sTo) ?? initial,
+                            )
+                            : null,
                   );
                   if (res != null) {
                     final newVal = {
-                      'from': DateTime(res.start.year, res.start.month, res.start.day)
-                          .toIso8601String(),
-                      'to': DateTime(res.end.year, res.end.month, res.end.day)
-                          .toIso8601String(),
+                      'from':
+                          DateTime(
+                            res.start.year,
+                            res.start.month,
+                            res.start.day,
+                          ).toIso8601String(),
+                      'to':
+                          DateTime(
+                            res.end.year,
+                            res.end.month,
+                            res.end.day,
+                          ).toIso8601String(),
                     };
                     onChanged(newVal);
                     state.didChange(newVal);
@@ -119,38 +128,44 @@ class DateFormComponent extends StatelessWidget {
           }
           return null;
         },
-        builder: (state) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              title: Text(label),
-              subtitle: Text(state.value ?? 'Select date'),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate:
-                      DateTime.tryParse(state.value ?? '') ?? DateTime.now(),
-                  firstDate: DateTime(1900),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null) {
-                  final d = DateTime(picked.year, picked.month, picked.day)
-                      .toIso8601String();
-                  onChanged(d);
-                  state.didChange(d);
-                }
-              },
-            ),
-            if (state.hasError)
-              Padding(
-                padding: const EdgeInsets.only(left: 12.0, top: 4),
-                child: Text(
-                  state.errorText ?? '',
-                  style: TextStyle(color: Colors.red[700], fontSize: 12),
+        builder:
+            (state) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  title: Text(label),
+                  subtitle: Text(state.value ?? 'Select date'),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate:
+                          DateTime.tryParse(state.value ?? '') ??
+                          DateTime.now(),
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      final d =
+                          DateTime(
+                            picked.year,
+                            picked.month,
+                            picked.day,
+                          ).toIso8601String();
+                      onChanged(d);
+                      state.didChange(d);
+                    }
+                  },
                 ),
-              ),
-          ],
-        ),
+                if (state.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12.0, top: 4),
+                    child: Text(
+                      state.errorText ?? '',
+                      style: TextStyle(color: Colors.red[700], fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
       );
     }
   }

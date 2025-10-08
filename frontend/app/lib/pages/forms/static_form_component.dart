@@ -16,7 +16,8 @@ class StaticFormComponent extends StatelessWidget {
     } else if (asValue == 'small') {
       style = const TextStyle(fontSize: 12, color: Colors.grey);
     }
-    final content = (field['content'] ?? field['label'] ?? field['name'] ?? '').toString();
+    final content =
+        (field['content'] ?? field['label'] ?? field['name'] ?? '').toString();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Text(content, style: style),

@@ -58,7 +58,7 @@ class TimeFormComponent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  final label = (field['label'] ?? field['name'] ?? '').toString();
+    final label = (field['label'] ?? field['name'] ?? '').toString();
     final minTime = (field['minTime'] ?? field['min'])?.toString();
     final maxTime = (field['maxTime'] ?? field['max'])?.toString();
 
@@ -82,9 +82,10 @@ class TimeFormComponent extends StatelessWidget {
       },
       builder: (state) {
         final initialTod = _parseTimeOfDay(state.value) ?? TimeOfDay.now();
-        final display = (state.value != null && state.value!.isNotEmpty)
-            ? state.value!
-            : 'Select time';
+        final display =
+            (state.value != null && state.value!.isNotEmpty)
+                ? state.value!
+                : 'Select time';
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
