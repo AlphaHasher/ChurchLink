@@ -1,4 +1,3 @@
-// lib/helpers/user_helper.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'api_client.dart';
 import 'logger.dart';
