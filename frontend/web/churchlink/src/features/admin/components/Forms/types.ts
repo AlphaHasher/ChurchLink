@@ -25,7 +25,7 @@ export type FormWidthOption = "100" | "85" | "70" | "55" | "40" | "25" | "15";
 
 export const FORM_WIDTH_VALUES: FormWidthOption[] = ["100", "85", "70", "55", "40", "25", "15"];
 
-export const DEFAULT_FORM_WIDTH: FormWidthOption = "100";
+export const DEFAULT_FORM_WIDTH: FormWidthOption = "55";
 
 const LEGACY_FORM_WIDTH_MAP: Record<string, FormWidthOption> = {
   full: "100",
@@ -229,17 +229,17 @@ export const formWidthToClass = (w?: string) => {
   const normalized = normalizeFormWidth(w);
   switch (normalized) {
     case "15":
-      return "max-w-[15%]";
+      return "max-w-full lg:max-w-[15%]";
     case "25":
-      return "max-w-[25%]";
+      return "max-w-full lg:max-w-[25%]";
     case "40":
-      return "max-w-[40%]";
+      return "max-w-full lg:max-w-[40%]";
     case "55":
-      return "max-w-[55%]";
+      return "max-w-full lg:max-w-[55%]";
     case "70":
-      return "max-w-[70%]";
+      return "max-w-full lg:max-w-[70%]";
     case "85":
-      return "max-w-[85%]";
+      return "max-w-full lg:max-w-[85%]";
     case "100":
     default:
       return "max-w-full";

@@ -13,14 +13,14 @@ import { MailCheck } from 'lucide-react';
 import { formWidthToClass } from "./types";
 import { cn } from "@/lib/utils";
 
-export function PreviewRendererClient({ slug }: { slug?: string }) {
+export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: string; applyFormWidth?: boolean }) {
   const schema = useBuilderStore((s) => s.schema);
   const zodSchema = schemaToZodObject(schema);
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} });
   const values = form.watch();
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
-  const formWidthClass = formWidthToClass((schema as any)?.formWidth);
+  const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;

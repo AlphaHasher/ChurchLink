@@ -39,7 +39,7 @@ export default function FormPublic() {
           setLoading(false);
           return;
         }
-  const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
+        const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
         // set schema into builder store for rendering
         setSchema({
           title: form.title,
@@ -76,31 +76,33 @@ export default function FormPublic() {
   return (
     <div className="py-6">
       <div className="px-4 sm:px-6 lg:px-8">
-        <Card className={cn("mx-auto w-full", formWidthClass)}>
-          <CardContent>
-            {!user && (
-            <div className="mb-6 rounded-md border border-muted p-4 bg-muted/30">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-muted-foreground">
-                  You need to be logged in to submit this form.
+        <div className={cn("mx-auto w-full", formWidthClass)}>
+          <Card className="w-full gap-0 py-4 sm:py-6">
+            <CardContent className="px-4 sm:px-6">
+              {!user && (
+                <div className="mb-6 rounded-md border border-muted bg-muted/30 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      You need to be logged in to submit this form.
+                    </div>
+                    <div>
+                      <Button
+                        onClick={() => {
+                          const redirectTo = location.pathname + location.search;
+                          navigate(buildLoginPath(redirectTo));
+                        }}
+                      >
+                        Log in to continue
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Button
-                    onClick={() => {
-                      const redirectTo = location.pathname + location.search;
-                      navigate(buildLoginPath(redirectTo));
-                    }}
-                  >
-                    Log in to continue
-                  </Button>
-                </div>
-              </div>
-            </div>
-            )}
-            {/* Render the form UI regardless so users can view it; submission can still be gated server-side */}
-            <PreviewRendererClient slug={slug} />
-          </CardContent>
-        </Card>
+              )}
+              {/* Render the form UI regardless so users can view it; submission can still be gated server-side */}
+              <PreviewRendererClient slug={slug} applyFormWidth={false} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

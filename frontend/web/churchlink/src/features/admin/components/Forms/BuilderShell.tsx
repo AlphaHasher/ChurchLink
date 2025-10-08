@@ -335,7 +335,28 @@ export function BuilderShell() {
   const previewOverlay = previewExpanded
     ? createPortal(
         <div className="fixed inset-0 z-[100] bg-background">
-          <div className="absolute right-4 top-4 flex items-center">
+          <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
+            {/* Width and locale selectors in overlay so changes are visible live when maximized */}
+            <Select value={formWidth} onValueChange={handleFormWidthChange}>
+              <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+                <SelectValue placeholder="Width" />
+              </SelectTrigger>
+              <SelectContent align="end" className="z-[200]">
+                {widthOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+              <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end" className="z-[200]">
+                {availableLocales.map((l) => (
+                  <SelectItem key={l} value={l}>{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant="secondary"
@@ -350,7 +371,7 @@ export function BuilderShell() {
           <div className="flex h-full w-full flex-col overflow-auto p-6">
             <div className="mx-auto w-full max-w-6xl">
               <ErrorBoundary>
-                <PreviewRendererClient />
+                <PreviewRendererClient applyFormWidth={true} />
               </ErrorBoundary>
             </div>
           </div>
@@ -578,7 +599,7 @@ export function BuilderShell() {
               </div>
             </CardHeader>
             <CardContent>
-              <ErrorBoundary>
+                  <ErrorBoundary>
                 {status?.message && typeof status.message === 'string' && status.message.toLowerCase().includes('load') ? (
                   <div className="space-y-2">
                     <Skeleton className="h-6 w-1/3" />
@@ -587,7 +608,8 @@ export function BuilderShell() {
                     <Skeleton className="h-8 w-full mt-2" />
                   </div>
                 ) : (
-                  <PreviewRendererClient />
+                  // Do not apply form width when showing the compact card preview
+                  <PreviewRendererClient applyFormWidth={false} />
                 )}
               </ErrorBoundary>
             </CardContent>
