@@ -104,7 +104,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
   } = context;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center h-full gap-2">
       <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/form-builder?load=${data.id}`)}><FileEdit className="h-4 w-4 mr-1" /> Edit</Button>
       <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/responses?formId=${data.id}`)}>View responses</Button>
       <DropdownMenu>
@@ -196,6 +196,7 @@ const ManageForms = () => {
       flex: 3,
       minWidth: 300,
       cellRenderer: ActionsCellRenderer,
+      cellStyle: { display: 'flex', alignItems: 'center', height: '100%' },
       pinned: 'right',
     },
   ];

@@ -177,7 +177,7 @@ export function Inspector() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
+                  <div className="col-span-2">
                     <Label className="text-xs">Label</Label>
                     <Input
                       value={(field as any).i18n?.[loc]?.label ?? ''}

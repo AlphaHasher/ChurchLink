@@ -5,18 +5,49 @@ class StaticFormComponent extends StatelessWidget {
   final String? labelOverride;
   final String? helperOverride;
 
-  const StaticFormComponent({super.key, required this.field, this.labelOverride, this.helperOverride});
+  const StaticFormComponent({
+    super.key,
+    required this.field,
+    this.labelOverride,
+    this.helperOverride,
+  });
 
   @override
   Widget build(BuildContext context) {
     final asValue = (field['as'] ?? 'p').toString();
-    TextStyle style = const TextStyle(fontSize: 14);
-    if (asValue == 'h1') {
-      style = const TextStyle(fontSize: 22, fontWeight: FontWeight.bold);
-    } else if (asValue == 'h2') {
-      style = const TextStyle(fontSize: 18, fontWeight: FontWeight.w600);
-    } else if (asValue == 'small') {
-      style = const TextStyle(fontSize: 12, color: Colors.grey);
+    final theme = Theme.of(context);
+
+    TextStyle style;
+    switch (asValue) {
+      case 'h1':
+        style =
+            theme.textTheme.displaySmall ??
+            const TextStyle(fontSize: 36, fontWeight: FontWeight.w600);
+        break;
+      case 'h2':
+        style =
+            theme.textTheme.headlineMedium ??
+            const TextStyle(fontSize: 30, fontWeight: FontWeight.w600);
+        break;
+      case 'h3':
+        style =
+            theme.textTheme.headlineSmall ??
+            const TextStyle(fontSize: 24, fontWeight: FontWeight.w600);
+        break;
+      case 'h4':
+        style =
+            theme.textTheme.titleLarge ??
+            const TextStyle(fontSize: 20, fontWeight: FontWeight.w600);
+        break;
+      case 'small':
+        style =
+            theme.textTheme.bodySmall ??
+            const TextStyle(fontSize: 14, color: Colors.grey);
+        break;
+      case 'p':
+      default:
+        style = theme.textTheme.bodyMedium ?? const TextStyle(fontSize: 18);
+        break;
     }
     Color? parseColor(String? hex) {
       if (hex == null || hex.isEmpty) return null;
@@ -37,13 +68,24 @@ class StaticFormComponent extends StatelessWidget {
     final color = parseColor(field['color']?.toString());
     style = style.copyWith(
       fontWeight: bold ? FontWeight.w600 : style.fontWeight,
-      decoration:
-          underline ? TextDecoration.underline : style.decoration,
+      decoration: underline ? TextDecoration.underline : style.decoration,
       color: color ?? style.color,
     );
 
-  final primary = (labelOverride ?? field['label'] ?? field['content'] ?? field['name'] ?? '').toString();
-  final helper = (helperOverride ?? field['helpText'] ?? field['helperText'] ?? field['description'] ?? '').toString();
+    final primary =
+        (labelOverride ??
+                field['label'] ??
+                field['content'] ??
+                field['name'] ??
+                '')
+            .toString();
+    final helper =
+        (helperOverride ??
+                field['helpText'] ??
+                field['helperText'] ??
+                field['description'] ??
+                '')
+            .toString();
     final hasHelper = helper.trim().isNotEmpty;
 
     return Padding(
@@ -57,10 +99,9 @@ class StaticFormComponent extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2.0),
               child: Text(
                 helper,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.grey[600]),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
               ),
             ),
         ],
