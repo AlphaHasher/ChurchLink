@@ -6,14 +6,14 @@ from datetime import datetime # Import datetime if needed for birthday query
 
 # Import models and functions from models/user.py
 from models.user import (
-    UserCreate, UserOut, AddressSchema, PersonCreate, PersonOut, PersonUpdate, PersonUpdateRequest, FamilyMemberIDTag, # Assuming AddressSchema might be needed for updates
+    UserCreate, UserOut, PersonCreate, PersonUpdateRequest, # Assuming AddressSchema might be needed for updates
     create_user, get_user_by_id, get_user_by_uid, get_user_by_email,
     get_users,
     find_users_with_permissions,
     update_user_roles, delete_user,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, MyPermsRequest, PersonalInfo
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, MyPermsRequest, PersonalInfo, ContactInfo
 
 # Assuming RoleOut might be needed if fetching roles associated with users
 # from models.roles import RoleOut
@@ -188,6 +188,11 @@ async def process_get_profile(request:Request):
 @user_private_router.patch("/update-profile")
 async def process_update_profile(request:Request, profile_data: PersonalInfo = Body(...)):
     return await update_profile(request, profile_data)
+
+# Private Route
+@user_private_router.patch("/update-contact")
+async def process_update_contact(request:Request, contact_info: ContactInfo = Body(...)):
+    return await update_contact(request, contact_info)
 
 # Private Router
 @user_private_router.get("/is-init")

@@ -1,7 +1,7 @@
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from fastapi import Request
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -12,6 +12,7 @@ from firebase_admin import auth
 from models.user import get_family_member_by_id, AddressSchema
 
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'\-]{0,49}$")
+PHONE_RE = re.compile(r"^[1-9()+\-]+$")
 
 
 class MyPermsRequest(BaseModel):
@@ -28,7 +29,7 @@ class PersonalInfo(BaseModel):
 
 class ContactInfo(BaseModel):
     phone: Optional[str]
-    address: Field(default_factory=AddressSchema)
+    address: AddressSchema
 
 
 def is_valid_name(s: str) -> bool:
@@ -134,6 +135,57 @@ async def fetch_profile_info(request: Request):
         "contact_info": contact_info.model_dump()
     }
 
+async def update_contact(request: Request, contact_info: ContactInfo):
+    uid = request.state.uid
+
+    # Ensure phone number is a reasonable input
+    safe_phone = contact_info.phone
+    if not safe_phone:
+        safe_phone = ""
+    safe_phone = safe_phone.strip().replace(" ", "")
+
+    if safe_phone != "" and not PHONE_RE.fullmatch(safe_phone):
+        msg = 'Please only use numbers, (), +, and - in your phone number. Valid inputs include +5(555)555-5555 and 555-5555'
+        return {"success":False, "msg":msg}
+    
+    # Account for safety of not saving without alteration
+    if safe_phone == request.state.user['phone'] and contact_info.address.model_dump() == request.state.user['address']:
+        return {
+            "success": True,
+            "msg": "Profile detail update success!",
+            "contact_info": contact_info.model_dump()
+        }
+
+
+    # Get update data
+    update_data = {
+        "phone": safe_phone,
+        "address": contact_info.address.model_dump(),
+    }
+
+    # Update the user information
+    modified = await UserHandler.update_user({"uid": uid}, update_data)
+    if not modified:
+        return {"success": False, "msg": "Error in changing contact info!"}
+    
+    # Re-fetch and return the latest contact data data for dynamic updating purposes
+    updated = await UserHandler.find_by_uid(uid)
+    if not updated or updated == False:
+        return {"success": False, "msg": "Error retrieving updated contact info!"}
+    
+    refreshed = ContactInfo(
+        phone = updated.get("phone", ""),
+        address = updated.get("address")
+    )
+
+    return {
+        "success":True,
+        "msg":"Contact info update success!",
+        "contact_info":refreshed.model_dump()
+    }
+    
+
+
 async def update_profile(request: Request, profile_info: PersonalInfo):
     uid = request.state.uid
 
@@ -166,6 +218,17 @@ async def update_profile(request: Request, profile_info: PersonalInfo):
     gender = update_data["gender"]
     if gender is None or (isinstance(gender, str) and gender.lower() not in ['m', 'f']):
         return {"success":False, "msg":"Please select a gender for your account so we may determine your event eligibility!"}
+    
+    comp_birthday = request.state.user['birthday']
+    if comp_birthday.tzinfo is None:
+        comp_birthday = comp_birthday.replace(tzinfo = timezone.utc)
+
+    if update_data['first_name'] == request.state.user['first_name'] and update_data['last_name'] == request.state.user['last_name'] and update_data['birthday'] == comp_birthday and update_data['gender'] == request.state.user['gender']:
+        return {
+            "success": True,
+            "msg": "Profile detail update success!",
+            "profile_info": update_data
+        }
 
     # Update the user information
     modified = await UserHandler.update_user({"uid": uid}, update_data)

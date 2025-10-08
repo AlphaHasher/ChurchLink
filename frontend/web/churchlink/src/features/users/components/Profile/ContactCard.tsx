@@ -2,39 +2,24 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/ui/card";
 import { Separator } from "@/shared/components/ui/separator";
+import type { AddressSchema } from "@/shared/types/ProfileInfo";
 
-type ProfileCardProps = {
-    firstName: string;
-    lastName: string;
-    email: string;
-    birthday?: Date | null;
-    gender?: string | null;
+type ContactCardProps = {
+    phone: string | null;
+    address: AddressSchema | null;
     className?: string;
     footer?: React.ReactNode;
 };
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({
-    firstName,
-    lastName,
-    email,
-    birthday,
-    gender,
+export const ContactCard: React.FC<ContactCardProps> = ({
+    phone,
+    address,
     className,
     footer,
 }) => {
-    const displayName = `${firstName} ${lastName}`.trim();
+    const phoneDisplay = (phone ?? "").trim() || "—";
 
-    const dob = birthday
-        ? birthday.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        })
-        : "—";
-
-    const genderDisplay = gender ?? "—";
-
-    const initials = getInitials(firstName, lastName);
+    const addressLines = formatAddress(address);
 
     return (
         <motion.div
@@ -44,12 +29,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         >
             <Card className={["w-96 shadow-lg", className].filter(Boolean).join(" ")}>
                 <CardHeader className="flex flex-col items-center">
-                    <div className="mb-4 flex h-18 w-18 items-center justify-center rounded-full bg-gray-300 text-3xl font-bold text-gray-700">
-                        {initials}
-                    </div>
                     <h2 className="px-4 text-center text-xl font-semibold break-words">
-                        {displayName}
+                        Contact Information
                     </h2>
+                    <p className="text-center">If you wish, provide us with details we may contact you with.</p>
                 </CardHeader>
 
                 <CardContent>
@@ -58,13 +41,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                         aria-disabled="true"
                     >
                         <dl className="cursor-not-allowed">
-                            <OverviewRow label="Account email" value={email} />
+                            <OverviewRow label="Phone" value={phoneDisplay} />
                             <Separator />
-                            <OverviewRow label="Account name" value={displayName} />
+                            <OverviewRow label="Address" value={addressLines[0]} />
                             <Separator />
-                            <OverviewRow label="DOB" value={dob} />
+                            <OverviewRow label="City / State" value={addressLines[1]} />
                             <Separator />
-                            <OverviewRow label="Gender" value={genderDisplay} />
+                            <OverviewRow label="Country / Postal" value={addressLines[2]} />
                         </dl>
                     </div>
                 </CardContent>
@@ -82,14 +65,16 @@ function OverviewRow({ label, value }: { label: string; value: string }) {
                 {label}
             </dt>
             <dd className="col-span-2 min-w-0 whitespace-normal break-all text-sm text-muted-foreground">
-                {value}
+                {value || "—"}
             </dd>
         </div>
     );
 }
 
-function getInitials(first: string, last: string) {
-    const f = first?.trim()?.[0] ?? "";
-    const l = last?.trim()?.[0] ?? "";
-    return (f + l).toUpperCase();
+function formatAddress(addr?: AddressSchema | null): [string, string, string] {
+    if (!addr) return ["—", "—", "—"];
+    const l1 = [addr.address, addr.suite].filter(Boolean).join(", ") || "—";
+    const l2 = [addr.city, addr.state].filter(Boolean).join(", ") || "—";
+    const l3 = [addr.country, addr.postal_code].filter(Boolean).join(" ").trim() || "—";
+    return [l1, l2, l3];
 }

@@ -3,7 +3,7 @@ import { auth } from "@/lib/firebase";
 import { processFetchedUserData } from "./DataFunctions";
 import api from "../api/api";
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
-import { toProfileInfo, ProfileInfo } from "@/shared/types/ProfileInfo";
+import { toProfileInfo, ProfileInfo, ContactInfo, toContactInfo } from "@/shared/types/ProfileInfo";
 import { PersonDetails } from "@/shared/types/Person";
 
 export const processMongoVerification = async () => {
@@ -112,7 +112,7 @@ export const getIsInit = async () => {
 export const getMyProfileInfo = async () => {
     try {
         const res = await api.get("/v1/users/get-profile");
-        return toProfileInfo(res.data.profile_info);
+        return res.data;
     }
     catch (err) {
         console.error("Failed to get profile info:", err);
@@ -144,6 +144,26 @@ export const updateProfileInfo = async (profile: ProfileInfo) => {
         return { success: false, msg: "Failed to update profile info.", profile: null };
     }
 };
+
+export const updateContactInfo = async (contact: ContactInfo) => {
+    try {
+        const payload = {
+            phone: contact.phone,
+            address: contact.address
+        };
+
+        const res = await api.patch("/v1/users/update-contact", payload);
+
+        return {
+            success: res.data?.success === true,
+            msg: res.data?.msg ?? "",
+            contact: res.data?.contact_info ? toContactInfo(res.data.contact_info) : null,
+        };
+    } catch (err) {
+        console.error("Failed to update contact info:", err);
+        return { success: false, msg: "Failed to update contact info.", contact: null };
+    }
+}
 
 export const getMyFamilyMembers = async () => {
     try {

@@ -33,7 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _prefillFromIncomingOrFallback() async {
     ProfileInfo? p =
         widget.initialProfile ?? await UserHelper.readCachedProfile();
-    p ??= await UserHelper.getMyProfile();
+    p ??= (await UserHelper.getMyProfile())?.profile;
 
     if (p == null) {
       final first = '';
