@@ -13,7 +13,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 STRAPI_URL = os.getenv("STRAPI_URL", "")
-STRAPI_API_KEY = os.getenv("STRAPI_API_KEY", "")
 SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "")
 SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD", "")
 
@@ -21,6 +20,136 @@ MEDIA_LIBRARY_PATH = "/admin/plugins/upload"
 cached_admin_token = None
 
 class StrapiHelper:
+
+    API_KEY = None
+
+    @staticmethod
+    async def validate_API_key():
+        # If we have a cached key, test it quickly
+        if StrapiHelper.API_KEY:
+            if await StrapiHelper.test_api_key(StrapiHelper.API_KEY):
+                return
+
+        admin_jwt = await StrapiHelper.get_admin_token()
+        StrapiHelper.API_KEY = await StrapiHelper.create_or_regenerate_api_token(admin_jwt)
+
+
+    @staticmethod
+    async def test_api_key(token: str) -> bool:
+        try:
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            params = {"pagination[pageSize]": 1}
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(f"{STRAPI_URL}/api/upload/files", headers=headers, params=params)
+            return r.status_code == 200
+        except Exception:
+            return False
+        
+    @staticmethod
+    def extract_plaintext_token(payload: dict) -> str | None:
+        """
+        Strapi returns the plaintext value only at create/regenerate time.
+        Different builds use different keys; try several.
+        """
+        if not isinstance(payload, dict):
+            return None
+        candidates = [
+            payload.get("accessKey"),
+            payload.get("token"),
+            payload.get("plainTextToken"),
+        ]
+        data = payload.get("data")
+        if isinstance(data, dict):
+            candidates += [
+                data.get("accessKey"),
+                data.get("token"),
+                data.get("plainTextToken"),
+            ]
+        for v in candidates:
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+        return None
+    
+    @staticmethod
+    async def create_or_regenerate_api_token(admin_jwt: str) -> str:
+        TOKEN_NAME = "churchlink-backend-full"
+        TOKEN_DESC = "Auto-generated token for backend server"
+
+        headers = {"Authorization": f"Bearer {admin_jwt}", "Content-Type": "application/json"}
+        create_payload = {
+            "name": TOKEN_NAME,
+            "description": TOKEN_DESC,
+            "type": "full-access",
+            "lifespan": None,
+            "permissions": None,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res = await client.post(f"{STRAPI_URL}/admin/api-tokens", headers=headers, json=create_payload)
+            if res.status_code in (200, 201):
+                token = StrapiHelper.extract_plaintext_token(res.json())
+                if not token:
+                    raise HTTPException(status_code=500, detail="Created API token but no plaintext value returned")
+                return token
+        except Exception as e:
+            logger.warning(f"API token create threw: {e} (will try list/regenerate)")
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            list_res = await client.get(f"{STRAPI_URL}/admin/api-tokens", headers=headers)
+        if list_res.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Failed to list API tokens: {list_res.text}")
+
+        body = list_res.json()
+        tokens = body.get("data") if isinstance(body, dict) else body
+        found_id = None
+        if isinstance(tokens, list):
+            for t in tokens:
+                if not isinstance(t, dict):
+                    continue
+                name = t.get("name")
+                if name == TOKEN_NAME:
+                    found_id = t.get("id")
+                    break
+                attrs = t.get("attributes")
+                if isinstance(attrs, dict) and attrs.get("name") == TOKEN_NAME:
+                    found_id = t.get("id") or attrs.get("id")
+                    break
+
+        if found_id:
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    regen_res = await client.post(
+                        f"{STRAPI_URL}/admin/api-tokens/{found_id}/regenerate",
+                        headers=headers,
+                        json={},
+                    )
+                if regen_res.status_code in (200, 201):
+                    token = StrapiHelper.extract_plaintext_token(regen_res.json())
+                    if token:
+                        return token
+                logger.warning(f"Regenerate failed or no plaintext returned: {regen_res.status_code} {regen_res.text}")
+            except Exception as e:
+                logger.warning(f"API token regenerate threw: {e} (will try delete+create)")
+
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                del_res = await client.delete(f"{STRAPI_URL}/admin/api-tokens/{found_id}", headers=headers)
+            if del_res.status_code not in (200, 204):
+                raise HTTPException(status_code=500, detail=f"Failed to delete old API token: {del_res.text}")
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res2 = await client.post(f"{STRAPI_URL}/admin/api-tokens", headers=headers, json=create_payload)
+            if res2.status_code in (200, 201):
+                token2 = StrapiHelper.extract_plaintext_token(res2.json())
+                if token2:
+                    return token2
+                raise HTTPException(status_code=500, detail="Created API token but plaintext was not returned (after delete+create)")
+
+            raise HTTPException(status_code=500, detail=f"Re-create API token failed: {res2.status_code} {res2.text}")
+
+        raise HTTPException(status_code=500, detail=f"API token create failed and no existing token named '{TOKEN_NAME}' was found.")
+
+        
 
     async def get_admin_token() -> str:
         global cached_admin_token
@@ -369,12 +498,14 @@ class StrapiHelper:
     @staticmethod
     async def search_uploads_by_name(query: str) -> list:
 
+        await StrapiHelper.validate_API_key()
+
         params = {
             "filters[name][$containsi]": query
         }
 
         headers = {
-            "Authorization": f"Bearer {STRAPI_API_KEY}",
+            "Authorization": f"Bearer {StrapiHelper.API_KEY}",
             "Content-Type": "application/json"
         }
 
