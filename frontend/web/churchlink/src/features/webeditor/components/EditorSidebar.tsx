@@ -7,20 +7,87 @@ import { X } from "lucide-react";
 
 type ElementItem = { type: string; label: string };
 
+type SidebarSectionNode = {
+  id: string;
+  label: string;
+  type: 'section' | 'container' | 'node';
+  sectionId: string;
+  children?: SidebarSectionNode[];
+};
+
 interface EditorSidebarProps {
   onAddSection: () => void;
   elements: ElementItem[];
   onAddElement: (type: string) => void;
   sectionPresets?: Array<{ key: string; label: string }>;
   onAddSectionPreset?: (key: string) => void;
-  currentSections?: Array<{ id: string; label: string }>;
+  currentSections?: SidebarSectionNode[];
   onFocusSection?: (id: string) => void;
+  onFocusNode?: (sectionId: string, nodeId: string) => void;
   onDeleteSection?: (id: string) => void;
   pageTitle?: string;
   slug?: string;
 }
 
-const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, onAddElement, sectionPresets = [], onAddSectionPreset, currentSections = [], onFocusSection, onDeleteSection, pageTitle, slug }) => {
+const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, onAddElement, sectionPresets = [], onAddSectionPreset, currentSections = [], onFocusSection, onFocusNode, onDeleteSection, pageTitle, slug }) => {
+  const renderSectionTree = (nodes: SidebarSectionNode[], depth = 0) => (
+    nodes.map((node, idx) => {
+      const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+
+      const handleClick = () => {
+        if (node.type === 'section') {
+          onFocusSection?.(node.id);
+        } else {
+          onFocusNode?.(node.sectionId, node.id);
+        }
+      };
+
+      const displayLabel = node.type === 'section' ? `${idx + 1}. ${node.label}` : node.label;
+
+      if (hasChildren) {
+        return (
+          <Collapsible key={node.id} defaultOpen={depth < 1} className="group/nested">
+            <SidebarMenuSubItem className="group/menu-item relative">
+              <CollapsibleTrigger asChild>
+                <SidebarMenuButton className="justify-between" onClick={handleClick}>
+                  <span className="truncate" title={node.label}>{displayLabel}</span>
+                  <span className="text-xs text-muted-foreground">{node.children?.length ?? 0}</span>
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              {node.type === 'section' && (
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-end text-muted-foreground transition-transform translate-x-[180%] group-hover/menu-item:translate-x-0 group-hover/menu-item:pointer-events-auto">
+                  <div className="absolute inset-y-0 right-full w-16 h-full" />
+                  <div className="relative z-10 flex items-center pr-1 bg-transparent rounded-r-md">
+                    <button
+                      className="rounded-md p-1.5 hover:bg-accent hover:text-accent-foreground"
+                      title="Delete section"
+                      aria-label="Delete section"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteSection?.(node.id); }}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </SidebarMenuSubItem>
+            <CollapsibleContent>
+              <SidebarMenuSub className="ml-2 border-l border-border/40 pl-3 space-y-1">
+                {renderSectionTree(node.children!, depth + 1)}
+              </SidebarMenuSub>
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      }
+
+      return (
+        <SidebarMenuSubItem key={node.id}>
+          <SidebarMenuButton className="justify-start" onClick={handleClick}>
+            <span className="truncate" title={node.label}>{displayLabel}</span>
+          </SidebarMenuButton>
+        </SidebarMenuSubItem>
+      );
+    })
+  );
   return (
     // Offset the fixed shadcn sidebar by the top bar height (h-12)
     <Sidebar
@@ -53,26 +120,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenuSub>
-                    {currentSections.map((p, idx) => (
-                      <SidebarMenuSubItem key={p.id} className="group/menu-item relative">
-                        <SidebarMenuButton className="justify-start" onClick={() => onFocusSection?.(p.id)}>
-                          <span>{idx + 1}. {p.label}</span>
-                        </SidebarMenuButton>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-end text-muted-foreground transition-transform translate-x-[180%] group-hover/menu-item:translate-x-0 group-hover/menu-item:pointer-events-auto">
-                          <div className="absolute inset-y-0 right-full w-16 h-full" />
-                          <div className="relative z-10 flex items-center pr-1 bg-transparent rounded-r-md">
-                            <button
-                              className="rounded-md p-1.5 hover:bg-accent hover:text-accent-foreground"
-                              title="Delete section"
-                              aria-label="Delete section"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteSection?.(p.id); }}
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </SidebarMenuSubItem>
-                    ))}
+                    {renderSectionTree(currentSections)}
                   </SidebarMenuSub>
                 </CollapsibleContent>
               </SidebarMenuItem>

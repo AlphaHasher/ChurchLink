@@ -39,10 +39,10 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         fontFamily: "Inter, sans-serif",
       },
       children: [
-        { 
+        {
           id: `${newId()}-c1`, 
           type: "container", 
-          props: { maxWidth: "2xl", paddingX: 6, paddingY: 16 }, 
+          props: { maxWidth: "2xl", paddingX: 0, paddingY: 0 }, 
           style: {
             className: "relative h-full flex flex-col items-center justify-center gap-8 text-center",
           },
@@ -57,7 +57,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
                 fontWeight: 600,
               },
               layout: {
-                units: { xu: 1, yu: 1, wu: 10, hu: 2 }
+                units: { xu: 13, yu: 7, wu: 12, hu: 4 }
               }
             } as Node,
             { 
@@ -71,7 +71,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
                 color: "#f8fafc",
               },
               layout: {
-                units: { xu: 1, yu: 4, wu: 10, hu: 3 }
+                units: { xu: 0, yu: 13, wu: 40, hu: 10 }
               }
             } as Node,
             { 
@@ -83,7 +83,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
                 fontSize: 1.125,
               },
               layout: {
-                units: { xu: 1, yu: 8, wu: 10, hu: 2 }
+                units: { xu: 8, yu: 25, wu: 22, hu: 7 }
               }
             } as Node,
             { 
@@ -94,7 +94,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
                 className: "px-8 py-3 rounded-full bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:bg-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
               },
               layout: {
-                units: { xu: 2, yu: 11, wu: 4, hu: 2 }
+                units: { xu: 7, yu: 35, wu: 12, hu: 4 }
               }
             } as Node,
             { 
@@ -105,12 +105,12 @@ export const createPresetSection = (key: string): SectionV2 | null => {
                 className: "px-8 py-3 rounded-full bg-white/10 text-white font-semibold border border-white/20 hover:bg-white/20 transition backdrop-blur-sm",
               },
               layout: {
-                units: { xu: 6, yu: 11, wu: 4, hu: 2 }
+                units: { xu: 20, yu: 35, wu: 11, hu: 3 }
               }
             } as Node,
           ],
           layout: {
-            units: { xu: 0, yu: 1, wu: 12, hu: 14 }
+            units: { xu: 8, yu: 7, wu: 40, hu: 45 }
           }
         } as Node,
       ],

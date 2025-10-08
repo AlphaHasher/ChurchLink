@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect } from "react";
+import { Input } from "@/shared/components/ui/input";
 import { Node, PageV2, SectionV2 } from "@/shared/types/pageV2";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/shared/components/ui/sheet";
 import { Separator } from "@/shared/components/ui/separator";
@@ -149,7 +150,30 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 />
               </div>
               <Separator />
-              <div className="text-sm text-gray-500">Section: {selectedSectionId}</div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="section-name-input">Section Name</label>
+                <Input
+                  id="section-name-input"
+                  placeholder="e.g. Hero, Welcome, Events"
+                  value={(() => {
+                    const section = sections.find((s) => s.id === selectedSectionId);
+                    const tokenName = section && (section.styleTokens as any)?.name;
+                    return typeof tokenName === "string" ? tokenName : "";
+                  })()}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSections((prev) =>
+                      prev.map((section) => {
+                        if (section.id !== selectedSectionId) return section;
+                        const nextTokens = { ...(section.styleTokens || {}) } as Record<string, unknown>;
+                        nextTokens.name = value;
+                        return { ...section, styleTokens: nextTokens } as SectionV2;
+                      })
+                    );
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">Used for labeling in the sidebar only. Leave blank for automatic numbering.</p>
+              </div>
               <Separator />
               <div className="space-y-4">
                 <div>

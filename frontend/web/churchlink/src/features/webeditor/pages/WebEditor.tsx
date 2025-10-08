@@ -15,7 +15,7 @@ import { usePageManager } from "../hooks/usePageManager";
 import { useSectionManager } from "../hooks/useSectionManager";
 import { useFontManager } from "../hooks/useFontManager";
 import { ELEMENTS, SECTION_PRESETS } from "../utils/sectionHelpers";
-import { Node } from "@/shared/types/pageV2";
+import { Node, SectionV2 } from "@/shared/types/pageV2";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
 
 const WebEditor: React.FC = () => {
@@ -156,6 +156,57 @@ const WebEditor: React.FC = () => {
   const selectedSectionForNode = selection?.sectionId ? managedSections.find(s => s.id === selection.sectionId) : undefined;
   const selectedGridSize = selectedSectionForNode?.builderGrid?.gridSize ?? 16;
 
+  const sanitizeLabel = (value: unknown, fallback: string): string => {
+    if (typeof value !== "string") return fallback;
+    const stripped = value.replace(/<[^>]+>/g, '').trim();
+    if (!stripped) return fallback;
+    return stripped.length > 40 ? `${stripped.slice(0, 37)}…` : stripped;
+  };
+
+  const resolveSectionLabel = (section: SectionV2, index: number): string => {
+    const tokenName = (section.styleTokens as any)?.name;
+    if (typeof tokenName === 'string' && tokenName.trim()) {
+      return tokenName.trim();
+    }
+    return `Section ${index + 1}`;
+  };
+
+  const buildSidebarTree = React.useCallback((section: SectionV2, index: number) => {
+    const walk = (nodes: Node[], owningSectionId: string): Array<{ id: string; label: string; type: 'section' | 'container' | 'node'; sectionId: string; children?: any[] }> =>
+      nodes.map((node) => {
+        const baseLabel = node.type === 'container'
+          ? 'Container'
+          : node.type === 'text'
+          ? 'Text'
+          : node.type === 'button'
+          ? 'Button'
+          : node.type === 'eventList'
+          ? 'Event List'
+          : 'Element';
+
+        const candidate = (node as any).props?.label
+          ?? (node as any).props?.variant
+          ?? (node as any).props?.html
+          ?? baseLabel;
+
+        return {
+          id: node.id,
+          label: sanitizeLabel(candidate, baseLabel),
+          type: node.type === 'container' ? 'container' : 'node',
+          sectionId: owningSectionId,
+          children: node.children ? walk(node.children, owningSectionId) : undefined,
+        };
+      });
+
+    return {
+      id: section.id,
+      label: resolveSectionLabel(section, index),
+      type: 'section' as const,
+      sectionId: section.id,
+      children: section.children ? walk(section.children, section.id) : [],
+    };
+  }, []);
+
   // Debug: log font changes (must be before conditional return)
   React.useEffect(() => {
     if (page) {
@@ -210,8 +261,9 @@ const WebEditor: React.FC = () => {
         onAddElement={(t) => addElement(t as any)}
         sectionPresets={SECTION_PRESETS}
         onAddSectionPreset={addSectionPreset}
-        currentSections={managedSections.map((s, i) => ({ id: s.id, label: s.kind === 'section' ? `Section ${i + 1}` : s.id }))}
+        currentSections={managedSections.map((section, index) => buildSidebarTree(section, index))}
         onFocusSection={handleFocusSection}
+        onFocusNode={handleNodeClick}
         onDeleteSection={(id) => setDeleteSectionId(id)}
         pageTitle={page.title}
         slug={slug}

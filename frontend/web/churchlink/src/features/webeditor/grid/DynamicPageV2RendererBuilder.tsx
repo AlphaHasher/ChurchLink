@@ -31,10 +31,9 @@ function tailwindSpacingToRem(value?: number | null) {
 
 type PaddingOverlayProps = {
   layer: ActivePaddingOverlay | null;
-  gridSize: number;
 };
 
-const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, gridSize }) => {
+const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer }) => {
   const [overlay, setOverlay] = React.useState<ActivePaddingOverlay | null>(layer ?? BuilderState.paddingOverlay);
 
   React.useEffect(() => {
@@ -152,6 +151,8 @@ const renderNode = (
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    // Only select when the click is on this element itself, not a child
+    if (e.target !== e.currentTarget) return;
     e.stopPropagation();
     if (sectionId) {
       onNodeClick?.(sectionId, node.id);
@@ -347,6 +348,7 @@ const renderNode = (
               render={() => childRendered}
               containerId={node.id}
               enforceChildFullSize
+              allowContentPointerEvents
             />
           );
         } else {
@@ -485,12 +487,8 @@ export const DynamicPageV2RendererBuilder: React.FC<{
             return;
           }
 
-  const prevUnits = node.layout?.units ?? {
-    xu: 0,
-    yu: 0,
-    wu: node.layout?.units?.wu,
-    hu: node.layout?.units?.hu,
-  };
+          // Removed unused prevPx to satisfy linter after child delta removal
+          const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
 
           const nextUnits = {
             xu: units.xu ?? prevUnits.xu ?? 0,
@@ -500,40 +498,6 @@ export const DynamicPageV2RendererBuilder: React.FC<{
           };
 
           onUpdateNodeLayout(section.id, nodeId, nextUnits);
-
-          const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
-          const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
-
-          if ((!deltaXu && !deltaYu) || !Array.isArray((node as any).children) || !(node as any).children.length) {
-            return;
-          }
-
-          const deltaPxX = unitsToPx(deltaXu, gridSize);
-          const deltaPxY = unitsToPx(deltaYu, gridSize);
-
-          (node.children ?? []).forEach((child) => {
-            if (!child.layout?.units) return;
-
-            const childUnits = child.layout.units;
-            const updatedChildUnits = {
-              xu: (childUnits.xu ?? 0) + deltaXu,
-              yu: (childUnits.yu ?? 0) + deltaYu,
-              wu: childUnits.wu,
-              hu: childUnits.hu,
-            };
-
-            onUpdateNodeLayout(section.id, child.id, updatedChildUnits);
-
-            const childCache = BuilderState.getNodePixelLayout(child.id);
-            if (childCache && childCache.sectionId === section.id) {
-              BuilderState.setNodePixelLayout(section.id, child.id, {
-                x: (childCache.x ?? 0) + deltaPxX,
-                y: (childCache.y ?? 0) + deltaPxY,
-                w: childCache.w,
-                h: childCache.h,
-              });
-            }
-          });
         };
 
                   return (
@@ -552,6 +516,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                       render={() => rendered}
                       containerId={`section-content-${section.id}`}
                       enforceChildFullSize
+                      allowContentPointerEvents={node.type === 'container'}
                     />
                   );
                 } else {
@@ -562,8 +527,8 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                 }
               })}
 
-              {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && (
-                <PaddingOverlay layer={activePaddingOverlay} gridSize={gridSize} />
+            {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && (
+                <PaddingOverlay layer={activePaddingOverlay} />
               )}
             </div>
           </section>

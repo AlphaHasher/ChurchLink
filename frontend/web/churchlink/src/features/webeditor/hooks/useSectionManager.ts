@@ -129,6 +129,8 @@ export function useSectionManager() {
     );
 
     if (selection?.sectionId && selection?.nodeId) {
+      // Ensure any pixel cache is cleared so unit updates reflect immediately in the renderer
+      BuilderState.clearNodePixelLayout(selection.sectionId, selection.nodeId);
       setTimeout(() => {
         const cache = BuilderState.getNodePixelLayout(selection.nodeId);
         if (cache) {
@@ -160,6 +162,8 @@ export function useSectionManager() {
                   hu: units.hu ?? n.layout?.units?.hu,
                 };
                 BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
+                // Clear any cached pixel overrides so the renderer uses updated units
+                BuilderState.clearNodePixelLayout(sectionId, nodeId);
                 return {
                   ...n,
                   layout: { units: nextUnits },

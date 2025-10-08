@@ -42,6 +42,8 @@ type DragNodeProps = {
   onSelect?: () => void;
   containerId?: string;
   enforceChildFullSize?: boolean;
+  // When true, allow pointer events to reach rendered content (needed for containers with draggable children)
+  allowContentPointerEvents?: boolean;
 };
 
 export function DraggableNode({
@@ -55,6 +57,7 @@ export function DraggableNode({
   onSelect,
   containerId,
   enforceChildFullSize,
+  allowContentPointerEvents,
 }: DragNodeProps) {
   const [dragging, setDragging] = useState(false);
   const [tempPos, setTempPos] = useState<{ x: number; y: number } | null>(null);
@@ -272,10 +275,16 @@ export function DraggableNode({
         width: renderW,
         height: renderH,
         transform: 'translateZ(0)', // GPU hint
+        zIndex: dragging ? 60 : (selected ? 50 : 10),
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onWrapperPointerMove}
       onPointerUp={onWrapperPointerUp}
+        onClick={(e) => {
+          // Prevent click bubbling to parent containers which would select the container instead
+          e.stopPropagation();
+          onSelect?.();
+        }}
       onDoubleClick={(e) => {
         e.stopPropagation();
         BuilderState.startEditing(sectionId, node.id);
@@ -285,7 +294,7 @@ export function DraggableNode({
       <div
         className={enforceChildFullSize ? 'w-full h-full' : undefined}
         style={{
-          pointerEvents: isEditing ? ('auto' as const) : ('none' as const),
+          pointerEvents: (isEditing || allowContentPointerEvents) ? ('auto' as const) : ('none' as const),
           userSelect: isEditing ? ('text' as const) : ('none' as const),
           width: enforceChildFullSize ? '100%' : undefined,
           height: enforceChildFullSize ? '100%' : undefined,
