@@ -9,7 +9,7 @@ import re
 from datetime import datetime, timezone
 from bson import ObjectId
 from firebase_admin import auth
-from models.user import get_family_member_by_id
+from models.user import get_family_member_by_id, AddressSchema
 
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'\-]{0,49}$")
 
@@ -25,6 +25,10 @@ class PersonalInfo(BaseModel):
     email: str
     birthday: Optional[datetime]
     gender: Optional[str]
+
+class ContactInfo(BaseModel):
+    phone: Optional[str]
+    address: Field(default_factory=AddressSchema)
 
 
 def is_valid_name(s: str) -> bool:
@@ -119,9 +123,15 @@ async def fetch_profile_info(request: Request):
         gender=user.get("gender")
     )
 
+    contact_info = ContactInfo(
+        phone = user.get("phone", ""),
+        address = user.get("address")
+    )
+
     return {
         "success": True,
-        "profile_info": profile_info.model_dump()
+        "profile_info": profile_info.model_dump(),
+        "contact_info": contact_info.model_dump()
     }
 
 async def update_profile(request: Request, profile_info: PersonalInfo):
