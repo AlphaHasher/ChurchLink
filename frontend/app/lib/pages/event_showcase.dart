@@ -531,13 +531,6 @@ class _EventShowcaseState extends State<EventShowcase> {
                                         );
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color.fromARGB(
-                                          255,
-                                          142,
-                                          163,
-                                          168,
-                                        ),
-                                        foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 16,
                                           vertical: 8,
@@ -936,6 +929,8 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
       appBar: AppBar(
@@ -964,7 +959,6 @@ class _EventShowcaseState extends State<EventShowcase> {
           },
         ),
       ),
-      backgroundColor: const Color.fromARGB(255, 240, 240, 240),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1104,7 +1098,6 @@ class _EventShowcaseState extends State<EventShowcase> {
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
           ),
         ),
         if (widget.event.ruName != null && widget.event.ruName!.isNotEmpty) ...[
