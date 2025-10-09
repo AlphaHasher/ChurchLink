@@ -1,0 +1,88 @@
+import type { AnyField, FormSchema } from "./types";
+
+export interface BoundsViolation {
+  fieldId: string;
+  fieldName: string;
+  fieldLabel?: string;
+  message: string;
+  type: string;
+}
+
+const toDate = (value: Date | string | undefined): Date | null => {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+};
+
+const toMinutes = (value: string | undefined): number | null => {
+  if (!value) return null;
+  const parts = value.split(":");
+  if (parts.length !== 2) return null;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+const pushViolation = (
+  arr: BoundsViolation[],
+  field: AnyField,
+  message: string
+) => {
+  arr.push({
+    fieldId: field.id,
+    fieldName: field.name,
+    fieldLabel: field.label,
+    message,
+    type: field.type,
+  });
+};
+
+export const getBoundsViolations = (schema: FormSchema | undefined | null): BoundsViolation[] => {
+  if (!schema || !Array.isArray(schema.data)) return [];
+  const violations: BoundsViolation[] = [];
+  for (const field of schema.data) {
+    switch (field.type) {
+      case "number": {
+        const min = (field as any).min;
+        const max = (field as any).max;
+        if (typeof min === "number" && typeof max === "number" && max <= min) {
+          pushViolation(violations, field, "Max must be greater than min.");
+        }
+        break;
+      }
+      case "text":
+      case "textarea":
+      case "password": {
+        const minLength = (field as any).minLength;
+        const maxLength = (field as any).maxLength;
+        if (typeof minLength === "number" && typeof maxLength === "number" && maxLength <= minLength) {
+          pushViolation(violations, field, "Max length must be greater than min length.");
+        }
+        break;
+      }
+      case "time": {
+        const minMinutes = toMinutes((field as any).minTime);
+        const maxMinutes = toMinutes((field as any).maxTime);
+        if (minMinutes !== null && maxMinutes !== null) {
+          if (maxMinutes <= minMinutes) {
+            pushViolation(violations, field, "Max time must be later than min time.");
+          }
+        }
+        break;
+      }
+      case "date": {
+        const minDate = toDate((field as any).minDate);
+        const maxDate = toDate((field as any).maxDate);
+        if (minDate && maxDate && maxDate.getTime() <= minDate.getTime()) {
+          pushViolation(violations, field, "Max date must be after min date.");
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  return violations;
+};

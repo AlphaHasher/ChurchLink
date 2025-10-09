@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -41,6 +42,23 @@ export function Inspector() {
   }
 
   const onChange = (patch: Partial<AnyField>) => update(field.id, patch);
+
+  useEffect(() => {
+    if (field.type === 'static' && field.required) {
+      update(field.id, { required: false });
+    }
+  }, [field.id, field.required, field.type, update]);
+
+  const formatDateValue = (value: Date | string | undefined) => {
+    if (!value) return "";
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return format(d, "yyyy-MM-dd");
+  };
+  const currentMinDate = (field as any).minDate;
+  const currentMaxDate = (field as any).maxDate;
+  const minDateString = formatDateValue(currentMinDate);
+  const maxDateString = formatDateValue(currentMaxDate);
 
   const renderOptions = () => {
     if (field.type !== "select" && field.type !== "radio") return null;
@@ -282,10 +300,12 @@ export function Inspector() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2">
-          <Checkbox checked={!!field.required} onCheckedChange={(v) => onChange({ required: !!v })} />
-          <Label>Required</Label>
-        </div>
+        {field.type !== 'static' && (
+          <div className="flex items-center gap-2">
+            <Checkbox checked={!!field.required} onCheckedChange={(v) => onChange({ required: !!v })} />
+            <Label>Required</Label>
+          </div>
+        )}
         {(field.type === "checkbox" || field.type === "switch") && (
           <div className="space-y-1">
             <Label>Price when selected</Label>
@@ -296,11 +316,27 @@ export function Inspector() {
           <div className="grid grid-cols-3 gap-2">
             <div>
               <Label>Min</Label>
-              <Input type="number" value={(field as any).min ?? ""} onChange={(e) => onChange({ min: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+              <Input type="number" value={(field as any).min ?? ""} onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  update(field.id, { min: undefined });
+                  return;
+                }
+                const nextMin = Number(raw);
+                update(field.id, { min: Number.isNaN(nextMin) ? undefined : nextMin });
+              }} />
             </div>
             <div>
               <Label>Max</Label>
-              <Input type="number" value={(field as any).max ?? ""} onChange={(e) => onChange({ max: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+              <Input type="number" value={(field as any).max ?? ""} onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  update(field.id, { max: undefined });
+                  return;
+                }
+                const nextMax = Number(raw);
+                update(field.id, { max: Number.isNaN(nextMax) ? undefined : nextMax });
+              }} />
             </div>
             <div>
               <Label>Step</Label>
@@ -316,11 +352,27 @@ export function Inspector() {
           <div className="grid grid-cols-3 gap-2">
             <div>
               <Label>Min length</Label>
-              <Input type="number" value={(field as any).minLength ?? ""} onChange={(e) => onChange({ minLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+              <Input type="number" value={(field as any).minLength ?? ""} onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  update(field.id, { minLength: undefined });
+                  return;
+                }
+                const nextMin = Number(raw);
+                update(field.id, { minLength: Number.isNaN(nextMin) ? undefined : nextMin });
+              }} />
             </div>
             <div>
               <Label>Max length</Label>
-              <Input type="number" value={(field as any).maxLength ?? ""} onChange={(e) => onChange({ maxLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+              <Input type="number" value={(field as any).maxLength ?? ""} onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  update(field.id, { maxLength: undefined });
+                  return;
+                }
+                const nextMax = Number(raw);
+                update(field.id, { maxLength: Number.isNaN(nextMax) ? undefined : nextMax });
+              }} />
             </div>
             {(field.type === "text" || field.type === "textarea") && (
               <div className="col-span-3">
@@ -334,11 +386,17 @@ export function Inspector() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label>Min time</Label>
-              <Input type="time" value={(field as any).minTime ?? ""} onChange={(e) => onChange({ minTime: e.target.value || undefined } as any)} />
+              <Input type="time" value={(field as any).minTime ?? ""} onChange={(e) => {
+                const raw = e.target.value;
+                update(field.id, { minTime: raw || undefined });
+              }} />
             </div>
             <div>
               <Label>Max time</Label>
-              <Input type="time" value={(field as any).maxTime ?? ""} onChange={(e) => onChange({ maxTime: e.target.value || undefined } as any)} />
+              <Input type="time" value={(field as any).maxTime ?? ""} onChange={(e) => {
+                const raw = e.target.value;
+                update(field.id, { maxTime: raw || undefined });
+              }} />
             </div>
           </div>
         )}
@@ -349,16 +407,33 @@ export function Inspector() {
                 <Label>Min date</Label>
                 <Input
                   type="date"
-                  value={(field as any).minDate ? format(new Date((field as any).minDate), "yyyy-MM-dd") : ""}
-                  onChange={(e) => onChange({ minDate: e.target.value ? new Date(e.target.value) : undefined } as any)}
+                  value={minDateString}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (!raw) {
+                      update(field.id, { minDate: undefined });
+                      return;
+                    }
+                    const nextMin = new Date(raw);
+                    update(field.id, { minDate: Number.isNaN(nextMin.getTime()) ? undefined : nextMin });
+                  }}
                 />
               </div>
               <div>
                 <Label>Max date</Label>
                 <Input
                   type="date"
-                  value={(field as any).maxDate ? format(new Date((field as any).maxDate), "yyyy-MM-dd") : ""}
-                  onChange={(e) => onChange({ maxDate: e.target.value ? new Date(e.target.value) : undefined } as any)} />
+                  value={maxDateString}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (!raw) {
+                      update(field.id, { maxDate: undefined });
+                      return;
+                    }
+                    const nextMax = new Date(raw);
+                    update(field.id, { maxDate: Number.isNaN(nextMax.getTime()) ? undefined : nextMax });
+                  }}
+                />
               </div>
             </div>
             <div className="space-y-1">

@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useAuth } from '@/features/auth/hooks/auth-context';
 import { useBuilderStore } from "./store";
 import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth, collectAvailableLocales } from "./types";
+import { getBoundsViolations } from "./validation";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from '@/shared/components/ui/input';
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Save as SaveIcon, MoreHorizontal, Upload, Download, Trash, Maximize2, Minimize2 } from 'lucide-react';
-import { Alert } from '@/shared/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import {
   AlertDialog,
@@ -37,6 +38,12 @@ export function BuilderShell() {
   const availableLocales = useMemo(() => collectAvailableLocales(schema as any), [schema]);
   const setSchema = useBuilderStore((s) => s.setSchema);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const boundsViolations = useMemo(() => getBoundsViolations(schema as any), [schema]);
+  const hasInvalidBounds = boundsViolations.length > 0;
+  const firstViolation = boundsViolations[0];
+  const invalidBoundsMessage = firstViolation
+    ? `${firstViolation.fieldLabel || firstViolation.fieldName}: ${firstViolation.message}`
+    : 'Resolve min/max conflicts before saving.';
 
   const [formName, setFormName] = useState((schema as any)?.title ?? "");
   const [description, setDescription] = useState((schema as any)?.description ?? "");
@@ -219,14 +226,18 @@ export function BuilderShell() {
     return data.map((field) => sanitizeFieldForLocale(field, defaultLocale));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
+    if (hasInvalidBounds) {
+      setStatus({ type: 'error', title: 'Invalid field bounds', message: invalidBoundsMessage });
+      return false;
+    }
     // Persist name, folder and description into top-level schema so it stays with exported JSON
     const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
     setSchema(newSchema as any);
 
     if (!folder) {
       setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' });
-      return;
+      return false;
     }
 
     // Perform the actual save
@@ -257,6 +268,7 @@ export function BuilderShell() {
 
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
       lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
+      return true;
     } catch (err: any) {
       console.error('Failed to save form to server', err);
       if (err?.response?.status === 409) {
@@ -269,11 +281,16 @@ export function BuilderShell() {
       } else {
         setStatus({ type: 'error', title: 'Save failed', message: 'Failed to save to server' });
       }
+      return false;
     }
   };
 
   const confirmOverride = async () => {
     if (!overrideTargetId) return;
+    if (hasInvalidBounds) {
+      setStatus({ type: 'error', title: 'Invalid field bounds', message: invalidBoundsMessage });
+      return;
+    }
     try {
       setStatus({ type: 'info', title: 'Overriding', message: 'Overriding existing form...' });
       const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
@@ -427,7 +444,7 @@ export function BuilderShell() {
               <Button variant="outline" onClick={() => setShowClearConfirm(true)} title="Clear form (start fresh)">
                 <Trash className="h-4 w-4 mr-2" /> Clear
               </Button>
-            <Button onClick={() => setSaveDialogOpen(true)}>
+            <Button onClick={() => setSaveDialogOpen(true)} title={hasInvalidBounds ? invalidBoundsMessage : undefined}>
               <SaveIcon className="h-4 w-4 mr-2" /> Save
             </Button>
             <DropdownMenu>
@@ -439,7 +456,13 @@ export function BuilderShell() {
                 <DropdownMenuItem onClick={onImportClick}><Upload className="h-4 w-4 mr-2" /> Import JSON</DropdownMenuItem>
                 <DropdownMenuItem onClick={onExport}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSaveDialogOpen(true)}><SaveIcon className="h-4 w-4 mr-2" /> Save As...</DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSaveDialogOpen(true)}
+                  disabled={hasInvalidBounds}
+                  title={hasInvalidBounds ? invalidBoundsMessage : undefined}
+                >
+                  <SaveIcon className="h-4 w-4 mr-2" /> Save As...
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -469,6 +492,21 @@ export function BuilderShell() {
                 className="h-10 inline-flex items-center px-3 py-1"
               >
                 <span className="text-sm truncate">{status.message ?? status.title}</span>
+              </Alert>
+            )}
+            {hasInvalidBounds && (
+              <Alert variant="warning">
+                <AlertTitle>Resolve field bounds</AlertTitle>
+                <AlertDescription>
+                  <p className="mb-1">Fix the min/max conflicts below before saving:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {boundsViolations.map((issue) => (
+                      <li key={issue.fieldId}>
+                        <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
               </Alert>
             )}
             <div className="space-y-3">
@@ -516,7 +554,16 @@ export function BuilderShell() {
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
-              <Button onClick={async () => { if (!folder) { setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' }); return; } await handleSave(); setSaveDialogOpen(false); }}>Save</Button>
+              <Button
+                disabled={hasInvalidBounds}
+                onClick={async () => {
+                  const saved = await handleSave();
+                  if (saved) setSaveDialogOpen(false);
+                }}
+                title={hasInvalidBounds ? invalidBoundsMessage : undefined}
+              >
+                Save
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -574,73 +621,89 @@ export function BuilderShell() {
           </AlertDialogContent>
         </AlertDialog>
       <div className="grid grid-cols-12 gap-4 p-4">
-        <div className="col-span-12 md:col-span-2">
-          <ErrorBoundary>
-            <Palette />
-          </ErrorBoundary>
-        </div>
-        <div className="col-span-12 md:col-span-6">
-          <ErrorBoundary>
-            <Canvas />
-          </ErrorBoundary>
-        </div>
-        <div className="col-span-12 md:col-span-4">
-          <Card className="h-full">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Live Preview</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full"
-                    onClick={() => setPreviewExpanded(true)}
-                    aria-label="Expand preview"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                  <Select value={formWidth} onValueChange={handleFormWidthChange}>
-                    <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-                      <SelectValue placeholder="Width" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {widthOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-                    <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {availableLocales.map((l) => (
-                        <SelectItem key={l} value={l}>{l}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-                  <ErrorBoundary>
-                {status?.message && typeof status.message === 'string' && status.message.toLowerCase().includes('load') ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-6 w-1/3" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-8 w-full mt-2" />
+          <div className="col-span-12 md:col-span-2">
+            <ErrorBoundary>
+              <Palette />
+            </ErrorBoundary>
+          </div>
+          <div className="col-span-12 md:col-span-6">
+            <ErrorBoundary>
+              <Canvas />
+            </ErrorBoundary>
+          </div>
+          <div className="col-span-12 md:col-span-4">
+            <Card className="h-full">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Live Preview</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full"
+                      onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
+                      aria-label="Expand preview"
+                      disabled={hasInvalidBounds}
+                      title={hasInvalidBounds ? 'Fix min/max conflicts to enable expanded preview' : undefined}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                    <Select value={formWidth} onValueChange={handleFormWidthChange}>
+                      <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+                        <SelectValue placeholder="Width" />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {widthOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+                      <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {availableLocales.map((l) => (
+                          <SelectItem key={l} value={l}>{l}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ) : (
-                  // Do not apply form width when showing the compact card preview
-                  <PreviewRendererClient applyFormWidth={false} />
-                )}
-              </ErrorBoundary>
-            </CardContent>
-          </Card>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ErrorBoundary>
+                  {hasInvalidBounds ? (
+                    <Alert variant="warning">
+                      <AlertTitle>Preview unavailable</AlertTitle>
+                      <AlertDescription>
+                        <p className="mb-2">Resolve the min/max conflicts below to restore the live preview:</p>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {boundsViolations.map((issue) => (
+                            <li key={issue.fieldId}>
+                              <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-3 text-xs text-muted-foreground">The rest of the builder remains active so you can adjust values.</p>
+                      </AlertDescription>
+                    </Alert>
+                  ) : status?.message && typeof status.message === 'string' && status.message.toLowerCase().includes('load') ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-1/3" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-8 w-full mt-2" />
+                    </div>
+                  ) : (
+                    <PreviewRendererClient applyFormWidth={false} />
+                  )}
+                </ErrorBoundary>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
       {previewOverlay}
     </ErrorBoundary>
   );

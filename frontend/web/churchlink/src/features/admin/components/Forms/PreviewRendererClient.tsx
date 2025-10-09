@@ -12,15 +12,37 @@ import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/aler
 import { MailCheck } from 'lucide-react';
 import { formWidthToClass } from "./types";
 import { cn } from "@/lib/utils";
+import { getBoundsViolations } from "./validation";
 
 export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: string; applyFormWidth?: boolean }) {
   const schema = useBuilderStore((s) => s.schema);
-  const zodSchema = schemaToZodObject(schema);
-  const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} });
+  const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
+  const zodSchema = schemaToZodObject(schema); // always create schema
+  const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} }); // always init form hook
+  const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
-  const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
+
+  if (!slug && boundsViolations.length > 0) {
+    return (
+      <div className={cn("mx-auto w-full", formWidthClass)}>
+        <Alert variant="destructive">
+          <AlertTitle>Preview unavailable</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Fix the following min/max conflicts to resume the live builder preview:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              {boundsViolations.map((issue) => (
+                <li key={issue.fieldId}>
+                  <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;
