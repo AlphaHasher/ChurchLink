@@ -203,7 +203,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: _screens[tabProvider.currentIndex],
+      body: IndexedStack(index: tabProvider.currentIndex, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: tabProvider.currentIndex,
