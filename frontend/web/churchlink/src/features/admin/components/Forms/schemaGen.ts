@@ -1,5 +1,26 @@
 import { z } from "zod";
+import validator from "validator";
 import type { AnyField, CheckboxField, DateField, NumberField, SelectField, TextField, FormSchema, EmailField, PasswordField, UrlField, TelField } from "./types";
+
+const trimString = (val: unknown): unknown => (typeof val === "string" ? val.trim() : val);
+const emptyStringToUndefined = (val: unknown): unknown => {
+  if (typeof val !== "string") return val;
+  const trimmed = val.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
+};
+
+const PHONE_MAX_DIGITS = 10;
+const NON_DIGIT_REGEX = /\D/g;
+
+const normalizePhoneDigits = (val: unknown): string => {
+  if (typeof val !== "string") return "";
+  return val.replace(NON_DIGIT_REGEX, "").slice(0, PHONE_MAX_DIGITS);
+};
+
+const phoneDigitsOrUndefined = (val: unknown): string | undefined => {
+  const digits = normalizePhoneDigits(val);
+  return digits.length === 0 ? undefined : digits;
+};
 
 export function fieldToZod(field: AnyField): z.ZodTypeAny {
   switch (field.type) {
@@ -32,16 +53,68 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       return s;
     }
     case "url": {
-      let s = z.string().url({ message: "Invalid URL" });
       const f = field as UrlField;
-      if (!f.required) s = s.optional() as any;
-      return s;
+      const label = field.label || field.name || "URL";
+      const urlMessage = "Invalid URL";
+      const validatorOptions: validator.IsURLOptions = {
+        protocols: ["http", "https"],
+        require_protocol: true,
+        require_valid_protocol: true,
+        allow_underscores: true,
+        allow_trailing_dot: false,
+      };
+
+      if (f.required) {
+        return z.preprocess(
+          trimString,
+          z
+            .string()
+            .min(1, { message: `${label} is required` })
+            .refine((val) => validator.isURL(val, validatorOptions), {
+              message: urlMessage,
+            })
+        );
+      }
+
+      return z.preprocess(
+        emptyStringToUndefined,
+        z
+          .string()
+          .refine((val) => validator.isURL(val, validatorOptions), {
+            message: urlMessage,
+          })
+          .optional()
+      );
     }
     case "tel": {
-      let s = z.string();
       const f = field as TelField;
-      if (f.required) s = s.min(1, { message: `${field.label || field.name} is required` });
-      return s;
+      const label = field.label || field.name || "Phone";
+      const phoneMessage = "Invalid phone number";
+
+      if (f.required) {
+        return z.preprocess(
+          (val) => {
+            const digits = normalizePhoneDigits(trimString(val));
+            return digits;
+          },
+          z
+            .string()
+            .min(1, { message: `${label} is required` })
+            .refine((val) => validator.isMobilePhone(val, "any"), {
+              message: phoneMessage,
+            })
+        );
+      }
+
+      return z.preprocess(
+        (val) => phoneDigitsOrUndefined(emptyStringToUndefined(val)),
+        z
+          .string()
+          .refine((val) => validator.isMobilePhone(val, "any"), {
+            message: phoneMessage,
+          })
+          .optional()
+      );
     }
     case "number": {
       let s = z.coerce.number();

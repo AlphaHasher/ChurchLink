@@ -40,7 +40,7 @@ const newField = (type: FieldType): AnyField => {
     case "url":
       return { ...base, type: "url", placeholder: "https://" } as any;
     case "tel":
-      return { ...base, type: "tel", placeholder: "+1 (555) 123-4567" } as any;
+      return { ...base, type: "tel", placeholder: "(555) 123-4567" } as any;
     case "textarea":
       return { ...base, type: "textarea", placeholder: "Enter long text" };
     case "number":

@@ -1,3 +1,4 @@
+import type { ChangeEvent, CSSProperties } from "react";
 import { Controller, Control } from "react-hook-form";
 import { AnyField, widthToCols } from "./types";
 import { Input } from "@/shared/components/ui/input";
@@ -14,6 +15,29 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useBuilderStore } from "./store";
+
+const PHONE_MAX_DIGITS = 10;
+const NON_DIGIT_REGEX = /\D/g;
+
+const normalizePhoneDigits = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  return value.replace(NON_DIGIT_REGEX, "").slice(0, PHONE_MAX_DIGITS);
+};
+
+const formatPhoneDisplay = (value: unknown): string => {
+  const digits = normalizePhoneDigits(value);
+  if (!digits) return "";
+  const area = digits.slice(0, 3);
+  const prefix = digits.slice(3, 6);
+  const line = digits.slice(6, 10);
+  if (digits.length <= 3) {
+    return `(${area}`;
+  }
+  if (digits.length <= 6) {
+    return `(${area}) ${prefix}`;
+  }
+  return `(${area}) ${prefix}-${line}`;
+};
 
 type Props = {
   field: AnyField;
@@ -53,7 +77,7 @@ export function FieldRenderer({ field, control, error }: Props) {
           return "text-base";
       }
     })();
-    const style: React.CSSProperties = {
+  const style: CSSProperties = {
       color: f.color || undefined,
       fontWeight: f.bold ? 600 : undefined,
       textDecoration: f.underline ? "underline" : undefined,
@@ -94,10 +118,26 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <Input id={field.name} type="url" placeholder={localizedPlaceholder || "https://"} {...rhf} />
               );
-            case "tel":
+            case "tel": {
+              const handlePhoneChange = (event: ChangeEvent<HTMLInputElement>) => {
+                const digits = normalizePhoneDigits(event.target.value);
+                rhf.onChange(digits || undefined);
+              };
               return (
-                <Input id={field.name} type="tel" placeholder={localizedPlaceholder || "+1 (555) 123-4567"} {...rhf} />
+                <Input
+                  id={field.name}
+                  type="tel"
+                  inputMode="tel"
+                  placeholder={localizedPlaceholder || "(555) 123-4567"}
+                  value={formatPhoneDisplay(rhf.value)}
+                  onChange={handlePhoneChange}
+                  onBlur={rhf.onBlur}
+                  name={rhf.name}
+                  ref={rhf.ref}
+                  maxLength={14}
+                />
               );
+            }
             case "textarea":
               return (
                 <Textarea id={field.name} placeholder={localizedPlaceholder} {...rhf} />

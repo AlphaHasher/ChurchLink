@@ -12,6 +12,7 @@ import 'package:app/pages/forms/switch_form_component.dart';
 import 'package:app/pages/forms/text_form_component.dart';
 import 'package:app/pages/forms/textarea_form_component.dart';
 import 'package:app/pages/forms/time_form_component.dart';
+import 'package:app/pages/forms/phone_form_component.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -421,6 +422,18 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           helperText: helperText,
           requiredField: requiredField,
           initialValue: _values[fieldName]?.toString(),
+          onChanged: (v) => _updateValue(fieldName, v),
+          onSaved: (v) => _values[fieldName] = v ?? '',
+        );
+      case 'tel':
+        final current = _values[fieldName];
+        final initialPhone = current is String ? current : null;
+        return PhoneFormComponent(
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
+          initialValue: initialPhone,
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
