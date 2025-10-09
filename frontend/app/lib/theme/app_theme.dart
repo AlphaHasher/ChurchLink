@@ -5,7 +5,7 @@ class AppTheme {
     useMaterial3: true,
     colorScheme: const ColorScheme(
       brightness: Brightness.light,
-      primary: Color(0xFF7CA6A6), // Accent (logo blue-green)
+      primary: Color.fromARGB(255, 142, 163, 168), // Accent (logo blue-green)
       onPrimary: Colors.white,
       secondary: Color(0xFF5C6BC0), // Secondary accent (nav icon)
       onSecondary: Colors.white,
@@ -23,7 +23,7 @@ class AppTheme {
       border: OutlineInputBorder(),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF7CA6A6), // was 0xFFF5F5F7
+      backgroundColor: Color.fromARGB(255, 142, 163, 168), // was 0xFFF5F5F7
       foregroundColor: Colors.white,      // was 0xFF222222
       elevation: 0,
     ),
@@ -33,7 +33,7 @@ class AppTheme {
     useMaterial3: true,
     colorScheme: const ColorScheme(
       brightness: Brightness.dark,
-      primary: Color(0xFF7CA6A6), // Accent (logo blue-green)
+      primary: Color.fromARGB(255, 142, 163, 168), // Accent (logo blue-green)
       onPrimary: Colors.white,
       secondary: Color(0xFF3F51B5), // Secondary accent (nav icon)
       onSecondary: Colors.white,
