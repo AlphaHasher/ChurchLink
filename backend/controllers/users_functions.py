@@ -3,7 +3,7 @@ from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 from pydantic import BaseModel
 from fastapi import Request
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Literal
 from datetime import datetime
 import re
 from datetime import datetime, timezone
@@ -30,6 +30,16 @@ class PersonalInfo(BaseModel):
 class ContactInfo(BaseModel):
     phone: Optional[str]
     address: AddressSchema
+
+class UsersSearchParams(BaseModel):
+    page: int
+    pageSize: int
+    searchField: Literal["email", "name"] = "email"
+    searchTerm: str = ""
+    sortBy: Literal["email", "name", "createdOn", "uid"] = "createdOn"
+    sortDir: Literal["asc", "desc"] = "asc"
+    hasRolesOnly: bool = False
+
 
 
 def is_valid_name(s: str) -> bool:
@@ -64,6 +74,32 @@ async def fetch_users():
         for u in raw_users
     ]
     return {"success": True, "users": users}
+
+async def search_users_paged(params: UsersSearchParams):
+    total, users = await UserHandler.search_users_paged(params)
+    # Normalize down to the fields the UI already uses in /get-users
+    items = [
+        {
+            "uid": u.get("uid"),
+            "first_name": u.get("first_name"),
+            "last_name": u.get("last_name"),
+            "email": u.get("email"),
+            "roles": u.get("roles", []),
+        }
+        for u in users
+    ]
+    return {
+        "success": True,
+        "items": items,
+        "total": total,
+        "page": params.page,
+        "pageSize": params.pageSize,
+    }
+
+async def search_logical_users_paged(params: UsersSearchParams):
+    # Force hasRolesOnly True at controller level for safety
+    params.hasRolesOnly = True
+    return await search_users_paged(params)
     
 async def get_my_permissions(payload: MyPermsRequest, request:Request):
     user = request.state.user

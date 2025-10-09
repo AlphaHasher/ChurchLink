@@ -1,9 +1,10 @@
 from bson import ObjectId
-
+import re
 from mongo.database import DB
 from datetime import datetime
 from mongo.roles import RoleHandler
 from helpers.MongoHelper import serialize_objectid_deep
+from typing import Tuple, List, Dict
 
 
 _PERSON_ID_NOT_PROVIDED = object()
@@ -142,10 +143,86 @@ class UserHandler:
             "meta": meta or {},
             "addedOn": datetime.now(),
         }
+    
+    # Intelligent pagination search for the users in admin dash
+    @staticmethod
+    async def search_users_paged(params) -> Tuple[int, List[Dict]]:
+        """
+        Server-side search/pagination/sort for users.
+        - params.searchField: "email" | "name"
+        - params.searchTerm: case-insensitive "contains"
+        - params.sortBy: "email" | "name" | "createdOn" | "uid"
+        - params.sortDir: "asc" | "desc"
+        - params.hasRolesOnly: if True, filter to users with roles != []
+        Returns: (total_count, users_list)
+        """
+        db = DB.db["users"]
+
+        filt: Dict = {}
+
+        if getattr(params, "hasRolesOnly", False):
+            filt["roles"] = {"$exists": True, "$ne": []}
+
+        term = (params.searchTerm or "").strip()
+        if term:
+            pat = re.escape(term)
+            if params.searchField == "email":
+                filt["email"] = {"$regex": pat, "$options": "i"}
+            else:
+                name_or = [
+                    {"first_name": {"$regex": pat, "$options": "i"}},
+                    {"last_name": {"$regex": pat, "$options": "i"}},
+                    {
+                        "$expr": {
+                            "$regexMatch": {
+                                "input": {"$concat": ["$first_name", " ", "$last_name"]},
+                                "regex": pat,
+                                "options": "i",
+                            }
+                        }
+                    },
+                ]
+                filt["$or"] = name_or
+
+        sort_dir = 1 if params.sortDir == "asc" else -1
+        if params.sortBy == "email":
+            sort_keys = [("email", sort_dir), ("uid", 1)]
+        elif params.sortBy == "uid":
+            sort_keys = [("uid", sort_dir)]
+        elif params.sortBy == "name":
+            sort_keys = [("last_name", sort_dir), ("first_name", sort_dir), ("email", 1)]
+        else:
+            sort_keys = [("createdOn", sort_dir), ("uid", 1)]
+
+        total = await db.count_documents(filt)
+
+        skip = max(0, params.page) * max(1, params.pageSize)
+        limit = max(1, params.pageSize)
+
+        cursor = (
+            db.find(
+                filt,
+                {
+                    "_id": 0,
+                    "uid": 1,
+                    "first_name": 1,
+                    "last_name": 1,
+                    "email": 1,
+                    "roles": 1,
+                    "createdOn": 1,
+                },
+            )
+            .sort(sort_keys)
+            .skip(skip)
+            .limit(limit)
+        )
+        users = [doc async for doc in cursor]
+        return total, users
 
     @staticmethod
     async def find_all_users():
         return await DB.find_documents("users", {})
+
 
     @staticmethod
     async def find_users_with_role_id(role_id):

@@ -1,10 +1,27 @@
 import { signOut } from "@/lib/firebase";
 import { auth } from "@/lib/firebase";
+import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 import { processFetchedUserData } from "./DataFunctions";
 import api from "../api/api";
-import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
-import { toProfileInfo, ProfileInfo, ContactInfo, toContactInfo } from "@/shared/types/ProfileInfo";
+import { ProfileInfo, toProfileInfo, ContactInfo, toContactInfo } from "@/shared/types/ProfileInfo";
 import { PersonDetails } from "@/shared/types/Person";
+import { UserInfo } from "@/shared/types/UserInfo";
+
+export type UsersSearchParams = {
+    page: number;
+    pageSize: number;
+    searchField: "email" | "name";
+    searchTerm: string;
+    sortBy: "email" | "name" | "createdOn" | "uid";
+    sortDir: "asc" | "desc";
+};
+
+export type UsersPagedResult = {
+    items: UserInfo[];
+    total: number;
+    page: number;
+    pageSize: number;
+};
 
 export const processMongoVerification = async () => {
     try {
@@ -50,6 +67,34 @@ export const fetchUsers = async () => {
         console.error("Failed to fetch users:", err);
         return [];
     }
+};
+
+export const fetchUsersPaged = async (
+    params: UsersSearchParams,
+    signal?: AbortSignal
+): Promise<UsersPagedResult> => {
+    const res = await api.get("/v1/users/search-users", { params, signal });
+    const raw = res.data;
+    return {
+        items: processFetchedUserData(raw.items || []),
+        total: raw.total ?? 0,
+        page: raw.page ?? params.page,
+        pageSize: raw.pageSize ?? params.pageSize,
+    };
+};
+
+export const fetchLogicalUsersPaged = async (
+    params: UsersSearchParams,
+    signal?: AbortSignal
+): Promise<UsersPagedResult> => {
+    const res = await api.get("/v1/users/search-logical-users", { params, signal });
+    const raw = res.data;
+    return {
+        items: processFetchedUserData(raw.items || []),
+        total: raw.total ?? 0,
+        page: raw.page ?? params.page,
+        pageSize: raw.pageSize ?? params.pageSize,
+    };
 };
 
 export const fetchUserNameByUId = async (userId: string) => {
@@ -220,5 +265,4 @@ export const deleteFamilyMember = async (id: String) => {
         return { "success": false }
     }
 }
-
 
