@@ -108,17 +108,18 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
+        //backgroundColor: ssbcGray,
+        //iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           widget.member == null ? 'Add Family Member' : 'Edit Family Member',
           style: const TextStyle(color: Colors.white),
         ),
       ),
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
+      //backgroundColor: const Color.fromARGB(255, 245, 245, 245),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -186,10 +187,10 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                               ? 'Select date'
                               : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                           style: TextStyle(
-                            color:
-                                _selectedDate == null
-                                    ? Colors.grey
-                                    : Colors.black,
+                            // color:
+                            //     _selectedDate == null
+                            //         ? Colors.grey
+                            //         : Colors.black,
                           ),
                         ),
                       ),
