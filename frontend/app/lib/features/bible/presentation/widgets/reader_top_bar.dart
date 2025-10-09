@@ -64,6 +64,9 @@ class ReaderTopBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
+                  style: TextStyle(
+                    color: cs.onSurface,
+                  )
                 ),
               ),
             ),
@@ -84,7 +87,6 @@ class ReaderTopBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Theme.of(context).dividerColor, width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
