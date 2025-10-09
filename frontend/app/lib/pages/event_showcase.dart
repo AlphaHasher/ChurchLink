@@ -8,6 +8,7 @@ import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
 import '../providers/tab_provider.dart';
 import 'user/family_members_page.dart';
+import '../helpers/strapi_helper.dart';
 
 class EventShowcase extends StatefulWidget {
   final Event event;
@@ -957,7 +958,9 @@ class _EventShowcaseState extends State<EventShowcase> {
             } else {
               // Fallback: navigate to Events tab and then to home
               TabProvider.instance?.setTabByName('events');
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/', (route) => false);
             }
           },
         ),
@@ -999,7 +1002,7 @@ class _EventShowcaseState extends State<EventShowcase> {
         children: [
           // Load image from uploads API endpoint
           // For now, always show placeholder until backend image serving is implemented
-          _buildImagePlaceholder(),
+          _buildEventThumb(),
           // Registration button positioned in bottom right
           Positioned(
             bottom: 16,
@@ -1063,6 +1066,34 @@ class _EventShowcaseState extends State<EventShowcase> {
         child: Icon(Icons.event, size: 80, color: Colors.grey),
       ),
     );
+  }
+
+  Widget _buildEventThumb() {
+    if (widget.event.imageUrl == null ||
+        widget.event.imageUrl!.trim().isEmpty) {
+      return _buildImagePlaceholder();
+    } else {
+      final url = StrapiHelper.getTrueImageURL(widget.event.imageUrl!);
+
+      // CHECK IF EVENT_URL RESOLVES TO REAL IMAGE
+      // IF IT DOES, USE THAT IMAGE
+      // IF IT DOESNT DEFAULT TO PLACEHOLDER IMAGE
+      return SizedBox.expand(
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          // While loading, show the placeholder (keeps the card pretty)
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildImagePlaceholder();
+          },
+          // On error (404, invalid URL, etc.), show the placeholder
+          errorBuilder: (context, error, stackTrace) {
+            return _buildImagePlaceholder();
+          },
+        ),
+      );
+    }
   }
 
   Widget _buildEventHeader() {
