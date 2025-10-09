@@ -178,6 +178,7 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Future<void> _handleRegistration() async {
+    final cs = Theme.of(context).colorScheme;
     if (_selectedRegistrants.isEmpty) return;
 
     setState(() => _isRegistering = true);
@@ -262,9 +263,9 @@ class _EventShowcaseState extends State<EventShowcase> {
         } else {
           // All failed
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('All registrations failed. Please try again.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('All registrations failed. Please try again.'),
+              backgroundColor: cs.error,
             ),
           );
         }
@@ -281,7 +282,7 @@ class _EventShowcaseState extends State<EventShowcase> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Registration failed: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: cs.error,
           ),
         );
       }
@@ -295,6 +296,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     String registrantName,
   ) async {
     // Show confirmation dialog
+    final cs = Theme.of(context).colorScheme;
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
@@ -306,7 +308,7 @@ class _EventShowcaseState extends State<EventShowcase> {
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                style: ElevatedButton.styleFrom(backgroundColor: cs.error),
                 child: const Text(
                   'Unregister',
                   style: TextStyle(color: Colors.white),
@@ -380,6 +382,7 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   void _showRegistrationDialog() {
     // Check authentication before showing registration dialog
+    final cs = Theme.of(context).colorScheme;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -422,14 +425,14 @@ class _EventShowcaseState extends State<EventShowcase> {
                           children: [
                             const Icon(
                               Icons.person_add,
-                              color: Colors.white,
+                              //color: Colors.white,
                               size: 24,
                             ),
                             const SizedBox(width: 12),
                             const Text(
                               'Add form',
                               style: TextStyle(
-                                color: Colors.white,
+                                //color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -531,6 +534,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                                         );
                                       },
                                       style: ElevatedButton.styleFrom(
+                                        backgroundColor: cs.primary,
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 16,
                                           vertical: 8,
@@ -541,16 +545,16 @@ class _EventShowcaseState extends State<EventShowcase> {
                                           ),
                                         ),
                                       ),
-                                      icon: const Icon(
+                                      icon: Icon(
                                         Icons.edit,
                                         size: 16,
-                                        color: Colors.white,
+                                        color: cs.onPrimary,
                                       ),
-                                      label: const Text(
+                                      label: Text(
                                         'Edit My Family',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.white,
+                                          color: cs.onPrimary,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -696,6 +700,9 @@ class _EventShowcaseState extends State<EventShowcase> {
           ),
           if (!_isRegistering)
             TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: cs.onPrimary
+              ),
               onPressed:
                   () => _handleUnregistration(
                     registration.personId ?? 'self',
@@ -760,6 +767,7 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildDialogRegistrationForm(StateSetter setDialogState) {
     // Check authentication before building registration form
+    final cs = Theme.of(context).colorScheme;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Column(
@@ -873,8 +881,8 @@ class _EventShowcaseState extends State<EventShowcase> {
                     }
                     : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-              foregroundColor: Colors.white,
+              backgroundColor: cs.primary,
+              foregroundColor: cs.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -934,8 +942,8 @@ class _EventShowcaseState extends State<EventShowcase> {
     final tt = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: cs.surface,
-        foregroundColor: cs.onSurface,
+        //backgroundColor: cs.surface,
+        //foregroundColor: cs.onSurface,
         title: Text(
           widget.event.name,
           maxLines: 1,
@@ -987,6 +995,7 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildHeroImage() {
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       height: 250,
       width: double.infinity,
@@ -1029,7 +1038,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: ElevatedButton.styleFrom(
                 backgroundColor:
                     (_registrationSummary?.availableSpots ?? 1) > 0
-                        ? const Color.fromARGB(255, 142, 163, 168)
+                        ? cs.primary
                         : Colors.grey,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
@@ -1264,6 +1273,7 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildEventSpecs() {
     final specs = <String>[];
+    final cs = Theme.of(context).colorScheme;
 
     if (widget.event.minAge > 0 || widget.event.maxAge < 100) {
       specs.add('Ages: ${widget.event.minAge}-${widget.event.maxAge}');
@@ -1304,10 +1314,10 @@ class _EventShowcaseState extends State<EventShowcase> {
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.check_circle,
                       size: 16,
-                      color: Color.fromARGB(255, 142, 163, 168),
+                      color: cs.primary,
                     ),
                     const SizedBox(width: 8),
                     Text(
