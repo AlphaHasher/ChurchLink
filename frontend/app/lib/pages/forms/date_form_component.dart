@@ -19,6 +19,15 @@ class DateFormComponent extends StatelessWidget {
     return DateTime(d.year, d.month, d.day);
   }
 
+  String? _formatDisplayDate(String? iso) {
+    final parsed = _parseDateOnly(iso);
+    if (parsed == null) return null;
+    final day = parsed.day.toString();
+    final month = parsed.month.toString();
+    final year = parsed.year.toString();
+    return '$day/$month/$year';
+  }
+
   @override
   Widget build(BuildContext context) {
     final label = (field['label'] ?? field['name'] ?? '').toString();
@@ -52,14 +61,16 @@ class DateFormComponent extends StatelessWidget {
           final v = state.value ?? current;
           final sFrom = v?['from']?.toString();
           final sTo = v?['to']?.toString();
+          final formattedFrom = _formatDisplayDate(sFrom);
+          final formattedTo = _formatDisplayDate(sTo);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ListTile(
                 title: Text(label),
                 subtitle: Text(
-                  sFrom != null && sTo != null
-                      ? '${sFrom.split('T').first} → ${sTo.split('T').first}'
+                  formattedFrom != null && formattedTo != null
+                      ? '$formattedFrom → $formattedTo'
                       : 'Select date range',
                 ),
                 onTap: () async {
@@ -134,7 +145,9 @@ class DateFormComponent extends StatelessWidget {
               children: [
                 ListTile(
                   title: Text(label),
-                  subtitle: Text(state.value ?? 'Select date'),
+                  subtitle: Text(
+                    _formatDisplayDate(state.value) ?? 'Select date',
+                  ),
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: context,

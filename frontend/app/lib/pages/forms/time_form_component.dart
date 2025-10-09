@@ -46,6 +46,15 @@ class TimeFormComponent extends StatelessWidget {
     return '$hh:$mm';
   }
 
+  String? _formatDisplayTime(String? raw) {
+    final tod = _parseTimeOfDay(raw);
+    if (tod == null) return null;
+    final hour = tod.hourOfPeriod == 0 ? 12 : tod.hourOfPeriod;
+    final minute = tod.minute.toString().padLeft(2, '0');
+    final period = tod.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
   int? _hhmmToMinutes(String? hhmm) {
     if (hhmm == null || hhmm.trim().isEmpty) return null;
     final m = RegExp(r'^([01]?\d|2[0-3]):([0-5]\d)$').firstMatch(hhmm.trim());
@@ -82,10 +91,7 @@ class TimeFormComponent extends StatelessWidget {
       },
       builder: (state) {
         final initialTod = _parseTimeOfDay(state.value) ?? TimeOfDay.now();
-        final display =
-            (state.value != null && state.value!.isNotEmpty)
-                ? state.value!
-                : 'Select time';
+        final display = _formatDisplayTime(state.value) ?? 'Select time';
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

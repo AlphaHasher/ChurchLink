@@ -39,6 +39,23 @@ const formatPhoneDisplay = (value: unknown): string => {
   return `(${area}) ${prefix}-${line}`;
 };
 
+const normalizeDateOnly = (value: string | Date | undefined): Date | undefined => {
+  if (!value) return undefined;
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+  const datePortion = value.length > 10 ? value.slice(0, 10) : value;
+  const parts = datePortion.split("-").map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return undefined;
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day);
+};
+
+const startOfDay = (date: Date | undefined): Date | undefined => {
+  if (!date) return undefined;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
 type Props = {
   field: AnyField;
   control: Control<any>;
@@ -231,16 +248,22 @@ export function FieldRenderer({ field, control, error }: Props) {
             case "date": {
               const f: any = field as any;
               const mode = f.mode || "single";
-              const minDate: Date | undefined = f.minDate;
-              const maxDate: Date | undefined = f.maxDate;
+              const minDate = normalizeDateOnly(f.minDate);
+              const maxDate = normalizeDateOnly(f.maxDate);
               const disabled = (date: Date) => {
-                if (minDate && date < minDate) return true;
-                if (maxDate && date > maxDate) return true;
+                const day = startOfDay(date);
+                if (!day) return false;
+                if (minDate && day.getTime() < minDate.getTime()) return true;
+                if (maxDate && day.getTime() > maxDate.getTime()) return true;
                 return false;
               };
 
               if (mode === "range") {
-                const selected = (rhf.value as { from?: Date; to?: Date } | undefined) || {};
+                const raw = (rhf.value as { from?: Date; to?: Date } | undefined) || {};
+                const selected = {
+                  from: startOfDay(raw.from),
+                  to: startOfDay(raw.to),
+                };
                 const label = selected.from && selected.to
                   ? `${format(selected.from, "PPP")} – ${format(selected.to, "PPP")}`
                   : selected.from
@@ -265,8 +288,8 @@ export function FieldRenderer({ field, control, error }: Props) {
                             return;
                           }
                           rhf.onChange({
-                            from: r.from,
-                            to: r.to,
+                            from: startOfDay(r.from),
+                            to: startOfDay(r.to),
                           });
                         }}
                         disabled={disabled}
@@ -278,7 +301,7 @@ export function FieldRenderer({ field, control, error }: Props) {
               }
 
               
-              const selectedDate: Date | undefined = rhf.value;
+              const selectedDate: Date | undefined = startOfDay(rhf.value as Date | undefined);
               return (
                 <Popover>
                   <PopoverTrigger asChild>
@@ -294,7 +317,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={(d: Date | undefined) => rhf.onChange(d)}
+                      onSelect={(d: Date | undefined) => rhf.onChange(startOfDay(d))}
                       disabled={disabled}
                       captionLayout="dropdown"
                     />

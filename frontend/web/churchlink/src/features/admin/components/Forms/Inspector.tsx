@@ -57,11 +57,22 @@ export function Inspector() {
     }
   }, [field.id, field.required, field.type, update]);
 
+  const normalizeDateOnly = (value: Date | string | undefined): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+    const datePortion = value.length > 10 ? value.slice(0, 10) : value;
+    const parts = datePortion.split("-").map((part) => Number(part));
+    if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+    const [year, month, day] = parts;
+    return new Date(year, month - 1, day);
+  };
+
   const formatDateValue = (value: Date | string | undefined) => {
-    if (!value) return "";
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    return format(d, "yyyy-MM-dd");
+    const normalized = normalizeDateOnly(value);
+    if (!normalized || Number.isNaN(normalized.getTime())) return "";
+    return format(normalized, "yyyy-MM-dd");
   };
   const currentMinDate = (field as any).minDate;
   const currentMaxDate = (field as any).maxDate;
@@ -438,8 +449,7 @@ export function Inspector() {
                       update(field.id, { minDate: undefined });
                       return;
                     }
-                    const nextMin = new Date(raw);
-                    update(field.id, { minDate: Number.isNaN(nextMin.getTime()) ? undefined : nextMin });
+                    update(field.id, { minDate: raw });
                   }}
                 />
               </div>
@@ -454,8 +464,7 @@ export function Inspector() {
                       update(field.id, { maxDate: undefined });
                       return;
                     }
-                    const nextMax = new Date(raw);
-                    update(field.id, { maxDate: Number.isNaN(nextMax.getTime()) ? undefined : nextMax });
+                    update(field.id, { maxDate: raw });
                   }}
                 />
               </div>

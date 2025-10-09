@@ -137,8 +137,8 @@ export interface SwitchField extends BaseField {
 
 export interface DateField extends BaseField {
   type: "date";
-  minDate?: Date;
-  maxDate?: Date;
+  minDate?: string | Date;
+  maxDate?: string | Date;
   mode?: "single" | "range";
   pricing?: {
     enabled?: boolean;

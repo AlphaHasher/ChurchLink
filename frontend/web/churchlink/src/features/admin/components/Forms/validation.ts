@@ -10,9 +10,16 @@ export interface BoundsViolation {
 
 const toDate = (value: Date | string | undefined): Date | null => {
   if (!value) return null;
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+  const datePortion = value.length > 10 ? value.slice(0, 10) : value;
+  const parts = datePortion.split("-").map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [year, month, day] = parts;
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
 };
 
 const toMinutes = (value: string | undefined): number | null => {

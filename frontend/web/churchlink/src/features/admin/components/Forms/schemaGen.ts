@@ -1,5 +1,6 @@
 import { z } from "zod";
 import validator from "validator";
+import { format } from "date-fns";
 import type { AnyField, CheckboxField, DateField, NumberField, SelectField, TextField, FormSchema, EmailField, PasswordField, UrlField, TelField } from "./types";
 
 const trimString = (val: unknown): unknown => (typeof val === "string" ? val.trim() : val);
@@ -20,6 +21,28 @@ const normalizePhoneDigits = (val: unknown): string => {
 const phoneDigitsOrUndefined = (val: unknown): string | undefined => {
   const digits = normalizePhoneDigits(val);
   return digits.length === 0 ? undefined : digits;
+};
+
+const normalizeDateOnly = (value: string | Date | undefined): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+  const datePortion = value.length > 10 ? value.slice(0, 10) : value;
+  const parts = datePortion.split("-").map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day);
+};
+
+const truncateToDate = (value: Date | undefined): Date | null => {
+  if (!value) return null;
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+};
+
+const describeDate = (value: string | Date | undefined): string => {
+  const normalized = normalizeDateOnly(value);
+  return normalized ? format(normalized, "PPP") : "the specified date";
 };
 
 export function fieldToZod(field: AnyField): z.ZodTypeAny {
@@ -193,17 +216,25 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         });
 
   // Min/Max checks for whichever endpoints exist
-        if (f.minDate) {
-          const min = f.minDate;
-          s = s.refine((v) => !v || (!v.from || v.from.getTime() >= min.getTime()) && (!v.to || v.to.getTime() >= min.getTime()), {
-            message: `${label} must be on or after ${f.minDate.toDateString()}`,
-          });
+        const min = normalizeDateOnly(f.minDate);
+        if (min) {
+          const message = `${label} must be on or after ${describeDate(f.minDate)}`;
+          s = s.refine((v) => {
+            if (!v) return true;
+            const from = truncateToDate(v.from);
+            const to = truncateToDate(v.to);
+            return (!from || from.getTime() >= min.getTime()) && (!to || to.getTime() >= min.getTime());
+          }, { message });
         }
-        if (f.maxDate) {
-          const max = f.maxDate;
-          s = s.refine((v) => !v || (!v.from || v.from.getTime() <= max.getTime()) && (!v.to || v.to.getTime() <= max.getTime()), {
-            message: `${label} must be on or before ${f.maxDate.toDateString()}`,
-          });
+        const max = normalizeDateOnly(f.maxDate);
+        if (max) {
+          const message = `${label} must be on or before ${describeDate(f.maxDate)}`;
+          s = s.refine((v) => {
+            if (!v) return true;
+            const from = truncateToDate(v.from);
+            const to = truncateToDate(v.to);
+            return (!from || from.getTime() <= max.getTime()) && (!to || to.getTime() <= max.getTime());
+          }, { message });
         }
 
         return s;
@@ -212,13 +243,21 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
   // Single-date mode: value is a Date or undefined
       let s: z.ZodType<Date | undefined> = z.date().optional();
       if (f.required) s = z.date();
-      if (f.minDate)
-        s = s.refine((v: Date | undefined) => !v || v.getTime() >= f.minDate!.getTime(), {
-          message: `${label} must be on or after ${f.minDate.toDateString()}`,
+      const min = normalizeDateOnly(f.minDate);
+      if (min)
+        s = s.refine((v: Date | undefined) => {
+          const normalized = truncateToDate(v ?? undefined);
+          return !normalized || normalized.getTime() >= min.getTime();
+        }, {
+          message: `${label} must be on or after ${describeDate(f.minDate)}`,
         });
-      if (f.maxDate)
-        s = s.refine((v: Date | undefined) => !v || v.getTime() <= f.maxDate!.getTime(), {
-          message: `${label} must be on or before ${f.maxDate.toDateString()}`,
+      const max = normalizeDateOnly(f.maxDate);
+      if (max)
+        s = s.refine((v: Date | undefined) => {
+          const normalized = truncateToDate(v ?? undefined);
+          return !normalized || normalized.getTime() <= max.getTime();
+        }, {
+          message: `${label} must be on or before ${describeDate(f.maxDate)}`,
         });
       return s;
     }
