@@ -4,11 +4,13 @@ import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Popover, PopoverTrigger, PopoverContent } from "@/shared/components/ui/popover";
+import { Calendar } from "@/shared/components/ui/calendar";
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
 import { format } from "date-fns";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/shared/components/ui/hover-card";
-import { CircleHelp } from "lucide-react";
+import { Calendar as CalendarIcon, CircleHelp } from "lucide-react";
 import { Table, TableBody, TableHead, TableRow, TableCell, TableHeader } from "@/shared/components/ui/DataTable";
 
 const parseNonNegativeNumber = (raw: string, emptyValue?: number): number | undefined => {
@@ -69,15 +71,22 @@ export function Inspector() {
     return new Date(year, month - 1, day);
   };
 
-  const formatDateValue = (value: Date | string | undefined) => {
-    const normalized = normalizeDateOnly(value);
-    if (!normalized || Number.isNaN(normalized.getTime())) return "";
-    return format(normalized, "yyyy-MM-dd");
-  };
   const currentMinDate = (field as any).minDate;
   const currentMaxDate = (field as any).maxDate;
-  const minDateString = formatDateValue(currentMinDate);
-  const maxDateString = formatDateValue(currentMaxDate);
+  const minDateObj = normalizeDateOnly(currentMinDate) || undefined;
+  const maxDateObj = normalizeDateOnly(currentMaxDate) || undefined;
+  const minMaxLabel = (() => {
+    if (minDateObj && maxDateObj) {
+      return `${format(minDateObj, "PPP")} – ${format(maxDateObj, "PPP")}`;
+    }
+    if (minDateObj) {
+      return `From ${format(minDateObj, "PPP")}`;
+    }
+    if (maxDateObj) {
+      return `Until ${format(maxDateObj, "PPP")}`;
+    }
+    return "Set min / max dates";
+  })();
 
   const renderOptions = () => {
     if (field.type !== "select" && field.type !== "radio") return null;
@@ -437,37 +446,67 @@ export function Inspector() {
         )}
         {(field.type === "date") && (
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label>Min date</Label>
-                <Input
-                  type="date"
-                  value={minDateString}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    if (!raw) {
-                      update(field.id, { minDate: undefined });
-                      return;
+            <div className="space-y-1">
+              <Label>Min / Max date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <span className={minDateObj || maxDateObj ? "" : "text-muted-foreground"}>
+                      {minMaxLabel}
+                    </span>
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto space-y-2 p-3" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={
+                      minDateObj
+                        ? {
+                            from: minDateObj,
+                            to: maxDateObj ?? minDateObj,
+                          }
+                        : undefined
                     }
-                    update(field.id, { minDate: raw });
-                  }}
-                />
-              </div>
-              <div>
-                <Label>Max date</Label>
-                <Input
-                  type="date"
-                  value={maxDateString}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    if (!raw) {
-                      update(field.id, { maxDate: undefined });
-                      return;
-                    }
-                    update(field.id, { maxDate: raw });
-                  }}
-                />
-              </div>
+                    onSelect={(range: { from?: Date; to?: Date } | undefined) => {
+                      if (!range || !range.from) {
+                        update(field.id, { minDate: undefined, maxDate: undefined });
+                        return;
+                      }
+                      const from = range.from;
+                      const to = range.to ?? range.from;
+                      update(field.id, {
+                        minDate: format(from, "yyyy-MM-dd"),
+                        maxDate: format(to, "yyyy-MM-dd"),
+                      });
+                    }}
+                    initialFocus
+                    captionLayout="dropdown"
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-sm"
+                      onClick={() => update(field.id, { minDate: undefined, maxDate: undefined })}
+                    >
+                      Clear
+                    </Button>
+                    {minDateObj && (
+                      <span className="text-xs text-muted-foreground">
+                        {maxDateObj
+                          ? `${format(minDateObj, "PPP")} → ${format(maxDateObj, "PPP")}`
+                          : `From ${format(minDateObj, "PPP")}`}
+                      </span>
+                    )}
+                    {!minDateObj && maxDateObj && (
+                      <span className="text-xs text-muted-foreground">
+                        {`Until ${format(maxDateObj, "PPP")}`}
+                      </span>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label>Selection mode</Label>
