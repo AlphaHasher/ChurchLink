@@ -397,6 +397,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final cs = Theme.of(context).colorScheme;
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -423,16 +424,16 @@ class _EventShowcaseState extends State<EventShowcase> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.person_add,
-                              //color: Colors.white,
+                              color: cs.onPrimary,
                               size: 24,
                             ),
                             const SizedBox(width: 12),
-                            const Text(
+                            Text(
                               'Add form',
                               style: TextStyle(
-                                //color: Colors.white,
+                                color: cs.onPrimary,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -440,9 +441,9 @@ class _EventShowcaseState extends State<EventShowcase> {
                             const Spacer(),
                             IconButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.close,
-                                color: Colors.white,
+                                color: cs.onPrimary,
                               ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
@@ -510,12 +511,13 @@ class _EventShowcaseState extends State<EventShowcase> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Expanded(
+                                    Expanded(
                                       child: Text(
                                         'Select People',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
+                                          color: cs.onSurface,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
