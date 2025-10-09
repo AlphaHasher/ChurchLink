@@ -46,50 +46,60 @@ class SelectFormComponent extends StatelessWidget {
         onSaved: (v) => onSaved(v ?? <String>[]),
         builder: (state) {
           final selections = state.value ?? <String>[];
+      final hasError = state.hasError;
+      final borderColor =
+        hasError ? Colors.red.shade400 : Colors.grey.shade300;
+          final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (label.trim().isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        label,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      if (requiredField)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Text('*', style: TextStyle(color: Colors.red)),
-                        ),
-                    ],
+                  child: Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
-              Wrap(
-                spacing: 6,
-                runSpacing: -8,
-                children:
-                    selections.isEmpty
-                        ? [const Chip(label: Text('None selected'))]
-                        : selections
-                            .map((v) => Chip(label: Text(_labelFor(v))))
-                            .toList(),
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: () async {
-                    final updated = await _pickMulti(context, selections);
-                    if (updated != null) {
-                      state.didChange(updated);
-                      onChanged(updated);
-                    }
-                  },
-                  child: Text(
-                    placeholder?.isNotEmpty == true ? placeholder! : 'Choose',
-                  ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  border: Border.all(color: borderColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: -8,
+                      children:
+                          selections.isEmpty
+                              ? [const Chip(label: Text('None selected'))]
+                              : selections
+                                  .map((v) => Chip(label: Text(_labelFor(v))))
+                                  .toList(),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () async {
+                          final updated = await _pickMulti(context, selections);
+                          if (updated != null) {
+                            state.didChange(updated);
+                            onChanged(updated);
+                          }
+                        },
+                        child: Text(
+                          placeholder?.isNotEmpty == true
+                              ? placeholder!
+                              : 'Choose',
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (helper != null)

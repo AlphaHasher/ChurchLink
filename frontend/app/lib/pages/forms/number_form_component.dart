@@ -30,27 +30,28 @@ class NumberFormComponent extends StatelessWidget {
 
   String? _validate(String? raw) {
     final value = raw?.trim() ?? '';
+    final fieldLabel = label.trim().isEmpty ? 'Value' : label;
     if (requiredField && value.isEmpty) {
-      return 'Required';
+      return '$fieldLabel is required';
     }
     if (value.isEmpty) return null;
     final parsed = double.tryParse(value);
     if (parsed == null) {
-      return 'Invalid number';
+      return '$fieldLabel must be a valid number';
     }
     if (min != null && parsed < min!) {
       final display =
           min!.truncateToDouble() == min!
               ? min!.toStringAsFixed(0)
               : min!.toString();
-      return 'Must be ≥ $display';
+      return '$fieldLabel must be at least $display';
     }
     if (max != null && parsed > max!) {
       final display =
           max!.truncateToDouble() == max!
               ? max!.toStringAsFixed(0)
               : max!.toString();
-      return 'Must be ≤ $display';
+      return '$fieldLabel must be at most $display';
     }
     if (allowedValues.isNotEmpty) {
       final matches = allowedValues.any((v) => v == parsed);
@@ -63,7 +64,7 @@ class NumberFormComponent extends StatelessWidget {
                       : v.toString(),
             )
             .join(', ');
-        return 'Must be one of: $fmt';
+        return '$fieldLabel must be one of: $fmt';
       }
     }
     return null;

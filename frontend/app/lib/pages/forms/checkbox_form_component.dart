@@ -30,6 +30,10 @@ class CheckboxFormComponent extends StatelessWidget {
       onSaved: (v) => onSaved(v ?? false),
       builder: (state) {
         final current = state.value ?? false;
+    final hasError = state.hasError;
+    final borderColor =
+      hasError ? Colors.red.shade400 : Colors.grey.shade300;
+        final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -43,24 +47,26 @@ class CheckboxFormComponent extends StatelessWidget {
                       label,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    if (requiredField)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 4),
-                        child: Text('*', style: TextStyle(color: Colors.red)),
-                      ),
                   ],
                 ),
               ),
-            CheckboxListTile(
-              value: current,
-              contentPadding: EdgeInsets.zero,
-              title: Text(inline ?? label),
-              controlAffinity: ListTileControlAffinity.leading,
-              onChanged: (val) {
-                final next = val ?? false;
-                state.didChange(next);
-                onChanged(next);
-              },
+            Container(
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                border: Border.all(color: borderColor),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: CheckboxListTile(
+                value: current,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                title: Text(inline ?? label),
+                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: (val) {
+                  final next = val ?? false;
+                  state.didChange(next);
+                  onChanged(next);
+                },
+              ),
             ),
             if (helper != null)
               Padding(

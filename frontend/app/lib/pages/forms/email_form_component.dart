@@ -10,6 +10,8 @@ class EmailFormComponent extends StatelessWidget {
   final String? initialValue;
   final ValueChanged<String> onChanged;
   final FormFieldSetter<String?> onSaved;
+  final int? minLength;
+  final int? maxLength;
 
   const EmailFormComponent({
     super.key,
@@ -20,6 +22,8 @@ class EmailFormComponent extends StatelessWidget {
     this.initialValue,
     required this.onChanged,
     required this.onSaved,
+    this.minLength,
+    this.maxLength,
   });
 
   @override
@@ -44,6 +48,8 @@ class EmailFormComponent extends StatelessWidget {
       textInputAction: TextInputAction.next,
       enableSuggestions: false,
       autocorrect: false,
+      minLength: minLength,
+      maxLength: maxLength,
     );
   }
 }

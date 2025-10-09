@@ -75,40 +75,55 @@ class TimeFormComponent extends StatelessWidget {
       initialValue: value,
       validator: (val) {
         final req = field['required'] == true;
-        if (req && (val == null || val.trim().isEmpty)) return 'Required';
+        if (req && (val == null || val.trim().isEmpty)) {
+          return '${label.isEmpty ? 'Time' : label} is required';
+        }
         if (val == null || val.trim().isEmpty) return null;
-        if (_hhmmToMinutes(val) == null) return 'Invalid time';
+        if (_hhmmToMinutes(val) == null) {
+          return '${label.isEmpty ? 'Time' : label} must be a valid time';
+        }
         final vMin = _hhmmToMinutes(minTime);
         final vMax = _hhmmToMinutes(maxTime);
         final v = _hhmmToMinutes(val)!;
         if (vMin != null && v < vMin) {
-          return 'Must be on or after $minTime';
+          return '${label.isEmpty ? 'Time' : label} must be on or after $minTime';
         }
         if (vMax != null && v > vMax) {
-          return 'Must be on or before $maxTime';
+          return '${label.isEmpty ? 'Time' : label} must be on or before $maxTime';
         }
         return null;
       },
       builder: (state) {
         final initialTod = _parseTimeOfDay(state.value) ?? TimeOfDay.now();
         final display = _formatDisplayTime(state.value) ?? 'Select time';
+    final hasError = state.hasError;
+    final borderColor =
+      hasError ? Colors.red.shade400 : Colors.grey.shade300;
+        final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(
-              title: Text(label),
-              subtitle: Text(display),
-              onTap: () async {
-                final picked = await showTimePicker(
-                  context: context,
-                  initialTime: initialTod,
-                );
-                if (picked != null) {
-                  final formatted = _formatHHMM(picked);
-                  onChanged(formatted);
-                  state.didChange(formatted);
-                }
-              },
+            Container(
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                border: Border.all(color: borderColor),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                title: Text(label),
+                subtitle: Text(display),
+                onTap: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: initialTod,
+                  );
+                  if (picked != null) {
+                    final formatted = _formatHHMM(picked);
+                    onChanged(formatted);
+                    state.didChange(formatted);
+                  }
+                },
+              ),
             ),
             if (state.hasError)
               Padding(

@@ -47,13 +47,13 @@ class DateFormComponent extends StatelessWidget {
           if (req && (fromD == null || toD == null)) return 'Required';
           if (fromD == null || toD == null) return null;
           if (toD.isBefore(fromD)) {
-            return 'End date must be on or after start date';
+            return '$label end date must be on or after start date';
           }
           if (minD != null && fromD.isBefore(minD)) {
-            return 'Start must be on or after ${minD.toIso8601String().split('T').first}';
+            return '$label start date must be on or after ${minD.toIso8601String().split('T').first}';
           }
           if (maxD != null && toD.isAfter(maxD)) {
-            return 'End must be on or before ${maxD.toIso8601String().split('T').first}';
+            return '$label end date must be on or before ${maxD.toIso8601String().split('T').first}';
           }
           return null;
         },
@@ -63,49 +63,60 @@ class DateFormComponent extends StatelessWidget {
           final sTo = v?['to']?.toString();
           final formattedFrom = _formatDisplayDate(sFrom);
           final formattedTo = _formatDisplayDate(sTo);
+      final hasError = state.hasError;
+      final borderColor =
+        hasError ? Colors.red.shade400 : Colors.grey.shade300;
+          final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ListTile(
-                title: Text(label),
-                subtitle: Text(
-                  formattedFrom != null && formattedTo != null
-                      ? '$formattedFrom → $formattedTo'
-                      : 'Select date range',
+              Container(
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  border: Border.all(color: borderColor),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                onTap: () async {
-                  final initial = DateTime.now();
-                  final res = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(1900),
-                    lastDate: DateTime(2100),
-                    initialDateRange:
-                        (sFrom != null && sTo != null)
-                            ? DateTimeRange(
-                              start: DateTime.tryParse(sFrom) ?? initial,
-                              end: DateTime.tryParse(sTo) ?? initial,
-                            )
-                            : null,
-                  );
-                  if (res != null) {
-                    final newVal = {
-                      'from':
-                          DateTime(
-                            res.start.year,
-                            res.start.month,
-                            res.start.day,
-                          ).toIso8601String(),
-                      'to':
-                          DateTime(
-                            res.end.year,
-                            res.end.month,
-                            res.end.day,
-                          ).toIso8601String(),
-                    };
-                    onChanged(newVal);
-                    state.didChange(newVal);
-                  }
-                },
+                child: ListTile(
+                  title: Text(label),
+                  subtitle: Text(
+                    formattedFrom != null && formattedTo != null
+                        ? '$formattedFrom → $formattedTo'
+                        : 'Select date range',
+                  ),
+                  onTap: () async {
+                    final initial = DateTime.now();
+                    final res = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime(2100),
+                      initialDateRange:
+                          (sFrom != null && sTo != null)
+                              ? DateTimeRange(
+                                start: DateTime.tryParse(sFrom) ?? initial,
+                                end: DateTime.tryParse(sTo) ?? initial,
+                              )
+                              : null,
+                    );
+                    if (res != null) {
+                      final newVal = {
+                        'from':
+                            DateTime(
+                              res.start.year,
+                              res.start.month,
+                              res.start.day,
+                            ).toIso8601String(),
+                        'to':
+                            DateTime(
+                              res.end.year,
+                              res.end.month,
+                              res.end.day,
+                            ).toIso8601String(),
+                      };
+                      onChanged(newVal);
+                      state.didChange(newVal);
+                    }
+                  },
+                ),
               ),
               if (state.hasError)
                 Padding(
@@ -132,10 +143,10 @@ class DateFormComponent extends StatelessWidget {
           final minD = _parseDateOnly(field['minDate']?.toString());
           final maxD = _parseDateOnly(field['maxDate']?.toString());
           if (minD != null && d.isBefore(minD)) {
-            return 'Must be on or after ${minD.toIso8601String().split('T').first}';
+            return '$label must be on or after ${minD.toIso8601String().split('T').first}';
           }
           if (maxD != null && d.isAfter(maxD)) {
-            return 'Must be on or before ${maxD.toIso8601String().split('T').first}';
+            return '$label must be on or before ${maxD.toIso8601String().split('T').first}';
           }
           return null;
         },
@@ -143,30 +154,46 @@ class DateFormComponent extends StatelessWidget {
             (state) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListTile(
-                  title: Text(label),
-                  subtitle: Text(
-                    _formatDisplayDate(state.value) ?? 'Select date',
-                  ),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate:
-                          DateTime.tryParse(state.value ?? '') ??
-                          DateTime.now(),
-                      firstDate: DateTime(1900),
-                      lastDate: DateTime(2100),
+                Builder(
+                  builder: (context) {
+                    final hasError = state.hasError;
+          final borderColor =
+            hasError ? Colors.red.shade400 : Colors.grey.shade300;
+                    final backgroundColor =
+                        hasError ? Colors.red.withOpacity(0.05) : null;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: backgroundColor,
+                        border: Border.all(color: borderColor),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListTile(
+                        title: Text(label),
+                        subtitle: Text(
+                          _formatDisplayDate(state.value) ?? 'Select date',
+                        ),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate:
+                                DateTime.tryParse(state.value ?? '') ??
+                                DateTime.now(),
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            final d =
+                                DateTime(
+                                  picked.year,
+                                  picked.month,
+                                  picked.day,
+                                ).toIso8601String();
+                            onChanged(d);
+                            state.didChange(d);
+                          }
+                        },
+                      ),
                     );
-                    if (picked != null) {
-                      final d =
-                          DateTime(
-                            picked.year,
-                            picked.month,
-                            picked.day,
-                          ).toIso8601String();
-                      onChanged(d);
-                      state.didChange(d);
-                    }
                   },
                 ),
                 if (state.hasError)

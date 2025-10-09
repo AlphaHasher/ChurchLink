@@ -25,38 +25,60 @@ class RadioFormComponent extends StatelessWidget {
               ? (v) => (v == null || v.isEmpty) ? 'Required' : null
               : null,
       builder:
-          (state) => Column(
+          (state) {
+            final hasError = state.hasError;
+      final borderColor =
+        hasError ? Colors.red.shade400 : Colors.grey.shade300;
+            final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
+            return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (label.isNotEmpty) Text(label),
-              ...options.map<Widget>((opt) {
-                final val =
-                    opt is Map
-                        ? (opt['value'] ?? opt['id'] ?? opt['label'])
-                        : opt;
-                final display =
-                    opt is Map
-                        ? (opt['label'] ??
-                            opt['value'] ??
-                            opt['id'] ??
-                            opt.toString())
-                        : opt.toString();
-                final sel = state.value == val.toString();
-                return ListTile(
-                  leading: Icon(
-                    sel
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_unchecked,
-                    color: sel ? Theme.of(context).colorScheme.primary : null,
+              if (label.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  title: Text(display.toString()),
-                  onTap: () {
-                    final vstr = val.toString();
-                    state.didChange(vstr);
-                    onChanged(vstr);
-                  },
-                );
-              }),
+                ),
+              Container(
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  border: Border.all(color: borderColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: options.map<Widget>((opt) {
+                    final val =
+                        opt is Map
+                            ? (opt['value'] ?? opt['id'] ?? opt['label'])
+                            : opt;
+                    final display =
+                        opt is Map
+                            ? (opt['label'] ??
+                                opt['value'] ??
+                                opt['id'] ??
+                                opt.toString())
+                            : opt.toString();
+                    final sel = state.value == val.toString();
+                    return ListTile(
+                      leading: Icon(
+                        sel
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color:
+                            sel ? Theme.of(context).colorScheme.primary : null,
+                      ),
+                      title: Text(display.toString()),
+                      onTap: () {
+                        final vstr = val.toString();
+                        state.didChange(vstr);
+                        onChanged(vstr);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
               if (state.hasError)
                 Padding(
                   padding: const EdgeInsets.only(left: 12.0, top: 4),
@@ -66,7 +88,8 @@ class RadioFormComponent extends StatelessWidget {
                   ),
                 ),
             ],
-          ),
+          );
+          },
     );
   }
 }

@@ -30,6 +30,10 @@ class SwitchFormComponent extends StatelessWidget {
       onSaved: (v) => onSaved(v ?? false),
       builder: (state) {
         final current = state.value ?? false;
+    final hasError = state.hasError;
+    final borderColor =
+      hasError ? Colors.red.shade400 : Colors.grey.shade300;
+        final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -43,22 +47,25 @@ class SwitchFormComponent extends StatelessWidget {
                       label,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    if (requiredField)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 4),
-                        child: Text('*', style: TextStyle(color: Colors.red)),
-                      ),
                   ],
                 ),
               ),
-            SwitchListTile(
-              value: current,
-              title: Text(inline ?? label),
-              onChanged: (val) {
-                final next = val;
-                state.didChange(next);
-                onChanged(next);
-              },
+            Container(
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                border: Border.all(color: borderColor),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SwitchListTile(
+                value: current,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                title: Text(inline ?? label),
+                onChanged: (val) {
+                  final next = val;
+                  state.didChange(next);
+                  onChanged(next);
+                },
+              ),
             ),
             if (helper != null)
               Padding(

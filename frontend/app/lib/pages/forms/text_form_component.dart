@@ -19,6 +19,8 @@ class TextFormComponent extends StatelessWidget {
   final TextInputAction? textInputAction;
   final bool enableSuggestions;
   final bool autocorrect;
+  final int? minLength;
+  final int? maxLength;
 
   const TextFormComponent({
     super.key,
@@ -38,6 +40,8 @@ class TextFormComponent extends StatelessWidget {
     this.textInputAction,
     this.enableSuggestions = true,
     this.autocorrect = true,
+    this.minLength,
+    this.maxLength,
   });
 
   @override
@@ -65,6 +69,12 @@ class TextFormComponent extends StatelessWidget {
         final text = value ?? '';
         if (requiredField && text.trim().isEmpty) {
           return 'Required';
+        }
+        if (minLength != null && text.length < minLength!) {
+          return '$label must be at least $minLength characters';
+        }
+        if (maxLength != null && text.length > maxLength!) {
+          return '$label must be at most $maxLength characters';
         }
         for (final validator in validators) {
           final result = validator(value);

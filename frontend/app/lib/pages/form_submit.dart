@@ -396,17 +396,26 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 f['inline'])
             ?.toString();
     final requiredField = (field['required'] ?? f['required']) == true;
+    int? _asInt(dynamic raw) {
+      if (raw is int) return raw;
+      if (raw is num) return raw.toInt();
+      if (raw is String) return int.tryParse(raw.trim());
+      return null;
+    }
+    Widget widget;
     switch (type) {
       case 'static':
-        return StaticFormComponent(
+        widget = StaticFormComponent(
           field: field,
           labelOverride: labelText,
           helperOverride: helperText,
         );
+        break;
       case 'price':
-        return const PriceFormComponent();
+        widget = const PriceFormComponent();
+        break;
       case 'textarea':
-        return TextareaFormComponent(
+        widget = TextareaFormComponent(
           label: labelText,
           placeholder: placeholder,
           helperText: helperText,
@@ -414,9 +423,12 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           initialValue: _values[fieldName]?.toString(),
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
+          minLength: _asInt(field['minLength'] ?? f['minLength']),
+          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
         );
+        break;
       case 'email':
-        return EmailFormComponent(
+        widget = EmailFormComponent(
           label: labelText,
           placeholder: placeholder,
           helperText: helperText,
@@ -424,11 +436,14 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           initialValue: _values[fieldName]?.toString(),
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
+          minLength: _asInt(field['minLength'] ?? f['minLength']),
+          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
         );
+        break;
       case 'tel':
         final current = _values[fieldName];
         final initialPhone = current is String ? current : null;
-        return PhoneFormComponent(
+        widget = PhoneFormComponent(
           label: labelText,
           placeholder: placeholder,
           helperText: helperText,
@@ -437,6 +452,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
+        break;
       case 'number':
         final current = _values[fieldName];
         num? initial;
@@ -471,7 +487,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         final minValue = parseNum(f['min'] ?? f['minimum']);
         final maxValue = parseNum(f['max'] ?? f['maximum']);
         final stepValue = parseNum(f['step']);
-        return NumberFormComponent(
+        widget = NumberFormComponent(
           label: labelText,
           placeholder: placeholder,
           helperText: helperText,
@@ -484,8 +500,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v,
         );
+        break;
       case 'checkbox':
-        return CheckboxFormComponent(
+        widget = CheckboxFormComponent(
           label: labelText,
           inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
           helperText: helperText,
@@ -494,8 +511,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           onChanged: (val) => _updateValue(fieldName, val),
           onSaved: (val) => _values[fieldName] = val,
         );
+        break;
       case 'switch':
-        return SwitchFormComponent(
+        widget = SwitchFormComponent(
           label: labelText,
           inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
           helperText: helperText,
@@ -504,6 +522,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           onChanged: (val) => _updateValue(fieldName, val),
           onSaved: (val) => _values[fieldName] = val,
         );
+        break;
       case 'select':
         final rawOptions =
             (field['options'] ??
@@ -534,7 +553,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 .where((opt) => opt.value.isNotEmpty || opt.label.isNotEmpty)
                 .toList();
         final multiple = (field['multiple'] ?? f['multiple']) == true;
-        return SelectFormComponent(
+        widget = SelectFormComponent(
           label: labelText,
           placeholder:
               (field['buttonLabel'] ?? f['buttonLabel'] ?? placeholder)
@@ -559,26 +578,30 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             }
           },
         );
+        break;
       case 'radio':
-        return RadioFormComponent(
+        widget = RadioFormComponent(
           field: field,
           value: _values[fieldName]?.toString(),
           onChanged: (v) => _updateValue(fieldName, v),
         );
+        break;
       case 'date':
-        return DateFormComponent(
+        widget = DateFormComponent(
           field: field,
           value: _values[fieldName],
           onChanged: (val) => _updateValue(fieldName, val),
         );
+        break;
       case 'time':
-        return TimeFormComponent(
+        widget = TimeFormComponent(
           field: field,
           value: _values[fieldName]?.toString(),
           onChanged: (val) => _updateValue(fieldName, val),
         );
+        break;
       default:
-        return TextFormComponent(
+        widget = TextFormComponent(
           label: labelText,
           placeholder: placeholder,
           helperText: helperText,
@@ -586,13 +609,60 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           initialValue: _values[fieldName]?.toString(),
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
+          minLength: _asInt(field['minLength'] ?? f['minLength']),
+          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
         );
     }
+
+    return _wrapWithRequiredBadge(widget, requiredField);
+  }
+
+  Widget _wrapWithRequiredBadge(Widget child, bool requiredField) {
+    if (!requiredField) return child;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          top: 4,
+          right: 0,
+          child: IgnorePointer(
+            child: Text(
+              '*',
+              style: TextStyle(
+                color: Colors.red[600],
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _submit() async {
-    if (!_scaffoldFormKey.currentState!.validate()) return;
-    _scaffoldFormKey.currentState!.save();
+    final formState = _scaffoldFormKey.currentState;
+    if (formState == null) return;
+
+    final isValid = formState.validate();
+    if (!isValid) {
+      setState(() {
+        _error = 'Please fix the highlighted fields before submitting.';
+      });
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Please fix the highlighted fields before submitting.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    formState.save();
 
     setState(() {
       _submitting = true;

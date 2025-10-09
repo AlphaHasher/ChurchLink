@@ -13,6 +13,8 @@ class TextareaFormComponent extends StatelessWidget {
   final List<TextFieldValidator> validators;
   final int? minLines;
   final int? maxLines;
+  final int? minLength;
+  final int? maxLength;
 
   const TextareaFormComponent({
     super.key,
@@ -26,6 +28,8 @@ class TextareaFormComponent extends StatelessWidget {
     this.validators = const [],
     this.minLines,
     this.maxLines,
+    this.minLength,
+    this.maxLength,
   });
 
   @override
@@ -43,6 +47,8 @@ class TextareaFormComponent extends StatelessWidget {
       textCapitalization: TextCapitalization.sentences,
       minLines: minLines ?? 3,
       maxLines: maxLines ?? 5,
+      minLength: minLength,
+      maxLength: maxLength,
     );
   }
 }
