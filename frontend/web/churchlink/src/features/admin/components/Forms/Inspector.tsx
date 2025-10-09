@@ -11,6 +11,14 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/shared/componen
 import { CircleHelp } from "lucide-react";
 import { Table, TableBody, TableHead, TableRow, TableCell, TableHeader } from "@/shared/components/ui/DataTable";
 
+const parseNonNegativeNumber = (raw: string, emptyValue?: number): number | undefined => {
+  const trimmed = raw?.trim() ?? "";
+  if (trimmed === "") return emptyValue;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return emptyValue;
+  return Math.max(0, parsed);
+};
+
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
   const field = useBuilderStore((s) => s.schema.data.find((f) => f.id === s.selectedId));
@@ -126,10 +134,11 @@ export function Inspector() {
                   <Input
                     type="number"
                     placeholder="0"
+                    min={0}
                     value={(o as any).price ?? ""}
                     onChange={(e) => {
                       const next = [...sel.options];
-                      const price = e.target.value === "" ? undefined : Number(e.target.value);
+                      const price = parseNonNegativeNumber(e.target.value);
                       next[idx] = { ...next[idx], price } as any;
                       updateOptions(field.id, next);
                     }}
@@ -281,8 +290,15 @@ export function Inspector() {
         {field.type === "price" && (
           <div className="space-y-1">
             <Label>Amount</Label>
-            <Input type="number" value={(field as any).amount ?? 0}
-                   onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
+            <Input
+              type="number"
+              min={0}
+              value={(field as any).amount ?? 0}
+              onChange={(e) => {
+                const amount = parseNonNegativeNumber(e.target.value, 0) ?? 0;
+                onChange({ amount } as any);
+              }}
+            />
             <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
           </div>
         )}
@@ -309,7 +325,15 @@ export function Inspector() {
         {(field.type === "checkbox" || field.type === "switch") && (
           <div className="space-y-1">
             <Label>Price when selected</Label>
-            <Input type="number" value={(field as any).price ?? ""} onChange={(e) => onChange({ price: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+            <Input
+              type="number"
+              min={0}
+              value={(field as any).price ?? ""}
+              onChange={(e) => {
+                const price = parseNonNegativeNumber(e.target.value);
+                onChange({ price } as any);
+              }}
+            />
           </div>
         )}
         {field.type === "number" && (
@@ -456,37 +480,101 @@ export function Inspector() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label>Base price per day</Label>
-                      <Input type="number" value={(field as any).pricing?.basePerDay ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, basePerDay: e.target.value === "" ? undefined : Number(e.target.value) } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.basePerDay ?? ""}
+                        onChange={(e) => {
+                          const basePerDay = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, basePerDay } } as any);
+                        }}
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label>Sunday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[0] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 0: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.weekdayOverrides?.[0] ?? ""}
+                        onChange={(e) => {
+                          const val = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 0: val } } } as any);
+                        }}
+                      />
                     </div>
                     <div>
                       <Label>Monday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[1] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 1: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.weekdayOverrides?.[1] ?? ""}
+                        onChange={(e) => {
+                          const val = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 1: val } } } as any);
+                        }}
+                      />
                     </div>
                     <div>
                       <Label>Tuesday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[2] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 2: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.weekdayOverrides?.[2] ?? ""}
+                        onChange={(e) => {
+                          const val = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 2: val } } } as any);
+                        }}
+                      />
                     </div>
                     <div>
                       <Label>Wednesday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[3] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 3: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.weekdayOverrides?.[3] ?? ""}
+                        onChange={(e) => {
+                          const val = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 3: val } } } as any);
+                        }}
+                      />
                     </div>
                     <div>
                       <Label>Thursday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[4] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 4: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.weekdayOverrides?.[4] ?? ""}
+                        onChange={(e) => {
+                          const val = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 4: val } } } as any);
+                        }}
+                      />
                     </div>
                     <div>
                       <Label>Friday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[5] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 5: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.weekdayOverrides?.[5] ?? ""}
+                        onChange={(e) => {
+                          const val = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 5: val } } } as any);
+                        }}
+                      />
                     </div>
                     <div>
                       <Label>Saturday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[6] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 6: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(field as any).pricing?.weekdayOverrides?.[6] ?? ""}
+                        onChange={(e) => {
+                          const val = parseNonNegativeNumber(e.target.value);
+                          onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 6: val } } } as any);
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
