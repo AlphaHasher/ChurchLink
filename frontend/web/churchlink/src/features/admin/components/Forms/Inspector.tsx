@@ -492,18 +492,6 @@ export function Inspector() {
                     >
                       Clear
                     </Button>
-                    {minDateObj && (
-                      <span className="text-xs text-muted-foreground">
-                        {maxDateObj
-                          ? `${format(minDateObj, "PPP")} → ${format(maxDateObj, "PPP")}`
-                          : `From ${format(minDateObj, "PPP")}`}
-                      </span>
-                    )}
-                    {!minDateObj && maxDateObj && (
-                      <span className="text-xs text-muted-foreground">
-                        {`Until ${format(maxDateObj, "PPP")}`}
-                      </span>
-                    )}
                   </div>
                 </PopoverContent>
               </Popover>

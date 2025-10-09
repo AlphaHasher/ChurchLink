@@ -434,8 +434,14 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           helperText: helperText,
           requiredField: requiredField,
           initialValue: _values[fieldName]?.toString(),
-          onChanged: (v) => _updateValue(fieldName, v),
-          onSaved: (v) => _values[fieldName] = v ?? '',
+          onChanged: (v) {
+            final trimmed = v.trim();
+            _updateValue(fieldName, trimmed.isEmpty ? null : trimmed);
+          },
+          onSaved: (v) {
+            final trimmed = (v ?? '').trim();
+            _values[fieldName] = trimmed.isEmpty ? null : trimmed;
+          },
           minLength: _asInt(field['minLength'] ?? f['minLength']),
           maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
         );

@@ -28,6 +28,24 @@ class DateFormComponent extends StatelessWidget {
     return '$day/$month/$year';
   }
 
+  String _formatSubmissionDate(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  DateTime _clampDate(DateTime value, DateTime? min, DateTime? max) {
+    var result = value;
+    if (min != null && result.isBefore(min)) {
+      result = min;
+    }
+    if (max != null && result.isAfter(max)) {
+      result = max;
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     final label = (field['label'] ?? field['name'] ?? '').toString();
@@ -63,9 +81,29 @@ class DateFormComponent extends StatelessWidget {
           final sTo = v?['to']?.toString();
           final formattedFrom = _formatDisplayDate(sFrom);
           final formattedTo = _formatDisplayDate(sTo);
-      final hasError = state.hasError;
-      final borderColor =
-        hasError ? Colors.red.shade400 : Colors.grey.shade300;
+          var minD = _parseDateOnly(field['minDate']?.toString());
+          var maxD = _parseDateOnly(field['maxDate']?.toString());
+          if (minD != null && maxD != null && minD.isAfter(maxD)) {
+            maxD = null;
+          }
+          final hasRange = formattedFrom != null && formattedTo != null;
+          DateTimeRange? initialRange;
+          final parsedFrom = _parseDateOnly(sFrom);
+          final parsedTo = _parseDateOnly(sTo);
+          if (parsedFrom != null) {
+            final start = _clampDate(parsedFrom, minD, maxD);
+            final end = parsedTo != null ? _clampDate(parsedTo, minD, maxD) : start;
+            initialRange = DateTimeRange(start: start, end: end);
+          }
+          var firstDate = minD ?? DateTime(1900);
+          var lastDate = maxD ?? DateTime(2100);
+          if (firstDate.isAfter(lastDate)) {
+            firstDate = DateTime(1900);
+            lastDate = DateTime(2100);
+          }
+          final hasError = state.hasError;
+          final borderColor =
+              hasError ? Colors.red.shade400 : Colors.grey.shade300;
           final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,38 +117,31 @@ class DateFormComponent extends StatelessWidget {
                 child: ListTile(
                   title: Text(label),
                   subtitle: Text(
-                    formattedFrom != null && formattedTo != null
+                    hasRange
                         ? '$formattedFrom → $formattedTo'
                         : 'Select date range',
                   ),
                   onTap: () async {
-                    final initial = DateTime.now();
                     final res = await showDateRangePicker(
                       context: context,
-                      firstDate: DateTime(1900),
-                      lastDate: DateTime(2100),
-                      initialDateRange:
-                          (sFrom != null && sTo != null)
-                              ? DateTimeRange(
-                                start: DateTime.tryParse(sFrom) ?? initial,
-                                end: DateTime.tryParse(sTo) ?? initial,
-                              )
-                              : null,
+                      firstDate: firstDate,
+                      lastDate: lastDate,
+                      initialDateRange: initialRange,
                     );
                     if (res != null) {
+                      final startDate = DateTime(
+                        res.start.year,
+                        res.start.month,
+                        res.start.day,
+                      );
+                      final endDate = DateTime(
+                        res.end.year,
+                        res.end.month,
+                        res.end.day,
+                      );
                       final newVal = {
-                        'from':
-                            DateTime(
-                              res.start.year,
-                              res.start.month,
-                              res.start.day,
-                            ).toIso8601String(),
-                        'to':
-                            DateTime(
-                              res.end.year,
-                              res.end.month,
-                              res.end.day,
-                            ).toIso8601String(),
+                        'from': _formatSubmissionDate(startDate),
+                        'to': _formatSubmissionDate(endDate),
                       };
                       onChanged(newVal);
                       state.didChange(newVal);
@@ -157,10 +188,25 @@ class DateFormComponent extends StatelessWidget {
                 Builder(
                   builder: (context) {
                     final hasError = state.hasError;
-          final borderColor =
-            hasError ? Colors.red.shade400 : Colors.grey.shade300;
+                    final borderColor =
+                        hasError ? Colors.red.shade400 : Colors.grey.shade300;
                     final backgroundColor =
                         hasError ? Colors.red.withOpacity(0.05) : null;
+                    final effectiveValue = state.value ?? current;
+                    var minD = _parseDateOnly(field['minDate']?.toString());
+                    var maxD = _parseDateOnly(field['maxDate']?.toString());
+                    if (minD != null && maxD != null && minD.isAfter(maxD)) {
+                      maxD = null;
+                    }
+                    var firstDate = minD ?? DateTime(1900);
+                    var lastDate = maxD ?? DateTime(2100);
+                    if (firstDate.isAfter(lastDate)) {
+                      firstDate = DateTime(1900);
+                      lastDate = DateTime(2100);
+                    }
+                    final initialCandidate =
+                        _parseDateOnly(effectiveValue) ?? DateTime.now();
+                    final initialDate = _clampDate(initialCandidate, firstDate, lastDate);
                     return Container(
                       decoration: BoxDecoration(
                         color: backgroundColor,
@@ -170,26 +216,24 @@ class DateFormComponent extends StatelessWidget {
                       child: ListTile(
                         title: Text(label),
                         subtitle: Text(
-                          _formatDisplayDate(state.value) ?? 'Select date',
+                          _formatDisplayDate(effectiveValue) ?? 'Select date',
                         ),
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate:
-                                DateTime.tryParse(state.value ?? '') ??
-                                DateTime.now(),
-                            firstDate: DateTime(1900),
-                            lastDate: DateTime(2100),
+                            initialDate: initialDate,
+                            firstDate: firstDate,
+                            lastDate: lastDate,
                           );
                           if (picked != null) {
-                            final d =
-                                DateTime(
-                                  picked.year,
-                                  picked.month,
-                                  picked.day,
-                                ).toIso8601String();
-                            onChanged(d);
-                            state.didChange(d);
+                            final normalized = DateTime(
+                              picked.year,
+                              picked.month,
+                              picked.day,
+                            );
+                            final stored = _formatSubmissionDate(normalized);
+                            onChanged(stored);
+                            state.didChange(stored);
                           }
                         },
                       ),

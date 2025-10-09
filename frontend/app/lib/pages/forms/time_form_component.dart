@@ -86,10 +86,12 @@ class TimeFormComponent extends StatelessWidget {
         final vMax = _hhmmToMinutes(maxTime);
         final v = _hhmmToMinutes(val)!;
         if (vMin != null && v < vMin) {
-          return '${label.isEmpty ? 'Time' : label} must be on or after $minTime';
+          final friendlyMin = _formatDisplayTime(minTime) ?? minTime;
+          return '${label.isEmpty ? 'Time' : label} must be on or after $friendlyMin';
         }
         if (vMax != null && v > vMax) {
-          return '${label.isEmpty ? 'Time' : label} must be on or before $maxTime';
+          final friendlyMax = _formatDisplayTime(maxTime) ?? maxTime;
+          return '${label.isEmpty ? 'Time' : label} must be on or before $friendlyMax';
         }
         return null;
       },

@@ -11,6 +11,32 @@ import { buildLoginPath } from "@/router/paths";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 
+type RawOption = string | { label?: string; value?: string; id?: string; [key: string]: any };
+
+const normalizeOption = (opt: RawOption, index: number) => {
+  if (typeof opt === "string") {
+    return { label: opt, value: opt };
+  }
+  const fallback = `option${index + 1}`;
+  const value = (opt?.value ?? opt?.id ?? opt?.label ?? fallback)?.toString() ?? fallback;
+  const label = opt?.label ?? opt?.value ?? opt?.id ?? value;
+  return { ...opt, label, value };
+};
+
+const normalizeFieldData = (raw: any) => {
+  if (!raw || typeof raw !== "object") return raw;
+  const field = { ...raw };
+  if (field.type === "select" || field.type === "radio") {
+    const source: RawOption[] = Array.isArray(field.options)
+      ? field.options
+      : Array.isArray((field as any).choices)
+        ? (field as any).choices
+        : [];
+    field.options = source.map((opt, idx) => normalizeOption(opt, idx));
+  }
+  return field;
+};
+
 export default function FormPublic() {
   const { slug } = useParams();
   const [loading, setLoading] = useState(true);
@@ -46,6 +72,8 @@ export default function FormPublic() {
         }
         const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
         // set schema into builder store for rendering
+        const rawFields: any[] = Array.isArray(form.data) ? form.data : (form.data?.data || []);
+        const normalizedFields = rawFields.map((f) => normalizeFieldData(f));
         setSchema({
           title: form.title,
           description: form.description,
@@ -53,7 +81,7 @@ export default function FormPublic() {
           defaultLocale: form.defaultLocale || 'en',
           locales: form.locales || [],
           formWidth: formWidthValue,
-          data: Array.isArray(form.data) ? form.data : (form.data?.data || []),
+          data: normalizedFields,
         });
         setLoading(false);
       } catch (err: any) {

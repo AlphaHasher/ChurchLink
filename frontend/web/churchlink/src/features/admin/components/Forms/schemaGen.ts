@@ -45,17 +45,51 @@ const describeDate = (value: string | Date | undefined): string => {
   return normalized ? format(normalized, "PPP") : "the specified date";
 };
 
+const parseAllowedNumbers = (allowedValues?: string): number[] => {
+  if (!allowedValues) return [];
+  return allowedValues
+    .split(",")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0)
+    .map((x) => Number(x))
+    .filter((n) => !Number.isNaN(n));
+};
+
+const normalizeNumberInput = (val: unknown): number | undefined => {
+  if (val === undefined || val === null) return undefined;
+  if (typeof val === "number") {
+    return Number.isNaN(val) ? Number.NaN : val;
+  }
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.length === 0) return undefined;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? Number.NaN : parsed;
+  }
+  return Number.NaN;
+};
+
+const formatNumberValue = (n: number): string => {
+  return Number.isInteger(n) ? n.toFixed(0) : n.toString();
+};
+
 export function fieldToZod(field: AnyField): z.ZodTypeAny {
   switch (field.type) {
     case "text":
     case "textarea": {
-      let s = z.string();
       const f = field as TextField;
-      if (f.required) s = s.min(1, { message: `${field.label || field.name} is required` });
-      if (f.minLength != null) s = s.min(f.minLength);
-      if (f.maxLength != null) s = s.max(f.maxLength);
-      if (f.pattern) s = s.regex(new RegExp(f.pattern));
-      return s;
+      const label = field.label || field.name || "Field";
+
+      let base = z.string();
+      if (f.minLength != null) base = base.min(f.minLength);
+      if (f.maxLength != null) base = base.max(f.maxLength);
+      if (f.pattern) base = base.regex(new RegExp(f.pattern));
+
+      if (f.required) {
+        return base.min(1, { message: `${label} is required` });
+      }
+
+      return z.preprocess(emptyStringToUndefined, base.optional());
     }
     case "email": {
       let s = z.string().email({ message: "Invalid email address" });
@@ -140,25 +174,38 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       );
     }
     case "number": {
-      let s = z.coerce.number();
       const f = field as NumberField;
-  if (f.required) s = s.refine((v: unknown) => v !== undefined && v !== null && !Number.isNaN(v as number), `${field.label || field.name} is required`);
-      if (f.min != null) s = s.min(f.min);
-      if (f.max != null) s = s.max(f.max);
-      if (f.allowedValues && f.allowedValues.trim().length > 0) {
-        const allowed = f.allowedValues
-          .split(",")
-          .map((x) => x.trim())
-          .filter((x) => x.length > 0)
-          .map((x) => Number(x))
-          .filter((n) => !Number.isNaN(n));
-        if (allowed.length > 0) {
-          s = s.refine((v) => allowed.includes(v as number), {
-            message: `${field.label || field.name} must be one of: ${allowed.join(", ")}`,
+      const label = field.label || field.name || "Number";
+      const allowed = parseAllowedNumbers(f.allowedValues);
+      const base = z.preprocess(
+        normalizeNumberInput,
+        z.union([z.number(), z.undefined()])
+      );
+      return base.superRefine((val, ctx) => {
+        if (typeof val === "number" && Number.isNaN(val)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} must be a number` });
+          return;
+        }
+        if (val === undefined) {
+          if (f.required) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} is required` });
+          }
+          return;
+        }
+        const num = val as number;
+        if (f.min != null && num < f.min) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} must be >= ${formatNumberValue(f.min)}` });
+        }
+        if (f.max != null && num > f.max) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} must be <= ${formatNumberValue(f.max)}` });
+        }
+        if (allowed.length > 0 && !allowed.includes(num)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${label} must be one of: ${allowed.map(formatNumberValue).join(", ")}`,
           });
         }
-      }
-      return s;
+      });
     }
     
     case "checkbox": {
@@ -177,9 +224,10 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
     case "select": {
       const f = field as SelectField;
       if (f.multiple) {
-        let s = z.array(z.string());
-        if (f.required) s = s.min(1, `${field.label || field.name} is required`);
-        return s;
+        if (f.required) {
+          return z.array(z.string()).min(1, `${field.label || field.name} is required`);
+        }
+        return z.array(z.string()).optional();
       }
       let s: z.ZodType<string | undefined> = z.string().optional();
       if (f.required) s = z.string().min(1, `${field.label || field.name} is required`);
