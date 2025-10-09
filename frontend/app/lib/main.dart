@@ -152,16 +152,27 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  List<Widget> get _screens {
-    final tabProvider = context.read<TabProvider>();
-    if (!tabProvider.isLoaded || tabProvider.tabs.isEmpty) {
-      return [const DashboardPage()]; // Fallback
-    }
+  final Map<String, GlobalKey<NavigatorState>> _navKeyForTab = {};
 
-    return tabProvider.tabs.map((tab) {
-      final tabName = tab['name'] as String;
-      return _getScreenForTab(tabName.toLowerCase());
-    }).toList();
+  Widget _buildTabNavigator({
+    required GlobalKey<NavigatorState> navKey,
+    required Widget root,
+    required bool isActive,
+  }) {
+    return TickerMode(
+      enabled: isActive,
+      child: Offstage(
+        offstage: !isActive,
+        child: Navigator(
+          key: navKey,
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (_) => root,
+            settings: const RouteSettings(name: 'root'),
+            maintainState: true,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _getScreenForTab(String tabName) {
@@ -200,10 +211,29 @@ class _MyHomePageState extends State<MyHomePage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final tabs = tabProvider.tabs; 
+    final List<Widget> tabRoots = tabs
+        .map((t) => _getScreenForTab((t['name'] as String).toLowerCase()))
+        .toList();
+    final List<GlobalKey<NavigatorState>> navKeys = tabs.map((t) {
+      final name = (t['name'] as String).toLowerCase();
+      return _navKeyForTab.putIfAbsent(name, () => GlobalKey<NavigatorState>());
+    }).toList();
+
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: IndexedStack(index: tabProvider.currentIndex, children: _screens),
+      body: IndexedStack(
+        index: tabProvider.currentIndex,
+        children: List.generate(
+          tabRoots.length,
+          (i) => _buildTabNavigator(
+            navKey: navKeys[i],
+            root: tabRoots[i],
+            isActive: tabProvider.currentIndex == i,
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: tabProvider.currentIndex,
