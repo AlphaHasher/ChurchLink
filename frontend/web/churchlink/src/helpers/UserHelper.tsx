@@ -69,6 +69,17 @@ export const fetchUsers = async () => {
     }
 };
 
+export const fetchUsersWithRole = async (role_id: string) => {
+    try {
+        const res = await api.get(`v1/users/get-users-with-role/${role_id}`);
+        return processFetchedUserData(res.data.users);
+    }
+    catch (err) {
+        console.error("Failed to fetch users:", err);
+        return [];
+    }
+}
+
 export const fetchUsersPaged = async (
     params: UsersSearchParams,
     signal?: AbortSignal

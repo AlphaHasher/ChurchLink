@@ -75,6 +75,16 @@ async def fetch_users():
     ]
     return {"success": True, "users": users}
 
+async def fetch_users_with_role_id(role_id: str):
+    try:
+        users = await UserHandler.fetch_focused_user_content_with_role_id(role_id)
+        return {"success": True, "users": users}
+    except ValueError:
+        return {"success": False, "msg": "Invalid role_id"}
+    except Exception as e:
+        return {"success": False, "msg": f"Error fetching users by role: {str(e)}"}
+
+
 async def search_users_paged(params: UsersSearchParams):
     total, users = await UserHandler.search_users_paged(params)
     # Normalize down to the fields the UI already uses in /get-users

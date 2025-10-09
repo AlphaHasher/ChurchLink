@@ -227,6 +227,29 @@ class UserHandler:
     @staticmethod
     async def find_users_with_role_id(role_id):
         return await DB.find_documents("users", {"roles": role_id})
+    
+    @staticmethod
+    async def fetch_focused_user_content_with_role_id(role_id: str) -> List[Dict]:
+        rid = (role_id or "").strip()
+        if not rid:
+            raise ValueError("invalid role_id")
+
+        coll = DB.db["users"]
+
+        query = {"roles": rid}
+
+        cursor = coll.find(
+            query,
+            {
+                "_id": 0,
+                "uid": 1,
+                "first_name": 1,
+                "last_name": 1,
+                "email": 1,
+                "roles": 1,
+            },
+        )
+        return [doc async for doc in cursor]
 
     @staticmethod
     async def find_users_with_permissions(permission_names):

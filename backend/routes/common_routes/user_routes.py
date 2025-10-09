@@ -3,9 +3,9 @@ from fastapi import APIRouter, HTTPException, status, Query, Body, Request
 
 # Import models and functions from models/user.py
 from models.user import ( PersonCreate, PersonUpdateRequest,
-    add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member
+    add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member, get_user_by_uid, get_user_by_id
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, fetch_users_with_role_id
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
 user_mod_router = APIRouter(prefix="/users", tags=["Users"])
@@ -47,6 +47,11 @@ async def process_check_mod(request:Request):
 @user_mod_router.get("/get-users")
 async def process_get_users(request:Request):
     return await fetch_users()
+
+#Mod Router
+@user_mod_router.get("/get-users-with-role/{role_id}")
+async def get_users_with_role(request:Request, role_id:str):
+    return await fetch_users_with_role_id(role_id)
 
 # Mod Router
 # Intelligent searching for users table.
