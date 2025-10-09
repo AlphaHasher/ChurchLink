@@ -240,7 +240,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               content: Text(
                 '$names successfully registered for ${widget.event.name}!',
               ),
-              backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+              //backgroundColor: const Color.fromARGB(255, 142, 163, 168),
             ),
           );
         } else if (successCount > 0) {
@@ -582,7 +582,6 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
 
     return Card(
-      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -593,7 +592,6 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 16),
@@ -612,6 +610,8 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildCapacityInfo() {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     if (_registrationSummary == null) {
       return const CircularProgressIndicator();
     }
@@ -619,7 +619,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: cs.primary,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -627,8 +627,8 @@ class _EventShowcaseState extends State<EventShowcase> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total Registered:'),
-              Text('${_registrationSummary!.totalRegistrations}'),
+              Text('Total Registered:', style: tt.labelLarge?.copyWith(color: cs.onPrimary)),
+              Text('${_registrationSummary!.totalRegistrations}', style: tt.labelLarge?.copyWith(color: cs.onPrimary)),
             ],
           ),
         ],
@@ -658,11 +658,12 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildUserRegistrationTile(RegistrationEntry registration) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: cs.secondary,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -671,7 +672,7 @@ class _EventShowcaseState extends State<EventShowcase> {
             registration.personId == null
                 ? Icons.person
                 : Icons.family_restroom,
-            color: Colors.blue[700],
+            color: cs.onSecondary,
             size: 20,
           ),
           const SizedBox(width: 8),
@@ -682,13 +683,13 @@ class _EventShowcaseState extends State<EventShowcase> {
                 Text(
                   registration.displayName,
                   style: TextStyle(
-                    color: Colors.black87,
+                    color: cs.onSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   'Registered ${_formatRegistrationDate(registration.registeredOn)}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 11, color: cs.onSecondary,),
                 ),
               ],
             ),
@@ -763,7 +764,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     if (user == null) {
       return const Column(
         children: [
-          Icon(Icons.person_off, size: 48, color: Colors.grey),
+          Icon(Icons.person_off, size: 48),
           SizedBox(height: 16),
           Text(
             'Please log in to register for events.',
@@ -931,14 +932,12 @@ class _EventShowcaseState extends State<EventShowcase> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
         title: Text(
           widget.event.name,
-          style: const TextStyle(color: Colors.white),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -1118,7 +1117,6 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildEventInfo() {
     return Card(
-      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1155,11 +1153,11 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final cs = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 20, color: ssbcGray),
+        Icon(icon, size: 20, color: cs.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -1170,13 +1168,13 @@ class _EventShowcaseState extends State<EventShowcase> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey,
+                  //color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                style: const TextStyle(fontSize: 16),
               ),
             ],
           ),
@@ -1186,7 +1184,8 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildSvgInfoRow(String assetPath, String label, String value) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1194,7 +1193,7 @@ class _EventShowcaseState extends State<EventShowcase> {
           assetPath,
           width: 20,
           height: 20,
-          colorFilter: const ColorFilter.mode(ssbcGray, BlendMode.srcIn),
+          colorFilter: ColorFilter.mode(cs.primary, BlendMode.srcIn),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1206,13 +1205,13 @@ class _EventShowcaseState extends State<EventShowcase> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey,
+                  //color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                style: const TextStyle(fontSize: 16),
               ),
             ],
           ),
@@ -1223,7 +1222,6 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildDescription() {
     return Card(
-      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1234,7 +1232,6 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 8),
@@ -1242,7 +1239,6 @@ class _EventShowcaseState extends State<EventShowcase> {
               widget.event.description,
               style: const TextStyle(
                 fontSize: 16,
-                color: Colors.black87,
                 height: 1.4,
               ),
             ),
@@ -1255,7 +1251,6 @@ class _EventShowcaseState extends State<EventShowcase> {
                 widget.event.ruDescription!,
                 style: const TextStyle(
                   fontSize: 16,
-                  color: Colors.grey,
                   height: 1.4,
                   fontStyle: FontStyle.italic,
                 ),
@@ -1291,7 +1286,6 @@ class _EventShowcaseState extends State<EventShowcase> {
     if (specs.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1302,7 +1296,6 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 8),
@@ -1321,7 +1314,6 @@ class _EventShowcaseState extends State<EventShowcase> {
                       spec,
                       style: const TextStyle(
                         fontSize: 16,
-                        color: Colors.black87,
                       ),
                     ),
                   ],
