@@ -11,6 +11,7 @@ import {
   BookOpen,
   Bell,
   DollarSign,
+  FileText,
 } from "lucide-react";
 import { processStrapiRedirect } from "@/helpers/StrapiInteraction";
 import {
@@ -82,6 +83,7 @@ const AdminDashboardSideBar = () => {
       { title: "Form Builder", url: "/admin/forms/form-builder" },
     ] },
     { title: "Sermons Manager", url: "/admin/sermons", icon: BookOpen },
+    { title: "Weekly Bulletin", url: "/admin/bulletins", icon: FileText },
     { title: "Bible Plan Manager", url: "/admin/bible-plan-manager", icon: BookOpen },
     { title: "Finance", url: "/admin/finance", icon: DollarSign },
     { title: "Notifications", url: "/admin/notifications", icon: Bell },

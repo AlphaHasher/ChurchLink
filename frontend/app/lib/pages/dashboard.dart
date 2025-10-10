@@ -1,4 +1,4 @@
-import 'package:app/pages/weeklybulletin.dart';
+import 'package:app/pages/bulletins.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:app/pages/joinlive.dart';
@@ -9,7 +9,6 @@ import 'package:app/pages/contact.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
 
 // URL for Strapi, currently hardcoded to the Android emulator default value.
 // Potentially migrate this into the .env later
@@ -28,7 +27,8 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _tilesFuture = DashboardTilesService(strapiUrl).fetchImageUrls(); // created once
+    _tilesFuture =
+        DashboardTilesService(strapiUrl).fetchImageUrls(); // created once
     _readyFuture = _tilesFuture.then((map) async {
       // Precache *before* first paint
       final futures = <Future<void>>[];
@@ -64,26 +64,35 @@ class _DashboardPageState extends State<DashboardPage> {
                         String? imageUrl,
                       }) {
                         // If using an image, force white text; otherwise compute from background
-                        final Color textColor = (imageUrl != null)
-                            ? Colors.white
-                            : (background.computeLuminance() > 0.5 ? Colors.black : Colors.white);
+                        final Color textColor =
+                            (imageUrl != null)
+                                ? Colors.white
+                                : (background.computeLuminance() > 0.5
+                                    ? Colors.black
+                                    : Colors.white);
 
                         return Card(
                           margin: EdgeInsets.zero,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                          clipBehavior: Clip.hardEdge, // keeps ripple & image clipped to card
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          clipBehavior:
+                              Clip.hardEdge, // keeps ripple & image clipped to card
                           child: Ink(
                             height: 150,
                             width: double.infinity,
                             // Image background when imageAsset is provided; else solid color
-                            decoration: imageUrl != null
-                                ? BoxDecoration(
-                                    image: DecorationImage(
-                                      image: CachedNetworkImageProvider(imageUrl),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : BoxDecoration(color: background),
+                            decoration:
+                                imageUrl != null
+                                    ? BoxDecoration(
+                                      image: DecorationImage(
+                                        image: CachedNetworkImageProvider(
+                                          imageUrl,
+                                        ),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                    : BoxDecoration(color: background),
                             child: InkWell(
                               onTap: onTap,
                               child: Stack(
@@ -96,7 +105,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                         gradient: LinearGradient(
                                           begin: Alignment.bottomCenter,
                                           end: Alignment.topCenter,
-                                          colors: [Color(0xB3000000), Colors.transparent],
+                                          colors: [
+                                            Color(0xB3000000),
+                                            Colors.transparent,
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -104,13 +116,21 @@ class _DashboardPageState extends State<DashboardPage> {
                                     child: Text(
                                       title,
                                       textAlign: TextAlign.center,
-                                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                                            color: textColor,
-                                            // small shadow helps on busy photos
-                                            shadows: imageUrl != null
-                                                ? const [Shadow(blurRadius: 2, color: Colors.black45)]
+                                      style: Theme.of(
+                                        ctx,
+                                      ).textTheme.titleLarge?.copyWith(
+                                        color: textColor,
+                                        // small shadow helps on busy photos
+                                        shadows:
+                                            imageUrl != null
+                                                ? const [
+                                                  Shadow(
+                                                    blurRadius: 2,
+                                                    color: Colors.black45,
+                                                  ),
+                                                ]
                                                 : null,
-                                          ),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -123,74 +143,96 @@ class _DashboardPageState extends State<DashboardPage> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          buildCard('Join Live', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(builder: (_) => const JoinLive()),
-                            );
-                          },
-                              Colors.indigo.shade600,
-                              imageUrl: images['join-live'],
+                          buildCard(
+                            'Join Live',
+                            () {
+                              Navigator.push(
+                                ctx,
+                                CupertinoPageRoute(
+                                  builder: (_) => const JoinLive(),
+                                ),
+                              );
+                            },
+                            Colors.indigo.shade600,
+                            imageUrl: images['join-live'],
                           ),
-                          buildCard('Weekly Bulletin', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(
-                                builder: (_) => const WeeklyBulletin(),
-                              ),
-                            );
-                          },
-                              Colors.teal.shade600,
-                              imageUrl: images['weekly-bulletin'],
+                          buildCard(
+                            'Weekly Bulletin',
+                            () {
+                              Navigator.push(
+                                ctx,
+                                CupertinoPageRoute(
+                                  builder: (_) => const BulletinsPage(),
+                                ),
+                              );
+                            },
+                            Colors.teal.shade600,
+                            imageUrl: images['weekly-bulletin'],
                           ),
-                          buildCard('Events', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(
-                                builder: (_) => const EventsPage(),
-                              ),
-                            );
-                          },
-                              Colors.orange.shade600,
-                              imageUrl: images['events'],
+                          buildCard(
+                            'Events',
+                            () {
+                              Navigator.push(
+                                ctx,
+                                CupertinoPageRoute(
+                                  builder: (_) => const EventsPage(),
+                                ),
+                              );
+                            },
+                            Colors.orange.shade600,
+                            imageUrl: images['events'],
                           ),
-                          buildCard('Giving', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(builder: (_) => const Giving()),
-                            );
-                          },
-                              Colors.green.shade600,
-                              imageUrl: images['giving'],
+                          buildCard(
+                            'Giving',
+                            () {
+                              Navigator.push(
+                                ctx,
+                                CupertinoPageRoute(
+                                  builder: (_) => const Giving(),
+                                ),
+                              );
+                            },
+                            Colors.green.shade600,
+                            imageUrl: images['giving'],
                           ),
-                          buildCard('Ministries', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(
-                                builder: (_) => const Ministries(),
-                              ),
-                            );
-                          },
-                              Colors.purple.shade600,
-                              imageUrl: images['ministries'],
+                          buildCard(
+                            'Ministries',
+                            () {
+                              Navigator.push(
+                                ctx,
+                                CupertinoPageRoute(
+                                  builder: (_) => const Ministries(),
+                                ),
+                              );
+                            },
+                            Colors.purple.shade600,
+                            imageUrl: images['ministries'],
                           ),
-                          buildCard('Contact Us', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(builder: (_) => const Contact()),
-                            );
-                          },
-                              Colors.blueGrey.shade700,
-                              imageUrl: images['contact'],
+                          buildCard(
+                            'Contact Us',
+                            () {
+                              Navigator.push(
+                                ctx,
+                                CupertinoPageRoute(
+                                  builder: (_) => const Contact(),
+                                ),
+                              );
+                            },
+                            Colors.blueGrey.shade700,
+                            imageUrl: images['contact'],
                           ),
-                          buildCard('Forms', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(builder: (_) => const Forms()),
-                            );
-                          },
-                              Colors.brown.shade600,
-                              imageUrl: images['forms'],
+                          buildCard(
+                            'Forms',
+                            () {
+                              Navigator.push(
+                                ctx,
+                                CupertinoPageRoute(
+                                  builder: (_) => const Forms(),
+                                ),
+                              );
+                            },
+                            Colors.brown.shade600,
+                            imageUrl: images['forms'],
                           ),
                         ],
                       );
