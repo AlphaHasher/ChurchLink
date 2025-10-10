@@ -48,7 +48,9 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 
 from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
 
-from routes.forms_routes import mod_forms_router
+from routes.form_routes.mod_forms_routes import mod_forms_router
+from routes.form_routes.private_forms_routes import private_forms_router
+from routes.form_routes.public_forms_routes import public_forms_router
 from routes.translator_routes import translator_router
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
@@ -271,6 +273,8 @@ private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)
 private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
+private_router.include_router(public_forms_router)
+private_router.include_router(private_forms_router)
 
 #####################################################
 # Mod Routers - Requires at least 1 perm role, agnostic to specific permissions

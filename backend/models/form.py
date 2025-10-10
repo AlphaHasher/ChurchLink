@@ -205,6 +205,47 @@ async def search_forms(user_id: str, name: Optional[str] = None, folder: Optiona
         return []
 
 
+async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
+    try:
+        cursor = (
+            DB.db.forms.find({"visible": True})
+            .skip(skip)
+            .limit(limit)
+            .sort([("created_at", -1)])
+        )
+        docs = await cursor.to_list(length=limit)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error listing visible forms: {e}")
+        return []
+
+
+async def search_visible_forms(
+    name: Optional[str] = None,
+    folder: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> List[FormOut]:
+    try:
+        query: dict = {"visible": True}
+        if name:
+            query["title"] = {"$regex": name, "$options": "i"}
+        if folder:
+            query["folder"] = {"$regex": f"^{folder}$", "$options": "i"}
+
+        cursor = (
+            DB.db.forms.find(query)
+            .skip(skip)
+            .limit(limit)
+            .sort([("created_at", -1)])
+        )
+        docs = await cursor.to_list(length=limit)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error searching visible forms: {e}")
+        return []
+
+
 ###########################
 # Folder management
 ###########################
@@ -273,6 +314,28 @@ async def get_form_by_slug(slug: str) -> Optional[FormOut]:
     except Exception as e:
         logger.error(f"Error fetching form by slug: {e}")
         return None
+
+
+async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
+    try:
+        doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "visible": True})
+        return _doc_to_out(doc) if doc else None
+    except Exception as e:
+        logger.error(f"Error fetching visible form by id: {e}")
+        return None
+
+
+async def list_visible_folders() -> List[dict]:
+    try:
+        distinct_folders = await DB.db.forms.distinct(
+            "folder", {"visible": True, "folder": {"$exists": True, "$ne": None, "$ne": ""}}
+        )
+        # Normalize folder names and filter out falsy values after distinct
+        cleaned = sorted({str(name).strip() for name in distinct_folders if name})
+        return [{"name": name} for name in cleaned]
+    except Exception as e:
+        logger.error(f"Error listing visible folders: {e}")
+        return []
 
 
 def _get_schema_fields(schema_data: Any) -> List[dict]:
