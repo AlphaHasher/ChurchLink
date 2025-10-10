@@ -191,7 +191,6 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                                 value={bulletin.publish_date ? bulletin.publish_date.toISOString().slice(0,10) : ''} 
                                 onChange={(e) => setBulletin({ ...bulletin, publish_date: e.target.value ? new Date(e.target.value) : new Date() })} 
                             />
-                            <span className="text-xs text-gray-500 mt-1">Will be normalized to Monday of the selected week</span>
                         </label>
 
                         <label className="flex flex-col">

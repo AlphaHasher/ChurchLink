@@ -50,12 +50,13 @@ export type BulletinFilter = {
     skip?: number;
     limit?: number;
     ministry?: string;
-    week_start?: string;
-    week_end?: string;
+    week_start?: string; // Used for services filtering only (services use week-based display_week)
+    week_end?: string; // Used for services filtering only (services use week-based display_week)
     published?: boolean;
     pinned_only?: boolean;
-    upcoming_only?: boolean;
-    query?: string;
+    upcoming_only?: boolean; // Used for bulletins: show if publish_date <= now (date-based filtering)
+    skip_expiration_filter?: boolean; // Used for admin: show expired bulletins too
+    query?: string; // Search query for headline/body
 };
 
 export const bulletinLabels: Record<string, string> = {

@@ -23,8 +23,7 @@ import { Loader2 } from "lucide-react";
 import { ServiceBulletin } from "@/shared/types/ChurchBulletin";
 import { 
     updateService, 
-    deleteService, 
-    toggleServicePublish 
+    deleteService 
 } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
@@ -107,24 +106,6 @@ export function EditServiceDialog({
             toast.error("Failed to delete service. Please try again.");
         } finally {
             setDeleting(false);
-        }
-    };
-
-    const handleTogglePublish = async () => {
-        setSaving(true);
-        try {
-            const newStatus = !service.published;
-            console.log(`[Service Publish Toggle] ${newStatus ? 'Publishing' : 'Unpublishing'} service "${service.title}" (ID: ${service.id}) at ${new Date().toISOString()}`);
-            await toggleServicePublish(service.id, newStatus);
-            console.log(`[Service Publish Toggle] Successfully ${newStatus ? 'published' : 'unpublished'} service "${service.title}"`);
-            toast.success(`Service ${newStatus ? 'published' : 'unpublished'} successfully`);
-            await onSave();
-            handleDialogClose();
-        } catch (err) {
-            console.error("[Service Publish Toggle Error]", err);
-            toast.error("Failed to toggle publish status. Please try again.");
-        } finally {
-            setSaving(false);
         }
     };
 
@@ -344,14 +325,6 @@ export function EditServiceDialog({
                         </label>
 
                         <div className="flex gap-2 flex-wrap">
-                            <Button 
-                                type="button"
-                                variant="outline" 
-                                onClick={handleTogglePublish}
-                                disabled={saving}
-                            >
-                                {service.published ? 'Unpublish' : 'Publish'}
-                            </Button>
                             <Button 
                                 type="button"
                                 variant="destructive" 

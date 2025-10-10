@@ -99,7 +99,7 @@ export function BulletinDetailsModal({
                                     <div className="flex items-center gap-3 text-gray-700">
                                         <Calendar className="h-5 w-5 text-gray-500" />
                                         <div>
-                                            <p className="font-medium">Publish Week</p>
+                                            <p className="font-medium">Publish Date</p>
                                             <p className="text-sm text-gray-600">
                                                 {format(publishDate, 'MMMM dd, yyyy')}
                                             </p>

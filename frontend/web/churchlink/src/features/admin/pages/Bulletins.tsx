@@ -17,8 +17,8 @@ const Bulletins = () => {
     const loadBulletins = async () => {
         try {
             const [publishedBulletins, draftBulletins] = await Promise.all([
-                fetchBulletins({ published: true }),
-                fetchBulletins({ published: false }),
+                fetchBulletins({ published: true, skip_expiration_filter: true }),
+                fetchBulletins({ published: false, skip_expiration_filter: true }),
             ]);
 
             const merged = new Map<string, ChurchBulletin>();

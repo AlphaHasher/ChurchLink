@@ -87,9 +87,9 @@ class ServiceBulletin {
     return '$dayOfWeek at $displayHours:$minutes $period';
   }
 
-  /// Format display week for UI (e.g., "Week of Oct 6, 2025")
+  /// Format display week for UI (e.g., "Oct 6, 2025")
   String get formattedWeek {
-    return 'Week of ${DateFormat('MMM d, y').format(displayWeek)}';
+    return DateFormat('MMM d, y').format(displayWeek);
   }
 
   /// Check if service is upcoming (deprecated - services are now recurring weekly)

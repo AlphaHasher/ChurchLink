@@ -19,7 +19,7 @@ import {
 import { Loader2, Plus, X } from "lucide-react";
 
 import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
-import { updateBulletin, deleteBulletin, togglePublish, togglePin } from "@/features/bulletins/api/bulletinsApi";
+import { updateBulletin, deleteBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
@@ -77,32 +77,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             alert("Failed to delete bulletin. See console for details.");
         }
         setDeleting(false);
-    };
-
-    const handleTogglePublish = async () => {
-        setSaving(true);
-        try {
-            await togglePublish(bulletin.id, !bulletin.published);
-            await onSave();
-            handleDialogClose();
-        } catch (err) {
-            console.error("Failed to toggle publish:", err);
-            alert("Failed to toggle publish. See console for details.");
-        }
-        setSaving(false);
-    };
-
-    const handleTogglePin = async () => {
-        setSaving(true);
-        try {
-            await togglePin(bulletin.id, !bulletin.pinned);
-            await onSave();
-            handleDialogClose();
-        } catch (err) {
-            console.error("Failed to toggle pin:", err);
-            alert("Failed to toggle pin. See console for details.");
-        }
-        setSaving(false);
     };
 
     const handleDialogOpen = async () => {
@@ -228,7 +202,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                                 value={bulletin.publish_date ? new Date(bulletin.publish_date).toISOString().slice(0,10) : ''} 
                                 onChange={(e) => setBulletin({ ...bulletin, publish_date: e.target.value ? new Date(e.target.value) : new Date() })} 
                             />
-                            <span className="text-xs text-gray-500 mt-1">Will be normalized to Monday of the selected week</span>
                         </label>
 
                         <label className="flex flex-col">
@@ -284,10 +257,7 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                                 <input 
                                     type="checkbox" 
                                     checked={bulletin.published || false} 
-                                    onChange={(e) => {
-                                        setBulletin({ ...bulletin, published: e.target.checked });
-                                        handleTogglePublish();
-                                    }} 
+                                    onChange={(e) => setBulletin({ ...bulletin, published: e.target.checked })} 
                                 />
                                 <span className="text-sm">Published</span>
                             </label>
@@ -296,10 +266,7 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                                 <input 
                                     type="checkbox" 
                                     checked={bulletin.pinned || false} 
-                                    onChange={(e) => {
-                                        setBulletin({ ...bulletin, pinned: e.target.checked });
-                                        handleTogglePin();
-                                    }} 
+                                    onChange={(e) => setBulletin({ ...bulletin, pinned: e.target.checked })} 
                                 />
                                 <span className="text-sm">Pinned</span>
                             </label>

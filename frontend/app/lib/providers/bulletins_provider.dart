@@ -5,7 +5,8 @@ import '../models/service_bulletin.dart';
 import '../services/bulletins_service.dart';
 
 /// Get the Monday of the current week at 00:00:00
-/// This matches the backend's canonicalize_week_start function
+/// Used ONLY for filtering services by week (services still use week-based display_week)
+/// Bulletins now use exact date filtering via upcomingOnly parameter
 DateTime _getCurrentWeekMonday() {
   final today = DateTime.now();
   final dayOfWeek = today.weekday; // 1 = Monday, 7 = Sunday
@@ -24,12 +25,14 @@ DateTime _getCurrentWeekSunday() {
 class BulletinsProvider extends ChangeNotifier {
   BulletinsProvider({BulletinsService? bulletinsService})
     : _bulletinsService = bulletinsService ?? BulletinsService() {
-    // Initialize filter with current week boundaries to filter services
+    // Initialize filter with current week boundaries for services
+    // and upcomingOnly=true for bulletins (date-based filtering)
     _activeFilter = BulletinFilter(
       limit: 50,
       published: true,
-      weekStart: _getCurrentWeekMonday(),
-      weekEnd: _getCurrentWeekSunday(),
+      upcomingOnly: true, // Show bulletins where publish_date <= now
+      weekStart: _getCurrentWeekMonday(), // For services only
+      weekEnd: _getCurrentWeekSunday(), // For services only
     );
   }
 
@@ -102,7 +105,7 @@ class BulletinsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Log week filtering for debugging
+      // Log week filtering for services (not bulletins)
       if (filter.weekStart != null && filter.weekEnd != null) {
         debugPrint(
           '[Bulletins Provider] Filtering services for week: '
@@ -114,8 +117,8 @@ class BulletinsProvider extends ChangeNotifier {
       final feed = await _bulletinsService.fetchCombinedFeed(filter);
 
       debugPrint(
-        '[Bulletins Provider] Loaded ${feed.services.length} services, '
-        '${feed.bulletins.length} bulletins for current week',
+        '[Bulletins Provider] Loaded ${feed.services.length} services for current week, '
+        '${feed.bulletins.length} bulletins (date-based filtering)',
       );
 
       if (resetPagination) {

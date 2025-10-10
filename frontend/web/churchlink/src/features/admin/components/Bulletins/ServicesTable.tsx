@@ -65,7 +65,7 @@ function SortableRow({ service, permissions, onRefresh }: SortableRowProps) {
     };
 
     const formatWeek = (date: Date) => {
-        return `Week of ${format(date, 'MMM dd, yyyy')}`;
+        return format(date, 'MMM dd, yyyy');
     };
 
     const formatServiceTime = (dayOfWeek: string, timeOfDay: string) => {

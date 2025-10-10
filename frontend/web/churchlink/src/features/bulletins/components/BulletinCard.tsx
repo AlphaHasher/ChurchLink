@@ -29,7 +29,7 @@ export function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
 
                 {publishDate && (
                     <div className="text-xs uppercase tracking-wide text-gray-500 font-medium">
-                        Week of {weekLabel}
+                        {weekLabel}
                     </div>
                 )}
 

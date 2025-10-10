@@ -19,7 +19,7 @@ class AttachmentItem(BaseModel):
 class BulletinBase(BaseModel):
 	headline: str
 	body: str
-	publish_date: datetime  # Weekly anchor, normalized to Monday 00:00
+	publish_date: datetime  # Exact publication date (not normalized)
 	expire_at: Optional[datetime] = None
 	published: bool
 	pinned: bool = False
@@ -92,8 +92,8 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 
 	payload = bulletin.model_dump()
 	
-	# Normalize publish_date to week start
-	payload["publish_date"] = canonicalize_week_start(bulletin.publish_date)
+	# Keep the exact publish_date as specified
+	payload["publish_date"] = bulletin.publish_date
 	
 	# Serialize attachments
 	serialized_attachments = []
@@ -139,14 +139,14 @@ async def get_bulletin_by_id(bulletin_id: str) -> Optional[BulletinOut]:
 
 
 async def get_bulletin_by_headline_and_week(headline: str, publish_date: datetime) -> Optional[BulletinOut]:
-	"""Check for duplicate headline within the same week"""
+	"""Check for duplicate headline with the exact same publish date"""
 	if DB.db is None:
 		return None
 	
-	week_start = canonicalize_week_start(publish_date)
+	# Check for exact date match (no longer normalizing to week start)
 	return await _fetch_bulletin_document({
 		"headline": headline,
-		"publish_date": week_start
+		"publish_date": publish_date
 	})
 
 
@@ -164,9 +164,8 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 	if not update_payload:
 		return False
 
-	# Normalize publish_date if provided
-	if "publish_date" in update_payload:
-		update_payload["publish_date"] = canonicalize_week_start(update_payload["publish_date"])
+	# Keep the exact publish_date if provided (no normalization)
+	# publish_date is already in update_payload as-is
 	
 	# Serialize attachments if provided
 	if "attachments" in update_payload and update_payload["attachments"] is not None:
@@ -224,12 +223,15 @@ async def list_bulletins(
 	published: Optional[bool] = None,
 	pinned_only: bool = False,
 	upcoming_only: bool = False,
+	skip_expiration_filter: bool = False,
 ) -> List[BulletinOut]:
 	"""
 	List bulletins with optional filters.
-	- week_start/week_end: filter by publish_date range
+	- week_start/week_end: filter by exact publish_date range (used for services, not bulletins)
 	- pinned_only: return only pinned bulletins
-	- upcoming_only: filter for publish_date >= today
+	- upcoming_only: filter for publish_date <= today (bulletins that have been published)
+	- skip_expiration_filter: if True, show expired bulletins too (for admin dashboard)
+	- Automatically filters out expired bulletins (expire_at < now) unless skip_expiration_filter=True
 	"""
 	query: dict = {}
 
@@ -240,21 +242,25 @@ async def list_bulletins(
 	if pinned_only:
 		query["pinned"] = True
 	if upcoming_only:
-		today_start = datetime.combine(datetime.utcnow().date(), time.min)
-		query.setdefault("publish_date", {})["$gte"] = today_start
+		# For bulletins: show if publish_date <= now (already published)
+		query.setdefault("publish_date", {})["$lte"] = datetime.utcnow()
 
+	# Use exact date filtering (no longer normalize to week boundaries)
 	if week_start:
-		query.setdefault("publish_date", {})["$gte"] = canonicalize_week_start(week_start)
+		query.setdefault("publish_date", {})["$gte"] = week_start
 	if week_end:
-		query.setdefault("publish_date", {})["$lte"] = canonicalize_week_start(week_end)
+		query.setdefault("publish_date", {})["$lte"] = week_end
 
 	# Filter out expired bulletins (expire_at in the past)
-	now = datetime.utcnow()
-	query["$or"] = [
-		{"expire_at": {"$exists": False}},  # No expiration date set
-		{"expire_at": None},  # Expiration date is null
-		{"expire_at": {"$gt": now}}  # Expiration date is in the future
-	]
+	# Show bulletin if: publish_date <= now AND (expire_at is null OR expire_at > now)
+	# Skip this filter for admin dashboard
+	if not skip_expiration_filter:
+		now = datetime.utcnow()
+		query["$or"] = [
+			{"expire_at": {"$exists": False}},  # No expiration date set
+			{"expire_at": None},  # Expiration date is null
+			{"expire_at": {"$gt": now}}  # Expiration date is in the future
+		]
 
 	if DB.db is None:
 		return []

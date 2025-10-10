@@ -10,7 +10,8 @@ import { useAuth } from '@/features/auth/hooks/auth-context';
 
 /**
  * Get the Monday of the current week at 00:00:00
- * This matches the backend's canonicalize_week_start function
+ * Used ONLY for filtering services by week (services still use week-based display_week)
+ * Bulletins now use exact date filtering instead
  */
 const getCurrentWeekMonday = (): Date => {
     const today = new Date();
@@ -50,17 +51,22 @@ const BulletinsPage = () => {
             try {
                 console.log(`[Bulletins Page] Loading feed with filters at ${new Date().toISOString()}`, filters);
                 
-                // Get current week boundaries for service filtering
+                // Get current week boundaries for service filtering ONLY
+                // Services still use week-based display_week, bulletins use exact dates
                 const weekStart = getCurrentWeekMonday();
                 const weekEnd = getCurrentWeekSunday();
                 
                 console.log(`[Bulletins Page] Filtering services for week: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`);
                 
                 // Convert filters to API format
+                // IMPORTANT: week_start/week_end are sent to the API but the backend will IGNORE them for bulletins
+                // when upcoming_only=true. The backend uses week filters ONLY for services.
                 const apiFilters: BulletinFilter = {
                     published: true,
                     limit: DEFAULT_BULLETIN_LIMIT,
-                    // Filter services to only show current week
+                    // Use upcoming_only for bulletins (date-based filtering: publish_date <= today)
+                    upcoming_only: true,
+                    // These week filters apply ONLY to services, NOT bulletins (backend ignores them for bulletins)
                     week_start: weekStart.toISOString().split('T')[0], // Format as YYYY-MM-DD
                     week_end: weekEnd.toISOString().split('T')[0],
                 };
@@ -77,7 +83,7 @@ const BulletinsPage = () => {
                 if (isMounted) {
                     setBulletinItems(feed.bulletins);
                     setServiceItems(feed.services);
-                    console.log(`[Bulletins Page] Loaded ${feed.services.length} services, ${feed.bulletins.length} bulletins for current week`);
+                    console.log(`[Bulletins Page] Loaded ${feed.services.length} services for current week, ${feed.bulletins.length} published bulletins (all dates, not week-filtered)`);
                 }
             } catch (error) {
                 console.error('[Bulletins Page] Failed to load combined feed', error);
@@ -165,7 +171,7 @@ const BulletinsPage = () => {
                 <div className="mb-8">
                     <div className="mb-4">
                         <h2 className="text-xl font-bold">
-                            {serviceItems.length > 0 ? `Week of ${format(serviceItems[0].display_week, 'MMM d, yyyy')}` : 'Services'}
+                            {serviceItems.length > 0 ? format(serviceItems[0].display_week, 'MMM d, yyyy') : 'Services'}
                         </h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

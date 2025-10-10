@@ -30,7 +30,7 @@ export function BulletinsTable({ bulletins, permissions, onRefresh }: BulletinsT
     );
 
     const formatWeek = (date: Date) => {
-        return `Week of ${format(date, 'MMM dd, yyyy')}`;
+        return format(date, 'MMM dd, yyyy');
     };
 
     return (
@@ -54,7 +54,7 @@ export function BulletinsTable({ bulletins, permissions, onRefresh }: BulletinsT
                         <TableRow>
                             <TableHead>Headline</TableHead>
                             <TableHead>Headline (RU)</TableHead>
-                            <TableHead>Publish Week</TableHead>
+                            <TableHead>Publish Date</TableHead>
                             <TableHead>Published</TableHead>
                             <TableHead>Pinned</TableHead>
                             <TableHead>Ministries</TableHead>

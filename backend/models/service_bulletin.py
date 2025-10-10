@@ -234,9 +234,7 @@ async def list_services(
 		
 		# Combine with OR
 		query["$or"] = week_conditions
-		
-		print(f"[Service Visibility Filter] Applied week filter: week_start={week_start}, week_end={week_end}")
-		print(f"[Service Visibility Filter] Query: {query}")
+	
 
 	if DB.db is None:
 		return []
@@ -287,7 +285,6 @@ async def list_services(
 		service = ServiceBulletinOut(**serialized)
 		services.append(service)
 	
-	print(f"[Service Visibility Filter] Returned {len(services)} services after filtering")
 	return services
 
 

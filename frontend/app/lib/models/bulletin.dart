@@ -127,10 +127,10 @@ class Bulletin {
     };
   }
 
-  /// Format the publish date as "Week of MMM DD, YYYY"
+  /// Format the publish date as "MMM DD, YYYY"
   String get formattedWeek {
     final formatter = DateFormat('MMM dd, yyyy');
-    return 'Week of ${formatter.format(publishDate)}';
+    return formatter.format(publishDate);
   }
 
   /// Check if the bulletin has expired
@@ -186,8 +186,9 @@ class BulletinFilter {
   final int limit;
   final String? ministry;
   final bool? published;
-  final DateTime? weekStart;
-  final DateTime? weekEnd;
+  final DateTime? weekStart; // Used for services filtering only
+  final DateTime? weekEnd; // Used for services filtering only
+  final bool upcomingOnly; // Used for bulletins: show if publish_date <= now
 
   const BulletinFilter({
     this.skip = 0,
@@ -196,6 +197,7 @@ class BulletinFilter {
     this.published,
     this.weekStart,
     this.weekEnd,
+    this.upcomingOnly = false,
   });
 
   Map<String, dynamic> toQueryParams() {
@@ -207,6 +209,7 @@ class BulletinFilter {
     if (published != null) {
       params['published'] = published;
     }
+    // week_start and week_end are used for services filtering only
     if (weekStart != null) {
       // Format as YYYY-MM-DD to match backend expectations
       params['week_start'] =
@@ -216,6 +219,9 @@ class BulletinFilter {
       // Format as YYYY-MM-DD to match backend expectations
       params['week_end'] =
           '${weekEnd!.year}-${weekEnd!.month.toString().padLeft(2, '0')}-${weekEnd!.day.toString().padLeft(2, '0')}';
+    }
+    if (upcomingOnly) {
+      params['upcoming_only'] = 'true';
     }
 
     return params;
@@ -228,6 +234,7 @@ class BulletinFilter {
     bool? published,
     DateTime? weekStart,
     DateTime? weekEnd,
+    bool? upcomingOnly,
   }) {
     return BulletinFilter(
       skip: skip ?? this.skip,
@@ -236,6 +243,7 @@ class BulletinFilter {
       published: published ?? this.published,
       weekStart: weekStart ?? this.weekStart,
       weekEnd: weekEnd ?? this.weekEnd,
+      upcomingOnly: upcomingOnly ?? this.upcomingOnly,
     );
   }
 }

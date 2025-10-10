@@ -97,22 +97,39 @@ async def get_bulletins(
 	published: Optional[bool] = True,
 	pinned_only: bool = False,
 	upcoming_only: bool = False,
+	skip_expiration_filter: bool = False,
 	include_services: bool = False,
 ):
 	"""
 	List bulletins with optional filters.
 	When include_services=True, returns BulletinFeedOut with services and bulletins.
 	When include_services=False (default), returns List[BulletinOut] for backward compatibility.
+	
+	IMPORTANT: week_start/week_end are used ONLY for services, NOT for bulletins.
+	Bulletins use upcoming_only for date-based filtering (publish_date <= today).
 	"""
+	# For bulletins: ignore week_start/week_end when upcoming_only is True (date-based filtering)
+	# Only use week filters for bulletins when explicitly querying a specific date range
+	bulletin_week_start = None if upcoming_only else week_start
+	bulletin_week_end = None if upcoming_only else week_end
+	
+	print(
+		f"[Bulletin API] Fetching bulletins - upcoming_only={upcoming_only}, "
+		f"week_start={week_start}, week_end={week_end}, "
+		f"bulletin_week_start={bulletin_week_start}, bulletin_week_end={bulletin_week_end}, "
+		f"include_services={include_services}"
+	)
+	
 	bulletins = await list_bulletins(
 		skip=skip,
 		limit=limit,
 		ministry=ministry,
-		week_start=_combine_date_and_time(week_start),
-		week_end=_combine_date_and_time(week_end, end_of_day=True),
+		week_start=_combine_date_and_time(bulletin_week_start),
+		week_end=_combine_date_and_time(bulletin_week_end, end_of_day=True),
 		published=published,
 		pinned_only=pinned_only,
 		upcoming_only=upcoming_only,
+		skip_expiration_filter=skip_expiration_filter,
 	)
 	
 	if not include_services:
@@ -120,6 +137,7 @@ async def get_bulletins(
 		return bulletins
 	
 	# New unified feed response
+	# For services: ALWAYS use week_start/week_end (services are week-based)
 	services = await list_services(
 		skip=0,
 		limit=100,
@@ -179,6 +197,7 @@ async def list_all_bulletins_for_editing(
 	published: Optional[bool] = None,
 	pinned_only: bool = False,
 	upcoming_only: bool = False,
+	skip_expiration_filter: bool = False,
 ):
 	"""List ALL bulletins (published and unpublished) for admin editing"""
 	return await list_bulletins(
@@ -190,6 +209,7 @@ async def list_all_bulletins_for_editing(
 		published=published,  # None allows both published and unpublished
 		pinned_only=pinned_only,
 		upcoming_only=upcoming_only,
+		skip_expiration_filter=skip_expiration_filter,
 	)
 
 
