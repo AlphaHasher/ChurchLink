@@ -97,9 +97,9 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'ChurchLink',
           navigatorKey: navigatorKey,
-          theme: AppTheme.light,        // from app_theme.dart
-          darkTheme: AppTheme.dark,     // from app_theme.dart
-          themeMode: c.mode,            // reacts to toggle
+          theme: AppTheme.light, // Colors are defined in app_theme.dart
+          darkTheme: AppTheme.dark,
+          themeMode: c.mode,
 
           home: AuthGate(child: const MyHomePage()),
           routes: {

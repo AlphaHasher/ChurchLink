@@ -1,3 +1,5 @@
+// This file is where the colors are defined for the app's light and dark themes
+
 import 'package:flutter/material.dart';
 
 class AppTheme {
