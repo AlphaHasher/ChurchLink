@@ -182,6 +182,7 @@ export const updateProfileInfo = async (profile: ProfileInfo) => {
             first_name: profile.first_name,
             last_name: profile.last_name,
             email: profile.email,
+            membership: profile.membership,
             birthday: profile.birthday ? profile.birthday.toISOString() : null,
             gender: profile.gender ?? null,
         };

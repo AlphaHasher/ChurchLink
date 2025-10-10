@@ -7,6 +7,7 @@ type ProfileCardProps = {
     firstName: string;
     lastName: string;
     email: string;
+    membership: boolean;
     birthday?: Date | null;
     gender?: string | null;
     className?: string;
@@ -17,6 +18,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     firstName,
     lastName,
     email,
+    membership,
     birthday,
     gender,
     className,
@@ -61,6 +63,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                             <OverviewRow label="Account email" value={email} />
                             <Separator />
                             <OverviewRow label="Account name" value={displayName} />
+                            <Separator />
+                            <OverviewRow label="Church Member" value={membership ? "Yes" : "No"} />
                             <Separator />
                             <OverviewRow label="DOB" value={dob} />
                             <Separator />

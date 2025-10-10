@@ -24,6 +24,7 @@ class PersonalInfo(BaseModel):
     first_name: str
     last_name: str
     email: str
+    membership: bool
     birthday: Optional[datetime]
     gender: Optional[str]
 
@@ -94,6 +95,7 @@ async def search_users_paged(params: UsersSearchParams):
             "first_name": u.get("first_name"),
             "last_name": u.get("last_name"),
             "email": u.get("email"),
+            "membership": u.get("membership"),
             "roles": u.get("roles", []),
         }
         for u in users
@@ -166,6 +168,7 @@ async def fetch_profile_info(request: Request):
         first_name=user.get("first_name", ""),
         last_name=user.get("last_name", ""),
         email=user.get("email", ""),
+        membership = user.get("membership", ""),
         birthday=user.get("birthday"),
         gender=user.get("gender")
     )
@@ -236,6 +239,7 @@ async def update_profile(request: Request, profile_info: PersonalInfo):
     uid = request.state.uid
 
     # Excluding Email because we never want to change email from the profile changing section, so we may as well prune it here.
+    # Same situation with "Membership". This will be modified via a different subroutine
     update_data = {
         "first_name": (profile_info.first_name or "").strip(),
         "last_name": (profile_info.last_name or "").strip(),
@@ -266,9 +270,10 @@ async def update_profile(request: Request, profile_info: PersonalInfo):
         return {"success":False, "msg":"Please select a gender for your account so we may determine your event eligibility!"}
     
     comp_birthday = request.state.user['birthday']
-    if comp_birthday.tzinfo is None:
+    if comp_birthday and comp_birthday.tzinfo is None:
         comp_birthday = comp_birthday.replace(tzinfo = timezone.utc)
 
+    # Trivial Case (No Changes Made, just to not return an error)
     if update_data['first_name'] == request.state.user['first_name'] and update_data['last_name'] == request.state.user['last_name'] and update_data['birthday'] == comp_birthday and update_data['gender'] == request.state.user['gender']:
         return {
             "success": True,
@@ -290,6 +295,7 @@ async def update_profile(request: Request, profile_info: PersonalInfo):
         first_name=updated.get("first_name", ""),
         last_name=updated.get("last_name", ""),
         email=updated.get("email", ""),
+        membership = updated.get("membership", ""),
         birthday=updated.get("birthday"),
         gender=updated.get("gender"),
     )

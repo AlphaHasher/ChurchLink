@@ -185,6 +185,7 @@ class UserHelper {
         'first_name': profile.firstName,
         'last_name': profile.lastName,
         'email': profile.email,
+        'membership': profile.membership,
         'birthday': profile.birthday?.toIso8601String(),
         'gender': profile.gender,
       };

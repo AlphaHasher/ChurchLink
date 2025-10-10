@@ -24,6 +24,7 @@ class UserHandler:
             "last_name": last_name,
             "email": email,
             "verified":verified,
+            "membership": False,
             "uid": uid,
             "roles": await RoleHandler.names_to_ids(roles),
             "phone": phone,

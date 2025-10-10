@@ -9,6 +9,7 @@ import 'package:app/models/profile_info.dart';
 import 'package:app/pages/user/edit_contact_info.dart';
 import 'package:app/pages/user/edit_profile.dart';
 import 'package:app/pages/user/family_members_page.dart';
+import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -38,7 +39,6 @@ class _UserSettingsState extends State<UserSettings> {
   StreamSubscription<User?>? _userSub;
 
   ProfileInfo? _profile;
-  ContactInfo? _contact;
 
   @override
   void initState() {
@@ -85,7 +85,6 @@ class _UserSettingsState extends State<UserSettings> {
       if (!mounted) return;
       setState(() {
         _profile = null;
-        _contact = null;
       });
       return;
     }
@@ -102,22 +101,9 @@ class _UserSettingsState extends State<UserSettings> {
               firstName: (user.displayName ?? '').split(' ').firstOrNull ?? '',
               lastName: (user.displayName ?? '').split(' ').skip(1).join(' '),
               email: user.email ?? '',
+              membership: false,
               birthday: null,
               gender: null,
-            );
-
-        _contact =
-            cachedContact ??
-            ContactInfo(
-              phone: "",
-              address: AddressSchema(
-                address: "",
-                suite: "",
-                city: "",
-                state: "",
-                country: "",
-                postal_code: "",
-              ),
             );
       });
     }
@@ -130,7 +116,6 @@ class _UserSettingsState extends State<UserSettings> {
       if (!mounted) return true;
       setState(() {
         _profile = data.profile;
-        _contact = data.contact;
       });
       return true;
     } catch (_) {
@@ -273,6 +258,21 @@ class _UserSettingsState extends State<UserSettings> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => EditContactInfoScreen(user: user),
+                  ),
+                );
+              }
+            },
+          },
+          {
+            'icon': Icons.card_membership,
+            'title': 'View Membership Status',
+            'subtitle': 'View your Church Membership Status',
+            'ontap': () {
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MembershipScreen(user: user),
                   ),
                 );
               }

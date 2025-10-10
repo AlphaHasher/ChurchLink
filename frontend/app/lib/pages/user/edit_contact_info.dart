@@ -101,9 +101,13 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Contact Info')),
+      appBar: AppBar(
+        title: const Text('Edit Contact Info'),
+        backgroundColor: ssbcGray,
+      ),
       body: AbsorbPointer(
         absorbing: _loading,
         child: Stack(
@@ -224,6 +228,9 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: ssbcGray,
+                        ),
                         onPressed: _save,
                         child:
                             _loading

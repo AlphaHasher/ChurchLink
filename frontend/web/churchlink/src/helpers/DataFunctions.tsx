@@ -97,6 +97,7 @@ export function applyBaseUserMask(inputData: UserInfo[], perms: AccountPermissio
             uid: user.uid,
             name: `${user.firstName} ${user.lastName}`,
             email: user.email,
+            membership: user.membership,
             dateOfBirth: user.dateOfBirth.toISOString().split('T')[0].replace(/-/g, '/'), // Convert Date to YYYY/MM/DD
             permissions: user.permissions.length > 0 ? roleIdListToRoleStringList(perms, user.permissions).join(', ') : 'N/A' // Convert to CSV or 'N/A'
         }));
@@ -174,6 +175,7 @@ export function processFetchedUserData(users: any[]): UserInfo[] {
         firstName: user.first_name || "Unknown",
         lastName: user.last_name || "Unknown",
         email: user.email || "No email",
+        membership: user.membership || false,
         dateOfBirth: new Date("2000-01-01"),
         permissions: user.roles || [],
     }));

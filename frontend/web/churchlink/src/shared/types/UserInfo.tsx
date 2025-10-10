@@ -6,6 +6,7 @@ export type UserInfo = {
     firstName: string;
     lastName: string;
     email: string;
+    membership: boolean;
     dateOfBirth: Date;
     permissions: string[];
 };
@@ -15,6 +16,7 @@ export type UserInfo = {
 export type BaseUserMask = {
     name: string;
     email: string;
+    membership: boolean;
     dateOfBirth: string;
     permissions: string;
     uid: string;
@@ -23,6 +25,7 @@ export type BaseUserMask = {
 export const UserLabels: Record<string, string> = {
     name: "Name",
     email: "Email Address",
+    membership: "Church Membership",
     dateOfBirth: "Date of Birth",
     permissions: "Permission Roles",
     uid: "User ID",

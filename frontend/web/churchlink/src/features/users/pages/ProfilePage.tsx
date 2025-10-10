@@ -107,11 +107,13 @@ const ProfilePage: React.FC = () => {
                                 firstName={profile.first_name}
                                 lastName={profile.last_name}
                                 email={profile.email}
+                                membership={profile.membership}
                                 birthday={profile.birthday}
                                 gender={profile.gender}
                                 footer={
                                     <ProfileEditDialog
                                         email={profile.email}
+                                        membership={profile.membership}
                                         initialPerson={toPersonInfo(profile)}
                                         onUpdated={(p) => setProfile(p)}
                                     />
