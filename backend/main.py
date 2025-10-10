@@ -17,6 +17,8 @@ from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
 import asyncio
 import os
 import logging
+import sys
+
 
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
@@ -69,7 +71,30 @@ logger = logging.getLogger(__name__)
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
 
-FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+ADDITIONAL_ORIGINS = os.getenv("ADDITIONAL_ORIGINS", "")
+
+def _normalize_origin(orig: str) -> str | None:
+    if not orig:
+        return None
+    o = orig.strip()
+    return o.rstrip('/')
+
+ALLOWED_ORIGINS = []
+if FRONTEND_URL:
+    norm = _normalize_origin(FRONTEND_URL)
+    if norm:
+        ALLOWED_ORIGINS.append(norm)
+
+if ADDITIONAL_ORIGINS:
+    for origin in ADDITIONAL_ORIGINS.split(','):
+        norm = _normalize_origin(origin)
+        if norm:
+            ALLOWED_ORIGINS.append(norm)
+
+ALLOWED_ORIGINS = list(dict.fromkeys([o for o in ALLOWED_ORIGINS if o]))
+
+logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
 
 
 @asynccontextmanager
@@ -138,8 +163,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Application startup failed: {str(e)}")
         logger.error("Make sure MongoDB is running and the MONGODB_URL is correct")
-        # Force exit the application
-        import sys
         sys.exit(1)
 
 
@@ -147,12 +170,12 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],  # Get frontend URL from env
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,  # Required for auth tokens/cookies
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.) - we should probably lock this down later
     allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers
 )
-
 
 @app.get("/")
 async def root():
