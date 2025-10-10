@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
@@ -117,6 +117,7 @@ class FormOut(BaseModel):
     id: str
     title: str
     folder: Optional[str]
+    folder_name: Optional[str] = None
     description: Optional[str]
     user_id: str
     visible: bool
@@ -132,10 +133,14 @@ def _doc_to_out(doc: dict) -> FormOut:
         normalized_width = _normalize_form_width_value(doc.get("form_width"))
     except ValueError:
         normalized_width = None
+    folder_value = doc.get("folder")
+    if isinstance(folder_value, ObjectId):
+        folder_value = str(folder_value)
     return FormOut(
         id=str(doc.get("_id")),
         title=doc.get("title"),
-        folder=doc.get("folder"),
+        folder=folder_value,
+        folder_name=doc.get("folder_name"),
         description=doc.get("description"),
         slug=doc.get("slug"),
         user_id=doc.get("user_id"),
@@ -145,6 +150,53 @@ def _doc_to_out(doc: dict) -> FormOut:
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
     )
+
+
+def _normalize_folder_value(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    if isinstance(raw, ObjectId):
+        return str(raw)
+    if isinstance(raw, str):
+        cleaned = raw.strip()
+        return cleaned or None
+    return str(raw)
+
+
+async def _attach_folder_metadata(documents: List[dict]) -> List[dict]:
+    if not documents:
+        return documents
+
+    folder_ids: set[str] = set()
+    for doc in documents:
+        folder_value = _normalize_folder_value(doc.get("folder"))
+        doc["folder"] = folder_value
+        if folder_value:
+            folder_ids.add(folder_value)
+
+    object_ids: List[ObjectId] = []
+    for fid in folder_ids:
+        try:
+            object_ids.append(ObjectId(fid))
+        except Exception:
+            continue
+
+    folder_name_map: Dict[str, Optional[str]] = {}
+    if object_ids:
+        cursor = DB.db.form_folders.find({"_id": {"$in": object_ids}})
+        folder_docs = await cursor.to_list(length=None)
+        for folder_doc in folder_docs:
+            folder_name_map[str(folder_doc.get("_id"))] = folder_doc.get("name")
+
+    for doc in documents:
+        folder_value = doc.get("folder")
+        if folder_value:
+            folder_name = folder_name_map.get(folder_value) or folder_value
+        else:
+            folder_name = None
+        doc["folder_name"] = folder_name
+
+    return documents
 
 
 ############################
@@ -182,6 +234,7 @@ async def list_forms(user_id: str, skip: int = 0, limit: int = 100) -> List[Form
     try:
         cursor = DB.db.forms.find({"user_id": user_id}).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error listing forms: {e}")
@@ -195,10 +248,16 @@ async def search_forms(user_id: str, name: Optional[str] = None, folder: Optiona
             # case-insensitive partial match on title
             query["title"] = {"$regex": name, "$options": "i"}
         if folder:
-            query["folder"] = {"$regex": f"^{folder}$", "$options": "i"}
+            folder_values = [folder]
+            try:
+                folder_values.append(ObjectId(folder))
+            except Exception:
+                pass
+            query["folder"] = {"$in": folder_values}
 
         cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error searching forms: {e}")
@@ -214,6 +273,7 @@ async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
             .sort([("created_at", -1)])
         )
         docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error listing visible forms: {e}")
@@ -231,7 +291,12 @@ async def search_visible_forms(
         if name:
             query["title"] = {"$regex": name, "$options": "i"}
         if folder:
-            query["folder"] = {"$regex": f"^{folder}$", "$options": "i"}
+            folder_values = [folder]
+            try:
+                folder_values.append(ObjectId(folder))
+            except Exception:
+                pass
+            query["folder"] = {"$in": folder_values}
 
         cursor = (
             DB.db.forms.find(query)
@@ -240,6 +305,7 @@ async def search_visible_forms(
             .sort([("created_at", -1)])
         )
         docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error searching visible forms: {e}")
@@ -301,7 +367,10 @@ async def delete_folder(user_id: str, folder_id: str) -> bool:
 async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
     try:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "user_id": user_id})
-        return _doc_to_out(doc) if doc else None
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
     except Exception as e:
         logger.error(f"Error fetching form: {e}")
         return None
@@ -310,7 +379,10 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
 async def get_form_by_slug(slug: str) -> Optional[FormOut]:
     try:
         doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
-        return _doc_to_out(doc) if doc else None
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
     except Exception as e:
         logger.error(f"Error fetching form by slug: {e}")
         return None
@@ -319,7 +391,10 @@ async def get_form_by_slug(slug: str) -> Optional[FormOut]:
 async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
     try:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "visible": True})
-        return _doc_to_out(doc) if doc else None
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
     except Exception as e:
         logger.error(f"Error fetching visible form by id: {e}")
         return None
@@ -327,12 +402,34 @@ async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
 
 async def list_visible_folders() -> List[dict]:
     try:
+        cursor = DB.db.form_folders.find({}).sort([("name", 1)])
+        docs = await cursor.to_list(length=None)
+        output: List[dict] = []
+        seen_ids: set[str] = set()
+
+        for doc in docs:
+            folder_id = str(doc.get("_id")) if doc.get("_id") else None
+            name = doc.get("name")
+            output.append({
+                "_id": folder_id,
+                "name": name,
+                "created_at": doc.get("created_at"),
+            })
+            if folder_id:
+                seen_ids.add(folder_id)
+
         distinct_folders = await DB.db.forms.distinct(
-            "folder", {"visible": True, "folder": {"$exists": True, "$ne": None, "$ne": ""}}
+            "folder", {"folder": {"$exists": True, "$ne": None, "$ne": ""}}
         )
-        # Normalize folder names and filter out falsy values after distinct
-        cleaned = sorted({str(name).strip() for name in distinct_folders if name})
-        return [{"name": name} for name in cleaned]
+        for value in distinct_folders:
+            normalized = _normalize_folder_value(value)
+            if not normalized or normalized in seen_ids:
+                continue
+            output.append({"_id": normalized, "name": normalized, "created_at": None})
+            seen_ids.add(normalized)
+
+        output.sort(key=lambda item: (item.get("name") or "").lower())
+        return output
     except Exception as e:
         logger.error(f"Error listing visible folders: {e}")
         return []
