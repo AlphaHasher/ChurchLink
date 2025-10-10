@@ -8,6 +8,8 @@ import 'package:app/pages/ministries.dart';
 import 'package:app/pages/contact.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 
@@ -28,7 +30,21 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _tilesFuture = DashboardTilesService(strapiUrl).fetchImageUrls(); // created once
+    _tilesFuture = DashboardTilesService(strapiUrl).fetchImageUrls()
+      .then((map) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('dashboard_urls', json.encode(map));
+        return map;
+      }).catchError((_) async {
+        final prefs = await SharedPreferences.getInstance();
+        final s = prefs.getString('dashboard_urls');
+        if (s != null) {
+          final Map<String, dynamic> raw = json.decode(s);
+          return raw.map((k, v) => MapEntry(k, v as String));
+        }
+        return <String, String>{};
+      });
+
     _readyFuture = _tilesFuture.then((map) async {
       // Precache *before* first paint
       final futures = <Future<void>>[];
