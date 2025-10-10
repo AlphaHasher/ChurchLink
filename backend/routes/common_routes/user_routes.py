@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Body, Request
 from models.user import ( PersonCreate, PersonUpdateRequest,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member, get_user_by_uid, get_user_by_id
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, fetch_users_with_role_id
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
 user_mod_router = APIRouter(prefix="/users", tags=["Users"])
@@ -23,12 +23,12 @@ async def process_get_profile(request:Request):
 # Private Router
 @user_private_router.patch("/update-profile")
 async def process_update_profile(request:Request, profile_data: PersonalInfo = Body(...)):
-    return await update_profile(request, profile_data)
+    return await update_profile(request.state.uid, profile_data)
 
 # Private Route
 @user_private_router.patch("/update-contact")
 async def process_update_contact(request:Request, contact_info: ContactInfo = Body(...)):
-    return await update_contact(request, contact_info)
+    return await update_contact(request.state.uid, contact_info)
 
 # Private Router
 @user_private_router.get("/is-init")
@@ -54,6 +54,16 @@ async def get_users_with_role(request:Request, role_id:str):
     return await fetch_users_with_role_id(role_id)
 
 # Mod Router
+@user_mod_router.get("/get-detailed-user/{uid}")
+async def get_detailed_user(request:Request, uid:str):
+    return await fetch_detailed_user(uid)
+
+# Mod Router
+@user_mod_router.patch("/detailed-user/{uid}")
+async def patch_detailed_user(request:Request, uid:str, details: DetailedUserInfo = Body(...)):
+    return await execute_patch_detailed_user(uid, details)
+
+# Mod Router
 # Intelligent searching for users table.
 @user_mod_router.get("/search-users")
 async def process_search_users(
@@ -62,7 +72,7 @@ async def process_search_users(
     pageSize: int = Query(25, ge=1, le=200),
     searchField: Literal["email", "name"] = Query("email"),
     searchTerm: str = Query("", description="Case-insensitive contains"),
-    sortBy: Literal["email", "name", "createdOn", "uid"] = Query("createdOn"),
+    sortBy: Literal["email", "name", "createdOn", "uid", "membership"] = Query("createdOn"),
     sortDir: Literal["asc", "desc"] = Query("asc")
 ):
     params = UsersSearchParams(
@@ -81,7 +91,7 @@ async def process_search_logical_users(
     pageSize: int = Query(25, ge=1, le=200),
     searchField: Literal["email", "name"] = Query("name"),
     searchTerm: str = Query("", description="Case-insensitive contains"),
-    sortBy: Literal["email", "name", "createdOn", "uid"] = Query("name"),
+    sortBy: Literal["email", "name", "createdOn", "uid", "membership"] = Query("name"),
     sortDir: Literal["asc", "desc"] = Query("asc")
 ):
     params = UsersSearchParams(

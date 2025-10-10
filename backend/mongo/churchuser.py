@@ -152,7 +152,7 @@ class UserHandler:
         Server-side search/pagination/sort for users.
         - params.searchField: "email" | "name"
         - params.searchTerm: case-insensitive "contains"
-        - params.sortBy: "email" | "name" | "createdOn" | "uid"
+        - params.sortBy: "email" | "name" | "createdOn" | "uid" | "membership"
         - params.sortDir: "asc" | "desc"
         - params.hasRolesOnly: if True, filter to users with roles != []
         Returns: (total_count, users_list)
@@ -190,6 +190,8 @@ class UserHandler:
             sort_keys = [("email", sort_dir), ("uid", 1)]
         elif params.sortBy == "uid":
             sort_keys = [("uid", sort_dir)]
+        elif params.sortBy == "membership":
+            sort_keys = [("membership", sort_dir)]
         elif params.sortBy == "name":
             sort_keys = [("last_name", sort_dir), ("first_name", sort_dir), ("email", 1)]
         else:
@@ -209,6 +211,7 @@ class UserHandler:
                     "first_name": 1,
                     "last_name": 1,
                     "email": 1,
+                    "membership": 1,
                     "roles": 1,
                     "createdOn": 1,
                 },

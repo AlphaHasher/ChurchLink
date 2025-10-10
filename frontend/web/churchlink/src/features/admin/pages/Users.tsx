@@ -35,6 +35,7 @@ const Users = () => {
 
   // ------- base users table state -------
   const [users, setUsers] = useState<UserInfo[]>([]);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [sortBy, setSortBy] = useState<SortBy>("createdOn");
@@ -56,8 +57,8 @@ const Users = () => {
   const [logicSearch, setLogicSearch] = useState<string>("");
   const [logicalLoading, setLogicalLoading] = useState<boolean>(false);
 
-  // **NEW**: force-refresh token for logical view (fires effect even if page stays 0)
   const [logicReload, setLogicReload] = useState(0);
+  const [usersReload, setUsersReload] = useState(0);
 
   // ------- abort controllers to cancel stale requests -------
   const usersAbortRef = useRef<AbortController | null>(null);
@@ -105,13 +106,14 @@ const Users = () => {
       try {
         const res: UsersPagedResult = await fetchUsersPaged(params, controller.signal);
         setUsers(res.items);
+        setTotalUsers(res.total);
       } catch (e) {
         console.error("Failed to load users page", e);
       } finally {
         setUsersLoading(false);
       }
     })();
-  }, [page, pageSize, searchField, searchTerm, sortBy, sortDir]);
+  }, [page, pageSize, searchField, searchTerm, sortBy, sortDir, usersReload]);
 
   // ------- load logical users page whenever its query state changes -------
   useEffect(() => {
@@ -140,7 +142,6 @@ const Users = () => {
         setLogicalLoading(false);
       }
     })();
-    // **NOTE**: add logicReload to deps so we can force a refetch on demand
   }, [logicPage, logicPageSize, logicSearchField, logicSearch, logicSortBy, logicSortDir, logicReload]);
 
   // ------- masks for the tables -------
@@ -168,13 +169,13 @@ const Users = () => {
     setLogicPage(0);
   };
 
-  // called after AssignRolesDialog saves
+  // called after AssignRolesDialog/DetailedUserDialog saves
   const refreshAfterRoleChange = async () => {
-    // base table: keep position
     setPage((p) => p);
-    // logical table: jump to first page for visibility AND force a refetch
+    setUsersReload((x) => x + 1);
+
     setLogicPage(0);
-    setLogicReload((x) => x + 1);   // <-- hard refresh even if already on page 0
+    setLogicReload((x) => x + 1);
   };
 
   return (
@@ -212,6 +213,7 @@ const Users = () => {
 
       <UsersTable
         data={baseRows}
+        total={totalUsers}
         permData={perms}
         loading={usersLoading || permsLoading}
         page={page}
@@ -232,7 +234,6 @@ const Users = () => {
 
       <h1 className="text-xl font-bold mb-4 mt-8">User Permissions Logical Overview</h1>
 
-      {/* Top controls for LOGICAL table: shadcn Select (Name-first) + input */}
       <div className="flex gap-2 items-center mb-3">
         <Select
           value={logicSearchField}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -14,20 +14,20 @@ import { AccountPermissions } from "@/shared/types/AccountPermissions";
 import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo";
 import { AssignRolesDialog } from "./AssignRolesDialog";
 import { recoverRoleArray } from "@/helpers/DataFunctions";
+import DetailedUserDialog from "./DetailedUserDialog";
 
 interface UsersTableProps {
   data: BaseUserMask[];
+  total: number;
   permData: AccountPermissions[];
   onSave: () => Promise<void>;
-
-  // server plumbing (paging/sort/search)
   loading?: boolean;
-  page?: number;
-  pageSize?: number;
+
+  page: number;
+  pageSize: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
   onSortChange?: (field: string, dir: "asc" | "desc") => void;
-
   onSearchChange?: (field: "name" | "email", term: string) => void;
 }
 
@@ -41,92 +41,47 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
   };
 
   return (
-    <AssignRolesDialog
-      userData={data}
-      initialRoles={recoverRoleArray(data)}
-      permData={permData}
-      onSave={onSave}
-    />
+    <div className="flex items-center gap-2">
+      <DetailedUserDialog userId={data.uid} onSaved={onSave} />
+      <AssignRolesDialog
+        userData={data}
+        initialRoles={recoverRoleArray(data)}
+        permData={permData}
+        onSave={onSave}
+      />
+    </div>
   );
 };
 
 export function UsersTable({
   data,
+  total,
   permData,
   onSave,
   loading,
-  page = 0,
-  pageSize = 10,
+  page,
+  pageSize,
   onPageChange,
   onPageSizeChange,
   onSortChange,
-
   onSearchChange,
 }: UsersTableProps) {
   const gridApiRef = useRef<GridApi | null>(null);
 
   const columnDefs: ColDef<BaseUserMask>[] = useMemo(
     () => [
-      {
-        field: "name",
-        headerName: UserLabels.name,
-        sortable: true,
-        filter: true,
-        flex: 2,
-        minWidth: 150,
-      },
-      {
-        field: "email",
-        headerName: UserLabels.email,
-        sortable: true,
-        filter: true,
-        flex: 3,
-        minWidth: 200,
-      },
-      {
-        field: "dateOfBirth",
-        headerName: UserLabels.dateOfBirth,
-        sortable: true,
-        filter: false,
-        flex: 1,
-        minWidth: 120,
-      },
-      {
-        field: "permissions",
-        headerName: UserLabels.permissions,
-        sortable: true,
-        filter: false,
-        flex: 2,
-        minWidth: 150,
-      },
-      {
-        field: "uid",
-        headerName: UserLabels.uid,
-        sortable: true,
-        filter: false,
-        flex: 2,
-        minWidth: 200,
-      },
-      {
-        headerName: "Actions",
-        cellRenderer: ActionsCellRenderer,
-        sortable: false,
-        filter: false,
-        width: 100,
-        suppressSizeToFit: true,
-      },
+      { field: "name", headerName: UserLabels.name, sortable: true, filter: true, flex: 2, minWidth: 150 },
+      { field: "email", headerName: UserLabels.email, sortable: true, filter: true, flex: 3, minWidth: 200 },
+      { field: "membership", headerName: UserLabels.membership, sortable: true, filter: true, flex: 2, width: 50 },
+      { field: "permissions", headerName: UserLabels.permissions, sortable: true, filter: false, flex: 2, minWidth: 150 },
+      { field: "uid", headerName: UserLabels.uid, sortable: true, filter: false, flex: 2, minWidth: 200 },
+      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 130 },
     ],
     []
   );
 
-  const defaultColDef: ColDef = useMemo(
-    () => ({
-      resizable: true,
-    }),
-    []
-  );
+  const defaultColDef: ColDef = useMemo(() => ({ resizable: true }), []);
 
-  // Server sort bridge
   const handleSortChanged = (ev: any) => {
     if (!onSortChange) return;
     const state = ev.api.getColumnState();
@@ -136,18 +91,6 @@ export function UsersTable({
     } else {
       onSortChange("createdOn", "asc");
     }
-  };
-
-  // Server pagination bridge while showing AG Grid’s footer UI
-  const handlePaginationChanged = () => {
-    const api = gridApiRef.current;
-    if (!api) return;
-
-    const currentPage = api.paginationGetCurrentPage(); // zero-based
-    const currentSize = api.paginationGetPageSize();
-
-    if (onPageSizeChange && currentSize !== pageSize) onPageSizeChange(currentSize);
-    if (onPageChange && currentPage !== page) onPageChange(currentPage);
   };
 
   const handleFilterChanged = (ev: any) => {
@@ -166,27 +109,10 @@ export function UsersTable({
       return;
     }
 
-    // Fallback: pick one if present; otherwise clear search.
-    if (nameModel?.filter) {
-      onSearchChange("name", nameModel.filter);
-    } else if (emailModel?.filter) {
-      onSearchChange("email", emailModel.filter);
-    } else {
-      onSearchChange("name", "");
-    }
+    if (nameModel?.filter) onSearchChange("name", nameModel.filter);
+    else if (emailModel?.filter) onSearchChange("email", emailModel.filter);
+    else onSearchChange("name", "");
   };
-
-  // keep grid UI synced when parent changes page/size
-  useEffect(() => {
-    const api = gridApiRef.current as any;
-    if (!api) return;
-    if (api.paginationGetPageSize() !== pageSize) {
-      api.setGridOption("paginationPageSize", pageSize);
-    }
-    if (api.paginationGetCurrentPage() !== page) {
-      api.paginationGoToPage(page);
-    }
-  }, [page, pageSize]);
 
   return (
     <div className="container mx-start">
@@ -196,26 +122,90 @@ export function UsersTable({
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           context={{ permData, onSave }}
-
-          pagination={true}
-          paginationPageSize={pageSize}
-          paginationPageSizeSelector={[10, 25, 50]}
+          suppressPaginationPanel={true}
           animateRows={true}
           enableCellTextSelection={true}
-
           onGridReady={(params) => {
             gridApiRef.current = params.api;
-            const api = params.api as any;
-            api.setGridOption?.("paginationPageSize", pageSize);
-            api.paginationGoToPage?.(page);
           }}
-          onPaginationChanged={handlePaginationChanged}
           onSortChanged={handleSortChanged}
           onFilterChanged={handleFilterChanged}
-
+          onPaginationChanged={() => { }}
           suppressScrollOnNewData={true}
           overlayNoRowsTemplate={loading ? "<span></span>" : "<span>No users found</span>"}
         />
+      </div>
+
+      <ServerPager
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        loading={loading}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
+    </div>
+  );
+}
+
+function ServerPager({
+  total,
+  page,
+  pageSize,
+  loading,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  total: number;
+  page: number;
+  pageSize: number;
+  loading?: boolean;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil((total || 0) / (pageSize || 10)));
+  const canPrev = page > 0;
+  const canNext = page + 1 < totalPages;
+
+  const from = total === 0 ? 0 : page * pageSize + 1;
+  const to = Math.min((page + 1) * pageSize, total);
+
+  return (
+    <div className="flex items-center justify-between py-2 text-sm">
+      <div className="text-muted-foreground">
+        {loading ? "Loading…" : `Showing ${from}-${to} of ${total}`}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          className="px-2 py-1 border rounded disabled:opacity-50"
+          onClick={() => onPageChange?.(Math.max(0, page - 1))}
+          disabled={loading || !canPrev}
+        >
+          Prev
+        </button>
+        <span>
+          Page {Math.min(page + 1, totalPages)} of {totalPages}
+        </span>
+        <button
+          className="px-2 py-1 border rounded disabled:opacity-50"
+          onClick={() => onPageChange?.(Math.min(totalPages - 1, page + 1))}
+          disabled={loading || !canNext}
+        >
+          Next
+        </button>
+
+        <select
+          className="ml-2 border rounded px-2 py-1"
+          value={pageSize}
+          onChange={(e) => onPageSizeChange?.(parseInt(e.target.value, 10))}
+          disabled={loading}
+        >
+          {[10, 25, 50].map((s) => (
+            <option key={s} value={s}>
+              {s}/page
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

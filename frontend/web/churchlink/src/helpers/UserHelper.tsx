@@ -3,9 +3,9 @@ import { auth } from "@/lib/firebase";
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 import { processFetchedUserData } from "./DataFunctions";
 import api from "../api/api";
-import { ProfileInfo, toProfileInfo, ContactInfo, toContactInfo } from "@/shared/types/ProfileInfo";
+import { ProfileInfo, toProfileInfo, ContactInfo, toContactInfo, AddressSchema } from "@/shared/types/ProfileInfo";
 import { PersonDetails } from "@/shared/types/Person";
-import { UserInfo } from "@/shared/types/UserInfo";
+import { DetailedUserInfo, UserInfo } from "@/shared/types/UserInfo";
 
 export type UsersSearchParams = {
     page: number;
@@ -164,6 +164,125 @@ export const getIsInit = async () => {
     }
 }
 
+export const getDetailedUserInfo = async (uid: string): Promise<DetailedUserInfo> => {
+    try {
+        const res = await api.get(`/v1/users/get-detailed-user/${uid}`);
+        const p_prime = res.data.info.personal_info;
+
+        const c_prime = res.data.info.contact_info;
+        const a_prime = c_prime.address;
+
+        let p: ProfileInfo = {
+            first_name: p_prime.first_name,
+            last_name: p_prime.last_name,
+            email: p_prime.email,
+            membership: p_prime.membership,
+            gender: p_prime.gender,
+            birthday: p_prime.birthday,
+        };
+
+        let a: AddressSchema = {
+            address: a_prime.address,
+            suite: a_prime.suite,
+            city: a_prime.city,
+            state: a_prime.state,
+            country: a_prime.country,
+            postal_code: a_prime.postal_code
+        };
+
+        let c: ContactInfo = {
+            phone: c_prime.phone,
+            address: a
+        };
+
+        let d: DetailedUserInfo = {
+            uid: uid,
+            verified: res.data.info.verified,
+            profile: p,
+            contact: c
+        };
+
+        return d;
+    }
+    catch (err) {
+        console.error("Failed to get detailed user info:", err);
+        let p: ProfileInfo = {
+            first_name: "",
+            last_name: "",
+            email: "",
+            membership: false,
+            gender: null,
+            birthday: null,
+        };
+
+        let a: AddressSchema = {
+            address: "",
+            suite: "",
+            city: "",
+            state: "",
+            country: "",
+            postal_code: ""
+        };
+
+        let c: ContactInfo = {
+            phone: "",
+            address: a
+        };
+
+        let d: DetailedUserInfo = {
+            uid: uid,
+            verified: false,
+            profile: p,
+            contact: c
+        };
+        return d;
+    }
+}
+
+export const patchDetailedUserInfo = async (details: DetailedUserInfo) => {
+    try {
+        const a = details.contact.address;
+        const ad = {
+            address: a.address,
+            suite: a.suite,
+            city: a.city,
+            state: a.state,
+            country: a.country,
+            postal_code: a.postal_code
+        }
+
+        const c = {
+            phone: details.contact.phone,
+            address: ad,
+        }
+
+        const p = {
+            email: details.profile.email,
+            membership: details.profile.membership,
+            first_name: details.profile.first_name,
+            last_name: details.profile.last_name,
+            gender: details.profile.gender,
+            birthday: details.profile.birthday,
+        }
+
+        const payload = {
+            uid: details.uid,
+            verified: details.verified,
+            personal_info: p,
+            contact_info: c,
+        }
+
+        const res = await api.patch(`/v1/users/detailed-user/${details.uid}`, payload);
+        return {
+            success: res.data?.success === true,
+            msg: res.data?.msg ?? "",
+        };
+    }
+    catch (err) {
+        console.error("Failed to update detailed user info!", err);
+        return { success: false, msg: "Failed to update user info." };
+    }
+}
 
 export const getMyProfileInfo = async () => {
     try {

@@ -98,7 +98,6 @@ export function applyBaseUserMask(inputData: UserInfo[], perms: AccountPermissio
             name: `${user.firstName} ${user.lastName}`,
             email: user.email,
             membership: user.membership,
-            dateOfBirth: user.dateOfBirth.toISOString().split('T')[0].replace(/-/g, '/'), // Convert Date to YYYY/MM/DD
             permissions: user.permissions.length > 0 ? roleIdListToRoleStringList(perms, user.permissions).join(', ') : 'N/A' // Convert to CSV or 'N/A'
         }));
 };

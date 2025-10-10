@@ -32,6 +32,12 @@ class ContactInfo(BaseModel):
     phone: Optional[str]
     address: AddressSchema
 
+class DetailedUserInfo(BaseModel):
+    uid: str
+    verified: bool
+    personal_info: PersonalInfo
+    contact_info: ContactInfo
+
 class UsersSearchParams(BaseModel):
     page: int
     pageSize: int
@@ -184,8 +190,91 @@ async def fetch_profile_info(request: Request):
         "contact_info": contact_info.model_dump()
     }
 
-async def update_contact(request: Request, contact_info: ContactInfo):
-    uid = request.state.uid
+async def fetch_detailed_user(uid: str):
+    user = await UserHandler.find_by_uid(uid)
+
+    if not user:
+        return {"success":False, "msg":"Could not find user!"}
+
+    try:
+        profile_info_load = PersonalInfo(
+            first_name=user.get("first_name", ""),
+            last_name=user.get("last_name", ""),
+            email=user.get("email", ""),
+            membership = user.get("membership", ""),
+            birthday=user.get("birthday"),
+            gender=user.get("gender"),
+        )
+
+        contact_info_load = ContactInfo(
+            phone = user.get("phone", ""),
+            address = user.get("address")
+        )
+
+        detailed_info = DetailedUserInfo(
+            uid=uid,
+            verified = user.get("verified"),
+            personal_info=profile_info_load,
+            contact_info=contact_info_load,
+        )
+    except Exception as e:
+        print(e)
+        return {"success":False, "msg":"Could not form detailed info!"}
+    
+    return {"success":True, "msg":"Detailed info returned!", "info":detailed_info.model_dump()}
+
+async def change_user_member_status(uid:str, set:bool):
+    old_user = await UserHandler.find_by_uid(uid)
+
+    if not old_user:
+        return {"success":False, "msg": "Could not find user!"}
+    
+    if old_user.get("membership") == set:
+        return {"success":True, "msg": "Trivial success. Requested membership status is the same as current."}
+    
+    update_data = {
+        "membership":set
+    }
+
+    # Update the user information
+    modified = await UserHandler.update_user({"uid": uid}, update_data)
+    if not modified:
+        return {"success": False, "msg": "Error in changing membership status!"}
+    
+    return {"success":True, "msg":"Successfully updated membership status!"}
+    
+
+async def execute_patch_detailed_user(uid:str, details: DetailedUserInfo):
+
+    # First try membership patch
+    membership_try = await change_user_member_status(uid, details.personal_info.membership)
+
+    if not membership_try['success']:
+        return {"success":False, "msg": "Could not make any updates!: " + membership_try['msg']}
+    
+    # Then try profile patch
+    profile_try = await update_profile(uid, details.personal_info)
+
+    if not profile_try['success']:
+        return {"success":False, "msg": "Successfully changed membership status! But failed on profile/contact update! Profile failure: " + profile_try['msg']}
+    
+    # Finally try contact info patch
+    contact_try = await update_contact(uid, details.contact_info)
+    if not contact_try['success']:
+        return {"success":False, "msg":"Successfully changed membership status and profile! But failed on contact update! Contact failure: " + contact_try['msg']}
+    
+    # Return success
+    return {"success":True, "msg":"Updates are successful to the user!"}
+
+
+
+async def update_contact(uid:str, contact_info: ContactInfo):
+
+    # Get an old user for comparison
+    old_user = await UserHandler.find_by_uid(uid)
+    
+    if not old_user:
+        return {"success":False, "msg":"Could not find original user!"}
 
     # Ensure phone number is a reasonable input
     safe_phone = contact_info.phone
@@ -198,7 +287,7 @@ async def update_contact(request: Request, contact_info: ContactInfo):
         return {"success":False, "msg":msg}
     
     # Account for safety of not saving without alteration
-    if safe_phone == request.state.user['phone'] and contact_info.address.model_dump() == request.state.user['address']:
+    if safe_phone == old_user.get("phone") and contact_info.address.model_dump() == old_user.get("address"):
         return {
             "success": True,
             "msg": "Profile detail update success!",
@@ -235,8 +324,14 @@ async def update_contact(request: Request, contact_info: ContactInfo):
     
 
 
-async def update_profile(request: Request, profile_info: PersonalInfo):
-    uid = request.state.uid
+async def update_profile(uid:str, profile_info: PersonalInfo):
+
+    # Get an old user for comparison
+    old_user = await UserHandler.find_by_uid(uid)
+    
+    if not old_user:
+        return {"success":False, "msg":"Could not find original user!"}
+
 
     # Excluding Email because we never want to change email from the profile changing section, so we may as well prune it here.
     # Same situation with "Membership". This will be modified via a different subroutine
@@ -269,12 +364,12 @@ async def update_profile(request: Request, profile_info: PersonalInfo):
     if gender is None or (isinstance(gender, str) and gender.lower() not in ['m', 'f']):
         return {"success":False, "msg":"Please select a gender for your account so we may determine your event eligibility!"}
     
-    comp_birthday = request.state.user['birthday']
+    comp_birthday = old_user.get("birthday")
     if comp_birthday and comp_birthday.tzinfo is None:
         comp_birthday = comp_birthday.replace(tzinfo = timezone.utc)
 
     # Trivial Case (No Changes Made, just to not return an error)
-    if update_data['first_name'] == request.state.user['first_name'] and update_data['last_name'] == request.state.user['last_name'] and update_data['birthday'] == comp_birthday and update_data['gender'] == request.state.user['gender']:
+    if update_data['first_name'] == old_user.get("first_name") and update_data['last_name'] == old_user.get("last_name") and update_data['birthday'] == comp_birthday and update_data['gender'] == old_user.get("gender"):
         return {
             "success": True,
             "msg": "Profile detail update success!",
