@@ -108,7 +108,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               provider.services.isNotEmpty
-                  ? provider.services.first.formattedWeek
+                  ? 'For the week of ${provider.services.first.formattedWeek}'
                   : 'Upcoming Services',
               style: Theme.of(
                 context,
@@ -169,7 +169,8 @@ class _BulletinsPageState extends State<BulletinsPage> {
     );
 
     if (result != null) {
-      await provider.applyFilter(result.copyWith(skip: 0));
+      // Filter already has skip=0 from the filter sheet
+      await provider.applyFilter(result);
     }
   }
 

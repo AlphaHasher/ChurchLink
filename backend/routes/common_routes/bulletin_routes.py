@@ -92,6 +92,7 @@ async def get_bulletins(
 	skip: int = 0,
 	limit: int = 100,
 	ministry: Optional[str] = None,
+	query: Optional[str] = None,
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = True,
@@ -113,17 +114,11 @@ async def get_bulletins(
 	bulletin_week_start = None if upcoming_only else week_start
 	bulletin_week_end = None if upcoming_only else week_end
 	
-	print(
-		f"[Bulletin API] Fetching bulletins - upcoming_only={upcoming_only}, "
-		f"week_start={week_start}, week_end={week_end}, "
-		f"bulletin_week_start={bulletin_week_start}, bulletin_week_end={bulletin_week_end}, "
-		f"include_services={include_services}"
-	)
-	
 	bulletins = await list_bulletins(
 		skip=skip,
 		limit=limit,
 		ministry=ministry,
+		query_text=query,
 		week_start=_combine_date_and_time(bulletin_week_start),
 		week_end=_combine_date_and_time(bulletin_week_end, end_of_day=True),
 		published=published,

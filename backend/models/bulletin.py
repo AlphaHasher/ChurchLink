@@ -65,7 +65,7 @@ class BulletinFeedOut(BaseModel):
 def canonicalize_week_start(dt: datetime) -> datetime:
 	"""
 	Normalize datetime to the Monday 00:00:00 of the same week.
-	This ensures weekly bulletins are grouped consistently.
+	This ensures Bulletin Announcments are grouped consistently.
 	"""
 	# Find Monday (weekday 0) of the week containing dt
 	days_since_monday = dt.weekday()
@@ -218,6 +218,7 @@ async def list_bulletins(
 	skip: int = 0,
 	limit: int = 100,
 	ministry: Optional[str] = None,
+	query_text: Optional[str] = None,
 	week_start: Optional[datetime] = None,
 	week_end: Optional[datetime] = None,
 	published: Optional[bool] = None,
@@ -227,6 +228,7 @@ async def list_bulletins(
 ) -> List[BulletinOut]:
 	"""
 	List bulletins with optional filters.
+	- query_text: text search across headline and summary
 	- week_start/week_end: filter by exact publish_date range (used for services, not bulletins)
 	- pinned_only: return only pinned bulletins
 	- upcoming_only: filter for publish_date <= today (bulletins that have been published)
@@ -234,6 +236,10 @@ async def list_bulletins(
 	- Automatically filters out expired bulletins (expire_at < now) unless skip_expiration_filter=True
 	"""
 	query: dict = {}
+
+	# Add text search if query_text is provided
+	if query_text:
+		query["$text"] = {"$search": query_text}
 
 	if ministry:
 		query["ministries"] = {"$in": [ministry]}
@@ -265,8 +271,12 @@ async def list_bulletins(
 	if DB.db is None:
 		return []
 
-	# Sort by publish_date descending, then pinned first
-	cursor = DB.db["bulletins"].find(query).sort([("publish_date", -1), ("pinned", -1)])
+	# Sort by text score if searching, otherwise by publish_date descending, then pinned first
+	if query_text:
+		cursor = DB.db["bulletins"].find(query).sort([("score", {"$meta": "textScore"})])
+	else:
+		cursor = DB.db["bulletins"].find(query).sort([("publish_date", -1), ("pinned", -1)])
+	
 	if skip:
 		cursor = cursor.skip(skip)
 	if limit:

@@ -171,7 +171,7 @@ const BulletinsPage = () => {
                 <div className="mb-8">
                     <div className="mb-4">
                         <h2 className="text-xl font-bold">
-                            {serviceItems.length > 0 ? format(serviceItems[0].display_week, 'MMM d, yyyy') : 'Services'}
+                            {serviceItems.length > 0 ? `For the week of ${format(serviceItems[0].display_week, 'MMM d, yyyy')}` : 'Services'}
                         </h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -201,7 +201,7 @@ const BulletinsPage = () => {
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             />
                         </svg>
-                        <h2 className="text-xl font-bold">Weekly Bulletins</h2>
+                        <h2 className="text-xl font-bold">Bulletin Announcments</h2>
                     </div>
                 )}
                 <BulletinList items={filteredBulletins} onItemClick={setSelectedBulletin} />
@@ -271,8 +271,22 @@ const BulletinsPage = () => {
                             {selectedService.timeline_notes && selectedService.timeline_notes.trim() !== '' && (
                                 <div className="mt-6 p-4 bg-gray-50 border-l-4 border-black rounded-r">
                                     <h3 className="text-lg font-bold text-gray-900 mb-3">Service Timeline</h3>
-                                    <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-                                        {selectedService.timeline_notes}
+                                    <div className="prose prose-sm max-w-none text-gray-700 space-y-0">
+                                        {selectedService.timeline_notes.split('\n').map((line, index, array) => {
+                                            const trimmedLine = line.trim();
+                                            if (!trimmedLine) return <div key={index} className="h-2" />;
+                                            
+                                            return (
+                                                <div key={index}>
+                                                    <div className="py-2 leading-relaxed">
+                                                        {trimmedLine}
+                                                    </div>
+                                                    {index < array.length - 1 && array[index + 1].trim() && (
+                                                        <div className="border-b border-gray-200/50 my-1" />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

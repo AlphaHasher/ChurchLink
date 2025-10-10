@@ -129,8 +129,18 @@ class _BulletinFilterSheetState extends State<BulletinFilterSheet> {
   }
 
   void _apply() {
-    final filter = widget.initialFilter.copyWith(
+    final searchText = _searchController.text.trim();
+    // Create new filter preserving system filters (weekStart, weekEnd, upcomingOnly, published)
+    // but updating user-controlled filters (query, ministry)
+    final filter = BulletinFilter(
+      skip: 0, // Reset pagination when applying new filters
+      limit: widget.initialFilter.limit,
+      query: searchText.isNotEmpty ? searchText : null,
       ministry: _ministry?.isNotEmpty == true ? _ministry : null,
+      published: widget.initialFilter.published,
+      weekStart: widget.initialFilter.weekStart,
+      weekEnd: widget.initialFilter.weekEnd,
+      upcomingOnly: widget.initialFilter.upcomingOnly,
     );
 
     Navigator.of(context).pop(filter);

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -190,23 +189,6 @@ class BulletinDetailSheet extends StatelessWidget {
                             ),
                           ],
                           const SizedBox(height: 24),
-                          if (current.attachments.isNotEmpty)
-                            OutlinedButton.icon(
-                              onPressed:
-                                  () => _copyAttachmentLinks(context, current),
-                              icon: const Icon(Icons.link),
-                              label: const Text('Copy Attachment Links'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor:
-                                    Theme.of(context).colorScheme.primary,
-                                side: BorderSide(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -228,44 +210,6 @@ class BulletinDetailSheet extends StatelessWidget {
     }
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       _showError(context, message: 'Could not open the attachment.');
-    }
-  }
-
-  Future<void> _copyAttachmentLinks(
-    BuildContext context,
-    Bulletin bulletin,
-  ) async {
-    if (bulletin.attachments.isEmpty) return;
-
-    final links = bulletin.attachments
-        .map((attachment) => '${attachment.title}: ${attachment.url}')
-        .join('\n\n');
-
-    try {
-      await Clipboard.setData(ClipboardData(text: links));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              bulletin.attachments.length == 1
-                  ? 'Attachment link copied to clipboard!'
-                  : '${bulletin.attachments.length} attachment links copied to clipboard!',
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.only(
-              bottom: MediaQuery.of(context).size.height - 100,
-              left: 10,
-              right: 10,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        _showError(context, message: 'Could not copy attachment links.');
-      }
     }
   }
 

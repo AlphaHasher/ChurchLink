@@ -96,8 +96,8 @@ function SortableRow({ service, permissions, onRefresh }: SortableRowProps) {
                     className={
                         `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
                             service.visibility_mode === 'always'
-                                ? 'border-purple-200 bg-purple-50 text-purple-700'
-                                : 'border-gray-200 bg-gray-50 text-gray-600'
+                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                : 'border-red-200 bg-red-50 text-red-700'
                         }`
                     }
                 >

@@ -185,6 +185,7 @@ class BulletinFilter {
   final int skip;
   final int limit;
   final String? ministry;
+  final String? query; // Search query for bulletin headlines
   final bool? published;
   final DateTime? weekStart; // Used for services filtering only
   final DateTime? weekEnd; // Used for services filtering only
@@ -194,6 +195,7 @@ class BulletinFilter {
     this.skip = 0,
     this.limit = 100,
     this.ministry,
+    this.query,
     this.published,
     this.weekStart,
     this.weekEnd,
@@ -205,6 +207,9 @@ class BulletinFilter {
 
     if (ministry != null && ministry!.isNotEmpty) {
       params['ministry'] = ministry;
+    }
+    if (query != null && query!.isNotEmpty) {
+      params['query'] = query;
     }
     if (published != null) {
       params['published'] = published;
@@ -231,6 +236,7 @@ class BulletinFilter {
     int? skip,
     int? limit,
     String? ministry,
+    String? query,
     bool? published,
     DateTime? weekStart,
     DateTime? weekEnd,
@@ -240,6 +246,7 @@ class BulletinFilter {
       skip: skip ?? this.skip,
       limit: limit ?? this.limit,
       ministry: ministry ?? this.ministry,
+      query: query ?? this.query,
       published: published ?? this.published,
       weekStart: weekStart ?? this.weekStart,
       weekEnd: weekEnd ?? this.weekEnd,

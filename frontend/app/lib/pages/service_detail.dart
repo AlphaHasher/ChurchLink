@@ -214,6 +214,23 @@ class ServiceDetailPage extends StatelessWidget {
       }
 
       timelineWidgets.add(lineWidget);
+
+      // Add subtle divider line between items (but not after the last item)
+      if (i < lines.length - 1 && line.isNotEmpty) {
+        // Check if next line is also not empty (don't add divider before spacing)
+        if (i + 1 < lines.length && lines[i + 1].trim().isNotEmpty) {
+          timelineWidgets.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Divider(
+                height: 1,
+                thickness: 0.5,
+                color: colorScheme.onSurface.withOpacity(0.08),
+              ),
+            ),
+          );
+        }
+      }
     }
 
     return Column(

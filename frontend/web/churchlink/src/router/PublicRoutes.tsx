@@ -26,7 +26,7 @@ export const PublicRoutes = () => {
         <Route path="thank-you" element={<PaypalThankYouPage />} />
         <Route path="forms/:slug" element={<FormPublicPage />} />
         <Route path="sermons" element={<SermonsPage />} />
-        <Route path="bulletins" element={<BulletinsPage />} />
+        <Route path="weekly-bulletin" element={<BulletinsPage />} />
       </Routes>
     </Layout>
   );

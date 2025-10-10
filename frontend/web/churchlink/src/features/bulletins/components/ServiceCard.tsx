@@ -18,7 +18,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
 
 	return (
 		<Card
-			className="group overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 relative border-l-4 border-l-black bg-gradient-to-br from-gray-50 via-white to-gray-100 p-6"
+			className="group overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 relative border-l-4 border-l-black border-r-4 border-r-black bg-gradient-to-br from-gray-50 via-white to-gray-100 p-6"
 			onClick={onClick}
 		>
 			<div className="flex flex-col gap-3">
