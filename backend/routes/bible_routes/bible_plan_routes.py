@@ -12,16 +12,28 @@ from models.bible_plan import (
     get_reading_plans_from_user,
     update_reading_plan,
     delete_reading_plan,
+    get_all_reading_plans,
+    duplicate_reading_plan,
     get_all_bible_plan_templates,
     get_bible_plan_template_by_name,
     get_bible_plan_template_by_id,
+    get_published_reading_plans,
 )
 
+
+public_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans Public"])
 
 # This is renamed to mod bible plan router because it specifically requires mod permissions.
 # Consider changing in future to be based on PermProtectedRouter if specific perm is implemented
 # The name is a proactive change because in the future, we will also need public routes, so the name change is pre-empitive
 mod_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans"])
+
+
+# Public Route - Get all published Bible plans (visible=True)
+@public_bible_plan_router.get("/published", response_model=List[ReadingPlanOut])
+async def list_published_plans() -> List[ReadingPlanOut]:
+    """Get all published Bible plans that are visible to users"""
+    return await get_published_reading_plans()
 
 
 # Mod Route
@@ -33,11 +45,11 @@ async def create_plan(plan: ReadingPlanCreate, request: Request) -> ReadingPlanO
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create plan")
     return created
 
-# Mod Route
+# Mod Route - Get all plans from all users (admin view)
 @mod_bible_plan_router.get("/", response_model=List[ReadingPlanOut])
-async def list_plans(request: Request, skip: int = 0, limit: int = Query(100, le=500)) -> List[ReadingPlanOut]:
-    uid = request.state.uid
-    return await list_reading_plans(uid, skip=skip, limit=limit)
+async def list_all_plans(request: Request) -> List[ReadingPlanOut]:
+    """Get all bible plans from all users (for admin management)"""
+    return await get_all_reading_plans()
 
 # Mod Route
 @mod_bible_plan_router.get("/templates", response_model=List[ReadingPlanTemplateOut])
@@ -94,6 +106,24 @@ async def update_plan(plan_id: str, update: ReadingPlanUpdate, request: Request)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found or update failed")
     return updated
+
+# Mod Route - PATCH for partial updates (e.g., toggling visibility)
+@mod_bible_plan_router.patch("/{plan_id}", response_model=ReadingPlanOut)
+async def patch_plan(plan_id: str, update: ReadingPlanUpdate, request: Request) -> ReadingPlanOut:
+    uid = request.state.uid
+    updated = await update_reading_plan(plan_id, uid, update)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found or update failed")
+    return updated
+
+# Mod Route - Duplicate a plan
+@mod_bible_plan_router.post("/{plan_id}/duplicate", response_model=ReadingPlanOut, status_code=status.HTTP_201_CREATED)
+async def duplicate_plan(plan_id: str, request: Request) -> ReadingPlanOut:
+    uid = request.state.uid
+    duplicated = await duplicate_reading_plan(plan_id, uid)
+    if not duplicated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found or duplication failed")
+    return duplicated
 
 # Mod Route
 @mod_bible_plan_router.delete("/{plan_id}")

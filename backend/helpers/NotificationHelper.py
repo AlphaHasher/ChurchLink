@@ -56,6 +56,8 @@ async def send_push_notification(title, body, data, send_to_all, token, eventId,
 				allow = prefs.get('App Announcements', True)
 			elif route == 'youtube_live_stream_notification':
 				allow = prefs.get('Live Stream Alerts', True)
+			elif actionType == 'bible_plan':
+				allow = prefs.get('Bible Plan Reminders', True)
 			if t and allow:
 				filtered_tokens.append(t)
 		for t in filtered_tokens:
@@ -235,3 +237,82 @@ async def update_device_notification_preferences(token: str, preferences: dict):
 		updated_doc['_id'] = str(updated_doc['_id'])
 	logging.info(f"Updated deviceTokens document: {updated_doc}")
 	return {"success": result.modified_count > 0 or result.upserted_id is not None, "doc": updated_doc}
+
+
+async def send_notification_to_user(userId: str, title: str, body: str, data: dict = None, actionType: str = None, link: str = None, route: str = None, eventId: str = None):
+	"""Send push notification to all devices of a specific user"""
+	if data is None:
+		data = {}
+	
+	# Get all device tokens for the user that allow the specific notification type
+	query = {"userId": userId}
+	if actionType:
+		# Check notification preferences based on actionType
+		if actionType == 'bible_plan':
+			query["notification_preferences.Bible Plan Reminders"] = {"$ne": False}
+		elif actionType == 'event':
+			query["notification_preferences.Event Notification"] = {"$ne": False}
+		elif actionType in ['text', 'link', 'route']:
+			query["notification_preferences.App Announcements"] = {"$ne": False}
+	
+	tokens_cursor = DB.db['deviceTokens'].find(query, {'_id': 0, 'token': 1})
+	tokens_docs = await tokens_cursor.to_list(length=100)
+	user_tokens = [doc.get('token') for doc in tokens_docs if doc.get('token')]
+	
+	if not user_tokens:
+		return {"success": False, "error": "No eligible device tokens found for user"}
+	
+	responses = []
+	for token in user_tokens:
+		enhanced_data = {
+			**{k: str(v) if v is not None else None for k, v in data.items()},
+			**({"eventId": str(eventId)} if eventId is not None else {}),
+			**({"link": str(link)} if link is not None else {}),
+			**({"route": str(route)} if route is not None else {}),
+			**({"actionType": str(actionType)} if actionType is not None else {})
+		}
+		
+		message = messaging.Message(
+			notification=messaging.Notification(
+				title=title,
+				body=body,
+			),
+			token=token,
+			data=enhanced_data
+		)
+		
+		try:
+			response = messaging.send(message)
+			responses.append({"token": token, "response": response})
+		except Exception as e:
+			responses.append({"token": token, "error": str(e)})
+			if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
+				await DB.db['deviceTokens'].delete_many({"token": token})
+	
+	await log_notification(DB.db, title, body, "mobile", user_tokens, actionType, link, route, eventId)
+	return {"success": True, "results": responses, "sent_to_tokens": len(user_tokens)}
+
+
+async def get_available_notification_preferences():
+	"""Get all available notification preference types"""
+	return {
+		"success": True,
+		"preferences": {
+			"Event Notification": {
+				"description": "Notifications for church events and activities",
+				"default": True
+			},
+			"App Announcements": {
+				"description": "General announcements and app updates",
+				"default": True
+			},
+			"Live Stream Alerts": {
+				"description": "Notifications when live streams start",
+				"default": True
+			},
+			"Bible Plan Reminders": {
+				"description": "Daily reminders for Bible reading plans",
+				"default": True
+			}
+		}
+	}

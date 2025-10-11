@@ -5,6 +5,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { useDroppable } from '@dnd-kit/core';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/shared/components/ui/accordion';
+import { cn } from '@/lib/utils';
 
 interface BiblePassageSelectorProps {
   selectedDay?: number | null;           // Day currently selected in the calendar
@@ -19,16 +20,19 @@ const TrashDropZone = () => {
   return (
     <div
       ref={setNodeRef}
-      className={`
-        flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg text-sm
-        transition-colors duration-200 min-h-[50px]
-        ${isOver
-          ? 'border-red-400 bg-red-50 text-red-700'
-          : 'border-gray-300 bg-gray-50 text-gray-500 hover:border-gray-400'
-        }
-      `}
+      className={cn(
+        'flex min-h-[50px] items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 text-sm transition-colors duration-200',
+        isOver
+          ? 'border-destructive/60 bg-destructive/10 text-destructive'
+          : 'border-border/70 bg-muted text-muted-foreground hover:border-muted-foreground/60'
+      )}
     >
-      <Trash2 className={`w-4 h-4 ${isOver ? 'text-red-600' : 'text-gray-400'}`} />
+      <Trash2
+        className={cn(
+          'h-4 w-4 transition-colors',
+          isOver ? 'text-destructive' : 'text-muted-foreground'
+        )}
+      />
       <span>Drop here to remove</span>
     </div>
   );
@@ -185,7 +189,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     <Accordion type="multiple" className="w-full">
       {books.map((book) => (
         <AccordionItem key={book.id} value={book.id}>
-          <AccordionTrigger className="px-2 py-2 text-sm hover:bg-gray-50">
+          <AccordionTrigger className="px-2 py-2 text-sm transition-colors hover:bg-muted/60">
             {book.name}
           </AccordionTrigger>
           <AccordionContent className="pl-2">
@@ -206,12 +210,21 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                         setSelectedChapter({ book, chapter });
                       }
                     }}
-                    className={`relative flex-1 text-left p-1 hover:bg-gray-100 rounded ${isChapterSelected(book.id, chapter) ? 'bg-blue-100 text-blue-800' : ''
-                      }`}
+                    className={cn(
+                      'relative flex-1 rounded p-1 text-left transition-colors hover:bg-muted',
+                      isChapterSelected(book.id, chapter) && 'bg-primary/10 text-primary'
+                    )}
                     aria-pressed={isChapterSelected(book.id, chapter)}
                     aria-label={`Chapter ${chapter}`}
                   >
-                    <span className={`absolute left-1 top-1 w-2 h-2 rounded-full transition-colors ${isChapterSelected(book.id, chapter) ? 'bg-blue-600' : 'bg-transparent border border-gray-200'}`} />
+                    <span
+                      className={cn(
+                        'absolute left-1 top-1 h-2 w-2 rounded-full border transition-colors',
+                        isChapterSelected(book.id, chapter)
+                          ? 'border-transparent bg-primary'
+                          : 'border-border/70 bg-transparent'
+                      )}
+                    />
                     <span className="ml-3">Chapter {chapter}</span>
                   </button>
                   <Button
@@ -219,7 +232,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                     variant="ghost"
                     onClick={() => addWholeChapter(book, chapter)}
                     disabled={!selectedDay}
-                    className="h-6 w-6 p-0 mr-1"
+                    className="mr-1 h-6 w-6 p-0 text-muted-foreground"
                   >
                     <Plus className="w-3 h-3" />
                   </Button>
@@ -239,16 +252,16 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
       <TrashDropZone />
 
       {/* Bible Book Selector */}
-      <div className="border rounded-lg max-h-64 overflow-y-auto pr-3" style={{ scrollbarGutter: 'stable' }}>
+      <div className="max-h-64 overflow-y-auto rounded-lg border border-border bg-card pr-3" style={{ scrollbarGutter: 'stable' }}>
         <Accordion type="multiple" className="w-full">
           <AccordionItem value="old">
-            <AccordionTrigger className="px-3 py-3 font-medium">Old Testament</AccordionTrigger>
+            <AccordionTrigger className="px-3 py-3 font-medium transition-colors hover:bg-muted/60">Old Testament</AccordionTrigger>
             <AccordionContent className="pl-2 pb-2">
               {renderBooks(oldTestamentBooks)}
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="new">
-            <AccordionTrigger className="px-3 py-3 font-medium">New Testament</AccordionTrigger>
+            <AccordionTrigger className="px-3 py-3 font-medium transition-colors hover:bg-muted/60">New Testament</AccordionTrigger>
             <AccordionContent className="pl-2 pb-2">
               {renderBooks(newTestamentBooks)}
             </AccordionContent>
@@ -258,9 +271,9 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
 
       {/* Chapter & Verse Selection */}
       {(selectedChapter || selectedChaptersSet.size > 0) && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border space-y-3">
+        <div className="mt-4 space-y-3 rounded-lg border border-border bg-muted/40 p-4">
           <div className="mb-2">
-            <div className="text-sm font-medium text-gray-700 w-full">
+            <div className="w-full text-sm font-medium text-foreground">
               {(() => {
                 if (multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi') {
                   const { book, range } = multiChapterSelectionMeta;
@@ -298,11 +311,11 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
             </div>
           </div>
           {multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi' && !selectedDay && (
-            <div className="text-xs text-red-600">Select a day to add passages.</div>
+            <div className="text-xs text-destructive">Select a day to add passages.</div>
           )}
           {/* Warning for non-contiguous multi-book or multi-range selection */}
           {selectedChaptersSet.size > 0 && !multiChapterSelectionMeta && (
-            <div className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 p-2 rounded">
+            <div className="rounded border border-border bg-muted/60 p-2 text-xs text-foreground">
               Select a single contiguous range within one book to enable verse-level range across chapters.
             </div>
           )}
@@ -312,14 +325,14 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
                 placeholder="Start Verse"
                 value={verseRange.start}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, start: e.target.value }))}
-                className="w-28 h-8 text-sm"
+                className="h-8 w-28 text-sm"
                 disabled={(!selectedChapter && !multiChapterSelectionMeta) || !selectedDay || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               />
               <Input
                 placeholder="End Verse"
                 value={verseRange.end}
                 onChange={(e) => setVerseRange(prev => ({ ...prev, end: e.target.value }))}
-                className="w-28 h-8 text-sm"
+                className="h-8 w-28 text-sm"
                 disabled={(!selectedChapter && !multiChapterSelectionMeta) || !selectedDay || (selectedChaptersSet.size > 0 && !multiChapterSelectionMeta)}
               />
             </div>
@@ -333,9 +346,9 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
             </Button>
           </div>
           {isInvalidVerseRange && (verseRange.start || verseRange.end) && (
-            <div className="text-xs text-red-600">Verses must be at least 1 and end greater than start (only enforced within a single chapter).</div>
+            <div className="text-xs text-destructive">Verses must be at least 1 and end greater than start (only enforced within a single chapter).</div>
           )}
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-muted-foreground">
             Leave verse inputs blank to include entire chapter(s). For multi-chapter contiguous selections you can specify verses spanning start of first to end of last chapter.
           </div>
           {selectedChaptersSet.size > 0 && (
