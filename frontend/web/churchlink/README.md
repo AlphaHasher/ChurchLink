@@ -54,3 +54,7 @@ export default tseslint.config({
 ```
 npm install
 npm run dev
+
+### Cypress Testing
+`npm run test`
+ 

@@ -731,6 +731,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     final double total = _computeTotal();
 
     return Scaffold(
+      key: const ValueKey('screen-form_submit'),
       appBar: AppBar(title: Text(title), backgroundColor: Colors.black),
       body: SafeArea(
         child: Padding(

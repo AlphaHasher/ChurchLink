@@ -71,6 +71,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
+  patrol: ^3.10.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -109,6 +112,11 @@ flutter:
     # Translation rules for mismatched RST and KJV bible verse numbering
     - assets/bibles/verse_matching/
 
+patrol:
+  app_name: app
+  andriod:
+     package_name: com.example.app
+     
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
