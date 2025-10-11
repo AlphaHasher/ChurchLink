@@ -95,15 +95,31 @@ async def process_delete_event(event_id:str, request:Request):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     return {"message": "Event deleted successfully", "success": True}
 
-async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None):
+async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None, payment_option: Optional[str] = None):
     """
     High-level action: RSVP an event *and* reflect it in the user's my_events.
+    Returns (success, reason) tuple.
+    
+    Args:
+        payment_option: 'paypal', 'door', or None for free events
     """
     # Convert person_id to ObjectId if provided
     person_object_id = ObjectId(person_id) if person_id else None
-    ok = await rsvp_add_person(event_id, uid, person_object_id, display_name)
+    
+    print(f"DEBUG: Attempting RSVP for event_id={event_id}, uid={uid}, person_id={person_id}, payment_option={payment_option}")
+    
+    # Determine payment status based on payment option
+    payment_status = None
+    if payment_option == 'door':
+        payment_status = 'pending'  # Payment to be collected at the door
+    elif payment_option == 'paypal':
+        payment_status = 'awaiting_payment'  # Will be updated when PayPal payment completes
+    # For free events or no payment option, payment_status remains None
+    
+    ok, reason = await rsvp_add_person(event_id, uid, person_object_id, display_name, payment_status=payment_status)
     if not ok:
-        return False
+        print(f"DEBUG: rsvp_add_person failed for event_id={event_id}, uid={uid}, reason={reason}")
+        return False, reason
 
     try:
         await UserHandler.add_to_my_events(
@@ -113,12 +129,13 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
             scope="series",  # or "occurrence" depending on your model
             person_id=person_object_id
         )
+        print(f"DEBUG: Successfully registered user {uid} for event {event_id} with payment option {payment_option}")
     except Exception as e:
         # Event RSVP succeeded, but user record failed.
         # Log this for reconciliation later.
         print(f"Warning: user my_events update failed: {e}")
 
-    return True
+    return True, "success"
 
 
 async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None):
