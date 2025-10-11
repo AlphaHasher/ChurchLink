@@ -294,6 +294,7 @@ class _GivingState extends State<Giving> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      key: const ValueKey('screen-giving'),
       title: 'Church Giving',
       debugShowCheckedModeBanner: false,
       home: Scaffold(

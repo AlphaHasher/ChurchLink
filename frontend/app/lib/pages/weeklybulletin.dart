@@ -11,6 +11,7 @@ class _WeeklyBulletinState extends State<WeeklyBulletin> {
   @override
   Widget build(BuildContext context) {
           return Scaffold(
+            key: const ValueKey('screen-bulletin'),
             appBar: AppBar(
             backgroundColor: const Color.fromARGB(159, 144, 79, 230),
              iconTheme: const IconThemeData(
