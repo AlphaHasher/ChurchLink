@@ -44,8 +44,21 @@ class _FormsState extends State<Forms> {
     try {
       final response = await api.get('/v1/forms/');
       if (response.statusCode == 200) {
+        final raw = response.data as List<dynamic>;
+        // Filter out forms that are not visible
+        final visibleForms = raw.where((f) {
+          try {
+            if (f is Map<String, dynamic> && f.containsKey('visible')) {
+              return f['visible'] == true;
+            }
+            // If `visible` key is missing for whatever reason, assume invisible
+            return false;
+          } catch (_) {
+            return false;
+          }
+        }).toList();
         setState(() {
-          _forms = response.data as List<dynamic>;
+          _forms = visibleForms;
           _isLoading = false;
         });
       } else {

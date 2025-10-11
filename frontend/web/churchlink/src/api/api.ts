@@ -1,9 +1,47 @@
 import axios from 'axios';
 import { auth } from '../lib/firebase';
 
+const resolveApiBaseUrl = () => {
+  const rawHost = import.meta.env.VITE_API_HOST?.trim();
+
+  const shouldFallbackToSameOrigin = (url: string) => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname;
+      const currentHost = window.location.hostname;
+
+      const isPrivateHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(hostname) ||
+        /^10\./.test(hostname) ||
+        /^192\.168\./.test(hostname) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname);
+
+      // If we are deployed on a public host but VITE_API_HOST still points to a private LAN/localhost address,
+      // ignore it and use same-origin.
+      return isPrivateHost && currentHost !== hostname;
+    } catch (error) {
+      console.warn('[api] Invalid VITE_API_HOST configured, falling back to relative /api', error);
+      return true;
+    }
+  };
+
+  if (rawHost && !shouldFallbackToSameOrigin(rawHost)) {
+    try {
+      const normalized = rawHost.endsWith('/') ? rawHost : `${rawHost}/`;
+      const resolved = new URL('api', normalized).toString();
+      return resolved.endsWith('/') ? resolved.slice(0, -1) : resolved;
+    } catch (error) {
+      console.warn('[api] Invalid VITE_API_HOST configured, falling back to relative /api', error);
+    }
+  }
+
+  // Fallback to same-origin relative path so deployments behind a reverse proxy work out of the box.
+  return '/api';
+};
+
 // Create API instance without store dependency
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_HOST}/api`,
+  baseURL: resolveApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

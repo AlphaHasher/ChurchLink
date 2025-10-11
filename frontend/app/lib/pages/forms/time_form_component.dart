@@ -1,0 +1,143 @@
+import 'package:flutter/material.dart';
+
+class TimeFormComponent extends StatelessWidget {
+  final Map<String, dynamic> field;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const TimeFormComponent({
+    super.key,
+    required this.field,
+    required this.value,
+    required this.onChanged,
+  });
+
+  TimeOfDay? _parseTimeOfDay(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final s = raw.trim();
+    final m24 = RegExp(r"^([01]?\d|2[0-3]):([0-5]\d)$");
+    final m12 = RegExp(r"^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$");
+    var match = m24.firstMatch(s);
+    if (match != null) {
+      final h = int.tryParse(match.group(1)!);
+      final m = int.tryParse(match.group(2)!);
+      if (h != null && m != null) return TimeOfDay(hour: h, minute: m);
+    }
+    match = m12.firstMatch(s);
+    if (match != null) {
+      var h = int.tryParse(match.group(1)!);
+      final m = int.tryParse(match.group(2)!);
+      final ampm = match.group(3)!.toUpperCase();
+      if (h != null && m != null) {
+        if (ampm == 'AM') {
+          if (h == 12) h = 0;
+        } else {
+          if (h != 12) h = h + 12;
+        }
+        return TimeOfDay(hour: h, minute: m);
+      }
+    }
+    return null;
+  }
+
+  String _formatHHMM(TimeOfDay t) {
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  String? _formatDisplayTime(String? raw) {
+    final tod = _parseTimeOfDay(raw);
+    if (tod == null) return null;
+    final hour = tod.hourOfPeriod == 0 ? 12 : tod.hourOfPeriod;
+    final minute = tod.minute.toString().padLeft(2, '0');
+    final period = tod.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  int? _hhmmToMinutes(String? hhmm) {
+    if (hhmm == null || hhmm.trim().isEmpty) return null;
+    final m = RegExp(r'^([01]?\d|2[0-3]):([0-5]\d)$').firstMatch(hhmm.trim());
+    if (m == null) return null;
+    final h = int.tryParse(m.group(1)!);
+    final min = int.tryParse(m.group(2)!);
+    if (h == null || min == null) return null;
+    return h * 60 + min;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = (field['label'] ?? field['name'] ?? '').toString();
+    final minTime = (field['minTime'] ?? field['min'])?.toString();
+    final maxTime = (field['maxTime'] ?? field['max'])?.toString();
+
+    return FormField<String>(
+      initialValue: value,
+      validator: (val) {
+        final req = field['required'] == true;
+        if (req && (val == null || val.trim().isEmpty)) {
+          return '${label.isEmpty ? 'Time' : label} is required';
+        }
+        if (val == null || val.trim().isEmpty) return null;
+        if (_hhmmToMinutes(val) == null) {
+          return '${label.isEmpty ? 'Time' : label} must be a valid time';
+        }
+        final vMin = _hhmmToMinutes(minTime);
+        final vMax = _hhmmToMinutes(maxTime);
+        final v = _hhmmToMinutes(val)!;
+        if (vMin != null && v < vMin) {
+          final friendlyMin = _formatDisplayTime(minTime) ?? minTime;
+          return '${label.isEmpty ? 'Time' : label} must be on or after $friendlyMin';
+        }
+        if (vMax != null && v > vMax) {
+          final friendlyMax = _formatDisplayTime(maxTime) ?? maxTime;
+          return '${label.isEmpty ? 'Time' : label} must be on or before $friendlyMax';
+        }
+        return null;
+      },
+      builder: (state) {
+        final initialTod = _parseTimeOfDay(state.value) ?? TimeOfDay.now();
+        final display = _formatDisplayTime(state.value) ?? 'Select time';
+    final hasError = state.hasError;
+    final borderColor =
+      hasError ? Colors.red.shade400 : Colors.grey.shade300;
+        final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                border: Border.all(color: borderColor),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                title: Text(label),
+                subtitle: Text(display),
+                onTap: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: initialTod,
+                  );
+                  if (picked != null) {
+                    final formatted = _formatHHMM(picked);
+                    onChanged(formatted);
+                    state.didChange(formatted);
+                  }
+                },
+              ),
+            ),
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(left: 12.0, top: 4),
+                child: Text(
+                  state.errorText ?? '',
+                  style: TextStyle(color: Colors.red[700], fontSize: 12),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}

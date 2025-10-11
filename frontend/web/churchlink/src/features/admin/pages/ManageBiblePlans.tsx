@@ -97,7 +97,7 @@ const ManageBiblePlans = () => {
   const loadPlans = async () => {
     try {
       setLoading(true);
-      const resp = await api.get('/v1/bible-plans');
+  const resp = await api.get('/v1/bible-plans/');
       setAllPlans(resp.data || []);
       setLoading(false);
     } catch (err) {

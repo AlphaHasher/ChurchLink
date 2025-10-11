@@ -60,15 +60,23 @@ const LinksCellRenderer = (props: ICellRendererParams) => {
   } = context;
 
   return data.slug ? (
-    <div className={`inline-flex items-center gap-2 ${!data.visible ? 'text-muted-foreground' : ''}`}>
-      <a href={`/forms/${data.slug}`} target="_blank" rel="noreferrer" className={`${!data.visible ? 'pointer-events-none' : ''}`}>{`/forms/${data.slug}`}</a>
-      <div className={`inline-flex items-center ${!data.visible ? 'text-muted-foreground' : ''}`}>
-        <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
+    <div className={`flex items-center gap-2 w-full min-w-0 ${!data.visible ? 'text-muted-foreground' : ''}`}>
+      <a
+        href={`/forms/${data.slug}`}
+        target="_blank"
+        rel="noreferrer"
+        className={`${!data.visible ? 'pointer-events-none' : ''} truncate flex-1 min-w-0`}
+        title={`/forms/${data.slug}`}
+      >
+        {`/forms/${data.slug}`}
+      </a>
+      <div className={`inline-flex items-center gap-1 flex-shrink-0 ml-auto ${!data.visible ? 'text-muted-foreground' : ''}`}>
+        <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug, true)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
         <Button size="icon" variant="ghost" onClick={() => handleRemoveSlug(data.id)} title="Remove slug"><Trash className="h-4 w-4" /></Button>
       </div>
     </div>
   ) : (
-    <Button size="sm" variant="ghost" onClick={() => openCreateSlug(data.id)} className="text-muted-foreground">Create Link</Button>
+    <Button size="sm" variant="ghost" onClick={() => openCreateSlug(data.id, context?.slugify ? context.slugify(data.title || '') : '', false)} className="text-muted-foreground">Create Link</Button>
   );
 };
 
@@ -104,7 +112,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
   } = context;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center h-full gap-2">
       <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/form-builder?load=${data.id}`)}><FileEdit className="h-4 w-4 mr-1" /> Edit</Button>
       <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/responses?formId=${data.id}`)}>View responses</Button>
       <DropdownMenu>
@@ -115,7 +123,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => handleDuplicate(data.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport(data.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Export CSV</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Download Responses</DropdownMenuItem>
           <DropdownMenuItem onClick={() => setRenameTarget({ id: data.id, title: data.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
           <DropdownMenuItem onClick={() => { setMoveTargetIds([data.id]); context.setMoveToFolderId(); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -140,13 +148,14 @@ const ManageForms = () => {
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
   const [moveTargetIds, setMoveTargetIds] = useState<string[] | null>(null);
   const [moveToFolderId, setMoveToFolderId] = useState<string>('');
-  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string } | null>(null);
+  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
   const [duplicateNameDialog, setDuplicateNameDialog] = useState<{
     formId: string;
     newTitle: string;
     existingId: string;
   } | null>(null);
+  const [viewDescription, setViewDescription] = useState<string | null>(null);
 
   // Grid options
   const gridOptions = {};
@@ -162,9 +171,21 @@ const ManageForms = () => {
         const { data } = props;
         if (!data) return null;
         return (
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{data.title}</span>
-            {data.description ? <span className="text-xs text-muted-foreground">{data.description}</span> : null}
+          <div className="flex items-center gap-2 w-full min-w-0">
+            <span className="font-medium flex-shrink-0 max-w-[40%] truncate" title={data.title}>{data.title}</span>
+            {data.description ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setViewDescription(data.description); }}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline truncate text-left flex-1 min-w-0"
+                title="View full description"
+              >
+                {data.description}
+              </button>
+            ) : null}
+            <div className={`ml-auto inline-flex items-center flex-shrink-0 ${!data.visible ? 'text-muted-foreground' : ''}`}>
+              <Button size="icon" variant="ghost" onClick={() => setRenameTarget({ id: data.id, title: data.title })} title="Edit Title"><Pencil className="h-4 w-4" /></Button>
+            </div>
           </div>
         );
       },
@@ -196,6 +217,7 @@ const ManageForms = () => {
       flex: 3,
       minWidth: 300,
       cellRenderer: ActionsCellRenderer,
+      cellStyle: { display: 'flex', alignItems: 'center', height: '100%' },
       pinned: 'right',
     },
   ];
@@ -343,6 +365,18 @@ const ManageForms = () => {
 
   const handleToggleVisible = async (id: string, visible: boolean) => {
     try {
+      // If trying to enable visibility, ensure the form has a slug first
+      if (visible) {
+        const form = allForms.find((f) => f.id === id);
+        const hasSlug = !!(form && (form.slug || form.slug === 0));
+        if (!hasSlug) {
+          // Prompt user to create a slug before making the form visible
+          setStatus('Please create a link/slug before making the form visible');
+          openCreateSlug(id, slugify((form && form.title) || ''), false);
+          return;
+        }
+      }
+
       await api.put(`/v1/forms/${id}`, { visible });
       setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
     } catch (e) {
@@ -360,9 +394,9 @@ const ManageForms = () => {
       .replace(/-+/g, '-');
   };
 
-  const openCreateSlug = (id: string, currentSlug?: string) => {
+  const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false) => {
     setSlugError(null);
-    setSlugDialog({ id, slug: currentSlug || '' });
+    setSlugDialog({ id, slug: currentSlug || '', isExisting });
   };
 
   const saveSlug = async () => {
@@ -550,6 +584,7 @@ const ManageForms = () => {
                 setMoveToFolderId: () => setMoveToFolderId(''),
                 setConfirmDeleteIds,
                 handleToggleVisible,
+                slugify,
               }}
               pagination={true}
               paginationPageSizeSelector={[10, 20, 50]}
@@ -594,8 +629,8 @@ const ManageForms = () => {
       {/* Slug create/edit dialog */}
       <Dialog open={!!slugDialog} onOpenChange={(open) => { if (!open) setSlugDialog(null); }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{slugDialog?.slug ? 'Edit link' : 'Create link'}</DialogTitle>
+            <DialogHeader>
+            <DialogTitle>{slugDialog?.isExisting ? 'Edit link' : 'Create link'}</DialogTitle>
           </DialogHeader>
           <Input value={slugDialog?.slug || ''} onChange={(e) => setSlugDialog((s) => s ? ({ ...s, slug: e.target.value }) : s)} placeholder="Enter slug (letters, numbers, dashes)" />
           {slugError && <div className="text-xs text-destructive mt-2">{slugError}</div>}
@@ -605,6 +640,19 @@ const ManageForms = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Description view dialog */}
+      <AlertDialog open={!!viewDescription} onOpenChange={(open) => { if (!open) setViewDescription(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Description</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="p-2 text-sm text-muted-foreground">{viewDescription}</div>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setViewDescription(null)}>Ok</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Rename dialog */}
       <Dialog open={!!renameTarget} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>
