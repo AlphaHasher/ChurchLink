@@ -1,4 +1,4 @@
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict
 from datetime import datetime
 from pydantic import (
     BaseModel, Field, EmailStr, ConfigDict
@@ -27,6 +27,7 @@ class UserBase(BaseModel):
     last_name: str
     email: EmailStr
     verified: bool
+    membership: bool
     phone: Optional[str] = None
     birthday: Optional[datetime] = None
     address: AddressSchema = Field(default_factory=AddressSchema)

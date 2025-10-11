@@ -20,6 +20,7 @@ import { auth, signOut } from "@/lib/firebase";
 
 type InitProfileDialogProps = {
     email: string;
+    membership: boolean;
     onCompleted?: (p?: ApiPersonalInfo | null) => void;
     className?: string;
 };
@@ -31,7 +32,7 @@ const EMPTY_PERSON: PersonInfo = {
     gender: "" as Gender,
 };
 
-const toApiPayload = (email: string, p: PersonInfo): ApiPersonalInfo => {
+const toApiPayload = (email: string, membership: boolean, p: PersonInfo): ApiPersonalInfo => {
     const yyyy = parseInt(p.dob.yyyy || "0", 10);
     const mm = parseInt(p.dob.mm || "0", 10);
     const dd = parseInt(p.dob.dd || "0", 10);
@@ -41,6 +42,7 @@ const toApiPayload = (email: string, p: PersonInfo): ApiPersonalInfo => {
         first_name: p.firstName || "",
         last_name: p.lastName || "",
         email,
+        membership,
         birthday: valid ? new Date(yyyy, mm - 1, dd) : null,
         gender: (p.gender as Gender) || null,
     };
@@ -48,6 +50,7 @@ const toApiPayload = (email: string, p: PersonInfo): ApiPersonalInfo => {
 
 export const InitProfileDialog: React.FC<InitProfileDialogProps> = ({
     email,
+    membership,
     onCompleted,
     className,
 }) => {
@@ -58,7 +61,7 @@ export const InitProfileDialog: React.FC<InitProfileDialogProps> = ({
     const handleSave = async () => {
         try {
             setSaving(true);
-            const payload = toApiPayload(email, person);
+            const payload = toApiPayload(email, membership, person);
             const res = await updateProfileInfo(payload);
 
             const initRes = await getIsInit();

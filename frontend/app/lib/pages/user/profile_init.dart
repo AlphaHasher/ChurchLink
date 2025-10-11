@@ -38,6 +38,7 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: widget.user.email ?? '',
+      membership: false,
       birthday: birthday,
       gender: (gender == 'M' || gender == 'F') ? gender : null,
     );

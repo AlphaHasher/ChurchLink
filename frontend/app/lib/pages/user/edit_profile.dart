@@ -33,7 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _prefillFromIncomingOrFallback() async {
     ProfileInfo? p =
         widget.initialProfile ?? await UserHelper.readCachedProfile();
-    p ??= await UserHelper.getMyProfile();
+    p ??= (await UserHelper.getMyProfile())?.profile;
 
     if (p == null) {
       final first = '';
@@ -74,6 +74,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: widget.user.email ?? '',
+      membership: widget.initialProfile?.membership ?? false,
       birthday: birthday,
       gender: (gender == 'M' || gender == 'F') ? gender : null,
     );

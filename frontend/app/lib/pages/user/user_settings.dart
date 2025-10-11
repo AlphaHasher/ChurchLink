@@ -4,10 +4,12 @@ import 'dart:io';
 
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
+import 'package:app/models/contact_info.dart';
 import 'package:app/models/profile_info.dart';
 import 'package:app/pages/user/edit_contact_info.dart';
 import 'package:app/pages/user/edit_profile.dart';
 import 'package:app/pages/user/family_members_page.dart';
+import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -16,12 +18,8 @@ import 'package:http/http.dart' as http;
 
 import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
-import '../../firebase/firebase_auth_service.dart';
-import 'edit_profile.dart';
-import 'family_members_page.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -40,7 +38,7 @@ class _UserSettingsState extends State<UserSettings> {
   StreamSubscription<User?>? _authSub;
   StreamSubscription<User?>? _userSub;
 
-  ProfileInfo? _profile; // backend truth (cached/online)
+  ProfileInfo? _profile;
 
   @override
   void initState() {
@@ -85,21 +83,25 @@ class _UserSettingsState extends State<UserSettings> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (!mounted) return;
-      setState(() => _profile = null);
+      setState(() {
+        _profile = null;
+      });
       return;
     }
 
     final ok = await _tryFetchOnlineProfile();
     if (!ok) {
-      final cached = await UserHelper.readCachedProfile();
+      final cachedProfile = await UserHelper.readCachedProfile();
+      final cachedContact = await UserHelper.readCachedContact();
       if (!mounted) return;
       setState(() {
         _profile =
-            cached ??
+            cachedProfile ??
             ProfileInfo(
               firstName: (user.displayName ?? '').split(' ').firstOrNull ?? '',
               lastName: (user.displayName ?? '').split(' ').skip(1).join(' '),
               email: user.email ?? '',
+              membership: false,
               birthday: null,
               gender: null,
             );
@@ -109,10 +111,12 @@ class _UserSettingsState extends State<UserSettings> {
 
   Future<bool> _tryFetchOnlineProfile() async {
     try {
-      final p = await UserHelper.getMyProfile();
-      if (p == null) return false;
+      final data = await UserHelper.getMyProfile();
+      if (data == null) return false;
       if (!mounted) return true;
-      setState(() => _profile = p);
+      setState(() {
+        _profile = data.profile;
+      });
       return true;
     } catch (_) {
       return false;
@@ -254,6 +258,21 @@ class _UserSettingsState extends State<UserSettings> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => EditContactInfoScreen(user: user),
+                  ),
+                );
+              }
+            },
+          },
+          {
+            'icon': Icons.card_membership,
+            'title': 'View Membership Status',
+            'subtitle': 'View your Church Membership Status',
+            'ontap': () {
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MembershipScreen(user: user),
                   ),
                 );
               }

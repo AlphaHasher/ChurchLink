@@ -1,4 +1,5 @@
 import { PermMask } from "./AccountPermissions";
+import { ContactInfo, ProfileInfo } from "./ProfileInfo";
 
 
 export type UserInfo = {
@@ -6,16 +7,21 @@ export type UserInfo = {
     firstName: string;
     lastName: string;
     email: string;
-    dateOfBirth: Date;
+    membership: boolean;
     permissions: string[];
 };
 
-
+export type DetailedUserInfo = {
+    uid: string;
+    verified: boolean;
+    profile: ProfileInfo;
+    contact: ContactInfo;
+}
 
 export type BaseUserMask = {
     name: string;
     email: string;
-    dateOfBirth: string;
+    membership: boolean;
     permissions: string;
     uid: string;
 }
@@ -23,7 +29,7 @@ export type BaseUserMask = {
 export const UserLabels: Record<string, string> = {
     name: "Name",
     email: "Email Address",
-    dateOfBirth: "Date of Birth",
+    membership: "Church Membership",
     permissions: "Permission Roles",
     uid: "User ID",
 };
