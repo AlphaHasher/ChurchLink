@@ -56,7 +56,5 @@ npm install
 npm run dev
 
 ### Cypress Testing
-To run Cypress, use the script `npm run test`, which will run the equivalent of `npx cypress open`
-
-Two basic smoke specs, app.cy.ts and events_flow.cy.ts, are provided in churchlink/cypress/e2e/smoke for template
-usage and as a general example. 
+`npm run test`
+ 
