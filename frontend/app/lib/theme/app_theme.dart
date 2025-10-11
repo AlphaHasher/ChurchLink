@@ -11,6 +11,10 @@ class AppTheme {
       onPrimary: Colors.white,
       secondary: Color(0xFF5C6BC0), // Secondary accent (nav icon)
       onSecondary: Colors.white,
+      tertiary:  Color(0xFF2E7D6D),
+      onTertiary: Colors.white,
+      tertiaryContainer:  Color(0xFFCDEAE3),
+      onTertiaryContainer:  Color(0xFF0D3B34),
       background: Color(0xFFF5F5F7), // Light gray background
       onBackground: Color(0xFF222222), // Main text
       surface: Color(0xFFFFFFFF), // Card/input background
@@ -39,6 +43,10 @@ class AppTheme {
       onPrimary: Colors.white,
       secondary: Color(0xFF3F51B5), // Secondary accent (nav icon)
       onSecondary: Colors.white,
+      tertiary: const Color(0xFF82D1C0),
+      onTertiary: const Color(0xFF00382F),
+      tertiaryContainer: const Color(0xFF0F4A40),
+      onTertiaryContainer: const Color(0xFFBEEADF),
       background: Color(0xFF232323), // Dark background
       onBackground: Color(0xFFF5F5F7), // Main text
       surface: Color(0xFF2C2C2C), // Card/input background
