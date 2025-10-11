@@ -61,6 +61,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       appBar: AppBar(
         backgroundColor: const Color.fromRGBO(37, 37, 37, 1),
         iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
         title: Text(
           widget.plan.name,
           style: const TextStyle(color: Colors.white),

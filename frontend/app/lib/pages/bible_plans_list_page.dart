@@ -69,6 +69,7 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Text(
           'Bible Reading Plans',
         ),
@@ -233,7 +234,7 @@ class _BiblePlanCard extends StatelessWidget {
                             color: const Color.fromRGBO(100, 80, 200, 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.auto_stories,
                             color: Color.fromRGBO(150, 130, 255, 1),
                             size: 28,
@@ -261,16 +262,16 @@ class _BiblePlanCard extends StatelessWidget {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color.fromRGBO(120, 200, 150, 0.2),
+                                    color: Theme.of(context).colorScheme.tertiaryContainer,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: const Color.fromRGBO(120, 200, 150, 0.6),
+                                      color: Theme.of(context).colorScheme.outlineVariant,
                                     ),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Currently Enrolled',
                                     style: TextStyle(
-                                      color: Color.fromRGBO(180, 255, 200, 1),
+                                      color: Theme.of(context).colorScheme.onTertiaryContainer,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -289,17 +290,17 @@ class _BiblePlanCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color.fromRGBO(80, 150, 100, 0.3),
+                      color: const Color(0xFF445A64),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: const Color.fromRGBO(120, 200, 150, 0.5),
+                        color: const Color(0xFF263238),
                         width: 1,
                       ),
                     ),
                     child: Text(
                       '${plan.duration} Days',
-                      style: const TextStyle(
-                        color: Color.fromRGBO(150, 255, 180, 1),
+                      style: TextStyle(
+                        color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
