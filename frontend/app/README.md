@@ -113,7 +113,7 @@ flutter run --verbose
 
 For more details, check the Flutter documentation: [Flutter Docs](https://flutter.dev/docs).
 
-### **10. Avatar API https://api.cloudinary.com
+### 10. Avatar API https://api.cloudinary.com
 1/ create account, setup upload present in setting
 2/ duplicate .envexample rename it to .env
 3/ Fill in info API, Upload Present, cloud name
