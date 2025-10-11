@@ -59,14 +59,11 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromRGBO(37, 37, 37, 1),
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
         title: Text(
           widget.plan.name,
-          style: const TextStyle(color: Colors.white),
         ),
       ),
-      backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -99,23 +96,23 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color.fromRGBO(100, 80, 200, 1),
-            const Color.fromRGBO(150, 130, 255, 1),
+            Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.primary,
           ],
         ),
       ),
       child: Column(
         children: [
-          const Icon(
+          Icon(
             Icons.auto_stories,
             size: 64,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onPrimary,
           ),
           const SizedBox(height: 16),
           Text(
             widget.plan.name,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimary,
               fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
@@ -130,8 +127,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             ),
             child: Text(
               '${widget.plan.duration} Day Reading Plan',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -150,7 +147,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(65, 65, 65, 1),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -159,7 +156,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           const Text(
             'Plan Overview',
             style: TextStyle(
-              color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
@@ -178,19 +174,18 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, color: const Color.fromRGBO(150, 130, 255, 1), size: 20),
+        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
         const SizedBox(width: 12),
         Text(
           '$label: ',
           style: const TextStyle(
-            color: Color.fromRGBO(180, 180, 180, 1),
             fontSize: 15,
           ),
         ),
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white,
+            // color: Colors.white,
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -212,7 +207,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
               Text(
                 label,
                 style: const TextStyle(
-                  color: Color.fromRGBO(180, 180, 180, 1),
                   fontSize: 13,
                 ),
               ),
@@ -220,7 +214,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
               Text(
                 value,
                 style: const TextStyle(
-                  color: Colors.white,
+                  // color: Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -246,7 +240,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
               child: Text(
                 'Reading Preview',
                 style: TextStyle(
-                  color: Colors.white,
+                  // color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -273,7 +267,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             child: Text(
               'Reading Preview',
               style: TextStyle(
-                color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -306,7 +299,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                       child: Text(
                         '... and ${total - end} more days',
                         style: TextStyle(
-                          color: Colors.grey[400],
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
                           fontStyle: FontStyle.italic,
                         ),
@@ -325,14 +318,13 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   Widget _buildDayPreviewCard(int day, List<BiblePassage> readings) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: const Color.fromRGBO(65, 65, 65, 1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: const RoundedRectangleBorder(side: BorderSide(color: Colors.transparent)),
         title: Text(
           'Day $day',
           style: const TextStyle(
-            color: Colors.white,
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
@@ -344,20 +336,20 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             fontSize: 14,
           ),
         ),
-        iconColor: const Color.fromRGBO(150, 130, 255, 1),
-        collapsedIconColor: const Color.fromRGBO(150, 130, 255, 1),
+        iconColor: Theme.of(context).colorScheme.primary,
+        collapsedIconColor: Theme.of(context).colorScheme.primary,
         children: readings.map((passage) {
           return ListTile(
             dense: true,
-            leading: const Icon(
+            leading: Icon(
               Icons.bookmark_border,
-              color: Color.fromRGBO(150, 130, 255, 1),
+              color: Theme.of(context).colorScheme.primary,
               size: 20,
             ),
             title: Text(
               passage.reference,
-              style: const TextStyle(
-                color: Color.fromRGBO(220, 220, 220, 1),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 14,
               ),
             ),
@@ -372,12 +364,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(65, 65, 65, 1),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color.fromRGBO(150, 130, 255, 0.3),
-          width: 2,
-        ),
       ),
       child: Form(
         key: _formKey,
@@ -387,7 +375,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             const Text(
               'Start Your Journey',
               style: TextStyle(
-                color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -396,7 +383,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             const Text(
               'Choose when to start and set your daily reminder',
               style: TextStyle(
-                color: Color.fromRGBO(180, 180, 180, 1),
                 fontSize: 14,
               ),
             ),
@@ -431,12 +417,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(65, 65, 65, 1),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color.fromRGBO(120, 200, 150, 0.4),
-          width: 2,
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -459,11 +441,11 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'Already Enrolled',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -472,7 +454,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                     Text(
                       'You are currently subscribed to this reading plan.',
                       style: TextStyle(
-                        color: Color.fromRGBO(180, 180, 180, 1),
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 14,
                       ),
                     ),
@@ -512,32 +494,31 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color.fromRGBO(80, 80, 80, 1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today,
-              color: Color.fromRGBO(150, 130, 255, 1),
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Start Date',
                     style: TextStyle(
-                      color: Color.fromRGBO(180, 180, 180, 1),
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 12,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('EEEE, MMM d, yyyy').format(_selectedStartDate),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -547,7 +528,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             ),
             const Icon(
               Icons.arrow_forward_ios,
-              color: Color.fromRGBO(150, 130, 255, 1),
               size: 16,
             ),
           ],
@@ -563,10 +543,10 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Daily Reminder',
               style: TextStyle(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -578,7 +558,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                   _notificationEnabled = value;
                 });
               },
-              activeColor: const Color.fromRGBO(150, 130, 255, 1),
             ),
           ],
         ),
@@ -589,14 +568,13 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color.fromRGBO(80, 80, 80, 1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.alarm,
-                    color: Color.fromRGBO(150, 130, 255, 1),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -606,7 +584,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                         const Text(
                           'Reminder Time',
                           style: TextStyle(
-                            color: Color.fromRGBO(180, 180, 180, 1),
                             fontSize: 12,
                           ),
                         ),
@@ -614,7 +591,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                         Text(
                           _selectedNotificationTime.format(context),
                           style: const TextStyle(
-                            color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
@@ -624,7 +600,6 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                   ),
                   const Icon(
                     Icons.arrow_forward_ios,
-                    color: Color.fromRGBO(150, 130, 255, 1),
                     size: 16,
                   ),
                 ],
@@ -643,7 +618,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       child: ElevatedButton(
         onPressed: _isSubscribing ? null : _handleSubscribe,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           disabledBackgroundColor: const Color.fromRGBO(100, 100, 100, 1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -659,12 +634,12 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                   strokeWidth: 2,
                 ),
               )
-            : const Text(
+            : Text(
                 'Start Reading Plan',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                 ),
               ),
       ),
@@ -678,17 +653,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color.fromRGBO(150, 130, 255, 1),
-              onPrimary: Colors.white,
-              surface: Color.fromRGBO(65, 65, 65, 1),
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
+        final theme = Theme.of(context);
+        return Theme(data: theme, child: child!);
       },
     );
 
@@ -704,17 +670,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       context: context,
       initialTime: _selectedNotificationTime,
       builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color.fromRGBO(150, 130, 255, 1),
-              onPrimary: Colors.white,
-              surface: Color.fromRGBO(65, 65, 65, 1),
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
+        final theme = Theme.of(context);
+        return Theme(data: theme, child: child!);
       },
     );
 
@@ -748,9 +705,11 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Successfully subscribed to reading plan!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              'Successfully subscribed to reading plan!',
+              ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
         Navigator.pop(context, true); // Return true to indicate success
@@ -763,7 +722,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {

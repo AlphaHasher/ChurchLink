@@ -604,38 +604,31 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white, width: 1.2),
+                border: Border.all(color: Theme.of(context).dividerColor, width: 1.2),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
                   DropdownButton<String>(
-                    dropdownColor: Colors.black,
                     value: _searchType,
-                    style: const TextStyle(color: Colors.white),
-                    iconEnabledColor: Colors.white,
                     items: const [
                       DropdownMenuItem(
                         value: 'Book',
                         child: Text(
                           'Book',
-                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                       DropdownMenuItem(
                         value: 'Verse',
                         child: Text(
                           'Verse',
-                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                       DropdownMenuItem(
                         value: 'Note',
                         child: Text(
                           'Note',
-                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                     ],
@@ -649,13 +642,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                   Expanded(
                     child: TextField(
                       autofocus: true,
-                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText:
                             _searchType == 'Verse'
                                 ? 'Search verse text, chapter, or number...'
                                 : 'Search...',
-                        hintStyle: const TextStyle(color: Colors.white70),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -666,7 +657,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                         isDense: true,
                         filled: false,
                       ),
-                      cursorColor: Colors.white,
                       onChanged: (val) {
                         if (mounted) {
                           setState(() {
@@ -958,11 +948,19 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                     child: Material(
                       elevation: 4,
                       borderRadius: BorderRadius.circular(12),
-                      color: Theme.of(context).colorScheme.tertiaryContainer,
+                      color: Theme.of(context).colorScheme.primary,
                       child: ListTile(
                         dense: true,
-                        leading: const Icon(Icons.wifi_off),
-                        title: const Text('You’re offline'),
+                        leading: Icon(
+                          Icons.wifi_off,
+                          color: Theme.of(context).colorScheme.onPrimary
+                        ),
+                        title: Text(
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary
+                          ),
+                          'You\'re offline'
+                        ),
                         subtitle: FutureBuilder<DateTime?>(
                           future: LastSyncStore.readLocal(),
                           builder: (context, snap) {
@@ -974,6 +972,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                       last,
                                     ); // e.g., Sep 22, 3:41 PM
                             return Text(
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onPrimary
+                              ),
                               'Last sync: $pretty\nChanges are saved and will sync later.',
                             );
                           },
