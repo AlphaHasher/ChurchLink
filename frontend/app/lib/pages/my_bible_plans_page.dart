@@ -86,7 +86,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error loading plans: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -200,7 +200,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
             const SizedBox(height: 16),
             Text(
               'Error loading your plans',
@@ -246,8 +246,8 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
               icon: const Icon(Icons.add),
               label: const Text('Browse Reading Plans'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -274,7 +274,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
               ),
             ],
           ),
-          backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           action: SnackBarAction(
             label: 'Sign In',
             textColor: Colors.white,
@@ -334,9 +334,9 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
         await _service.unsubscribeFromPlan(planId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text('Unsubscribed from plan'),
-              backgroundColor: Colors.green,
+              backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           );
           await _refreshPlans();
@@ -346,7 +346,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error: ${e.toString()}'),
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -450,9 +450,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.auto_stories,
-                          color: Color.fromRGBO(150, 130, 255, 1),
+                          color: Theme.of(context).colorScheme.primary,
                           size: 24,
                         ),
                       ),
@@ -501,8 +501,8 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                           ),
                           Text(
                             '${progressPercent.toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                              color: Color.fromRGBO(150, 130, 255, 1),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -526,8 +526,8 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                             child: LinearProgressIndicator(
                               value: value / 100,
                               backgroundColor: const Color.fromRGBO(80, 80, 80, 1),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color.fromRGBO(150, 130, 255, 1),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).colorScheme.primary,
                               ),
                               minHeight: 8,
                             ),
@@ -565,7 +565,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                                     child: ElevatedButton.icon(
                                       onPressed: _isRestarting ? null : _promptRestartPlan,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+                                        backgroundColor: Theme.of(context).colorScheme.primary,
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(vertical: 14),
                                         shape: RoundedRectangleBorder(
@@ -628,12 +628,12 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                     children: [
                       Icon(
                         _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: const Color.fromRGBO(150, 130, 255, 1),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       Text(
                         _isExpanded ? 'Hide Details' : 'View Details',
-                        style: const TextStyle(
-                          color: Color.fromRGBO(150, 130, 255, 1),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -829,7 +829,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating progress: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -863,7 +863,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
-              foregroundColor: const Color.fromRGBO(150, 130, 255, 1),
+              foregroundColor: Theme.of(context).colorScheme.primary,
             ),
             child: const Text('Restart'),
           ),
@@ -928,7 +928,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error restarting plan: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -991,7 +991,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error completing plan: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -1071,7 +1071,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Error: ${e.toString()}'),
-                  backgroundColor: Colors.red,
+                  backgroundColor: Theme.of(context).colorScheme.error,
                 ),
               );
             }
@@ -1205,20 +1205,10 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
       context: context,
       initialTime: _time,
       builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color.fromRGBO(150, 130, 255, 1),
-              onPrimary: Colors.white,
-              surface: Color.fromRGBO(65, 65, 65, 1),
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
+        final theme = Theme.of(context);
+        return Theme(data: theme, child: child!);
       },
     );
-
     if (picked != null) {
       setState(() {
         _time = picked;
@@ -1368,8 +1358,8 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
             ),
         ],
       ),
-      iconColor: const Color.fromRGBO(150, 130, 255, 1),
-      collapsedIconColor: const Color.fromRGBO(150, 130, 255, 1),
+      iconColor: Theme.of(context).colorScheme.primary,
+      collapsedIconColor: Theme.of(context).colorScheme.primary,
       children: _buildChildren(isLocked, completedPassages, isRestDay),
     );
   }
@@ -1452,7 +1442,7 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
         ),
       ),
       controlAffinity: ListTileControlAffinity.leading,
-      activeColor: const Color.fromRGBO(150, 130, 255, 1),
+      activeColor: Theme.of(context).colorScheme.primary,
       checkColor: Colors.white,
     );
   }
@@ -1502,7 +1492,7 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating progress: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }

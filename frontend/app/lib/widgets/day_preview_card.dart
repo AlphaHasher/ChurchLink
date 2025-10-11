@@ -16,40 +16,38 @@ class DayPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: const Color.fromRGBO(65, 65, 65, 1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         title: Text(
           'Day $day',
           style: const TextStyle(
-            color: Colors.white,
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
         ),
         subtitle: Text(
           '${readings.length} passage${readings.length != 1 ? 's' : ''}',
-          style: const TextStyle(
-            color: Color.fromRGBO(180, 180, 180, 1),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 14,
           ),
         ),
         // Match the previous icon color used across the app
-        iconColor: const Color.fromRGBO(150, 130, 255, 1),
-        collapsedIconColor: const Color.fromRGBO(150, 130, 255, 1),
+        iconColor: Theme.of(context).colorScheme.primary,
+        collapsedIconColor: Theme.of(context).colorScheme.primary,
         children: readings.map((passage) {
           return ListTile(
             dense: true,
             leading: Icon(
               Icons.bookmark_border,
-              color: const Color.fromRGBO(150, 130, 255, 1),
+              color: Theme.of(context).colorScheme.primary,
               size: 20,
             ),
             title: Text(
               passage.reference,
-              style: const TextStyle(
-                color: Color.fromRGBO(220, 220, 220, 1),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 14,
               ),
             ),

@@ -101,7 +101,7 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage!,
@@ -231,12 +231,12 @@ class _BiblePlanCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color.fromRGBO(100, 80, 200, 0.2),
+                            color: Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             Icons.auto_stories,
-                            color: Color.fromRGBO(150, 130, 255, 1),
+                            color: Theme.of(context).colorScheme.onPrimary,
                             size: 28,
                           ),
                         ),
@@ -262,16 +262,13 @@ class _BiblePlanCard extends StatelessWidget {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.tertiaryContainer,
+                                    color: Theme.of(context).colorScheme.primary,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Theme.of(context).colorScheme.outlineVariant,
-                                    ),
                                   ),
                                   child: Text(
                                     'Currently Enrolled',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                                      color: Theme.of(context).colorScheme.onPrimary,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -321,13 +318,13 @@ class _BiblePlanCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       gradient: isEnrolled
-                          ? const LinearGradient(
+                          ? LinearGradient(
                               colors: [
                                 Color.fromRGBO(90, 90, 90, 1),
                                 Color.fromRGBO(120, 120, 120, 1),
                               ],
                             )
-                          : const LinearGradient(
+                          : LinearGradient(
                               colors: [
                                 Color.fromRGBO(100, 80, 200, 1),
                                 Color.fromRGBO(150, 130, 255, 1),
@@ -341,15 +338,15 @@ class _BiblePlanCard extends StatelessWidget {
                         Text(
                           isEnrolled ? 'Review Plan' : 'View Plan',
                           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Icon(
+                        Icon(
                           Icons.arrow_forward_ios,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           size: 14,
                         ),
                       ],
