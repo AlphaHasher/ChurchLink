@@ -11,6 +11,7 @@ class _WeeklyBulletinState extends State<WeeklyBulletin> {
   @override
   Widget build(BuildContext context) {
           return Scaffold(
+            key: const ValueKey('screen-bulletin'),
             appBar: AppBar(
               title: Padding(
                  padding: const EdgeInsets.only(left: 60),

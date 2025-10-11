@@ -59,6 +59,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('screen-home'),
       body: SafeArea(
         child: SingleChildScrollView(
           child: FutureBuilder<Map<String, String>>(

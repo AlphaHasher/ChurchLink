@@ -943,6 +943,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     return Scaffold(
+      key: const ValueKey('screen-showcase'),
       appBar: AppBar(
         //backgroundColor: cs.surface,
         //foregroundColor: cs.onSurface,

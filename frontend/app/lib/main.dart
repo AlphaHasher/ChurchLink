@@ -27,6 +27,7 @@ import 'package:app/theme/theme_controller.dart';
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+const bool kTestMode = bool.fromEnvironment('TEST_MODE', defaultValue: false);
 
 Map<String, dynamic>? initialNotificationData;
 
@@ -34,10 +35,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
+  if (!kTestMode) {
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
     // Environment file not found or invalid
+    }
   }
 
   // Initialize Firebase
@@ -50,20 +53,23 @@ Future<void> main() async {
   DeepLinkingService.initialize(navigatorKey);
 
   // Setup messaging and notifications BEFORE checking for initial message
-  setupFirebaseMessaging();
-  await setupLocalNotifications();
 
-  // Startup connectivity service
-  ConnectivityService().start();
+  if (!kTestMode) {
+    setupFirebaseMessaging();
+    await setupLocalNotifications();
 
-  RemoteMessage? initialMessage =
-      await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMessage != null) {
-    initialNotificationData = initialMessage.data;
-    // Store the initial message for handling after the app is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      DeepLinkingService.handleNotificationData(initialMessage.data);
-    });
+    // Startup connectivity service
+    ConnectivityService().start();
+
+    RemoteMessage? initialMessage =
+        await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) {
+      initialNotificationData = initialMessage.data;
+      // Store the initial message for handling after the app is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeepLinkingService.handleNotificationData(initialMessage.data);
+      });
+    }
   }
 
   runApp(
@@ -73,11 +79,22 @@ Future<void> main() async {
           create: (context) {
             final provider = TabProvider();
             TabProvider.instance = provider;
-            // Load tab configuration asynchronously
-            provider.loadTabConfiguration();
+            if (kTestMode) {
+              // Provide a fixed, fast-loading tab set for tests
+              provider.setTabsForTest(const [
+                {'name': 'home', 'displayName': 'Home', 'icon': 'home'},
+                {'name': 'bible', 'displayName': 'Bible', 'icon': 'menu_book'},
+                {'name': 'sermons', 'displayName': 'Sermons', 'icon': 'sermons'},
+                {'name': 'events', 'displayName': 'Events', 'icon': 'event'},
+                {'name': 'profile', 'displayName': 'Profile', 'icon': 'person'},
+              ]);
+              } else {
+                provider.loadTabConfiguration();
+              }
             return provider;
           },
         ),
+        
       ],
       child: const MyApp(),
     ),
@@ -101,7 +118,7 @@ class MyApp extends StatelessWidget {
           darkTheme: AppTheme.dark,
           themeMode: c.mode,
 
-          home: AuthGate(child: const MyHomePage()),
+          home: kTestMode ? const MyHomePage() : AuthGate(child: const MyHomePage()),
           routes: {
             '/home': (context) => const DashboardPage(),
             '/bible': (context) => const BiblePage(),
@@ -256,21 +273,28 @@ class _MyHomePageState extends State<MyHomePage> {
   List<BottomNavigationBarItem> _buildNavItems(
     List<Map<String, dynamic>> tabs,
   ) {
-    return tabs.map((tab) {
-      final name = tab['name'] as String;
-      final displayName =
-          tab['displayName'] as String? ??
-          name; // fallback to name if displayName is null
-      final iconName =
-          tab['icon'] as String? ?? name; // fallback to name if icon is null
+    return tabs.asMap().entries.map((entry) {
+      final idx = entry.key;
+      final tab = entry.value;
+      final name = (tab['name'] as String).toLowerCase();
+      final displayName = (tab['displayName'] as String?) ?? name;
+      final iconName = (tab['icon'] as String?) ?? name;
 
       return BottomNavigationBarItem(
         label: displayName,
-        icon: _getTabIcon(name, iconName, false),
-        activeIcon: _getTabIcon(name, iconName, true),
+        icon: Semantics(
+          label: 'tab-$name',
+          child: _getTabIcon(name, iconName, false),
+        ),
+        activeIcon: Semantics(
+          label: 'tab-$name-active',
+          child: _getTabIcon(name, iconName, true),
+        ),
+        // Add a value key to help locate by index too
+        tooltip: 'tab-$name', // optional
       );
     }).toList();
-  }
+ }
 
   Widget _getTabIcon(String tabName, String iconName, bool isActive) {
     // First try to use the specific iconName from the database

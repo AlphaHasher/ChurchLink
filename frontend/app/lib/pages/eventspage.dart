@@ -472,6 +472,7 @@ END:VCALENDAR
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('screen-events'),
       appBar: AppBar(
         centerTitle: true,
         title: const Text('Events'),

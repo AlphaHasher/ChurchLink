@@ -11,6 +11,7 @@ class _MinistriesState extends State<Ministries> {
   @override
   Widget build(BuildContext context) {
           return Scaffold(
+            key: const ValueKey('screen-ministries'),
             appBar: AppBar(
               title: Padding(
                  padding: const EdgeInsets.only(left: 100),

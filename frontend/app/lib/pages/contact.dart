@@ -11,6 +11,7 @@ class _ContactState extends State<Contact> {
   @override
   Widget build(BuildContext context) {
           return Scaffold(
+            key: const ValueKey('screen-contact'),
             appBar: AppBar(
               title: Padding(
                  padding: const EdgeInsets.only(left: 80),

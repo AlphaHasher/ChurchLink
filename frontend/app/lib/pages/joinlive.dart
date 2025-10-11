@@ -46,6 +46,7 @@ class _JoinLiveState extends State<JoinLive> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('screen-joinlive'),
       appBar: AppBar(
         title: const Text('YouTube Live'),
         centerTitle: true,
