@@ -75,6 +75,7 @@ BYPASS_FIREBASE_SYNC = False
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 ADDITIONAL_ORIGINS = os.getenv("ADDITIONAL_ORIGINS", "")
+PUBLIC_DOMAIN = os.getenv("PUBLIC_DOMAIN")
 
 def _normalize_origin(orig: str) -> str | None:
     if not orig:
@@ -85,6 +86,11 @@ def _normalize_origin(orig: str) -> str | None:
 ALLOWED_ORIGINS = []
 if FRONTEND_URL:
     norm = _normalize_origin(FRONTEND_URL)
+    if norm:
+        ALLOWED_ORIGINS.append(norm)
+
+if PUBLIC_DOMAIN:
+    norm = _normalize_origin(PUBLIC_DOMAIN)
     if norm:
         ALLOWED_ORIGINS.append(norm)
 
