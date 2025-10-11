@@ -69,19 +69,16 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromRGBO(37, 37, 37, 1),
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
         title: const Text(
           'Bible Reading Plans',
-          style: TextStyle(color: Colors.white),
         ),
       ),
-      backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
       body: Stack(
         children: [
           RefreshIndicator(
             onRefresh: _refreshPlans,
-            child: _buildContent(),
+            child: _buildContent(context),
           ),
           if (_isLoading)
             const Positioned.fill(
@@ -94,7 +91,7 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     if (_errorMessage != null && _publishedPlans.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -108,7 +105,10 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage!,
-                  style: TextStyle(color: Colors.grey[300], fontSize: 16),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onBackground,
+                    fontSize: 16,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -132,12 +132,12 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.book_outlined, size: 64, color: Colors.grey[600]),
+                Icon(Icons.book_outlined, size: 64, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
                 const SizedBox(height: 16),
                 Text(
                   'No Bible Plans Available',
                   style: TextStyle(
-                    color: Colors.grey[300],
+                    color: Theme.of(context).colorScheme.onBackground,
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
@@ -145,7 +145,7 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
                 const SizedBox(height: 8),
                 Text(
                   'Check back later for new reading plans',
-                  style: TextStyle(color: Colors.grey[500]),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                 ),
               ],
             ),
@@ -213,7 +213,6 @@ class _BiblePlanCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      color: const Color.fromRGBO(65, 65, 65, 1),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -235,7 +234,7 @@ class _BiblePlanCard extends StatelessWidget {
                             color: const Color.fromRGBO(100, 80, 200, 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.auto_stories,
                             color: Color.fromRGBO(150, 130, 255, 1),
                             size: 28,
@@ -248,9 +247,8 @@ class _BiblePlanCard extends StatelessWidget {
                             children: [
                               Text(
                                 plan.name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 maxLines: 2,
@@ -264,16 +262,16 @@ class _BiblePlanCard extends StatelessWidget {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color.fromRGBO(120, 200, 150, 0.2),
+                                    color: Theme.of(context).colorScheme.tertiaryContainer,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: const Color.fromRGBO(120, 200, 150, 0.6),
+                                      color: Theme.of(context).colorScheme.outlineVariant,
                                     ),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Currently Enrolled',
                                     style: TextStyle(
-                                      color: Color.fromRGBO(180, 255, 200, 1),
+                                      color: Theme.of(context).colorScheme.onTertiaryContainer,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -292,17 +290,17 @@ class _BiblePlanCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color.fromRGBO(80, 150, 100, 0.3),
+                      color: const Color(0xFF445A64),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: const Color.fromRGBO(120, 200, 150, 0.5),
+                        color: const Color(0xFF263238),
                         width: 1,
                       ),
                     ),
                     child: Text(
                       '${plan.duration} Days',
-                      style: const TextStyle(
-                        color: Color.fromRGBO(150, 255, 180, 1),
+                      style: TextStyle(
+                        color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -342,7 +340,7 @@ class _BiblePlanCard extends StatelessWidget {
                       children: [
                         Text(
                           isEnrolled ? 'Review Plan' : 'View Plan',
-                          style: const TextStyle(
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,

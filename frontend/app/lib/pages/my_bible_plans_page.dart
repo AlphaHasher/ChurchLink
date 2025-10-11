@@ -100,14 +100,12 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
     if (_isLoading && !hasPlansLoaded && isLoggedIn) {
       return Scaffold(
         appBar: _buildAppBar(),
-        backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       appBar: _buildAppBar(),
-      backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
       body: Stack(
         children: [
           RefreshIndicator(
@@ -127,11 +125,9 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color.fromRGBO(37, 37, 37, 1),
-      iconTheme: const IconThemeData(color: Colors.white),
+      centerTitle: true,
       title: const Text(
         'My Reading Plans',
-        style: TextStyle(color: Colors.white),
       ),
       actions: _isUserLoggedIn() ? [
         IconButton(
@@ -208,7 +204,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             const SizedBox(height: 16),
             Text(
               'Error loading your plans',
-              style: TextStyle(color: Colors.grey[300], fontSize: 16),
+              style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -234,7 +230,6 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             const Text(
               'No Active Reading Plans',
               style: TextStyle(
-                color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -242,10 +237,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             const SizedBox(height: 12),
             Text(
               'Start your Bible reading journey by\nadding a reading plan',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -313,17 +305,15 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
   }
 
   Future<void> _handleDeletePlan(String planId) async {
+    final cs = Theme.of(context).colorScheme;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
         title: const Text(
           'Unsubscribe from Plan?',
-          style: TextStyle(color: Colors.white),
         ),
         content: const Text(
           'Your progress will be lost. This action cannot be undone.',
-          style: TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
         ),
         actions: [
           TextButton(
@@ -332,7 +322,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: cs.error),
             child: const Text('Unsubscribe'),
           ),
         ],
@@ -438,7 +428,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: const Color.fromRGBO(65, 65, 65, 1),
       child: Column(
         children: [
           // Header
@@ -459,7 +448,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color.fromRGBO(100, 80, 200, 0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -476,7 +464,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                             Text(
                               plan.name,
                               style: const TextStyle(
-                                color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -485,7 +472,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                             Text(
                               'Day $displayDay of ${plan.duration}',
                               style: const TextStyle(
-                                color: Color.fromRGBO(180, 180, 180, 1),
                                 fontSize: 14,
                               ),
                             ),
@@ -494,7 +480,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.more_vert),
-                        color: Colors.white,
                         onPressed: () => _showOptionsMenu(context),
                       ),
                     ],
@@ -511,7 +496,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                           const Text(
                             'Overall Progress',
                             style: TextStyle(
-                              color: Color.fromRGBO(180, 180, 180, 1),
                               fontSize: 13,
                             ),
                           ),
@@ -862,7 +846,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
+        backgroundColor: Theme.of(context).colorScheme.surface,
         title: const Text(
           'Restart Plan?',
           style: TextStyle(color: Colors.white),
@@ -957,11 +941,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
         title: const Text(
           'Complete Plan?',
-          style: TextStyle(color: Colors.white),
         ),
         content: const Text(
           'Marking the plan as complete will unsubscribe you from the plan. Your progress will be kept in case you re-subscribe later. Continue?',
-          style: TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
         ),
         actions: [
           TextButton(
@@ -1022,9 +1004,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   }
 
   void _showOptionsMenu(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1034,10 +1016,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.notifications, color: Colors.white),
+                leading: const Icon(Icons.notifications),
                 title: const Text(
                   'Notification Settings',
-                  style: TextStyle(color: Colors.white),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -1045,10 +1026,10 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text(
+                leading: Icon(Icons.delete, color: cs.error),
+                title: Text(
                   'Unsubscribe from Plan',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: cs.error),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -1171,10 +1152,8 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
       title: const Text(
         'Notification Settings',
-        style: TextStyle(color: Colors.white),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1184,22 +1163,19 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
             onChanged: (value) => setState(() => _enabled = value),
             title: const Text(
               'Daily Reminder',
-              style: TextStyle(color: Colors.white),
             ),
-            activeColor: const Color.fromRGBO(150, 130, 255, 1),
           ),
           if (_enabled) ...[
             const SizedBox(height: 16),
             ListTile(
               title: const Text(
                 'Reminder Time',
-                style: TextStyle(color: Colors.white),
               ),
               subtitle: Text(
                 _time.format(context),
                 style: const TextStyle(color: Color.fromRGBO(180, 180, 180, 1)),
               ),
-              trailing: const Icon(Icons.access_time, color: Color.fromRGBO(150, 130, 255, 1)),
+              trailing: const Icon(Icons.access_time),
               onTap: _selectTime,
             ),
           ],
@@ -1303,6 +1279,7 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
     final completedPassages = _localProgress?.completedPassages ?? [];
     final isLocked = !widget.isUnlocked;
     final isRestDay = widget.isRestDay;
+    final cs = Theme.of(context).colorScheme;
 
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -1330,12 +1307,12 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
               'Day ${widget.day}, ${widget.dateLabel}',
               style: TextStyle(
                 color: isRestDay
-                    ? Colors.white
+                    ? Theme.of(context).colorScheme.onSurface
                     : (isLocked
-                        ? const Color.fromRGBO(150, 150, 150, 1)
+                        ?  const Color(0xFF9E9E9E)
                         : (isCompleted
-                            ? Colors.white
-                            : const Color.fromRGBO(200, 200, 200, 1))),
+                            ? cs.onSurfaceVariant
+                            : cs.onSurface)),
                 fontWeight: isCompleted && !isLocked && !isRestDay
                     ? FontWeight.w600
                     : FontWeight.w500,
@@ -1346,14 +1323,9 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
           Text(
             '${completedPassages.length}/${widget.readings.length}',
             style: TextStyle(
-              color: isRestDay
-                  ? const Color.fromRGBO(255, 213, 79, 1)
-                  : (isCompleted
-                      ? const Color.fromRGBO(120, 200, 150, 1)
-                      : (isLocked
-                          ? const Color.fromRGBO(110, 110, 110, 1)
-                          : const Color.fromRGBO(150, 150, 150, 1))),
-              fontSize: 13,
+            color: isLocked
+                ? const Color(0xFF9E9E9E)
+                : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           if (isLocked)
@@ -1368,7 +1340,7 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
                 child: const Text(
                   'Locked',
                   style: TextStyle(
-                    color: Color.fromRGBO(200, 200, 200, 1),
+                    color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1381,17 +1353,13 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color.fromRGBO(255, 215, 64, 0.15),
+                  color: const Color(0xFFFFA000),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color.fromRGBO(255, 213, 79, 1),
-                    width: 1,
-                  ),
                 ),
-                child: const Text(
+                child: Text(
                   'Rest Day',
                   style: TextStyle(
-                    color: Color.fromRGBO(255, 213, 79, 1),
+                    color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1415,8 +1383,8 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           child: Text(
             'Enjoy a moment of rest. This day has no assigned readings.',
-            style: const TextStyle(
-              color: Color.fromRGBO(200, 200, 200, 1),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 14,
             ),
           ),
@@ -1433,9 +1401,11 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
             alignment: Alignment.centerLeft,
             child: Text(
               'Complete previous days to unlock Day ${widget.day}.',
-              style: const TextStyle(
-                color: Color.fromRGBO(190, 190, 190, 1),
+              style: TextStyle(
                 fontSize: 13,
+                color: isLocked
+                  ? const Color(0xFF9E9E9E)
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -1475,10 +1445,8 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
         passage.reference,
         style: TextStyle(
           color: isLocked
-              ? const Color.fromRGBO(140, 140, 140, 1)
-              : (isCompleted
-                  ? const Color.fromRGBO(180, 180, 180, 1)
-                  : const Color.fromRGBO(220, 220, 220, 1)),
+            ? const Color(0xFF9E9E9E)
+            : Theme.of(context).colorScheme.onSurfaceVariant,
           decoration: isCompleted && !isLocked ? TextDecoration.lineThrough : null,
           fontSize: 14,
         ),

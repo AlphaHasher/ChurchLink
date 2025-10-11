@@ -67,6 +67,7 @@ dependencies:
   share_plus: ^10.0.2
   open_filex: ^4.5.0
   android_intent_plus: ^5.2.0
+  cached_network_image: ^3.4.1
   
 dev_dependencies:
   flutter_test:

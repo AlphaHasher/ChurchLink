@@ -13,15 +13,10 @@ class _ContactState extends State<Contact> {
           return Scaffold(
             key: const ValueKey('screen-contact'),
             appBar: AppBar(
-            backgroundColor: const Color.fromARGB(159, 144, 79, 230),
-             iconTheme: const IconThemeData(
-                    color: Colors.white), // back arrow color
               title: Padding(
                  padding: const EdgeInsets.only(left: 80),
                  child: Text(
                    "Contact Us",
-                  style:
-                  const TextStyle(color: Colors.white), // title color
                 ),
               ),
               leading: IconButton(
@@ -31,7 +26,6 @@ class _ContactState extends State<Contact> {
                  },
               ),
             ),
-            backgroundColor: const Color.fromARGB(246, 244, 236, 255), //old: const Color.fromARGB(156, 102, 133, 161),
              body: SafeArea(
               minimum: const EdgeInsets.symmetric(horizontal: 10),
               child: SingleChildScrollView(

@@ -22,6 +22,8 @@ import 'family_members_page.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/theme/theme_controller.dart';
+
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -192,6 +194,56 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
+  // Show the theme selection bottom sheet
+  void _showThemeSheet() {
+    final current = ThemeController.instance.mode;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.wb_sunny_outlined),
+                title: const Text('Light'),
+                trailing: current == ThemeMode.light ? const Icon(Icons.check) : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.light);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.brightness_auto),
+                title: const Text('System'),
+                trailing: current == ThemeMode.system ? const Icon(Icons.check) : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.system);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.nights_stay_outlined),
+                title: const Text('Dark'),
+                trailing: current == ThemeMode.dark ? const Icon(Icons.check) : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.dark);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
@@ -216,6 +268,13 @@ class _UserSettingsState extends State<UserSettings> {
           if (email != null && email.trim().isNotEmpty) return email.trim();
           return user?.email ?? "(Please set your display email)";
         })();
+
+    final mode = ThemeController.instance.mode;
+    final themeLabel = switch (mode) {
+      ThemeMode.light  => 'Light',
+      ThemeMode.dark   => 'Dark',
+      ThemeMode.system => 'System',
+    };
 
     final List<Map<String, dynamic>> settingsCategories = [
       {
@@ -318,7 +377,8 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.dark_mode,
             'title': 'Theme',
-            'subtitle': 'Light or dark mode',
+            'subtitle': themeLabel,
+            'ontap': _showThemeSheet,
           },
           {
             'icon': Icons.language,
@@ -404,7 +464,7 @@ class _UserSettingsState extends State<UserSettings> {
                   if (_isUploading)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withOpacity(0.3),
                         child: const Center(
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
@@ -465,7 +525,8 @@ class _UserSettingsState extends State<UserSettings> {
               leading: Icon(item['icon'] as IconData, color: ssbcGray),
               title: Text(item['title'] as String),
               subtitle: Text(item['subtitle'] as String),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              trailing: item['trailing'] as Widget? 
+                  ?? const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: item['ontap'] as void Function()?,
             ),
           ),

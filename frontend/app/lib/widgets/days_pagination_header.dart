@@ -27,7 +27,7 @@ class DaysPaginationHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ?? Colors.white;
+    final effectiveColor = color ?? Theme.of(context).colorScheme.onSurface;
 
     return Semantics(
       container: true,

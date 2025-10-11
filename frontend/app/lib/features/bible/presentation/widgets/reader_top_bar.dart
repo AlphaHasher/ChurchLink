@@ -43,8 +43,7 @@ class ReaderTopBar extends StatelessWidget {
             tooltip: 'Previous chapter',
             onPressed: isAtFirstChapter ? null : onPrevChapter,
             icon: Icon(
-              Icons.chevron_left,
-              color: Colors.white,
+              Icons.chevron_left
             ),
           ),
 
@@ -65,6 +64,9 @@ class ReaderTopBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
+                  style: TextStyle(
+                    color: cs.onSurface,
+                  )
                 ),
               ),
             ),
@@ -85,14 +87,13 @@ class ReaderTopBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Theme.of(context).dividerColor, width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(translation.toUpperCase()),
                   const SizedBox(width: 4),
-                  const Icon(Icons.arrow_drop_down, size: 18, color: Colors.white),
+                  const Icon(Icons.arrow_drop_down, size: 18),
                 ],
               ),
             ),
@@ -103,19 +104,18 @@ class ReaderTopBar extends StatelessWidget {
           IconButton(
             tooltip: 'Search',
             onPressed: onSearchPressed,
-            icon: Icon(Icons.search, color: Colors.white),
+            icon: Icon(Icons.search),
           ),
           IconButton(
             tooltip: 'Read aloud',
             onPressed: null,
-            icon: Icon(Icons.volume_up_outlined, color: Colors.white),
+            icon: Icon(Icons.volume_up_outlined),
           ),
           IconButton(
             tooltip: 'Next chapter',
             onPressed: isAtLastChapter ? null : onNextChapter,
             icon: Icon(
-              Icons.chevron_right,
-              color: Colors.white,
+              Icons.chevron_right
             ),
           ),
         ],
