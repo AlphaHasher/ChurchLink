@@ -334,6 +334,19 @@ class DB:
         except Exception as e:
             print(f"Error setting {key}: {e}")
             return False
+    
+    @staticmethod
+    async def delete_setting(key: str):
+        """Delete a setting from the database."""
+        if DB.db is None:
+            print("Database not initialized.")
+            return False
+        try:
+            result = await DB.db["settings"].delete_one({"key": key})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting {key}: {e}")
+            return False
         
     @staticmethod
     async def get_paypal_settings():

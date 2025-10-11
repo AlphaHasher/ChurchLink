@@ -21,8 +21,9 @@ from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
 
-from routes.bible_routes.bible_note_routes import bible_note_router
-from routes.bible_routes.bible_plan_routes import mod_bible_plan_router
+# Temporarily commented out due to Pydantic version issues
+# from routes.bible_routes.bible_note_routes import bible_note_router
+# from routes.bible_routes.bible_plan_routes import mod_bible_plan_router
 
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
@@ -44,6 +45,7 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
 
 from routes.forms_routes import mod_forms_router
+from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
@@ -221,6 +223,7 @@ public_router.include_router(strapi_router)
 public_router.include_router(public_notification_router)
 public_router.include_router(app_config_public_router)
 public_router.include_router(paypal_public_router)
+public_router.include_router(form_payment_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
@@ -231,7 +234,8 @@ public_router.include_router(translator_router)
 #####################################################
 private_router = AuthProtectedRouter(prefix="/api/v1")
 
-private_router.include_router(bible_note_router)
+# Temporarily commented out due to Pydantic version issues
+# private_router.include_router(bible_note_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)
@@ -243,7 +247,8 @@ private_router.include_router(user_private_router)
 #####################################################
 mod_router = ModProtectedRouter(prefix="/api/v1")
 
-mod_router.include_router(mod_bible_plan_router)
+# Temporarily commented out due to Pydantic version issues
+# mod_router.include_router(mod_bible_plan_router)
 mod_router.include_router(mod_forms_router)
 mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)
@@ -277,6 +282,16 @@ layout_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=
 layout_management_protected_router.include_router(mod_header_router)
 layout_management_protected_router.include_router(mod_footer_router)
 
+# FINANCE MANAGEMENT CORE
+from routes.finance_routes.finance_routes import finance_router
+finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Finance Management"], required_perms=["finance"])
+finance_management_protected_router.include_router(finance_router)
+
+# EVENT PAYMENT ROUTES
+from routes.event_payment_routes.event_payment_routes import event_payment_router
+app.include_router(event_payment_router, prefix="/api/v1")
+app.include_router(form_payment_router, prefix="/api/v1")
+
 
 # Include routers in main app
 app.include_router(public_router)
@@ -286,6 +301,7 @@ app.include_router(event_editing_protected_router)
 app.include_router(sermon_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
+app.include_router(finance_management_protected_router)
 
 
 if __name__ == "__main__":

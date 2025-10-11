@@ -9,7 +9,8 @@ class RoleHandler:
         "event_editing":False,
         "event_management":False,
         "media_management":False,
-    "sermon_editing": False,
+        "sermon_editing": False,
+        "finance": False,
 
     }
 

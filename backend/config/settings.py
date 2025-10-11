@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Strapi API settings
     STRAPI_API_URL: str = os.getenv("STRAPI_API_URL", "http://localhost:1337")
     STRAPI_API_TOKEN: str = os.getenv("API_TOKEN_SALT", "")
+    
+    # Web application base URL for payment redirects
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://app.churchlink.org")
 
 
     model_config = ConfigDict(

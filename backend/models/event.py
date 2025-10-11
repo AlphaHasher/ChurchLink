@@ -35,6 +35,25 @@ class Event(BaseModel):
     seats_taken: int = 0
     attendee_keys: List[str] = []
     attendees: List[Dict] = []
+    # Payment processing fields
+    payment_options: List[str] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
+    refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
+    
+    def requires_payment(self) -> bool:
+        """Check if this event requires payment"""
+        return self.price > 0 and len(self.payment_options) > 0
+    
+    def is_free_event(self) -> bool:
+        """Check if this event is free"""
+        return self.price == 0
+    
+    def has_paypal_option(self) -> bool:
+        """Check if PayPal payment is available"""
+        return 'paypal' in self.payment_options
+    
+    def has_door_payment_option(self) -> bool:
+        """Check if pay-at-door option is available"""
+        return 'door' in self.payment_options
 
 
 class EventCreate(BaseModel):
@@ -58,6 +77,9 @@ class EventCreate(BaseModel):
     seats_taken: Optional[int] = 0
     attendee_keys: Optional[List[str]] = []
     attendees: Optional[List[Dict]] = []
+    # Payment processing fields
+    payment_options: Optional[List[str]] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
+    refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
 
 
 class EventOut(Event):
@@ -69,10 +91,27 @@ class EventOut(Event):
 async def create_event(event: EventCreate) -> Optional[EventOut]:
     """
     Creates a new event using DB.insert_document.
+    If event has price > 0, payment_options must contain at least one option.
     """
     try:
+        # Convert to dict for processing
+        event_data = event.model_dump()
+        
+        # Validate payment options for paid events
+        price = event_data.get("price", 0)
+        payment_options = event_data.get("payment_options", [])
+        
+        if price > 0 and not payment_options:
+            raise ValueError("Events with price > 0 must have at least one payment option")
+        
+        # Validate payment options contain only valid values
+        valid_options = ['paypal', 'door']
+        for option in payment_options:
+            if option not in valid_options:
+                raise ValueError(f"Invalid payment option: {option}. Valid options are: {valid_options}")
+        
         # Use the helper method to insert
-        inserted_id = await DB.insert_document("events", event.model_dump())
+        inserted_id = await DB.insert_document("events", event_data)
         if inserted_id is not None:
             # Fetch the created event to return it as EventOut
             event_data = await DB.db["events"].find_one({"_id": inserted_id})
@@ -105,13 +144,19 @@ async def get_event_by_id(event_id: str) -> Optional[EventOut]:
 async def update_event(event_id: str, event: EventCreate) -> bool:
     """
     Updates an event by its ID.
-    (Uses update_one directly to target specific _id)
+    Implements Option 2: Any event with price > 0 requires payment.
     """
     try:
+        # Convert to dict for processing
+        event_data = event.model_dump(exclude_unset=True)
+        
+        # Note: Payment options are now handled by the payment_options field
+        # No automatic setting of payment fields needed
+        
         result = await DB.db["events"].update_one(
             {"_id": ObjectId(event_id)},
             {
-                "$set": event.model_dump(exclude_unset=True)
+                "$set": event_data
             },  # exclude_unset for partial updates
         )
         return result.modified_count > 0
@@ -328,8 +373,8 @@ def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp") -
     # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
     return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}"
 
-def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp") -> Dict:
-    return {
+def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", payment_status: Optional[str] = None) -> Dict:
+    attendee_doc = {
         "key": _attendee_key(uid, person_id, kind),
         "kind": kind,  # "rsvp" | "registration"
         "user_uid": uid,
@@ -337,6 +382,12 @@ def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optiona
         "display_name": display_name,
         "addedOn": datetime.now(),
     }
+    
+    # Add payment status if provided
+    if payment_status:
+        attendee_doc["payment_status"] = payment_status
+    
+    return attendee_doc
 
 async def rsvp_add_person(
     event_id: str,
@@ -344,20 +395,67 @@ async def rsvp_add_person(
     person_id: Optional[ObjectId] = None,
     display_name: Optional[str] = None,
     kind: str = "rsvp",
-) -> bool:
+    payment_status: Optional[str] = None,
+) -> tuple[bool, str]:
     """
     Add RSVP atomically. Only manages the event collection.
+    Returns (success, reason) where reason explains why it failed if success is False.
     """
     ev_oid = ObjectId(event_id)
     key = _attendee_key(uid, person_id, kind)
-    attendee = _attendee_doc(uid, person_id, display_name, kind)
+    attendee = _attendee_doc(uid, person_id, display_name, kind, payment_status)
 
+    print(f"[RSVP_ADD] Debug info:")
+    print(f"  - Event ID: {event_id}")
+    print(f"  - User ID: {uid}")
+    print(f"  - Person ID: {person_id}")
+    print(f"  - Attendee Key: {key}")
+    print(f"  - Kind: {kind}")
+
+    # First, let's check if the person is already registered
+    existing_event = await DB.db["events"].find_one(
+        {"_id": ev_oid},
+        {"attendee_keys": 1, "seats_taken": 1, "spots": 1}
+    )
+    
+    if not existing_event:
+        return False, "Event not found"
+    
+    attendee_keys = existing_event.get('attendee_keys', [])
+    seats_taken = existing_event.get('seats_taken', 0)
+    total_spots = existing_event.get('spots', 0)
+    key_exists = key in attendee_keys
+    
+    print(f"[RSVP_ADD] Event check:")
+    print(f"  - Current attendee keys: {attendee_keys}")
+    print(f"  - Seats taken: {seats_taken}")
+    print(f"  - Total spots: {total_spots}")
+    print(f"  - Key already exists: {key_exists}")
+    
+    # Check specific failure conditions
+    if key_exists:
+        return False, "already_registered"
+    
+    if total_spots > 0 and seats_taken >= total_spots:
+        return False, "event_full"
+    
+    # Build the query conditions
+    query_conditions = {
+        "_id": ev_oid,
+        "attendee_keys": {"$ne": key},
+    }
+    
+    # Only add capacity constraint if event has limited spots
+    if total_spots > 0:
+        query_conditions["$expr"] = {"$lte": [{"$add": ["$seats_taken", 1]}, "$spots"]}
+        print(f"[RSVP_ADD] Adding capacity constraint for {total_spots} spots")
+    else:
+        print(f"[RSVP_ADD] No capacity constraint (unlimited spots)")
+    
+    print(f"[RSVP_ADD] Query conditions: {query_conditions}")
+    
     result = await DB.db["events"].find_one_and_update(
-        {
-            "_id": ev_oid,
-            "attendee_keys": {"$ne": key},
-            "$expr": {"$lte": [{"$add": ["$seats_taken", 1]}, "$spots"]},
-        },
+        query_conditions,
         {
             "$inc": {"seats_taken": 1},
             "$addToSet": {"attendee_keys": key},
@@ -365,7 +463,54 @@ async def rsvp_add_person(
         },
         return_document=False,
     )
-    return result is not None
+    
+    success = result is not None
+    print(f"[RSVP_ADD] Database update result: {result}")
+    print(f"[RSVP_ADD] Success: {'SUCCESS' if success else 'FAILED'}")
+    
+    if not success:
+        # If the update failed, let's check why
+        print(f"[RSVP_ADD] Update failed, investigating...")
+        
+        # Check if event exists
+        event_check = await DB.db["events"].find_one({"_id": ev_oid}, {"_id": 1, "name": 1})
+        if not event_check:
+            print(f"[RSVP_ADD] Event not found with ID: {ev_oid}")
+            return False, "event_not_found"
+        else:
+            print(f"[RSVP_ADD] Event exists: {event_check.get('name', 'No name')}")
+        
+        # Check if key already exists
+        key_check = await DB.db["events"].find_one(
+            {"_id": ev_oid, "attendee_keys": key}, 
+            {"attendee_keys": 1}
+        )
+        if key_check:
+            print(f"[RSVP_ADD] Key already exists in attendee_keys: {key}")
+            return False, "already_registered"
+        else:
+            print(f"[RSVP_ADD] Key does not exist in attendee_keys")
+        
+        # Check capacity constraint
+        capacity_check = await DB.db["events"].find_one(
+            {"_id": ev_oid}, 
+            {"seats_taken": 1, "spots": 1}
+        )
+        if capacity_check:
+            seats_taken = capacity_check.get("seats_taken", 0)
+            spots = capacity_check.get("spots", 0)
+            print(f"[RSVP_ADD] Capacity check - seats_taken: {seats_taken}, spots: {spots}")
+            if spots > 0 and seats_taken >= spots:
+                print(f"[RSVP_ADD] Event is full")
+                return False, "event_full"
+        
+        print(f"[RSVP_ADD] Unknown reason for update failure")
+        return False, "unknown_error"
+    
+    if success:
+        return True, "success"
+    else:
+        return False, "unknown_error"
 
 async def rsvp_remove_person(
     event_id: str,
@@ -412,4 +557,157 @@ async def rsvp_list(event_id: str) -> Dict:
     ev = await DB.db["events"].find_one(
         {"_id": ObjectId(event_id)}, {"attendees": 1, "seats_taken": 1, "spots": 1}
     )
-    return ev or {"attendees": [], "seats_taken": 0, "spots": 0}
+    
+    if not ev:
+        return {"attendees": [], "seats_taken": 0, "spots": 0}
+    
+    # Serialize ObjectIds in attendees
+    attendees = ev.get("attendees", [])
+    serialized_attendees = []
+    
+    for attendee in attendees:
+        serialized = attendee.copy()
+        if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
+            serialized['person_id'] = str(serialized['person_id'])
+        if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
+            serialized['_id'] = str(serialized['_id'])
+        # Convert any other ObjectId fields that might exist
+        for key, value in serialized.items():
+            if isinstance(value, ObjectId):
+                serialized[key] = str(value)
+        serialized_attendees.append(serialized)
+    
+    return {
+        "attendees": serialized_attendees,
+        "seats_taken": ev.get("seats_taken", 0),
+        "spots": ev.get("spots", 0)
+    }
+
+
+async def get_event_registrations_by_payment_status(event_id: str, payment_status: Optional[str] = None) -> List[Dict]:
+    """Get event registrations filtered by payment status"""
+    try:
+        event = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
+        if not event:
+            return []
+        
+        attendees = event.get("attendees", [])
+        
+        # Convert ObjectIds to strings for JSON serialization
+        def serialize_attendee(attendee):
+            serialized = attendee.copy()
+            if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
+                serialized['person_id'] = str(serialized['person_id'])
+            if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
+                serialized['_id'] = str(serialized['_id'])
+            # Convert any other ObjectId fields that might exist
+            for key, value in serialized.items():
+                if isinstance(value, ObjectId):
+                    serialized[key] = str(value)
+            return serialized
+        
+        if payment_status:
+            # Filter by specific payment status and serialize
+            filtered_attendees = [
+                serialize_attendee(attendee) for attendee in attendees 
+                if attendee.get("payment_status") == payment_status
+            ]
+            return filtered_attendees
+        else:
+            # Return all attendees with serialization
+            return [serialize_attendee(attendee) for attendee in attendees]
+            
+    except Exception as e:
+        print(f"Error getting event registrations by payment status: {e}")
+        return []
+
+
+async def get_event_payment_summary(event_id: str) -> Dict:
+    """Get payment summary for an event including counts by status"""
+    try:
+        event = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
+        if not event:
+            return {
+                "total_registrations": 0,
+                "paid_count": 0,
+                "pending_count": 0,
+                "not_required_count": 0,
+                "failed_count": 0,
+                "by_status": {}
+            }
+        
+        attendees = event.get("attendees", [])
+        
+        # Helper function to serialize ObjectIds
+        def serialize_attendee(attendee):
+            serialized = attendee.copy()
+            if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
+                serialized['person_id'] = str(serialized['person_id'])
+            if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
+                serialized['_id'] = str(serialized['_id'])
+            # Convert any other ObjectId fields that might exist
+            for key, value in serialized.items():
+                if isinstance(value, ObjectId):
+                    serialized[key] = str(value)
+            return serialized
+        
+        # Count by payment status
+        status_counts = {}
+        for attendee in attendees:
+            status = attendee.get("payment_status", "not_required")
+            status_counts[status] = status_counts.get(status, 0) + 1
+        
+        # Create detailed breakdown with serialized attendees
+        by_status = {}
+        for status, count in status_counts.items():
+            by_status[status] = {
+                "count": count,
+                "attendees": [
+                    serialize_attendee(attendee) for attendee in attendees 
+                    if attendee.get("payment_status") == status
+                ]
+            }
+        
+        return {
+            "total_registrations": len(attendees),
+            "paid_count": status_counts.get("completed", 0),
+            "pending_count": status_counts.get("pending", 0),
+            "not_required_count": status_counts.get("not_required", 0),
+            "failed_count": status_counts.get("failed", 0),
+            "by_status": by_status
+        }
+        
+    except Exception as e:
+        print(f"Error getting event payment summary: {e}")
+        return {
+            "total_registrations": 0,
+            "paid_count": 0,
+            "pending_count": 0,
+            "not_required_count": 0,
+            "failed_count": 0,
+            "by_status": {}
+        }
+
+
+async def update_attendee_payment_status(event_id: str, attendee_key: str, payment_status: str, transaction_id: Optional[str] = None) -> bool:
+    """Update payment status for a specific attendee"""
+    try:
+        update_data = {"attendees.$.payment_status": payment_status}
+        if transaction_id:
+            update_data["attendees.$.transaction_id"] = transaction_id
+        
+        result = await DB.db["events"].update_one(
+            {
+                "_id": ObjectId(event_id),
+                "attendees.key": attendee_key
+            },
+            {
+                "$set": update_data
+            }
+        )
+        
+        return result.modified_count > 0
+        
+    except Exception as e:
+        print(f"Error updating attendee payment status: {e}")
+        return False

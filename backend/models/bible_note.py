@@ -1,6 +1,6 @@
 from typing import Optional, List, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, root_validator
 from bson import ObjectId
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
@@ -36,7 +36,7 @@ class BibleNoteBase(BaseModel):
         default="yellow", description="Highlight color"
     )
 
-    @model_validator(mode='after')
+    @root_validator
     def validate_bible_note(self):
         """Automatically validate book name and verse range when model is created"""
         validate_book_name(self.book)
