@@ -100,14 +100,12 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
     if (_isLoading && !hasPlansLoaded && isLoggedIn) {
       return Scaffold(
         appBar: _buildAppBar(),
-        backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       appBar: _buildAppBar(),
-      backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
       body: Stack(
         children: [
           RefreshIndicator(
@@ -127,11 +125,8 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color.fromRGBO(37, 37, 37, 1),
-      iconTheme: const IconThemeData(color: Colors.white),
       title: const Text(
         'My Reading Plans',
-        style: TextStyle(color: Colors.white),
       ),
       actions: _isUserLoggedIn() ? [
         IconButton(
@@ -208,7 +203,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             const SizedBox(height: 16),
             Text(
               'Error loading your plans',
-              style: TextStyle(color: Colors.grey[300], fontSize: 16),
+              style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -234,7 +229,6 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             const Text(
               'No Active Reading Plans',
               style: TextStyle(
-                color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -242,10 +236,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             const SizedBox(height: 12),
             Text(
               'Start your Bible reading journey by\nadding a reading plan',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -313,6 +304,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
   }
 
   Future<void> _handleDeletePlan(String planId) async {
+    final cs = Theme.of(context).colorScheme;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -332,7 +324,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: cs.error),
             child: const Text('Unsubscribe'),
           ),
         ],

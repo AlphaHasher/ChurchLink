@@ -69,19 +69,15 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromRGBO(37, 37, 37, 1),
-        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'Bible Reading Plans',
-          style: TextStyle(color: Colors.white),
         ),
       ),
-      backgroundColor: const Color.fromRGBO(50, 50, 50, 1),
       body: Stack(
         children: [
           RefreshIndicator(
             onRefresh: _refreshPlans,
-            child: _buildContent(),
+            child: _buildContent(context),
           ),
           if (_isLoading)
             const Positioned.fill(
@@ -94,7 +90,7 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     if (_errorMessage != null && _publishedPlans.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -108,7 +104,10 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage!,
-                  style: TextStyle(color: Colors.grey[300], fontSize: 16),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onBackground,
+                    fontSize: 16,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -132,12 +131,12 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.book_outlined, size: 64, color: Colors.grey[600]),
+                Icon(Icons.book_outlined, size: 64, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
                 const SizedBox(height: 16),
                 Text(
                   'No Bible Plans Available',
                   style: TextStyle(
-                    color: Colors.grey[300],
+                    color: Theme.of(context).colorScheme.onBackground,
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
@@ -145,7 +144,7 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
                 const SizedBox(height: 8),
                 Text(
                   'Check back later for new reading plans',
-                  style: TextStyle(color: Colors.grey[500]),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                 ),
               ],
             ),
@@ -213,7 +212,6 @@ class _BiblePlanCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      color: const Color.fromRGBO(65, 65, 65, 1),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -248,9 +246,8 @@ class _BiblePlanCard extends StatelessWidget {
                             children: [
                               Text(
                                 plan.name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 maxLines: 2,
@@ -342,7 +339,7 @@ class _BiblePlanCard extends StatelessWidget {
                       children: [
                         Text(
                           isEnrolled ? 'Review Plan' : 'View Plan',
-                          style: const TextStyle(
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
