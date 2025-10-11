@@ -1152,7 +1152,6 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
       title: const Text(
         'Notification Settings',
       ),
@@ -1165,7 +1164,6 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
             title: const Text(
               'Daily Reminder',
             ),
-            activeColor: const Color.fromRGBO(150, 130, 255, 1),
           ),
           if (_enabled) ...[
             const SizedBox(height: 16),
@@ -1177,7 +1175,7 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
                 _time.format(context),
                 style: const TextStyle(color: Color.fromRGBO(180, 180, 180, 1)),
               ),
-              trailing: const Icon(Icons.access_time, color: Color.fromRGBO(150, 130, 255, 1)),
+              trailing: const Icon(Icons.access_time),
               onTap: _selectTime,
             ),
           ],
@@ -1311,7 +1309,7 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
                 color: isRestDay
                     ? Theme.of(context).colorScheme.onSurface
                     : (isLocked
-                        ?  cs.onSurfaceVariant
+                        ?  const Color(0xFF9E9E9E)
                         : (isCompleted
                             ? cs.onSurfaceVariant
                             : cs.onSurface)),
@@ -1325,14 +1323,9 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
           Text(
             '${completedPassages.length}/${widget.readings.length}',
             style: TextStyle(
-              color: isRestDay
-                  ? const Color.fromRGBO(255, 213, 79, 1)
-                  : (isCompleted
-                      ? const Color.fromRGBO(120, 200, 150, 1)
-                      : (isLocked
-                          ? const Color.fromRGBO(110, 110, 110, 1)
-                          : const Color.fromRGBO(150, 150, 150, 1))),
-              fontSize: 13,
+            color: isLocked
+                ? const Color(0xFF9E9E9E)
+                : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           if (isLocked)
@@ -1347,7 +1340,7 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
                 child: const Text(
                   'Locked',
                   style: TextStyle(
-                    color: Color.fromRGBO(200, 200, 200, 1),
+                    color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1360,17 +1353,13 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color.fromRGBO(255, 215, 64, 0.15),
+                  color: const Color(0xFFFFA000),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.tertiary,
-                    width: 1,
-                  ),
                 ),
                 child: Text(
                   'Rest Day',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.tertiary,
+                    color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1412,9 +1401,11 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
             alignment: Alignment.centerLeft,
             child: Text(
               'Complete previous days to unlock Day ${widget.day}.',
-              style: const TextStyle(
-                color: Color.fromRGBO(190, 190, 190, 1),
+              style: TextStyle(
                 fontSize: 13,
+                color: isLocked
+                  ? const Color(0xFF9E9E9E)
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -1454,10 +1445,8 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
         passage.reference,
         style: TextStyle(
           color: isLocked
-              ? const Color.fromRGBO(140, 140, 140, 1)
-              : (isCompleted
-                  ? const Color.fromRGBO(180, 180, 180, 1)
-                  : const Color.fromRGBO(220, 220, 220, 1)),
+            ? const Color(0xFF9E9E9E)
+            : Theme.of(context).colorScheme.onSurfaceVariant,
           decoration: isCompleted && !isLocked ? TextDecoration.lineThrough : null,
           fontSize: 14,
         ),
