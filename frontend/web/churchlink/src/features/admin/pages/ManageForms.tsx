@@ -60,10 +60,18 @@ const LinksCellRenderer = (props: ICellRendererParams) => {
   } = context;
 
   return data.slug ? (
-    <div className={`inline-flex items-center gap-2 ${!data.visible ? 'text-muted-foreground' : ''}`}>
-      <a href={`/forms/${data.slug}`} target="_blank" rel="noreferrer" className={`${!data.visible ? 'pointer-events-none' : ''}`}>{`/forms/${data.slug}`}</a>
-      <div className={`inline-flex items-center ${!data.visible ? 'text-muted-foreground' : ''}`}>
-  <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug, true)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
+    <div className={`flex items-center gap-2 w-full min-w-0 ${!data.visible ? 'text-muted-foreground' : ''}`}>
+      <a
+        href={`/forms/${data.slug}`}
+        target="_blank"
+        rel="noreferrer"
+        className={`${!data.visible ? 'pointer-events-none' : ''} truncate flex-1 min-w-0`}
+        title={`/forms/${data.slug}`}
+      >
+        {`/forms/${data.slug}`}
+      </a>
+      <div className={`inline-flex items-center gap-1 flex-shrink-0 ml-auto ${!data.visible ? 'text-muted-foreground' : ''}`}>
+        <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug, true)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
         <Button size="icon" variant="ghost" onClick={() => handleRemoveSlug(data.id)} title="Remove slug"><Trash className="h-4 w-4" /></Button>
       </div>
     </div>
@@ -115,7 +123,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => handleDuplicate(data.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport(data.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Export CSV</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Download Responses</DropdownMenuItem>
           <DropdownMenuItem onClick={() => setRenameTarget({ id: data.id, title: data.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
           <DropdownMenuItem onClick={() => { setMoveTargetIds([data.id]); context.setMoveToFolderId(); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -147,6 +155,7 @@ const ManageForms = () => {
     newTitle: string;
     existingId: string;
   } | null>(null);
+  const [viewDescription, setViewDescription] = useState<string | null>(null);
 
   // Grid options
   const gridOptions = {};
@@ -162,9 +171,21 @@ const ManageForms = () => {
         const { data } = props;
         if (!data) return null;
         return (
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{data.title}</span>
-            {data.description ? <span className="text-xs text-muted-foreground">{data.description}</span> : null}
+          <div className="flex items-center gap-2 w-full min-w-0">
+            <span className="font-medium flex-shrink-0 max-w-[40%] truncate" title={data.title}>{data.title}</span>
+            {data.description ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setViewDescription(data.description); }}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline truncate text-left flex-1 min-w-0"
+                title="View full description"
+              >
+                {data.description}
+              </button>
+            ) : null}
+            <div className={`ml-auto inline-flex items-center flex-shrink-0 ${!data.visible ? 'text-muted-foreground' : ''}`}>
+              <Button size="icon" variant="ghost" onClick={() => setRenameTarget({ id: data.id, title: data.title })} title="Edit Title"><Pencil className="h-4 w-4" /></Button>
+            </div>
           </div>
         );
       },
@@ -619,6 +640,19 @@ const ManageForms = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Description view dialog */}
+      <AlertDialog open={!!viewDescription} onOpenChange={(open) => { if (!open) setViewDescription(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Description</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="p-2 text-sm text-muted-foreground">{viewDescription}</div>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setViewDescription(null)}>Ok</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Rename dialog */}
       <Dialog open={!!renameTarget} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>
