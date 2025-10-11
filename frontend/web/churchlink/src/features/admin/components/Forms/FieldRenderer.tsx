@@ -22,9 +22,143 @@ type Props = {
 };
 
 export function FieldRenderer({ field, control, error }: Props) {
-  if (field.type === "price") return null;
   const colClass = cn("col-span-12", widthToCols(field.width));
   const activeLocale = useBuilderStore((s) => s.activeLocale);
+  
+  // Handle price field separately to avoid double layout
+  if (field.type === "price") {
+    const priceField = field as any;
+    const amount = priceField.amount || 0;
+    const paymentMethods = priceField.paymentMethods || {};
+    const allowPayPal = paymentMethods.allowPayPal !== false; // default true
+    const allowInPerson = paymentMethods.allowInPerson !== false; // default true
+    const localizedLabel = (priceField.i18n?.[activeLocale]?.label ?? priceField.label);
+    
+    // Determine UI behavior based on enabled payment methods
+    const paypalOnly = allowPayPal && !allowInPerson;
+    const inPersonOnly = !allowPayPal && allowInPerson;
+    const bothEnabled = allowPayPal && allowInPerson;
+    
+    return (
+      <div className={cn("flex flex-col gap-3", colClass)}>
+        {/* Price field header */}
+        {localizedLabel && (
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium flex items-center gap-1">
+              <span>{localizedLabel}</span>
+              {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
+            </Label>
+            <span className="text-lg font-semibold text-primary">
+              ${amount.toFixed(2)}
+            </span>
+          </div>
+        )}
+        
+        {/* Scenario 1: PayPal Only - Show PayPal info */}
+        {paypalOnly && (
+          <div className="border rounded-lg p-4 space-y-3 bg-blue-50">
+            <div className="flex items-center gap-2 text-blue-700">
+              <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                <span className="text-white text-xs font-bold">P</span>
+              </div>
+              <span className="font-medium">PayPal Payment Required</span>
+            </div>
+            <p className="text-sm text-blue-600">
+              This form requires payment through PayPal. You'll be redirected to PayPal to complete the payment when submitting.
+            </p>
+          </div>
+        )}
+        
+        {/* Scenario 2: In-Person Only - Show note */}
+        {inPersonOnly && (
+          <div className="border rounded-lg p-4 space-y-3 bg-green-50">
+            <div className="flex items-center gap-2 text-green-700">
+              <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center">
+                <span className="text-white text-xs">💵</span>
+              </div>
+              <span className="font-medium">In-Person Payment Required</span>
+            </div>
+            <p className="text-sm text-green-600">
+              This payment will be collected in-person at the event or location. 
+              You can submit the form now and complete payment when you arrive.
+            </p>
+          </div>
+        )}
+        
+        {/* Scenario 3: Both Enabled - Show selection options */}
+        {bothEnabled && (
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="text-sm font-medium mb-2">Choose Payment Method:</div>
+            
+            <Controller
+              name={`${field.name}_payment_method`}
+              control={control}
+              defaultValue="paypal"
+              render={({ field: rhf }) => (
+                <div className="space-y-2">
+                  {/* PayPal Option */}
+                  <label className="flex items-center gap-3 p-2 border rounded-md cursor-pointer hover:bg-muted/20 transition-colors">
+                    <input
+                      type="radio"
+                      name={rhf.name}
+                      value="paypal"
+                      checked={rhf.value === 'paypal'}
+                      onChange={() => rhf.onChange('paypal')}
+                      className="w-4 h-4"
+                    />
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">P</span>
+                      </div>
+                      <span className="text-sm font-medium">Pay with PayPal</span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        (Secure online payment)
+                      </span>
+                    </div>
+                  </label>
+                  
+                  {/* In-Person Option */}
+                  <label className="flex items-center gap-3 p-2 border rounded-md cursor-pointer hover:bg-muted/20 transition-colors">
+                    <input
+                      type="radio"
+                      name={rhf.name}
+                      value="in-person"
+                      checked={rhf.value === 'in-person'}
+                      onChange={() => rhf.onChange('in-person')}
+                      className="w-4 h-4"
+                    />
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center">
+                        <span className="text-white text-xs">💵</span>
+                      </div>
+                      <span className="text-sm font-medium">Pay In-Person</span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        (Pay at location)
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              )}
+            />
+            
+            <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+              Submit button will adapt based on your selection
+            </div>
+          </div>
+        )}
+        
+        {/* No payment methods configured */}
+        {!allowPayPal && !allowInPerson && (
+          <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            ⚠️ No payment methods configured
+          </div>
+        )}
+        
+        {error && <p className="text-xs text-destructive">{String(error)}</p>}
+      </div>
+    );
+  }
+  
   const t = (key: 'label'|'placeholder'|'helpText'|'content', base?: string) => {
     const map = (field as any).i18n as Record<string, any> | undefined;
     const val = map?.[activeLocale]?.[key];

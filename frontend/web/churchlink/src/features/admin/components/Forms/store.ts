@@ -60,7 +60,7 @@ const newField = (type: FieldType): AnyField => {
     case "static":
       return { ...base, type: "static", name: `static_${id}`, label: "Static Text", content: "Sample text", as: "p" } as any;
     case "price":
-      return { ...base, type: "price", label: "Price", amount: 0 } as any;
+      return { ...base, type: "price", label: "Price", amount: 10 } as any;
     default:
       return { ...base, type: "text", placeholder: "Enter text" };
   }

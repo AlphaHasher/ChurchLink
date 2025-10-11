@@ -278,11 +278,52 @@ export function Inspector() {
         )}
         {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
         {field.type === "price" && (
-          <div className="space-y-1">
-            <Label>Amount</Label>
-            <Input type="number" value={(field as any).amount ?? 0}
-                   onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
-            <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Amount</Label>
+              <Input type="number" value={(field as any).amount ?? 0}
+                     onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
+              <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Payment Methods</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    checked={!!((field as any).paymentMethods?.allowPayPal ?? true)} 
+                    onCheckedChange={(v) => {
+                      const current = (field as any).paymentMethods || {};
+                      onChange({ 
+                        paymentMethods: { 
+                          ...current, 
+                          allowPayPal: !!v 
+                        } 
+                      } as any);
+                    }} 
+                  />
+                  <Label>Allow PayPal Payment</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    checked={!!((field as any).paymentMethods?.allowInPerson ?? true)} 
+                    onCheckedChange={(v) => {
+                      const current = (field as any).paymentMethods || {};
+                      onChange({ 
+                        paymentMethods: { 
+                          ...current, 
+                          allowInPerson: !!v 
+                        } 
+                      } as any);
+                    }} 
+                  />
+                  <Label>Allow In-Person Payment</Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Configure which payment methods are available for this price field. At least one method should be enabled.
+              </p>
+            </div>
           </div>
         )}
         {field.type !== 'price' && (

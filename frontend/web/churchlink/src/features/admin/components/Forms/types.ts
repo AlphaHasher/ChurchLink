@@ -174,6 +174,10 @@ export interface StaticTextField extends BaseField {
 export interface PriceField extends BaseField {
   type: "price";
   amount: number; // flat amount to add to total when visible
+  paymentMethods?: {
+    allowPayPal?: boolean;
+    allowInPerson?: boolean;
+  };
 }
 
 export type AnyField =

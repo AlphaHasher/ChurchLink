@@ -22,6 +22,8 @@ from models.form import (
 )
 from mongo.database import DB
 from bson import ObjectId
+from models.transaction import Transaction
+from datetime import datetime
 
 
 mod_forms_router = APIRouter(prefix="/forms", tags=["Forms"])
@@ -171,10 +173,73 @@ async def submit_response_by_slug(slug: str, request: Request):
 async def list_form_responses(form_id: str, request: Request, skip: int = 0, limit: int | None = None):
     """Return responses for a form belonging to the current user.
 
-    Response shape: { count: number, items: [{ submitted_at: ISO, response: object }] }
+    Response shape: { count: number, items: [{ submitted_at: ISO, response: object, payment_info?: object }] }
     """
     uid = request.state.uid
     data = await get_form_responses(form_id, uid, skip=skip, limit=limit)
     if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+    
+    # Add payment information to responses if available
+    try:
+        # Get all transactions for this form
+        transactions = await Transaction.get_transactions_by_form(form_id)
+        
+        if transactions:
+            # Add payment info to each response
+            for item in data.get("items", []):
+                try:
+                    submitted_at = item.get("submitted_at")
+                    if not submitted_at:
+                        continue
+                    
+                    # Parse submission time
+                    try:
+                        if isinstance(submitted_at, str):
+                            submission_time = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
+                        else:
+                            submission_time = submitted_at
+                    except:
+                        continue
+                    
+                    # Look for transactions within 10 minutes of submission
+                    matching_transaction = None
+                    for transaction in transactions:
+                        if hasattr(transaction, 'created_on') and transaction.created_on:
+                            try:
+                                # Parse transaction time
+                                if isinstance(transaction.created_on, str):
+                                    transaction_time = datetime.fromisoformat(transaction.created_on.replace('Z', '+00:00'))
+                                else:
+                                    transaction_time = transaction.created_on
+                                    
+                                time_diff = abs((submission_time - transaction_time).total_seconds())
+                                
+                                # If within 10 minutes and no closer match found
+                                if time_diff <= 600:  # 10 minutes
+                                    if not matching_transaction or time_diff < abs((submission_time - datetime.fromisoformat(matching_transaction.created_on.replace('Z', '+00:00'))).total_seconds()):
+                                        matching_transaction = transaction
+                            except Exception:
+                                continue
+                    
+                    # Add payment information if found
+                    if matching_transaction:
+                        item["payment_info"] = {
+                            "transaction_id": matching_transaction.transaction_id,
+                            "amount": matching_transaction.amount,
+                            "status": matching_transaction.status,
+                            "payment_method": getattr(matching_transaction, 'payment_method', 'unknown'),
+                            "payer_name": getattr(matching_transaction, 'name', None),
+                            "payer_email": getattr(matching_transaction, 'user_email', None),
+                            "payment_time": getattr(matching_transaction, 'created_on', None),
+                            "order_id": getattr(matching_transaction, 'order_id', None)
+                        }
+                        
+                except Exception as e:
+                    print(f"Error adding payment info to response: {e}")
+                    continue
+                    
+    except Exception as e:
+        print(f"Error fetching payment information: {e}")
+    
     return data

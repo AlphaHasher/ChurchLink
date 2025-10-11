@@ -189,6 +189,18 @@ export function schemaToZodObject(schema: FormSchema) {
   const shape: Record<string, z.ZodTypeAny> = {};
   for (const f of schema.data) {
     shape[f.name] = fieldToZod(f);
+    
+    // Add payment method field for price fields that allow both payment methods
+    if (f.type === "price") {
+      const priceField = f as any;
+      const allowPayPal = priceField.paymentMethods?.allowPayPal !== false;
+      const allowInPerson = priceField.paymentMethods?.allowInPerson !== false;
+      
+      // Only add payment method field if both methods are enabled (user needs to choose)
+      if (allowPayPal && allowInPerson) {
+        shape[`${f.name}_payment_method`] = z.enum(['paypal', 'in-person']).default('paypal');
+      }
+    }
   }
   return z.object(shape);
 }

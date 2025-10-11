@@ -351,7 +351,7 @@ export function BuilderShell() {
           <div className="flex h-full w-full flex-col overflow-auto p-6">
             <div className="mx-auto w-full max-w-6xl">
               <ErrorBoundary>
-                <PreviewRendererClient />
+                <PreviewRendererClient instanceId="expanded" />
               </ErrorBoundary>
             </div>
           </div>
@@ -588,7 +588,7 @@ export function BuilderShell() {
                     <Skeleton className="h-8 w-full mt-2" />
                   </div>
                 ) : (
-                  <PreviewRendererClient />
+                  <PreviewRendererClient instanceId="card" />
                 )}
               </ErrorBoundary>
             </CardContent>
