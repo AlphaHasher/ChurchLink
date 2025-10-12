@@ -11,8 +11,8 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-Image.MAX_IMAGE_PIXELS = None  # Allow loading large/high-res images for thumbnail generation
-Image.LOAD_TRUNCATED_IMAGES = True  # Handle potentially truncated or oversized images
+Image.MAX_IMAGE_PIXELS = None  
+Image.LOAD_TRUNCATED_IMAGES = True  
 
 ASSETS_DIR = "data/assets"
 THUMBNAILS_DIR = "data/thumbnails"
@@ -57,7 +57,6 @@ async def upload_asset(
         folder_path = os.path.join(ASSETS_DIR, folder)
         os.makedirs(folder_path, exist_ok=True)
         full_path = os.path.join(folder_path, unique_filename)
-        # Return URL relative to /assets so frontend can prefix /api/v1
         asset_url = f"/assets/{folder}/{unique_filename}"
     else:
         full_path = os.path.join(ASSETS_DIR, unique_filename)
@@ -75,7 +74,6 @@ async def upload_asset(
         os.makedirs(thumb_dir, exist_ok=True)
         thumb_path = os.path.join(thumb_dir, thumb_filename)
         try:
-            # Reload the (possibly resized) image for thumbnail generation
             thumb_img = Image.open(full_path)
             thumb_size = 250
             thumb_img.thumbnail((thumb_size, thumb_size), Image.Resampling.LANCZOS)
@@ -88,7 +86,7 @@ async def upload_asset(
             logger.info(f"Generated thumbnail: {thumb_filename} in {thumb_folder_path}")
         except Exception as thumb_e:
             logger.error(f"Thumbnail generation failed during upload: {thumb_e}")
-            # Continue without thumbnail; on-the-fly will handle later
+           
         
         return {"url": asset_url, "filename": unique_filename, "folder": folder or "root"}
     
@@ -118,8 +116,8 @@ async def create_folder(
 
 @assets_router.get("/")
 async def list_contents(
-    limit: Optional[int] = Query(None),  # Changed to Optional, default None
-    folder: str = Query(None),  # Optional: List contents in this folder (non-recursive)
+    limit: Optional[int] = Query(None), 
+    folder: str = Query(None), 
     current_user = Depends(role_based_access(["admin"]))
 ):
     files = []
@@ -128,19 +126,16 @@ async def list_contents(
         target_dir = ASSETS_DIR if not folder else os.path.join(ASSETS_DIR, folder)
         if os.path.exists(target_dir):
             all_items = os.listdir(target_dir)
-            if limit is not None:  # Only limit if provided
+            if limit is not None:  
                 all_items = all_items[:limit]
             logger.info(f"Listing {target_dir}: items={all_items}")
             for item in all_items:
                 item_path = os.path.join(target_dir, item)
                 if os.path.isdir(item_path):
-                    # Always return only the immediate child folder name
                     folders_list.append(item)
                 elif os.path.isfile(item_path) and item.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
-                    # Skip thumbnail files to avoid duplicates in frontend
                     if item.endswith('_thumb.jpg'):
                         continue
-                    # Return URL relative to /assets so frontend can prefix /api/v1
                     full_url = f"/assets/{folder or ''}/{item}" if folder else f"/assets/{item}"
                     files.append({"filename": item, "url": full_url, "folder": folder or "root"})
             logger.info(f"Listing {target_dir}: files={len(files)}, folders={len(folders_list)}")
@@ -152,7 +147,6 @@ async def list_contents(
         # Return empty
     return {"files": files, "folders": folders_list}
 
-# Removed separate /folders endpoint
 
 @assets_router.get("/{path:path}")
 async def serve_asset(
@@ -166,8 +160,7 @@ async def serve_asset(
     if not thumbnail:
         return FileResponse(full_path)
     else:
-        # Check for pre-generated or cached thumbnail first
-        # Compute thumbnail path in separate directory, mirroring folder structure
+       
         basename = os.path.basename(path)
         name_without_ext = basename.rsplit('.', 1)[0]
         folder_part = path.rsplit('/', 1)[0] if '/' in path else ''
@@ -177,7 +170,7 @@ async def serve_asset(
             logger.info(f"Serving cached/pre-generated thumbnail: {thumb_path}")
             return FileResponse(thumb_path)
         
-        # Fall back to on-the-fly generation for legacy files
+       
         try:
             original_size = os.path.getsize(full_path)
             logger.info(f"Starting on-the-fly thumbnail for {path} (original size: {original_size} bytes)")
