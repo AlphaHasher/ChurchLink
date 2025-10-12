@@ -29,6 +29,7 @@ class _SermonsPageState extends State<SermonsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('screen-sermons'),
       appBar: AppBar(
         title: const Text('Sermons'),
         actions: [

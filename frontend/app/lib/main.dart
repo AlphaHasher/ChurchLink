@@ -27,7 +27,9 @@ import 'package:app/gates/auth_gate.dart';
 import 'package:app/theme/app_theme.dart';
 import 'package:app/theme/theme_controller.dart';
 
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+const bool kTestMode = bool.fromEnvironment('TEST_MODE', defaultValue: false);
 
 Map<String, dynamic>? initialNotificationData;
 
@@ -35,10 +37,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
+  if (!kTestMode) {
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
     // Environment file not found or invalid
+    }
   }
 
   // Initialize Firebase
@@ -51,20 +55,23 @@ Future<void> main() async {
   DeepLinkingService.initialize(navigatorKey);
 
   // Setup messaging and notifications BEFORE checking for initial message
-  setupFirebaseMessaging();
-  await setupLocalNotifications();
 
-  // Startup connectivity service
-  ConnectivityService().start();
+  if (!kTestMode) {
+    setupFirebaseMessaging();
+    await setupLocalNotifications();
 
-  RemoteMessage? initialMessage =
-      await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMessage != null) {
-    initialNotificationData = initialMessage.data;
-    // Store the initial message for handling after the app is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      DeepLinkingService.handleNotificationData(initialMessage.data);
-    });
+    // Startup connectivity service
+    ConnectivityService().start();
+
+    RemoteMessage? initialMessage =
+        await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) {
+      initialNotificationData = initialMessage.data;
+      // Store the initial message for handling after the app is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeepLinkingService.handleNotificationData(initialMessage.data);
+      });
+    }
   }
 
   runApp(
@@ -74,8 +81,18 @@ Future<void> main() async {
           create: (context) {
             final provider = TabProvider();
             TabProvider.instance = provider;
-            // Load tab configuration asynchronously
-            provider.loadTabConfiguration();
+            if (kTestMode) {
+              // Provide a fixed, fast-loading tab set for tests
+              provider.setTabsForTest(const [
+                {'name': 'home', 'displayName': 'Home', 'icon': 'home'},
+                {'name': 'bible', 'displayName': 'Bible', 'icon': 'menu_book'},
+                {'name': 'sermons', 'displayName': 'Sermons', 'icon': 'sermons'},
+                {'name': 'events', 'displayName': 'Events', 'icon': 'event'},
+                {'name': 'profile', 'displayName': 'Profile', 'icon': 'person'},
+              ]);
+              } else {
+                provider.loadTabConfiguration();
+              }
             return provider;
           },
         ),
@@ -100,16 +117,15 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'ChurchLink',
           navigatorKey: navigatorKey,
-          theme: AppTheme.light, // from app_theme.dart
-          darkTheme: AppTheme.dark, // from app_theme.dart
-          themeMode: c.mode, // reacts to toggle
+          theme: AppTheme.light, // Colors are defined in app_theme.dart
+          darkTheme: AppTheme.dark,
+          themeMode: c.mode,
 
-          home: AuthGate(child: const MyHomePage()),
+          home: kTestMode ? const MyHomePage() : AuthGate(child: const MyHomePage()),
           routes: {
             '/home': (context) => const DashboardPage(),
             '/bible': (context) => const BiblePage(),
             '/sermons': (context) => const SermonsPage(),
-            '/bulletins': (context) => const BulletinsPage(),
             '/events': (context) => const EventsPage(),
             '/profile': (context) => const UserSettings(),
             '/live': (context) => const JoinLive(),
@@ -123,6 +139,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -216,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final tabs = tabProvider.tabs; 
+    final tabs = tabProvider.tabs;
     final List<Widget> tabRoots = tabs
         .map((t) => _getScreenForTab((t['name'] as String).toLowerCase()))
         .toList();
@@ -261,58 +278,86 @@ class _MyHomePageState extends State<MyHomePage> {
   List<BottomNavigationBarItem> _buildNavItems(
     List<Map<String, dynamic>> tabs,
   ) {
-    return tabs.map((tab) {
-      final name = tab['name'] as String;
-      final displayName =
-          tab['displayName'] as String? ??
-          name; // fallback to name if displayName is null
-      final iconName =
-          tab['icon'] as String? ?? name; // fallback to name if icon is null
+    return tabs.asMap().entries.map((entry) {
+      final idx = entry.key;
+      final tab = entry.value;
+      final name = (tab['name'] as String).toLowerCase();
+      final displayName = (tab['displayName'] as String?) ?? name;
+      final iconName = (tab['icon'] as String?) ?? name;
 
       return BottomNavigationBarItem(
         label: displayName,
-        icon: _getTabIcon(name, iconName, false),
-        activeIcon: _getTabIcon(name, iconName, true),
+        icon: Semantics(
+          label: 'tab-$name',
+          child: _getTabIcon(name, iconName, false),
+        ),
+        activeIcon: Semantics(
+          label: 'tab-$name-active',
+          child: _getTabIcon(name, iconName, true),
+        ),
+        // Add a value key to help locate by index too
+        tooltip: 'tab-$name', // optional
       );
     }).toList();
-  }
+ }
 
   Widget _getTabIcon(String tabName, String iconName, bool isActive) {
     // First try to use the specific iconName from the database
     switch (iconName.toLowerCase()) {
       case 'home':
-        return Icon(Icons.home);
+        return Icon(
+          Icons.home,
+        );
       case 'menu_book':
       case 'bible':
-        return Icon(Icons.menu_book);
+        return Icon(
+          Icons.menu_book,
+        );
       case 'play_circle':
       case 'cross':
       case 'sermons':
+        return Icon(
+          Icons.church,
+        );
         return Icon(Icons.church);
       case 'description':
       case 'bulletins':
         return Icon(Icons.description);
       case 'event':
       case 'events':
-        return Icon(Icons.event);
+        return Icon(
+          Icons.event,
+        );
       case 'person':
       case 'profile':
-        return Icon(Icons.person);
+        return Icon(
+          Icons.person,
+        );
       case 'live_tv':
       case 'live':
-        return Icon(Icons.live_tv);
+        return Icon(
+          Icons.live_tv,
+        );
       case 'article':
       case 'bulletin':
-        return Icon(Icons.article);
+        return Icon(
+          Icons.article,
+        );
       case 'volunteer_activism':
       case 'giving':
-        return Icon(Icons.volunteer_activism);
+        return Icon(
+          Icons.volunteer_activism,
+        );
       case 'groups':
       case 'ministries':
-        return Icon(Icons.groups);
+        return Icon(
+          Icons.groups,
+        );
       case 'contact_mail':
       case 'contact':
-        return Icon(Icons.contact_mail);
+        return Icon(
+          Icons.contact_mail,
+        );
       default:
         // Fallback to tab name if icon doesn't match
         return _getDefaultIconForTab(tabName, isActive);
@@ -322,27 +367,48 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _getDefaultIconForTab(String tabName, bool isActive) {
     switch (tabName.toLowerCase()) {
       case 'home':
-        return Icon(Icons.home);
+        return Icon(
+          Icons.home,
+        );
       case 'bible':
-        return Icon(Icons.menu_book);
+        return Icon(
+          Icons.menu_book,
+        );
       case 'sermons':
+        return Icon(
+          Icons.church,
+        );
         return Icon(Icons.church);
       case 'bulletins':
         return Icon(Icons.description);
       case 'events':
-        return Icon(Icons.event);
+        return Icon(
+          Icons.event,
+        );
       case 'profile':
-        return Icon(Icons.person);
+        return Icon(
+          Icons.person,
+        );
       case 'live':
-        return Icon(Icons.live_tv);
+        return Icon(
+          Icons.live_tv,
+        );
       case 'bulletin':
-        return Icon(Icons.article);
+        return Icon(
+          Icons.article,
+        );
       case 'giving':
-        return Icon(Icons.volunteer_activism);
+        return Icon(
+          Icons.volunteer_activism,
+        );
       case 'ministries':
-        return Icon(Icons.groups);
+        return Icon(
+          Icons.groups,
+        );
       case 'contact':
-        return Icon(Icons.contact_mail);
+        return Icon(
+          Icons.contact_mail,
+        );
       default:
         return Icon(Icons.tab);
     }

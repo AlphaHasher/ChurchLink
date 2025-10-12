@@ -13,6 +13,7 @@ from mongo.roles import RoleHandler
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from mongo.scheduled_notifications import scheduled_notification_loop
+from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
 import asyncio
 import os
 import logging
@@ -22,7 +23,9 @@ from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
 
 from routes.bible_routes.bible_note_routes import bible_note_router
-from routes.bible_routes.bible_plan_routes import mod_bible_plan_router
+from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, public_bible_plan_router
+from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
+from routes.bible_routes.bible_plan_notification_routes import bible_notification_router
 
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
@@ -122,6 +125,11 @@ async def lifespan(app: FastAPI):
         #Run Push Notification Scheduler loop
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
         logger.info("Push notification scheduler started")
+
+        # Initialize Bible Plan Notification System
+        logger.info("Initializing Bible plan notification system...")
+        await initialize_bible_plan_notifications()
+        logger.info("Bible plan notification system started")
 
         logger.info("Application startup completed successfully")
         yield
@@ -232,6 +240,7 @@ public_router.include_router(paypal_public_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
+public_router.include_router(public_bible_plan_router)
 
 
 #####################################################
@@ -240,6 +249,8 @@ public_router.include_router(translator_router)
 private_router = AuthProtectedRouter(prefix="/api/v1")
 
 private_router.include_router(bible_note_router)
+private_router.include_router(auth_bible_plan_router)
+private_router.include_router(bible_notification_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)

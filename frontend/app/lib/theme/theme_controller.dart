@@ -1,3 +1,5 @@
+// This file handles saving and switching between themes.
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

@@ -948,11 +948,19 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                     child: Material(
                       elevation: 4,
                       borderRadius: BorderRadius.circular(12),
-                      color: Theme.of(context).colorScheme.tertiaryContainer,
+                      color: Theme.of(context).colorScheme.primary,
                       child: ListTile(
                         dense: true,
-                        leading: const Icon(Icons.wifi_off),
-                        title: const Text('You’re offline'),
+                        leading: Icon(
+                          Icons.wifi_off,
+                          color: Theme.of(context).colorScheme.onPrimary
+                        ),
+                        title: Text(
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary
+                          ),
+                          'You\'re offline'
+                        ),
                         subtitle: FutureBuilder<DateTime?>(
                           future: LastSyncStore.readLocal(),
                           builder: (context, snap) {
@@ -964,6 +972,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
                                       last,
                                     ); // e.g., Sep 22, 3:41 PM
                             return Text(
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onPrimary
+                              ),
                               'Last sync: $pretty\nChanges are saved and will sync later.',
                             );
                           },

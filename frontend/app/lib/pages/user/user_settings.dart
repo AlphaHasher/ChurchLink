@@ -18,7 +18,9 @@ import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/theme/theme_controller.dart';
+
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});

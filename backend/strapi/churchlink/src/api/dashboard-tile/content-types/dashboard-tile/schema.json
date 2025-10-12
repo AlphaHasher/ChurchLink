@@ -20,11 +20,6 @@
       "targetField": "title",
       "required": true
     },
-    "order": {
-      "type": "integer",
-      "default": 0,
-      "min": 0
-    },
     "enabled": {
       "type": "boolean",
       "default": true
@@ -35,12 +30,6 @@
       "allowedTypes": [
         "images"
       ]
-    },
-    "backgroundColor": {
-      "type": "string",
-      "minLength": 7,
-      "maxLength": 9,
-      "regex": "^#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"
     }
   }
 }

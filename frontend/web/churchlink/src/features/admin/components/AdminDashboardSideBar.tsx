@@ -82,12 +82,15 @@ const AdminDashboardSideBar = () => {
       { title: "Manage Forms", url: "/admin/forms/manage-forms" },
       { title: "Form Builder", url: "/admin/forms/form-builder" },
     ] },
-    { title: "Sermons Manager", url: "/admin/sermons", icon: BookOpen },
     { title: "Weekly Bulletin", url: "/admin/bulletins", icon: FileText },
-    { title: "Bible Plan Manager", url: "/admin/bible-plan-manager", icon: BookOpen },
-    { title: "Finance", url: "/admin/finance", icon: DollarSign },
-    { title: "Notifications", url: "/admin/notifications", icon: Bell },
-  ];
+    { title: "Sermons Manager", url: "/admin/sermons", icon: BookOpen },
+        { title: "Bible Plans", icon: BookOpen, children: [
+          { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
+          { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
+        ] },
+        { title: "Finance", url: "/admin/finance", icon: DollarSign },
+        { title: "Notifications", url: "/admin/notifications", icon: Bell },
+      ];
 
   return (
     <Sidebar collapsible="icon">
