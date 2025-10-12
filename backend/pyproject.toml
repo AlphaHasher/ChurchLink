@@ -22,4 +22,5 @@ dependencies = [
     "pytest>=8.4.2",
     "pydantic-settings>=2.11.0",
     "windows-curses>=2.4.1; sys_platform == 'win32'",
+    "python-multipart>=0.0.20",
 ]
