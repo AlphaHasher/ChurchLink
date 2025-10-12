@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/api/api";
 import { Card, CardContent } from "@/shared/components/ui/card";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import { PreviewRendererClient } from "@/features/admin/components/Forms/PreviewRendererClient";
 import { useBuilderStore } from "@/features/admin/components/Forms/store";
 import { formWidthToClass, normalizeFormWidth, DEFAULT_FORM_WIDTH, collectAvailableLocales } from "@/features/admin/components/Forms/types";
@@ -110,7 +111,25 @@ export default function FormPublic() {
     return () => { mounted = false; };
   }, [slug, setSchema, user]);
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) return (
+    <div className="p-6">
+      <div className={cn("mx-auto w-full", formWidthClass)}>
+        <div className="rounded-md border border-border bg-muted/30 p-8">
+          <div className="space-y-3">
+            <div className="h-8 w-3/4">
+              <Skeleton className="h-8 w-full" />
+            </div>
+            <div className="h-6 w-1/2">
+              <Skeleton className="h-6 w-full" />
+            </div>
+            <div className="h-48">
+              <Skeleton className="h-48 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
   if (error) return (
     <div className="p-6">
       <div className={cn("mx-auto w-full", formWidthClass)}>

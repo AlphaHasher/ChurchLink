@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Save, ArrowUp, ArrowDown } from "lucide-react";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import { getAvailableTabs, saveTabConfiguration, AppTab } from "../../../helpers/TabsHelper";
 
 interface EditingTab extends AppTab {
@@ -227,7 +228,10 @@ const MobileUITab = () => {
     return (
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-6">Mobile UI Tab</h1>
-        <div className="text-center py-8">Loading...</div>
+        <div className="text-center py-8">
+          <Skeleton className="h-8 w-1/3 mx-auto" />
+          <Skeleton className="h-48 w-full mt-4" />
+        </div>
       </div>
     );
   }
