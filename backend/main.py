@@ -29,6 +29,7 @@ from routes.common_routes.event_routes import event_editing_router, private_even
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_mod_router, user_private_router
+from routes.common_routes.membership_routes import member_private_router, member_mod_router
 from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
 
@@ -237,6 +238,7 @@ private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)
 private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
+private_router.include_router(member_private_router)
 
 #####################################################
 # Mod Routers - Requires at least 1 perm role, agnostic to specific permissions
@@ -252,6 +254,7 @@ mod_router.include_router(private_notification_router)
 mod_router.include_router(strapi_protected_router)
 mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
+mod_router.include_router(member_mod_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions

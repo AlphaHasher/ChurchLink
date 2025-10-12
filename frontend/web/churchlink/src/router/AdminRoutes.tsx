@@ -17,6 +17,7 @@ const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuil
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
+const MembershipRequests = lazy(() => import("../features/admin/pages/ManageMemberships"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
 const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
@@ -32,7 +33,8 @@ export const AdminRoutes = () => {
       <Route path="/" element={<AdminLayout></AdminLayout>}>
         <Route index element={<AdminDashboard />} />
         <Route path="/webbuilder" element={<WebBuilder />} />
-        <Route path="/users" element={<Users />} />
+        <Route path="/users/manage-users" element={<Users />} />
+        <Route path="/users/membership-requests" element={<MembershipRequests />} />
         <Route path="/permissions" element={<Permissions />} />
         <Route path="/notifications" element={<Notification />} />
         <Route path="/events" element={<Events />} />

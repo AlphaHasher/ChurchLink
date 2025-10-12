@@ -36,7 +36,7 @@ class FirebaseSyncer:
                 await User.update_user(filterQuery, updateData)
             return
         else:
-            await User.create_user(first_name="Fake", last_name="Name", email=user['email'], uid = user['uid'], roles=[], verified=(user['has_google'] or user['email_verified']))
+            await User.create_user(first_name="Unitialized", last_name="Name", email=user['email'], uid = user['uid'], roles=[], verified=(user['has_google'] or user['email_verified']))
 
     # Method that syncs one particular user only by a requested UID
     @staticmethod

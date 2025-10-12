@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from firebase_admin import auth
 from models.user import get_family_member_by_id, AddressSchema
+from models.membership_request import get_membership_request_by_uid, explicit_update_membership_request
 
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'\-]{0,49}$")
 PHONE_RE = re.compile(r"^[1-9()+\-]+$")
@@ -223,7 +224,7 @@ async def fetch_detailed_user(uid: str):
     
     return {"success":True, "msg":"Detailed info returned!", "info":detailed_info.model_dump()}
 
-async def change_user_member_status(uid:str, set:bool):
+async def change_user_member_status(uid:str, set:bool, fromUserPatch:bool = False):
     old_user = await UserHandler.find_by_uid(uid)
 
     if not old_user:
@@ -241,13 +242,35 @@ async def change_user_member_status(uid:str, set:bool):
     if not modified:
         return {"success": False, "msg": "Error in changing membership status!"}
     
+    # Only if we are coming from the case where we aren't explicitly responding to a request approval/deny, check to see if any requests exist
+    if fromUserPatch:
+        print("user patch!")
+
+        # Try to find request
+        request = await get_membership_request_by_uid(uid)
+        # If request exists
+        if request:
+            # If request hasn't already been responded to, we need to update
+            if request.get("resolved") == False:
+
+                # Assemble update information
+                update_request = {
+                    "resolved":True,
+                    "approved":set,
+                    "reason": "REQUEST AUTOMATICALLY HANDLED. Reason: Somebody specifically changed the user member status from user detailed view while request was active, therefore it was handled as resolving the request."
+                }
+
+                modified = await explicit_update_membership_request({"uid":uid}, update_request)
+
+    
     return {"success":True, "msg":"Successfully updated membership status!"}
+
     
 
 async def execute_patch_detailed_user(uid:str, details: DetailedUserInfo):
 
     # First try membership patch
-    membership_try = await change_user_member_status(uid, details.personal_info.membership)
+    membership_try = await change_user_member_status(uid, details.personal_info.membership, True)
 
     if not membership_try['success']:
         return {"success":False, "msg": "Could not make any updates!: " + membership_try['msg']}

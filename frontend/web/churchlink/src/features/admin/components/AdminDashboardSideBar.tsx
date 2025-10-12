@@ -71,16 +71,24 @@ const AdminDashboardSideBar = () => {
   const items: Item[] = [
     { title: "Home", url: "/", icon: Home },
     { title: "Dashboard", url: "/admin", icon: BarChart2 },
-    { title: "Manage Users", url: "/admin/users", icon: User },
+    {
+      title: "Users", url: "/admin/users", icon: User, children: [
+        { title: "Management", url: "/admin/users/manage-users" },
+        { title: "Membership Requests", url: "/admin/users/membership-requests" }
+      ]
+    },
+
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
     { title: "Web Builder", icon: Folder, children: webBuilderChildren },
     { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Shield },
     { title: "Media Library", icon: Folder, onClick: handleMediaRedirect, loadingKey: "media" },
     { title: "Events", url: "/admin/events", icon: CalendarFold },
-    { title: "Forms", icon: Folder, children: [
-      { title: "Manage Forms", url: "/admin/forms/manage-forms" },
-      { title: "Form Builder", url: "/admin/forms/form-builder" },
-    ] },
+    {
+      title: "Forms", icon: Folder, children: [
+        { title: "Manage Forms", url: "/admin/forms/manage-forms" },
+        { title: "Form Builder", url: "/admin/forms/form-builder" },
+      ]
+    },
     { title: "Sermons Manager", url: "/admin/sermons", icon: BookOpen },
     { title: "Bible Plan Manager", url: "/admin/bible-plan-manager", icon: BookOpen },
     { title: "Finance", url: "/admin/finance", icon: DollarSign },
