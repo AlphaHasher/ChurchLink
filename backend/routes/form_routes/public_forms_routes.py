@@ -1,6 +1,14 @@
 from fastapi import APIRouter, HTTPException, Request, status
 
-from models.form import FormOut, add_response_by_slug, get_form_by_slug, check_form_slug_status
+from typing import List
+
+from models.form import (
+    FormOut,
+    add_response_by_slug,
+    get_form_by_slug,
+    check_form_slug_status,
+    list_visible_forms,
+)
 
 
 public_forms_router = APIRouter(prefix="/forms", tags=["Forms"])
@@ -35,3 +43,10 @@ async def submit_response_by_slug(slug: str, request: Request):
     if not ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or "Failed to store response")
     return {"message": "Response recorded", "response_id": info}
+
+
+@public_forms_router.get("/public", response_model=List[FormOut])
+async def list_public_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
+    """Return public forms which are visible and not expired, using server time for expiry checks."""
+    forms = await list_visible_forms(skip=skip, limit=limit)
+    return forms

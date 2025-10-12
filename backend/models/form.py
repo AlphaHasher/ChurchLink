@@ -718,7 +718,14 @@ async def add_response_by_slug(slug: str, response: Any, user_id: Optional[str] 
     the ISO timestamp of when the response was recorded.
     """
     try:
-        doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
+        status_str, doc_any = await check_form_slug_status(slug)
+        if status_str == "not_found":
+            return False, "Form not found"
+        if status_str == "not_visible":
+            return False, "Form not available"
+        if status_str == "expired":
+            return False, "Form expired"
+        doc = doc_any
         if not doc:
             return False, "Form not found"
         form_id = doc.get("_id")

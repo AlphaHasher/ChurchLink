@@ -687,6 +687,52 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         return;
       }
 
+      // Locally check visibility and expiry before attempting to submit.
+      try {
+        final visibleFlag = widget.form.containsKey('visible') ? (widget.form['visible'] == true) : false;
+        if (!visibleFlag) {
+          if (!mounted) return;
+            await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Form unavailable'),
+              content: const Text('This form is not available for public viewing.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Ok')),
+              ],
+            ),
+          );
+          if (!mounted) return;
+          Navigator.of(context).pop(false);
+          return;
+        }
+
+        final expiresRaw = widget.form['expires_at'] ?? widget.form['expiresAt'] ?? widget.form['expires'];
+        if (expiresRaw != null) {
+          final expires = DateTime.tryParse(expiresRaw.toString());
+          if (expires == null || !expires.isAfter(DateTime.now())) {
+            if (!mounted) return;
+            await showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Form unavailable'),
+                content: const Text('This form has expired and is no longer accepting responses.'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Ok')),
+                ],
+              ),
+            );
+            if (!mounted) return;
+            Navigator.of(context).pop(false);
+            return;
+          }
+        }
+      } catch (_) {
+        // If anything goes wrong during local checks, proceed to call the server which will provide authoritative reason.
+      }
+
       final response = await api.post(
         '/v1/forms/slug/$slug/responses',
         data: _values,
@@ -699,14 +745,55 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         ).showSnackBar(const SnackBar(content: Text('Response submitted')));
         Navigator.of(context).pop(true);
       } else {
-        setState(() {
-          _error = 'Failed to submit (${response.statusCode})';
-        });
+        // Map server detail to friendly message when possible
+        final detail = response.data is Map ? (response.data['detail'] ?? response.data['message']) : null;
+        final detailStr = detail is String ? detail.toLowerCase() : null;
+        String msg = 'Failed to submit (${response.statusCode})';
+        if (detailStr != null) {
+          if (detailStr.contains('expired')) msg = 'This form has expired and is no longer accepting responses.';
+          else if (detailStr.contains('not available') || detailStr.contains('not visible')) msg = 'This form is not available for public viewing.';
+          else if (detailStr.contains('not found')) msg = 'Form not found.';
+        }
+        // Show blocking dialog with Ok to return to list
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Form unavailable'),
+            content: Text(msg),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                },
+                child: const Text('Ok'),
+              ),
+            ],
+          ),
+        );
+        Navigator.of(context).pop(false);
       }
     } catch (e) {
-      setState(() {
-        _error = 'Error submitting response: $e';
-      });
+      // Network or other error: show dialog and go back
+      final msg = 'Error submitting response: $e';
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Submission failed'),
+            content: Text(msg),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Ok'),
+              ),
+            ],
+          ),
+        );
+        Navigator.of(context).pop(false);
+      }
     } finally {
       setState(() {
         _submitting = false;

@@ -261,8 +261,8 @@ private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)
 private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
-private_router.include_router(public_forms_router)
 private_router.include_router(private_forms_router)
+public_router.include_router(public_forms_router)
 
 #####################################################
 # Mod Routers - Requires at least 1 perm role, agnostic to specific permissions
