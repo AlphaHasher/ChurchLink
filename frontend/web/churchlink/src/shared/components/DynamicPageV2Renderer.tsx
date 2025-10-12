@@ -1,5 +1,10 @@
 import React from "react";
-import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
+import EventSection from "@sections/EventSection";
+import MapSection from "@sections/MapSection";
+// import ServiceTimesSection from "@sections/ServiceTimesSection";
+// import MenuSection from "@sections/MenuSection";
+// import ContactInfoSection from "@sections/ContactInfoSection";
+import PaypalSection from "@sections/PaypalSection";
 // ScopedStyle temporarily disabled due to drag measurement regressions
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
 import { defaultGridSize, unitsToPx } from "@/features/webeditor/grid/gridMath";
@@ -43,7 +48,8 @@ const renderNode = (
   node: Node,
   highlightNodeId?: string,
   sectionFontFamily?: string,
-  gridSize?: number
+  gridSize?: number,
+  forceFlowLayout?: boolean
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyleRaw = (node as any).style || {};
@@ -199,6 +205,35 @@ const renderNode = (
         </>
       );
     }
+    case "map": {
+      const url = (node as any).props?.embedUrl || "";
+      const paddingY = nodeStyleRaw?.paddingY;
+      const paddingX = nodeStyleRaw?.paddingX;
+      const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
+      const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
+      const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX;
+      const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX;
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
+        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
+        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
+        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+      };
+      return (
+        <div className={cn('block w-full', (node as any).style?.className, highlightClass(node, highlightNodeId))} style={inlineStyle}>
+          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle unstyled />
+        </div>
+      );
+    }
+    case "paypal": {
+      // In V2, paypal is rendered as a locked section content; here allow rendering the UI component
+      return (
+        <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
+          <PaypalSection data={{}} isEditing={false} />
+        </div>
+      );
+    }
     case "container": {
       const maxWidth = (node as any).props?.maxWidth ?? "xl";
       const px = (node as any).props?.paddingX ?? 4;
@@ -222,9 +257,9 @@ const renderNode = (
 
       const containerContent = (node.children ?? []).map((child) => {
         const hasLayout = !!child.layout?.units;
-        const childRendered = renderNode(child, highlightNodeId, nodeFontFamily, gridSize);
+        const childRendered = renderNode(child, highlightNodeId, nodeFontFamily, gridSize, forceFlowLayout);
 
-        if (hasLayout && gridSize) {
+        if (hasLayout && gridSize && !forceFlowLayout) {
           const { xu, yu, wu, hu } = child.layout!.units;
           const style: React.CSSProperties = {
             left: unitsToPx(xu, gridSize),
@@ -243,12 +278,15 @@ const renderNode = (
         }
 
         const isContainer = child.type === "container";
+        if (forceFlowLayout) {
+          return (
+            <div key={child.id} className="relative">
+              {childRendered}
+            </div>
+          );
+        }
         return (
-          <div
-            key={child.id}
-            className={cn("relative", !isContainer && "inline-block")}
-            style={{ width: !isContainer ? "fit-content" : undefined }}
-          >
+          <div key={child.id} className={cn("relative", !isContainer && "inline-block")} style={{ width: !isContainer ? "fit-content" : undefined }}>
             {childRendered}
           </div>
         );
@@ -303,6 +341,10 @@ const renderNode = (
         </>
       );
     }
+    case "menu": {
+      // V1 only; for V2 treat as container/text composition in presets
+      return null;
+    }
     default: {
       return null;
     }
@@ -349,9 +391,10 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string }
             >
               {section.children.map((node) => {
                 const hasLayout = !!node.layout?.units;
-                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize);
+                const forceFlow = section.lockLayout === true;
+                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow);
 
-                if (hasLayout) {
+                if (hasLayout && !forceFlow) {
                   const { xu, yu, wu, hu } = node.layout!.units;
                   const style: React.CSSProperties = {
                     left: unitsToPx(xu, gridSize),
@@ -370,12 +413,15 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string }
                 }
 
                 const isContainer = node.type === "container";
+                if (forceFlow) {
+                  return (
+                    <div key={node.id} className="relative">
+                      {rendered}
+                    </div>
+                  );
+                }
                 return (
-                  <div
-                    key={node.id}
-                    className={cn("relative", !isContainer && "inline-block")}
-                    style={{ width: !isContainer ? "fit-content" : undefined }}
-                  >
+                  <div key={node.id} className={cn("relative", !isContainer && "inline-block")} style={{ width: !isContainer ? "fit-content" : undefined }}>
                     {rendered}
                   </div>
                 );

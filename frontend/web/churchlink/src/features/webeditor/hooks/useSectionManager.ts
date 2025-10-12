@@ -79,6 +79,8 @@ export function useSectionManager() {
       newNode = { id: `${newId()}-img`, type: "image", props: { src: "https://placehold.co/600x400", alt: "Image" } } as Node;
     } else if (type === "eventList") {
       newNode = { id: `${newId()}-e`, type: "eventList", props: { showFilters: true } } as Node;
+    } else if (type === "map") {
+      newNode = { id: `${newId()}-map`, type: "map", props: { embedUrl: "https://www.google.com/maps/embed?pb=..." } } as Node;
     } else {
       newNode = { id: `${newId()}-c`, type: "container", props: { maxWidth: "xl", paddingX: 4, paddingY: 6 }, children: [] } as Node;
     }

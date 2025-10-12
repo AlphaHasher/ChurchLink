@@ -67,6 +67,8 @@ type DragNodeProps = {
   enforceChildFullSize?: boolean;
   // When true, allow pointer events to reach rendered content (needed for containers with draggable children)
   allowContentPointerEvents?: boolean;
+  // Disable drag/resize interactions (for locked sections)
+  disabled?: boolean;
 };
 
 export function DraggableNode({
@@ -82,6 +84,7 @@ export function DraggableNode({
   containerId,
   enforceChildFullSize,
   allowContentPointerEvents,
+  disabled,
 }: DragNodeProps) {
   const [dragging, setDragging] = useState(false);
   const [tempPos, setTempPos] = useState<{ x: number; y: number } | null>(null);
@@ -111,6 +114,7 @@ export function DraggableNode({
   const baseHeight = cachedLayout?.h ?? node.layout?.px?.h ?? (node.layout?.units.hu ? unitsToPx(node.layout.units.hu, gridSize) : undefined);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (disabled) return; // disable interactions
     if (isEditing) return; // Disable drag when editing text
     const wrapper = e.currentTarget as HTMLElement;
     // Measure actual child box instead of wrapper which includes outlines/handles
@@ -127,9 +131,10 @@ export function DraggableNode({
     pressedRef.current = true;
     onSelect?.();
     e.stopPropagation();
-  }, [isEditing, x, y, onSelect]);
+  }, [isEditing, x, y, onSelect, disabled]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (disabled) return;
     if (!dragging || !startRef.current) return;
     const wrapper = e.currentTarget as HTMLElement;
     const container = wrapper.offsetParent as HTMLElement | null;
@@ -193,9 +198,10 @@ export function DraggableNode({
 
     setTempPos({ x: snappedX, y: snappedY });
     e.stopPropagation();
-  }, [dragging, gridSize, containerId]);
+  }, [dragging, gridSize, containerId, disabled]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
+    if (disabled) return;
     if (!dragging || !startRef.current) return;
 
     if (resizeRef.current) {
@@ -267,7 +273,7 @@ export function DraggableNode({
       e.preventDefault();
     }
     e.stopPropagation();
-  }, [dragging, gridSize, tempPos, node.id, onCommitLayout, containerId]);
+  }, [dragging, gridSize, tempPos, node.id, onCommitLayout, containerId, disabled]);
 
   // Position to render (during drag show temp, otherwise snap)
   const renderX = tempPos?.x ?? x;
@@ -315,6 +321,8 @@ export function DraggableNode({
         height: renderH,
         transform: 'translateZ(0)', // GPU hint
         zIndex: dragging ? 60 : (selected ? 50 : 10),
+        pointerEvents: disabled ? 'auto' : undefined,
+        cursor: disabled ? 'default' : undefined,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onWrapperPointerMove}
@@ -322,19 +330,21 @@ export function DraggableNode({
         onClick={(e) => {
           // Prevent click bubbling to parent containers which would select the container instead
           e.stopPropagation();
-          onSelect?.();
+        if (!disabled) onSelect?.();
         }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        BuilderState.startEditing(sectionId, node.id);
-        onDoubleSelect?.();
+        if (!disabled) {
+          BuilderState.startEditing(sectionId, node.id);
+          onDoubleSelect?.();
+        }
       }}
       data-draggable="true"
     >
       <div
         className={enforceChildFullSize ? 'w-full h-full' : undefined}
         style={{
-          pointerEvents: (isEditing || allowContentPointerEvents) ? ('auto' as const) : ('none' as const),
+          pointerEvents: disabled ? ('auto' as const) : ((isEditing || allowContentPointerEvents) ? ('auto' as const) : ('none' as const)),
           userSelect: isEditing ? ('text' as const) : ('none' as const),
           width: enforceChildFullSize ? '100%' : undefined,
           height: enforceChildFullSize ? '100%' : undefined,

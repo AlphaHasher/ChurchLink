@@ -12,7 +12,6 @@ import {
   Bell,
   DollarSign,
 } from "lucide-react";
-import { processStrapiRedirect } from "@/helpers/StrapiInteraction";
 import {
   Sidebar,
   SidebarContent,
@@ -33,7 +32,7 @@ import ProfilePill from "@/shared/components/ProfilePill";
 
 const AdminDashboardSideBar = () => {
   const location = useLocation();
-  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [loadingKey] = useState<string | null>(null);
 
   const isActive = (path?: string) =>
     !!path && (location.pathname === path || location.pathname.startsWith(path + "/"));
@@ -58,16 +57,6 @@ const AdminDashboardSideBar = () => {
     []
   );
 
-  const handleMediaRedirect = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    setLoadingKey("media");
-    try {
-      await processStrapiRedirect();
-    } finally {
-      setLoadingKey(null);
-    }
-  };
-
   const items: Item[] = [
     { title: "Home", url: "/", icon: Home },
     { title: "Dashboard", url: "/admin", icon: BarChart2 },
@@ -75,7 +64,6 @@ const AdminDashboardSideBar = () => {
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
     { title: "Web Builder", icon: Folder, children: webBuilderChildren },
     { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Shield },
-    { title: "Media Library", icon: Folder, onClick: handleMediaRedirect, loadingKey: "media" },
     { title: "Events", url: "/admin/events", icon: CalendarFold },
     { title: "Forms", icon: Folder, children: [
       { title: "Manage Forms", url: "/admin/forms/manage-forms" },

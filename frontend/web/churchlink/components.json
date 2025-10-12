@@ -10,13 +10,15 @@
     "cssVariables": true,
     "prefix": ""
   },
+  "iconLibrary": "lucide",
   "aliases": {
     "components": "@/shared/components",
     "utils": "@/lib/utils",
     "ui": "@/shared/components/ui",
     "lib": "@/lib",
-    "hooks": "@/shared/hooks",
-    "cssVariables": true
+    "hooks": "@/shared/hooks"
   },
-  "iconLibrary": "lucide"
+  "registries": {
+    "@animate-ui": "https://animate-ui.com/r/{name}.json"
+  }
 }

@@ -24,7 +24,6 @@ interface FontPickerProps {
   customFontActive: boolean;
   filteredFonts: GoogleFontOption[];
   handleSelectFont: (fontId: string) => void;
-  MAX_INITIAL_FONTS: number;
 }
 
 const FontPicker: React.FC<FontPickerProps> = ({
@@ -43,7 +42,6 @@ const FontPicker: React.FC<FontPickerProps> = ({
   customFontActive,
   filteredFonts,
   handleSelectFont,
-  MAX_INITIAL_FONTS,
 }) => {
   return (
     <div className="space-y-3">

@@ -165,6 +165,135 @@ export const createPresetSection = (key: string): SectionV2 | null => {
     };
   }
   
+  if (key === "map") {
+    return {
+      id: `${newId()}-map`,
+      kind: "section",
+      heightPercent: 70,
+      background: { className: "bg-gradient-to-b from-slate-50 via-white to-slate-100" },
+      grid: { className: "w-full" },
+      styleTokens: {},
+      lockLayout: true,
+      children: [
+        {
+          id: `${newId()}-c-map`,
+          type: "container",
+          props: { maxWidth: "xl", paddingX: 4, paddingY: 10 },
+          children: [
+            { id: `${newId()}-map-title`, type: "text", props: { variant: "h2", html: "Our Location", align: "left" }, style: { fontSize: 2, fontWeight: 700, color: "#0f172a", paddingBottom: 2 } } as Node,
+            {
+              id: `${newId()}-map`,
+              type: "map",
+              props: (() => {
+                const place = "6601 Watt Ave, North Highlands, CA 95660";
+                const embedUrl = `https://www.google.com/maps?q=${encodeURIComponent(place)}&output=embed`;
+                return { embedUrl, place };
+              })(),
+              style: { borderRadius: 16, backgroundColor: "#ffffff" },
+            } as Node,
+            { id: `${newId()}-map-cta`, type: "button", props: { label: "Get Directions", href: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent("6601 Watt Ave, North Highlands, CA 95660")}` }, style: { className: "mt-4 px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800" } } as Node,
+          ],
+        } as Node,
+      ],
+    };
+  }
+
+  if (key === "paypal") {
+    return {
+      id: `${newId()}-paypal`,
+      kind: "section",
+      heightPercent: 80,
+      background: { className: "bg-slate-50" },
+      grid: { className: "w-full" },
+      styleTokens: {},
+      lockLayout: true,
+      children: [
+        {
+          id: `${newId()}-c-paypal`,
+          type: "container",
+          props: { maxWidth: "xl", paddingX: 4, paddingY: 6 },
+          children: [
+            {
+              id: `${newId()}-paypal`,
+              type: "image", // Placeholder visual; the PayPal form is dynamic in v1 sections
+              props: { src: "https://placehold.co/800x400?text=PayPal+Section", alt: "PayPal" },
+              style: { borderRadius: 12, backgroundColor: "#ffffff" },
+              layout: { units: { xu: 0, yu: 0, wu: 12, hu: 8 } },
+            } as Node,
+          ],
+          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 10 } },
+        } as Node,
+      ],
+    };
+  }
+
+  if (key === "serviceTimes") {
+    return {
+      id: `${newId()}-service`,
+      kind: "section",
+      heightPercent: 80,
+      background: { className: "bg-white" },
+      grid: { className: "w-full" },
+      styleTokens: {},
+      children: [
+        {
+          id: `${newId()}-c-service`,
+          type: "container",
+          props: { maxWidth: "xl", paddingX: 4, paddingY: 6 },
+          children: [
+            { id: `${newId()}-t-title`, type: "text", props: { variant: "h2", html: "Service Times" }, layout: { units: { xu: 0, yu: 0, wu: 8, hu: 2 } } } as Node,
+            { id: `${newId()}-t1`, type: "text", props: { variant: "p", html: "Sundays at 9:00 AM & 11:00 AM" }, layout: { units: { xu: 0, yu: 3, wu: 12, hu: 2 } } } as Node,
+          ],
+          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 10 } },
+        } as Node,
+      ],
+    };
+  }
+
+  if (key === "menu") {
+    return {
+      id: `${newId()}-menu`,
+      kind: "section",
+      heightPercent: 80,
+      background: { className: "bg-white" },
+      grid: { className: "w-full" },
+      styleTokens: {},
+      children: [
+        {
+          id: `${newId()}-c-menu`,
+          type: "container",
+          props: { maxWidth: "xl", paddingX: 4, paddingY: 6 },
+          children: [
+            { id: `${newId()}-t-menu`, type: "text", props: { variant: "h2", html: "Explore" }, layout: { units: { xu: 0, yu: 0, wu: 8, hu: 2 } } } as Node,
+          ],
+          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 10 } },
+        } as Node,
+      ],
+    };
+  }
+
+  if (key === "contactInfo") {
+    return {
+      id: `${newId()}-contact`,
+      kind: "section",
+      heightPercent: 80,
+      background: { className: "bg-white" },
+      grid: { className: "w-full" },
+      styleTokens: {},
+      children: [
+        {
+          id: `${newId()}-c-contact`,
+          type: "container",
+          props: { maxWidth: "xl", paddingX: 4, paddingY: 6 },
+          children: [
+            { id: `${newId()}-t-contact`, type: "text", props: { variant: "h2", html: "Contact Us" }, layout: { units: { xu: 0, yu: 0, wu: 8, hu: 2 } } } as Node,
+          ],
+          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 10 } },
+        } as Node,
+      ],
+    };
+  }
+  
   return null;
 };
 
@@ -174,9 +303,15 @@ export const ELEMENTS: Array<{ type: Node["type"]; label: string }> = [
   { type: "image", label: "Image" },
   { type: "container", label: "Container" },
   { type: "eventList", label: "Event List" },
+  { type: "map", label: "Map" },
 ];
 
 export const SECTION_PRESETS = [
   { key: "hero", label: "Hero" },
   { key: "events", label: "Events" },
+  { key: "map", label: "Map Section" },
+  { key: "paypal", label: "PayPal (locked layout)" },
+  { key: "serviceTimes", label: "Service Times" },
+  { key: "menu", label: "Menu" },
+  { key: "contactInfo", label: "Contact Info" },
 ];

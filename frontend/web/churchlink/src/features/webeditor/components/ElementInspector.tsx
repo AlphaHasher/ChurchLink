@@ -378,6 +378,10 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
           return "Container Element";
         case "eventList":
           return "Event List Element";
+        case "map":
+          return "Map Element";
+        case "paypal":
+          return "PayPal Element";
         default:
           return "Unknown Element";
       }
@@ -549,6 +553,38 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
           {selectedNode.type === "container" && <ContainerInspector node={selectedNode} onUpdate={onUpdateNode} />}
 
           {selectedNode.type === "eventList" && <EventListInspector node={selectedNode} onUpdate={onUpdateNode} />}
+
+          {/* Map settings */}
+          {selectedNode.type === "map" && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label htmlFor="map-location">Location or Address</Label>
+                <input
+                  id="map-location"
+                  type="text"
+                  className="w-full border rounded p-2"
+                  placeholder="e.g. 1600 Amphitheatre Pkwy, Mountain View, CA or 'Statue of Liberty'"
+                  onBlur={(e) => {
+                    const value = e.target.value.trim();
+                    if (!value) return;
+                    const toEmbed = (place: string) => `https://www.google.com/maps?q=${encodeURIComponent(place)}&output=embed`;
+                    onUpdateNode((n) => ({
+                      ...n,
+                      props: {
+                        ...(n as any).props,
+                        // Let MapSection convert place → embed URL, also preserve direct embed if provided
+                        embedUrl: /^https?:\/\//i.test(value) ? value : toEmbed(value),
+                        place: value,
+                      },
+                    }));
+                  }}
+                  defaultValue={(selectedNode as any)?.props?.place || ""}
+                />
+                <p className="text-xs text-muted-foreground">Paste a full Google Maps embed URL or enter a place/address to auto-generate. Tip: The "Get Directions" button links to Google Maps with this destination.</p>
+              </div>
+            </>
+          )}
 
           <Separator />
 

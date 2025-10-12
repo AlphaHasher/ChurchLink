@@ -78,12 +78,26 @@ export interface ImageNode extends NodeBase {
   } & Record<string, any>;
 }
 
+export interface MapNode extends NodeBase {
+  type: "map";
+  props?: {
+    embedUrl?: string;
+  } & Record<string, any>;
+}
+
+export interface PaypalNode extends NodeBase {
+  type: "paypal";
+  props?: Record<string, any>;
+}
+
 export type Node =
   | TextNode
   | ButtonNode
   | ContainerNode
   | EventListNode
   | ImageNode
+  | MapNode
+  | PaypalNode
   | NodeBase;
 
 export interface SectionV2 {
@@ -100,6 +114,8 @@ export interface SectionV2 {
     gridSize?: number; // px per cell (e.g., 16)
     showGrid?: boolean;
   };
+  // When true, disables drag & resize of child nodes in the builder, but style editing remains
+  lockLayout?: boolean;
   children: Node[];
 }
 

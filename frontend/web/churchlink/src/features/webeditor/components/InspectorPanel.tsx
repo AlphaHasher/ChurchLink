@@ -228,6 +228,18 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
       };
     }, [selectedSectionId]);
 
+    // Remove Tailwind background utilities (e.g., bg-*, from-*, via-*, to-*, bg-gradient-to-*)
+    const stripBgUtilities = React.useCallback((cls?: string): string | undefined => {
+      if (!cls) return undefined;
+      const cleaned = cls
+        .split(/\s+/)
+        .filter(Boolean)
+        .filter((t) => !/^bg-/.test(t) && !/^from-/.test(t) && !/^via-/.test(t) && !/^to-/.test(t))
+        .join(' ')
+        .trim();
+      return cleaned || undefined;
+    }, []);
+
     const applySolid = React.useCallback((css: string) => {
       if (!selectedSectionId) return;
       scheduleSetSections((prev) => {
@@ -237,18 +249,21 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
           const current = (s.background?.style || {}) as any;
           if (current.backgroundColor === css && !current.background && !current.backgroundImage) return s;
           const { background, backgroundImage, ...rest } = current;
+          const prevClass = (s.background?.className || '') as string;
+          const nextClass = stripBgUtilities(prevClass);
           changed = true;
           return {
             ...s,
             background: {
               ...(s.background || {}),
+              className: nextClass,
               style: { ...rest, backgroundColor: css },
             },
           } as SectionV2;
         });
         return changed ? next : prev;
       });
-    }, [selectedSectionId, scheduleSetSections]);
+    }, [selectedSectionId, scheduleSetSections, stripBgUtilities]);
 
     const applyGradient = React.useCallback((nextAngle: number, nextC1: string, nextC2: string) => {
       if (!selectedSectionId) return;
@@ -260,18 +275,21 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
           const current = (s.background?.style || {}) as any;
           if (((current.background ?? current.backgroundImage) === gradient) && !current.backgroundColor) return s;
           const { backgroundColor, backgroundImage, ...rest } = current;
+          const prevClass = (s.background?.className || '') as string;
+          const nextClass = stripBgUtilities(prevClass);
           changed = true;
           return {
             ...s,
             background: {
               ...(s.background || {}),
+              className: nextClass,
               style: { ...rest, background: gradient },
             },
           } as SectionV2;
         });
         return changed ? next : prev;
       });
-    }, [selectedSectionId, scheduleSetSections]);
+    }, [selectedSectionId, scheduleSetSections, stripBgUtilities]);
 
     const applyCustom = React.useCallback((css: string) => {
       if (!selectedSectionId) return;
@@ -282,18 +300,21 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
           const current = (s.background?.style || {}) as any;
           if (((current.background ?? current.backgroundImage) === css) && !current.backgroundColor) return s;
           const { backgroundColor, backgroundImage, ...rest } = current;
+          const prevClass = (s.background?.className || '') as string;
+          const nextClass = stripBgUtilities(prevClass);
           changed = true;
           return {
             ...s,
             background: {
               ...(s.background || {}),
+              className: nextClass,
               style: { ...rest, background: css },
             },
           } as SectionV2;
         });
         return changed ? next : prev;
       });
-    }, [selectedSectionId, scheduleSetSections]);
+    }, [selectedSectionId, scheduleSetSections, stripBgUtilities]);
 
     const handleSolidChange = React.useCallback((c: any) => {
       if (!open || skipInitialRef.current) return;

@@ -16,6 +16,7 @@ const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
+const MediaLibrary = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/MediaLibrary"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
@@ -32,6 +33,8 @@ export const AdminRoutes = () => {
       <Route path="/" element={<AdminLayout></AdminLayout>}>
         <Route index element={<AdminDashboard />} />
         <Route path="webbuilder" element={<WebBuilder />} />
+        <Route path="webbuilder/media" element={<MediaLibrary />} />
+        <Route path="sermons" element={<Sermons />} />
         <Route path="users" element={<Users />} />
         <Route path="permissions" element={<Permissions />} />
         <Route path="notifications" element={<Notification />} />

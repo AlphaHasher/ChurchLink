@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@sections": path.resolve(__dirname, "./src/features/admin/components/WebBuilder/sections"),
     },
     dedupe: ["react", "react-dom"],
   },

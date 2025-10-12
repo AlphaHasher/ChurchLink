@@ -45,6 +45,9 @@ from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_r
 
 from routes.forms_routes import mod_forms_router
 from routes.translator_routes import translator_router
+from routes.assets_routes import assets_router
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
@@ -224,6 +227,7 @@ public_router.include_router(paypal_public_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
+public_router.include_router(assets_router)
 
 
 #####################################################
@@ -286,6 +290,10 @@ app.include_router(event_editing_protected_router)
 app.include_router(sermon_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
+
+# Mount static files for serving assets
+assets_path = Path("data/assets")
+app.mount("/assets", StaticFiles(directory=assets_path, html=False), name="assets")
 
 
 if __name__ == "__main__":

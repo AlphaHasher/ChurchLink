@@ -72,8 +72,9 @@ export function DeleteEventDialog({ event, onSave }: DeleteEventDialogProps) {
         <>
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
-                variant="outline"
-                className="!bg-white text-red border shadow-sm !hover:bg-red-600"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive/80"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {
@@ -117,7 +118,7 @@ export function DeleteEventDialog({ event, onSave }: DeleteEventDialogProps) {
                         <Loader2 className="animate-spin mr-2 h-4 w-4" />
                     </>
                 ) : (
-                    <Trash />
+                    <Trash className="h-4 w-4" />
                 )}
             </Button>
 

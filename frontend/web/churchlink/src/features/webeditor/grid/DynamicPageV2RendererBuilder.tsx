@@ -4,7 +4,12 @@ import { GridOverlay } from './GridOverlay';
 import { DraggableNode } from './DraggableNode';
 import { defaultGridSize, unitsToPx } from './gridMath';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
-import EventSection from '@/features/admin/components/WebBuilder/sections/EventSection';
+import EventSection from '@sections/EventSection';
+import MapSection from '@sections/MapSection';
+// import ServiceTimesSection from '@sections/ServiceTimesSection';
+// import MenuSection from '@sections/MenuSection';
+// import ContactInfoSection from '@sections/ContactInfoSection';
+import PaypalSection from '@sections/PaypalSection';
 // import ScopedStyle from '@/shared/components/ScopedStyle';
 import { ActivePaddingOverlay, BuilderState } from '@/features/webeditor/state/BuilderState';
 
@@ -124,7 +129,8 @@ const renderNode = (
   hoveredNodeId?: string | null,
   selectedNodeId?: string | null,
   gridSize?: number,  // Added for nested positioning
-  onUpdateNodeLayout?: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void  // Added for nested commits
+  onUpdateNodeLayout?: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void,  // Added for nested commits
+  forceFlowLayout?: boolean,
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyle = nodeFontFamily ? { fontFamily: nodeFontFamily } : undefined;
@@ -140,25 +146,30 @@ const renderNode = (
   const outlineClass = '';
 
   const handleMouseEnter = (e: React.MouseEvent) => {
-    // Only handle if the target is this element, not a child
-    if (e.target !== e.currentTarget) return;
     e.stopPropagation();
     onNodeHover?.(node.id);
   };
 
   const handleMouseLeave = (e: React.MouseEvent) => {
-    // Only handle if the target is this element, not a child
-    if (e.target !== e.currentTarget) return;
     e.stopPropagation();
     onNodeHover?.(null);
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only select when the click is on this element itself, not a child
-    if (e.target !== e.currentTarget) return;
     e.stopPropagation();
-    // On single click, select but do not open inspector here; handled by parent
+    const target = e.target as HTMLElement;
+    const closest = target.closest('[data-node-id]') as HTMLElement | null;
+    const self = e.currentTarget as HTMLElement;
+    if (!closest || closest !== self) return; // Only select the top-most wrapper for this node
     if (sectionId) onNodeClick?.(sectionId, node.id);
+  };
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const target = e.target as HTMLElement;
+    const closest = target.closest('[data-node-id]') as HTMLElement | null;
+    const self = e.currentTarget as HTMLElement;
+    if (!closest || closest !== self) return;
+    if (sectionId) onNodeDoubleClick?.(sectionId, node.id);
   };
   
   switch (node.type) {
@@ -222,6 +233,8 @@ const renderNode = (
       return (
         <>
         <div
+          data-node-id={node.id}
+          data-node-type={node.type}
           className={cn(
             'inline-block max-w-full w-fit align-top break-words',
             interactiveClass,
@@ -234,6 +247,7 @@ const renderNode = (
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
         >
           <Tag
             className={cn(
@@ -269,6 +283,8 @@ const renderNode = (
       return (
         <>
         <div
+          data-node-id={node.id}
+          data-node-type={node.type}
           className={cn(
             interactiveClass,
             outlineClass
@@ -277,6 +293,7 @@ const renderNode = (
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -337,12 +354,15 @@ const renderNode = (
       return (
         <>
         <button 
+          data-node-id={node.id}
+          data-node-type={node.type}
           className={className} 
           style={inlineStyle}
           // data-node-id used by ScopedStyle; disabled
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
         >
           {label}
         </button>
@@ -361,6 +381,8 @@ const renderNode = (
       return (
         <>
         <div
+          data-node-id={node.id}
+          data-node-type={node.type}
           className={cn(
             nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
             interactiveClass,
@@ -371,6 +393,7 @@ const renderNode = (
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
         >
           <EventSection
             showFilters={(node as any).props?.showFilters !== false}
@@ -382,6 +405,35 @@ const renderNode = (
         </div>
         {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
+      );
+    }
+    case 'map': {
+      const nodeStyleRaw = (node as any).style || {};
+      const url = (node as any).props?.embedUrl || '';
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
+      return (
+        <div className={cn('block w-full', interactiveClass, outlineClass)} style={inlineStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onClick={handleClick}>
+          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle unstyled disableInteractions />
+        </div>
+      );
+    }
+    case 'paypal': {
+      const nodeStyleRaw = (node as any).style || {};
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
+      return (
+        <div className={cn(interactiveClass, outlineClass)} style={inlineStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onClick={handleClick}>
+          <PaypalSection data={{}} isEditing={false} />
+        </div>
       );
     }
     case 'container': {
@@ -408,14 +460,14 @@ const renderNode = (
       // Render container div with nested children wrapped in DraggableNode for absolute positioning
       const containerContent = (node.children ?? []).map((c) => {
         const childHasLayout = !!c.layout?.units;
-        if (childHasLayout && gridSize && onUpdateNodeLayout && sectionId) {
+        if (childHasLayout && gridSize && onUpdateNodeLayout && sectionId && !forceFlowLayout) {
           const cachedPx = BuilderState.getNodePixelLayout(c.id);
           const hasCustomPx = cachedPx && cachedPx.sectionId === sectionId;
           const cx = hasCustomPx ? cachedPx!.x : unitsToPx(c.layout!.units.xu, gridSize);
           const cy = hasCustomPx ? cachedPx!.y : unitsToPx(c.layout!.units.yu, gridSize);
           const cw = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (c.layout?.units.wu ? unitsToPx(c.layout!.units.wu!, gridSize) : undefined);
           const ch = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (c.layout?.units.hu ? unitsToPx(c.layout!.units.hu!, gridSize) : undefined);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout);
           return (
             <DraggableNode
               key={c.id}
@@ -439,13 +491,15 @@ const renderNode = (
         } else {
           // Fallback for missing layout or params - render without wrapper
           if (!childHasLayout) console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout);
           return <div key={c.id} className="relative">{childRendered}</div>;
         }
       });
       return (
         <>
         <div
+          data-node-id={node.id}
+          data-node-type={node.type}
           id={node.id}
           data-draggable="true"
           className={cn(
@@ -467,6 +521,7 @@ const renderNode = (
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
         >
           {containerContent}
         </div>
@@ -566,8 +621,9 @@ export const DynamicPageV2RendererBuilder: React.FC<{
             >
               {section.children.map((node) => {
                 const hasLayout = !!node.layout?.units;
+                const locked = section.lockLayout === true;
                 let rendered: React.ReactNode;
-                if (hasLayout) {
+                if (hasLayout && !locked) {
                   const cachedPx = BuilderState.getNodePixelLayout(node.id);
         const hasCustomPx = cachedPx && cachedPx.sectionId === section.id;
                   const x = hasCustomPx ? cachedPx!.x : unitsToPx(node.layout!.units.xu, gridSize);
@@ -607,18 +663,18 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                       defaultSize={{ w, h }}
                       selected={node.id === selectedNodeId}
             onCommitLayout={handleCommitLayout}
-                      onSelect={() => onNodeClick?.(section.id, node.id)}
-                      onDoubleSelect={() => onNodeDoubleClick?.(section.id, node.id)}
+                      onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
+                      onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
                       render={() => rendered}
                       containerId={`section-content-${section.id}`}
                       enforceChildFullSize={node.type === 'container' || node.type === 'button' || node.type === 'text'}
                       allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
+                      disabled={locked}
                     />
                   );
                 } else {
-                  // Fallback for nodes without layout - render as flow, log warning
-                  console.warn(`Node ${node.id} missing layout.units - rendering as flow.`);
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+                  // Flow layout for locked sections or nodes without layout
+                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, locked);
                   return <div key={node.id} className="relative">{rendered}</div>;
                 }
               })}
