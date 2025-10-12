@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
+from helpers.Firebase_helpers import authenticate_uid
 
 from typing import List
 
@@ -15,7 +17,16 @@ public_forms_router = APIRouter(prefix="/forms", tags=["Forms"])
 
 
 @public_forms_router.get("/slug/{slug}", response_model=FormOut)
-async def get_form_by_slug_route(slug: str) -> FormOut:
+async def get_form_by_slug_route(slug: str, request: Request) -> FormOut:
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=parts[1])
+    await authenticate_uid(creds)
+
     status_str, doc = await check_form_slug_status(slug)
     if status_str == "not_found":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
@@ -24,7 +35,6 @@ async def get_form_by_slug_route(slug: str) -> FormOut:
     if status_str == "expired":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form expired")
 
-    # If ok, fetch the full form view (this will apply the same visible/expiry filters)
     form = await get_form_by_slug(slug)
     if not form:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
@@ -37,8 +47,21 @@ async def submit_response_by_slug(slug: str, request: Request):
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
 
-    uid = getattr(request.state, "uid", None)
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
+
+    token = parts[1]
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+    try:
+        uid = await authenticate_uid(creds)
+    except HTTPException:
+        raise
+
     ok, info = await add_response_by_slug(slug, payload, user_id=uid)
     if not ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or "Failed to store response")
