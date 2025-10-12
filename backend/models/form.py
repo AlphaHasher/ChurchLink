@@ -241,6 +241,17 @@ async def list_forms(user_id: str, skip: int = 0, limit: int = 100) -> List[Form
         return []
 
 
+async def list_all_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
+    try:
+        cursor = DB.db.forms.find({}).skip(skip).limit(limit).sort([("created_at", -1)])
+        docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error listing all forms: {e}")
+        return []
+
+
 async def search_forms(user_id: str, name: Optional[str] = None, folder: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
         query: dict = {"user_id": user_id}
@@ -261,6 +272,28 @@ async def search_forms(user_id: str, name: Optional[str] = None, folder: Optiona
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error searching forms: {e}")
+        return []
+
+
+async def search_all_forms(name: Optional[str] = None, folder: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
+    try:
+        query: dict = {}
+        if name:
+            query["title"] = {"$regex": name, "$options": "i"}
+        if folder:
+            folder_values = [folder]
+            try:
+                folder_values.append(ObjectId(folder))
+            except Exception:
+                pass
+            query["folder"] = {"$in": folder_values}
+
+        cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
+        docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error searching all forms: {e}")
         return []
 
 
@@ -385,6 +418,18 @@ async def get_form_by_slug(slug: str) -> Optional[FormOut]:
         return _doc_to_out(annotated[0])
     except Exception as e:
         logger.error(f"Error fetching form by slug: {e}")
+        return None
+
+
+async def get_form_by_id_unrestricted(form_id: str) -> Optional[FormOut]:
+    try:
+        doc = await DB.db.forms.find_one({"_id": ObjectId(form_id)})
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
+    except Exception as e:
+        logger.error(f"Error fetching form by id: {e}")
         return None
 
 
