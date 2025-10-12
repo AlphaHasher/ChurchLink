@@ -22,17 +22,18 @@ bible_note_router = APIRouter(prefix="/bible-notes", tags=["Bible Notes"])
 @bible_note_router.get("/", summary="Get user's Bible notes")
 async def get_notes(
     request: Request,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=0),
     book: Optional[str] = Query(None, description="Filter by Bible book"),
     chapter: Optional[int] = Query(None, description="Filter by chapter"),
     highlight_color: Optional[str] = Query(None, description="Filter by highlight color"),
+    effective_limit: Optional[int] = None if limit == 0 else limit
 ) -> List[BibleNoteOut]:
     """Get Bible notes for the authenticated user with optional filters"""
     return await get_bible_notes_by_user(
         user_id=request.state.uid,
         skip=skip,
-        limit=limit,
+        limit=effective_limit,
         book=book,
         chapter=chapter,
         highlight_color=highlight_color
