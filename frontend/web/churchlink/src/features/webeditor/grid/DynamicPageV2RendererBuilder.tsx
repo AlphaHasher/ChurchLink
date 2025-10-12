@@ -417,7 +417,16 @@ const renderNode = (
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
       return (
-        <div className={cn('block w-full', interactiveClass, outlineClass)} style={inlineStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onClick={handleClick}>
+        <div
+          data-node-id={node.id}
+          data-node-type={node.type}
+          id={node.id}
+          className={cn('block w-full', interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+        >
           <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle unstyled disableInteractions />
         </div>
       );

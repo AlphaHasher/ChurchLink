@@ -13,6 +13,12 @@ function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function mergeClassNames(
+  ...classes: Array<string | undefined | null | false>
+) {
+  return classes.filter(Boolean).join(" ");
+}
+
 // Match builder padding conversion: Tailwind spacing unit -> rem (n * 0.25rem)
 function tailwindSpacingToRem(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) return undefined;
@@ -26,22 +32,94 @@ const highlightClass = (node: Node, highlightNodeId?: string) =>
   node.id === highlightNodeId ? "outline outline-2 outline-red-500/70" : undefined;
 
 function enforceFullSize(content: React.ReactNode): React.ReactNode {
-  if (!React.isValidElement(content)) return content;
+  // If content is a Fragment, promote its children and wrap them for size enforcement
+  if (React.isValidElement(content) && (content as any).type === React.Fragment) {
+    const children = React.Children.toArray(
+      (content as any).props?.children ?? []
+    );
+    const filled = children.map((child) => {
+      if (!React.isValidElement<any>(child)) return child;
+      const existingStyle: any = (child.props && (child.props as any).style) || {};
+      const existingClass: any = (child.props && (child.props as any).className) || "";
+      const mergedStyle: React.CSSProperties = {
+        ...existingStyle,
+        width: (existingStyle as any).width ?? "100%",
+        height: (existingStyle as any).height ?? "100%",
+      };
+      const mergedClassName = mergeClassNames(existingClass, "block", "w-full", "h-full");
+      return React.cloneElement(child as React.ReactElement<any>, {
+        className: mergedClassName,
+        style: mergedStyle,
+      } as any);
+    });
+    return (
+      <div className="block w-full h-full" style={{ width: "100%", height: "100%" }}>
+        {filled}
+      </div>
+    );
+  }
 
-  const element = content as React.ReactElement<any>;
-  const existingStyle = element.props?.style || {};
-  const existingClassName = element.props?.className || "";
+  // Non-element -> wrap in a full-size container
+  if (!React.isValidElement(content)) {
+    return (
+      <div className="block w-full h-full" style={{ width: "100%", height: "100%" }}>
+        {content}
+      </div>
+    );
+  }
 
+  // Regular element -> clone with enforced width/height
+  const element: React.ReactElement<any> = content as React.ReactElement<any>;
+  const existingStyle = (element.props && element.props.style) || {};
+  const existingClass = (element.props && element.props.className) || "";
   const mergedStyle: React.CSSProperties = {
     ...existingStyle,
-    width: existingStyle.width ?? "100%",
-    height: existingStyle.height ?? "100%",
+    width: (existingStyle as any).width ?? "100%",
+    height: (existingStyle as any).height ?? "100%",
   };
+  const mergedClassName = mergeClassNames(existingClass, "block", "w-full", "h-full");
+  return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
+}
 
-  return React.cloneElement(element, {
-    className: cn(existingClassName, "w-full", "h-full"),
-    style: mergedStyle,
-  });
+function enforceWidthOnly(content: React.ReactNode): React.ReactNode {
+  if (React.isValidElement(content) && (content as any).type === React.Fragment) {
+    const children = React.Children.toArray((content as any).props?.children ?? []);
+    const filled = children.map((child) => {
+      if (!React.isValidElement<any>(child)) return child;
+      const existingStyle: any = (child.props && (child.props as any).style) || {};
+      const existingClass: any = (child.props && (child.props as any).className) || "";
+      const mergedStyle: React.CSSProperties = {
+        ...existingStyle,
+        width: (existingStyle as any).width ?? "100%",
+      };
+      const mergedClassName = mergeClassNames(existingClass, "block", "w-full");
+      return React.cloneElement(child as React.ReactElement<any>, {
+        className: mergedClassName,
+        style: mergedStyle,
+      } as any);
+    });
+    return (
+      <div className="block w-full" style={{ width: "100%" }}>
+        {filled}
+      </div>
+    );
+  }
+  if (!React.isValidElement(content)) {
+    return (
+      <div className="block w-full" style={{ width: "100%" }}>
+        {content}
+      </div>
+    );
+  }
+  const element: React.ReactElement<any> = content as React.ReactElement<any>;
+  const existingStyle = (element.props && element.props.style) || {};
+  const existingClass = (element.props && element.props.className) || "";
+  const mergedStyle: React.CSSProperties = {
+    ...existingStyle,
+    width: (existingStyle as any).width ?? "100%",
+  };
+  const mergedClassName = mergeClassNames(existingClass, "block", "w-full");
+  return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
 }
 
 const renderNode = (
@@ -268,7 +346,10 @@ const renderNode = (
           if (typeof wu === "number") style.width = unitsToPx(wu, gridSize);
           if (typeof hu === "number") style.height = unitsToPx(hu, gridSize);
 
-          const enforcedChild = enforceFullSize(childRendered);
+          const enforcedChild =
+            child.type === "text" || child.type === "button"
+              ? enforceWidthOnly(childRendered)
+              : enforceFullSize(childRendered);
 
           return (
             <div key={child.id} className="absolute" style={style}>
@@ -309,6 +390,7 @@ const renderNode = (
             mwClass,
             pxClass,
             pyClass,
+            (node as any).style?.className,
             nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
             highlightClass(node, highlightNodeId)
           )}
@@ -403,7 +485,10 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string }
                   if (typeof wu === "number") style.width = unitsToPx(wu, gridSize);
                   if (typeof hu === "number") style.height = unitsToPx(hu, gridSize);
 
-                  const enforcedRendered = enforceFullSize(rendered);
+                  const enforcedRendered =
+                    node.type === "text" || node.type === "button"
+                      ? enforceWidthOnly(rendered)
+                      : enforceFullSize(rendered);
 
                   return (
                     <div key={node.id} className="absolute" style={style}>
