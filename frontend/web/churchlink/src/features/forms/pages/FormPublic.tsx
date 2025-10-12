@@ -66,7 +66,7 @@ export default function FormPublic() {
         if (!mounted) return;
         const form = resp.data;
         if (!form) {
-          setError("Form not found");
+          setError("Form not found or it may have expired");
           setLoading(false);
           return;
         }
@@ -87,15 +87,23 @@ export default function FormPublic() {
       } catch (err: any) {
         console.error("Failed to load public form", err);
         const status = err?.response?.status as number | undefined;
-        const detail = err?.response?.data?.detail;
-        const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
+  const detail = err?.response?.data?.detail;
+  const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
         // If not authenticated/forbidden, don't surface the error; show login prompt instead
         if (status === 401 || status === 403 || status === 419 || detailStr.includes('not authenticated') || detailStr.includes('unauthorized') || detailStr.includes('forbidden')) {
           setError(null);
           setLoading(false);
           return;
         }
-        setError(err?.response?.data?.detail || "Failed to load form");
+        if (detailStr.includes('expired')) {
+          setError('This form has expired and is no longer accepting responses.');
+        } else if (detailStr.includes('not available') || detailStr.includes('not visible')) {
+          setError('This form is not available for public viewing.');
+        } else if (detailStr.includes('not found')) {
+          setError('Form not found.');
+        } else {
+          setError(err?.response?.data?.detail || "Failed to load form");
+        }
         setLoading(false);
       }
     })();
@@ -103,8 +111,21 @@ export default function FormPublic() {
   }, [slug, setSchema, user]);
 
   if (loading) return <div className="p-6">Loading...</div>;
-  // If an error occurred that isn't auth-related, show it
-  if (error) return <div className="p-6 text-destructive">{error}</div>;
+  if (error) return (
+    <div className="p-6">
+      <div className={cn("mx-auto w-full", formWidthClass)}>
+        <div className="rounded-md border border-border bg-muted/30 p-8 text-center flex flex-col items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12A9 9 0 1112 3a9 9 0 019 9z" />
+            </svg>
+          </span>
+          <h2 className="text-xl font-semibold">Form unavailable</h2>
+          <p className="text-destructive max-w-md">{error}</p>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="py-6 bg-background min-h-screen">

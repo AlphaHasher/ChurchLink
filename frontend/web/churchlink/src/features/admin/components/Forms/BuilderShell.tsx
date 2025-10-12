@@ -9,6 +9,11 @@ import { useBuilderStore } from "./store";
 import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth, collectAvailableLocales } from "./types";
 import { getBoundsViolations } from "./validation";
 import { Button } from "@/shared/components/ui/button";
+import { Calendar } from '@/shared/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
+import { Calendar as CalendarIcon } from 'lucide-react'
+import { format } from 'date-fns'
+import { normalizeDateOnly } from '@/helpers/DateHelper'
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from '@/shared/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
@@ -29,6 +34,8 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import api from '@/api/api';
 
+
+
 export function BuilderShell() {
   const schema = useBuilderStore((s) => s.schema);
   const activeLocale = useBuilderStore((s) => s.activeLocale);
@@ -48,6 +55,13 @@ export function BuilderShell() {
   const [formName, setFormName] = useState((schema as any)?.title ?? "");
   const [description, setDescription] = useState((schema as any)?.description ?? "");
   const [folder, setFolder] = useState<string | null>((schema as any)?.folder ?? null);
+  const [expiresAt, setExpiresAt] = useState<string | null>((schema as any)?.expires_at ? (() => {
+    try {
+      const d = new Date((schema as any).expires_at);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch (e) { return null; }
+  })() : null);
   const [folders, setFolders] = useState<{ _id: string; name: string }[]>([]);
   const [newFolderName, setNewFolderName] = useState('');
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | 'warning' | null; title?: string; message?: string } | null>(null);
@@ -142,6 +156,13 @@ export function BuilderShell() {
           setFormName(form.title || '');
           setDescription(form.description || '');
           setFolder(form.folder || null);
+          setExpiresAt(form.expires_at ? (() => {
+            try {
+              const d = new Date(form.expires_at);
+              const pad = (n: number) => String(n).padStart(2, '0');
+              return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            } catch (e) { return null; }
+          })() : null);
           setStatus(null);
           lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', folder: form.folder || null, defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], formWidth: formWidthValue, data: dataArray });
         }
@@ -174,11 +195,12 @@ export function BuilderShell() {
   }, []);
 
   const resetToBlank = () => {
-  const blank: any = { title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
+    const blank: any = { title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
     setSchema(blank);
     setFormName('');
     setDescription('');
     setFolder(null);
+    setExpiresAt(null);
     lastSavedSnapshotRef.current = JSON.stringify(blank);
   };
 
@@ -187,7 +209,7 @@ export function BuilderShell() {
     const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
     const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: (schema as any)?.data || [] });
     const isDirtyNow = snapshot !== lastSavedSnapshotRef.current;
-    try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch {}
+    try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch { }
   }, [schema, formName, description, folder]);
 
   const sanitizeFieldForLocale = (field: any, defaultLocale: string): any => {
@@ -252,6 +274,7 @@ export function BuilderShell() {
         title: formName,
         description: description,
         folder,
+        expires_at: expiresAt ? `${expiresAt}:00` : null,
         form_width: normalizedWidth,
         data: cleanedData,
       };
@@ -300,6 +323,8 @@ export function BuilderShell() {
         title: formName,
         description,
         folder,
+        // Send local naive datetime string (no timezone conversion) so DB stores the selected local time
+        expires_at: expiresAt ? `${expiresAt}:00` : null,
         visible: true,
         form_width: normalizedWidth,
         data: cleanedData,
@@ -376,50 +401,50 @@ export function BuilderShell() {
 
   const previewOverlay = previewExpanded
     ? createPortal(
-        <div className="fixed inset-0 z-[100] bg-background">
-          <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
-            {/* Width and locale selectors in overlay so changes are visible live when maximized */}
-            <Select value={formWidth} onValueChange={handleFormWidthChange}>
-              <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-                <SelectValue placeholder="Width" />
-              </SelectTrigger>
-              <SelectContent align="end" className="z-[200]">
-                {widthOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-              <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end" className="z-[200]">
-                {availableLocales.map((l) => (
-                  <SelectItem key={l} value={l}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              className="rounded-full shadow-lg"
-              onClick={() => setPreviewExpanded(false)}
-              aria-label="Collapse preview"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
+      <div className="fixed inset-0 z-[100] bg-background">
+        <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
+          {/* Width and locale selectors in overlay so changes are visible live when maximized */}
+          <Select value={formWidth} onValueChange={handleFormWidthChange}>
+            <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+              <SelectValue placeholder="Width" />
+            </SelectTrigger>
+            <SelectContent align="end" className="z-[200]">
+              {widthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+            <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end" className="z-[200]">
+              {availableLocales.map((l) => (
+                <SelectItem key={l} value={l}>{l}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="rounded-full shadow-lg"
+            onClick={() => setPreviewExpanded(false)}
+            aria-label="Collapse preview"
+          >
+            <Minimize2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex h-full w-full flex-col overflow-auto p-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <ErrorBoundary>
+              <PreviewRendererClient applyFormWidth={true} />
+            </ErrorBoundary>
           </div>
-          <div className="flex h-full w-full flex-col overflow-auto p-6">
-            <div className="mx-auto w-full max-w-6xl">
-              <ErrorBoundary>
-                <PreviewRendererClient applyFormWidth={true} />
-              </ErrorBoundary>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )
+        </div>
+      </div>,
+      document.body
+    )
     : null;
   return (
     <ErrorBoundary>
@@ -431,7 +456,7 @@ export function BuilderShell() {
           </div>
           <div className="flex items-center gap-2">
             {/* Status Alert to the left of Save button */}
-              {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
+            {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
               <div className="hidden md:block max-w-xs">
                 <Alert
                   variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
@@ -441,9 +466,9 @@ export function BuilderShell() {
                 </Alert>
               </div>
             )}
-              <Button variant="outline" onClick={() => setShowClearConfirm(true)} title="Clear form (start fresh)">
-                <Trash className="h-4 w-4 mr-2" /> Clear
-              </Button>
+            <Button variant="outline" onClick={() => setShowClearConfirm(true)} title="Clear form (start fresh)">
+              <Trash className="h-4 w-4 mr-2" /> Clear
+            </Button>
             <Button onClick={() => setSaveDialogOpen(true)} title={hasInvalidBounds ? invalidBoundsMessage : undefined}>
               <SaveIcon className="h-4 w-4 mr-2" /> Save
             </Button>
@@ -479,231 +504,287 @@ export function BuilderShell() {
           </div>
         )}
         <input ref={fileInputRef} onChange={onFileChange} type="file" accept="application/json" className="hidden" />
-        </div>
-        {/* Save Dialog */}
-        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Save form</DialogTitle>
-            </DialogHeader>
-            {status?.type && (
-              <Alert
-                variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
-                className="h-10 inline-flex items-center px-3 py-1"
-              >
-                <span className="text-sm truncate">{status.message ?? status.title}</span>
-              </Alert>
-            )}
-            {hasInvalidBounds && (
-              <Alert variant="warning">
-                <AlertTitle>Resolve field bounds</AlertTitle>
-                <AlertDescription>
-                  <p className="mb-1">Fix the min/max conflicts below before saving:</p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {boundsViolations.map((issue) => (
-                      <li key={issue.fieldId}>
-                        <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
-                      </li>
+      </div>
+      {/* Save Dialog */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save form</DialogTitle>
+          </DialogHeader>
+          {status?.type && (
+            <Alert
+              variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
+              className="h-10 inline-flex items-center px-3 py-1"
+            >
+              <span className="text-sm truncate">{status.message ?? status.title}</span>
+            </Alert>
+          )}
+          {hasInvalidBounds && (
+            <Alert variant="warning">
+              <AlertTitle>Resolve field bounds</AlertTitle>
+              <AlertDescription>
+                <p className="mb-1">Fix the min/max conflicts below before saving:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {boundsViolations.map((issue) => (
+                    <li key={issue.fieldId}>
+                      <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+          <div className="space-y-3">
+            <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} />
+            <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Folder</div>
+              {folders && folders.length > 0 ? (
+                <Select value={folder || undefined} onValueChange={(v) => setFolder(String(v))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose folder" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {folders.map((f) => (
+                      <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
                     ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-3">
-              <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} />
-              <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Folder</div>
-                {folders && folders.length > 0 ? (
-                  <Select value={folder || undefined} onValueChange={(v) => setFolder(String(v))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose folder" />
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="text-sm text-muted-foreground">No folders created</div>
+              )}
+              <div className="flex items-center gap-2">
+                <Input placeholder="New folder" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} />
+                <Button variant="ghost" onClick={async () => {
+                  if (!newFolderName) return;
+                  try {
+                    setStatus({ type: 'info', title: 'Creating folder', message: 'Please wait...' });
+                    const resp = await api.post('/v1/forms/folders', {}, { params: { name: newFolderName } });
+                    const created = resp.data;
+                    setFolders((prev) => [...prev, created]);
+                    setFolder(created['_id']);
+                    setNewFolderName('');
+                    setStatus({ type: 'success', title: 'Folder created', message: undefined });
+                  } catch (err: any) {
+                    console.error('Failed to create folder', err);
+                    if (err?.response?.status === 409) {
+                      setStatus({ type: 'warning', title: 'Folder exists', message: 'Choose it from the list' });
+                    } else {
+                      setStatus({ type: 'error', title: 'Create folder failed', message: 'Please try again' });
+                    }
+                  }
+                }}>Create</Button>
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium">Expiration (optional)</div>
+              <div className="mt-1 flex gap-2 items-center">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="justify-start w-[150px] text-left">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {expiresAt ? (
+                        (() => {
+                          try {
+                            const d = new Date(expiresAt);
+                            return format(d, 'MMM do, yyyy');
+                          } catch (e) { return <span className="text-sm text-muted-foreground">Pick a date</span>; }
+                        })()
+                      ) : <span className="text-sm text-muted-foreground">Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2">
+                    <Calendar
+                      mode="single"
+                      selected={expiresAt ? normalizeDateOnly(expiresAt.split('T')[0]) : undefined}
+                      onSelect={(d) => {
+                        if (!d) return;
+                        const pad = (n: number) => String(n).padStart(2, '0');
+                        const year = d.getFullYear();
+                        const month = d.getMonth() + 1;
+                        const day = d.getDate();
+                        const timePart = expiresAt ? (expiresAt.split('T')[1] ?? '00:00') : '00:00';
+                        setExpiresAt(`${year}-${pad(month)}-${pad(day)}T${timePart}`);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <input
+                  type="time"
+                  value={expiresAt ? (expiresAt.split('T')[1] ?? '') : ''}
+                  onChange={(e) => {
+                    const t = e.target.value; // 'HH:MM'
+                    if (!t) {
+                      setExpiresAt(null);
+                      return;
+                    }
+                    if (expiresAt) {
+                      setExpiresAt(`${expiresAt.split('T')[0]}T${t}`);
+                    } else {
+                      const d = new Date();
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      setExpiresAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${t}`);
+                    }
+                  }}
+                  className="rounded-md border px-2 py-1"
+                />
+                <Button variant="ghost" onClick={() => setExpiresAt(null)}>Clear</Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
+            <Button
+              disabled={hasInvalidBounds}
+              onClick={async () => {
+                const saved = await handleSave();
+                if (saved) setSaveDialogOpen(false);
+              }}
+              title={hasInvalidBounds ? invalidBoundsMessage : undefined}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Override confirmation dialog (name conflict) */}
+      <AlertDialog open={showNameConflictDialog} onOpenChange={(open) => { if (!open) { setShowNameConflictDialog(false); setOverrideTargetId(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Name conflict</AlertDialogTitle>
+            <AlertDialogDescription>
+              You already have a form named "{formName}". Do you want to override it?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {status?.type && (
+            <Alert
+              variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
+              className="h-10 inline-flex items-center px-3 py-1"
+            >
+              <span className="text-sm truncate">{status.message ?? status.title}</span>
+            </Alert>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowNameConflictDialog(false); setOverrideTargetId(null); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmOverride} className="bg-red-600 hover:bg-red-700">Override</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Discard new form changes confirmation */}
+      <AlertDialog open={showDiscardDialog} onOpenChange={(open) => { if (!open) setShowDiscardDialog(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard current changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Do you want to discard them and start a new blank form?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDiscardDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { resetToBlank(); setShowDiscardDialog(false); }} className="bg-red-600 hover:bg-red-700">Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Clear canvas confirmation */}
+      <AlertDialog open={showClearConfirm} onOpenChange={(open) => { if (!open) setShowClearConfirm(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear form builder?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all fields and reset the form metadata. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowClearConfirm(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { resetToBlank(); setShowClearConfirm(false); }} className="bg-red-600 hover:bg-red-700">Clear</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <div className="grid grid-cols-12 gap-4 p-4">
+        <div className="col-span-12 md:col-span-2">
+          <ErrorBoundary>
+            <Palette />
+          </ErrorBoundary>
+        </div>
+        <div className="col-span-12 md:col-span-6">
+          <ErrorBoundary>
+            <Canvas />
+          </ErrorBoundary>
+        </div>
+        <div className="col-span-12 md:col-span-4">
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Live Preview</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full"
+                    onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
+                    aria-label="Expand preview"
+                    disabled={hasInvalidBounds}
+                    title={hasInvalidBounds ? 'Fix min/max conflicts to enable expanded preview' : undefined}
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                  <Select value={formWidth} onValueChange={handleFormWidthChange}>
+                    <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+                      <SelectValue placeholder="Width" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {folders.map((f) => (
-                        <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
+                    <SelectContent align="end">
+                      {widthOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <div className="text-sm text-muted-foreground">No folders created</div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Input placeholder="New folder" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} />
-                  <Button variant="ghost" onClick={async () => {
-                    if (!newFolderName) return;
-                    try {
-                      setStatus({ type: 'info', title: 'Creating folder', message: 'Please wait...' });
-                      const resp = await api.post('/v1/forms/folders', {}, { params: { name: newFolderName } });
-                      const created = resp.data;
-                      setFolders((prev) => [...prev, created]);
-                      setFolder(created['_id']);
-                      setNewFolderName('');
-                      setStatus({ type: 'success', title: 'Folder created', message: undefined });
-                    } catch (err: any) {
-                      console.error('Failed to create folder', err);
-                      if (err?.response?.status === 409) {
-                        setStatus({ type: 'warning', title: 'Folder exists', message: 'Choose it from the list' });
-                      } else {
-                        setStatus({ type: 'error', title: 'Create folder failed', message: 'Please try again' });
-                      }
-                    }
-                  }}>Create</Button>
+                  <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+                    <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {availableLocales.map((l) => (
+                        <SelectItem key={l} value={l}>{l}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
-              <Button
-                disabled={hasInvalidBounds}
-                onClick={async () => {
-                  const saved = await handleSave();
-                  if (saved) setSaveDialogOpen(false);
-                }}
-                title={hasInvalidBounds ? invalidBoundsMessage : undefined}
-              >
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* Override confirmation dialog (name conflict) */}
-        <AlertDialog open={showNameConflictDialog} onOpenChange={(open) => { if (!open) { setShowNameConflictDialog(false); setOverrideTargetId(null); } }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Name conflict</AlertDialogTitle>
-              <AlertDialogDescription>
-                You already have a form named "{formName}". Do you want to override it?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {status?.type && (
-              <Alert
-                variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
-                className="h-10 inline-flex items-center px-3 py-1"
-              >
-                <span className="text-sm truncate">{status.message ?? status.title}</span>
-              </Alert>
-            )}
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => { setShowNameConflictDialog(false); setOverrideTargetId(null); }}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmOverride} className="bg-red-600 hover:bg-red-700">Override</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        {/* Discard new form changes confirmation */}
-        <AlertDialog open={showDiscardDialog} onOpenChange={(open) => { if (!open) setShowDiscardDialog(false); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Discard current changes?</AlertDialogTitle>
-              <AlertDialogDescription>
-                You have unsaved changes. Do you want to discard them and start a new blank form?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowDiscardDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { resetToBlank(); setShowDiscardDialog(false); }} className="bg-red-600 hover:bg-red-700">Discard</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        {/* Clear canvas confirmation */}
-        <AlertDialog open={showClearConfirm} onOpenChange={(open) => { if (!open) setShowClearConfirm(false); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Clear form builder?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will remove all fields and reset the form metadata. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowClearConfirm(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { resetToBlank(); setShowClearConfirm(false); }} className="bg-red-600 hover:bg-red-700">Clear</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      <div className="grid grid-cols-12 gap-4 p-4">
-          <div className="col-span-12 md:col-span-2">
-            <ErrorBoundary>
-              <Palette />
-            </ErrorBoundary>
-          </div>
-          <div className="col-span-12 md:col-span-6">
-            <ErrorBoundary>
-              <Canvas />
-            </ErrorBoundary>
-          </div>
-          <div className="col-span-12 md:col-span-4">
-            <Card className="h-full">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Live Preview</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-full"
-                      onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
-                      aria-label="Expand preview"
-                      disabled={hasInvalidBounds}
-                      title={hasInvalidBounds ? 'Fix min/max conflicts to enable expanded preview' : undefined}
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </Button>
-                    <Select value={formWidth} onValueChange={handleFormWidthChange}>
-                      <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-                        <SelectValue placeholder="Width" />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        {widthOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            </CardHeader>
+            <CardContent>
+              <ErrorBoundary>
+                {hasInvalidBounds ? (
+                  <Alert variant="warning">
+                    <AlertTitle>Preview unavailable</AlertTitle>
+                    <AlertDescription>
+                      <p className="mb-2">Resolve the min/max conflicts below to restore the live preview:</p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {boundsViolations.map((issue) => (
+                          <li key={issue.fieldId}>
+                            <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                          </li>
                         ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-                      <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        {availableLocales.map((l) => (
-                          <SelectItem key={l} value={l}>{l}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      </ul>
+                      <p className="mt-3 text-xs text-muted-foreground">The rest of the builder remains active so you can adjust values.</p>
+                    </AlertDescription>
+                  </Alert>
+                ) : status?.message && typeof status.message === 'string' && status.message.toLowerCase().includes('load') ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-1/3" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-8 w-full mt-2" />
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ErrorBoundary>
-                  {hasInvalidBounds ? (
-                    <Alert variant="warning">
-                      <AlertTitle>Preview unavailable</AlertTitle>
-                      <AlertDescription>
-                        <p className="mb-2">Resolve the min/max conflicts below to restore the live preview:</p>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {boundsViolations.map((issue) => (
-                            <li key={issue.fieldId}>
-                              <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
-                            </li>
-                          ))}
-                        </ul>
-                        <p className="mt-3 text-xs text-muted-foreground">The rest of the builder remains active so you can adjust values.</p>
-                      </AlertDescription>
-                    </Alert>
-                  ) : status?.message && typeof status.message === 'string' && status.message.toLowerCase().includes('load') ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-1/3" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-8 w-full mt-2" />
-                    </div>
-                  ) : (
-                    <PreviewRendererClient applyFormWidth={false} />
-                  )}
-                </ErrorBoundary>
-              </CardContent>
-            </Card>
-          </div>
+                ) : (
+                  <PreviewRendererClient applyFormWidth={false} />
+                )}
+              </ErrorBoundary>
+            </CardContent>
+          </Card>
         </div>
+      </div>
       {previewOverlay}
     </ErrorBoundary>
   );

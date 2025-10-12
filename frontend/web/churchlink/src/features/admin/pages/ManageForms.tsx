@@ -152,6 +152,25 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
   );
 };
 
+// Cell renderer for expired column
+const ExpiredCellRenderer = (props: ICellRendererParams) => {
+  const { data } = props;
+  if (!data) return null;
+  const expiresAt = data.expires_at || data.expiresAt || null;
+  if (!expiresAt) return <span className="text-sm text-muted-foreground">—</span>;
+  try {
+    const d = new Date(expiresAt);
+    const now = new Date();
+    if (isNaN(d.getTime())) return <span className="text-sm text-muted-foreground">Invalid</span>;
+    if (d.getTime() <= now.getTime()) {
+      return <span className="text-sm text-red-600">Expired</span>;
+    }
+    return <span className="text-sm text-green-600">Active</span>;
+  } catch (e) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+};
+
 const ManageForms = () => {
   const navigate = useNavigate();
   const gridRef = useRef<AgGridReact>(null);
@@ -232,6 +251,13 @@ const ManageForms = () => {
       flex: 1,
       minWidth: 80,
       cellRenderer: VisibleCellRenderer,
+    },
+    {
+      headerName: 'Expired',
+      field: 'expires_at',
+      flex: 1,
+      minWidth: 100,
+      cellRenderer: ExpiredCellRenderer,
     },
     {
       headerName: 'Actions',

@@ -1,4 +1,5 @@
 import type { AnyField, FormSchema } from "./types";
+import { normalizeDateOnly } from '@/helpers/DateHelper'
 
 export interface BoundsViolation {
   fieldId: string;
@@ -7,19 +8,9 @@ export interface BoundsViolation {
   message: string;
   type: string;
 }
-
 const toDate = (value: Date | string | undefined): Date | null => {
-  if (!value) return null;
-  if (value instanceof Date) {
-    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-  }
-  const datePortion = value.length > 10 ? value.slice(0, 10) : value;
-  const parts = datePortion.split("-").map((part) => Number(part));
-  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
-  const [year, month, day] = parts;
-  const date = new Date(year, month - 1, day);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
+  const d = normalizeDateOnly(value as any);
+  return d ?? null;
 };
 
 const toMinutes = (value: string | undefined): number | null => {

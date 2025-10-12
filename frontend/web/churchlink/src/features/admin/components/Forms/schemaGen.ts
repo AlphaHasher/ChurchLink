@@ -1,6 +1,7 @@
 import { z } from "zod";
 import validator from "validator";
 import { format } from "date-fns";
+import { normalizeDateOnly } from '@/helpers/DateHelper'
 import type { AnyField, CheckboxField, DateField, NumberField, SelectField, TextField, FormSchema, EmailField, PasswordField, UrlField, TelField } from "./types";
 
 const trimString = (val: unknown): unknown => (typeof val === "string" ? val.trim() : val);
@@ -23,17 +24,6 @@ const phoneDigitsOrUndefined = (val: unknown): string | undefined => {
   return digits.length === 0 ? undefined : digits;
 };
 
-const normalizeDateOnly = (value: string | Date | undefined): Date | null => {
-  if (!value) return null;
-  if (value instanceof Date) {
-    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-  }
-  const datePortion = value.length > 10 ? value.slice(0, 10) : value;
-  const parts = datePortion.split("-").map((part) => Number(part));
-  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
-  const [year, month, day] = parts;
-  return new Date(year, month - 1, day);
-};
 
 const truncateToDate = (value: Date | undefined): Date | null => {
   if (!value) return null;

@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { Calendar } from "@/shared/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { normalizeDateOnly } from '@/helpers/DateHelper'
 import { useBuilderStore } from "./store";
 
 const PHONE_MAX_DIGITS = 10;
@@ -37,18 +38,6 @@ const formatPhoneDisplay = (value: unknown): string => {
     return `(${area}) ${prefix}`;
   }
   return `(${area}) ${prefix}-${line}`;
-};
-
-const normalizeDateOnly = (value: string | Date | undefined): Date | undefined => {
-  if (!value) return undefined;
-  if (value instanceof Date) {
-    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-  }
-  const datePortion = value.length > 10 ? value.slice(0, 10) : value;
-  const parts = datePortion.split("-").map((part) => Number(part));
-  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return undefined;
-  const [year, month, day] = parts;
-  return new Date(year, month - 1, day);
 };
 
 const startOfDay = (date: Date | undefined): Date | undefined => {

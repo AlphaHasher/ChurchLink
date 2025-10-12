@@ -10,6 +10,7 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
 import { format } from "date-fns";
+import { normalizeDateOnly } from '@/helpers/DateHelper'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/shared/components/ui/hover-card";
 import { Calendar as CalendarIcon, CircleHelp } from "lucide-react";
 import { Table, TableBody, TableHead, TableRow, TableCell, TableHeader } from "@/shared/components/ui/DataTable";
@@ -60,22 +61,11 @@ export function Inspector() {
     }
   }, [field.id, field.required, field.type, update]);
 
-  const normalizeDateOnly = (value: Date | string | undefined): Date | null => {
-    if (!value) return null;
-    if (value instanceof Date) {
-      return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-    }
-    const datePortion = value.length > 10 ? value.slice(0, 10) : value;
-    const parts = datePortion.split("-").map((part) => Number(part));
-    if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
-    const [year, month, day] = parts;
-    return new Date(year, month - 1, day);
-  };
 
   const currentMinDate = (field as any).minDate;
   const currentMaxDate = (field as any).maxDate;
-  const minDateObj = normalizeDateOnly(currentMinDate) || undefined;
-  const maxDateObj = normalizeDateOnly(currentMaxDate) || undefined;
+  const minDateObj = normalizeDateOnly(currentMinDate);
+  const maxDateObj = normalizeDateOnly(currentMaxDate);
   const minMaxLabel = (() => {
     if (minDateObj && maxDateObj) {
       return `${format(minDateObj, "PPP")} – ${format(maxDateObj, "PPP")}`;
