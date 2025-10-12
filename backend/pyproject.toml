@@ -24,4 +24,5 @@ dependencies = [
     "windows-curses>=2.4.1; sys_platform == 'win32'",
     "python-multipart>=0.0.20",
     "pillow>=11.3.0",
+    "pytz>=2024.2",
 ]

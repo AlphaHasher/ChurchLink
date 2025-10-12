@@ -51,21 +51,20 @@ const CalendarDay = React.memo(({ dayNumber, passages, isSelected, onSelect, dat
     <div
       ref={setNodeRef}
       onClick={() => onSelect(dayNumber)}
-      className={`
-        relative min-h-[120px] p-2 rounded-lg transition-colors duration-200 cursor-pointer
-        min-w-[150px] max-w-full flex flex-col
-        ${isPassageOver
-          ? 'border-2 border-dashed border-green-400 bg-green-50'
+      className={cn(
+        "relative flex min-h-[120px] min-w-[150px] max-w-full flex-col cursor-pointer rounded-lg border border-border/10 bg-background p-2 shadow-sm transition-colors duration-200 hover:bg-muted/40",
+        isPassageOver
+          ? "border-2 border-dashed border-primary/60 bg-primary/10"
           : isSelected
-            ? 'border-2 border-blue-500 bg-blue-50'
-            : 'border border-gray-200 bg-white hover:bg-gray-50'}
-      `}
+            ? "border-2 border-primary bg-primary/10 shadow-md"
+            : null
+      )}
     >
-      <div className="flex items-center mb-2">
-        <div className="text-sm font-medium text-gray-900 flex-1">Day {dayNumber}</div>
+      <div className="mb-2 flex items-center">
+        <div className="flex-1 text-sm font-medium text-foreground">Day {dayNumber}</div>
       </div>
       {dateLabel && (
-        <div className="absolute top-1 right-1 text-[10px] font-semibold text-gray-600 bg-white/80 backdrop-blur px-1.5 py-0.5 rounded shadow-sm pointer-events-none">
+        <div className="pointer-events-none absolute right-1 top-1 rounded bg-card/80 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-sm backdrop-blur">
           {dateLabel}
         </div>
       )}
@@ -76,13 +75,13 @@ const CalendarDay = React.memo(({ dayNumber, passages, isSelected, onSelect, dat
         ))}
         
         {passages.length === 0 && (
-          <div className="text-xs text-gray-400 italic text-center py-4">
+          <div className="min-w-0 py-4 text-center text-xs italic text-muted-foreground/80">
             Drop passages here
           </div>
         )}
       </div>
       {isSelected && (
-        <span className="pointer-events-none absolute bottom-1 right-1 text-[10px] uppercase tracking-wide text-blue-600 font-semibold">
+        <span className="pointer-events-none absolute bottom-1 right-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
           Selected
         </span>
       )}
@@ -185,7 +184,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
   return (
     <div className={cn('relative', className)}>
       <div className="mb-4 flex items-start justify-between gap-4 px-1">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-foreground">
           {plan.duration}-Day Reading Plan
         </h2>
         <div className="flex items-center gap-2">
@@ -204,13 +203,13 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
         </div>
       </div>
       {showDayOverlay && showCalendarPicker && (
-        <div ref={overlayRef} className="absolute z-20 top-16 right-4">
+        <div ref={overlayRef} className="absolute right-4 top-16 z-20">
           <Calendar
             mode="single"
             selected={baseDate}
             onSelect={(d) => { if (d) setBaseDate(d); }}
             captionLayout="dropdown"
-            className="rounded-md border shadow-sm"
+            className="rounded-md border bg-card shadow-sm"
           />
         </div>
       )}
@@ -311,7 +310,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
               </PaginationItem>
             </PaginationContent>
           </Pagination>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-muted-foreground">
             Showing days {currentPage * daysPerPage + 1}-{Math.min((currentPage + 1) * daysPerPage, plan.duration)} of {plan.duration}
           </div>
         </div>

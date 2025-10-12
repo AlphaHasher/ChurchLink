@@ -67,6 +67,7 @@ class _FormsState extends State<Forms> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
+      key: const ValueKey('screen-forms'),
       appBar: AppBar(title: const Text('Forms'), backgroundColor: Colors.black),
       body: SafeArea(
         child: Padding(

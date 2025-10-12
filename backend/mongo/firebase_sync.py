@@ -1,4 +1,6 @@
 from mongo.churchuser import UserHandler as User
+from mongo.roles import RoleHandler
+from helpers.StrapiHelper import StrapiHelper
 
 from firebase_admin import auth
 
@@ -34,9 +36,17 @@ class FirebaseSyncer:
             # Call the update data function if the requested amount of data to update is more than zero
             if len(updateData.items()) > 0:
                 await User.update_user(filterQuery, updateData)
+
+            # Auto-assign admin role to admin@testing.com (even for updates)
+            if user['email'] == 'admin@testing.com':
+                await FirebaseSyncer.assign_admin_role(user['uid'])
             return
         else:
             await User.create_user(first_name="Fake", last_name="Name", email=user['email'], uid = user['uid'], roles=[], verified=(user['has_google'] or user['email_verified']))
+
+            # Auto-assign admin role to admin@testing.com
+            if user['email'] == 'admin@testing.com':
+                await FirebaseSyncer.assign_admin_role(user['uid'])
 
     # Method that syncs one particular user only by a requested UID
     @staticmethod
@@ -90,5 +100,39 @@ class FirebaseSyncer:
             }
         except auth.UserNotFoundError:
             return None
+
+    @staticmethod
+    async def safe_strapi_sync(uid_param):
+        """Safe Strapi sync that doesn't fail if Strapi is unavailable"""
+        try:
+            return await StrapiHelper.sync_strapi_roles(uid_param)
+        except Exception as e:
+            print(f"Strapi sync failed for user {uid_param}: {e}")
+            print("Continuing without Strapi sync...")
+            return True  # Return True to indicate MongoDB update was successful
+
+    @staticmethod
+    async def assign_admin_role(uid: str):
+        """Assign admin role to a specific user"""
+        try:
+            # Get admin role ID
+            admin_role_id = await RoleHandler.find_role_id("Administrator")
+            if not admin_role_id:
+                print("Error finding admin role")
+                return False
+
+            # Update user roles in MongoDB with a safe Strapi sync function
+            admin_role_id_str = str(admin_role_id)
+            success = await User.update_roles(uid, [admin_role_id_str], FirebaseSyncer.safe_strapi_sync)
+
+            if success:
+                return True
+            else:
+                print("Error updating user roles")
+                return False
+
+        except Exception as e:
+            print(f"Error assigning admin role: {e}")
+            return False
 
 

@@ -156,6 +156,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
     const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
 
     return Scaffold(
+      key: const ValueKey('screen-my_events'),
       appBar: AppBar(
         backgroundColor: ssbcGray,
         iconTheme: const IconThemeData(color: Colors.white),

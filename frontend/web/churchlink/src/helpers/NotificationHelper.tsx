@@ -8,7 +8,7 @@ export type NotificationTarget = "all" | "logged_in" | "anonymous";
 export interface NotificationSettingsResponse {
     streamNotificationMessage?: string;
     streamNotificationTitle?: string;
-    YOUTUBE_TIMEZONE?: string;
+    LOCAL_TIMEZONE?: string;
     envOverride?: boolean;
     [k: string]: unknown;
 }

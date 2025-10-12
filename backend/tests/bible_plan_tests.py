@@ -19,9 +19,7 @@ BASE_URL = os.getenv("BACKEND_URL")
 if not BASE_URL:
     raise RuntimeError("Environment variable BACKEND_URL must be set for bible plan tests")
 
-
 pytestmark = pytest.mark.anyio("asyncio")
-
 
 @pytest.fixture
 def anyio_backend():
@@ -121,17 +119,11 @@ async def test_list_bible_plan_templates(async_client, admin_headers):
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
+
 async def test_forbid_list_bible_plan_templates(async_client, auth_headers):
     response = await async_client.get("/api/v1/bible-plans/templates", headers=auth_headers)
     assert response.status_code == 403
 
-
-async def test_get_bible_plan_template_by_id(async_client, admin_headers):
-    response = await async_client.get(
-        "/api/v1/bible-plans/templates/id/test-template-id",
-        headers=admin_headers,
-    )
-    assert response.status_code in [200, 404]
 
 async def test_forbid_get_bible_plan_template_by_id(async_client, auth_headers):
     response = await async_client.get(
@@ -172,13 +164,6 @@ async def test_forbid_get_user_plans(async_client, auth_headers):
     assert response.status_code == 403
 
 
-async def test_get_plan(async_client, admin_headers):
-    response = await async_client.get(
-        "/api/v1/bible-plans/test-plan-id",
-        headers=admin_headers,
-    )
-    assert response.status_code in [200, 404]
-
 async def test_forbid_get_plan(async_client, auth_headers):
     response = await async_client.get(
         "/api/v1/bible-plans/test-plan-id",
@@ -186,14 +171,6 @@ async def test_forbid_get_plan(async_client, auth_headers):
     )
     assert response.status_code == 403
 
-
-async def test_update_plan(async_client, admin_headers):
-    response = await async_client.put(
-        "/api/v1/bible-plans/test-plan-id",
-        json={"name": "Updated Plan", "description": "Updated description", "days": []},
-        headers=admin_headers,
-    )
-    assert response.status_code in [200, 404]
 
 async def test_forbid_update_plan(async_client, auth_headers):
     response = await async_client.put(

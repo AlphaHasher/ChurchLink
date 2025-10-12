@@ -13,7 +13,7 @@ settings = {
         "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
         "PRIMARY_CHANNEL_ID": os.getenv("PRIMARY_CHANNEL_ID"),
         "PUBLIC_DOMAIN": os.getenv("PUBLIC_DOMAIN"),
-        "YOUTUBE_TIMEZONE": os.getenv("YOUTUBE_TIMEZONE"),
+        "LOCAL_TIMEZONE": os.getenv("LOCAL_TIMEZONE"),
     }
 async def load_youtube_settings():
     try:
