@@ -1,23 +1,28 @@
-from fastapi import FastAPI, APIRouter, Depends
+from contextlib import asynccontextmanager
+import asyncio
+import logging
+import os
+import sys
+
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
 from scalar_fastapi import get_scalar_api_reference
-from mongo.database import DB as DatabaseManager
+
 import firebase_admin
-from helpers.Firebase_helpers import role_based_access
 from firebase_admin import credentials
-from helpers.youtubeHelper import YoutubeHelper
-from get_bearer_token import generate_test_token
-from add_roles import add_user_role, RoleUpdate
+
+from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
-from contextlib import asynccontextmanager
-from pydantic import BaseModel
 from mongo.scheduled_notifications import scheduled_notification_loop
+
+from helpers.Firebase_helpers import role_based_access
+from helpers.youtubeHelper import YoutubeHelper
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
-import asyncio
-import os
-import logging
-import sys
+from get_bearer_token import generate_test_token
+from add_roles import add_user_role, RoleUpdate
 
 
 from protected_routers.auth_protected_router import AuthProtectedRouter
@@ -68,14 +73,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 ADDITIONAL_ORIGINS = os.getenv("ADDITIONAL_ORIGINS", "")
-PUBLIC_DOMAIN = os.getenv("PUBLIC_DOMAIN")
 
 def _normalize_origin(orig: str) -> str | None:
     if not orig:
@@ -86,11 +88,6 @@ def _normalize_origin(orig: str) -> str | None:
 ALLOWED_ORIGINS = []
 if FRONTEND_URL:
     norm = _normalize_origin(FRONTEND_URL)
-    if norm:
-        ALLOWED_ORIGINS.append(norm)
-
-if PUBLIC_DOMAIN:
-    norm = _normalize_origin(PUBLIC_DOMAIN)
     if norm:
         ALLOWED_ORIGINS.append(norm)
 
@@ -108,69 +105,54 @@ logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        logger.info("Starting application initialization...")
+        logger.info("Starting application initialization")
 
         # Initialize Firebase Admin SDK if not already initialized
         if not firebase_admin._apps:
-            logger.info("Initializing Firebase Admin SDK...")
+            logger.info("Initializing Firebase Admin SDK")
             from firebase.firebase_credentials import get_firebase_credentials
 
             cred = credentials.Certificate(get_firebase_credentials())
             firebase_admin.initialize_app(cred)
-            logger.info("Firebase Admin SDK initialized successfully")
+            logger.info("Firebase Admin SDK initialized")
 
         # MongoDB connection setup - CRITICAL: Will stop app if fails
-        logger.info("Initializing MongoDB connection...")
+        logger.info("Connecting to MongoDB...")
         await DatabaseManager.init_db()
-        logger.info("MongoDB connection established successfully")
+        logger.info("MongoDB connected")
 
         if not BYPASS_FIREBASE_SYNC:
-            # Sync MongoDB to Firebase
-            logger.info("Starting Firebase synchronization...")
+            logger.info("Running initial Firebase -> Mongo sync")
             await FirebaseSyncer.SyncDBToFirebase()
-            logger.info("Firebase synchronization completed")
+            logger.info("Initial Firebase sync complete")
 
-        # Verify that an Administrator Role (Mandatory) exists
-        logger.info("Verifying administrator role exists...")
+        # Ensure required roles exist
+        logger.info("Ensuring administrator role exists")
         await RoleHandler.verify_admin_role()
-        logger.info("Administrator role verification completed")
+        logger.info("Administrator role verified")
 
-        if not BYPASS_FIREBASE_SYNC:
-            # Sync MongoDB to Firebase
-            await FirebaseSyncer.SyncDBToFirebase()
-
-        # Verify that an Administrator Role (Mandatory) exists
-        await RoleHandler.verify_admin_role()
-
-        # Run Youtube Notification loop
-        logger.info("Starting YouTube subscription monitoring...")
-        youtubeSubscriptionCheck = asyncio.create_task(
-            YoutubeHelper.youtubeSubscriptionLoop()
-        )
-        logger.info("YouTube subscription monitoring started")
-        
-        #Run Push Notification Scheduler loop
+        # Background tasks
+        logger.info("Starting background tasks")
+        youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
-        logger.info("Push notification scheduler started")
 
         # Initialize Bible Plan Notification System
-        logger.info("Initializing Bible plan notification system...")
+        logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
-        logger.info("Bible plan notification system started")
 
-        logger.info("Application startup completed successfully")
+        logger.info("Application startup completed")
         yield
 
         # Cleanup
-        logger.info("Shutting down application...")
+        logger.info("Shutting down background tasks and closing DB")
         youtubeSubscriptionCheck.cancel()
         scheduledNotifTask.cancel()
         DatabaseManager.close_db()
-        logger.info("Application shutdown completed")
+        logger.info("Shutdown complete")
 
     except Exception as e:
-        logger.error(f"Application startup failed: {str(e)}")
-        logger.error("Make sure MongoDB is running and the MONGODB_URL is correct")
+        logger.error(f"Application startup failed: {e}")
+        logger.error("Ensure MongoDB is running and MONGODB_URL is correct")
         sys.exit(1)
 
 
