@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 from fastapi import APIRouter, Request, Body, Query
 
 from models.membership_request import (
@@ -6,10 +6,17 @@ from models.membership_request import (
     update_membership_request_admin,
     get_membership_request_by_uid as get_mr_by_uid,
     search_membership_requests as search_mr,
+    MembershipRequest,
     MembershipRequestIn,
     MembershipRequestAdminUpdate,
     MRSearchParams,
 )
+
+from pydantic import BaseModel
+
+class MembershipDetails(BaseModel):
+    membership: bool
+    pending_request: Optional[MembershipRequest]
 
 from controllers.users_functions import change_user_member_status
 
@@ -20,9 +27,24 @@ member_mod_router = APIRouter(prefix="/membership", tags=["Membership"])
 @member_private_router.post("/create-request")
 async def create_membership_request(request: Request, member_in: MembershipRequestIn = Body(...)):
     uid = request.state.uid
-    if request.state.user.get("membership"):
+    if request.state.user['membership']:
         return {"success": False, "msg": "You are already a member, and therefore cannot create a request to become one!"}
     return await create_or_update_membership_request(uid, member_in)
+
+# Private Route
+@member_private_router.get("/membership-details")
+async def get_membership_details(request: Request):
+    uid = request.state.uid
+    membership_status = request.state.user['membership']
+    pending_request_search = await get_mr_by_uid(uid)
+    out = MembershipDetails(
+        membership=membership_status,
+        pending_request=pending_request_search
+    )
+    return {'success':True, 'details':out}
+
+
+
 
 # Mod Route
 @member_mod_router.patch("/respond-to-request")
@@ -53,6 +75,6 @@ async def search_membership_requests_route(
         searchTerm=searchTerm,
         sortBy=sortBy,
         sortDir=sortDir,
-        status=status,  # NEW
+        status=status,
     )
     return await search_mr(params)

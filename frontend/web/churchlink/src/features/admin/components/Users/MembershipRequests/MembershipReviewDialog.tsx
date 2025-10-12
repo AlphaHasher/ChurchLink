@@ -125,6 +125,9 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                                 <div>
                                     <Label>Submitted On</Label>
                                     <div className="text-sm">{fmt(request.created_on)}</div>
+
+                                    <Label>Responded To</Label>
+                                    <div className="text-sm">{request.responded_to?.trim() ? fmt(request.responded_to) : "Request has not yet been responded to."}</div>
                                 </div>
                                 <div>
                                     <Label>Status</Label>
