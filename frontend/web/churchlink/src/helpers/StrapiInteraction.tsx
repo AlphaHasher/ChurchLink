@@ -16,11 +16,30 @@ export const processStrapiRedirect = async () => {
 }
 
 export const fetchStrapiImages = async (query: string) => {
-    try {
-        const res = await api.get(`/v1/strapi/uploads/search?query=${encodeURIComponent(query)}`)
-        return res.data
-    } catch (err) {
-        console.error("Strapi search error:", err)
-        return []
+    // Query uploads via dedicated backend endpoint (no admin role required)
+    const params = new URLSearchParams();
+    if (query && query.trim()) params.set('filters[name][$containsi]', query.trim());
+    const res = await api.get(`/v1/strapi/uploads${params.toString() ? `?${params.toString()}` : ''}`)
+    return res.data
+}
+
+export const uploadStrapiFiles = async (files: File[]) => {
+    const formData = new FormData();
+    for (const f of files) {
+        formData.append('files', f);
     }
+    // Use backend uploads endpoint
+    const res = await api.post('/v1/strapi/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+}
+
+export const listStrapiUploads = async (page: number, pageSize: number = 30) => {
+    // List uploads via backend endpoint (server authenticates to Strapi)
+    const params = new URLSearchParams();
+    params.set('pagination[page]', String(page));
+    params.set('pagination[pageSize]', String(pageSize));
+    const res = await api.get(`/v1/strapi/uploads?${params.toString()}`);
+    return res.data;
 }

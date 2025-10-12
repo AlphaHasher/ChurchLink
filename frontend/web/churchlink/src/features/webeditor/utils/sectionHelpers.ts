@@ -6,7 +6,12 @@ export const defaultSection = (): SectionV2 => ({
   id: newId(),
   kind: "section",
   heightPercent: 100,
-  background: { className: "bg-white" },
+  background: {
+    className: "",
+    style: {
+      background: "linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%)",
+    },
+  },
   grid: { className: "w-full" },
   styleTokens: {},
   children: [
@@ -31,7 +36,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: {
         className: "relative isolate overflow-hidden bg-slate-950 text-white",
         style: {
-          backgroundImage: "radial-gradient(circle at 20% 20%, rgba(99,102,241,0.35), transparent 55%), radial-gradient(circle at 80% 0%, rgba(56,189,248,0.3), transparent 45%), linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.85) 100%)",
+          background: "linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.85) 100%)",
         },
       },
       grid: { className: "w-full" },
@@ -86,23 +91,28 @@ export const createPresetSection = (key: string): SectionV2 | null => {
                 units: { xu: 8, yu: 25, wu: 22, hu: 7 }
               }
             } as Node,
-            { 
+            {
               id: `${newId()}-btn-primary`, 
               type: "button", 
               props: { label: "Plan Your Visit", href: "#" },
               style: {
-                className: "px-8 py-3 rounded-full bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:bg-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
+                // Apply inline gradient so inspector shows the real fill
+                // Matches brand hero blues/purples used in the section background
+                className: "px-8 py-3 rounded-full text-white font-semibold shadow-lg shadow-indigo-500/30 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
+                background: "linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%)",
+                customCss: "&:hover { opacity: 0.9; }",
               },
               layout: {
                 units: { xu: 7, yu: 35, wu: 12, hu: 4 }
               }
             } as Node,
-            { 
+            {
               id: `${newId()}-btn-secondary`, 
               type: "button", 
               props: { label: "Watch Online", href: "#" },
               style: {
-                className: "px-8 py-3 rounded-full bg-white/10 text-white font-semibold border border-white/20 hover:bg-white/20 transition backdrop-blur-sm",
+                className: "px-8 py-3 rounded-full bg-white/10 text-white font-semibold border border-white/20 transition backdrop-blur-sm",
+                customCss: "&:hover { background: rgba(255,255,255,0.20); }",
               },
               layout: {
                 units: { xu: 20, yu: 35, wu: 11, hu: 3 }
@@ -161,6 +171,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
 export const ELEMENTS: Array<{ type: Node["type"]; label: string }> = [
   { type: "text", label: "Text" },
   { type: "button", label: "Button" },
+  { type: "image", label: "Image" },
   { type: "container", label: "Container" },
   { type: "eventList", label: "Event List" },
 ];

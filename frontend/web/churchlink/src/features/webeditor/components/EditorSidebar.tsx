@@ -30,8 +30,9 @@ interface EditorSidebarProps {
 }
 
 const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, onAddElement, sectionPresets = [], onAddSectionPreset, currentSections = [], onFocusSection, onFocusNode, onDeleteSection, pageTitle, slug }) => {
+
   const renderSectionTree = (nodes: SidebarSectionNode[], depth = 0) => (
-    nodes.map((node, idx) => {
+    nodes.map((node) => {
       const hasChildren = Array.isArray(node.children) && node.children.length > 0;
 
       const handleClick = () => {
@@ -42,16 +43,15 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
         }
       };
 
-      const displayLabel = node.type === 'section' ? `${idx + 1}. ${node.label}` : node.label;
+      const displayLabel = node.label;
 
       if (hasChildren) {
         return (
           <Collapsible key={node.id} defaultOpen={depth < 1} className="group/nested">
             <SidebarMenuSubItem className="group/menu-item relative">
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton className="justify-between" onClick={handleClick}>
+                <SidebarMenuButton className="justify-start" onClick={handleClick}>
                   <span className="truncate" title={node.label}>{displayLabel}</span>
-                  <span className="text-xs text-muted-foreground">{node.children?.length ?? 0}</span>
                 </SidebarMenuButton>
               </CollapsibleTrigger>
               {node.type === 'section' && (
@@ -90,8 +90,9 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
   );
   return (
     // Offset the fixed shadcn sidebar by the top bar height (h-12)
+    <>
     <Sidebar
-      collapsible="offcanvas"
+      collapsible="icon"
       className="border-r top-12"
       style={{
         // Narrower editor sidebar
@@ -101,8 +102,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
     >
       <SidebarHeader>
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium truncate" title={pageTitle}>{pageTitle || "Untitled"}</div>
-          <Button size="sm" variant="secondary" onClick={onAddSection}>+ Section</Button>
+          <div className="text-sm font-medium truncate group-data-[collapsible=icon]:hidden" title={pageTitle}>{pageTitle || "Untitled"}</div>
+          <Button size="sm" variant="secondary" className="group-data-[collapsible=icon]:hidden" onClick={onAddSection}>+ Section</Button>
         </div>
       </SidebarHeader>
       {/* Collapsible groups for Sections and Elements */}
@@ -113,9 +114,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
             <Collapsible defaultOpen className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton className="justify-between">
+                  <SidebarMenuButton className="justify-start">
                     <span>Current Page</span>
-                    <span className="text-xs text-muted-foreground">{currentSections.length}</span>
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
@@ -133,9 +133,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
             <Collapsible defaultOpen className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton className="justify-between">
+                  <SidebarMenuButton className="justify-start">
                     <span>Sections</span>
-                    <span className="text-xs text-muted-foreground">{sectionPresets.length}</span>
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
@@ -159,9 +158,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
             <Collapsible defaultOpen className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton className="justify-between">
+                  <SidebarMenuButton className="justify-start">
                     <span>Elements</span>
-                    <span className="text-xs text-muted-foreground">{elements.length}</span>
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
@@ -184,6 +182,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({ onAddSection, elements, o
         <div className="text-xs text-muted-foreground px-2 truncate" title={slug}>Editing: {pageTitle} ({slug})</div>
       </SidebarFooter>
     </Sidebar>
+    </>
   );
 };
 

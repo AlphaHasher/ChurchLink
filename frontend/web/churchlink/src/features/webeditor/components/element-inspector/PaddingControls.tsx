@@ -63,14 +63,13 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
   }, [sectionId, node.id, padding.top, padding.right, padding.bottom, padding.left, unit]);
 
   const toDisplay = React.useCallback((value: number) => {
-    const rounded = (val: number) => Number(val.toFixed(2));
     switch (unit) {
       case 'px':
-        return rounded(value * 4);
+        return Math.round(value * 4);
       case 'rem':
-        return rounded(value * 0.25);
+        return Number((value * 0.25).toFixed(2));
       default:
-        return rounded(value);
+        return Number(value.toFixed(2));
     }
   }, [unit]);
 
@@ -233,6 +232,21 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
             step={getStep()}
             value={toDisplay(Math.max(padding.top, padding.right, padding.bottom, padding.left))}
             onChange={handleGlobal}
+            onChangeEnd={() => {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (!sectionId || !nodeId) return;
+              const prev = { ...(node.style || {}) };
+              const val = Math.max(padding.top, padding.right, padding.bottom, padding.left);
+              const next = { ...prev } as any;
+              next.paddingY = val;
+              next.paddingX = val;
+              delete next.paddingTop;
+              delete next.paddingRight;
+              delete next.paddingBottom;
+              delete next.paddingLeft;
+              BuilderState.pushNode(sectionId, node.id, { ...node, style: prev }, { ...node, style: next });
+            }}
           />
         </div>
       ) : (
@@ -245,6 +259,17 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               step={getStep()}
               value={toDisplay(padding.top)}
               onChange={(val) => handleSplit('top', val)}
+              onChangeEnd={() => {
+                const sectionId = BuilderState.selection?.sectionId;
+                const nodeId = BuilderState.selection?.nodeId;
+                if (!sectionId || !nodeId) return;
+                const prevNode = { ...node };
+                const nextNode = {
+                  ...node,
+                  style: { ...(node.style || {}), paddingTop: padding.top },
+                } as Node;
+                BuilderState.pushNode(sectionId, node.id, prevNode, nextNode);
+              }}
             />
           </div>
           <div className="space-y-1">
@@ -255,6 +280,17 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               step={getStep()}
               value={toDisplay(padding.right)}
               onChange={(val) => handleSplit('right', val)}
+              onChangeEnd={() => {
+                const sectionId = BuilderState.selection?.sectionId;
+                const nodeId = BuilderState.selection?.nodeId;
+                if (!sectionId || !nodeId) return;
+                const prevNode = { ...node };
+                const nextNode = {
+                  ...node,
+                  style: { ...(node.style || {}), paddingRight: padding.right },
+                } as Node;
+                BuilderState.pushNode(sectionId, node.id, prevNode, nextNode);
+              }}
             />
           </div>
           <div className="space-y-1">
@@ -265,6 +301,17 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               step={getStep()}
               value={toDisplay(padding.bottom)}
               onChange={(val) => handleSplit('bottom', val)}
+              onChangeEnd={() => {
+                const sectionId = BuilderState.selection?.sectionId;
+                const nodeId = BuilderState.selection?.nodeId;
+                if (!sectionId || !nodeId) return;
+                const prevNode = { ...node };
+                const nextNode = {
+                  ...node,
+                  style: { ...(node.style || {}), paddingBottom: padding.bottom },
+                } as Node;
+                BuilderState.pushNode(sectionId, node.id, prevNode, nextNode);
+              }}
             />
           </div>
           <div className="space-y-1">
@@ -275,6 +322,17 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               step={getStep()}
               value={toDisplay(padding.left)}
               onChange={(val) => handleSplit('left', val)}
+              onChangeEnd={() => {
+                const sectionId = BuilderState.selection?.sectionId;
+                const nodeId = BuilderState.selection?.nodeId;
+                if (!sectionId || !nodeId) return;
+                const prevNode = { ...node };
+                const nextNode = {
+                  ...node,
+                  style: { ...(node.style || {}), paddingLeft: padding.left },
+                } as Node;
+                BuilderState.pushNode(sectionId, node.id, prevNode, nextNode);
+              }}
             />
           </div>
         </div>

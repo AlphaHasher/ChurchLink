@@ -60,6 +60,8 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
     const startRef = React.useRef<{ x: number; y: number; value: number } | null>(null);
     const pointerIdRef = React.useRef<number | null>(null);
     const latestValueRef = React.useRef<number>(value ?? 0);
+    const hasCapturedRef = React.useRef(false);
+    const DRAG_THRESHOLD_PX = 5;
 
     React.useEffect(() => {
       if (!dragging) {
@@ -113,13 +115,12 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
       [emitChange]
     );
 
-    const beginDrag = React.useCallback(
+    const beginPotentialDrag = React.useCallback(
       (event: React.PointerEvent<HTMLInputElement>) => {
         if (disabled) return;
-        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
         pointerIdRef.current = event.pointerId;
         startRef.current = { x: event.clientX, y: event.clientY, value: latestValueRef.current };
-        setDragging(true);
+        hasCapturedRef.current = false;
       },
       [disabled]
     );
@@ -134,6 +135,7 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
         }
         pointerIdRef.current = null;
         startRef.current = null;
+        hasCapturedRef.current = false;
         if (dragging) {
           setDragging(false);
           onChangeEnd?.(latestValueRef.current);
@@ -144,21 +146,34 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
 
     const handlePointerDown = React.useCallback(
       (event: React.PointerEvent<HTMLInputElement>) => {
-        beginDrag(event);
+        beginPotentialDrag(event);
         externalOnPointerDown?.(event);
-        event.preventDefault();
-        event.stopPropagation();
+        // Intentionally do not prevent default here so the input can focus and steppers work
       },
-      [beginDrag, externalOnPointerDown]
+      [beginPotentialDrag, externalOnPointerDown]
     );
 
     const handlePointerMove = React.useCallback(
       (event: React.PointerEvent<HTMLInputElement>) => {
         externalOnPointerMove?.(event);
-        if (!dragging || !startRef.current) return;
+        if (!startRef.current) return;
 
         const dx = event.clientX - startRef.current.x;
         const dy = event.clientY - startRef.current.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (!dragging) {
+          if (distance >= DRAG_THRESHOLD_PX) {
+            setDragging(true);
+            if (!hasCapturedRef.current) {
+              (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+              hasCapturedRef.current = true;
+            }
+          } else {
+            return;
+          }
+        }
+
         const delta = (dx - dy) * (step ?? 1) * getModifierMultiplier(event);
         emitChange(startRef.current.value + delta);
 

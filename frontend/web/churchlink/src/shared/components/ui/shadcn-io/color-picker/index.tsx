@@ -89,17 +89,22 @@ export const ColorPicker = ({
 
   // Update color when controlled value changes
   useEffect(() => {
-    if (!value) return;
-    const c = Color(value).hsl();
-    const h = c.hue();
-    const s = c.saturationl() ?? 0;
-    const l = c.lightness() ?? 0;
-    const a = c.alpha() ?? 1;
+    if (value === undefined || value === null || value === '') return;
+    try {
+      const parsed = Color(value);
+      const c = parsed.hsl();
+      const h = c.hue();
+      const s = c.saturationl() ?? 0;
+      const l = c.lightness() ?? 0;
+      const a = parsed.alpha() ?? 1;
 
-    setSaturation(s);
-    setLightness(l);
-    setAlpha(Math.round(a * 100));
-    setHue((prev) => (s > 0 && Number.isFinite(h as number) ? (h as number) : prev));
+      setSaturation(s);
+      setLightness(l);
+      setAlpha(Math.max(0, Math.min(100, Math.round(a * 100))));
+      setHue((prev) => (s > 0 && Number.isFinite(h as number) ? (h as number) : prev));
+    } catch {
+      // ignore parsing errors
+    }
   }, [value]);
 
   // Notify parent of changes

@@ -88,7 +88,7 @@ const AdminDashboardSideBar = () => {
   ];
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" autoCollapse={false} hoverable={false} className="border-r">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Admin</SidebarGroupLabel>
@@ -151,8 +151,8 @@ const AdminDashboardSideBar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarRail />
-
+      {/* Disable rail hover interaction entirely */}
+      <SidebarRail disabled />
       <SidebarFooter>
         <ProfilePill className="mx-2 mb-2" />
       </SidebarFooter>

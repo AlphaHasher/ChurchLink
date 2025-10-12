@@ -1,10 +1,20 @@
 import React from "react";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
+// ScopedStyle temporarily disabled due to drag measurement regressions
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
 import { defaultGridSize, unitsToPx } from "@/features/webeditor/grid/gridMath";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
+}
+
+// Match builder padding conversion: Tailwind spacing unit -> rem (n * 0.25rem)
+function tailwindSpacingToRem(value?: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value)) return undefined;
+  if (value === 0) return "0";
+  const rem = value * 0.25;
+  const formatted = rem.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  return formatted.length ? `${formatted}rem` : `${rem}rem`;
 }
 
 const highlightClass = (node: Node, highlightNodeId?: string) =>
@@ -36,28 +46,39 @@ const renderNode = (
   gridSize?: number
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
-  const nodeStyle = nodeFontFamily ? { fontFamily: nodeFontFamily } : undefined;
+  const nodeStyleRaw = (node as any).style || {};
+  // const customCss = (nodeStyleRaw as any).customCss as string | undefined; // disabled
+  const nodeStyle: React.CSSProperties = {
+    ...(nodeFontFamily ? { fontFamily: nodeFontFamily } : {}),
+    ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+    ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+    ...(typeof nodeStyleRaw?.borderRadius === "number" ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+  };
 
   switch (node.type) {
     case "text": {
       const html = (node as any).props?.html ?? (node as any).props?.text ?? "";
       const align = (node as any).props?.align ?? "left";
       const variant = (node as any).props?.variant ?? "p";
-      const paddingY = (node as any).style?.paddingY ?? 0;
-      const paddingX = (node as any).style?.paddingX ?? 0;
-      const textStyles = (node as any).style?.textStyles || [];
-      const fontSize = (node as any).style?.fontSize;
-      const fontWeight = (node as any).style?.fontWeight;
-      const width = (node as any).style?.width;
-      const elementFontFamily = (node as any).style?.fontFamily;
-      const underlineThickness = (node as any).style?.underlineThickness;
-      const color = (node as any).style?.color;
-      const backgroundColor = (node as any).style?.backgroundColor;
+      const paddingY = nodeStyleRaw?.paddingY ?? 0;
+      const paddingX = nodeStyleRaw?.paddingX ?? 0;
+      const textStyles = nodeStyleRaw?.textStyles || [];
+      const fontSize = nodeStyleRaw?.fontSize;
+      const fontWeight = nodeStyleRaw?.fontWeight;
+      const width = nodeStyleRaw?.width;
+      const elementFontFamily = nodeStyleRaw?.fontFamily;
+      const underlineThickness = nodeStyleRaw?.underlineThickness;
+      const color = nodeStyleRaw?.color;
+      const backgroundColor = nodeStyleRaw?.backgroundColor;
+      const borderRadius = nodeStyleRaw?.borderRadius as number | undefined;
 
       const Tag = ["h1", "h2", "h3"].includes(variant) ? (variant as any) : "p";
 
-      const pyClass = paddingY > 0 ? `py-${paddingY}` : "";
-      const pxClass = paddingX > 0 ? `px-${paddingX}` : "";
+      // Derive per-side paddings consistent with builder
+      const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
+      const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
+      const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX ?? paddingY;
+      const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX ?? paddingY;
 
       const isBold = textStyles.includes("bold");
       const isItalic = textStyles.includes("italic");
@@ -72,15 +93,19 @@ const renderNode = (
         ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness}px` } : {}),
         ...(color ? { color } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
+        ...(typeof borderRadius === "number" ? { borderRadius } : {}),
+        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
+        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
+        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
+        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
       };
 
       return (
+        <>
         <Tag
           className={cn(
             align === "center" && "text-center",
             align === "right" && "text-right",
-            pyClass,
-            pxClass,
             isBold && "font-bold",
             isItalic && "italic",
             isUnderline && "underline",
@@ -89,9 +114,12 @@ const renderNode = (
             "inline-block max-w-full w-fit align-top break-words",
             highlightClass(node, highlightNodeId)
           )}
+          // data-node-id used by ScopedStyle; disabled
           style={inlineStyles}
           dangerouslySetInnerHTML={{ __html: html }}
         />
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
       );
     }
     case "button": {
@@ -102,27 +130,62 @@ const renderNode = (
         nodeFontFamily && "[&>*]:font-[inherit]",
         highlightClass(node, highlightNodeId)
       );
+      // Allow numeric padding in Tailwind units similar to text
+      const paddingY = nodeStyleRaw?.paddingY;
+      const paddingX = nodeStyleRaw?.paddingX;
+      const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
+      const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
+      const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX;
+      const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX;
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
+        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
+        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
+        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+      };
       if (href) {
         return (
-          <a href={href} className={className} style={nodeStyle}>
+          <>
+          <a href={href} className={className} style={inlineStyle}>
             {label}
           </a>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          </>
         );
       }
       return (
-        <button className={className} style={nodeStyle}>
+        <>
+        <button className={className} style={inlineStyle}>
           {label}
         </button>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
       );
     }
     case "eventList": {
+      // Event list container should also respect padding/background/border radius
+      const paddingY = nodeStyleRaw?.paddingY;
+      const paddingX = nodeStyleRaw?.paddingX;
+      const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
+      const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
+      const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX;
+      const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX;
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
+        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
+        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
+        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+      };
       return (
+        <>
         <div
           className={cn(
             nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
             highlightClass(node, highlightNodeId)
           )}
-          style={nodeStyle}
+          style={inlineStyle}
         >
           <EventSection
             showFilters={(node as any).props?.showFilters !== false}
@@ -132,6 +195,8 @@ const renderNode = (
             showTitle={(node as any).props?.showTitle !== false}
           />
         </div>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
       );
     }
     case "container": {
@@ -189,7 +254,16 @@ const renderNode = (
         );
       });
 
+      // Also apply container-level background/border radius and paddings if provided on style
+      const containerInlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...(typeof (node as any).style?.paddingTop === "number" ? { paddingTop: tailwindSpacingToRem((node as any).style?.paddingTop) } : {}),
+        ...(typeof (node as any).style?.paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem((node as any).style?.paddingBottom) } : {}),
+        ...(typeof (node as any).style?.paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem((node as any).style?.paddingLeft) } : {}),
+        ...(typeof (node as any).style?.paddingRight === "number" ? { paddingRight: tailwindSpacingToRem((node as any).style?.paddingRight) } : {}),
+      };
       return (
+        <>
         <div
           id={node.id}
           className={cn(
@@ -200,10 +274,33 @@ const renderNode = (
             nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
             highlightClass(node, highlightNodeId)
           )}
-          style={nodeStyle}
+          style={containerInlineStyle}
         >
           {containerContent}
         </div>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
+      );
+    }
+    case "image": {
+      const src = (node as any).props?.src || "";
+      const alt = (node as any).props?.alt || "";
+      const objectFit = (node as any).props?.objectFit || "cover";
+      const inlineStyles: React.CSSProperties = {
+        ...nodeStyle,
+        overflow: "hidden",
+        display: "block",
+      };
+      return (
+        <>
+        <div
+          className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))}
+          style={inlineStyles}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit }} />
+        </div>
+        </>
       );
     }
     default: {

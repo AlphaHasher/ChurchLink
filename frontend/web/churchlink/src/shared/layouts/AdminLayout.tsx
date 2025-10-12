@@ -14,7 +14,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const renderedSidebar = <Sidebar />;
 
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      defaultOpen={true}
+      style={{ ["--sidebar-width" as any]: "18rem", ["--sidebar-width-icon" as any]: "3.25rem" }}
+    >
       {renderedSidebar}
       <SidebarInset>
         <div className="relative flex h-screen flex-col overflow-hidden">

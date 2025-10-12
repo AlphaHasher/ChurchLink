@@ -1,8 +1,11 @@
 export type Selection = { sectionId?: string; nodeId?: string } | null;
+import type { SectionV2 } from '@/shared/types/pageV2';
 
 type Action =
   | { type: 'layout'; sectionId: string; nodeId: string; prev: any; next: any }
-  | { type: 'select'; prev: Selection; next: Selection };
+  | { type: 'select'; prev: Selection; next: Selection }
+  | { type: 'node'; sectionId: string; nodeId: string; prev: any; next: any }
+  | { type: 'sections'; prev: SectionV2[]; next: SectionV2[] };
 
 export type ActivePaddingOverlay = {
   sectionId: string;
@@ -31,6 +34,7 @@ class BuilderStateClass {
   private _gridAdjustingSectionId: string | null = null;
   private _undoStack: Action[] = [];
   private _redoStack: Action[] = [];
+  private _suppressHistory = false;
   private listeners: Set<() => void> = new Set();
   private _nodePxCache: Map<string, { sectionId: string; x: number; y: number; w?: number; h?: number }> = new Map();
   private _paddingOverlay: ActivePaddingOverlay | null = null;
@@ -44,6 +48,7 @@ class BuilderStateClass {
   get paddingOverlay() { return this._paddingOverlay; }
   get canUndo() { return this._undoStack.length > 0; }
   get canRedo() { return this._redoStack.length > 0; }
+  get isHistorySuppressed() { return this._suppressHistory; }
 
   subscribe(fn: () => void) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   private notify() { this.listeners.forEach((fn) => fn()); }
@@ -53,6 +58,12 @@ class BuilderStateClass {
     this._selection = next;
     this._undoStack.push({ type: 'select', prev, next });
     this._redoStack = [];
+    this.notify();
+  }
+
+  // Set selection without recording to history (used by undo/redo application)
+  setSelectionSilent(next: Selection) {
+    this._selection = next;
     this.notify();
   }
 
@@ -105,8 +116,34 @@ class BuilderStateClass {
   }
 
   pushLayout(sectionId: string, nodeId: string, prev: any, next: any) {
-    this._undoStack.push({ type: 'layout', sectionId, nodeId, prev, next });
-    this._redoStack = [];
+    if (!this._suppressHistory) {
+      this._undoStack.push({ type: 'layout', sectionId, nodeId, prev, next });
+      this._redoStack = [];
+    }
+  }
+
+  pushNode(sectionId: string, nodeId: string, prev: any, next: any) {
+    if (!this._suppressHistory) {
+      this._undoStack.push({ type: 'node', sectionId, nodeId, prev, next });
+      this._redoStack = [];
+    }
+  }
+
+  pushSections(prev: SectionV2[], next: SectionV2[]) {
+    if (!this._suppressHistory) {
+      this._undoStack.push({ type: 'sections', prev, next });
+      this._redoStack = [];
+    }
+  }
+
+  withoutHistory<T>(fn: () => T): T {
+    const prev = this._suppressHistory;
+    this._suppressHistory = true;
+    try {
+      return fn();
+    } finally {
+      this._suppressHistory = prev;
+    }
   }
 
   setNodePixelLayout(sectionId: string, nodeId: string, px: { x: number; y: number; w?: number; h?: number }) {

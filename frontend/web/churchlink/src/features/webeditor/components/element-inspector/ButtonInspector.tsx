@@ -1,10 +1,10 @@
 import React from 'react';
 
-import { Button } from '@/shared/components/ui/button';
+// import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { Separator } from '@/shared/components/ui/separator';
 import { Node } from '@/shared/types/pageV2';
+import { BuilderState } from '@/features/webeditor/state/BuilderState';
 
 type ButtonInspectorProps = {
   node: Node;
@@ -12,6 +12,7 @@ type ButtonInspectorProps = {
 };
 
 export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate }) => {
+  const prevRef = React.useRef<Node | null>(null);
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -26,6 +27,15 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
                 : n
             )
           }
+          onFocus={() => { prevRef.current = { ...node }; }}
+          onBlur={() => {
+            const sectionId = BuilderState.selection?.sectionId;
+            const nodeId = BuilderState.selection?.nodeId;
+            if (sectionId && nodeId && prevRef.current) {
+              BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+              prevRef.current = null;
+            }
+          }}
           placeholder="Click me"
         />
       </div>
@@ -42,20 +52,20 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
                 : n
             )
           }
+          onFocus={() => { prevRef.current = { ...node }; }}
+          onBlur={() => {
+            const sectionId = BuilderState.selection?.sectionId;
+            const nodeId = BuilderState.selection?.nodeId;
+            if (sectionId && nodeId && prevRef.current) {
+              BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+              prevRef.current = null;
+            }
+          }}
           placeholder="https://example.com"
         />
       </div>
 
-      <Separator />
-
-      <div className="space-y-2">
-        <Label>Button Preview</Label>
-        <div className="border rounded-md p-4 bg-muted/30">
-          <Button className="px-4 py-2">
-            {node.props?.label || 'Button'}
-          </Button>
-        </div>
-      </div>
+      {/* Background is now handled by the global Background control above. */}
     </div>
   );
 };

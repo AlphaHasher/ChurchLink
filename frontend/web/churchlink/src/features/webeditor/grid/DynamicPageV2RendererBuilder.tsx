@@ -5,6 +5,7 @@ import { DraggableNode } from './DraggableNode';
 import { defaultGridSize, unitsToPx } from './gridMath';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
 import EventSection from '@/features/admin/components/WebBuilder/sections/EventSection';
+// import ScopedStyle from '@/shared/components/ScopedStyle';
 import { ActivePaddingOverlay, BuilderState } from '@/features/webeditor/state/BuilderState';
 
 const PADDING_COLORS = {
@@ -119,6 +120,7 @@ const renderNode = (
   sectionId?: string,
   onNodeHover?: (nodeId: string | null) => void,
   onNodeClick?: (sectionId: string, nodeId: string) => void,
+  onNodeDoubleClick?: (sectionId: string, nodeId: string) => void,
   hoveredNodeId?: string | null,
   selectedNodeId?: string | null,
   gridSize?: number,  // Added for nested positioning
@@ -126,6 +128,7 @@ const renderNode = (
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyle = nodeFontFamily ? { fontFamily: nodeFontFamily } : undefined;
+  // const customCss = (node as any).style?.customCss as string | undefined; // disabled
   const isHovered = hoveredNodeId === node.id;
   const isSelected = selectedNodeId === node.id;
   
@@ -154,9 +157,8 @@ const renderNode = (
     // Only select when the click is on this element itself, not a child
     if (e.target !== e.currentTarget) return;
     e.stopPropagation();
-    if (sectionId) {
-      onNodeClick?.(sectionId, node.id);
-    }
+    // On single click, select but do not open inspector here; handled by parent
+    if (sectionId) onNodeClick?.(sectionId, node.id);
   };
   
   switch (node.type) {
@@ -175,6 +177,7 @@ const renderNode = (
       const underlineThickness = nodeStyleRaw?.underlineThickness;
       const color = nodeStyleRaw?.color;
       const backgroundColor = nodeStyleRaw?.backgroundColor;
+      const borderRadius = nodeStyleRaw?.borderRadius as number | undefined;
 
       const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
       const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
@@ -200,7 +203,9 @@ const renderNode = (
       const wrapperStyle: React.CSSProperties = {
         ...nodeStyle,
         ...(width && width !== 'auto' ? { width, display: 'inline-block' } : { display: 'inline-block' }),
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
+        ...(typeof borderRadius === 'number' ? { borderRadius } : {}),
         ...paddingStyles,
       };
 
@@ -215,6 +220,7 @@ const renderNode = (
       const nodeClassName = nodeStyleRaw?.className;
 
       return (
+        <>
         <div
           className={cn(
             'inline-block max-w-full w-fit align-top break-words',
@@ -223,6 +229,7 @@ const renderNode = (
             nodeClassName,
             !elementFontFamily && nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
           )}
+          // data-node-id used by ScopedStyle; disabled
           style={wrapperStyle}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -241,9 +248,51 @@ const renderNode = (
             dangerouslySetInnerHTML={{ __html: html }}
           />
         </div>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
+      );
+    }
+    case 'image': {
+      const nodeStyleRaw = (node as any).style || {};
+      const src = (node as any).props?.src || '';
+      const alt = (node as any).props?.alt || '';
+      const objectFit = (node as any).props?.objectFit || 'cover';
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        overflow: 'hidden',
+        display: 'block',
+      };
+
+      return (
+        <>
+        <div
+          className={cn(
+            interactiveClass,
+            outlineClass
+          )}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt}
+            draggable={false}
+            style={{ width: '100%', height: '100%', objectFit }}
+            onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          />
+        </div>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
       );
     }
     case 'button': {
+      const nodeStyleRaw = (node as any).style || {};
       const label = (node as any).props?.label ?? 'Button';
       const href = (node as any).props?.href;
       const className = cn(
@@ -252,41 +301,73 @@ const renderNode = (
         interactiveClass,
         outlineClass
       );
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
       if (href) {
         return (
+          <>
           <a 
             href={href} 
             className={className} 
-            style={nodeStyle}
+            style={inlineStyle}
+            // data-node-id used by ScopedStyle; disabled
+            draggable={false}
+            onDragStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              // Prevent navigation while editing in builder
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
           >
             {label}
           </a>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          </>
         );
       }
       return (
+        <>
         <button 
           className={className} 
-          style={nodeStyle}
+          style={inlineStyle}
+          // data-node-id used by ScopedStyle; disabled
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
         >
           {label}
         </button>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
       );
     }
     case 'eventList': {
+      const nodeStyleRaw = (node as any).style || {};
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
       return (
+        <>
         <div
           className={cn(
             nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
             interactiveClass,
             outlineClass
           )}
-          style={nodeStyle}
+          style={inlineStyle}
+          // data-node-id used by ScopedStyle; disabled
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
@@ -299,9 +380,12 @@ const renderNode = (
             showTitle={(node as any).props?.showTitle !== false}
           />
         </div>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
       );
     }
     case 'container': {
+      const nodeStyleRaw = (node as any).style || {};
       const maxWidth = (node as any).props?.maxWidth ?? 'xl';
       const px = (node as any).props?.paddingX ?? 4;
       const py = (node as any).props?.paddingY ?? 6;
@@ -331,7 +415,7 @@ const renderNode = (
           const cy = hasCustomPx ? cachedPx!.y : unitsToPx(c.layout!.units.yu, gridSize);
           const cw = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (c.layout?.units.wu ? unitsToPx(c.layout!.units.wu!, gridSize) : undefined);
           const ch = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (c.layout?.units.hu ? unitsToPx(c.layout!.units.hu!, gridSize) : undefined);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
           return (
             <DraggableNode
               key={c.id}
@@ -345,20 +429,22 @@ const renderNode = (
               selected={selectedNodeId === c.id}
               onCommitLayout={(nodeId, units) => onUpdateNodeLayout(sectionId, nodeId, units)}
               onSelect={() => onNodeClick?.(sectionId, c.id)}
+              onDoubleSelect={() => onNodeDoubleClick?.(sectionId, c.id)}
               render={() => childRendered}
               containerId={node.id}
-              enforceChildFullSize
+              enforceChildFullSize={c.type === 'container' || c.type === 'button' || c.type === 'text'}
               allowContentPointerEvents
             />
           );
         } else {
           // Fallback for missing layout or params - render without wrapper
           if (!childHasLayout) console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
           return <div key={c.id} className="relative">{childRendered}</div>;
         }
       });
       return (
+        <>
         <div
           id={node.id}
           data-draggable="true"
@@ -371,13 +457,21 @@ const renderNode = (
             interactiveClass,
             outlineClass
           )}
-          style={nodeStyle}
+          style={{
+            ...nodeStyle,
+            ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+            ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+            ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+          }}
+          // data-node-id used by ScopedStyle; disabled
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
         >
           {containerContent}
         </div>
+        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+        </>
       );
     }
     default: {
@@ -398,7 +492,8 @@ export const DynamicPageV2RendererBuilder: React.FC<{
   ) => void;
   onNodeHover?: (nodeId: string | null) => void;
   onNodeClick?: (sectionId: string, nodeId: string) => void;
-}> = ({ page, highlightNodeId, hoveredNodeId, selectedNodeId, onUpdateNodeLayout, onNodeHover, onNodeClick }) => {
+  onNodeDoubleClick?: (sectionId: string, nodeId: string) => void;
+}> = ({ page, highlightNodeId, hoveredNodeId, selectedNodeId, onUpdateNodeLayout, onNodeHover, onNodeClick, onNodeDoubleClick }) => {
   const defaultFontFamily = (page as any).styleTokens?.defaultFontFamily as string | undefined;
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
@@ -467,7 +562,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
             <div
               className={cn(gridClasses, 'relative h-full min-h-full')}
               id={`section-content-${section.id}`}
-              style={{ minHeight: 'inherit' }}
+              style={{ minHeight: 'inherit', position: 'relative' }}
             >
               {section.children.map((node) => {
                 const hasLayout = !!node.layout?.units;
@@ -479,7 +574,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                   const y = hasCustomPx ? cachedPx!.y : unitsToPx(node.layout!.units.yu, gridSize);
                   const w = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (node.layout?.units.wu ? unitsToPx(node.layout!.units.wu!, gridSize) : undefined);
                   const h = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (node.layout?.units.hu ? unitsToPx(node.layout!.units.hu!, gridSize) : undefined);
-        rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+        rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
 
         const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
           if (node.type !== 'container') {
@@ -513,16 +608,17 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                       selected={node.id === selectedNodeId}
             onCommitLayout={handleCommitLayout}
                       onSelect={() => onNodeClick?.(section.id, node.id)}
+                      onDoubleSelect={() => onNodeDoubleClick?.(section.id, node.id)}
                       render={() => rendered}
                       containerId={`section-content-${section.id}`}
-                      enforceChildFullSize
-                      allowContentPointerEvents={node.type === 'container'}
+                      enforceChildFullSize={node.type === 'container' || node.type === 'button' || node.type === 'text'}
+                      allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
                     />
                   );
                 } else {
                   // Fallback for nodes without layout - render as flow, log warning
                   console.warn(`Node ${node.id} missing layout.units - rendering as flow.`);
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
                   return <div key={node.id} className="relative">{rendered}</div>;
                 }
               })}

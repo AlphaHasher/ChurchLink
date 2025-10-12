@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { NumericDragInput } from '@/shared/components/NumericDragInput';
+import { BuilderState } from '@/features/webeditor/state/BuilderState';
 
 type ContainerInspectorProps = {
   node: Node;
@@ -17,6 +18,7 @@ type ContainerInspectorProps = {
 };
 
 export const ContainerInspector: React.FC<ContainerInspectorProps> = ({ node, onUpdate }) => {
+  const prevRef = React.useRef<Node | null>(null);
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -30,6 +32,18 @@ export const ContainerInspector: React.FC<ContainerInspectorProps> = ({ node, on
                 : n
             )
           }
+          onOpenChange={(open) => {
+            if (open) {
+              prevRef.current = { ...node };
+            } else {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (sectionId && nodeId && prevRef.current) {
+                BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+                prevRef.current = null;
+              }
+            }
+          }}
         >
           <SelectTrigger id="container-maxwidth">
             <SelectValue placeholder="Select max width" />
@@ -61,6 +75,15 @@ export const ContainerInspector: React.FC<ContainerInspectorProps> = ({ node, on
                   : n
               )
             }
+            onFocus={() => { prevRef.current = { ...node }; }}
+            onChangeEnd={() => {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (sectionId && nodeId && prevRef.current) {
+                BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+                prevRef.current = null;
+              }
+            }}
           />
         </div>
         <div className="space-y-2">
@@ -78,6 +101,15 @@ export const ContainerInspector: React.FC<ContainerInspectorProps> = ({ node, on
                   : n
               )
             }
+            onFocus={() => { prevRef.current = { ...node }; }}
+            onChangeEnd={() => {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (sectionId && nodeId && prevRef.current) {
+                BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+                prevRef.current = null;
+              }
+            }}
           />
         </div>
       </div>

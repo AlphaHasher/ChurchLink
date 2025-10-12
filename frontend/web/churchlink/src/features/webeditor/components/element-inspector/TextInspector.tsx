@@ -19,6 +19,7 @@ import { Separator } from '@/shared/components/ui/separator';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/shared/components/ui/toggle-group';
 import { Node, TextNode } from '@/shared/types/pageV2';
+import { BuilderState } from '@/features/webeditor/state/BuilderState';
 
 import FontPicker from '../FontPicker';
 import { PaddingControls } from './PaddingControls';
@@ -33,6 +34,8 @@ type TextInspectorProps = {
 export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fontManager, gridSize }) => {
   const [customFontActive, setCustomFontActive] = React.useState<boolean>(false);
   const [localHtml, setLocalHtml] = React.useState(node.props?.html || node.props?.text || '');
+  const prevRef = React.useRef<Node | null>(null);
+  const [colorOpen, setColorOpen] = React.useState(false);
 
   React.useEffect(() => {
     const fam = (node.style as any)?.fontFamily as string | undefined;
@@ -49,24 +52,37 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
   };
 
   const handleHtmlBlur = () => {
+    const before = { ...node };
     onUpdate((n) =>
       n.type === 'text'
         ? ({ ...n, props: { ...(n.props || {}), html: localHtml } } as Node)
         : n
     );
+    const sectionId = BuilderState.selection?.sectionId;
+    const nodeId = BuilderState.selection?.nodeId;
+    if (sectionId && nodeId) {
+      BuilderState.pushNode(sectionId, nodeId, before, { ...node, props: { ...(node.props || {}), html: localHtml } });
+    }
   };
 
   const handleAlignChange = (align: string) => {
+    const before = { ...node };
     onUpdate((n) =>
       n.type === 'text'
         ? ({ ...n, props: { ...(n.props || {}), align } } as Node)
         : n
     );
+    const sectionId = BuilderState.selection?.sectionId;
+    const nodeId = BuilderState.selection?.nodeId;
+    if (sectionId && nodeId) {
+      BuilderState.pushNode(sectionId, nodeId, before, { ...node, props: { ...(node.props || {}), align } });
+    }
   };
 
   const textStyles = (node.style as any)?.textStyles || [];
 
   const handleStyleToggle = (values: string[]) => {
+    const before = { ...node };
     onUpdate((n) =>
       n.type === 'text'
         ? ({
@@ -78,6 +94,11 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
           } as Node)
         : n
     );
+    const sectionId = BuilderState.selection?.sectionId;
+    const nodeId = BuilderState.selection?.nodeId;
+    if (sectionId && nodeId) {
+      BuilderState.pushNode(sectionId, nodeId, before, { ...node, style: { ...(node.style || {}), textStyles: values } });
+    }
   };
 
   return (
@@ -185,7 +206,22 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Text Color</Label>
-          <Popover>
+        <Popover
+          open={colorOpen}
+          onOpenChange={(open) => {
+            if (open) {
+              prevRef.current = { ...node };
+            } else {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (sectionId && nodeId && prevRef.current) {
+                BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+                prevRef.current = null;
+              }
+            }
+            setColorOpen(open);
+          }}
+        >
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start gap-2 h-10">
                 <div
@@ -208,51 +244,6 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
                           style: {
                             ...(n.style || {}),
                             color: css,
-                          },
-                        } as Node)
-                      : n
-                  );
-                }}
-                className="flex flex-col gap-2"
-              >
-                <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
-                  <ColorPickerSelection />
-                  <ColorPickerHue />
-                  <ColorPickerAlpha />
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <ColorPickerOutput />
-                </div>
-              </ColorPicker>
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Background Color</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                <div
-                  className="h-6 w-6 rounded border border-gray-300"
-                  style={{ backgroundColor: (node.style as any)?.backgroundColor || 'transparent' }}
-                />
-                <span className="text-sm truncate">{(node.style as any)?.backgroundColor || 'transparent'}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-3" align="start">
-              <ColorPicker
-                value={(node.style as any)?.backgroundColor || '#ffffff'}
-                onChange={(c) => {
-                  const css = typeof c === 'string' ? c : (typeof (c as any)?.string === 'function' ? (c as any).string() : String(c));
-                  if ((node.style as any)?.backgroundColor === css) return;
-                  onUpdate((n) =>
-                    n.type === 'text'
-                      ? ({
-                          ...n,
-                          style: {
-                            ...(n.style || {}),
-                            backgroundColor: css,
                           },
                         } as Node)
                       : n
@@ -297,6 +288,15 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
               )
             }
             placeholder="1"
+            onFocus={() => { prevRef.current = { ...node }; }}
+            onChangeEnd={() => {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (sectionId && nodeId && prevRef.current) {
+                BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+                prevRef.current = null;
+              }
+            }}
           />
         </div>
         <div className="space-y-2">
@@ -321,6 +321,15 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
               )
             }
             placeholder="400"
+            onFocus={() => { prevRef.current = { ...node }; }}
+            onChangeEnd={() => {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (sectionId && nodeId && prevRef.current) {
+                BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+                prevRef.current = null;
+              }
+            }}
           />
         </div>
       </div>
@@ -368,6 +377,15 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
               )
             }
             placeholder="1"
+            onFocus={() => { prevRef.current = { ...node }; }}
+            onChangeEnd={() => {
+              const sectionId = BuilderState.selection?.sectionId;
+              const nodeId = BuilderState.selection?.nodeId;
+              if (sectionId && nodeId && prevRef.current) {
+                BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+                prevRef.current = null;
+              }
+            }}
           />
           <p className="text-xs text-muted-foreground">Default is 1px. Increase for thicker underlines.</p>
         </div>

@@ -2,12 +2,16 @@ import React, { useMemo, useEffect } from "react";
 import { Input } from "@/shared/components/ui/input";
 import { Node, PageV2, SectionV2 } from "@/shared/types/pageV2";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/shared/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Separator } from "@/shared/components/ui/separator";
 import { ColorPicker, ColorPickerAlpha, ColorPickerHue, ColorPickerSelection, ColorPickerOutput } from "@/shared/components/ui/shadcn-io/color-picker";
+import { Label } from "@/shared/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { NumericDragInput } from "@/shared/components/NumericDragInput";
 import ElementTree from "./ElementTree";
 import FontPicker from "./FontPicker";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
+import { Button } from "@/shared/components/ui/button";
 
 interface InspectorPanelProps {
   open: boolean;
@@ -22,6 +26,7 @@ interface InspectorPanelProps {
   page: PageV2 | null;
   setPage: React.Dispatch<React.SetStateAction<PageV2 | null>>;
   fontManager: any; // Font manager hook return type
+  onRequestDeleteSection?: (id: string) => void;
   // gridSize removed from props, compute inside
 }
 
@@ -36,6 +41,7 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
   updateSelectedNode,
   page,
   fontManager,
+  onRequestDeleteSection,
 }) => {
   // Handle font selection for sections - save to section styleTokens
   const handleSectionFontSelect = React.useCallback((fontFamily: string) => {
@@ -118,6 +124,290 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
     }
   }, [selection?.nodeId, selectedNode, updateSelectedNode, getDefaultWu, getDefaultHu]);
 
+  const [secBgOpen, setSecBgOpen] = React.useState(false);
+
+  // Background editor for Sections (solid, gradient, custom CSS)
+  const SectionBackgroundEditor: React.FC<{ open: boolean }> = React.useCallback(({ open }) => {
+    const section = sections.find((s) => s.id === selectedSectionId);
+    const style = (section?.background?.style || {}) as any;
+    const bgString = String((style.background ?? style.backgroundImage ?? '') as string).trim();
+    const hasBackground = bgString.length > 0;
+    const isLinear = /linear-gradient\(/i.test(bgString);
+
+    const extractColorOnly = React.useCallback((input: string | undefined): string => {
+      if (!input) return '#4f46e5';
+      const s = String(input).trim();
+      const m = s.match(/(#[0-9a-fA-F]{3,8}|(?:rgba?|hsla?|hsl|oklch|lab|lch)\([^\)]+\))/);
+      if (m && m[1]) return m[1].trim();
+      return s.split(/\s+/)[0];
+    }, []);
+
+    const toCssColor = React.useCallback((value: any): string => {
+      if (typeof value === 'string') return value;
+      if (value && typeof value.string === 'function') {
+        try { return value.string(); } catch {}
+      }
+      if (value && typeof value.hexa === 'function') {
+        try { return value.hexa(); } catch {}
+      }
+      if (value && typeof value.hex === 'function') {
+        try { return value.hex(); } catch {}
+      }
+      return String(value ?? '');
+    }, []);
+
+    const parseLinearGradient = React.useCallback((): { angle: number; c1: string; c2: string } => {
+      if (!isLinear) return { angle: 90, c1: '#4f46e5', c2: '#3b82f6' };
+      const raw = bgString;
+      const start = raw.toLowerCase().indexOf('linear-gradient(');
+      const end = raw.lastIndexOf(')');
+      if (start === -1 || end === -1) return { angle: 90, c1: '#4f46e5', c2: '#3b82f6' };
+      const inner = raw.slice(start + 'linear-gradient('.length, end);
+      const parts: string[] = [];
+      let depth = 0; let buf = '';
+      for (let i = 0; i < inner.length; i++) {
+        const ch = inner[i];
+        if (ch === '(') depth++;
+        if (ch === ')') depth = Math.max(0, depth - 1);
+        if (ch === ',' && depth === 0) { parts.push(buf.trim()); buf = ''; continue; }
+        buf += ch;
+      }
+      if (buf.trim()) parts.push(buf.trim());
+
+      const first = parts[0] || '';
+      const isAngleToken = /deg|turn|rad|grad|^to\s+/i.test(first);
+      const angleVal = (() => {
+        if (!isAngleToken) return 90;
+        const m = first.match(/([-+]?\d*\.?\d+)/);
+        const n = m ? parseFloat(m[1]) : 90;
+        return Number.isFinite(n) ? Math.max(0, Math.min(360, n)) : 90;
+      })();
+
+      const stop1 = isAngleToken ? (parts[1] || '#4f46e5') : (parts[0] || '#4f46e5');
+      const stop2 = isAngleToken ? (parts[2] || '#3b82f6') : (parts[1] || '#3b82f6');
+      return { angle: angleVal, c1: extractColorOnly(stop1), c2: extractColorOnly(stop2) };
+    }, [isLinear, bgString, extractColorOnly]);
+
+    const { angle: parsedAngle, c1: parsedC1, c2: parsedC2 } = React.useMemo(() => parseLinearGradient(), [parseLinearGradient]);
+
+    const [mode, setMode] = React.useState<string>(
+      hasBackground ? (isLinear ? 'gradient' : 'custom') : 'solid'
+    );
+    const [angle, setAngle] = React.useState<number>(parsedAngle);
+    const [c1, setC1] = React.useState<string>(parsedC1);
+    const [c2, setC2] = React.useState<string>(parsedC2);
+    const [custom, setCustom] = React.useState<string>(hasBackground ? bgString : '');
+
+    // Ignore ColorPicker's initial notify on mount/open to prevent feedback loops
+    const skipInitialRef = React.useRef(true);
+    React.useEffect(() => {
+      const id = window.setTimeout(() => {
+        skipInitialRef.current = false;
+      }, 0);
+      return () => {
+        window.clearTimeout(id);
+        skipInitialRef.current = true;
+      };
+    }, []);
+
+    // Schedule updates to avoid flooding React with state changes while dragging
+    const scheduleRef = React.useRef<number | null>(null);
+    const scheduleSetSections = React.useCallback((updater: React.SetStateAction<SectionV2[]>) => {
+      if (scheduleRef.current) window.clearTimeout(scheduleRef.current);
+      scheduleRef.current = window.setTimeout(() => {
+        setSections(updater);
+        scheduleRef.current = null;
+      }, 16);
+    }, [setSections]);
+    React.useEffect(() => {
+      return () => {
+        if (scheduleRef.current) {
+          window.clearTimeout(scheduleRef.current);
+          scheduleRef.current = null;
+        }
+      };
+    }, [selectedSectionId]);
+
+    const applySolid = React.useCallback((css: string) => {
+      if (!selectedSectionId) return;
+      scheduleSetSections((prev) => {
+        let changed = false;
+        const next = prev.map((s) => {
+          if (s.id !== selectedSectionId) return s;
+          const current = (s.background?.style || {}) as any;
+          if (current.backgroundColor === css && !current.background && !current.backgroundImage) return s;
+          const { background, backgroundImage, ...rest } = current;
+          changed = true;
+          return {
+            ...s,
+            background: {
+              ...(s.background || {}),
+              style: { ...rest, backgroundColor: css },
+            },
+          } as SectionV2;
+        });
+        return changed ? next : prev;
+      });
+    }, [selectedSectionId, scheduleSetSections]);
+
+    const applyGradient = React.useCallback((nextAngle: number, nextC1: string, nextC2: string) => {
+      if (!selectedSectionId) return;
+      const gradient = `linear-gradient(${Math.round(nextAngle)}deg, ${nextC1}, ${nextC2})`;
+      scheduleSetSections((prev) => {
+        let changed = false;
+        const next = prev.map((s) => {
+          if (s.id !== selectedSectionId) return s;
+          const current = (s.background?.style || {}) as any;
+          if (((current.background ?? current.backgroundImage) === gradient) && !current.backgroundColor) return s;
+          const { backgroundColor, backgroundImage, ...rest } = current;
+          changed = true;
+          return {
+            ...s,
+            background: {
+              ...(s.background || {}),
+              style: { ...rest, background: gradient },
+            },
+          } as SectionV2;
+        });
+        return changed ? next : prev;
+      });
+    }, [selectedSectionId, scheduleSetSections]);
+
+    const applyCustom = React.useCallback((css: string) => {
+      if (!selectedSectionId) return;
+      scheduleSetSections((prev) => {
+        let changed = false;
+        const next = prev.map((s) => {
+          if (s.id !== selectedSectionId) return s;
+          const current = (s.background?.style || {}) as any;
+          if (((current.background ?? current.backgroundImage) === css) && !current.backgroundColor) return s;
+          const { backgroundColor, backgroundImage, ...rest } = current;
+          changed = true;
+          return {
+            ...s,
+            background: {
+              ...(s.background || {}),
+              style: { ...rest, background: css },
+            },
+          } as SectionV2;
+        });
+        return changed ? next : prev;
+      });
+    }, [selectedSectionId, scheduleSetSections]);
+
+    const handleSolidChange = React.useCallback((c: any) => {
+      if (!open || skipInitialRef.current) return;
+      const css = toCssColor(c);
+      applySolid(css);
+    }, [toCssColor, applySolid, open]);
+
+    const handleC1Change = React.useCallback((c: any) => {
+      if (!open || skipInitialRef.current) return;
+      const css = toCssColor(c);
+      setC1(css);
+      applyGradient(angle, css, c2);
+    }, [toCssColor, applyGradient, angle, c2, open]);
+
+    const handleC2Change = React.useCallback((c: any) => {
+      if (!open || skipInitialRef.current) return;
+      const css = toCssColor(c);
+      setC2(css);
+      applyGradient(angle, c1, css);
+    }, [toCssColor, applyGradient, angle, c1, open]);
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Label className="min-w-24">Mode</Label>
+          <Select value={mode} onValueChange={(v) => setMode(v)}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Mode" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="solid">Solid</SelectItem>
+              <SelectItem value="gradient">Gradient</SelectItem>
+              <SelectItem value="custom">Custom CSS</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {mode === 'solid' && (
+          <div className="space-y-2">
+            <ColorPicker
+              value={style.backgroundColor?.trim()?.length ? style.backgroundColor : '#ffffff'}
+              onChange={handleSolidChange}
+              className="flex flex-col gap-2"
+            >
+              <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
+                <ColorPickerSelection />
+                <ColorPickerHue />
+                <ColorPickerAlpha />
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <ColorPickerOutput />
+              </div>
+            </ColorPicker>
+          </div>
+        )}
+
+        {mode === 'gradient' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Color 1</Label>
+                <ColorPicker value={c1} onChange={handleC1Change} className="flex flex-col gap-2">
+                  <div className="grid grid-rows-[120px_1rem] gap-2">
+                    <ColorPickerSelection />
+                    <ColorPickerHue />
+                  </div>
+                </ColorPicker>
+              </div>
+              <div className="space-y-1">
+                <Label>Color 2</Label>
+                <ColorPicker value={c2} onChange={handleC2Change} className="flex flex-col gap-2">
+                  <div className="grid grid-rows-[120px_1rem] gap-2">
+                    <ColorPickerSelection />
+                    <ColorPickerHue />
+                  </div>
+                </ColorPicker>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sec-angle">Angle (deg)</Label>
+              <NumericDragInput
+                id="sec-angle"
+                min={0}
+                max={360}
+                step={1}
+                value={angle}
+                onChange={(val) => {
+                  const next = typeof val === 'number' ? val : angle;
+                  setAngle(next);
+                  applyGradient(next, c1, c2);
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {mode === 'custom' && (
+          <div className="space-y-2">
+            <Label htmlFor="sec-custom-bg">CSS background</Label>
+            <input
+              id="sec-custom-bg"
+              className="w-full border rounded p-2 text-xs"
+              placeholder="e.g. radial-gradient(...), conic-gradient(...), url(...), etc"
+              value={custom}
+              onChange={(e) => {
+                const css = e.target.value;
+                setCustom(css);
+                applyCustom(css);
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }, [sections, selectedSectionId, setSections]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent side="right" className="w-[460px] sm:w-[540px] p-0" onInteractOutside={(e) => e.preventDefault()}>
@@ -177,34 +467,27 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <Separator />
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm mb-2 block">Background Color</label>
-                  <div className="h-52 rounded border overflow-hidden p-3">
-                    <ColorPicker
-                      value={sections.find((s) => s.id === selectedSectionId)?.background?.style?.backgroundColor || "#ffffff"}
-                      onChange={(c) => {
-                        const css = typeof c === 'string' ? c : (typeof (c as any)?.string === 'function' ? (c as any).string() : String(c));
-                        const currentCss = sections.find((s) => s.id === selectedSectionId)?.background?.style?.backgroundColor;
-                        if (currentCss === css) return;
-                        setSections((prev) =>
-                          prev.map((s) =>
-                            s.id === selectedSectionId
-                              ? { ...s, background: { ...(s.background || {}), style: { ...(s.background?.style || {}), backgroundColor: css } } }
-                              : s
-                          )
-                        );
-                      }}
-                      className="flex flex-col gap-2 h-full"
-                    >
-                      <div className="grid grid-rows-[1fr_1rem_1rem] gap-2 flex-1">
-                        <ColorPickerSelection />
-                        <ColorPickerHue />
-                        <ColorPickerAlpha />
-                      </div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <ColorPickerOutput />
-                      </div>
-                    </ColorPicker>
-                  </div>
+                  <label className="text-sm mb-2 block">Background</label>
+                  <Popover open={secBgOpen} onOpenChange={(open) => setSecBgOpen(open)}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start gap-2 h-10">
+                        {(() => {
+                          const section = sections.find((s) => s.id === selectedSectionId);
+                          const style = (section?.background?.style || {}) as any;
+                          const bg = style.background || style.backgroundImage || style.backgroundColor || 'transparent';
+                          return (
+                            <>
+                              <div className="h-6 w-6 rounded border border-gray-300" style={{ background: bg }} />
+                              <span className="text-sm truncate">{String(bg)}</span>
+                            </>
+                          );
+                        })()}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[360px] p-3 space-y-3" align="start">
+                      <SectionBackgroundEditor open={secBgOpen} />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {/* Section height controls */}
@@ -388,78 +671,21 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   />
                 </div>
               </div>
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => onRequestDeleteSection?.(selectedSectionId!)}
+                >
+                  Delete Section
+                </Button>
+              </div>
             </>
           ) : selection?.nodeId ? (
             <>
               <div className="text-sm text-gray-500">Node ID: {selection.nodeId}</div>
               <Separator />
-              {/* FORCED Width/Height sliders - always render for node selection */}
-              <div className="border border-red-500 rounded-lg p-4 bg-yellow-50">
-                <div className="text-sm font-bold mb-3 text-red-800">WIDTH & HEIGHT CONTROLS</div>
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-sm">Width (units)</label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={20}
-                      step={1}
-                      value={selectedNode?.layout?.units?.wu ?? 12}
-                      onChange={(e) => {
-                        const wu = Number(e.target.value);
-                        if (selectedNode) {
-                          updateSelectedNode((n) => ({
-                            ...n,
-                            layout: {
-                              ...n.layout,
-                              units: { 
-                                ...n.layout?.units,
-                                wu,
-                                xu: n.layout?.units?.xu ?? 0,
-                                yu: n.layout?.units?.yu ?? 0,
-                                hu: n.layout?.units?.hu ?? 8
-                              }
-                            }
-                          }));
-                        }
-                      }}
-                      className="w-full"
-                    />
-                    <span className="text-xs text-muted-foreground">12 units (~192px)</span>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm">Height (units)</label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={20}
-                      step={1}
-                      value={selectedNode?.layout?.units?.hu ?? 8}
-                      onChange={(e) => {
-                        const hu = Number(e.target.value);
-                        if (selectedNode) {
-                          updateSelectedNode((n) => ({
-                            ...n,
-                            layout: {
-                              ...n.layout,
-                              units: { 
-                                ...n.layout?.units,
-                                hu,
-                                xu: n.layout?.units?.xu ?? 0,
-                                yu: n.layout?.units?.yu ?? 0,
-                                wu: n.layout?.units?.wu ?? 12
-                              }
-                            }
-                          }));
-                        }
-                      }}
-                      className="w-full"
-                    />
-                    <span className="text-xs text-muted-foreground">8 units (~128px)</span>
-                  </div>
-                </div>
-              </div>
-              <Separator />
+              
               {/* Rest of type-specific fields */}
               {selectedNode?.type === 'text' && (
                 <div className="space-y-2">

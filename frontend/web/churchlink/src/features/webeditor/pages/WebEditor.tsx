@@ -57,6 +57,12 @@ const WebEditor: React.FC = () => {
     updateSelectedNode,
     deleteSection,
     updateNodeLayout,
+    deleteNodeId,
+    setDeleteNodeId,
+    deleteNode,
+    copySelected,
+    pasteClipboard,
+    deleteSelectedNode,
   } = useSectionManager();
 
   // Font management
@@ -83,11 +89,33 @@ const WebEditor: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setSelectedSectionId(id);
     setSelection(null);
-    setOpenInspector(true);
+    // Focus does not open inspector; open on double click instead
+    setOpenInspector(false);
     setOpenElementInspector(false);
   };
 
+  // Single click on canvas: select only; do not open element inspector
   const handleNodeClick = React.useCallback((sectionId: string, nodeId: string) => {
+    onSelectNode(sectionId, nodeId);
+    setSelectedSectionId(null);
+    setOpenInspector(false);
+    setOpenElementInspector(false);
+    setHighlightNodeId(nodeId);
+    BuilderState.stopEditing();
+  }, [onSelectNode, setSelectedSectionId, setHighlightNodeId]);
+
+  // Single click from sidebar: open element inspector immediately
+  const handleSidebarNodeFocus = React.useCallback((sectionId: string, nodeId: string) => {
+    onSelectNode(sectionId, nodeId);
+    setSelectedSectionId(null);
+    setOpenInspector(false);
+    setOpenElementInspector(true);
+    setHighlightNodeId(nodeId);
+    BuilderState.stopEditing();
+  }, [onSelectNode, setSelectedSectionId, setHighlightNodeId]);
+
+  // Double click: open element inspector
+  const handleNodeDoubleClick = React.useCallback((sectionId: string, nodeId: string) => {
     onSelectNode(sectionId, nodeId);
     setSelectedSectionId(null);
     setOpenInspector(false);
@@ -117,7 +145,8 @@ const WebEditor: React.FC = () => {
       setHighlightNodeId(null);
       setHoveredNodeId(null);
       setOpenElementInspector(false);
-      setOpenInspector(true);
+      // Single click selects section only; open inspector on double click
+      setOpenInspector(false);
       BuilderState.clearSelection();
       BuilderState.stopEditing();
       return;
@@ -155,6 +184,136 @@ const WebEditor: React.FC = () => {
   const selectedNode = selection?.nodeId ? findNode(selection.nodeId) : null;
   const selectedSectionForNode = selection?.sectionId ? managedSections.find(s => s.id === selection.sectionId) : undefined;
   const selectedGridSize = selectedSectionForNode?.builderGrid?.gridSize ?? 16;
+
+  // Global keyboard shortcuts for copy/paste selected element
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInputLike = !!target && (
+        target.tagName.toLowerCase() === 'input' ||
+        target.tagName.toLowerCase() === 'textarea' ||
+        target.isContentEditable
+      );
+      if (isInputLike) return;
+
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        e.preventDefault();
+        copySelected();
+      } else if (key === 'v') {
+        e.preventDefault();
+        pasteClipboard();
+      } else if (key === 'z') {
+        e.preventDefault();
+        const isRedo = e.shiftKey;
+        const action = isRedo ? BuilderState.redo() : BuilderState.undo();
+        if (!action) return;
+        // Apply the action by mutating editor state without recording new history
+        if (action.type === 'layout') {
+          BuilderState.withoutHistory(() => {
+            setSections((prev) => prev.map((s) => {
+              if (s.id !== action.sectionId) return s;
+              const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
+                if (n.id === action.nodeId) {
+                  const target = isRedo ? action.next : action.prev;
+                  BuilderState.clearNodePixelLayout(action.sectionId, action.nodeId);
+                  return { ...n, layout: { units: { ...target } } } as Node;
+                }
+                if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;
+                return n;
+              });
+              return { ...s, children: walk(s.children) };
+            }));
+          });
+        } else if (action.type === 'node') {
+          BuilderState.withoutHistory(() => {
+            setSections((prev) => prev.map((s) => {
+              if (s.id !== action.sectionId) return s;
+              const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
+                if (n.id === action.nodeId) {
+                  const target = (isRedo ? action.next : action.prev) as Node;
+                  // Replace entire node snapshot (units only, no px cache)
+                  return { ...target } as Node;
+                }
+                if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;
+                return n;
+              });
+              return { ...s, children: walk(s.children) };
+            }));
+          });
+        } else if (action.type === 'select') {
+          const targetSel = isRedo ? action.next : action.prev;
+          setSelection(targetSel);
+          BuilderState.setSelectionSilent(targetSel);
+        }
+      } else if (key === 'y') {
+        e.preventDefault();
+        const action = BuilderState.redo();
+        if (!action) return;
+        if (action.type === 'layout') {
+          BuilderState.withoutHistory(() => {
+            setSections((prev) => prev.map((s) => {
+              if (s.id !== action.sectionId) return s;
+              const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
+                if (n.id === action.nodeId) {
+                  BuilderState.clearNodePixelLayout(action.sectionId, action.nodeId);
+                  return { ...n, layout: { units: { ...action.next } } } as Node;
+                }
+                if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;
+                return n;
+              });
+              return { ...s, children: walk(s.children) };
+            }));
+          });
+        } else if (action.type === 'node') {
+          BuilderState.withoutHistory(() => {
+            setSections((prev) => prev.map((s) => {
+              if (s.id !== action.sectionId) return s;
+              const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
+                if (n.id === action.nodeId) {
+                  return { ...(action.next as Node) } as Node;
+                }
+                if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;
+                return n;
+              });
+              return { ...s, children: walk(s.children) };
+            }));
+          });
+        } else if (action.type === 'select') {
+          setSelection(action.next);
+          BuilderState.setSelectionSilent(action.next);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [copySelected, pasteClipboard]);
+
+  // Delete/Backspace to delete selected element
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInputLike = !!target && (
+        target.tagName.toLowerCase() === 'input' ||
+        target.tagName.toLowerCase() === 'textarea' ||
+        target.isContentEditable
+      );
+      if (isInputLike) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Only delete element if an element is selected; don't interfere with section text inputs
+        if (selection?.nodeId) {
+          e.preventDefault();
+          deleteSelectedNode();
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selection?.nodeId, deleteSelectedNode]);
 
   const sanitizeLabel = (value: unknown, fallback: string): string => {
     if (typeof value !== "string") return fallback;
@@ -214,10 +373,26 @@ const WebEditor: React.FC = () => {
     }
   }, [page?.styleTokens]);
 
+  // Control left sidebar open to avoid initial hover flicker
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const lastOpenTsRef = React.useRef(0);
+  const handleSidebarOpenChange = React.useCallback((next: boolean) => {
+    if (next) {
+      lastOpenTsRef.current = Date.now();
+      setSidebarOpen(true);
+      return;
+    }
+    // Grace period to prevent immediate close flicker on first hover
+    if (Date.now() - lastOpenTsRef.current < 200) return;
+    setSidebarOpen(false);
+  }, []);
+
   if (!page) return <div className="p-6">Loading...</div>;
 
   return (
     <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={handleSidebarOpenChange}
       style={{
         ["--sidebar-width" as any]: "14rem",
         ["--sidebar-width-icon" as any]: "2.75rem",
@@ -263,11 +438,13 @@ const WebEditor: React.FC = () => {
         onAddSectionPreset={addSectionPreset}
         currentSections={managedSections.map((section, index) => buildSidebarTree(section, index))}
         onFocusSection={handleFocusSection}
-        onFocusNode={handleNodeClick}
+        onFocusNode={handleSidebarNodeFocus}
         onDeleteSection={(id) => setDeleteSectionId(id)}
         pageTitle={page.title}
         slug={slug}
       />
+
+      
 
       {/* Canvas - full available width/height */}
       <SidebarInset className="h-[calc(100vh-48px)] mt-12 overflow-auto bg-white text-gray-900">
@@ -284,10 +461,23 @@ const WebEditor: React.FC = () => {
               data-section-id={s.id}
               className={"border-b group/section relative h-full"}
               style={{ minHeight: `${(s.heightPercent ?? 100)}vh` }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setSelectedSectionId(s.id);
+                setSelection(null);
+                setOpenElementInspector(false);
+                setOpenInspector(true);
+              }}
             >
               <button
                 className="opacity-0 group-hover/section:opacity-100 transition-opacity absolute top-2 right-2 z-10 rounded bg-red-600 text-white text-xs px-2 py-1"
-                onClick={() => setDeleteSectionId(s.id)}
+                onClick={() => {
+                  if (selection?.sectionId === s.id && selection?.nodeId) {
+                    setDeleteNodeId({ sectionId: s.id, nodeId: selection.nodeId });
+                  } else {
+                    setDeleteSectionId(s.id);
+                  }
+                }}
                 title="Delete section"
               >
                 Delete
@@ -301,6 +491,7 @@ const WebEditor: React.FC = () => {
                 onUpdateNodeLayout={updateNodeLayout}
                 onNodeHover={handleNodeHover}
                 onNodeClick={handleNodeClick}
+                onNodeDoubleClick={handleNodeDoubleClick}
               />
             </div>
           ))}
@@ -326,6 +517,7 @@ const WebEditor: React.FC = () => {
         page={page}
         setPage={setPage}
         fontManager={fontManager}
+        onRequestDeleteSection={setDeleteSectionId}
       />
 
       {/* Right Inspector Sheet - Element */}
@@ -342,6 +534,11 @@ const WebEditor: React.FC = () => {
         onUpdateNode={updateSelectedNode}
         fontManager={fontManager}
         gridSize={selectedGridSize}
+        onRequestDeleteNode={() => {
+          if (selection?.sectionId && selection?.nodeId) {
+            setDeleteNodeId({ sectionId: selection.sectionId, nodeId: selection.nodeId });
+          }
+        }}
       />
 
       {/* Delete Section Confirm */}
@@ -358,6 +555,27 @@ const WebEditor: React.FC = () => {
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               onClick={deleteSection}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Node Confirm */}
+      <AlertDialog open={!!deleteNodeId} onOpenChange={(open) => !open && setDeleteNodeId(null)}>
+        <AlertDialogContent>
+          <ADHeader>
+            <AlertDialogTitle>Delete this element?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The element will be permanently removed from this page.
+            </AlertDialogDescription>
+          </ADHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteNodeId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={deleteNode}
             >
               Delete
             </AlertDialogAction>

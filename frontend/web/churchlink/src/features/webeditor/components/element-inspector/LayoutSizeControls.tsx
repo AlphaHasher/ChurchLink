@@ -25,12 +25,16 @@ export const LayoutSizeControls: React.FC<LayoutSizeControlsProps> = ({ node, on
   const wu = node.layout?.units?.wu ?? 12;
   const hu = node.layout?.units?.hu ?? 8;
 
+  const prevUnitsRef = React.useRef<null | { xu?: number; yu?: number; wu?: number; hu?: number }>(null);
+
   const [widthUnit, setWidthUnit] = React.useState<'units' | 'px' | 'rem'>('px');
   const [heightUnit, setHeightUnit] = React.useState<'units' | 'px' | 'rem'>('px');
   const [widthVal, setWidthVal] = React.useState<number>(wu * grid);
   const [heightVal, setHeightVal] = React.useState<number>(hu * grid);
 
-  const format = React.useCallback((val: number) => Number(val.toFixed(2)), []);
+  const formatUnits = React.useCallback((val: number) => Number(val.toFixed(2)), []);
+  const formatPx = React.useCallback((val: number) => Math.round(val), []);
+  const formatRem = React.useCallback((px: number) => Number((px / 16).toFixed(2)), []);
 
   const startGridAdjust = React.useCallback(() => {
     const sectionId = BuilderState.selection?.sectionId;
@@ -51,21 +55,24 @@ export const LayoutSizeControls: React.FC<LayoutSizeControlsProps> = ({ node, on
     const pxH = hu * grid;
     setWidthVal(
       widthUnit === 'units'
-        ? format(wu)
+        ? formatUnits(wu)
         : widthUnit === 'px'
-        ? format(pxW)
-        : format(pxW / 16)
+        ? formatPx(pxW)
+        : formatRem(pxW)
     );
     setHeightVal(
       heightUnit === 'units'
-        ? format(hu)
+        ? formatUnits(hu)
         : heightUnit === 'px'
-        ? format(pxH)
-        : format(pxH / 16)
+        ? formatPx(pxH)
+        : formatRem(pxH)
     );
-  }, [wu, hu, grid, widthUnit, heightUnit, format]);
+  }, [wu, hu, grid, widthUnit, heightUnit, formatUnits, formatPx, formatRem]);
 
   const commitWidth = (val: number) => {
+    if (!prevUnitsRef.current) {
+      prevUnitsRef.current = { ...(node.layout?.units || {}) };
+    }
     const px = widthUnit === 'units' ? val * grid : widthUnit === 'px' ? val : val * 16;
     const nextWu = Math.max(1, Math.round(px / grid));
     onUpdateNode((n) => ({
@@ -83,6 +90,9 @@ export const LayoutSizeControls: React.FC<LayoutSizeControlsProps> = ({ node, on
   };
 
   const commitHeight = (val: number) => {
+    if (!prevUnitsRef.current) {
+      prevUnitsRef.current = { ...(node.layout?.units || {}) };
+    }
     const px = heightUnit === 'units' ? val * grid : heightUnit === 'px' ? val : val * 16;
     const nextHu = Math.max(1, Math.round(px / grid));
     onUpdateNode((n) => ({
@@ -122,6 +132,23 @@ export const LayoutSizeControls: React.FC<LayoutSizeControlsProps> = ({ node, on
               onMouseUp={stopGridAdjust}
               onTouchStart={startGridAdjust}
               onTouchEnd={stopGridAdjust}
+              onChangeEnd={() => {
+                const sectionId = BuilderState.selection?.sectionId;
+                const nodeId = BuilderState.selection?.nodeId;
+                if (sectionId && nodeId && prevUnitsRef.current) {
+                  const prevUnits = { ...prevUnitsRef.current };
+                  const px = widthUnit === 'units' ? widthVal * grid : widthUnit === 'px' ? widthVal : widthVal * 16;
+                  const nextWu = Math.max(1, Math.round(px / grid));
+                  const nextUnits = {
+                    xu: node.layout?.units?.xu ?? 0,
+                    yu: node.layout?.units?.yu ?? 0,
+                    wu: nextWu,
+                    hu: node.layout?.units?.hu ?? 8,
+                  };
+                  BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
+                  prevUnitsRef.current = null;
+                }
+              }}
             />
             <Select value={widthUnit} onValueChange={(v) => setWidthUnit(v as any)}>
               <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>
@@ -150,6 +177,23 @@ export const LayoutSizeControls: React.FC<LayoutSizeControlsProps> = ({ node, on
               onMouseUp={stopGridAdjust}
               onTouchStart={startGridAdjust}
               onTouchEnd={stopGridAdjust}
+              onChangeEnd={() => {
+                const sectionId = BuilderState.selection?.sectionId;
+                const nodeId = BuilderState.selection?.nodeId;
+                if (sectionId && nodeId && prevUnitsRef.current) {
+                  const prevUnits = { ...prevUnitsRef.current };
+                  const px = heightUnit === 'units' ? heightVal * grid : heightUnit === 'px' ? heightVal : heightVal * 16;
+                  const nextHu = Math.max(1, Math.round(px / grid));
+                  const nextUnits = {
+                    xu: node.layout?.units?.xu ?? 0,
+                    yu: node.layout?.units?.yu ?? 0,
+                    wu: node.layout?.units?.wu ?? 12,
+                    hu: nextHu,
+                  };
+                  BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
+                  prevUnitsRef.current = null;
+                }
+              }}
             />
             <Select value={heightUnit} onValueChange={(v) => setHeightUnit(v as any)}>
               <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>

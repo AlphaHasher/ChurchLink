@@ -9,24 +9,46 @@ function mergeClassNames(...classes: Array<string | undefined | null | false>) {
 }
 
 function enforceFullSize(content: React.ReactNode): React.ReactNode {
-  if (!React.isValidElement(content)) return content;
-
-  // Narrow props type to any so we can safely clone with merges
+  // If content is a Fragment, promote its element children to fill and wrap for stable measurement
+  if (React.isValidElement(content) && (content as any).type === React.Fragment) {
+    const children = React.Children.toArray((content as any).props?.children ?? []);
+    const filled = children.map((child) => {
+      if (!React.isValidElement<any>(child)) return child;
+      const existingStyle: any = (child.props && (child.props as any).style) || {};
+      const existingClass: any = (child.props && (child.props as any).className) || '';
+      const mergedStyle: React.CSSProperties = {
+        ...existingStyle,
+        width: (existingStyle as any).width ?? '100%',
+        height: (existingStyle as any).height ?? '100%',
+      };
+      const mergedClassName = mergeClassNames(existingClass, 'block', 'w-full', 'h-full');
+      return React.cloneElement(child as React.ReactElement<any>, { className: mergedClassName, style: mergedStyle } as any);
+    });
+    return (
+      <div className="block w-full h-full" style={{ width: '100%', height: '100%' }}>
+        {filled}
+      </div>
+    );
+  }
+  // Non-element -> wrap
+  if (!React.isValidElement(content)) {
+    return (
+      <div className="block w-full h-full" style={{ width: '100%', height: '100%' }}>
+        {content}
+      </div>
+    );
+  }
+  // Regular element -> clone with full-size
   const element: React.ReactElement<any> = content as React.ReactElement<any>;
   const existingStyle = (element.props && element.props.style) || {};
   const existingClass = (element.props && element.props.className) || '';
-
   const mergedStyle: React.CSSProperties = {
     ...existingStyle,
-    width: existingStyle.width ?? '100%',
-    height: existingStyle.height ?? '100%',
+    width: (existingStyle as any).width ?? '100%',
+    height: (existingStyle as any).height ?? '100%',
   };
-  const mergedClassName = mergeClassNames(existingClass, 'w-full', 'h-full');
-
-  return React.cloneElement(element, {
-    className: mergedClassName,
-    style: mergedStyle,
-  });
+  const mergedClassName = mergeClassNames(existingClass, 'block', 'w-full', 'h-full');
+  return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
 }
 
 type DragNodeProps = {
@@ -40,6 +62,7 @@ type DragNodeProps = {
   selected?: boolean;
   render: (node: Node) => React.ReactNode;
   onSelect?: () => void;
+  onDoubleSelect?: () => void;
   containerId?: string;
   enforceChildFullSize?: boolean;
   // When true, allow pointer events to reach rendered content (needed for containers with draggable children)
@@ -55,6 +78,7 @@ export function DraggableNode({
   selected,
   render,
   onSelect,
+  onDoubleSelect,
   containerId,
   enforceChildFullSize,
   allowContentPointerEvents,
@@ -89,7 +113,9 @@ export function DraggableNode({
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (isEditing) return; // Disable drag when editing text
     const wrapper = e.currentTarget as HTMLElement;
-    const innerRect = wrapper.getBoundingClientRect();
+    // Measure actual child box instead of wrapper which includes outlines/handles
+    const child = wrapper.firstElementChild as HTMLElement | null;
+    const innerRect = (child ?? wrapper).getBoundingClientRect();
     const parent = wrapper.offsetParent as HTMLElement | null;
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
@@ -130,10 +156,14 @@ export function DraggableNode({
       if (containerId) {
         const parentEl = document.getElementById(containerId);
         if (parentEl) {
-          const parentWidth = parentEl.clientWidth;
-          const parentHeight = parentEl.clientHeight;
+          const parentRect = parentEl.getBoundingClientRect();
+          const parentWidth = parentRect.width;
+          const parentHeight = parentRect.height;
           nx = Math.max(0, Math.min(nx, parentWidth - nw));
-          ny = Math.max(0, Math.min(ny, parentHeight - nh));
+          // Only clamp Y if the container is taller than the element; otherwise keep relative Y
+          if (parentHeight > nh) {
+            ny = Math.max(0, Math.min(ny, parentHeight - nh));
+          }
         }
       }
 
@@ -151,10 +181,13 @@ export function DraggableNode({
     if (containerId && startRef.current) {
       const parentEl = document.getElementById(containerId);
       if (parentEl) {
-        const parentWidth = parentEl.clientWidth;
-        const parentHeight = parentEl.clientHeight;
+        const parentRect = parentEl.getBoundingClientRect();
+        const parentWidth = parentRect.width;
+        const parentHeight = parentRect.height;
         snappedX = Math.max(0, Math.min(snappedX, parentWidth - startRef.current.w0));
-        snappedY = Math.max(0, Math.min(snappedY, parentHeight - startRef.current.h0));
+        if (parentHeight > startRef.current.h0) {
+          snappedY = Math.max(0, Math.min(snappedY, parentHeight - startRef.current.h0));
+        }
       }
     }
 
@@ -175,15 +208,18 @@ export function DraggableNode({
       let wu = pxToUnits(w, gridSize);
       let hu = pxToUnits(h, gridSize);
 
-      if (containerId) {
-        const parentEl = document.getElementById(containerId);
-        if (parentEl) {
-          const parentWidth = parentEl.clientWidth / gridSize;
-          const parentHeight = parentEl.clientHeight / gridSize;
-          wu = Math.max(1, Math.min(wu, parentWidth));
-          hu = Math.max(1, Math.min(hu, parentHeight));
-          xu = Math.max(0, Math.min(xu, parentWidth - wu));
+    if (containerId) {
+      const parentEl = document.getElementById(containerId);
+      if (parentEl) {
+        const parentRect = parentEl.getBoundingClientRect();
+        const parentWidth = parentRect.width / gridSize;
+        const parentHeight = parentRect.height / gridSize;
+        wu = Math.max(1, Math.min(wu, parentWidth));
+        hu = Math.max(1, Math.min(hu, parentHeight));
+        xu = Math.max(0, Math.min(xu, parentWidth - wu));
+        if (parentHeight > hu) {
           yu = Math.max(0, Math.min(yu, parentHeight - hu));
+        }
         }
       }
 
@@ -208,12 +244,15 @@ export function DraggableNode({
     if (containerId && startRef.current) {
       const parentEl = document.getElementById(containerId);
       if (parentEl) {
-        const parentWidth = parentEl.clientWidth / gridSize;  // in units
-        const parentHeight = parentEl.clientHeight / gridSize;
+        const parentRect = parentEl.getBoundingClientRect();
+        const parentWidth = parentRect.width / gridSize;  // in units
+        const parentHeight = parentRect.height / gridSize;
         const nodeWu = startRef.current.w0 / gridSize;
         const nodeHu = startRef.current.h0 / gridSize;
         xu = Math.max(0, Math.min(xu, parentWidth - nodeWu));
-        yu = Math.max(0, Math.min(yu, parentHeight - nodeHu));
+        if (parentHeight > nodeHu) {
+          yu = Math.max(0, Math.min(yu, parentHeight - nodeHu));
+        }
       }
     }
 
@@ -288,6 +327,7 @@ export function DraggableNode({
       onDoubleClick={(e) => {
         e.stopPropagation();
         BuilderState.startEditing(sectionId, node.id);
+        onDoubleSelect?.();
       }}
       data-draggable="true"
     >

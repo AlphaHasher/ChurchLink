@@ -69,11 +69,21 @@ export interface EventListNode extends NodeBase {
   } & Record<string, any>;
 }
 
+export interface ImageNode extends NodeBase {
+  type: "image";
+  props?: {
+    src?: string;
+    alt?: string;
+    objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
+  } & Record<string, any>;
+}
+
 export type Node =
   | TextNode
   | ButtonNode
   | ContainerNode
   | EventListNode
+  | ImageNode
   | NodeBase;
 
 export interface SectionV2 {
