@@ -113,7 +113,7 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
     const savedState = localStorage.getItem('permissions-table-column-visibility');
     if (savedState) {
-      try { return JSON.parse(savedState); } catch { }
+      try { return JSON.parse(savedState); } catch (err) { console.error("Failed to parse permissions-table-column-visibility from localStorage:", err); }
     }
     const initialState: Record<string, boolean> = {};
     Object.keys(permissionLabels).forEach((key) => { initialState[key] = true; });

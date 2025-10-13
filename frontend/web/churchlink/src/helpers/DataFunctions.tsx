@@ -175,7 +175,6 @@ export function processFetchedUserData(users: any[]): UserInfo[] {
         lastName: user.last_name || "Unknown",
         email: user.email || "No email",
         membership: user.membership || false,
-        dateOfBirth: new Date("2000-01-01"),
         permissions: user.roles || [],
     }));
 };

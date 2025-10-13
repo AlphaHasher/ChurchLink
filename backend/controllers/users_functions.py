@@ -13,7 +13,7 @@ from models.user import get_family_member_by_id, AddressSchema
 from models.membership_request import get_membership_request_by_uid, explicit_update_membership_request
 
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'\-]{0,49}$")
-PHONE_RE = re.compile(r"^[1-9()+\-]+$")
+PHONE_RE = re.compile(r"^\+?[0-9\s().-]{7,}$")
 
 
 class MyPermsRequest(BaseModel):
@@ -47,6 +47,8 @@ class UsersSearchParams(BaseModel):
     sortBy: Literal["email", "name", "createdOn", "uid"] = "createdOn"
     sortDir: Literal["asc", "desc"] = "asc"
     hasRolesOnly: bool = False
+
+AUTOMATIC_REQUEST_REASON = "REQUEST AUTOMATICALLY HANDLED. Reason: Somebody specifically changed the user member status from user detailed view while request was active, therefore it was handled as resolving the request."
 
 
 
@@ -257,7 +259,7 @@ async def change_user_member_status(uid:str, set:bool, fromUserPatch:bool = Fals
                 update_request = {
                     "resolved":True,
                     "approved":set,
-                    "reason": "REQUEST AUTOMATICALLY HANDLED. Reason: Somebody specifically changed the user member status from user detailed view while request was active, therefore it was handled as resolving the request."
+                    "reason": AUTOMATIC_REQUEST_REASON,
                 }
 
                 modified = await explicit_update_membership_request({"uid":uid}, update_request)

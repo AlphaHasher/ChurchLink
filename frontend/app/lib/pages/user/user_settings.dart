@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
-import 'package:app/models/contact_info.dart';
 import 'package:app/models/profile_info.dart';
 import 'package:app/pages/user/edit_contact_info.dart';
 import 'package:app/pages/user/edit_profile.dart';
@@ -20,7 +19,6 @@ import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/theme/theme_controller.dart';
 
 class UserSettings extends StatefulWidget {

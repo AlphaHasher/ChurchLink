@@ -26,7 +26,7 @@ export function toProfileInfo(base: any): ProfileInfo {
         first_name: base.first_name ?? "",
         last_name: base.last_name ?? "",
         email: base.email ?? "",
-        membership: base.membership ?? "",
+        membership: base.membership ?? false,
         birthday: base.birthday ? new Date(base.birthday) : null,
         gender: base.gender ?? null,
     };

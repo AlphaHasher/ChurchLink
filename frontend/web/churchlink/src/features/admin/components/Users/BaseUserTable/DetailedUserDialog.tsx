@@ -170,7 +170,15 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
         if (!info) return;
         setSaving(true);
 
+        var update_date = null;
         const isoBirthday = dobPartsToISO(person.dob);
+        if (isoBirthday == null) {
+            update_date = new Date();
+
+        }
+        else {
+            update_date = new Date(isoBirthday)
+        }
 
         const payload: DetailedUserInfo = {
             uid: info.uid,
@@ -180,9 +188,9 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                 membership,
                 first_name: person.firstName ?? "",
                 last_name: person.lastName ?? "",
-                gender: (person.gender || null) as any,
-                birthday: isoBirthday,
-            } as any,
+                gender: (person.gender ?? null) as Gender | null,
+                birthday: update_date,
+            },
             contact: {
                 phone: contact.phone ?? "",
                 address: {
