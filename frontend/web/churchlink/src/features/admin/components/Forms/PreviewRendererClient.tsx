@@ -10,14 +10,41 @@ import api from '@/api/api';
 import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
+import { MailCheck } from 'lucide-react';
+import { formWidthToClass } from "./types";
+import { cn } from "@/lib/utils";
+import { getBoundsViolations } from "./validation";
 
-export function PreviewRendererClient({ slug }: { slug?: string }) {
+export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: string; applyFormWidth?: boolean }) {
   const schema = useBuilderStore((s) => s.schema);
-  const zodSchema = schemaToZodObject(schema);
-  const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} });
+  const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
+  const zodSchema = schemaToZodObject(schema); // always create schema
+  const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} }); // always init form hook
+  const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
-  const navigate = useNavigate();
-  const [status, setStatus] = useState<string | null>(null);
+  const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  if (!slug && boundsViolations.length > 0) {
+    return (
+      <div className={cn("mx-auto w-full", formWidthClass)}>
+        <Alert variant="destructive">
+          <AlertTitle>Preview unavailable</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Fix the following min/max conflicts to resume the live builder preview:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              {boundsViolations.map((issue) => (
+                <li key={issue.fieldId}>
+                  <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   const isVisible = (visibleIf?: string): boolean => {
     if (!visibleIf) return true;
@@ -51,7 +78,26 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
         navigate('/forms/thank-you');
       } catch (err: any) {
         console.error('Submit failed', err);
-        setStatus(err?.response?.data?.detail || 'Submit failed');
+        const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Submit failed';
+        const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
+        // Map server reasons to full-page friendly error messages
+        if (detailStr.includes('expired')) {
+          setPageError('This form has expired and is no longer accepting responses.');
+          setSubmitState('error');
+          return;
+        }
+        if (detailStr.includes('not available') || detailStr.includes('not visible')) {
+          setPageError('This form is not available for public viewing.');
+          setSubmitState('error');
+          return;
+        }
+        if (detailStr.includes('not found')) {
+          setPageError('Form not found.');
+          setSubmitState('error');
+          return;
+        }
+        setSubmitState('error');
+        setSubmitMessage(typeof detail === 'string' ? detail : 'Submit failed');
       }
     }
   });
@@ -150,6 +196,41 @@ export function PreviewRendererClient({ slug }: { slug?: string }) {
     return false;
   };
   const showPricingBar = hasPricing();
+
+  if (slug && submitState === 'success' && submitMessage) {
+    return (
+      <div className={cn("mx-auto w-full", formWidthClass)}>
+        <div className="rounded-md border border-border bg-muted/30 p-8 text-center flex flex-col items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <MailCheck className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h2 className="text-xl font-semibold">Thank you!</h2>
+          <p className="text-muted-foreground max-w-md">
+            {submitMessage}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If a page-level error occurred (expired / not available / not found) show the friendly error card
+  if (pageError) {
+    return (
+      <div className={cn("mx-auto w-full", formWidthClass)}>
+        <div className="rounded-md border border-border bg-muted/30 p-8 text-center flex flex-col items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12A9 9 0 1112 3a9 9 0 019 9z" />
+            </svg>
+          </span>
+          <h2 className="text-xl font-semibold">Form unavailable</h2>
+          <p className="text-destructive max-w-md">{pageError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isSubmitting = submitState === 'submitting' || form.formState.isSubmitting;
 
   return (
   <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">

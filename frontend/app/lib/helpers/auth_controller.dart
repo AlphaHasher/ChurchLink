@@ -1,7 +1,5 @@
 import "backend_helper.dart";
 import "../firebase/firebase_auth_service.dart";
-import "../services/fcm_token_service.dart";
-import "package:firebase_auth/firebase_auth.dart";
 
 class AuthController {
   final FirebaseAuthService authService = FirebaseAuthService();

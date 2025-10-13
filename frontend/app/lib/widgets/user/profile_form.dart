@@ -102,7 +102,7 @@ class _UserProfileFormState extends State<UserProfileForm> {
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
     return Form(
       key: _formKey,
       child: Column(
@@ -145,7 +145,7 @@ class _UserProfileFormState extends State<UserProfileForm> {
             readOnly: true,
             decoration: InputDecoration(
               labelText: 'Birthday',
-              border: const OutlineInputBorder(),
+              border: const OutlineInputBorder(borderRadius: BorderRadius.zero),
               suffixIcon: IconButton(
                 onPressed: _pickDate,
                 icon: const Icon(Icons.calendar_today),
@@ -181,7 +181,10 @@ class _UserProfileFormState extends State<UserProfileForm> {
             width: double.infinity,
             child: FilledButton(
               onPressed: _saving ? null : _submit,
-              style: FilledButton.styleFrom(backgroundColor: ssbcGray),
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
               child:
                   _saving
                       ? const SizedBox(

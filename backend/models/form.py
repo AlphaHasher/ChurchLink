@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
@@ -65,6 +65,7 @@ class FormBase(BaseModel):
     description: Optional[str] = Field(None)
     visible: bool = Field(True)
     slug: Optional[str] = Field(None)
+    expires_at: Optional[datetime] = Field(None)
     form_width: Optional[str] = Field(None)
 
     @field_validator("form_width", mode="before")
@@ -90,6 +91,7 @@ class FormUpdate(BaseModel):
     description: Optional[str] = None
     visible: Optional[bool] = None
     slug: Optional[str] = None
+    expires_at: Optional[datetime] = None
     data: Optional[Any] = None
     form_width: Optional[str] = None
 
@@ -111,17 +113,20 @@ class Form(MongoBaseModel, FormBase):
     data: Any = Field(default_factory=list)
     slug: Optional[str]
     form_width: Optional[str]
+    expires_at: Optional[datetime]
 
 
 class FormOut(BaseModel):
     id: str
     title: str
     folder: Optional[str]
+    folder_name: Optional[str] = None
     description: Optional[str]
     user_id: str
     visible: bool
     slug: Optional[str]
     data: Any
+    expires_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
     form_width: Optional[str]
@@ -132,19 +137,71 @@ def _doc_to_out(doc: dict) -> FormOut:
         normalized_width = _normalize_form_width_value(doc.get("form_width"))
     except ValueError:
         normalized_width = None
+    folder_value = doc.get("folder")
+    if isinstance(folder_value, ObjectId):
+        folder_value = str(folder_value)
     return FormOut(
         id=str(doc.get("_id")),
         title=doc.get("title"),
-        folder=doc.get("folder"),
+        folder=folder_value,
+        folder_name=doc.get("folder_name"),
         description=doc.get("description"),
         slug=doc.get("slug"),
         user_id=doc.get("user_id"),
         visible=doc.get("visible", True),
+        expires_at=doc.get("expires_at"),
         data=doc.get("data", []),
         created_at=doc.get("created_at"),
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
     )
+
+
+def _normalize_folder_value(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    if isinstance(raw, ObjectId):
+        return str(raw)
+    if isinstance(raw, str):
+        cleaned = raw.strip()
+        return cleaned or None
+    return str(raw)
+
+
+async def _attach_folder_metadata(documents: List[dict]) -> List[dict]:
+    if not documents:
+        return documents
+
+    folder_ids: set[str] = set()
+    for doc in documents:
+        folder_value = _normalize_folder_value(doc.get("folder"))
+        doc["folder"] = folder_value
+        if folder_value:
+            folder_ids.add(folder_value)
+
+    object_ids: List[ObjectId] = []
+    for fid in folder_ids:
+        try:
+            object_ids.append(ObjectId(fid))
+        except Exception:
+            continue
+
+    folder_name_map: Dict[str, Optional[str]] = {}
+    if object_ids:
+        cursor = DB.db.form_folders.find({"_id": {"$in": object_ids}})
+        folder_docs = await cursor.to_list(length=None)
+        for folder_doc in folder_docs:
+            folder_name_map[str(folder_doc.get("_id"))] = folder_doc.get("name")
+
+    for doc in documents:
+        folder_value = doc.get("folder")
+        if folder_value:
+            folder_name = folder_name_map.get(folder_value) or folder_value
+        else:
+            folder_name = None
+        doc["folder_name"] = folder_name
+
+    return documents
 
 
 ############################
@@ -155,6 +212,15 @@ def _doc_to_out(doc: dict) -> FormOut:
 async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
     try:
         width = _normalize_form_width_value(getattr(form, "form_width", None)) or DEFAULT_FORM_WIDTH
+        # Normalize expires_at: if provided and tz-aware, convert to local naive datetime
+        expires_val = getattr(form, 'expires_at', None)
+        if isinstance(expires_val, datetime) and expires_val.tzinfo is not None:
+            try:
+                expires_val = expires_val.astimezone().replace(tzinfo=None)
+            except Exception:
+                # fallback to the original value
+                expires_val = getattr(form, 'expires_at', None)
+
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
             "folder": form.folder,
@@ -163,6 +229,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "user_id": user_id,
             "visible": form.visible if hasattr(form, "visible") else True,
             "data": (form.data),
+            "expires_at": expires_val,
             "form_width": width,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
@@ -182,9 +249,21 @@ async def list_forms(user_id: str, skip: int = 0, limit: int = 100) -> List[Form
     try:
         cursor = DB.db.forms.find({"user_id": user_id}).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error listing forms: {e}")
+        return []
+
+
+async def list_all_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
+    try:
+        cursor = DB.db.forms.find({}).skip(skip).limit(limit).sort([("created_at", -1)])
+        docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error listing all forms: {e}")
         return []
 
 
@@ -195,13 +274,91 @@ async def search_forms(user_id: str, name: Optional[str] = None, folder: Optiona
             # case-insensitive partial match on title
             query["title"] = {"$regex": name, "$options": "i"}
         if folder:
-            query["folder"] = {"$regex": f"^{folder}$", "$options": "i"}
+            folder_values = [folder]
+            try:
+                folder_values.append(ObjectId(folder))
+            except Exception:
+                pass
+            query["folder"] = {"$in": folder_values}
 
         cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error searching forms: {e}")
+        return []
+
+
+async def search_all_forms(name: Optional[str] = None, folder: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
+    try:
+        query: dict = {}
+        if name:
+            query["title"] = {"$regex": name, "$options": "i"}
+        if folder:
+            folder_values = [folder]
+            try:
+                folder_values.append(ObjectId(folder))
+            except Exception:
+                pass
+            query["folder"] = {"$in": folder_values}
+
+        cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
+        docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error searching all forms: {e}")
+        return []
+
+
+async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
+    try:
+        now = datetime.now()
+        cursor = (
+            DB.db.forms.find({"visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
+            .skip(skip)
+            .limit(limit)
+            .sort([("created_at", -1)])
+        )
+        docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error listing visible forms: {e}")
+        return []
+
+
+async def search_visible_forms(
+    name: Optional[str] = None,
+    folder: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> List[FormOut]:
+    try:
+        now = datetime.now()
+        query: dict = {"visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]}
+        if name:
+            query["title"] = {"$regex": name, "$options": "i"}
+        if folder:
+            folder_values = [folder]
+            try:
+                folder_values.append(ObjectId(folder))
+            except Exception:
+                pass
+            query["folder"] = {"$in": folder_values}
+
+        cursor = (
+            DB.db.forms.find(query)
+            .skip(skip)
+            .limit(limit)
+            .sort([("created_at", -1)])
+        )
+        docs = await cursor.to_list(length=limit)
+        docs = await _attach_folder_metadata(docs)
+        return [_doc_to_out(d) for d in docs]
+    except Exception as e:
+        logger.error(f"Error searching visible forms: {e}")
         return []
 
 
@@ -260,7 +417,10 @@ async def delete_folder(user_id: str, folder_id: str) -> bool:
 async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
     try:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "user_id": user_id})
-        return _doc_to_out(doc) if doc else None
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
     except Exception as e:
         logger.error(f"Error fetching form: {e}")
         return None
@@ -268,11 +428,111 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
 
 async def get_form_by_slug(slug: str) -> Optional[FormOut]:
     try:
-        doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
-        return _doc_to_out(doc) if doc else None
+        now = datetime.now()
+        doc = await DB.db.forms.find_one({"slug": slug, "visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
     except Exception as e:
         logger.error(f"Error fetching form by slug: {e}")
         return None
+
+
+async def check_form_slug_status(slug: str) -> Tuple[str, Optional[dict]]:
+    """Return a tuple (status, doc) where status is one of:
+       - 'ok' : visible and not expired (doc returned)
+       - 'not_found' : no form with that slug
+       - 'expired' : form exists but has expired or is not currently visible
+       - 'not_visible' : form exists but visible flag is False
+    """
+    try:
+        # Try to find any form with the slug regardless of visibility/expiry
+        doc_any = await DB.db.forms.find_one({"slug": slug})
+        if not doc_any:
+            return "not_found", None
+        # Check visible flag first
+        if not doc_any.get("visible", False):
+            return "not_visible", doc_any
+        # If visible, check expiry
+        now = datetime.now()
+        expires = doc_any.get("expires_at")
+        if expires is None:
+            return "ok", doc_any
+        try:
+            # If stored as string, attempt parse
+            if isinstance(expires, str):
+                expires_dt = datetime.fromisoformat(expires)
+            else:
+                expires_dt = expires
+        except Exception:
+            return "ok", doc_any
+        if expires_dt <= now:
+            return "expired", doc_any
+        return "ok", doc_any
+    except Exception as e:
+        logger.error(f"Error checking form slug status: {e}")
+        return "not_found", None
+
+
+async def get_form_by_id_unrestricted(form_id: str) -> Optional[FormOut]:
+    try:
+        doc = await DB.db.forms.find_one({"_id": ObjectId(form_id)})
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
+    except Exception as e:
+        logger.error(f"Error fetching form by id: {e}")
+        return None
+
+
+async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
+    try:
+        now = datetime.now()
+        doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
+        if not doc:
+            return None
+        annotated = await _attach_folder_metadata([doc])
+        return _doc_to_out(annotated[0])
+    except Exception as e:
+        logger.error(f"Error fetching visible form by id: {e}")
+        return None
+
+
+async def list_visible_folders() -> List[dict]:
+    try:
+        cursor = DB.db.form_folders.find({}).sort([("name", 1)])
+        docs = await cursor.to_list(length=None)
+        output: List[dict] = []
+        seen_ids: set[str] = set()
+
+        for doc in docs:
+            folder_id = str(doc.get("_id")) if doc.get("_id") else None
+            name = doc.get("name")
+            output.append({
+                "_id": folder_id,
+                "name": name,
+                "created_at": doc.get("created_at"),
+            })
+            if folder_id:
+                seen_ids.add(folder_id)
+
+        distinct_folders = await DB.db.forms.distinct(
+            "folder", {"folder": {"$exists": True, "$ne": None, "$ne": ""}}
+        )
+        for value in distinct_folders:
+            normalized = _normalize_folder_value(value)
+            if not normalized or normalized in seen_ids:
+                continue
+            output.append({"_id": normalized, "name": normalized, "created_at": None})
+            seen_ids.add(normalized)
+
+        output.sort(key=lambda item: (item.get("name") or "").lower())
+        return output
+    except Exception as e:
+        logger.error(f"Error listing visible folders: {e}")
+        return []
 
 
 def _get_schema_fields(schema_data: Any) -> List[dict]:
@@ -458,7 +718,14 @@ async def add_response_by_slug(slug: str, response: Any, user_id: Optional[str] 
     the ISO timestamp of when the response was recorded.
     """
     try:
-        doc = await DB.db.forms.find_one({"slug": slug, "visible": True})
+        status_str, doc_any = await check_form_slug_status(slug)
+        if status_str == "not_found":
+            return False, "Form not found"
+        if status_str == "not_visible":
+            return False, "Form not available"
+        if status_str == "expired":
+            return False, "Form expired"
+        doc = doc_any
         if not doc:
             return False, "Form not found"
         form_id = doc.get("_id")
@@ -516,6 +783,15 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             update_doc["visible"] = update.visible
         if update.data is not None:
             update_doc["data"] = (update.data)
+        if update.expires_at is not None:
+            # Normalize tz-aware datetimes to local naive datetime before storing
+            expires_val = update.expires_at
+            if isinstance(expires_val, datetime) and expires_val.tzinfo is not None:
+                try:
+                    expires_val = expires_val.astimezone().replace(tzinfo=None)
+                except Exception:
+                    pass
+            update_doc["expires_at"] = expires_val
         
         try:
             provided = update.model_dump(exclude_unset=True)
@@ -527,6 +803,15 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             update_doc["slug"] = provided.get("slug")
         if "form_width" in provided:
             update_doc["form_width"] = _normalize_form_width_value(provided.get("form_width")) or DEFAULT_FORM_WIDTH
+        if "expires_at" in provided:
+            # Provided value may be a datetime; normalize similarly
+            provided_val = provided.get("expires_at")
+            if isinstance(provided_val, datetime) and provided_val.tzinfo is not None:
+                try:
+                    provided_val = provided_val.astimezone().replace(tzinfo=None)
+                except Exception:
+                    pass
+            update_doc["expires_at"] = provided_val
 
         result = await DB.db.forms.update_one({"_id": ObjectId(form_id), "user_id": user_id}, {"$set": update_doc})
         if result.matched_count:

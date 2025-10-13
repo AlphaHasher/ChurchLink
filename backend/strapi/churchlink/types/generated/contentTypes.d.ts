@@ -518,6 +518,11 @@ export interface ApiDashboardTileDashboardTile
     draftAndPublish: true;
   };
   attributes: {
+    backgroundColor: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 9;
+        minLength: 7;
+      }>;
     backgroundImage: Schema.Attribute.Media<'images'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -529,6 +534,14 @@ export interface ApiDashboardTileDashboardTile
       'api::dashboard-tile.dashboard-tile'
     > &
       Schema.Attribute.Private;
+    order: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;

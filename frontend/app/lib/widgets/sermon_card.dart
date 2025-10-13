@@ -13,8 +13,6 @@ class SermonCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
 
-  static const Color _accentColor = Color.fromARGB(255, 142, 163, 168);
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -27,7 +25,7 @@ class SermonCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildThumbnail(),
+            _buildThumbnail(context),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -50,19 +48,24 @@ class SermonCard extends StatelessWidget {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.person,
                                   size: 16,
-                                  color: Colors.grey,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.6),
                                 ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     sermon.speaker,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(color: Colors.grey[700]),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface.withOpacity(0.7),
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -72,16 +75,23 @@ class SermonCard extends StatelessWidget {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.calendar_today,
                                   size: 16,
-                                  color: Colors.grey,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.6),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   sermon.formattedDate,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: Colors.grey[700]),
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface.withOpacity(0.7),
+                                  ),
                                 ),
                               ],
                             ),
@@ -97,7 +107,11 @@ class SermonCard extends StatelessWidget {
                         icon: Icon(
                           sermon.isFavorited ? Icons.star : Icons.star_border,
                           color:
-                              sermon.isFavorited ? Colors.amber : Colors.grey,
+                              sermon.isFavorited
+                                  ? Colors.amber
+                                  : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -106,18 +120,22 @@ class SermonCard extends StatelessWidget {
                   if (sermon.summary != null && sermon.summary!.isNotEmpty)
                     Text(
                       sermon.summary!,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[800]),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.8),
+                      ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     )
                   else
                     Text(
                       sermon.description,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[800]),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.8),
+                      ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -131,10 +149,10 @@ class SermonCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnail() {
+  Widget _buildThumbnail(BuildContext context) {
     final resolvedThumbnail = sermon.resolvedThumbnailUrl;
     if (resolvedThumbnail == null) {
-      return _buildThumbnailPlaceholder();
+      return _buildThumbnailPlaceholder(context);
     }
 
     return ClipRRect(
@@ -145,20 +163,24 @@ class SermonCard extends StatelessWidget {
         width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder:
-            (context, error, stackTrace) => _buildThumbnailPlaceholder(),
+            (ctx, error, stackTrace) => _buildThumbnailPlaceholder(ctx),
       ),
     );
   }
 
-  Widget _buildThumbnailPlaceholder() {
+  Widget _buildThumbnailPlaceholder(BuildContext context) {
     return Container(
       height: 160,
       decoration: BoxDecoration(
-        color: _accentColor.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      child: const Center(
-        child: Icon(Icons.play_circle_outline, size: 56, color: Colors.white70),
+      child: Center(
+        child: Icon(
+          Icons.play_circle_outline,
+          size: 56,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+        ),
       ),
     );
   }

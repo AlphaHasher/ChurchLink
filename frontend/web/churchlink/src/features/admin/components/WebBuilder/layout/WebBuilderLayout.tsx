@@ -81,6 +81,32 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
     onFooterDataChange?.(data);
   };
 
+  const handlePageDataChange = (data: { sections: PageSection[] }) => {
+    setCurrentPageData((prev) => {
+      const base = prev ?? { slug: initialPageData?.slug ?? "", sections: [] };
+      const updatedPageData = { ...base, ...data };
+      return updatedPageData;
+    });
+    onPageDataChange?.(data);
+  };
+
+  const renderChildWithHandlers = (child: React.ReactNode) => {
+    if (!React.isValidElement(child)) return child;
+    const isHost = typeof child.type === "string";
+    if (isHost) return child;
+
+    const injectedProps: Record<string, unknown> = {};
+    if (type === "header") {
+      injectedProps.onHeaderDataChange = handleHeaderDataChange;
+    } else if (type === "footer") {
+      injectedProps.onFooterDataChange = handleFooterDataChange;
+    } else if (type === "page") {
+      injectedProps.onPageDataChange = handlePageDataChange;
+    }
+
+    return React.cloneElement(child, injectedProps as any);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
@@ -95,19 +121,7 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
 
         <TabsContent value="edit" className="mt-0 flex-1 overflow-auto">
           <div className="container mx-auto px-4 py-6">
-            {type === "page"
-              ? children
-              : React.Children.map(children, (child) => {
-                  if (!React.isValidElement(child)) return child;
-                  // Avoid passing unknown props to host elements or UI primitives that forward to DOM
-                  const isHost = typeof child.type === 'string';
-                  if (isHost) return child;
-                  return React.cloneElement(child, {
-                    onHeaderDataChange: type === "header" ? handleHeaderDataChange : undefined,
-                    onFooterDataChange: type === "footer" ? handleFooterDataChange : undefined,
-                    onPageDataChange: undefined,
-                  } as any);
-                })}
+            {React.Children.map(children, renderChildWithHandlers)}
           </div>
         </TabsContent>
 

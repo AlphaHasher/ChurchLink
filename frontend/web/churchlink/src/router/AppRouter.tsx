@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import { PublicRoute } from "../features/auth/guards/PublicRoute";
 import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "../features/auth/guards/PrivateRoute";
@@ -18,7 +19,7 @@ const VerifyEmail = lazy(() => import("../features/users/pages/VerifyEmailPage")
 
 export const AppRouter = () => {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+  <Suspense fallback={<div className="p-6"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-6 w-full mt-2" /></div>}>
       <Routes>
         <Route
           path="/auth/login"

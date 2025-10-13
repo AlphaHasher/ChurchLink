@@ -3,6 +3,7 @@ import sys
 import uuid
 from typing import Any, Dict, Optional, Tuple
 import httpx
+import requests
 import pytest
 from bson import ObjectId
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
-from backend.tests.test_auth_helpers import get_auth_headers, get_admin_headers
+from backend.tests.test_auth_helpers import get_auth_headers, get_admin_headers, FIREBASE_AUTH_URL, ADMIN_EMAIL, ADMIN_PASSWORD
 
 BASE_URL = os.getenv("BACKEND_URL")
 
@@ -491,3 +492,85 @@ async def test_list_form_responses_not_found(async_client, admin_headers):
     assert data["form_id"] == missing_id
     assert data["count"] == 0
     assert data["items"] == []
+
+
+async def test_expired_and_unavailable_forms(async_client, admin_headers):
+    # Unavailable (visible=False)
+    slug_unavail = unique_slug('unavail')
+    payload_unavail = build_form_payload(slug=slug_unavail, visible=False)
+    created_unavail, _ = await create_form_record(async_client, admin_headers, payload_unavail)
+    try:
+        get_resp = await async_client.get(f"/api/v1/forms/slug/{slug_unavail}", headers=admin_headers)
+        assert get_resp.status_code == 404
+        try:
+            assert 'Form not available' in (get_resp.json().get('detail') or '')
+        except Exception:
+            assert 'Form not available' in get_resp.text
+
+        unauthorized_get = await async_client.get(f"/api/v1/forms/slug/{slug_unavail}")
+        assert unauthorized_get.status_code in {401, 403}
+
+        post_resp = await async_client.post(f"/api/v1/forms/slug/{slug_unavail}/responses", json={})
+        assert post_resp.status_code in {400, 401, 403}
+        if post_resp.status_code == 400:
+            assert 'Form not available' in (post_resp.json().get('detail') or '')
+    finally:
+        await delete_form(async_client, admin_headers, created_unavail['id'])
+
+    # Expired form
+    slug_expired = unique_slug('expired')
+    created_expired, _ = await create_form_record(async_client, admin_headers, build_form_payload(slug=slug_expired))
+    expires_at = "1970-01-01T00:00:00"
+    update_resp = await async_client.put(f"/api/v1/forms/{created_expired['id']}", json={"expires_at": expires_at}, headers=admin_headers)
+    assert update_resp.status_code == 200
+    try:
+        get_resp = await async_client.get(f"/api/v1/forms/slug/{slug_expired}", headers=admin_headers)
+        assert get_resp.status_code == 404
+        try:
+            assert 'Form expired' in (get_resp.json().get('detail') or '')
+        except Exception:
+            assert 'Form expired' in get_resp.text
+
+        unauthorized_get = await async_client.get(f"/api/v1/forms/slug/{slug_expired}")
+        assert unauthorized_get.status_code in {401, 403}
+
+        post_resp = await async_client.post(f"/api/v1/forms/slug/{slug_expired}/responses", json={})
+        assert post_resp.status_code in {400, 401, 403}
+        if post_resp.status_code == 400:
+            assert 'Form expired' in (post_resp.json().get('detail') or '')
+    finally:
+        await delete_form(async_client, admin_headers, created_expired['id'])
+
+
+async def test_response_saves_user_id(async_client, admin_headers):
+    slug = unique_slug('save-user')
+    payload = build_form_payload(slug=slug)
+    created, _ = await create_form_record(async_client, admin_headers, payload)
+    try:
+        try:
+            resp = requests.post(FIREBASE_AUTH_URL, json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD, "returnSecureToken": True}, timeout=10)
+        except Exception:
+            pytest.skip('Could not contact Firebase auth endpoint')
+        if not resp.ok:
+            pytest.skip(f'Firebase sign-in failed: {resp.status_code}')
+        resp.raise_for_status()
+        local_id = resp.json().get('localId')
+        if not local_id:
+            pytest.skip('Could not obtain localId for admin user')
+
+        response_payload = {"email": "tester@example.com"}
+        submit = await async_client.post(f"/api/v1/forms/slug/{slug}/responses", json=response_payload, headers=admin_headers)
+        assert submit.status_code == 200
+
+        responses = await async_client.get(f"/api/v1/forms/{created['id']}/responses", headers=admin_headers)
+        assert responses.status_code == 200
+        data = responses.json()
+        items = data.get('items', [])
+        assert any(item.get('response', {}).get('email') == 'tester@example.com' for item in items)
+
+        matching = [i for i in items if i.get('response', {}).get('email') == 'tester@example.com']
+        assert matching
+        user_id_saved = matching[0].get('user_id')
+        assert user_id_saved == local_id
+    finally:
+        await delete_form(async_client, admin_headers, created['id'])

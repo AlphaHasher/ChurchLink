@@ -38,6 +38,7 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
         sermon_editing: false,
         media_management: false,
         layout_management: false,
+        bulletin_editing: false,
     }
 
 
