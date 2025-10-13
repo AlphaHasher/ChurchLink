@@ -20,7 +20,7 @@ bible_note_router = APIRouter(prefix="/bible-notes", tags=["Bible Notes"])
 
 # Private Route
 @bible_note_router.get(
-    "/",
+    "",
     summary="Get user's Bible notes",
     response_model=List[BibleNoteOut],
 )
