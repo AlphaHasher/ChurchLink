@@ -1,8 +1,7 @@
 import os
 import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Path, Form, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Path, Form, Query, Request
 from fastapi.responses import FileResponse, Response
-from helpers.Firebase_helpers import role_based_access
 from PIL import Image
 import io
 import logging
@@ -19,13 +18,14 @@ THUMBNAILS_DIR = "data/thumbnails"
 os.makedirs(ASSETS_DIR, exist_ok=True)
 os.makedirs(THUMBNAILS_DIR, exist_ok=True)
 
-assets_router = APIRouter(prefix="/assets", tags=["assets"])
+public_assets_router = APIRouter(prefix="/assets", tags=["assets"])
+protected_assets_router = APIRouter(prefix="/assets", tags=["assets"])
 
-@assets_router.post("/upload")
+@protected_assets_router.post("/upload")
 async def upload_asset(
+    request: Request,
     file: UploadFile = File(...),
     folder: str = Form(None),  # Optional folder path, e.g., "images/events"
-    current_user = Depends(role_based_access(["admin"]))
 ):
     if not file:
         raise HTTPException(status_code=400, detail="No file provided")
@@ -94,11 +94,11 @@ async def upload_asset(
         logger.error(f"Upload failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Upload failed")
 
-@assets_router.post("/folder")
+@protected_assets_router.post("/folder")
 async def create_folder(
+    request: Request,
     name: str = Form(..., description="Folder name"),
     parent: str = Form(None, description="Optional parent folder path"),
-    current_user = Depends(role_based_access(["admin"]))
 ):
     if not name or '/' in name:
         raise HTTPException(status_code=400, detail="Folder name cannot contain '/' and must be provided")
@@ -114,11 +114,11 @@ async def create_folder(
         logger.error(f"Folder creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create folder")
 
-@assets_router.get("/")
+@protected_assets_router.get("/")
 async def list_contents(
+    request: Request,
     limit: Optional[int] = Query(None), 
     folder: str = Query(None), 
-    current_user = Depends(role_based_access(["admin"]))
 ):
     files = []
     folders_list = []
@@ -148,13 +148,44 @@ async def list_contents(
     return {"files": files, "folders": folders_list}
 
 
-@assets_router.get("/{path:path}")
+@protected_assets_router.delete("/{path:path}")
+async def delete_asset(
+    request: Request,
+    path: str = Path(...),
+):
+    file_path = os.path.join(ASSETS_DIR, path)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        logger.info(f"Deleted asset: {path}")
+        
+        # Delete thumbnail
+        folder_part = os.path.dirname(path) if '/' in path else ''
+        basename = os.path.basename(path)
+        name_without_ext = basename.rsplit('.', 1)[0] if '.' in basename else basename
+        thumb_dir = os.path.join(THUMBNAILS_DIR, folder_part)
+        thumb_filename = f"{name_without_ext}_thumb.jpg"
+        thumb_path = os.path.join(thumb_dir, thumb_filename)
+        if os.path.exists(thumb_path):
+            os.remove(thumb_path)
+            logger.info(f"Deleted thumbnail: {thumb_filename} in {folder_part}")
+        
+        return {"message": "Asset deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+
+# Public Route
+@public_assets_router.get("/specific/{path:path}")
 async def serve_asset(
     path: str,
     thumbnail: bool = Query(False, description="Serve thumbnail version")
 ):
+    print("TEST 1")
+    print(ASSETS_DIR)
     full_path = os.path.join(ASSETS_DIR, path)
+    print(full_path)
     if not os.path.exists(full_path) or not os.path.isfile(full_path):
+        print("TEST 2")
         raise HTTPException(status_code=404, detail="Asset not found")
     
     if not thumbnail:
@@ -196,28 +227,3 @@ async def serve_asset(
         except Exception as e:
             logger.error(f"On-the-fly thumbnail generation failed for {path}: {type(e).__name__}: {e} - serving full image as fallback")
             return FileResponse(full_path)
-
-@assets_router.delete("/{path:path}")
-async def delete_asset(
-    path: str = Path(...),
-    current_user = Depends(role_based_access(["admin"]))
-):
-    file_path = os.path.join(ASSETS_DIR, path)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        logger.info(f"Deleted asset: {path}")
-        
-        # Delete thumbnail
-        folder_part = os.path.dirname(path) if '/' in path else ''
-        basename = os.path.basename(path)
-        name_without_ext = basename.rsplit('.', 1)[0] if '.' in basename else basename
-        thumb_dir = os.path.join(THUMBNAILS_DIR, folder_part)
-        thumb_filename = f"{name_without_ext}_thumb.jpg"
-        thumb_path = os.path.join(thumb_dir, thumb_filename)
-        if os.path.exists(thumb_path):
-            os.remove(thumb_path)
-            logger.info(f"Deleted thumbnail: {thumb_filename} in {folder_part}")
-        
-        return {"message": "Asset deleted successfully"}
-    else:
-        raise HTTPException(status_code=404, detail="Asset not found")

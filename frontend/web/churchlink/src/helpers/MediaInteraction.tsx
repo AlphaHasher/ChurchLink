@@ -2,7 +2,7 @@ import api from "../api/api"
 import { publicApi } from "../api/api"
 
 export interface MediaContents {
-  files: {filename: string; url: string; folder: string}[];
+  files: { filename: string; url: string; folder: string }[];
   folders: string[];
 }
 
@@ -23,7 +23,7 @@ export const listMediaContents = async (limit?: number, folder?: string): Promis
   }
 };
 
-export const createFolder = async (name: string, parentFolder?: string): Promise<{message: string; folder: string}> => {
+export const createFolder = async (name: string, parentFolder?: string): Promise<{ message: string; folder: string }> => {
   const formData = new FormData();
   formData.append('name', name);
   if (parentFolder) {
@@ -40,7 +40,7 @@ export const createFolder = async (name: string, parentFolder?: string): Promise
   }
 };
 
-export const uploadAssets = async (files: File[], folder?: string): Promise<{url: string; filename: string; folder: string}[]> => {
+export const uploadAssets = async (files: File[], folder?: string): Promise<{ url: string; filename: string; folder: string }[]> => {
   const formData = new FormData();
   for (const f of files) {
     formData.append('file', f);
@@ -48,7 +48,7 @@ export const uploadAssets = async (files: File[], folder?: string): Promise<{url
   if (folder) {
     formData.append('folder', folder);
   }
-  
+
   try {
     const res = await api.post('/v1/assets/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -61,7 +61,7 @@ export const uploadAssets = async (files: File[], folder?: string): Promise<{url
 };
 
 // Deprecated: Use listMediaContents instead
-export const listAssets = async (limit = 50, folder?: string): Promise<{filename: string; url: string; folder: string}[]> => {
+export const listAssets = async (limit = 50, folder?: string): Promise<{ filename: string; url: string; folder: string }[]> => {
   const contents = await listMediaContents(limit, folder);
   return contents.files;
 };
@@ -72,9 +72,9 @@ export const listFolders = async (folder?: string): Promise<string[]> => {
   return contents.folders;
 };
 
-export const getAsset = async (filename: string): Promise<{filename: string; url: string; folder: string}> => {
+export const getAsset = async (filename: string): Promise<{ filename: string; url: string; folder: string }> => {
   try {
-    const res = await publicApi.get(`/v1/assets/${encodeURIComponent(filename)}`);
+    const res = await publicApi.get(`/v1/assets/specific/${encodeURIComponent(filename)}`);
     return res.data;
   } catch (err) {
     console.error("Asset retrieval error:", err);
@@ -82,7 +82,7 @@ export const getAsset = async (filename: string): Promise<{filename: string; url
   }
 };
 
-export const deleteAsset = async (filename: string): Promise<{message: string}> => {
+export const deleteAsset = async (filename: string): Promise<{ message: string }> => {
   try {
     const res = await api.delete(`/v1/assets/${encodeURIComponent(filename)}`);
     return res.data;
