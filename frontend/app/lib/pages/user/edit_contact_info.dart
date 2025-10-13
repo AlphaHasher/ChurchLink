@@ -45,14 +45,10 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
   @override
   Widget build(BuildContext context) {
     final email = widget.user.email ?? '';
-
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Contact Info'),
-        backgroundColor: ssbcGray,
-      ),
+      appBar: AppBar(title: const Text('Edit Contact Info')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
@@ -149,8 +145,11 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: _save,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                      ),
                       child: const Text('Save'),
-                      style: FilledButton.styleFrom(backgroundColor: ssbcGray),
                     ),
                   ),
                 ],

@@ -1,14 +1,27 @@
+import { useEffect } from "react";
 import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
 import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Popover, PopoverTrigger, PopoverContent } from "@/shared/components/ui/popover";
+import { Calendar } from "@/shared/components/ui/calendar";
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
 import { format } from "date-fns";
+import { normalizeDateOnly } from '@/helpers/DateHelper'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/shared/components/ui/hover-card";
-import { CircleHelp } from "lucide-react";
+import { Calendar as CalendarIcon, CircleHelp } from "lucide-react";
 import { Table, TableBody, TableHead, TableRow, TableCell, TableHeader } from "@/shared/components/ui/DataTable";
+
+const parseNonNegativeNumber = (raw: string, emptyValue?: number): number | undefined => {
+  const trimmed = raw?.trim() ?? "";
+  if (trimmed === "") return emptyValue;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return emptyValue;
+  return Math.max(0, parsed);
+};
 
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
@@ -41,6 +54,30 @@ export function Inspector() {
   }
 
   const onChange = (patch: Partial<AnyField>) => update(field.id, patch);
+
+  useEffect(() => {
+    if (field.type === 'static' && field.required) {
+      update(field.id, { required: false });
+    }
+  }, [field.id, field.required, field.type, update]);
+
+
+  const currentMinDate = (field as any).minDate;
+  const currentMaxDate = (field as any).maxDate;
+  const minDateObj = normalizeDateOnly(currentMinDate);
+  const maxDateObj = normalizeDateOnly(currentMaxDate);
+  const minMaxLabel = (() => {
+    if (minDateObj && maxDateObj) {
+      return `${format(minDateObj, "PPP")} – ${format(maxDateObj, "PPP")}`;
+    }
+    if (minDateObj) {
+      return `From ${format(minDateObj, "PPP")}`;
+    }
+    if (maxDateObj) {
+      return `Until ${format(maxDateObj, "PPP")}`;
+    }
+    return "Set min / max dates";
+  })();
 
   const renderOptions = () => {
     if (field.type !== "select" && field.type !== "radio") return null;
@@ -108,10 +145,11 @@ export function Inspector() {
                   <Input
                     type="number"
                     placeholder="0"
+                    min={0}
                     value={(o as any).price ?? ""}
                     onChange={(e) => {
                       const next = [...sel.options];
-                      const price = e.target.value === "" ? undefined : Number(e.target.value);
+                      const price = parseNonNegativeNumber(e.target.value);
                       next[idx] = { ...next[idx], price } as any;
                       updateOptions(field.id, next);
                     }}
@@ -148,9 +186,9 @@ export function Inspector() {
 
   return (
     <div className="space-y-3">
-        {/* Localization controls for field texts (hidden for price fields) */}
-        {field.type !== 'price' && (
-        <div className="space-y-2">
+      {/* Localization controls for field texts (hidden for price fields) */}
+      {field.type !== 'price' && (
+        <div className="space-y-2 border rounded p-3 bg-card">
           <div className="flex items-center justify-between">
             <Label>Localization</Label>
             <div className="flex items-center gap-2">
@@ -177,9 +215,9 @@ export function Inspector() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
+                  <div className="col-span-2">
                     <Label className="text-xs">Label</Label>
-                    <Input
+                    <Textarea
                       value={(field as any).i18n?.[loc]?.label ?? ''}
                       onChange={(e) => {
                         const i18n = { ...((field as any).i18n || {}) };
@@ -203,7 +241,7 @@ export function Inspector() {
                   )}
                   <div className="col-span-2">
                     <Label className="text-xs">Help text</Label>
-                    <Input
+                    <Textarea
                       value={(field as any).i18n?.[loc]?.helpText ?? ''}
                       onChange={(e) => {
                         const i18n = { ...((field as any).i18n || {}) };
@@ -212,274 +250,409 @@ export function Inspector() {
                       }}
                     />
                   </div>
-                  {field.type === 'static' && (
-                    <div className="col-span-2">
-                      <Label className="text-xs">Content</Label>
-                      <Input
-                        value={(field as any).i18n?.[loc]?.content ?? ''}
-                        onChange={(e) => {
-                          const i18n = { ...((field as any).i18n || {}) };
-                          i18n[loc] = { ...(i18n[loc] || {}), content: e.target.value };
-                          update(field.id, { i18n } as any);
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
           </div>
-          </div>
-          )}
-        {field.type === "static" && (
-          <div className="space-y-2">
+        </div>
+      )}
+      {field.type === "static" && (
+        <div className="space-y-2 border rounded p-3 bg-card">
+          <div className="grid grid-cols-2 gap-2 items-end">
             <div className="space-y-1">
-              <Label>Text content</Label>
-              <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
-            </div>
-            <div className="grid grid-cols-3 gap-2 items-end">
-              <div className="space-y-1">
-                <Label>As</Label>
-                <Select value={(field as any).as || "p"} onValueChange={(v) => onChange({ as: v as any } as any)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="h1">H1</SelectItem>
-                    <SelectItem value="h2">H2</SelectItem>
-                    <SelectItem value="h3">H3</SelectItem>
-                    <SelectItem value="h4">H4</SelectItem>
-                    <SelectItem value="p">Paragraph</SelectItem>
-                    <SelectItem value="small">Small</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Color</Label>
-                <Input type="color" value={(field as any).color || "#000000"} onChange={(e) => onChange({ color: e.target.value } as any)} />
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox checked={(field as any).bold || false} onCheckedChange={(v) => onChange({ bold: !!v } as any)} />
-                  <Label>Bold</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox checked={(field as any).underline || false} onCheckedChange={(v) => onChange({ underline: !!v } as any)} />
-                  <Label>Underline</Label>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Removed base Label input; use Localization cards below to manage label per language */}
-        {field.type !== 'price' && (
-        <div className="space-y-1">
-          <Label>Component Name</Label>
-          <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
-        </div>
-        )}
-        {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
-        {field.type === "price" && (
-          <div className="space-y-1">
-            <Label>Amount</Label>
-            <Input type="number" value={(field as any).amount ?? 0}
-                   onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
-            <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
-          </div>
-        )}
-        {field.type !== 'price' && (
-        <>
-        <div className="space-y-1">
-          <Label>Width</Label>
-          <Select value={field.width || "full"} onValueChange={(v) => onChange({ width: v as any })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full">Full</SelectItem>
-              <SelectItem value="half">Half</SelectItem>
-              <SelectItem value="third">Third</SelectItem>
-              <SelectItem value="quarter">Quarter</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Checkbox checked={!!field.required} onCheckedChange={(v) => onChange({ required: !!v })} />
-          <Label>Required</Label>
-        </div>
-        {(field.type === "checkbox" || field.type === "switch") && (
-          <div className="space-y-1">
-            <Label>Price when selected</Label>
-            <Input type="number" value={(field as any).price ?? ""} onChange={(e) => onChange({ price: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
-          </div>
-        )}
-        {field.type === "number" && (
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label>Min</Label>
-              <Input type="number" value={(field as any).min ?? ""} onChange={(e) => onChange({ min: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
-            </div>
-            <div>
-              <Label>Max</Label>
-              <Input type="number" value={(field as any).max ?? ""} onChange={(e) => onChange({ max: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
-            </div>
-            <div>
-              <Label>Step</Label>
-              <Input type="number" value={(field as any).step ?? ""} onChange={(e) => onChange({ step: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
-            </div>
-            <div className="col-span-3">
-              <Label>Allowed values (comma-separated)</Label>
-              <Input value={(field as any).allowedValues ?? ""} onChange={(e) => onChange({ allowedValues: e.target.value } as any)} placeholder="e.g. 6,11,42" />
-            </div>
-          </div>
-        )}
-        {(field.type === "text" || field.type === "textarea" || field.type === "password") && (
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label>Min length</Label>
-              <Input type="number" value={(field as any).minLength ?? ""} onChange={(e) => onChange({ minLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
-            </div>
-            <div>
-              <Label>Max length</Label>
-              <Input type="number" value={(field as any).maxLength ?? ""} onChange={(e) => onChange({ maxLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
-            </div>
-            {(field.type === "text" || field.type === "textarea") && (
-              <div className="col-span-3">
-                <Label>Pattern (regex)</Label>
-                <Input value={(field as any).pattern ?? ""} onChange={(e) => onChange({ pattern: e.target.value } as any)} />
-              </div>
-            )}
-          </div>
-        )}
-        {field.type === "time" && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label>Min time</Label>
-              <Input type="time" value={(field as any).minTime ?? ""} onChange={(e) => onChange({ minTime: e.target.value || undefined } as any)} />
-            </div>
-            <div>
-              <Label>Max time</Label>
-              <Input type="time" value={(field as any).maxTime ?? ""} onChange={(e) => onChange({ maxTime: e.target.value || undefined } as any)} />
-            </div>
-          </div>
-        )}
-        {(field.type === "date") && (
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label>Min date</Label>
-                <Input
-                  type="date"
-                  value={(field as any).minDate ? format(new Date((field as any).minDate), "yyyy-MM-dd") : ""}
-                  onChange={(e) => onChange({ minDate: e.target.value ? new Date(e.target.value) : undefined } as any)}
-                />
-              </div>
-              <div>
-                <Label>Max date</Label>
-                <Input
-                  type="date"
-                  value={(field as any).maxDate ? format(new Date((field as any).maxDate), "yyyy-MM-dd") : ""}
-                  onChange={(e) => onChange({ maxDate: e.target.value ? new Date(e.target.value) : undefined } as any)} />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Selection mode</Label>
-              <Select value={(field as any).mode || "single"} onValueChange={(v) => onChange({ mode: v as any } as any)}>
+              <Label>As</Label>
+              <Select value={(field as any).as || "p"} onValueChange={(v) => onChange({ as: v as any } as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="single">Single day</SelectItem>
-                  <SelectItem value="range">Date range</SelectItem>
+                  <SelectItem value="h1">H1</SelectItem>
+                  <SelectItem value="h2">H2</SelectItem>
+                  <SelectItem value="h3">H3</SelectItem>
+                  <SelectItem value="h4">H4</SelectItem>
+                  <SelectItem value="p">Paragraph</SelectItem>
+                  <SelectItem value="small">Small</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Checkbox checked={!!(field as any).pricing?.enabled} onCheckedChange={(v) => onChange({ pricing: { ...(field as any).pricing, enabled: !!v } } as any)} />
-                <Label>Enable per-day pricing</Label>
+            <div className="space-y-1">
+              <Label>Color</Label>
+              <Input type="color" value={(field as any).color || "#000000"} onChange={(e) => onChange({ color: e.target.value } as any)} />
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Checkbox checked={(field as any).bold || false} onCheckedChange={(v) => onChange({ bold: !!v } as any)} />
+              <Label>Bold</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox checked={(field as any).underline || false} onCheckedChange={(v) => onChange({ underline: !!v } as any)} />
+              <Label>Underline</Label>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Removed base Label input; use Localization cards below to manage label per language */}
+      {field.type !== 'price' && (
+        <div className="space-y-1 border rounded p-3 bg-card">O
+          <Label>Component Name</Label>
+          <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
+        </div>
+      )}
+      {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
+      {field.type === "price" && (
+        <div className="space-y-1 border rounded p-3 bg-card">
+          <Label>Amount</Label>
+          <Input
+            type="number"
+            min={0}
+            value={(field as any).amount ?? 0}
+            onChange={(e) => {
+              const amount = parseNonNegativeNumber(e.target.value, 0) ?? 0;
+              onChange({ amount } as any);
+            }}
+          />
+          <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
+        </div>
+      )}
+      {field.type !== 'price' && (
+        <>
+          <div className="space-y-1">
+            <Label>Width</Label>
+            <Select value={field.width || "full"} onValueChange={(v) => onChange({ width: v as any })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Full</SelectItem>
+                <SelectItem value="half">Half</SelectItem>
+                <SelectItem value="third">Third</SelectItem>
+                <SelectItem value="quarter">Quarter</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {field.type !== 'static' && (
+            <div className="flex items-center gap-2">
+              <Checkbox checked={!!field.required} onCheckedChange={(v) => onChange({ required: !!v })} />
+              <Label>Required</Label>
+            </div>
+          )}
+          {(field.type === "checkbox" || field.type === "switch") && (
+            <div className="space-y-1">
+              <Label>Price when selected</Label>
+              <Input
+                type="number"
+                min={0}
+                value={(field as any).price ?? ""}
+                onChange={(e) => {
+                  const price = parseNonNegativeNumber(e.target.value);
+                  onChange({ price } as any);
+                }}
+              />
+            </div>
+          )}
+          {field.type === "number" && (
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label>Min</Label>
+                <Input type="number" value={(field as any).min ?? ""} onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    update(field.id, { min: undefined });
+                    return;
+                  }
+                  const nextMin = Number(raw);
+                  update(field.id, { min: Number.isNaN(nextMin) ? undefined : nextMin });
+                }} />
               </div>
-              {(field as any).pricing?.enabled && (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label>Base price per day</Label>
-                      <Input type="number" value={(field as any).pricing?.basePerDay ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, basePerDay: e.target.value === "" ? undefined : Number(e.target.value) } } as any)} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label>Sunday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[0] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 0: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
-                    </div>
-                    <div>
-                      <Label>Monday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[1] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 1: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
-                    </div>
-                    <div>
-                      <Label>Tuesday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[2] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 2: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
-                    </div>
-                    <div>
-                      <Label>Wednesday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[3] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 3: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
-                    </div>
-                    <div>
-                      <Label>Thursday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[4] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 4: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
-                    </div>
-                    <div>
-                      <Label>Friday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[5] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 5: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
-                    </div>
-                    <div>
-                      <Label>Saturday price</Label>
-                      <Input type="number" value={(field as any).pricing?.weekdayOverrides?.[6] ?? ""} onChange={(e) => onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 6: e.target.value === "" ? undefined : Number(e.target.value) } } } as any)} />
-                    </div>
-                  </div>
+              <div>
+                <Label>Max</Label>
+                <Input type="number" value={(field as any).max ?? ""} onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    update(field.id, { max: undefined });
+                    return;
+                  }
+                  const nextMax = Number(raw);
+                  update(field.id, { max: Number.isNaN(nextMax) ? undefined : nextMax });
+                }} />
+              </div>
+              <div>
+                <Label>Step</Label>
+                <Input type="number" value={(field as any).step ?? ""} onChange={(e) => onChange({ step: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+              </div>
+              <div className="col-span-3">
+                <Label>Allowed values (comma-separated)</Label>
+                <Input value={(field as any).allowedValues ?? ""} onChange={(e) => onChange({ allowedValues: e.target.value } as any)} placeholder="e.g. 6,11,42" />
+              </div>
+            </div>
+          )}
+          {(field.type === "text" || field.type === "textarea" || field.type === "password") && (
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label>Min length</Label>
+                <Input type="number" value={(field as any).minLength ?? ""} onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    update(field.id, { minLength: undefined });
+                    return;
+                  }
+                  const nextMin = Number(raw);
+                  update(field.id, { minLength: Number.isNaN(nextMin) ? undefined : nextMin });
+                }} />
+              </div>
+              <div>
+                <Label>Max length</Label>
+                <Input type="number" value={(field as any).maxLength ?? ""} onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    update(field.id, { maxLength: undefined });
+                    return;
+                  }
+                  const nextMax = Number(raw);
+                  update(field.id, { maxLength: Number.isNaN(nextMax) ? undefined : nextMax });
+                }} />
+              </div>
+              {(field.type === "text" || field.type === "textarea") && (
+                <div className="col-span-3">
+                  <Label>Pattern (regex)</Label>
+                  <Input value={(field as any).pattern ?? ""} onChange={(e) => onChange({ pattern: e.target.value } as any)} />
                 </div>
               )}
             </div>
-          </div>
-        )}
-        {(field.type === "select") && (
-          <div className="flex items-center gap-2">
-            <Checkbox checked={(field as any).multiple ?? false} onCheckedChange={(v) => onChange({ multiple: !!v } as any)} />
-            <Label>Allow multiple</Label>
-          </div>
-        )}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Label>Conditional visibility</Label>
-            <HoverCard>
-              <HoverCardTrigger asChild>
-                <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground" aria-label="Conditional visibility help">
-                  <CircleHelp className="h-4 w-4" />
-                </button>
-              </HoverCardTrigger>
-              <HoverCardContent className="w-96" align="start">
-                <div className="space-y-2 text-sm">
-                  <p>Show this field only when a simple condition on another field is true.</p>
-                  <p>Syntax: <code>Component Name op value</code></p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Component Name</strong>: another field's name</li>
-                    <li><strong>op</strong>: one of <code>==</code>, <code>!=</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&lt;</code></li>
-                    <li><strong>value</strong>: number, boolean (<code>true</code>/<code>false</code>), or string (wrap in quotes)</li>
-                  </ul>
-                  <div className="space-y-1">
-                    <p className="font-medium">Examples</p>
-                    <pre className="rounded bg-muted p-2 text-xs">staff == true</pre>
-                    <pre className="rounded bg-muted p-2 text-xs">age &gt;= 12</pre>
-                    <pre className="rounded bg-muted p-2 text-xs">country == "US"</pre>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-medium">Multiple conditions</p>
-                    <p>Chain with <code>&amp;&amp;</code> (AND) or <code>||</code> (OR). Only first condition is parsed today; support for chaining is planned. For now, prefer one condition per field.</p>
-                    <pre className="rounded bg-muted p-2 text-xs">subscribe == true &amp;&amp; age &gt;= 18</pre>
-                  </div>
+          )}
+          {field.type === "time" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Min time</Label>
+                <Input type="time" value={(field as any).minTime ?? ""} onChange={(e) => {
+                  const raw = e.target.value;
+                  update(field.id, { minTime: raw || undefined });
+                }} />
+              </div>
+              <div>
+                <Label>Max time</Label>
+                <Input type="time" value={(field as any).maxTime ?? ""} onChange={(e) => {
+                  const raw = e.target.value;
+                  update(field.id, { maxTime: raw || undefined });
+                }} />
+              </div>
+            </div>
+          )}
+          {(field.type === "date") && (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label>Min / Max date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <span className={minDateObj || maxDateObj ? "" : "text-muted-foreground"}>
+                        {minMaxLabel}
+                      </span>
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto space-y-2 p-3" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={
+                        minDateObj
+                          ? {
+                            from: minDateObj,
+                            to: maxDateObj ?? minDateObj,
+                          }
+                          : undefined
+                      }
+                      onSelect={(range: { from?: Date; to?: Date } | undefined) => {
+                        if (!range || !range.from) {
+                          update(field.id, { minDate: undefined, maxDate: undefined });
+                          return;
+                        }
+                        const from = range.from;
+                        const to = range.to ?? range.from;
+                        update(field.id, {
+                          minDate: format(from, "yyyy-MM-dd"),
+                          maxDate: format(to, "yyyy-MM-dd"),
+                        });
+                      }}
+                      initialFocus
+                      captionLayout="dropdown"
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-sm"
+                        onClick={() => update(field.id, { minDate: undefined, maxDate: undefined })}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-1">
+                <Label>Selection mode</Label>
+                <Select value={(field as any).mode || "single"} onValueChange={(v) => onChange({ mode: v as any } as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single day</SelectItem>
+                    <SelectItem value="range">Date range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={!!(field as any).pricing?.enabled} onCheckedChange={(v) => onChange({ pricing: { ...(field as any).pricing, enabled: !!v } } as any)} />
+                  <Label>Enable per-day pricing</Label>
                 </div>
-              </HoverCardContent>
-            </HoverCard>
+                {(field as any).pricing?.enabled && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label>Base price per day</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.basePerDay ?? ""}
+                          onChange={(e) => {
+                            const basePerDay = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, basePerDay } } as any);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label>Sunday price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.weekdayOverrides?.[0] ?? ""}
+                          onChange={(e) => {
+                            const val = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 0: val } } } as any);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>Monday price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.weekdayOverrides?.[1] ?? ""}
+                          onChange={(e) => {
+                            const val = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 1: val } } } as any);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>Tuesday price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.weekdayOverrides?.[2] ?? ""}
+                          onChange={(e) => {
+                            const val = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 2: val } } } as any);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>Wednesday price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.weekdayOverrides?.[3] ?? ""}
+                          onChange={(e) => {
+                            const val = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 3: val } } } as any);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>Thursday price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.weekdayOverrides?.[4] ?? ""}
+                          onChange={(e) => {
+                            const val = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 4: val } } } as any);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>Friday price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.weekdayOverrides?.[5] ?? ""}
+                          onChange={(e) => {
+                            const val = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 5: val } } } as any);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>Saturday price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={(field as any).pricing?.weekdayOverrides?.[6] ?? ""}
+                          onChange={(e) => {
+                            const val = parseNonNegativeNumber(e.target.value);
+                            onChange({ pricing: { ...(field as any).pricing, weekdayOverrides: { ...(field as any).pricing?.weekdayOverrides, 6: val } } } as any);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {(field.type === "select") && (
+            <div className="flex items-center gap-2">
+              <Checkbox checked={(field as any).multiple ?? false} onCheckedChange={(v) => onChange({ multiple: !!v } as any)} />
+              <Label>Allow multiple</Label>
+            </div>
+          )}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Label>Conditional visibility</Label>
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground" aria-label="Conditional visibility help">
+                    <CircleHelp className="h-4 w-4" />
+                  </button>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-96" align="start">
+                  <div className="space-y-2 text-sm">
+                    <p>Show this field only when a simple condition on another field is true.</p>
+                    <p>Syntax: <code>Component Name op value</code></p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li><strong>Component Name</strong>: another field's name</li>
+                      <li><strong>op</strong>: one of <code>==</code>, <code>!=</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&lt;</code></li>
+                      <li><strong>value</strong>: number, boolean (<code>true</code>/<code>false</code>), or string (wrap in quotes)</li>
+                    </ul>
+                    <div className="space-y-1">
+                      <p className="font-medium">Examples</p>
+                      <pre className="rounded bg-muted p-2 text-xs">staff == true</pre>
+                      <pre className="rounded bg-muted p-2 text-xs">age &gt;= 12</pre>
+                      <pre className="rounded bg-muted p-2 text-xs">country == "US"</pre>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium">Multiple conditions</p>
+                      <p>Chain with <code>&amp;&amp;</code> (AND) or <code>||</code> (OR). Only first condition is parsed today; support for chaining is planned. For now, prefer one condition per field.</p>
+                      <pre className="rounded bg-muted p-2 text-xs">subscribe == true &amp;&amp; age &gt;= 18</pre>
+                    </div>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+            </div>
+            <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
           </div>
-    <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
-    </div>
-    </>
-    )}
-    {renderOptions()}
+        </>
+      )}
+      {renderOptions()}
     </div>
   );
 }

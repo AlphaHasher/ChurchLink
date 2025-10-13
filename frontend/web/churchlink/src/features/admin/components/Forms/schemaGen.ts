@@ -1,17 +1,85 @@
 import { z } from "zod";
+import validator from "validator";
+import { format } from "date-fns";
+import { normalizeDateOnly } from '@/helpers/DateHelper'
 import type { AnyField, CheckboxField, DateField, NumberField, SelectField, TextField, FormSchema, EmailField, PasswordField, UrlField, TelField } from "./types";
+
+const trimString = (val: unknown): unknown => (typeof val === "string" ? val.trim() : val);
+const emptyStringToUndefined = (val: unknown): unknown => {
+  if (typeof val !== "string") return val;
+  const trimmed = val.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
+};
+
+const PHONE_MAX_DIGITS = 10;
+const NON_DIGIT_REGEX = /\D/g;
+
+const normalizePhoneDigits = (val: unknown): string => {
+  if (typeof val !== "string") return "";
+  return val.replace(NON_DIGIT_REGEX, "").slice(0, PHONE_MAX_DIGITS);
+};
+
+const phoneDigitsOrUndefined = (val: unknown): string | undefined => {
+  const digits = normalizePhoneDigits(val);
+  return digits.length === 0 ? undefined : digits;
+};
+
+
+const truncateToDate = (value: Date | undefined): Date | null => {
+  if (!value) return null;
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+};
+
+const describeDate = (value: string | Date | undefined): string => {
+  const normalized = normalizeDateOnly(value);
+  return normalized ? format(normalized, "PPP") : "the specified date";
+};
+
+const parseAllowedNumbers = (allowedValues?: string): number[] => {
+  if (!allowedValues) return [];
+  return allowedValues
+    .split(",")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0)
+    .map((x) => Number(x))
+    .filter((n) => !Number.isNaN(n));
+};
+
+const normalizeNumberInput = (val: unknown): number | undefined => {
+  if (val === undefined || val === null) return undefined;
+  if (typeof val === "number") {
+    return Number.isNaN(val) ? Number.NaN : val;
+  }
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.length === 0) return undefined;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? Number.NaN : parsed;
+  }
+  return Number.NaN;
+};
+
+const formatNumberValue = (n: number): string => {
+  return Number.isInteger(n) ? n.toFixed(0) : n.toString();
+};
 
 export function fieldToZod(field: AnyField): z.ZodTypeAny {
   switch (field.type) {
     case "text":
     case "textarea": {
-      let s = z.string();
       const f = field as TextField;
-      if (f.required) s = s.min(1, { message: `${field.label || field.name} is required` });
-      if (f.minLength != null) s = s.min(f.minLength);
-      if (f.maxLength != null) s = s.max(f.maxLength);
-      if (f.pattern) s = s.regex(new RegExp(f.pattern));
-      return s;
+      const label = field.label || field.name || "Field";
+
+      let base = z.string();
+      if (f.minLength != null) base = base.min(f.minLength);
+      if (f.maxLength != null) base = base.max(f.maxLength);
+      if (f.pattern) base = base.regex(new RegExp(f.pattern));
+
+      if (f.required) {
+        return base.min(1, { message: `${label} is required` });
+      }
+
+      return z.preprocess(emptyStringToUndefined, base.optional());
     }
     case "email": {
       let s = z.string().email({ message: "Invalid email address" });
@@ -32,37 +100,102 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       return s;
     }
     case "url": {
-      let s = z.string().url({ message: "Invalid URL" });
       const f = field as UrlField;
-      if (!f.required) s = s.optional() as any;
-      return s;
+      const label = field.label || field.name || "URL";
+      const urlMessage = "Invalid URL";
+      const validatorOptions: validator.IsURLOptions = {
+        protocols: ["http", "https"],
+        require_protocol: true,
+        require_valid_protocol: true,
+        allow_underscores: true,
+        allow_trailing_dot: false,
+      };
+
+      if (f.required) {
+        return z.preprocess(
+          trimString,
+          z
+            .string()
+            .min(1, { message: `${label} is required` })
+            .refine((val) => validator.isURL(val, validatorOptions), {
+              message: urlMessage,
+            })
+        );
+      }
+
+      return z.preprocess(
+        emptyStringToUndefined,
+        z
+          .string()
+          .refine((val) => validator.isURL(val, validatorOptions), {
+            message: urlMessage,
+          })
+          .optional()
+      );
     }
     case "tel": {
-      let s = z.string();
       const f = field as TelField;
-      if (f.required) s = s.min(1, { message: `${field.label || field.name} is required` });
-      return s;
+      const label = field.label || field.name || "Phone";
+      const phoneMessage = "Invalid phone number";
+
+      if (f.required) {
+        return z.preprocess(
+          (val) => {
+            const digits = normalizePhoneDigits(trimString(val));
+            return digits;
+          },
+          z
+            .string()
+            .min(1, { message: `${label} is required` })
+            .refine((val) => validator.isMobilePhone(val, "any"), {
+              message: phoneMessage,
+            })
+        );
+      }
+
+      return z.preprocess(
+        (val) => phoneDigitsOrUndefined(emptyStringToUndefined(val)),
+        z
+          .string()
+          .refine((val) => validator.isMobilePhone(val, "any"), {
+            message: phoneMessage,
+          })
+          .optional()
+      );
     }
     case "number": {
-      let s = z.coerce.number();
       const f = field as NumberField;
-  if (f.required) s = s.refine((v: unknown) => v !== undefined && v !== null && !Number.isNaN(v as number), `${field.label || field.name} is required`);
-      if (f.min != null) s = s.min(f.min);
-      if (f.max != null) s = s.max(f.max);
-      if (f.allowedValues && f.allowedValues.trim().length > 0) {
-        const allowed = f.allowedValues
-          .split(",")
-          .map((x) => x.trim())
-          .filter((x) => x.length > 0)
-          .map((x) => Number(x))
-          .filter((n) => !Number.isNaN(n));
-        if (allowed.length > 0) {
-          s = s.refine((v) => allowed.includes(v as number), {
-            message: `${field.label || field.name} must be one of: ${allowed.join(", ")}`,
+      const label = field.label || field.name || "Number";
+      const allowed = parseAllowedNumbers(f.allowedValues);
+      const base = z.preprocess(
+        normalizeNumberInput,
+        z.union([z.number(), z.undefined()])
+      );
+      return base.superRefine((val, ctx) => {
+        if (typeof val === "number" && Number.isNaN(val)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} must be a number` });
+          return;
+        }
+        if (val === undefined) {
+          if (f.required) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} is required` });
+          }
+          return;
+        }
+        const num = val as number;
+        if (f.min != null && num < f.min) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} must be >= ${formatNumberValue(f.min)}` });
+        }
+        if (f.max != null && num > f.max) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} must be <= ${formatNumberValue(f.max)}` });
+        }
+        if (allowed.length > 0 && !allowed.includes(num)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${label} must be one of: ${allowed.map(formatNumberValue).join(", ")}`,
           });
         }
-      }
-      return s;
+      });
     }
     
     case "checkbox": {
@@ -81,9 +214,10 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
     case "select": {
       const f = field as SelectField;
       if (f.multiple) {
-        let s = z.array(z.string());
-        if (f.required) s = s.min(1, `${field.label || field.name} is required`);
-        return s;
+        if (f.required) {
+          return z.array(z.string()).min(1, `${field.label || field.name} is required`);
+        }
+        return z.array(z.string()).optional();
       }
       let s: z.ZodType<string | undefined> = z.string().optional();
       if (f.required) s = z.string().min(1, `${field.label || field.name} is required`);
@@ -120,17 +254,25 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         });
 
   // Min/Max checks for whichever endpoints exist
-        if (f.minDate) {
-          const min = f.minDate;
-          s = s.refine((v) => !v || (!v.from || v.from.getTime() >= min.getTime()) && (!v.to || v.to.getTime() >= min.getTime()), {
-            message: `${label} must be on or after ${f.minDate.toDateString()}`,
-          });
+        const min = normalizeDateOnly(f.minDate);
+        if (min) {
+          const message = `${label} must be on or after ${describeDate(f.minDate)}`;
+          s = s.refine((v) => {
+            if (!v) return true;
+            const from = truncateToDate(v.from);
+            const to = truncateToDate(v.to);
+            return (!from || from.getTime() >= min.getTime()) && (!to || to.getTime() >= min.getTime());
+          }, { message });
         }
-        if (f.maxDate) {
-          const max = f.maxDate;
-          s = s.refine((v) => !v || (!v.from || v.from.getTime() <= max.getTime()) && (!v.to || v.to.getTime() <= max.getTime()), {
-            message: `${label} must be on or before ${f.maxDate.toDateString()}`,
-          });
+        const max = normalizeDateOnly(f.maxDate);
+        if (max) {
+          const message = `${label} must be on or before ${describeDate(f.maxDate)}`;
+          s = s.refine((v) => {
+            if (!v) return true;
+            const from = truncateToDate(v.from);
+            const to = truncateToDate(v.to);
+            return (!from || from.getTime() <= max.getTime()) && (!to || to.getTime() <= max.getTime());
+          }, { message });
         }
 
         return s;
@@ -139,13 +281,21 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
   // Single-date mode: value is a Date or undefined
       let s: z.ZodType<Date | undefined> = z.date().optional();
       if (f.required) s = z.date();
-      if (f.minDate)
-        s = s.refine((v: Date | undefined) => !v || v.getTime() >= f.minDate!.getTime(), {
-          message: `${label} must be on or after ${f.minDate.toDateString()}`,
+      const min = normalizeDateOnly(f.minDate);
+      if (min)
+        s = s.refine((v: Date | undefined) => {
+          const normalized = truncateToDate(v ?? undefined);
+          return !normalized || normalized.getTime() >= min.getTime();
+        }, {
+          message: `${label} must be on or after ${describeDate(f.minDate)}`,
         });
-      if (f.maxDate)
-        s = s.refine((v: Date | undefined) => !v || v.getTime() <= f.maxDate!.getTime(), {
-          message: `${label} must be on or before ${f.maxDate.toDateString()}`,
+      const max = normalizeDateOnly(f.maxDate);
+      if (max)
+        s = s.refine((v: Date | undefined) => {
+          const normalized = truncateToDate(v ?? undefined);
+          return !normalized || normalized.getTime() <= max.getTime();
+        }, {
+          message: `${label} must be on or before ${describeDate(f.maxDate)}`,
         });
       return s;
     }

@@ -471,17 +471,26 @@ END:VCALENDAR
 
   @override
   Widget build(BuildContext context) {
+    // Determine if we should show the back button:
+    // - If Navigator.canPop() is true, we were pushed from another screen (e.g., home page)
+    // - If Navigator.canPop() is false, we are the root of the events tab (accessed via navbar)
+    final bool showBackButton = Navigator.canPop(context);
+
     return Scaffold(
       key: const ValueKey('screen-events'),
       appBar: AppBar(
         centerTitle: true,
         title: const Text('Events'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        leading:
+            showBackButton
+                ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                )
+                : null,
+        automaticallyImplyLeading: showBackButton,
       ),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
