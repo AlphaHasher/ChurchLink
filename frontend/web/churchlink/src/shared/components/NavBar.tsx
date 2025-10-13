@@ -97,7 +97,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     }, [headerData]);
 
     return (
-        <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide!">
+        <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80]">
             <div className="h-30 w-full lg:h-24 flex flex-row justify-between align-center">
                 {/* Logo Section */}
                 <NavigationMenuList className="flex gap-4 justify-between xl:pl-8">
@@ -138,12 +138,12 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
 
                                     {/* invisible hover bridge (no layout shift) */}
                                     {activeDropdown === item.title && (
-                                        <div className="absolute top-full right-0 h-3 w-full"></div>
+                                        <div className="absolute top-full right-0 h-3 w-full z-[90]"></div>
                                     )}
 
                                     {activeDropdown === item.title && (
                                         <div
-                                            className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 p-2 rounded-lg min-w-[180px] shadow-lg"
+                                            className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 p-2 rounded-lg min-w-[180px] shadow-lg z-[90]"
                                         >
                                             {'items' in item && item.items.filter((subItem: HeaderLink) => subItem.visible !== false).map((subItem: HeaderLink) => (
                                                 <button

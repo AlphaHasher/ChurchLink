@@ -83,18 +83,48 @@ export function usePageManager(slug: string) {
   // Normalize a page for comparison with live (ignore volatile fields)
   const normalizeForCompare = (p: PageV2 | null): any => {
     if (!p) return null;
-    const { _id, created_at, updated_at, styleTokens, ...rest } = p as any;
+    const pickPage = (x: any) => ({
+      version: 2,
+      slug: x.slug,
+      title: x.title,
+      visible: x.visible !== false,
+      sections: Array.isArray(x.sections) ? x.sections : [],
+    });
+
+    const cleanNode = (n: any): any => {
+      const cleaned: any = {
+        type: n.type,
+      };
+      if (n.props) {
+        // Shallow copy props (exclude undefined)
+        const pr: any = {};
+        for (const k of Object.keys(n.props)) {
+          const v = (n.props as any)[k];
+          if (v !== undefined) pr[k] = v;
+        }
+        cleaned.props = pr;
+      }
+      // Keep only logical units for layout
+      if (n.layout && n.layout.units) {
+        cleaned.layout = { units: { ...n.layout.units } };
+      }
+      // Recurse children
+      if (Array.isArray(n.children) && n.children.length) {
+        cleaned.children = n.children.map((c: any) => cleanNode(c));
+      }
+      return cleaned;
+    };
+
+    const cleanSection = (s: any): any => ({
+      kind: 'section',
+      heightPercent: s.heightPercent ?? undefined,
+      children: Array.isArray(s.children) ? s.children.map((n: any) => cleanNode(n)) : [],
+    });
+
+    const base = pickPage(p);
     return {
-      ...rest,
-      // Normalize sections children order/fields if needed
-      sections: (p.sections || []).map((s) => ({
-        ...s,
-        // strip any cached px layout
-        children: (s.children || []).map((n: any) => ({
-          ...n,
-          layout: n.layout ? { units: { ...(n.layout.units || {}) } } : undefined,
-        })),
-      })),
+      ...base,
+      sections: base.sections.map((s: any) => cleanSection(s)),
     };
   };
 

@@ -62,8 +62,16 @@ export const listFolders = async (folder?: string): Promise<string[]> => {
   return contents.folders;
 };
 
-export const getAssetUrl = (filename: string): string => {
-  return `${publicApi.defaults.baseURL}/v1/assets/public/${encodeURIComponent(filename)}`;
+export const getAssetUrl = (pathOrFilename: string, folder?: string): string => {
+  const base = (publicApi.defaults.baseURL || '').replace(/\/+$/, '');
+  const cleanFolder = (folder || '').replace(/^\/+|\/+$/g, '');
+  const cleanPath = (pathOrFilename || '').replace(/^\/+/, '');
+  const hasFolderInPath = cleanPath.includes('/');
+  const segments = hasFolderInPath
+    ? cleanPath.split('/').filter(Boolean)
+    : (cleanFolder ? [cleanFolder, cleanPath] : [cleanPath]);
+  const encodedPath = segments.map(encodeURIComponent).join('/');
+  return `${base}/v1/assets/public/${encodedPath}`;
 };
 
 export const deleteAsset = async (filename: string): Promise<{message: string}> => {
