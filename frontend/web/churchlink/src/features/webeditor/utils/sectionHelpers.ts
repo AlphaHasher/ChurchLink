@@ -132,33 +132,17 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       id: `${newId()}-events`,
       kind: "section",
       heightPercent: 100,
-      background: { className: "bg-white" },
+      background: { className: "bg-gradient-to-b from-slate-50 to-white" },
       grid: { className: "w-full" },
       styleTokens: {},
+      lockLayout: true,
       children: [
-        { 
-          id: `${newId()}-c2`, 
-          type: "container", 
-          props: { maxWidth: "xl", paddingX: 4, paddingY: 6 }, 
-          children: [],
-          layout: {
-            units: { xu: 0, yu: 0, wu: 12, hu: 8 }
-          }
-        } as Node,
-        { 
-          id: `${newId()}-t2`, 
-          type: "text", 
-          props: { variant: "h2", html: "Upcoming Events" },
-          layout: {
-            units: { xu: 0, yu: 0, wu: 8, hu: 1 }
-          }
-        } as Node,
         { 
           id: `${newId()}-e2`, 
           type: "eventList", 
-          props: { showFilters: true },
+          props: { showFilters: true, showTitle: true },
           layout: {
-            units: { xu: 0, yu: 2, wu: 12, hu: 6 }
+            units: { xu: 0, yu: 0, wu: 12, hu: 8 }
           }
         } as Node,
       ],

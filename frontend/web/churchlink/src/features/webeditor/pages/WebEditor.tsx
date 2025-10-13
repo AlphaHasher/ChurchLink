@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/components/ui/button";
 import { DynamicPageV2RendererBuilder } from "@/features/webeditor/grid/DynamicPageV2RendererBuilder";
 import { ModeToggle } from "@/shared/components/ModeToggle";
+import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import EditorSidebar from "@/features/webeditor/components/EditorSidebar";
 import { SidebarInset, SidebarProvider } from "@/shared/components/ui/sidebar";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -33,6 +34,10 @@ const WebEditor: React.FC = () => {
     setShowHeader,
     showFooter,
     setShowFooter,
+    liveVisible,
+    inSyncWithLive,
+    saveState,
+    publishState,
     publish,
   } = usePageManager(slug);
 
@@ -415,6 +420,41 @@ const WebEditor: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Save status badge */}
+            <MultiStateBadge
+              state={saveState}
+              customComponent={
+                <span
+                  className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${
+                    saveState === "processing"
+                      ? "bg-amber-500/20 text-amber-600 dark:bg-amber-400 dark:text-amber-900"
+                      : saveState === "error"
+                      ? "bg-red-500/20 text-red-600 dark:bg-red-400 dark:text-red-900"
+                      : saveState === "success"
+                      ? "bg-green-500/20 text-green-600 dark:bg-green-400 dark:text-green-900"
+                      : "bg-gray-500/10 text-gray-600 dark:text-gray-300"
+                  }`}
+                >
+                  {saveState === "processing" ? "Saving…" : saveState === "success" ? "Saved" : saveState === "error" ? "Save Failed" : "Idle"}
+                </span>
+              }
+            />
+
+            {/* Live visibility indicator (considers in-sync) */}
+            <MultiStateBadge
+              state="custom"
+              customComponent={
+                <span
+                  className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${
+                    liveVisible && inSyncWithLive
+                      ? "bg-green-500/20 text-green-600 dark:bg-green-400 dark:text-green-900"
+                      : "bg-red-500/20 text-red-600 dark:bg-red-400 dark:text-red-900"
+                  }`}
+                >
+                  {liveVisible && inSyncWithLive ? "Live" : "Not Live"}
+                </span>
+              }
+            />
             <a
               href={`/${slug ? slug.replace(/^\/+/, '') : ''}?staging=1`}
               target="_blank"
@@ -423,7 +463,13 @@ const WebEditor: React.FC = () => {
             >
               Preview
             </a>
-            <Button className="bg-blue-600 hover:bg-blue-700" onClick={publish}>Publish</Button>
+            <MultiStateBadge
+              state={publishState}
+              onClick={publish}
+              customComponent={
+                <Button className="bg-blue-600 hover:bg-blue-700">Publish</Button>
+              }
+            />
             <ModeToggle />
           </div>
         </div>

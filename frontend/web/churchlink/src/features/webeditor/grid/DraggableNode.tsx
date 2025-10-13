@@ -113,6 +113,17 @@ export function DraggableNode({
   const baseWidth = cachedLayout?.w ?? node.layout?.px?.w ?? (node.layout?.units.wu ? unitsToPx(node.layout.units.wu, gridSize) : undefined);
   const baseHeight = cachedLayout?.h ?? node.layout?.px?.h ?? (node.layout?.units.hu ? unitsToPx(node.layout.units.hu, gridSize) : undefined);
 
+  const applyParentOutline = useCallback((edges: { top: boolean; right: boolean; bottom: boolean; left: boolean } | null) => {
+    if (!containerId) return;
+    const parentEl = document.getElementById(containerId);
+    if (!parentEl) return;
+    if (edges && (edges.top || edges.right || edges.bottom || edges.left)) {
+      (parentEl.style as any).boxShadow = 'inset 0 0 0 2px #ef4444';
+    } else {
+      (parentEl.style as any).boxShadow = '';
+    }
+  }, [containerId]);
+
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (disabled) return; // disable interactions
     if (isEditing) return; // Disable drag when editing text
@@ -169,6 +180,17 @@ export function DraggableNode({
           if (parentHeight > nh) {
             ny = Math.max(0, Math.min(ny, parentHeight - nh));
           }
+
+          // Edge contact detection for resize case
+          const tol = 0.5;
+          const edges = {
+            left: nx <= tol,
+            top: ny <= tol,
+            right: Math.abs(nx + nw - parentWidth) <= tol,
+            bottom: parentHeight > nh ? Math.abs(ny + nh - parentHeight) <= tol : false,
+          } as const;
+          if (BuilderState.setEdgeContact) BuilderState.setEdgeContact(containerId, { top: edges.top, right: edges.right, bottom: edges.bottom, left: edges.left });
+          applyParentOutline(edges);
         }
       }
 
@@ -189,16 +211,29 @@ export function DraggableNode({
         const parentRect = parentEl.getBoundingClientRect();
         const parentWidth = parentRect.width;
         const parentHeight = parentRect.height;
-        snappedX = Math.max(0, Math.min(snappedX, parentWidth - startRef.current.w0));
-        if (parentHeight > startRef.current.h0) {
-          snappedY = Math.max(0, Math.min(snappedY, parentHeight - startRef.current.h0));
+        const w0 = startRef.current.w0;
+        const h0 = startRef.current.h0;
+        snappedX = Math.max(0, Math.min(snappedX, parentWidth - w0));
+        if (parentHeight > h0) {
+          snappedY = Math.max(0, Math.min(snappedY, parentHeight - h0));
         }
+
+        // Edge contact detection for move case
+        const tol = 0.5;
+        const edges = {
+          left: snappedX <= tol,
+          top: snappedY <= tol,
+          right: Math.abs(snappedX + w0 - parentWidth) <= tol,
+          bottom: parentHeight > h0 ? Math.abs(snappedY + h0 - parentHeight) <= tol : false,
+        } as const;
+        if (BuilderState.setEdgeContact) BuilderState.setEdgeContact(containerId, { top: edges.top, right: edges.right, bottom: edges.bottom, left: edges.left });
+        applyParentOutline(edges);
       }
     }
 
     setTempPos({ x: snappedX, y: snappedY });
     e.stopPropagation();
-  }, [dragging, gridSize, containerId, disabled]);
+  }, [dragging, gridSize, containerId, disabled, applyParentOutline]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (disabled) return;
@@ -239,6 +274,10 @@ export function DraggableNode({
       startRef.current = null;
       BuilderState.stopResizing();
       BuilderState.stopDragging();
+      if (containerId) {
+        if (BuilderState.clearEdgeContact) BuilderState.clearEdgeContact(containerId);
+        applyParentOutline(null);
+      }
       e.stopPropagation();
       return;
     }
@@ -269,6 +308,10 @@ export function DraggableNode({
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     startRef.current = null;
     BuilderState.stopDragging();
+    if (containerId) {
+      if (BuilderState.clearEdgeContact) BuilderState.clearEdgeContact(containerId);
+      applyParentOutline(null);
+    }
     if (dragging) {
       e.preventDefault();
     }
@@ -303,11 +346,15 @@ export function DraggableNode({
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       e.stopPropagation();
       BuilderState.stopDragging();
+      if (containerId) {
+        if (BuilderState.clearEdgeContact) BuilderState.clearEdgeContact(containerId);
+        applyParentOutline(null);
+      }
       return;
     }
     pressedRef.current = false;
     onPointerUp(e);
-  }, [dragging, onPointerUp]);
+  }, [dragging, onPointerUp, containerId, applyParentOutline]);
 
   const renderedContent = enforceChildFullSize ? enforceFullSize(render(node)) : render(node);
 

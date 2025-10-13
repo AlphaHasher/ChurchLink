@@ -39,6 +39,10 @@ class BuilderStateClass {
   private _nodePxCache: Map<string, { sectionId: string; x: number; y: number; w?: number; h?: number }> = new Map();
   private _paddingOverlay: ActivePaddingOverlay | null = null;
   private _paddingOverlayListeners: Set<(payload: ActivePaddingOverlay | null) => void> = new Set();
+  private _edgeContactByContainer: Map<string, { top: boolean; right: boolean; bottom: boolean; left: boolean }> = new Map();
+  private _edgeContactListeners: Set<(
+    payload: { containerId: string; edges: { top: boolean; right: boolean; bottom: boolean; left: boolean } } | null
+  ) => void> = new Set();
 
   get selection() { return this._selection; }
   get draggingNodeId() { return this._draggingNodeId; }
@@ -46,6 +50,7 @@ class BuilderStateClass {
   get editing() { return this._editing; }
   get gridAdjustingSectionId() { return this._gridAdjustingSectionId; }
   get paddingOverlay() { return this._paddingOverlay; }
+  get edgeContacts() { return this._edgeContactByContainer; }
   get canUndo() { return this._undoStack.length > 0; }
   get canRedo() { return this._redoStack.length > 0; }
   get isHistorySuppressed() { return this._suppressHistory; }
@@ -177,6 +182,42 @@ class BuilderStateClass {
     this._paddingOverlayListeners.add(listener);
     return () => {
       this._paddingOverlayListeners.delete(listener);
+    };
+  }
+
+  // Edge contact highlight for container bounds while dragging/resizing children
+  setEdgeContact(containerId: string, edges: { top: boolean; right: boolean; bottom: boolean; left: boolean }) {
+    const prev = this._edgeContactByContainer.get(containerId);
+    const changed = !prev || prev.top !== edges.top || prev.right !== edges.right || prev.bottom !== edges.bottom || prev.left !== edges.left;
+    if (!changed) return;
+    this._edgeContactByContainer.set(containerId, edges);
+    this.notify();
+    const payload = { containerId, edges } as const;
+    this._edgeContactListeners.forEach((l) => l(payload));
+  }
+
+  clearEdgeContact(containerId?: string) {
+    if (containerId) {
+      if (!this._edgeContactByContainer.has(containerId)) return;
+      this._edgeContactByContainer.delete(containerId);
+      this.notify();
+      this._edgeContactListeners.forEach((l) => l(null));
+      return;
+    }
+    if (this._edgeContactByContainer.size === 0) return;
+    this._edgeContactByContainer.clear();
+    this.notify();
+    this._edgeContactListeners.forEach((l) => l(null));
+  }
+
+  onEdgeContactChange(
+    listener: (
+      payload: { containerId: string; edges: { top: boolean; right: boolean; bottom: boolean; left: boolean } } | null
+    ) => void
+  ) {
+    this._edgeContactListeners.add(listener);
+    return () => {
+      this._edgeContactListeners.delete(listener);
     };
   }
 
