@@ -295,7 +295,6 @@ class _BibleReaderBodyState extends State<BibleReaderBody> {
     _matcher = _ctx.matcher; // keep mirror in sync
     promoteLocalToShared(_ctx);
 
-    await syncFetchChapterNotes(_ctx, book: _book, chapter: _chapter);
     if (mounted) setState(() {});
   }
 
