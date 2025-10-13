@@ -30,6 +30,7 @@ import {
 } from "@/shared/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/ui/collapsible";
 import ProfilePill from "@/shared/components/ProfilePill";
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 const AdminDashboardSideBar = () => {
   const location = useLocation();
@@ -135,7 +136,7 @@ const AdminDashboardSideBar = () => {
                           <item.icon />
                         )}
                         <span>
-                          {item.loadingKey && loadingKey === item.loadingKey ? "Loading..." : item.title}
+                          {item.loadingKey && loadingKey === item.loadingKey ? <Skeleton className="h-4 w-20 inline-block" /> : item.title}
                         </span>
                       </SidebarMenuButton>
                     ) : item.url ? (

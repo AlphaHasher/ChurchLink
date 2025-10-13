@@ -19,7 +19,7 @@ const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/su
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
-const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
+const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanBuilder"));
 const ManageBiblePlans = lazy(() => import("../features/admin/pages/ManageBiblePlans"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
