@@ -2,12 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Request, Query, Body
 from bson import ObjectId
 
-from models.user import get_family_member_by_id
-from helpers.MongoHelper import serialize_objectid
-from controllers.event_functions import cancel_rsvp, register_rsvp, cancel_rsvp
-from mongo.churchuser import UserHandler
-from datetime import datetime
-from models.event import rsvp_list
+from helpers.event_person_helper import event_person_helper
 import logging
 
 
@@ -31,30 +26,12 @@ async def watch_event_route(
     Adds an event to the user's 'My Events' as a 'watch' reference.
     scope=series|occurrence; when scope=occurrence you may pass occurrenceStart (ISO8601).
     """
-    try:
-         ev_oid = ObjectId(event_id)
-        occurrence_dt = None
-        if scope == "occurrence" and occurrenceStart:
-            try:
-                occurrence_dt = datetime.fromisoformat(occurrenceStart)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid occurrenceStart; must be ISO8601")
-
-        added = await UserHandler.add_to_my_events(
-            uid=request.state.uid,
-            event_id=ev_oid,
-            reason="watch",
-            scope=scope,
-            occurrence_start=occurrence_dt,
-        )
-        if not added:
-            # Already present or user not found
-            return {"success": True, "added": False}
-        return {"success": True, "added": True, "event": serialize_objectid(added)}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error adding event to My Events: {str(e)}")
+    return await event_person_helper.watch_event(
+        event_id=event_id,
+        user_uid=request.state.uid,
+        scope=scope,
+        occurrence_start=occurrenceStart
+    )
 
 
 # Private Router
@@ -71,39 +48,21 @@ async def unwatch_event_route(
     If scope/occurrenceStart are provided, removal will target that specific reference.
     Otherwise it removes any 'watch' entries for that event.
     """
-    try:
-        ev_oid = ObjectId(event_id)
-        occurrence_dt = None
-        if occurrenceStart:
-            try:
-                occurrence_dt = datetime.fromisoformat(occurrenceStart)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid occurrenceStart; must be ISO8601")
-
-        # Build a precise removal; only removes reason="watch"
-        removed = await UserHandler.remove_from_my_events(
-            uid=request.state.uid,
-            event_id=ev_oid,
-            reason="watch",
-            scope=scope,
-            occurrence_start=occurrence_dt,
-        )
-        return {"success": True, "removed": bool(removed)}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error removing event from My Events: {str(e)}")
+    return await event_person_helper.unwatch_event(
+        event_id=event_id,
+        user_uid=request.state.uid,
+        scope=scope,
+        occurrence_start=occurrenceStart
+    )
 
 
 # Private Router
 # Get all events for a user (My Events)
 @event_person_management_router.get("/user", response_model=dict)
 async def get_user_events_route(request: Request):
-    try:
-        events = await UserHandler.list_my_events(request.state.uid)
-        return {"success": True, "events": serialize_objectid(events)}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error fetching user events: {str(e)}")
+    return await event_person_helper.get_user_events(
+        user_uid=request.state.uid
+    )
 
 
 # Private Router
@@ -114,85 +73,40 @@ async def get_registration_status_route(event_id: str, request: Request):
     Uses rsvp_list() which returns: { attendees: [...], seats_taken, spots }
     Each attendee has: user_uid, person_id, key, kind, addedOn, ...
     """
-    try:
-        data = await rsvp_list(event_id)
-        attendees = data.get("attendees", [])
-        user_registered = any(a.get("user_uid") == request.state.uid and a.get("person_id") is None for a in attendees)
-
-        return {
-            "success": True,
-            "status": {
-                "event_id": event_id,
-                "user_id": request.state.uid,
-                "registered": user_registered
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error fetching registration status: {str(e)}")
+    return await event_person_helper.get_registration_status(
+        event_id=event_id,
+        user_uid=request.state.uid
+    )
 
 
 # Private Route
 # Add user to event (RSVP/register)
 @event_person_registration_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_user_for_event(event_id: str, request: Request):
-    try:
-        print(f"DEBUG: Registration attempt for event_id={event_id}, uid={request.state.uid}")
-        
-        result, reason = await register_rsvp(event_id, request.state.uid)
-        if not result:
-            print(f"DEBUG: Registration failed for event_id={event_id}, uid={request.state.uid}, reason={reason}")
-            
-            if reason == "already_registered":
-                raise HTTPException(status_code=400, detail="You are already registered for this event")
-            elif reason == "event_full":
-                raise HTTPException(status_code=400, detail="This event is full and cannot accept more registrations")
-            else:
-                raise HTTPException(status_code=400, detail="Registration failed - please try again or contact support")
-        
-        print(f"DEBUG: Registration successful for event_id={event_id}, uid={request.state.uid}")
-        return {"success": True, "registration": True}
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"DEBUG: Registration error for event_id={event_id}, uid={request.state.uid}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error registering for event: {str(e)}")
+    return await event_person_helper.register_user_for_event(
+        event_id=event_id,
+        user_uid=request.state.uid
+    )
 
 
 # Private Route
 # Remove user from event (cancel RSVP)
 @event_person_registration_router.delete("/unregister/{event_id}", response_model=dict)
 async def unregister_user_from_event(event_id: str, request: Request):
-    try:
-        result = await cancel_rsvp(event_id, request.state.uid)
-        if not result:
-            raise HTTPException(status_code=400, detail="Unregistration failed")
-        return {"success": True, "message": "Unregistered successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error unregistering from event: {str(e)}")
+    return await event_person_helper.unregister_user_from_event(
+        event_id=event_id,
+        user_uid=request.state.uid
+    )
 
 
 # Private Route
 # Get user's events (alias of /user)
 @event_person_registration_router.get("/my-events", response_model=dict)
 async def get_my_events(request: Request, include_family: bool = True, expand: bool = False):
-    try:
-        if not request.state.uid:
-            raise HTTPException(status_code=401, detail="User authentication required")
-
-        print(f"[MY_EVENTS] Fetching events for user {request.state.uid}, expand={expand}")
-        events = await UserHandler.list_my_events(request.state.uid, expand=expand)
-        print(f"[MY_EVENTS] Found {len(events)} events for user {request.state.uid}")
-        return {"success": True, "events": serialize_objectid(events)}
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logging.error(f"Invalid data format in user events for user {request.state.uid}: {str(e)}")
-        raise HTTPException(status_code=400, detail="Invalid data format in user events")
-    except Exception as e:
-        logging.error(f"Unexpected error fetching user events for user {request.state.uid}: {str(e)}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching user events")
+    return await event_person_helper.get_user_events(
+        user_uid=request.state.uid,
+        expand=expand
+    )
 
 
 #
@@ -203,26 +117,11 @@ async def get_my_events(request: Request, include_family: bool = True, expand: b
 # Register a family member for an event
 @event_person_registration_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
-    try:
-         # Validate family member ownership
-        member = await get_family_member_by_id(request.state.uid, family_member_id)
-        if not member:
-            raise HTTPException(status_code=404, detail="Family member not found")
-
-        result, reason = await register_rsvp(event_id, request.state.uid, family_member_id)
-        if not result:
-            if reason == "already_registered":
-                raise HTTPException(status_code=400, detail="Family member is already registered for this event")
-            elif reason == "event_full":
-                raise HTTPException(status_code=400, detail="This event is full and cannot accept more registrations")
-            else:
-                raise HTTPException(status_code=400, detail="Registration failed")
-
-        return {"success": True, "registration": True}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error registering family member for event: {str(e)}")
+    return await event_person_helper.register_family_member_for_event(
+        event_id=event_id,
+        family_member_id=family_member_id,
+        user_uid=request.state.uid
+    )
 
 
 # Redundant donation endpoint removed - now using bulk payment system for all event donations
@@ -232,70 +131,30 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
 # Unregister a family member from an event
 @event_person_registration_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
 async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
-    try:
-        # Validate family member ownership
-        member = await get_family_member_by_id(request.state.uid, family_member_id)
-        if not member:
-            raise HTTPException(status_code=404, detail="Family member not found")
-
-        result = await cancel_rsvp(event_id, request.state.uid, family_member_id)
-        if not result:
-            raise HTTPException(status_code=400, detail="Unregistration failed")
-
-        return {"success": True, "message": "Family member unregistered successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error unregistering family member from event: {str(e)}")
+    return await event_person_helper.unregister_family_member_from_event(
+        event_id=event_id,
+        family_member_id=family_member_id,
+        user_uid=request.state.uid
+    )
 
 
 # Private Route
 # Get all events for user's family members (currently returns all; filter if needed)
 @event_person_registration_router.get("/my-family-members-events", response_model=dict)
 async def get_my_family_members_events(request: Request, filters: Optional[str] = None):
-    try:
-        events = await UserHandler.list_my_events(request.state.uid)
-        return {"success": True, "events": serialize_objectid(events)}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error fetching family member events: {str(e)}")
+    return await event_person_helper.get_family_members_events(
+        user_uid=request.state.uid,
+        filters=filters
+    )
 
 
 # Private Route
 # Get events for a specific family member
 @event_person_registration_router.get("/family-member/{family_member_id}/events", response_model=dict)
 async def get_family_member_events(family_member_id: str, request: Request):
-    try:
-        if not request.state.uid:
-            raise HTTPException(status_code=401, detail="User authentication required")
-
-        try:
-            family_member_object_id = ObjectId(family_member_id)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid family member ID format")
-
-        # Validate family member ownership
-        member = await get_family_member_by_id(request.state.uid, family_member_id)
-        if not member:
-            raise HTTPException(status_code=404, detail="Family member not found or not owned by user")
-
-        # Filter by person_id
-        events = await UserHandler.list_my_events(request.state.uid, person_id=family_member_object_id)
-        return {
-            "success": True,
-            "events": serialize_objectid(events),
-            "family_member_id": family_member_id
-        }
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logging.error(
-            f"Invalid data format in family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}"
-        )
-        raise HTTPException(status_code=400, detail="Invalid data format in family member events")
-    except Exception as e:
-        logging.error(
-            f"Unexpected error fetching family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}"
-        )
-        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching family member events")
+    return await event_person_helper.get_family_member_events(
+        family_member_id=family_member_id,
+        user_uid=request.state.uid
+    )
 
 

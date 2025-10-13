@@ -9,6 +9,9 @@ from config.settings import settings
 from fastapi.responses import JSONResponse
 from fastapi import Query, Request, HTTPException
 import re
+import traceback
+from helpers.audit_logger import payment_audit_logger, get_client_ip, get_user_agent
+from helpers.Firebase_helpers import get_uid_by_email
 
 # PayPal configuration from environment variables
 PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")
@@ -215,13 +218,34 @@ async def create_order(request: Request):
             print("✅ PayPal payment created successfully")
             approval_url = next((link.href for link in payment.links if link.rel == "approval_url"), None)
             print(f"✅ Approval URL: {approval_url}")
+            
+            # Log successful PayPal order creation
+            client_ip = get_client_ip(request) if hasattr(request, 'headers') else None
+            payment_audit_logger.log_paypal_order_created(
+                user_email=None,  # Will be available during capture
+                amount=amount,
+                fund_name=fund_name,
+                payment_method="paypal",
+                payment_id=payment.id,
+                request_ip=client_ip
+            )
+            
             return JSONResponse(content={"approval_url": approval_url, "payment_id": payment.id})
         else:
             print(f"❌ PayPal payment creation failed: {payment.error}")
+            
+            # Log PayPal order creation failure
+            client_ip = get_client_ip(request) if hasattr(request, 'headers') else None
+            payment_audit_logger.log_paypal_capture_failed(
+                payment_id="unknown",
+                error_message=f"PayPal order creation failed: {payment.error}",
+                amount=amount,
+                request_ip=client_ip
+            )
+            
             return JSONResponse(status_code=500, content={"error": "Failed to create PayPal payment.", "details": payment.error})
     except Exception as e:
         print(f"❌ Exception in create_order: {str(e)}")
-        import traceback
         print(f"❌ Traceback: {traceback.format_exc()}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -329,14 +353,12 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
                 transaction_data["event_name"] = event_name
                 
                 # Look for event ID in the message or note
-                import re
                 event_id_match = re.search(r'event[_\s]*id[:\s]*([a-fA-F0-9]{24})', message.lower() if message else "")
                 if event_id_match:
                     transaction_data["event_id"] = event_id_match.group(1)
                 
                 # Generate registration key if we have user email
                 if user_email and transaction_data.get("event_id"):
-                    from helpers.Firebase_helpers import get_uid_by_email
                     try:
                         uid = await get_uid_by_email(user_email)
                         if uid:
@@ -368,6 +390,17 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
             if existing_tx:
                 # Transaction already exists, return the existing data
                 print(f"[PAYPAL_CAPTURE] Transaction {payment_id} already exists, returning existing data")
+                
+                # Log duplicate transaction attempt
+                payment_audit_logger.log_donation_completed(
+                    user_email=user_email,
+                    amount=amount,
+                    fund_name=fund_name,
+                    payment_id=payment_id,
+                    donor_name=donor_name.strip() if donor_name.strip() else "Anonymous",
+                    transaction_type="one-time"
+                )
+                
                 return JSONResponse(content={
                     "status": "success", 
                     "transaction_id": payment_id,
@@ -381,6 +414,25 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
                 tx = await Transaction.create_transaction(Transaction(**transaction_data))
                 
                 if tx:
+                    # Log successful donation completion
+                    payment_audit_logger.log_donation_completed(
+                        user_email=user_email,
+                        amount=amount,
+                        fund_name=fund_name,
+                        payment_id=payment_id,
+                        donor_name=donor_name.strip() if donor_name.strip() else "Anonymous",
+                        transaction_type="one-time"
+                    )
+                    
+                    # Check for large transaction
+                    payment_audit_logger.log_large_transaction(
+                        user_identifier=user_email,
+                        amount=amount,
+                        transaction_type="donation",
+                        payment_method="paypal",
+                        threshold=1000.0
+                    )
+                    
                     return JSONResponse(content={
                         "status": "success", 
                         "transaction_id": payment_id,
@@ -390,6 +442,14 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
                         "payer_name": donor_name.strip() if donor_name.strip() else "Anonymous"
                     })
                 else:
+                    # Log transaction creation failure
+                    payment_audit_logger.log_paypal_capture_failed(
+                        payment_id=payment_id,
+                        error_message="Payment processed but failed to save transaction",
+                        user_email=user_email,
+                        amount=amount
+                    )
+                    
                     return JSONResponse(
                         status_code=500, 
                         content={"status": "error", "message": "Payment processed but failed to save transaction"}
