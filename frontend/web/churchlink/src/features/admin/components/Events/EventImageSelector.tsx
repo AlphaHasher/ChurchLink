@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
 import { Label } from "@/shared/components/ui/label"
-import MediaLibrary from "@/features/admin/components/WebBuilder/sub_pages/MediaLibrary" // Adjust path if needed
+import MediaLibrary from "@/features/admin/components/WebBuilder/sub_pages/MediaLibrary"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog"
 import { Button } from "@/shared/components/ui/button"
-import { listMediaContents } from "@/helpers/MediaInteraction"
+import { listMediaContents, getAssetUrl } from "@/helpers/MediaInteraction"
 
 interface AssetFile {
     filename: string
@@ -16,18 +16,12 @@ interface EventImageSelectorProps {
     onChange: (url: string) => void
 }
 
-const API_BASE = import.meta.env.VITE_API_HOST
-
 function ensureApiUrl(raw: string): string {
-    // Accept absolute URLs
     if (/^https?:\/\//i.test(raw)) return raw
-    // If begins with /assets or /api/v1/assets, normalize to full API URL
-    if (raw.startsWith('/api/')) return `${API_BASE}${raw}`
-    if (raw.startsWith('/assets/')) return `${API_BASE}/api/v1${raw}`
-    // If looks like assets path without leading slash
-    if (raw.startsWith('assets/')) return `${API_BASE}/api/v1/${raw}`
-    // Otherwise treat as file or folder/file relative to assets
-    return `${API_BASE}/api/v1/assets/${raw}`
+    if (raw.startsWith('/api/')) return `${import.meta.env.VITE_API_HOST}${raw}`
+    if (raw.startsWith('/assets/')) return `${import.meta.env.VITE_API_HOST}/api/v1${raw}`
+    if (raw.startsWith('assets/')) return `${import.meta.env.VITE_API_HOST}/api/v1/${raw}`
+    return getAssetUrl(raw)
 }
 
 function withThumbnailParam(url: string): string {
@@ -43,12 +37,11 @@ async function findAssetUrlByFilename(filename: string): Promise<string | null> 
         const current = queue.shift()
         try {
             const { files, folders } = await listMediaContents(undefined, current)
-            const match = (files || []).find(f => f.filename === filename)
+            const match = files.find(f => f.filename === filename)
             if (match) {
-                // match.url already begins with /assets/
-                return `${API_BASE}/api/v1${match.url}`
+                return getAssetUrl(match.filename)
             }
-            for (const folder of folders || []) {
+            for (const folder of folders) {
                 const path = current ? `${current}/${folder}` : folder
                 if (!visited.has(path)) {
                     visited.add(path)
@@ -102,7 +95,7 @@ export function EventImageSelector({ value, onChange }: EventImageSelectorProps)
     }, [value])
 
     const handleSelectImage = (asset: AssetFile) => {
-        const fullUrl = `${API_BASE}/api/v1${asset.url}`
+        const fullUrl = getAssetUrl(asset.filename)
         onChange(fullUrl)
         setNormalizedUrl(fullUrl)
         setIsModalOpen(false)
