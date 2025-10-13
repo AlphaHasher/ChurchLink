@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import {
@@ -27,7 +27,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Switch } from '@/shared/components/ui/switch';
-import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, RefreshCcw } from 'lucide-react';
+import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, RefreshCcw, AlertTriangle, ChevronDown } from 'lucide-react';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
@@ -37,8 +37,26 @@ const FolderCellRenderer = (props: ICellRendererParams) => {
   if (!data) return null;
 
   const folders = props.context.folders as { _id: string; name: string }[];
+  const { openFolderAssignment } = props.context;
 
   const folderName = (id?: string) => folders.find((f) => f._id === id)?.name || '';
+
+  // If form has no folder, show warning with dropdown to assign one
+  if (!data.folder) {
+    return (
+      <div className="flex h-full w-full items-center gap-1" title="No folder assigned">
+        <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 self-center" />
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          onClick={() => openFolderAssignment(data.id)}
+          className="text-xs text-muted-foreground h-6 px-2"
+        >
+          Assign folder
+        </Button>
+      </div>
+    );
+  }
 
   return folderName(data.folder) ? (
     <span className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
@@ -60,15 +78,23 @@ const LinksCellRenderer = (props: ICellRendererParams) => {
   } = context;
 
   return data.slug ? (
-    <div className={`inline-flex items-center gap-2 ${!data.visible ? 'text-muted-foreground' : ''}`}>
-      <a href={`/forms/${data.slug}`} target="_blank" rel="noreferrer" className={`${!data.visible ? 'pointer-events-none' : ''}`}>{`/forms/${data.slug}`}</a>
-      <div className={`inline-flex items-center ${!data.visible ? 'text-muted-foreground' : ''}`}>
-        <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
+    <div className={`flex items-center gap-2 w-full min-w-0 ${!data.visible ? 'text-muted-foreground' : ''}`}>
+      <a
+        href={`/forms/${data.slug}`}
+        target="_blank"
+        rel="noreferrer"
+        className={`${!data.visible ? 'pointer-events-none' : ''} truncate flex-1 min-w-0`}
+        title={`/forms/${data.slug}`}
+      >
+        {`/forms/${data.slug}`}
+      </a>
+      <div className={`inline-flex items-center gap-1 flex-shrink-0 ml-auto ${!data.visible ? 'text-muted-foreground' : ''}`}>
+        <Button size="icon" variant="ghost" onClick={() => openCreateSlug(data.id, data.slug, true)} title="Edit slug"><Pencil className="h-4 w-4" /></Button>
         <Button size="icon" variant="ghost" onClick={() => handleRemoveSlug(data.id)} title="Remove slug"><Trash className="h-4 w-4" /></Button>
       </div>
     </div>
   ) : (
-    <Button size="sm" variant="ghost" onClick={() => openCreateSlug(data.id)} className="text-muted-foreground">Create Link</Button>
+    <Button size="sm" variant="ghost" onClick={() => openCreateSlug(data.id, context?.slugify ? context.slugify(data.title || '') : '', false)} className="text-muted-foreground">Create Link</Button>
   );
 };
 
@@ -104,7 +130,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
   } = context;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center h-full gap-2">
       <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/form-builder?load=${data.id}`)}><FileEdit className="h-4 w-4 mr-1" /> Edit</Button>
       <Button size="sm" variant="outline" onClick={() => navigate(`/admin/forms/responses?formId=${data.id}`)}>View responses</Button>
       <DropdownMenu>
@@ -115,7 +141,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => handleDuplicate(data.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport(data.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Export CSV</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Download Responses</DropdownMenuItem>
           <DropdownMenuItem onClick={() => setRenameTarget({ id: data.id, title: data.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
           <DropdownMenuItem onClick={() => { setMoveTargetIds([data.id]); context.setMoveToFolderId(); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -124,6 +150,25 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
       </DropdownMenu>
     </div>
   );
+};
+
+// Cell renderer for expired column
+const ExpiredCellRenderer = (props: ICellRendererParams) => {
+  const { data } = props;
+  if (!data) return null;
+  const expiresAt = data.expires_at || data.expiresAt || null;
+  if (!expiresAt) return <span className="text-sm text-muted-foreground">—</span>;
+  try {
+    const d = new Date(expiresAt);
+    const now = new Date();
+    if (isNaN(d.getTime())) return <span className="text-sm text-muted-foreground">Invalid</span>;
+    if (d.getTime() <= now.getTime()) {
+      return <span className="text-sm text-red-600">Expired</span>;
+    }
+    return <span className="text-sm text-green-600">Active</span>;
+  } catch (e) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
 };
 
 const ManageForms = () => {
@@ -140,13 +185,17 @@ const ManageForms = () => {
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
   const [moveTargetIds, setMoveTargetIds] = useState<string[] | null>(null);
   const [moveToFolderId, setMoveToFolderId] = useState<string>('');
-  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string } | null>(null);
+  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
   const [duplicateNameDialog, setDuplicateNameDialog] = useState<{
     formId: string;
     newTitle: string;
     existingId: string;
   } | null>(null);
+  const [viewDescription, setViewDescription] = useState<string | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<{ _id: string; name: string } | null>(null);
+  const [folderAssignmentTarget, setFolderAssignmentTarget] = useState<string | null>(null);
+  const [assignToFolderId, setAssignToFolderId] = useState<string>('');
 
   // Grid options
   const gridOptions = {};
@@ -162,9 +211,21 @@ const ManageForms = () => {
         const { data } = props;
         if (!data) return null;
         return (
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{data.title}</span>
-            {data.description ? <span className="text-xs text-muted-foreground">{data.description}</span> : null}
+          <div className="flex items-center gap-2 w-full min-w-0">
+            <span className="font-medium flex-shrink-0 max-w-[40%] truncate" title={data.title}>{data.title}</span>
+            {data.description ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setViewDescription(data.description); }}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline truncate text-left flex-1 min-w-0"
+                title="View full description"
+              >
+                {data.description}
+              </button>
+            ) : null}
+            <div className={`ml-auto inline-flex items-center flex-shrink-0 ${!data.visible ? 'text-muted-foreground' : ''}`}>
+              <Button size="icon" variant="ghost" onClick={() => setRenameTarget({ id: data.id, title: data.title })} title="Edit Title"><Pencil className="h-4 w-4" /></Button>
+            </div>
           </div>
         );
       },
@@ -175,6 +236,7 @@ const ManageForms = () => {
       flex: 1,
       minWidth: 120,
       cellRenderer: FolderCellRenderer,
+  cellStyle: { display: 'flex', alignItems: 'center', height: '100%' },
     },
     {
       headerName: 'Links',
@@ -191,29 +253,25 @@ const ManageForms = () => {
       cellRenderer: VisibleCellRenderer,
     },
     {
+      headerName: 'Expired',
+      field: 'expires_at',
+      flex: 1,
+      minWidth: 100,
+      cellRenderer: ExpiredCellRenderer,
+    },
+    {
       headerName: 'Actions',
       field: 'actions',
       flex: 3,
       minWidth: 300,
       cellRenderer: ActionsCellRenderer,
+      cellStyle: { display: 'flex', alignItems: 'center', height: '100%' },
       pinned: 'right',
     },
   ];
 
   const defaultColDef: ColDef = {
     resizable: true,
-  };
-
-  const fetchForms = async () => {
-    try {
-      setLoading(true);
-      const resp = await api.get('/v1/forms/');
-      setAllForms(resp.data || []);
-    } catch (e) {
-      console.error('Failed to fetch forms', e);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Client-side filtering based on search criteria
@@ -238,16 +296,40 @@ const ManageForms = () => {
     return filtered;
   }, [allForms, searchName, searchFolder]);
 
-  const fetchFolders = async () => {
+  const fetchFolders = useCallback(async () => {
     try {
       const resp = await api.get('/v1/forms/folders');
       setFolders(resp.data || []);
     } catch (e) {
       console.error('Failed to fetch folders', e);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchForms(); fetchFolders(); }, []);
+  const refreshFormsAndFolders = useCallback(
+    async (options?: { showSpinner?: boolean }) => {
+      const showSpinner = options?.showSpinner ?? false;
+      if (showSpinner) {
+        setLoading(true);
+      }
+      try {
+        const [formsResp, foldersResp] = await Promise.all([
+          api.get('/v1/forms/'),
+          api.get('/v1/forms/folders'),
+        ]);
+        setAllForms(formsResp.data || []);
+        setFolders(foldersResp.data || []);
+      } catch (e) {
+        console.error('Failed to refresh forms/folders', e);
+      } finally {
+        if (showSpinner) {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => { void refreshFormsAndFolders({ showSpinner: true }); }, [refreshFormsAndFolders]);
 
   // Client-side filtering is handled by the filteredForms useMemo, no API calls needed
 
@@ -255,9 +337,10 @@ const ManageForms = () => {
   const handleDelete = async (ids: string[]) => {
     setStatus('Deleting...');
     try {
-      await Promise.all(ids.map((id) => api.delete(`/v1/forms/${id}`)));
-      setAllForms((prev) => prev.filter((f) => !ids.includes(f.id)));
-      setSelectedRows((prev) => prev.filter((row) => !ids.includes(row.id)));
+  await Promise.all(ids.map((id) => api.delete(`/v1/forms/${id}`)));
+  setAllForms((prev) => prev.filter((f) => !ids.includes(f.id)));
+  setSelectedRows((prev) => prev.filter((row) => !ids.includes(row.id)));
+  await refreshFormsAndFolders();
       setStatus('Deleted');
     } catch (e) {
       console.error('Delete failed', e);
@@ -322,8 +405,8 @@ const ManageForms = () => {
             visible: !!form.visible,
             data: form.data?.data || form.data || [],
           });
+          await refreshFormsAndFolders();
           setStatus('Duplicated');
-          await fetchForms();
           return;
         } catch (err: any) {
           if (err?.response?.status === 409) {
@@ -343,8 +426,28 @@ const ManageForms = () => {
 
   const handleToggleVisible = async (id: string, visible: boolean) => {
     try {
-      await api.put(`/v1/forms/${id}`, { visible });
-      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
+      // If trying to enable visibility, ensure the form has a slug AND folder first
+      if (visible) {
+        const form = allForms.find((f) => f.id === id);
+        const hasSlug = !!(form && (form.slug || form.slug === 0));
+        const hasFolder = !!(form && form.folder);
+        
+        if (!hasSlug) {
+          setStatus('Please create a link/slug before making the form visible');
+          openCreateSlug(id, slugify((form && form.title) || ''), false);
+          return;
+        }
+        
+        if (!hasFolder) {
+          setStatus('Please assign a folder before making the form visible');
+          setFolderAssignmentTarget(id);
+          return;
+        }
+      }
+
+  await api.put(`/v1/forms/${id}`, { visible });
+  setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
+  await refreshFormsAndFolders();
     } catch (e) {
       console.error('Visibility update failed', e);
       setStatus('Visibility update failed');
@@ -360,9 +463,9 @@ const ManageForms = () => {
       .replace(/-+/g, '-');
   };
 
-  const openCreateSlug = (id: string, currentSlug?: string) => {
+  const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false) => {
     setSlugError(null);
-    setSlugDialog({ id, slug: currentSlug || '' });
+    setSlugDialog({ id, slug: currentSlug || '', isExisting });
   };
 
   const saveSlug = async () => {
@@ -371,8 +474,9 @@ const ManageForms = () => {
     const cleaned = slugify(slug);
     if (!cleaned) { setSlugError('Slug cannot be empty'); return; }
     try {
-      await api.put(`/v1/forms/${id}`, { slug: cleaned });
-      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
+  await api.put(`/v1/forms/${id}`, { slug: cleaned });
+  setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
+  await refreshFormsAndFolders();
       setSlugDialog(null);
     } catch (err: any) {
       if (err?.response?.status === 409) {
@@ -385,8 +489,9 @@ const ManageForms = () => {
 
   const handleRemoveSlug = async (id: string) => {
     try {
-      await api.put(`/v1/forms/${id}`, { slug: null });
-      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
+  await api.put(`/v1/forms/${id}`, { slug: null });
+  setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
+  await refreshFormsAndFolders();
     } catch (err) {
       setStatus('Failed to remove slug');
     }
@@ -395,8 +500,9 @@ const ManageForms = () => {
   const handleRename = async () => {
     if (!renameTarget) return;
     try {
-      await api.put(`/v1/forms/${renameTarget.id}`, { title: renameTarget.title });
-      setAllForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
+  await api.put(`/v1/forms/${renameTarget.id}`, { title: renameTarget.title });
+  setAllForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
+  await refreshFormsAndFolders();
       setRenameTarget(null);
     } catch (e: any) {
       console.error('Rename failed', e);
@@ -429,6 +535,7 @@ const ManageForms = () => {
       setAllForms((prev) => prev.map((f) =>
         f.id === duplicateNameDialog.existingId ? { ...f, title: duplicateNameDialog.newTitle } : f
       ));
+      await refreshFormsAndFolders();
       
       setDuplicateNameDialog(null);
       setRenameTarget(null);
@@ -444,8 +551,9 @@ const ManageForms = () => {
   const handleMove = async () => {
     if (!moveTargetIds || !moveToFolderId) return;
     try {
-      await Promise.all(moveTargetIds.map((id) => api.put(`/v1/forms/${id}`, { folder: moveToFolderId })));
-      setAllForms((prev) => prev.map((f) => (moveTargetIds.includes(f.id) ? { ...f, folder: moveToFolderId } : f)));
+  await Promise.all(moveTargetIds.map((id) => api.put(`/v1/forms/${id}`, { folder: moveToFolderId })));
+  setAllForms((prev) => prev.map((f) => (moveTargetIds.includes(f.id) ? { ...f, folder: moveToFolderId } : f)));
+  await refreshFormsAndFolders();
       setMoveTargetIds(null);
       setMoveToFolderId('');
     } catch (e) {
@@ -454,12 +562,88 @@ const ManageForms = () => {
     }
   };
 
+  const handleDeleteFolder = async (folder: { _id: string; name: string }, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setFolderToDelete(folder);
+  };
+
+  const confirmDeleteFolder = async () => {
+    if (!folderToDelete) return;
+
+    try {
+      // Delete the folder
+      await api.delete(`/v1/forms/folders/${folderToDelete._id}`);
+
+      // Update forms that had this folder: make them invisible and remove folder assignment
+      const affectedFormIds = allForms
+        .filter((f) => f.folder === folderToDelete._id)
+        .map((f) => f.id);
+
+      if (affectedFormIds.length > 0) {
+        await Promise.all(
+          affectedFormIds.map((id) =>
+            api.put(`/v1/forms/${id}`, { folder: null, visible: false })
+          )
+        );
+      }
+
+      // Update local state
+      setAllForms((prev) =>
+        prev.map((f) =>
+          f.folder === folderToDelete._id ? { ...f, folder: null, visible: false } : f
+        )
+      );
+
+      // Reset search folder if it was the deleted one
+      if (searchFolder === folderToDelete._id) {
+        setSearchFolder('all');
+      }
+
+  // Refresh forms and folders BEFORE closing dialog
+  await refreshFormsAndFolders();
+
+      setStatus(`Folder "${folderToDelete.name}" deleted. ${affectedFormIds.length} form(s) made invisible.`);
+      setTimeout(() => setStatus(null), 5000);
+    } catch (error) {
+      console.error('Failed to delete folder:', error);
+      setStatus('Failed to delete folder');
+    } finally {
+      setFolderToDelete(null);
+    }
+  };
+
+  const openFolderAssignment = async (formId: string) => {
+    setFolderAssignmentTarget(formId);
+    setAssignToFolderId('');
+    // Refresh folders list to ensure we show the latest
+    await fetchFolders();
+  };
+
+  const handleAssignFolder = async () => {
+    if (!folderAssignmentTarget || !assignToFolderId) return;
+
+    try {
+      await api.put(`/v1/forms/${folderAssignmentTarget}`, { folder: assignToFolderId });
+      setAllForms((prev) =>
+        prev.map((f) => (f.id === folderAssignmentTarget ? { ...f, folder: assignToFolderId } : f))
+      );
+      await refreshFormsAndFolders();
+      setFolderAssignmentTarget(null);
+      setAssignToFolderId('');
+      setStatus('Folder assigned successfully');
+      setTimeout(() => setStatus(null), 3000);
+    } catch (e) {
+      console.error('Failed to assign folder', e);
+      setStatus('Failed to assign folder');
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold mb-4">Forms</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchForms} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" onClick={() => refreshFormsAndFolders({ showSpinner: true })} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
           <Button onClick={() => navigate('/admin/forms/form-builder?new=1')}>
             <Pencil className="h-4 w-4 mr-2" /> New Form
           </Button>
@@ -477,21 +661,49 @@ const ManageForms = () => {
             onChange={(e) => setSearchName(e.target.value)}
             className="w-64 h-9 bg-background"
           />
-          <Select value={searchFolder} onValueChange={(v) => setSearchFolder(v)}>
-            <SelectTrigger className="w-56 h-9 bg-background">
-              <SelectValue placeholder="Filter by folder" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All folders</SelectItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-56 h-9 bg-background justify-between">
+                <span className="truncate">
+                  {searchFolder === 'all' 
+                    ? 'All folders' 
+                    : folders.find(f => f._id === searchFolder)?.name || 'Filter by folder'}
+                </span>
+                <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem
+                onClick={() => setSearchFolder('all')}
+                className={searchFolder === 'all' ? 'bg-accent' : ''}
+              >
+                All folders
+              </DropdownMenuItem>
+              {folders.length > 0 && <DropdownMenuSeparator />}
               {folders.map((f) => (
-                <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
+                <DropdownMenuItem
+                  key={f._id}
+                  onClick={() => setSearchFolder(f._id)}
+                  className={`flex justify-between items-center p-2 ${searchFolder === f._id ? 'bg-accent' : ''}`}
+                >
+                  <span className="flex-1 truncate">{f.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => handleDeleteFolder(f, e)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 ml-2 flex-shrink-0"
+                    title={`Delete folder "${f.name}"`}
+                  >
+                    <Trash className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuItem>
               ))}
-            </SelectContent>
-          </Select>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             className="h-9"
-            onClick={() => { setSearchName(''); setSearchFolder('all'); fetchForms(); }}
+            onClick={() => { setSearchName(''); setSearchFolder('all'); refreshFormsAndFolders(); }}
           >
             Clear
           </Button>
@@ -550,6 +762,8 @@ const ManageForms = () => {
                 setMoveToFolderId: () => setMoveToFolderId(''),
                 setConfirmDeleteIds,
                 handleToggleVisible,
+                slugify,
+                openFolderAssignment,
               }}
               pagination={true}
               paginationPageSizeSelector={[10, 20, 50]}
@@ -594,8 +808,8 @@ const ManageForms = () => {
       {/* Slug create/edit dialog */}
       <Dialog open={!!slugDialog} onOpenChange={(open) => { if (!open) setSlugDialog(null); }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{slugDialog?.slug ? 'Edit link' : 'Create link'}</DialogTitle>
+            <DialogHeader>
+            <DialogTitle>{slugDialog?.isExisting ? 'Edit link' : 'Create link'}</DialogTitle>
           </DialogHeader>
           <Input value={slugDialog?.slug || ''} onChange={(e) => setSlugDialog((s) => s ? ({ ...s, slug: e.target.value }) : s)} placeholder="Enter slug (letters, numbers, dashes)" />
           {slugError && <div className="text-xs text-destructive mt-2">{slugError}</div>}
@@ -605,6 +819,19 @@ const ManageForms = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Description view dialog */}
+      <AlertDialog open={!!viewDescription} onOpenChange={(open) => { if (!open) setViewDescription(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Description</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="p-2 text-sm text-muted-foreground">{viewDescription}</div>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setViewDescription(null)}>Ok</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Rename dialog */}
       <Dialog open={!!renameTarget} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>
@@ -643,6 +870,63 @@ const ManageForms = () => {
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setMoveTargetIds(null); setMoveToFolderId(''); }}>Cancel</Button>
             <Button disabled={!moveToFolderId} onClick={handleMove}>Move</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Folder deletion confirmation dialog */}
+      <AlertDialog open={!!folderToDelete} onOpenChange={(open) => { if (!open) setFolderToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete folder "{folderToDelete?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-2">
+                <p>This action cannot be undone. This will:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Permanently delete the folder</li>
+                  <li>Make all forms in this folder <strong>invisible</strong></li>
+                  <li>Remove folder assignment from affected forms</li>
+                </ul>
+                <p className="text-amber-600 dark:text-amber-500 font-medium mt-2">
+                  Forms will need to be reassigned to a folder before they can be made visible again.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFolderToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteFolder} className="bg-red-600 hover:bg-red-700">
+              Delete Folder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Folder assignment dialog */}
+      <Dialog open={!!folderAssignmentTarget} onOpenChange={(open) => { if (!open) { setFolderAssignmentTarget(null); setAssignToFolderId(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign folder to form</DialogTitle>
+          </DialogHeader>
+          {folders.length > 0 ? (
+            <Select value={assignToFolderId} onValueChange={(v) => setAssignToFolderId(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose folder" />
+              </SelectTrigger>
+              <SelectContent>
+                {folders.map((f) => (
+                  <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No folders available. Create a folder first from the Folders tab.
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setFolderAssignmentTarget(null); setAssignToFolderId(''); }}>Cancel</Button>
+            <Button disabled={!assignToFolderId} onClick={handleAssignFolder}>Assign</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

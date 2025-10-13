@@ -41,26 +41,26 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
   Future<void> _deleteFamilyMember(FamilyMember member) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Family Member'),
-            content: Text(
-              'Are you sure you want to delete ${member.fullName}?',
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        return AlertDialog(
+          title: const Text('Delete Family Member'),
+          content: Text('Are you sure you want to delete ${member.fullName}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: theme.colorScheme.error),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed == true) {
@@ -84,35 +84,38 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Family Members',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Family Members')),
       body: RefreshIndicator(
         onRefresh: _loadFamilyMembers,
         child:
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _familyMembers.isEmpty
-                ? const Center(
+                ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.family_restroom, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
+                      Icon(
+                        Icons.family_restroom,
+                        size: 64,
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
                         'No family members yet',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         'Tap the + button to add a family member',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        ),
                       ),
                     ],
                   ),
@@ -129,10 +132,10 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: cs.primary,
+                          backgroundColor: theme.colorScheme.primary,
                           child: Icon(
                             member.gender == 'M' ? Icons.male : Icons.female,
-                            color: Colors.white,
+                            color: theme.colorScheme.onPrimary,
                           ),
                         ),
                         title: Text(
@@ -153,15 +156,20 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                                     ],
                                   ),
                                 ),
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'delete',
                                   child: Row(
                                     children: [
-                                      Icon(Icons.delete, color: Colors.red),
-                                      SizedBox(width: 8),
+                                      Icon(
+                                        Icons.delete,
+                                        color: theme.colorScheme.error,
+                                      ),
+                                      const SizedBox(width: 8),
                                       Text(
                                         'Delete',
-                                        style: TextStyle(color: Colors.red),
+                                        style: TextStyle(
+                                          color: theme.colorScheme.error,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -189,7 +197,8 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                 ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: cs.primary,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
         onPressed: () async {
           final result = await Navigator.push(
             context,
@@ -197,7 +206,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
           );
           if (result == true) _loadFamilyMembers();
         },
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
       ),
     );
   }

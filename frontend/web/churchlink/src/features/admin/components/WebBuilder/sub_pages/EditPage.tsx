@@ -28,6 +28,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Input } from "@/shared/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import {
@@ -280,7 +281,12 @@ const EditPage = ({ onPageDataChange }: EditPageProps = {}) => {
 
   if (!slug) return <div className="text-red-500">Invalid page slug.</div>;
   if (loadError) return <div className="text-red-500">{loadError}</div>;
-  if (!pageData) return <div>Loading...</div>;
+  if (!pageData) return (
+    <div className="p-6">
+      <Skeleton className="h-8 w-1/3" />
+      <Skeleton className="h-48 w-full mt-2" />
+    </div>
+  );
 
   return (
     <WebBuilderLayout

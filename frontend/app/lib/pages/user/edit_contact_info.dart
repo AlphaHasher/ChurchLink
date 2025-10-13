@@ -100,17 +100,14 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final email = widget.user.email ?? '';
     final theme = Theme.of(context);
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Contact Info'),
-        backgroundColor: ssbcGray,
-      ),
-      body: AbsorbPointer(
-        absorbing: _loading,
-        child: Stack(
+      appBar: AppBar(title: const Text('Edit Contact Info')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
           children: [
             Form(
               key: _formKey,
@@ -152,111 +149,68 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                         labelText: 'Apt / Suite (optional)',
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: TextFormField(
-                            controller: _cityCtrl,
-                            textCapitalization: TextCapitalization.words,
-                            decoration: const InputDecoration(
-                              labelText: 'City',
-                            ),
-                            validator: (v) {
-                              final s = (v ?? '').trim();
-                              if (s.isEmpty) return 'City is required';
-                              return null;
-                            },
-                          ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _cityCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(labelText: 'City'),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            controller: _stateCtrl,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: const InputDecoration(
-                              labelText: 'State/Region',
-                            ),
-                            validator: (v) {
-                              final s = (v ?? '').trim();
-                              if (s.isEmpty) return 'Required';
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: TextFormField(
-                            controller: _countryCtrl,
-                            textCapitalization: TextCapitalization.words,
-                            decoration: const InputDecoration(
-                              labelText: 'Country',
-                            ),
-                            validator: (v) {
-                              final s = (v ?? '').trim();
-                              if (s.isEmpty) return 'Country is required';
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            controller: _postalCtrl,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: const InputDecoration(
-                              labelText: 'Postal Code',
-                            ),
-                            validator: (v) {
-                              final s = (v ?? '').trim();
-                              if (s.isEmpty) return 'Required';
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: ssbcGray,
-                        ),
-                        onPressed: _save,
-                        child:
-                            _loading
-                                ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Text('Save'),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _stateCtrl,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'State/Province',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _countryCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Country',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _postalCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Postal Code',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _save,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                      ),
+                      child: const Text('Save'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-
-            if (_loading)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Container(
-                    color: theme.colorScheme.surface.withOpacity(0.12),
-                  ),
-                ),
-              ),
           ],
         ),
       ),

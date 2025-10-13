@@ -8,6 +8,7 @@ import { ProfileEditDialog } from "@/features/users/components/Profile/ProfileEd
 import { MyEventsSection } from "@/features/events/components/MyEventsSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import Layout from "@/shared/layouts/Layout";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import { ProfileInfo, toContactInfo, toProfileInfo, ContactInfo } from "@/shared/types/ProfileInfo";
 import { getMyProfileInfo, getMyFamilyMembers } from "@/helpers/UserHelper";
@@ -75,7 +76,23 @@ const ProfilePage: React.FC = () => {
         setDialogOpen(true);
     };
 
-    if (loading) return <div>Loading...</div>;
+    const openMembershipDialog = async (resubmission: boolean) => {
+        const latest = await readMembershipDetails();
+        setDialogDetails(latest);
+        setDialogResubmission(resubmission);
+        setDialogOpen(true);
+    };
+
+    if (loading) return (
+        <Layout>
+            <div className="mx-auto max-w-5xl p-6">
+                <div className="space-y-4">
+                    <Skeleton className="h-10 w-1/3" />
+                    <Skeleton className="h-48 w-full" />
+                </div>
+            </div>
+        </Layout>
+    );
 
     if (!profile) {
         return (

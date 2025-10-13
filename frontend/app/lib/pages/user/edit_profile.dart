@@ -100,12 +100,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        backgroundColor: ssbcGray,
-      ),
+      appBar: AppBar(title: const Text('Edit Profile')),
       body:
           _loading
               ? const Center(child: CircularProgressIndicator())

@@ -167,6 +167,39 @@ class MyEventRef {
   }
 
   factory MyEventRef.fromJson(Map<String, dynamic> json) {
+    // Parse event details with better error handling
+    MyEventDetails? eventDetails;
+    if (json['event'] != null) {
+      try {
+        // Handle both Map<String, dynamic> and Map<dynamic, dynamic>
+        final eventData = json['event'];
+        print('DEBUG: event data type: ${eventData.runtimeType}');
+        if (eventData is Map) {
+          print('DEBUG: event data keys: ${eventData.keys}');
+        }
+
+        if (eventData is Map<String, dynamic>) {
+          eventDetails = MyEventDetails.fromJson(eventData);
+        } else if (eventData is Map) {
+          eventDetails = MyEventDetails.fromJson(
+            Map<String, dynamic>.from(eventData),
+          );
+        } else {
+          print(
+            'ERROR: event data is not a Map, it is: ${eventData.runtimeType}',
+          );
+        }
+      } catch (e, stackTrace) {
+        // Log the error but don't crash - event will be null
+        print('ERROR parsing event details: $e');
+        print('Stack trace: $stackTrace');
+        print('Event data was: ${json['event']}');
+        eventDetails = null;
+      }
+    } else {
+      print('WARNING: json["event"] is null for eventId: ${json['event_id']}');
+    }
+
     return MyEventRef(
       id: json['_id']?.toString() ?? '',
       eventId: json['event_id']?.toString() ?? '',
@@ -183,12 +216,7 @@ class MyEventRef {
           DateTime.tryParse(json['addedOn']?.toString() ?? '') ??
           DateTime.now(),
       displayName: json['display_name']?.toString(),
-      event:
-          json['event'] != null
-              ? MyEventDetails.fromJson(
-                Map<String, dynamic>.from(json['event']),
-              )
-              : null,
+      event: eventDetails,
       registrants:
           json['registrants'] != null
               ? List<String>.from(json['registrants'])
@@ -227,11 +255,17 @@ class MyEventsResponse {
       success: json['success'] == true,
       events:
           json['events'] != null
-              ? List<MyEventRef>.from(
-                json['events'].map(
-                  (x) => MyEventRef.fromJson(Map<String, dynamic>.from(x)),
-                ),
-              )
+              ? (json['events'] as List).map((x) {
+                // Handle the event data as-is without converting
+                // to preserve nested structures like the 'event' field
+                if (x is Map<String, dynamic>) {
+                  return MyEventRef.fromJson(x);
+                } else if (x is Map) {
+                  return MyEventRef.fromJson(Map<String, dynamic>.from(x));
+                } else {
+                  throw Exception('Invalid event data type: ${x.runtimeType}');
+                }
+              }).toList()
               : <MyEventRef>[],
     );
   }

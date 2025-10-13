@@ -32,6 +32,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         event_editing: false,
         event_management: false,
         sermon_editing: false,
+        bulletin_editing: false,
         media_management: false,
         layout_management: false,
     }
@@ -44,6 +45,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         sermon_editing: false,
         media_management: false,
         layout_management: false,
+        bulletin_editing: false,
     }
 
 

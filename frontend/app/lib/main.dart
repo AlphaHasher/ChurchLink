@@ -1,6 +1,7 @@
 import 'package:app/pages/bible.dart';
 import 'package:app/pages/dashboard.dart';
 import 'package:app/pages/sermons.dart';
+import 'package:app/pages/bulletins.dart';
 import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/user/user_settings.dart';
 import 'package:app/pages/joinlive.dart';
@@ -17,6 +18,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/services/FirebaseMessaging_service.dart';
 import 'package:provider/provider.dart';
 import 'package:app/providers/sermons_provider.dart';
+import 'package:app/providers/bulletins_provider.dart';
 import 'package:app/providers/tab_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/services/deep_linking_service.dart';
@@ -94,7 +96,8 @@ Future<void> main() async {
             return provider;
           },
         ),
-        
+        ChangeNotifierProvider(create: (_) => SermonsProvider()),
+        ChangeNotifierProvider(create: (_) => BulletinsProvider()),
       ],
       child: const MyApp(),
     ),
@@ -200,6 +203,8 @@ class _MyHomePageState extends State<MyHomePage> {
         return const BiblePage();
       case 'sermons':
         return const SermonsPage();
+      case 'bulletins':
+        return const BulletinsPage();
       case 'events':
         return const EventsPage();
       case 'profile':
@@ -228,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final tabs = tabProvider.tabs; 
+    final tabs = tabProvider.tabs;
     final List<Widget> tabRoots = tabs
         .map((t) => _getScreenForTab((t['name'] as String).toLowerCase()))
         .toList();
@@ -314,6 +319,9 @@ class _MyHomePageState extends State<MyHomePage> {
         return Icon(
           Icons.church,
         );
+      case 'description':
+      case 'bulletins':
+        return Icon(Icons.description);
       case 'event':
       case 'events':
         return Icon(
@@ -369,6 +377,8 @@ class _MyHomePageState extends State<MyHomePage> {
         return Icon(
           Icons.church,
         );
+      case 'bulletins':
+        return Icon(Icons.description);
       case 'events':
         return Icon(
           Icons.event,

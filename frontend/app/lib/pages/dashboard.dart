@@ -1,4 +1,4 @@
-import 'package:app/pages/weeklybulletin.dart';
+import 'package:app/pages/bulletins.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:app/pages/joinlive.dart';
@@ -153,7 +153,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             Navigator.push(
                               ctx,
                               CupertinoPageRoute(
-                                builder: (_) => const WeeklyBulletin(),
+                                builder: (_) => const BulletinsPage(),
                               ),
                             );
                           },
