@@ -198,7 +198,6 @@ const renderNode = (
       const Tag = ['h1', 'h2', 'h3'].includes(variant) ? (variant as any) : 'p';
 
       // Build text style classes
-      const isBold = textStyles.includes('bold');
       const isItalic = textStyles.includes('italic');
       const isUnderline = textStyles.includes('underline');
       
@@ -253,7 +252,6 @@ const renderNode = (
             className={cn(
               align === 'center' && 'text-center',
               align === 'right' && 'text-right',
-              isBold && 'font-bold',
               isItalic && 'italic',
               isUnderline && 'underline',
               nodeClassName

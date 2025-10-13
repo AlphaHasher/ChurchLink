@@ -82,6 +82,8 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
   const textStyles = (node.style as any)?.textStyles || [];
 
   const handleStyleToggle = (values: string[]) => {
+    const wasBold = textStyles.includes('bold');
+    const nowBold = values.includes('bold');
     const before = { ...node };
     onUpdate((n) =>
       n.type === 'text'
@@ -90,6 +92,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
             style: {
               ...(n.style || {}),
               textStyles: values,
+              ...(nowBold && !wasBold ? { fontWeight: 700 } : {}),
             },
           } as Node)
         : n
@@ -97,7 +100,19 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
     const sectionId = BuilderState.selection?.sectionId;
     const nodeId = BuilderState.selection?.nodeId;
     if (sectionId && nodeId) {
-      BuilderState.pushNode(sectionId, nodeId, before, { ...node, style: { ...(node.style || {}), textStyles: values } });
+      BuilderState.pushNode(
+        sectionId,
+        nodeId,
+        before,
+        {
+          ...node,
+          style: {
+            ...(node.style || {}),
+            textStyles: values,
+            ...(nowBold && !wasBold ? { fontWeight: 700 } : {}),
+          },
+        }
+      );
     }
   };
 
@@ -306,7 +321,8 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
             min={100}
             max={900}
             step={100}
-            value={(node.style as any)?.fontWeight ?? 400}
+            value={Math.round((node.style as any)?.fontWeight ?? 400)}
+            disabled={textStyles.includes('bold')}
             onChange={(val) =>
               onUpdate((n) =>
                 n.type === 'text'
@@ -314,7 +330,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
                       ...n,
                       style: {
                         ...(n.style || {}),
-                        fontWeight: val,
+                        fontWeight: Math.round(val),
                       },
                     } as Node)
                   : n
