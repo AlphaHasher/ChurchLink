@@ -8,9 +8,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   const apiHost = env.VITE_API_HOST
-  const allowedHosts = (env.VITE_ALLOWED_HOSTS)
-    .split(',')
-    .map(h => h.trim())
+  const allowedHosts = env.VITE_ALLOWED_HOSTS
+    ? env.VITE_ALLOWED_HOSTS
+        .split(',')
+        .map(h => h.trim())
+        .filter(Boolean)
+    : undefined
 
   return {
     plugins: [
@@ -27,19 +30,21 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      allowedHosts,
-      proxy: {
-        '/api': {
-          target: apiHost,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '/api'),
+      ...(allowedHosts ? { allowedHosts } : {}),
+      ...(apiHost ? {
+        proxy: {
+          '/api': {
+            target: apiHost,
+            changeOrigin: true,
+            rewrite: (p) => p.replace(/^\/api/, '/api'),
+          },
         },
-      },
+      } : {}),
     },
     preview: {
       port: 3000,
       host: '0.0.0.0',
-      allowedHosts,
+      ...(allowedHosts ? { allowedHosts } : {}),
     },
   }
 })

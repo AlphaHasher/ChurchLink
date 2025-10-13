@@ -292,22 +292,24 @@ export function Inspector() {
       )}
       {/* Removed base Label input; use Localization cards below to manage label per language */}
       {field.type !== 'price' && (
-        <div className="space-y-1 border rounded p-3 bg-card">O
+        <div className="space-y-1 border rounded p-3 bg-card">
           <Label>Component Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
         </div>
-        )}
-        {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
-        {field.type === "price" && (
-          <div className="space-y-1">
-            <Label>Amount</Label>
-            <Input type="number" value={(field as any).amount ?? 0}
-                   onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
-            <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
-          </div>
-        )}
-        {field.type !== 'price' && field.type !== 'static' && (
       )}
+        {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
+      {field.type === "price" && (
+        <div className="space-y-1">
+          <Label>Amount</Label>
+          <Input
+            type="number"
+            value={(field as any).amount ?? 0}
+            onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)}
+          />
+          <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
+        </div>
+      )}
+
       {/* Removed base Placeholder input; use Localization cards to manage placeholders per locale */}
       {field.type === "price" && (
         <div className="space-y-1 border rounded p-3 bg-card">

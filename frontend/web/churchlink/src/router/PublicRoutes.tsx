@@ -10,7 +10,6 @@ const PaypalThankYouPage = lazy(() => import("../features/paypal/pages/thank-you
 const FormPublicPage = lazy(() => import("../features/forms/pages/FormPublic"));
 const SermonsPage = lazy(() => import("../features/sermons/pages/SermonsPage"));
 const BulletinsPage = lazy(() => import("../features/bulletins/pages/BulletinsPage"));
-const FormPublicPage = lazy(() => import("../features/forms/pages/FormPublic"));
 
 export const PublicRoutes = () => {
   return (
