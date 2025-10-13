@@ -84,17 +84,15 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: ssbcGray,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'Family Members',
           style: TextStyle(color: Colors.white),
         ),
       ),
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
       body: RefreshIndicator(
         onRefresh: _loadFamilyMembers,
         child:
@@ -131,7 +129,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: ssbcGray,
+                          backgroundColor: cs.primary,
                           child: Icon(
                             member.gender == 'M' ? Icons.male : Icons.female,
                             color: Colors.white,
@@ -191,7 +189,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                 ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: ssbcGray,
+        backgroundColor: cs.primary,
         onPressed: () async {
           final result = await Navigator.push(
             context,

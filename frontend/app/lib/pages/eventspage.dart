@@ -471,15 +471,11 @@ END:VCALENDAR
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
+      key: const ValueKey('screen-events'),
       appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Padding(
-          padding: EdgeInsets.only(left: 100),
-          child: Text("Events", style: TextStyle(color: Colors.white)),
-        ),
+        centerTitle: true,
+        title: const Text('Events'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -487,7 +483,6 @@ END:VCALENDAR
           },
         ),
       ),
-      backgroundColor: const Color.fromARGB(255, 240, 240, 240),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
         child: SingleChildScrollView(
@@ -535,7 +530,6 @@ END:VCALENDAR
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromARGB(255, 142, 163, 168),
         child: const Icon(Icons.filter_list),
         onPressed: () => _showFilterSheet(context),
       ),

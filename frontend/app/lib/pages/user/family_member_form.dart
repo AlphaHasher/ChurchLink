@@ -108,17 +108,12 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           widget.member == null ? 'Add Family Member' : 'Edit Family Member',
-          style: const TextStyle(color: Colors.white),
         ),
       ),
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -186,10 +181,6 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                               ? 'Select date'
                               : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                           style: TextStyle(
-                            color:
-                                _selectedDate == null
-                                    ? Colors.grey
-                                    : Colors.black,
                           ),
                         ),
                       ),
@@ -202,8 +193,6 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
             ElevatedButton(
               onPressed: _isLoading ? null : _saveFamilyMember,
               style: ElevatedButton.styleFrom(
-                backgroundColor: ssbcGray,
-                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -215,7 +204,6 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
                           strokeWidth: 2,
                         ),
                       )
