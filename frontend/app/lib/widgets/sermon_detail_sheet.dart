@@ -1,6 +1,7 @@
 import 'package:app/models/sermon.dart';
 import 'package:app/providers/sermons_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 
@@ -8,8 +9,6 @@ class SermonDetailSheet extends StatelessWidget {
   const SermonDetailSheet({super.key, required this.sermonId});
 
   final String sermonId;
-
-  static const Color _accentColor = Color.fromARGB(255, 142, 163, 168);
 
   @override
   Widget build(BuildContext context) {
@@ -43,9 +42,9 @@ class SermonDetailSheet extends StatelessWidget {
                 ),
                 child: Container(
                   width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(24),
                     ),
                   ),
@@ -70,6 +69,42 @@ class SermonDetailSheet extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (current.resolvedThumbnailUrl != null)
+                            AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  current.resolvedThumbnailUrl!,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (context, error, stackTrace) => Container(
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.play_circle_outline,
+                                            size: 56,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withOpacity(0.4),
+                                          ),
+                                        ),
+                                      ),
+                                ),
+                              ),
+                            ),
+                          if (current.resolvedThumbnailUrl != null)
+                            const SizedBox(height: 16),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -119,11 +154,16 @@ class SermonDetailSheet extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
                           Text(
                             'with ${current.speaker}',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(color: Colors.grey[700]),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.7),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Wrap(
@@ -136,7 +176,10 @@ class SermonDetailSheet extends StatelessWidget {
                                   Icons.calendar_today,
                                   size: 16,
                                 ),
-                                backgroundColor: _accentColor.withOpacity(0.12),
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.12),
+                                side: BorderSide.none,
                               ),
                               if (current.duration != null)
                                 Chip(
@@ -144,16 +187,18 @@ class SermonDetailSheet extends StatelessWidget {
                                     '${current.duration!.inMinutes} min',
                                   ),
                                   avatar: const Icon(Icons.schedule, size: 16),
-                                  backgroundColor: _accentColor.withOpacity(
-                                    0.12,
-                                  ),
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withOpacity(0.12),
+                                  side: BorderSide.none,
                                 ),
                               ...current.ministry.map(
                                 (ministry) => Chip(
                                   label: Text(ministry),
-                                  backgroundColor: _accentColor.withOpacity(
-                                    0.15,
-                                  ),
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withOpacity(0.15),
+                                  side: BorderSide.none,
                                 ),
                               ),
                             ],
@@ -188,8 +233,24 @@ class SermonDetailSheet extends StatelessWidget {
                             icon: const Icon(Icons.play_circle_fill),
                             label: const Text('Watch on YouTube'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _accentColor,
-                              foregroundColor: Colors.white,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: () => _shareLink(context, current),
+                            icon: const Icon(Icons.content_copy),
+                            label: const Text('Copy Link'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
@@ -214,6 +275,34 @@ class SermonDetailSheet extends StatelessWidget {
     }
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       _showError(context, message: 'Could not open the video link.');
+    }
+  }
+
+  Future<void> _shareLink(BuildContext context, Sermon sermon) async {
+    final shareText =
+        '${sermon.title}\n\nWatch on YouTube: ${sermon.youtubeUrl}';
+
+    try {
+      await Clipboard.setData(ClipboardData(text: shareText));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Link copied to clipboard!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showError(context, message: 'Could not share the link.');
+      }
     }
   }
 

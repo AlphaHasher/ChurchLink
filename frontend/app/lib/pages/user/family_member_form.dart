@@ -108,12 +108,18 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
+        //backgroundColor: ssbcGray,
+        //iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           widget.member == null ? 'Add Family Member' : 'Edit Family Member',
         ),
       ),
+      //backgroundColor: const Color.fromARGB(255, 245, 245, 245),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -174,13 +180,21 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                       child: InputDecorator(
                         decoration: const InputDecoration(
                           labelText: 'Date of Birth',
-                          border: OutlineInputBorder(),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
                         ),
                         child: Text(
                           _selectedDate == null
                               ? 'Select date'
                               : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                           style: TextStyle(
+                            color:
+                                _selectedDate == null
+                                    ? theme.colorScheme.onSurface.withOpacity(
+                                      0.5,
+                                    )
+                                    : theme.colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -193,6 +207,8 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
             ElevatedButton(
               onPressed: _isLoading ? null : _saveFamilyMember,
               style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -200,10 +216,11 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
               ),
               child:
                   _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
+                          color: theme.colorScheme.onPrimary,
                           strokeWidth: 2,
                         ),
                       )

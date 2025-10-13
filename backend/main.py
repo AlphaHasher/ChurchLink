@@ -37,6 +37,7 @@ from routes.bible_routes.bible_plan_notification_routes import bible_notificatio
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
+from routes.common_routes.bulletin_routes import bulletin_editing_router, public_bulletin_router, service_bulletin_editing_router, public_service_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_mod_router, user_private_router
 from routes.common_routes.youtube_routes import public_youtube_router
@@ -61,7 +62,6 @@ from routes.translator_routes import translator_router
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
-
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -233,6 +233,8 @@ public_router = APIRouter(prefix="/api/v1")
 
 public_router.include_router(public_event_router)
 public_router.include_router(public_sermon_router)
+public_router.include_router(public_bulletin_router)
+public_router.include_router(public_service_router)
 public_router.include_router(public_youtube_router)
 public_router.include_router(public_footer_router)
 public_router.include_router(public_header_router)
@@ -293,6 +295,12 @@ sermon_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["S
 
 sermon_editing_protected_router.include_router(sermon_editing_router)
 
+# BULLETIN EDITING CORE
+bulletin_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Bulletins"], required_perms=["bulletin_editing"])
+
+bulletin_editing_protected_router.include_router(bulletin_editing_router)
+bulletin_editing_protected_router.include_router(service_bulletin_editing_router)
+
 # PERMISSIONS MANAGEMENT CORE
 permissions_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["permissions"], required_perms=['permissions_management'])
 
@@ -310,6 +318,7 @@ app.include_router(private_router)
 app.include_router(mod_router)
 app.include_router(event_editing_protected_router)
 app.include_router(sermon_editing_protected_router)
+app.include_router(bulletin_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
 
