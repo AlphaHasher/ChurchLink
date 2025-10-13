@@ -70,6 +70,7 @@ function EventRegistrationForm({
       display_name: string;
       registered_on: string;
       kind: "rsvp";
+      scope?: "series" | "occurrence";
     }>;
     total_registrations: number;
     available_spots: number;
@@ -87,6 +88,13 @@ function EventRegistrationForm({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [me, setMe] = useState<{ first: string; last: string } | null>(null);
+  
+  // Per-person scope selection (series = recurring, occurrence = one-time)
+  const [personScopes, setPersonScopes] = useState<Record<string, "series" | "occurrence">>({});
+  const [selfScope, setSelfScope] = useState<"series" | "occurrence">("series");
+  
+  // Check if event is recurring
+  const isRecurring = event.recurring && event.recurring !== "never";
 
   /** ---------- INLINE ADD PERSON (schema-conformant) ---------- **/
   const [showAdd, setShowAdd] = useState(false);
@@ -124,14 +132,28 @@ function EventRegistrationForm({
         const last = p.last_name ?? "";
         setMe(first || last ? { first, last } : null);
 
+        // Set the summary first so registeredSet memo works correctly
+        setSummary(regRes.data);
+
         const current = new Set<string>();
         let selfIsRegistered = false;
+        const scopes: Record<string, "series" | "occurrence"> = {};
+        let selfScopeValue: "series" | "occurrence" = "series";
+        
         (regRes.data?.user_registrations ?? []).forEach((r: any) => {
-          if (r.person_id) current.add(r.person_id);
-          else selfIsRegistered = true;
+          if (r.person_id) {
+            current.add(r.person_id);
+            scopes[r.person_id] = r.scope || "series";
+          } else {
+            selfIsRegistered = true;
+            selfScopeValue = r.scope || "series";
+          }
         });
+        
         setSelectedIds(current);
         setSelfSelected(selfIsRegistered);
+        setPersonScopes(scopes);
+        setSelfScope(selfScopeValue);
       } catch (e) {
         console.error("Failed to load registration form data:", e);
       } finally {
@@ -176,7 +198,9 @@ function EventRegistrationForm({
 
   useEffect(() => {
     const errs: Record<string, string | null> = {};
-    for (const p of people) errs[p.id] = validatePersonForEvent(p, event);
+    for (const p of people) {
+      errs[p.id] = validatePersonForEvent(p, event);
+    }
     errs["__self__"] = null;
     setErrors(errs);
   }, [people, event]);
@@ -184,28 +208,24 @@ function EventRegistrationForm({
   const togglePerson = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // Initialize scope to series if not set
+        if (!personScopes[id]) {
+          setPersonScopes((prev) => ({ ...prev, [id]: "series" }));
+        }
+      }
       return next;
     });
   };
-
-  const removeRegistered = async (personId: string | null) => {
-    try {
-      setSaving(true);
-      if (personId === null) {
-        await api.delete(`/v1/event-people/unregister/${event.id}`);
-      } else {
-        await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${personId}`);
-      }
-      const regRes = await api.get(`/v1/events/${event.id}/registrations/summary`);
-      setSummary(regRes.data);
-      if (personId === null) setSelfSelected(false);
-      else setSelectedIds((prev) => { const n = new Set(prev); n.delete(personId); return n; });
-    } catch {
-      alert("Failed to remove registration.");
-    } finally {
-      setSaving(false);
-    }
+  
+  const togglePersonScope = (id: string) => {
+    setPersonScopes((prev) => ({
+      ...prev,
+      [id]: prev[id] === "series" ? "occurrence" : "series",
+    }));
   };
 
   const createOrUpdate = async () => {
@@ -219,8 +239,31 @@ function EventRegistrationForm({
 
       const toAdd: string[] = [];
       const toRemove: string[] = [];
-      want.forEach((id) => !have.has(id) && toAdd.push(id));
+      const toUpdateScope: string[] = [];
+      
+      // Check for new registrations and scope changes
+      want.forEach((id) => {
+        if (!have.has(id)) {
+          toAdd.push(id);
+        } else {
+          // Check if scope changed for existing registration
+          const currentReg = summary?.user_registrations?.find(r => r.person_id === id);
+          const currentScope = currentReg?.scope || "series";
+          const desiredScope = personScopes[id] || "series";
+          if (currentScope !== desiredScope) {
+            toUpdateScope.push(id);
+          }
+        }
+      });
       have.forEach((id) => !want.has(id) && toRemove.push(id));
+
+      // Check if self scope changed
+      let selfScopeChanged = false;
+      if (wantSelf && haveSelf) {
+        const currentSelfReg = summary?.user_registrations?.find(r => r.person_id === null);
+        const currentSelfScope = currentSelfReg?.scope || "series";
+        selfScopeChanged = currentSelfScope !== selfScope;
+      }
 
       if (wantSelf && errors["__self__"]) {
         alert(`Cannot register yourself: ${errors["__self__"]}`);
@@ -234,18 +277,46 @@ function EventRegistrationForm({
         return;
       }
 
-      if (wantSelf && !haveSelf) await api.post(`/v1/event-people/register/${event.id}`);
-      else if (!wantSelf && haveSelf) await api.delete(`/v1/event-people/unregister/${event.id}`);
-
-      for (const id of toAdd) {
-        await api.post(`/v1/event-people/register/${event.id}/family-member/${id}`);
+      // Handle self registration/unregistration
+      if (wantSelf && !haveSelf) {
+        await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
+      } else if (!wantSelf && haveSelf) {
+        // Unregister with old scope (or null to remove all)
+        await api.delete(`/v1/event-people/unregister/${event.id}`);
+      } else if (selfScopeChanged && wantSelf && haveSelf) {
+        // Update self scope: remove old scope, add new scope
+        const oldScope = summary?.user_registrations?.find(r => r.person_id === null)?.scope || "series";
+        await api.delete(`/v1/event-people/unregister/${event.id}?scope=${oldScope}`);
+        await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
       }
+
+      // Add new registrations
+      for (const id of toAdd) {
+        const scope = personScopes[id] || "series";
+        await api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${scope}`);
+      }
+      
+      // Remove registrations
       for (const id of toRemove) {
+        // Remove all scopes for this person
         await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}`);
       }
+      
+      // Update scope for existing registrations (remove old scope, add new scope)
+      for (const id of toUpdateScope) {
+        const oldScope = summary?.user_registrations?.find(r => r.person_id === id)?.scope || "series";
+        const newScope = personScopes[id] || "series";
+        await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}?scope=${oldScope}`);
+        await api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${newScope}`);
+      }
+
+      // Refetch the summary to update the registered state
+      const regRes = await api.get(`/v1/events/${event.id}/registrations/summary`);
+      setSummary(regRes.data);
 
       onSaved();
-    } catch {
+    } catch (error) {
+      console.error("Registration update error:", error);
       alert("Failed to update registration.");
     } finally {
       setSaving(false);
@@ -319,34 +390,6 @@ function EventRegistrationForm({
         </button>
       </div>
 
-      {/* Already registered */}
-      <div>
-        <h4 className="font-medium mb-2">Already Registered</h4>
-        {summary?.user_registrations?.length ? (
-          <div className="space-y-2">
-            {summary.user_registrations.map((r) => (
-              <div key={`${r.person_id ?? "__self__"}`} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <div className="font-medium">{r.display_name}</div>
-                  <div className="text-xs text-gray-500">
-                    Registered on {new Date(r.registered_on).toLocaleString()}
-                  </div>
-                </div>
-                <button
-                  disabled={saving}
-                  className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-                  onClick={() => removeRegistered(r.person_id)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">No one is registered yet.</div>
-        )}
-      </div>
-
       {/* Add Person CTA + Inline form */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">Need to add a new Event Person?</div>
@@ -412,19 +455,29 @@ function EventRegistrationForm({
         <h4 className="font-medium mb-2">Choose from your saved Event People</h4>
 
         {/* Self */}
-        <label className="flex items-center gap-3 rounded-lg border p-3 mb-2">
+        <div className="flex items-center gap-3 rounded-lg border p-3 mb-2">
           <input
             type="checkbox"
             checked={selfSelected}
             onChange={(e) => setSelfSelected(e.target.checked)}
           />
-          <div>
+          <div className="flex-1">
             <div className="font-medium">
               {me ? `${me.first} ${me.last} (you)` : "You"}
             </div>
             {errors["__self__"] && <div className="text-sm text-red-600">{errors["__self__"]}</div>}
           </div>
-        </label>
+          {isRecurring && selfSelected && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={selfScope === "series"}
+                onChange={() => setSelfScope(selfScope === "series" ? "occurrence" : "series")}
+              />
+              <span className="text-gray-700">Register for all occurrences</span>
+            </label>
+          )}
+        </div>
 
         {/* Family */}
         <div className="space-y-2">
@@ -434,13 +487,14 @@ function EventRegistrationForm({
             people.map((p) => {
               const checked = selectedIds.has(p.id);
               const err = errors[p.id];
+              const scope = personScopes[p.id] || "series";
               return (
-                <label
+                <div
                   key={p.id}
                   className={`flex items-center gap-3 rounded-lg border p-3 ${err ? "border-red-300 bg-red-50" : ""}`}
                 >
                   <input type="checkbox" checked={checked} onChange={() => togglePerson(p.id)} />
-                  <div>
+                  <div className="flex-1">
                     <div className="font-medium">
                       {p.first_name} {p.last_name}
                     </div>
@@ -449,7 +503,17 @@ function EventRegistrationForm({
                     )}
                     {err && <div className="text-sm text-red-600">{err}</div>}
                   </div>
-                </label>
+                  {isRecurring && checked && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={scope === "series"}
+                        onChange={() => togglePersonScope(p.id)}
+                      />
+                      <span className="text-gray-700">Register for all occurrences</span>
+                    </label>
+                  )}
+                </div>
               );
             })
           )}

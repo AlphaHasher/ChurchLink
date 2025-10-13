@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from mongo.scheduled_notifications import scheduled_notification_loop
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
+from helpers.event_cleanup_scheduler import event_cleanup_loop
 import asyncio
 import os
 import logging
@@ -131,6 +132,11 @@ async def lifespan(app: FastAPI):
         await initialize_bible_plan_notifications()
         logger.info("Bible plan notification system started")
 
+        # Run Event Cleanup Scheduler loop
+        logger.info("Starting event cleanup scheduler...")
+        eventCleanupTask = asyncio.create_task(event_cleanup_loop(DatabaseManager.db))
+        logger.info("Event cleanup scheduler started")
+
         logger.info("Application startup completed successfully")
         yield
 
@@ -138,6 +144,7 @@ async def lifespan(app: FastAPI):
         logger.info("Shutting down application...")
         youtubeSubscriptionCheck.cancel()
         scheduledNotifTask.cancel()
+        eventCleanupTask.cancel()
         DatabaseManager.close_db()
         logger.info("Application shutdown completed")
 

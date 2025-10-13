@@ -95,13 +95,14 @@ async def process_delete_event(event_id:str, request:Request):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     return {"message": "Event deleted successfully", "success": True}
 
-async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None):
+async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None, scope: str = "series"):
     """
     High-level action: RSVP an event *and* reflect it in the user's my_events.
+    scope: "series" for recurring registration, "occurrence" for one-time registration
     """
     # Convert person_id to ObjectId if provided
     person_object_id = ObjectId(person_id) if person_id else None
-    ok = await rsvp_add_person(event_id, uid, person_object_id, display_name)
+    ok = await rsvp_add_person(event_id, uid, person_object_id, display_name, kind="rsvp", scope=scope)
     if not ok:
         return False
 
@@ -110,36 +111,50 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
             uid=uid,
             event_id=ObjectId(event_id),
             reason="rsvp",
-            scope="series",  # or "occurrence" depending on your model
+            scope=scope,
             person_id=person_object_id
         )
     except Exception as e:
-        # Event RSVP succeeded, but user record failed.
-        # Log this for reconciliation later.
+        # Event RSVP succeeded, but user record failed
         print(f"Warning: user my_events update failed: {e}")
 
     return True
 
 
-async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None):
+async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, scope: Optional[str] = None):
     """
     High-level action: cancel RSVP from event + user my_events.
+    If scope is None, removes all registrations for this person (both occurrence and series).
+    If scope is specified, only removes that specific scope registration.
     """
     # Convert person_id to ObjectId if provided
     person_object_id = ObjectId(person_id) if person_id else None
-    ok = await rsvp_remove_person(event_id, uid, person_object_id)
+    ok = await rsvp_remove_person(event_id, uid, person_object_id, kind="rsvp", scope=scope)
     if not ok:
         return False
 
     try:
-        await UserHandler.remove_from_my_events(
+        # Try to remove from my_events with the specified scope
+        removed = await UserHandler.remove_from_my_events(
             uid=uid,
             event_id=ObjectId(event_id),
             reason="rsvp",
-            scope="series",
+            scope=scope,
             person_id=person_object_id,
         )
+        
+        if not removed and scope is not None:
+            # FALLBACK: Try the opposite scope if the specified one wasn't found
+            opposite_scope = 'occurrence' if scope == 'series' else 'series'
+            removed = await UserHandler.remove_from_my_events(
+                uid=uid,
+                event_id=ObjectId(event_id),
+                reason="rsvp",
+                scope=opposite_scope,
+                person_id=person_object_id,
+            )
     except Exception as e:
         print(f"Warning: user my_events cleanup failed: {e}")
+    
     return True
 

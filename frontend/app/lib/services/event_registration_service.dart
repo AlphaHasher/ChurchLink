@@ -5,9 +5,11 @@ class EventRegistrationService {
   /// Register user or family member for an event
   /// If familyMemberId is null, registers the current user
   /// If familyMemberId is provided, registers that family member
+  /// scope: "series" for recurring registration, "occurrence" for one-time registration
   static Future<bool> registerForEvent({
     required String eventId,
     String? familyMemberId,
+    String scope = 'series',
   }) async {
     try {
       final String endpoint;
@@ -18,7 +20,10 @@ class EventRegistrationService {
         endpoint = '/v1/event-people/register/$eventId';
       }
 
-      final response = await api.post(endpoint);
+      final response = await api.post(
+        endpoint,
+        queryParameters: {'scope': scope},
+      );
       return response.data['success'] == true;
     } catch (e) {
       throw Exception('Failed to register for event: $e');
@@ -28,9 +33,12 @@ class EventRegistrationService {
   /// Unregister user or family member from an event
   /// If familyMemberId is null, unregisters the current user
   /// If familyMemberId is provided, unregisters that family member
+  /// scope: Optional - if provided, only removes that specific scope registration
+  ///        if null, removes all registrations (both occurrence and series)
   static Future<bool> unregisterFromEvent({
     required String eventId,
     String? familyMemberId,
+    String? scope,
   }) async {
     try {
       final String endpoint;
@@ -41,7 +49,11 @@ class EventRegistrationService {
         endpoint = '/v1/event-people/unregister/$eventId';
       }
 
-      final response = await api.delete(endpoint);
+      final queryParams = scope != null ? {'scope': scope} : null;
+      final response = await api.delete(
+        endpoint,
+        queryParameters: queryParams,
+      );
       return response.data['success'] == true;
     } catch (e) {
       throw Exception('Failed to unregister from event: $e');

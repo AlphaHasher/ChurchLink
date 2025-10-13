@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
-import '../models/family_member.dart';
 import '../models/event_registration_summary.dart';
-import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
+import '../services/my_events_service.dart';
 import '../providers/tab_provider.dart';
-import 'user/family_members_page.dart';
+import 'event_registration_page.dart';
 import '../helpers/strapi_helper.dart';
 
 class EventShowcase extends StatefulWidget {
@@ -20,13 +19,12 @@ class EventShowcase extends StatefulWidget {
 }
 
 class _EventShowcaseState extends State<EventShowcase> {
-  List<FamilyMember> _familyMembers = [];
-  final Set<String> _selectedRegistrants = {};
-  bool _isRegistering = false;
-  bool _isUserRegistered = false;
-  Map<String, bool> _familyMemberRegistrations = {};
   EventRegistrationSummary? _registrationSummary;
   late Stream<User?> _authStateStream;
+  bool _isInMyEvents = false;
+  String? _myEventsScope;
+  bool _isLoadingMyEventsStatus = false;
+  bool _isRegistering = false;
 
   @override
   void initState() {
@@ -38,10 +36,8 @@ class _EventShowcaseState extends State<EventShowcase> {
         // User logged out, clear all family data
         if (mounted) {
           setState(() {
-            _familyMembers = [];
-            _familyMemberRegistrations = {};
-            _isUserRegistered = false;
-            _selectedRegistrants.clear();
+            _isInMyEvents = false;
+            _myEventsScope = null;
           });
         }
       }
@@ -59,110 +55,9 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
 
     await Future.wait([
-      _loadFamilyMembers(),
-      _checkRegistrationStatus(),
       _loadRegistrationDetails(),
+      _checkMyEventsStatus(),
     ]);
-  }
-
-  Future<void> _loadFamilyMembers() async {
-    // Check authentication before loading family members
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      // Clear any existing family member data when user is not authenticated
-      setState(() {
-        _familyMembers = [];
-        _familyMemberRegistrations = {};
-      });
-      return;
-    }
-
-    try {
-      final members = await FamilyMemberService.getFamilyMembers();
-      if (mounted) {
-        setState(() {
-          _familyMembers = members;
-        });
-
-        // Check registration status for each family member
-        await _checkFamilyMemberRegistrations();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load family members: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _checkRegistrationStatus() async {
-    // Check authentication before checking registration status
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => _isUserRegistered = false);
-      return;
-    }
-
-    try {
-      final isRegistered = await EventRegistrationService.isUserRegistered(
-        widget.event.id,
-      );
-      if (mounted) {
-        setState(() => _isUserRegistered = isRegistered);
-      }
-    } catch (e) {
-      debugPrint('Failed to check user registration status: $e');
-    }
-  }
-
-  Future<void> _checkFamilyMemberRegistrations() async {
-    // Check authentication before checking family member registrations
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => _familyMemberRegistrations = {});
-      return;
-    }
-
-    if (_familyMembers.isEmpty) {
-      setState(() => _familyMemberRegistrations = {});
-      return;
-    }
-
-    try {
-      // Use new bulk endpoint for better performance
-      final familyMemberIds = _familyMembers.map((m) => m.id).toList();
-      final registrations =
-          await EventRegistrationService.areFamilyMembersRegistered(
-            eventId: widget.event.id,
-            familyMemberIds: familyMemberIds,
-          );
-
-      if (mounted) {
-        setState(() => _familyMemberRegistrations = registrations);
-      }
-    } catch (e) {
-      debugPrint('Bulk check failed, falling back to individual checks: $e');
-
-      // Fallback to individual checks if bulk endpoint fails
-      final Map<String, bool> registrations = {};
-      for (final member in _familyMembers) {
-        try {
-          final isRegistered =
-              await EventRegistrationService.isFamilyMemberRegistered(
-                eventId: widget.event.id,
-                familyMemberId: member.id,
-              );
-          registrations[member.id] = isRegistered;
-        } catch (e) {
-          debugPrint('Failed to check registration for ${member.fullName}: $e');
-          registrations[member.id] = false;
-        }
-      }
-      if (mounted) {
-        setState(() => _familyMemberRegistrations = registrations);
-      }
-    }
   }
 
   Future<void> _loadRegistrationDetails() async {
@@ -177,119 +72,165 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
-  Future<void> _handleRegistration() async {
-    final cs = Theme.of(context).colorScheme;
-    if (_selectedRegistrants.isEmpty) return;
+  Future<void> _checkMyEventsStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _isInMyEvents = false;
+        _myEventsScope = null;
+      });
+      return;
+    }
 
-    setState(() => _isRegistering = true);
-
-    final registrationResults = <String, bool>{};
-    final registrationErrors = <String, String>{};
+    setState(() => _isLoadingMyEventsStatus = true);
 
     try {
-      // Process each selected registrant
-      for (final selectedId in _selectedRegistrants) {
-        try {
-          bool success;
-          String registrantName;
-
-          if (selectedId == 'self') {
-            success = await EventRegistrationService.registerForEvent(
-              eventId: widget.event.id,
-            );
-            registrantName = 'You';
-          } else {
-            final familyMember = _familyMembers.firstWhere(
-              (member) => member.id == selectedId,
-            );
-            success = await EventRegistrationService.registerForEvent(
-              eventId: widget.event.id,
-              familyMemberId: familyMember.id,
-            );
-            registrantName = familyMember.fullName;
-          }
-
-          registrationResults[registrantName] = success;
-          if (!success) {
-            registrationErrors[registrantName] = 'Registration failed';
-          }
-        } catch (e) {
-          final registrantName =
-              selectedId == 'self'
-                  ? 'You'
-                  : _familyMembers
-                      .firstWhere((m) => m.id == selectedId)
-                      .fullName;
-          registrationResults[registrantName] = false;
-          registrationErrors[registrantName] = e.toString();
-        }
-      }
-
-      // Show results to user
-      final successCount =
-          registrationResults.values.where((success) => success).length;
-      final totalCount = registrationResults.length;
+      final result = await MyEventsService.checkEventInMyEvents(
+        eventId: widget.event.id,
+      );
 
       if (mounted) {
-        if (successCount == totalCount) {
-          // All successful
-          final names = registrationResults.keys
-              .where((name) => registrationResults[name] == true)
-              .join(', ');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '$names successfully registered for ${widget.event.name}!',
-              ),
-              //backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-            ),
-          );
-        } else if (successCount > 0) {
-          // Partial success
-          final successNames = registrationResults.keys
-              .where((name) => registrationResults[name] == true)
-              .join(', ');
-          final failedNames = registrationResults.keys
-              .where((name) => registrationResults[name] == false)
-              .join(', ');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Partial success: $successNames registered. Failed: $failedNames',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        } else {
-          // All failed
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('All registrations failed. Please try again.'),
-              backgroundColor: cs.error,
-            ),
-          );
-        }
+        setState(() {
+          _isInMyEvents = result['inMyEvents'] as bool;
+          _myEventsScope = result['scope'] as String?;
+          _isLoadingMyEventsStatus = false;
+        });
       }
+    } catch (e) {
+      debugPrint('Failed to check My Events status: $e');
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
+    }
+  }
 
-      // Refresh registration status
-      await _checkRegistrationStatus();
-      await _checkFamilyMemberRegistrations();
-      await _loadRegistrationDetails();
+  Future<void> _addToMyEvents({required String scope}) async {
+    setState(() => _isLoadingMyEventsStatus = true);
 
-      setState(() => _selectedRegistrants.clear());
+    try {
+      final success = await MyEventsService.addToMyEvents(
+        eventId: widget.event.id,
+        scope: scope,
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              scope == 'series'
+                  ? 'Added recurring event to My Events'
+                  : 'Added event to My Events',
+            ),
+          ),
+        );
+        await _checkMyEventsStatus();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to add to My Events'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Registration failed: $e'),
-            backgroundColor: cs.error,
+            content: Text('Error: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
     } finally {
-      setState(() => _isRegistering = false);
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
     }
   }
+
+  Future<void> _removeFromMyEvents() async {
+    setState(() => _isLoadingMyEventsStatus = true);
+
+    try {
+      final success = await MyEventsService.removeFromMyEvents(
+        eventId: widget.event.id,
+        scope: _myEventsScope,
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Removed from My Events')),
+        );
+        await _checkMyEventsStatus();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to remove from My Events'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
+    }
+  }
+
+  Future<void> _switchMyEventsScope(String newScope) async {
+    setState(() => _isLoadingMyEventsStatus = true);
+
+    try {
+      final removeSuccess = await MyEventsService.removeFromMyEvents(
+        eventId: widget.event.id,
+        scope: _myEventsScope,
+      );
+
+      if (removeSuccess) {
+        final addSuccess = await MyEventsService.addToMyEvents(
+          eventId: widget.event.id,
+          scope: newScope,
+        );
+
+        if (addSuccess && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                newScope == 'series'
+                    ? 'Switched to recurring'
+                    : 'Switched to one-time',
+              ),
+            ),
+          );
+          await _checkMyEventsStatus();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error switching scope: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
+    }
+  }
+
+
 
   Future<void> _handleUnregistration(
     String registrantId,
@@ -353,8 +294,6 @@ class _EventShowcaseState extends State<EventShowcase> {
         }
 
         // Refresh registration status
-        await _checkRegistrationStatus();
-        await _checkFamilyMemberRegistrations();
         await _loadRegistrationDetails();
       } else {
         if (mounted) {
@@ -381,8 +320,6 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   void _showRegistrationDialog() {
-    // Check authentication before showing registration dialog
-    final cs = Theme.of(context).colorScheme;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -394,191 +331,20 @@ class _EventShowcaseState extends State<EventShowcase> {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final cs = Theme.of(context).colorScheme;
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setDialogState) {
-              return ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 400,
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
-                ),
-                child: IntrinsicHeight(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Dialog Header
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: const BoxDecoration(
-                          color: Color.fromARGB(255, 142, 163, 168),
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(12),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.person_add,
-                              color: cs.onPrimary,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Add form',
-                              style: TextStyle(
-                                color: cs.onPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: Icon(
-                                Icons.close,
-                                color: cs.onPrimary,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Dialog Content
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Event Full Warning
-                              if (!widget.event.hasSpots &&
-                                  widget.event.spots != null) ...[
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red[50],
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.red[200]!),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.event_busy,
-                                        color: Colors.red,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Event Full',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.red,
-                                              ),
-                                            ),
-                                            Text(
-                                              'This event has reached its capacity of ${widget.event.spots} attendees.',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
-
-                              // Registration Form
-                              if (widget.event.hasSpots ||
-                                  widget.event.spots == null) ...[
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Select People',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: cs.onSurface,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    ElevatedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(
-                                          context,
-                                        ).pop(); // Close dialog
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder:
-                                                (context) =>
-                                                    const FamilyMembersPage(),
-                                          ),
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: cs.primary,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 8,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                      icon: Icon(
-                                        Icons.edit,
-                                        size: 16,
-                                        color: cs.onPrimary,
-                                      ),
-                                      label: Text(
-                                        'Edit My Family',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: cs.onPrimary,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                _buildDialogRegistrationForm(setDialogState),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EventRegistrationPage(
+          event: widget.event,
+          isUpdate: _registrationSummary!.userRegistrations.isNotEmpty,
+          existingRegistrations: _registrationSummary?.userRegistrations,
+        ),
+      ),
+    ).then((result) {
+      if (result == true) {
+        _loadInitialData();
+      }
+    });
   }
 
   Widget _buildCurrentRegistrations() {
@@ -664,21 +430,20 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildUserRegistrationTile(RegistrationEntry registration) {
-    final cs = Theme.of(context).colorScheme;
+    final scopeLabel = registration.scope == 'series' ? 'Recurring' : 'One-time';
+    
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: cs.secondary,
+        color: const Color.fromARGB(255, 142, 163, 168),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(
-            registration.personId == null
-                ? Icons.person
-                : Icons.family_restroom,
-            color: cs.onSecondary,
+          const Icon(
+            Icons.person,
+            color: Colors.white,
             size: 20,
           ),
           const SizedBox(width: 8),
@@ -686,16 +451,39 @@ class _EventShowcaseState extends State<EventShowcase> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  registration.displayName,
-                  style: TextStyle(
-                    color: cs.onSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      registration.displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        scopeLabel,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   'Registered ${_formatRegistrationDate(registration.registeredOn)}',
-                  style: TextStyle(fontSize: 11, color: cs.onSecondary,),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -703,14 +491,18 @@ class _EventShowcaseState extends State<EventShowcase> {
           if (!_isRegistering)
             TextButton(
               style: TextButton.styleFrom(
-                foregroundColor: cs.onPrimary
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               ),
               onPressed:
                   () => _handleUnregistration(
                     registration.personId ?? 'self',
                     registration.displayName,
                   ),
-              child: const Text('Remove'),
+              child: const Text(
+                'Remove',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
         ],
       ),
@@ -736,212 +528,10 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
-  /// Check if a family member is eligible for the event based on age and gender requirements
-  bool _isEligibleForEvent(FamilyMember member) {
-    // Check age requirements
-    if (member.age < widget.event.minAge || member.age > widget.event.maxAge) {
-      return false;
-    }
 
-    // Check gender requirements
-    // Event gender can be "all", "male", "female", "M", or "F"
-    if (widget.event.gender.toLowerCase() != 'all') {
-      final eventGender = widget.event.gender.toLowerCase();
-      final memberGender = member.gender.toLowerCase();
-
-      // Handle different gender formats
-      if (eventGender == 'male' || eventGender == 'm') {
-        if (memberGender != 'm' && memberGender != 'male') {
-          return false;
-        }
-      } else if (eventGender == 'female' || eventGender == 'f') {
-        if (memberGender != 'f' && memberGender != 'female') {
-          return false;
-        }
-      }
-    }
-
-    // Ministry requirements are not checked here since family members don't have ministry data
-    // If needed in the future, add ministry field to FamilyMember model
-
-    return true;
-  }
-
-  Widget _buildDialogRegistrationForm(StateSetter setDialogState) {
-    // Check authentication before building registration form
-    final cs = Theme.of(context).colorScheme;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Column(
-        children: [
-          Icon(Icons.person_off, size: 48),
-          SizedBox(height: 16),
-          Text(
-            'Please log in to register for events.',
-            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      );
-    }
-
-    final availableRegistrants = <Map<String, String>>[];
-
-    // Add self if not registered (Note: For current user, we would need to check their profile data)
-    // For now, we'll assume the current user is always eligible unless we implement user profile validation
-    if (!_isUserRegistered) {
-      availableRegistrants.add({'id': 'self', 'name': 'Myself'});
-    }
-
-    // Add family members who are not registered and meet event requirements
-    for (final member in _familyMembers) {
-      final isRegistered = _familyMemberRegistrations[member.id] ?? false;
-      if (!isRegistered && _isEligibleForEvent(member)) {
-        availableRegistrants.add({'id': member.id, 'name': member.fullName});
-      }
-    }
-
-    if (availableRegistrants.isEmpty) {
-      return const Text(
-        'All family members are already registered for this event.',
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Selection header with Select All/Deselect All
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    setDialogState(() {
-                      _selectedRegistrants.clear();
-                    });
-                  },
-                  child: const Text('Clear', style: TextStyle(fontSize: 12)),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setDialogState(() {
-                      _selectedRegistrants.clear();
-                      _selectedRegistrants.addAll(
-                        availableRegistrants.map((r) => r['id']!),
-                      );
-                    });
-                  },
-                  child: const Text(
-                    'Select All',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Checkbox list
-        Container(
-          constraints: const BoxConstraints(maxHeight: 180, minHeight: 60),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Scrollbar(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children:
-                    availableRegistrants
-                        .map(
-                          (registrant) =>
-                              _buildCheckboxTile(registrant, setDialogState),
-                        )
-                        .toList(),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Register button
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed:
-                _selectedRegistrants.isNotEmpty && !_isRegistering
-                    ? () {
-                      Navigator.of(context).pop(); // Close dialog
-                      _handleRegistration();
-                    }
-                    : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.primary,
-              foregroundColor: cs.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child:
-                _isRegistering
-                    ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                    : Text(
-                      _selectedRegistrants.length <= 1
-                          ? 'Register'
-                          : 'Register ${_selectedRegistrants.length} People',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCheckboxTile(
-    Map<String, String> registrant,
-    StateSetter setDialogState,
-  ) {
-    final isSelected = _selectedRegistrants.contains(registrant['id']);
-    return CheckboxListTile(
-      title: Text(registrant['name']!, style: const TextStyle(fontSize: 16)),
-      value: isSelected,
-      onChanged: (value) {
-        setDialogState(() {
-          if (value == true) {
-            _selectedRegistrants.add(registrant['id']!);
-          } else {
-            _selectedRegistrants.remove(registrant['id']!);
-          }
-        });
-      },
-      activeColor: const Color.fromARGB(255, 142, 163, 168),
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
     return Scaffold(
       key: const ValueKey('screen-showcase'),
       appBar: AppBar(
@@ -998,7 +588,6 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildHeroImage() {
-    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       height: 250,
       width: double.infinity,
@@ -1007,58 +596,222 @@ class _EventShowcaseState extends State<EventShowcase> {
           // Load image from uploads API endpoint
           // For now, always show placeholder until backend image serving is implemented
           _buildEventThumb(),
-          // Registration button positioned in bottom right
+          // Action buttons positioned in bottom right
           Positioned(
             bottom: 16,
             right: 16,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // Check authentication and available spots before showing dialog
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please log in to register for events.'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
-                }
-                if ((_registrationSummary?.availableSpots ?? 1) > 0) {
-                  _showRegistrationDialog();
-                }
-              },
-              icon: const Icon(Icons.person_add, size: 18),
-              label: Text(
-                (_registrationSummary?.availableSpots ?? 1) > 0
-                    ? 'Register'
-                    : 'Event Full',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    (_registrationSummary?.availableSpots ?? 1) > 0
-                        ? cs.primary
-                        : Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                elevation:
-                    (_registrationSummary?.availableSpots ?? 1) > 0 ? 4 : 0,
-              ),
-            ),
+            child: _buildActionButtons(),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildActionButtons() {
+    final cs = Theme.of(context).colorScheme;
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return ElevatedButton.icon(
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please log in to register for events.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        },
+        icon: const Icon(Icons.login, size: 18),
+        label: const Text('Log In', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
+        ),
+      );
+    }
+
+    if (widget.event.rsvp) {
+      return _buildRSVPButtons(cs);
+    } else {
+      return _buildWatchButtons(cs);
+    }
+  }
+
+  Widget _buildRSVPButtons(ColorScheme cs) {
+    if (_registrationSummary == null ||
+        _registrationSummary!.userRegistrations.isEmpty) {
+      return ElevatedButton.icon(
+        onPressed:
+            (_registrationSummary?.availableSpots ?? 1) > 0
+                ? _showRegistrationDialog
+                : null,
+        icon: const Icon(Icons.person_add, size: 18),
+        label: Text(
+          (_registrationSummary?.availableSpots ?? 1) > 0
+              ? 'Register'
+              : 'Event Full',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
+        ),
+      );
+    } else {
+      return ElevatedButton.icon(
+        onPressed: _showRegistrationDialog,
+        icon: const Icon(Icons.edit, size: 18),
+        label: const Text(
+          'Change Registration',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
+        ),
+      );
+    }
+  }
+
+  Widget _buildWatchButtons(ColorScheme cs) {
+    if (_isLoadingMyEventsStatus) {
+      return const SizedBox(
+        width: 40,
+        height: 40,
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          valueColor: AlwaysStoppedAnimation<Color>(Color.fromARGB(255, 142, 163, 168)),
+        ),
+      );
+    }
+
+    if (widget.event.recurring != null) {
+      if (_isInMyEvents) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
+              onPressed:
+                  () => _switchMyEventsScope(
+                    _myEventsScope == 'occurrence' ? 'series' : 'occurrence',
+                  ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.secondary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: Text(
+                _myEventsScope == 'occurrence'
+                    ? 'Switch to Recurring'
+                    : 'Switch to One Time',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _removeFromMyEvents,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.error,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: const Text(
+                'Remove',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      } else {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
+              onPressed: () => _addToMyEvents(scope: 'occurrence'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: const Text(
+                'Add One Time',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => _addToMyEvents(scope: 'series'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: const Text(
+                'Add Recurring',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      }
+    } else {
+      if (_isInMyEvents) {
+        return ElevatedButton(
+          onPressed: _removeFromMyEvents,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: cs.error,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 4,
+          ),
+          child: const Text(
+            'Remove from My Events',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        );
+      } else {
+        return ElevatedButton(
+          onPressed: () => _addToMyEvents(scope: 'occurrence'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 4,
+          ),
+          child: const Text(
+            'Add to My Events',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildImagePlaceholder() {
@@ -1197,7 +950,6 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildSvgInfoRow(String assetPath, String label, String value) {
     final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
