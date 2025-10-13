@@ -15,7 +15,7 @@ export const listMediaContents = async (limit?: number, folder?: string): Promis
     params.set('folder', folder);
   }
   try {
-    const res = await api.get(`/v1/assets?${params.toString()}`);
+    const res = await api.get(`/v1/assets/?${params.toString()}`);
     return res.data;
   } catch (err) {
     console.error("List contents error:", err);
@@ -61,14 +61,15 @@ export const uploadAssets = async (files: File[], folder?: string): Promise<{url
 };
 
 // Deprecated: Use listMediaContents instead
-export const listAssets = async (limit = 50, folder?: string): Promise<{filename: string; url: string; folder: string}[]> => {
-  const contents = await listMediaContents(limit, folder);
+export const listAssets = async (_limit = 50, folder?: string): Promise<{filename: string; url: string; folder: string}[]> => {
+  const contents = await listMediaContents(undefined, folder);
   return contents.files;
 };
 
 // Deprecated: Use listMediaContents instead
 export const listFolders = async (folder?: string): Promise<string[]> => {
-  const contents = await listMediaContents(50, folder);
+  // Do not send limit; backend ignores it
+  const contents = await listMediaContents(undefined, folder);
   return contents.folders;
 };
 

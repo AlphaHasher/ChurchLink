@@ -28,9 +28,18 @@ function withThumbnailParam(url: string): string {
 type ImageInspectorProps = {
   node: Node;
   onUpdate: (updater: (node: Node) => Node) => void;
+  activeLocale?: string;
+  defaultLocale?: string;
 };
 
-export const ImageInspector: React.FC<ImageInspectorProps> = ({ node, onUpdate }) => {
+function resolveLocalized(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
+  const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
+  const locale = activeLocale || defaultLocale;
+  if (locale && i18n && i18n[locale] && i18n[locale].hasOwnProperty(key)) return i18n[locale][key];
+  return (node as any).props?.[key];
+}
+
+export const ImageInspector: React.FC<ImageInspectorProps> = ({ node, onUpdate, activeLocale, defaultLocale }) => {
   const prevRef = React.useRef<Node | null>(null);
   const [results, setResults] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -70,8 +79,7 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({ node, onUpdate }
     setLoading(true);
     try {
       setError(null);
-      const totalLimit = 40 * nextPage;
-      const assets = await listAssets(totalLimit, currentFolder === 'root' ? undefined : currentFolder);
+      const assets = await listAssets(undefined as any, currentFolder === 'root' ? undefined : currentFolder);
       const allAssets = assets.slice(0, 40 * nextPage);  // Take first N for pagination (assume sorted recent)
       const list = allAssets.slice((nextPage - 1) * 40);
       setHasMore(list.length === 40);  // If full page, more available
@@ -177,13 +185,18 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({ node, onUpdate }
         <Label htmlFor="image-alt">Alt Text</Label>
         <Input
           id="image-alt"
-          value={node.props?.alt || ''}
+          value={resolveLocalized(node, 'alt', activeLocale, defaultLocale) || ''}
           onChange={(e) =>
-            onUpdate((n) =>
-              n.type === 'image'
-                ? ({ ...n, props: { ...(n.props || {}), alt: e.target.value } } as Node)
-                : n
-            )
+            onUpdate((n) => {
+              if (n.type !== 'image') return n;
+              const useLocale = activeLocale && defaultLocale && activeLocale !== defaultLocale ? activeLocale : null;
+              if (useLocale) {
+                const prevI18n = ((n as any).i18n || {}) as Record<string, Record<string, any>>;
+                const prevFor = prevI18n[useLocale] || {};
+                return { ...(n as any), i18n: { ...prevI18n, [useLocale]: { ...prevFor, alt: e.target.value } } } as Node;
+              }
+              return ({ ...n, props: { ...(n.props || {}), alt: e.target.value } } as Node);
+            })
           }
           onFocus={() => { prevRef.current = { ...node }; }}
           onBlur={() => {

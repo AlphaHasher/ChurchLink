@@ -60,15 +60,6 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
     setCurrentFolder(newPath);
   };
 
-  const handleGoBack = () => {
-    const parts = currentFolder.split('/').filter(Boolean);
-    if (parts.length > 0) {
-      parts.pop();
-      setCurrentFolder(parts.join('/'));
-    } else {
-      setCurrentFolder('');
-    }
-  };
 
   const handleCreateFolder = async () => {
     if (!folderName.trim()) {

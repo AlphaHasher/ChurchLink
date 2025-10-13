@@ -122,12 +122,23 @@ function enforceWidthOnly(content: React.ReactNode): React.ReactNode {
   return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
 }
 
+function resolveLocalizedProp(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
+  const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
+  const locale = activeLocale || defaultLocale;
+  if (locale && i18n && i18n[locale] && Object.prototype.hasOwnProperty.call(i18n[locale], key)) {
+    return i18n[locale][key];
+  }
+  return (node as any).props?.[key];
+}
+
 const renderNode = (
   node: Node,
   highlightNodeId?: string,
   sectionFontFamily?: string,
   gridSize?: number,
-  forceFlowLayout?: boolean
+  forceFlowLayout?: boolean,
+  activeLocale?: string,
+  defaultLocale?: string
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyleRaw = (node as any).style || {};
@@ -141,7 +152,7 @@ const renderNode = (
 
   switch (node.type) {
     case "text": {
-      const html = (node as any).props?.html ?? (node as any).props?.text ?? "";
+      const html = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale) ?? (node as any).props?.text ?? "";
       const align = (node as any).props?.align ?? "left";
       const variant = (node as any).props?.variant ?? "p";
       const paddingY = nodeStyleRaw?.paddingY ?? 0;
@@ -207,7 +218,7 @@ const renderNode = (
       );
     }
     case "button": {
-      const label = (node as any).props?.label ?? "Button";
+      const label = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale) ?? "Button";
       const href = (node as any).props?.href;
       const className = cn(
         (node as any).style?.className ?? "px-4 py-2 bg-blue-600 text-white rounded",
@@ -335,7 +346,7 @@ const renderNode = (
 
       const containerContent = (node.children ?? []).map((child) => {
         const hasLayout = !!child.layout?.units;
-        const childRendered = renderNode(child, highlightNodeId, nodeFontFamily, gridSize, forceFlowLayout);
+        const childRendered = renderNode(child, highlightNodeId, nodeFontFamily, gridSize, forceFlowLayout, activeLocale, defaultLocale);
 
         if (hasLayout && gridSize && !forceFlowLayout) {
           const { xu, yu, wu, hu } = child.layout!.units;
@@ -404,7 +415,7 @@ const renderNode = (
     }
     case "image": {
       const src = (node as any).props?.src || "";
-      const alt = (node as any).props?.alt || "";
+      const alt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale) || "";
       const objectFit = (node as any).props?.objectFit || "cover";
       const inlineStyles: React.CSSProperties = {
         ...nodeStyle,
@@ -433,7 +444,7 @@ const renderNode = (
   }
 };
 
-const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string }> = ({ page, highlightNodeId }) => {
+const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; activeLocale?: string; defaultLocale?: string }> = ({ page, highlightNodeId, activeLocale, defaultLocale }) => {
   const defaultFontFamily = (page as any).styleTokens?.defaultFontFamily as string | undefined;
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
@@ -474,7 +485,7 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string }
               {section.children.map((node) => {
                 const hasLayout = !!node.layout?.units;
                 const forceFlow = section.lockLayout === true;
-                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow);
+              const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale));
 
                 if (hasLayout && !forceFlow) {
                   const { xu, yu, wu, hu } = node.layout!.units;

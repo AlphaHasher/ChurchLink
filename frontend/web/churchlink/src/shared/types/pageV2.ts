@@ -22,6 +22,9 @@ export interface NodeBase {
   style?: Record<string, any>;
   responsive?: ResponsiveProps;
   children?: Node[];
+  // Optional per-locale overrides for textual props (e.g., html, label, alt)
+  // Shape: { [locale]: { [propKey]: any } }
+  i18n?: Record<string, Record<string, any>>;
   // New: position for builder canvas
   layout?: {
     units: GridLayoutUnits;
@@ -125,6 +128,9 @@ export interface PageV2 {
   title: string;
   slug: string;
   visible?: boolean;
+  // Localization config for this page
+  defaultLocale?: string; // e.g., 'en'
+  locales?: string[];     // e.g., ['en', 'es']
   styleTokens?: {
     defaultFontFamily?: string;
     defaultFontFallback?: string;

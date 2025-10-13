@@ -118,6 +118,15 @@ function cn(...classes: Array<string | undefined | false | null>) {
 // highlightClass removed (no red outlines)
 
 // Updated renderNode signature with additional optional params for nesting
+function resolveLocalizedProp(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
+  const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
+  const locale = activeLocale || defaultLocale;
+  if (locale && i18n && i18n[locale] && i18n[locale].hasOwnProperty(key)) {
+    return i18n[locale][key];
+  }
+  return (node as any).props?.[key];
+}
+
 const renderNode = (
   node: Node,
   highlightNodeId?: string,
@@ -131,6 +140,8 @@ const renderNode = (
   gridSize?: number,  // Added for nested positioning
   onUpdateNodeLayout?: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void,  // Added for nested commits
   forceFlowLayout?: boolean,
+  activeLocale?: string,
+  defaultLocale?: string,
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyle = nodeFontFamily ? { fontFamily: nodeFontFamily } : undefined;
@@ -174,7 +185,7 @@ const renderNode = (
   
   switch (node.type) {
     case 'text': {
-      const html = (node as any).props?.html ?? (node as any).props?.text ?? '';
+      const html = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale) ?? (node as any).props?.text ?? '';
       const align = (node as any).props?.align ?? 'left';
       const variant = (node as any).props?.variant ?? 'p';
       const nodeStyleRaw = (node as any).style || {};
@@ -267,7 +278,7 @@ const renderNode = (
     case 'image': {
       const nodeStyleRaw = (node as any).style || {};
       const src = (node as any).props?.src || '';
-      const alt = (node as any).props?.alt || '';
+      const alt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale) || '';
       const objectFit = (node as any).props?.objectFit || 'cover';
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
@@ -308,10 +319,10 @@ const renderNode = (
     }
     case 'button': {
       const nodeStyleRaw = (node as any).style || {};
-      const label = (node as any).props?.label ?? 'Button';
+      const label = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale) ?? 'Button';
       const href = (node as any).props?.href;
       const className = cn(
-        (node as any).style?.className ?? 'px-4 py-2 bg-blue-600 text-white rounded',
+        (node as any).style?.className ?? 'px-4 py-2 bg-blue-600 text-white rounded text-center',
         nodeFontFamily && '[&>*]:font-[inherit]',
         interactiveClass,
         outlineClass
@@ -474,7 +485,7 @@ const renderNode = (
           const cy = hasCustomPx ? cachedPx!.y : unitsToPx(c.layout!.units.yu, gridSize);
           const cw = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (c.layout?.units.wu ? unitsToPx(c.layout!.units.wu!, gridSize) : undefined);
           const ch = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (c.layout?.units.hu ? unitsToPx(c.layout!.units.hu!, gridSize) : undefined);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
           return (
             <DraggableNode
               key={c.id}
@@ -498,7 +509,7 @@ const renderNode = (
         } else {
           // Fallback for missing layout or params - render without wrapper
           if (!childHasLayout) console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
           return <div key={c.id} className="relative">{childRendered}</div>;
         }
       });
@@ -555,7 +566,9 @@ export const DynamicPageV2RendererBuilder: React.FC<{
   onNodeHover?: (nodeId: string | null) => void;
   onNodeClick?: (sectionId: string, nodeId: string) => void;
   onNodeDoubleClick?: (sectionId: string, nodeId: string) => void;
-}> = ({ page, highlightNodeId, hoveredNodeId, selectedNodeId, onUpdateNodeLayout, onNodeHover, onNodeClick, onNodeDoubleClick }) => {
+  activeLocale?: string;
+  defaultLocale?: string;
+}> = ({ page, highlightNodeId, hoveredNodeId, selectedNodeId, onUpdateNodeLayout, onNodeHover, onNodeClick, onNodeDoubleClick, activeLocale, defaultLocale }) => {
   const defaultFontFamily = (page as any).styleTokens?.defaultFontFamily as string | undefined;
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
@@ -637,7 +650,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                   const y = hasCustomPx ? cachedPx!.y : unitsToPx(node.layout!.units.yu, gridSize);
                   const w = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (node.layout?.units.wu ? unitsToPx(node.layout!.units.wu!, gridSize) : undefined);
                   const h = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (node.layout?.units.hu ? unitsToPx(node.layout!.units.hu!, gridSize) : undefined);
-        rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout);
+        rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, false, activeLocale, defaultLocale);
 
         const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
           if (node.type !== 'container') {
@@ -681,7 +694,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                   );
                 } else {
                   // Flow layout for locked sections or nodes without layout
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, locked);
+                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, locked, activeLocale, defaultLocale);
                   return <div key={node.id} className="relative">{rendered}</div>;
                 }
               })}

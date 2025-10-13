@@ -6,6 +6,7 @@ import { defaultSection } from "../utils/sectionHelpers";
 export function usePageManager(slug: string) {
   const [page, setPage] = useState<PageV2 | null>(null);
   const [sections, setSections] = useState<SectionV2[]>([]);
+  const [activeLocale, setActiveLocale] = useState<string>('en');
   const [showHeader, setShowHeader] = useState(false);
   const [showFooter, setShowFooter] = useState(false);
   const [liveVisible, setLiveVisible] = useState<boolean | null>(null);
@@ -23,9 +24,12 @@ export function usePageManager(slug: string) {
         const data = res.data;
         const isV2 = data?.version === 2;
         const v2: PageV2 = isV2 ? data : { ...data, version: 2, sections: data?.sections || [] };
+        const defaultLocale = (v2 as any).defaultLocale || 'en';
+        const locales = (v2 as any).locales || [defaultLocale];
         if (mounted) {
-          setPage(v2);
+          setPage({ ...v2, defaultLocale, locales });
           setSections(v2.sections ?? []);
+          setActiveLocale(defaultLocale);
         }
       } catch (e: any) {
         // 404 → seed a draft
@@ -34,10 +38,13 @@ export function usePageManager(slug: string) {
           title: slug || "Untitled", 
           slug: slug || "/", 
           visible: true, 
-          sections: [defaultSection()] 
+          sections: [defaultSection()],
+          defaultLocale: 'en',
+          locales: ['en']
         };
         setPage(seeded);
         setSections(seeded.sections);
+        setActiveLocale('en');
       }
     };
     if (slug) run();
@@ -153,6 +160,8 @@ export function usePageManager(slug: string) {
     setPage,
     sections,
     setSections,
+    activeLocale,
+    setActiveLocale,
     showHeader,
     setShowHeader,
     showFooter,
@@ -162,5 +171,24 @@ export function usePageManager(slug: string) {
     saveState,
     publishState,
     publish,
+    // helpers for locales
+    addLocale: (code: string) => {
+      if (!code) return;
+      setPage((prev) => {
+        if (!prev) return prev;
+        const prevLocales = prev.locales || [prev.defaultLocale || 'en'];
+        if (prevLocales.includes(code)) return prev;
+        return { ...prev, locales: [...prevLocales, code] } as PageV2;
+      });
+    },
+    setDefaultLocale: (code: string) => {
+      setPage((prev) => {
+        if (!prev) return prev;
+        const locales = prev.locales && prev.locales.length ? prev.locales : [prev.defaultLocale || 'en'];
+        const nextLocales = locales.includes(code) ? locales : [...locales, code];
+        return { ...prev, defaultLocale: code, locales: nextLocales } as PageV2;
+      });
+      setActiveLocale(code);
+    },
   };
 }
