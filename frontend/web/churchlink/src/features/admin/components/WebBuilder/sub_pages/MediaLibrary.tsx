@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { listMediaContents, createFolder, uploadAssets, deleteAsset } from '@/helpers/MediaInteraction';
-import { Folder, Image as ImageIconComponent, Download, Trash2, X, Upload } from 'lucide-react';
+import { listMediaContents, createFolder, uploadAssets, deleteAsset, getAssetUrl } from '@/helpers/MediaInteraction';
+import { Folder, Image as ImageIconComponent, Download, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Label } from '@/shared/components/ui/label';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-// Removed Breadcrumb import - using custom
-
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/shared/components/ui/breadcrumb';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage } from '@/shared/components/ui/breadcrumb';
 
 interface Asset {
   filename: string;
@@ -36,7 +34,7 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
     try {
       setLoading(true);
       setError(null);
-      setErroredImages(new Set()); // Reset errors on fetch
+      setErroredImages(new Set());
       const contents = await listMediaContents(undefined, currentFolder || undefined);
       setAssets(contents?.files || []);
       setSubfolders(contents?.folders || []);
@@ -72,7 +70,7 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
       await createFolder(folderName.trim(), currentFolder);
       setNewFolderOpen(false);
       setFolderName('');
-      fetchCurrentData(); // Refetch current folder
+      fetchCurrentData();
     } catch (err) {
       setFolderError('Failed to create folder');
       setError('Failed to create folder');
@@ -81,14 +79,11 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
 
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const fileArray = Array.from(files);
     try {
       setError(null);
-      await uploadAssets(fileArray, currentFolder);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      fetchCurrentData(); // Refetch current folder
+      await uploadAssets(Array.from(files), currentFolder);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      fetchCurrentData();
     } catch (err) {
       setError('Failed to upload files');
     }
@@ -117,7 +112,7 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
       setError(null);
       const fullPath = deletingImage.folder === 'root' ? deletingImage.filename : `${deletingImage.folder}/${deletingImage.filename}`;
       await deleteAsset(fullPath);
-      fetchCurrentData(); // Refresh list
+      fetchCurrentData();
       setDeleteConfirmOpen(false);
       setDeletingImage(null);
     } catch (err) {
@@ -143,22 +138,19 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = e.dataTransfer.files;
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
     if (files.length > 0) {
-      const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
-      if (fileArray.length > 0) {
-        try {
-          await uploadAssets(fileArray, currentFolder);
-          fetchCurrentData();
-        } catch (err) {
-          setError('Failed to upload dropped files');
-        }
+      try {
+        await uploadAssets(files, currentFolder);
+        fetchCurrentData();
+      } catch (err) {
+        setError('Failed to upload dropped files');
       }
     }
   };
 
-  const fullImageUrl = selectedImage ? `${import.meta.env.VITE_API_HOST}/api/v1${selectedImage.url}` : '';
-  const fullAssetUrl = (asset: Asset) => `${import.meta.env.VITE_API_HOST}/api/v1${asset.url}`;
+  const fullImageUrl = selectedImage ? getAssetUrl(selectedImage.filename) : '';
+  const fullAssetUrl = (asset: Asset) => getAssetUrl(asset.filename);
 
   const breadcrumbItems = currentFolder ? ['Home', ...currentFolder.split('/')] : ['Home'];
 
@@ -226,8 +218,7 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
         </Alert>
       )}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {/* Subfolders */}
-        {(subfolders || []).map((folder) => (
+        {subfolders.map((folder) => (
           <div
             key={folder}
             className="border rounded-lg p-4 flex flex-col items-center justify-center h-full cursor-pointer hover:bg-gray-50 transition-colors aspect-square"
@@ -237,15 +228,14 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
             <p className="font-medium text-sm truncate text-center">{folder}</p>
           </div>
         ))}
-        {/* Assets (Images) */}
-        {(assets || []).map((asset) => (
+        {assets.map((asset) => (
           <div key={asset.filename} className="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow aspect-square">
             <div
               className="relative w-full h-full bg-gray-100 flex items-center justify-center group"
               onClick={() => handleImageClick(asset)}
             >
               <img
-                src={`${import.meta.env.VITE_API_HOST}/api/v1${asset.url}?thumbnail=true`}
+                src={`${getAssetUrl(asset.filename)}?thumbnail=true`}
                 alt={asset.filename}
                 className="w-full h-full object-cover"
                 style={{
@@ -255,7 +245,6 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
               {erroredImages.has(asset.filename) && (
                 <ImageIconComponent className="h-8 w-8 text-gray-400" />
               )}
-              {/* Hover Overlay - Modified for selection mode */}
               {!selectionMode ? (
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-end p-3 opacity-0 group-hover:opacity-100">
                   <Button
@@ -311,11 +300,9 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
                 </div>
               )}
             </div>
-            {/* No filename display in selection mode? Keep as is */}
           </div>
         ))}
       </div>
-      {/* Empty State */}
       {assets.length === 0 && subfolders.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
           <Upload className="h-16 w-16 text-gray-400 mb-4" />
@@ -329,7 +316,6 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
         </div>
       )}
 
-      {/* New Folder Dialog */}
       <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
         <DialogContent>
           <DialogHeader>
@@ -367,7 +353,6 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
         </DialogContent>
       </Dialog>
 
-      {/* Full Image Modal */}
       {!selectionMode && (
         <Dialog open={!!selectedImage} onOpenChange={handleCloseModal}>
           <DialogContent className="max-w-4xl max-h-[90vh] p-0 m-0">
@@ -384,7 +369,6 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
         </Dialog>
       )}
 
-      {/* Delete Confirmation Dialog */}
       {!selectionMode && (
         <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
           <DialogContent>

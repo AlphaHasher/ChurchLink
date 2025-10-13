@@ -8,15 +8,12 @@ export interface MediaContents {
 
 export const listMediaContents = async (limit?: number, folder?: string): Promise<MediaContents> => {
   const params = new URLSearchParams();
-  if (limit !== undefined && limit !== null) {
-    params.set('limit', limit.toString());
-  }
-  if (folder) {
-    params.set('folder', folder);
-  }
+  if (limit !== undefined && limit !== null) params.set('limit', limit.toString());
+  if (folder) params.set('folder', folder);
+  
   try {
     const res = await api.get(`/v1/assets/?${params.toString()}`);
-    return res.data;
+    return res.data as MediaContents;
   } catch (err) {
     console.error("List contents error:", err);
     return { files: [], folders: [] };
@@ -26,9 +23,8 @@ export const listMediaContents = async (limit?: number, folder?: string): Promis
 export const createFolder = async (name: string, parentFolder?: string): Promise<{message: string; folder: string}> => {
   const formData = new FormData();
   formData.append('name', name);
-  if (parentFolder) {
-    formData.append('parent', parentFolder);
-  }
+  if (parentFolder) formData.append('parent', parentFolder);
+  
   try {
     const res = await api.post('/v1/assets/folder', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -42,12 +38,8 @@ export const createFolder = async (name: string, parentFolder?: string): Promise
 
 export const uploadAssets = async (files: File[], folder?: string): Promise<{url: string; filename: string; folder: string}[]> => {
   const formData = new FormData();
-  for (const f of files) {
-    formData.append('file', f);
-  }
-  if (folder) {
-    formData.append('folder', folder);
-  }
+  files.forEach(f => formData.append('file', f));
+  if (folder) formData.append('folder', folder);
   
   try {
     const res = await api.post('/v1/assets/upload', formData, {
@@ -60,27 +52,18 @@ export const uploadAssets = async (files: File[], folder?: string): Promise<{url
   }
 };
 
-// Deprecated: Use listMediaContents instead
 export const listAssets = async (_limit = 50, folder?: string): Promise<{filename: string; url: string; folder: string}[]> => {
   const contents = await listMediaContents(undefined, folder);
   return contents.files;
 };
 
-// Deprecated: Use listMediaContents instead
 export const listFolders = async (folder?: string): Promise<string[]> => {
-  // Do not send limit; backend ignores it
   const contents = await listMediaContents(undefined, folder);
   return contents.folders;
 };
 
-export const getAsset = async (filename: string): Promise<{filename: string; url: string; folder: string}> => {
-  try {
-    const res = await publicApi.get(`/v1/assets/${encodeURIComponent(filename)}`);
-    return res.data;
-  } catch (err) {
-    console.error("Asset retrieval error:", err);
-    throw new Error("Failed to retrieve asset");
-  }
+export const getAssetUrl = (filename: string): string => {
+  return `${publicApi.defaults.baseURL}/v1/assets/public/${encodeURIComponent(filename)}`;
 };
 
 export const deleteAsset = async (filename: string): Promise<{message: string}> => {

@@ -14,10 +14,8 @@ const API_BASE = import.meta.env.VITE_API_HOST
 function ensureApiUrl(raw: string): string {
   if (!raw) return ''
   if (/^https?:\/\//i.test(raw)) return raw
-  if (raw.startsWith('/api/')) return `${API_BASE}${raw}`
-  if (raw.startsWith('/assets/')) return `${API_BASE}/api/v1${raw}`
-  if (raw.startsWith('assets/')) return `${API_BASE}/api/v1/${raw}`
-  return `${API_BASE}/api/v1/assets/${raw}`
+  if (raw.startsWith('/')) return `${API_BASE}${raw}`
+  return `${API_BASE}/${raw}`
 }
 
 function withThumbnailParam(url: string): string {
@@ -271,7 +269,7 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({ node, onUpdate, 
               }}>
                 {results.map((asset) => (
                   <button key={asset.filename} className="border rounded overflow-hidden hover:ring" onClick={() => handlePick(asset)} type="button">
-                    <img src={withThumbnailParam(ensureApiUrl(asset.url))} alt={asset.filename} className="w-full h-24 object-cover" />
+                <img src={withThumbnailParam(ensureApiUrl(asset.url))} alt={asset.filename} className="w-full h-24 object-cover" />
                   </button>
                 ))}
                 {loading && <div className="col-span-5 text-sm text-muted-foreground">Loading…</div>}
@@ -295,7 +293,7 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({ node, onUpdate, 
             <MediaLibrary
               selectionMode
               onSelect={(asset) => {
-                const fullUrl = `${API_BASE}/api/v1${asset.url}`
+                const fullUrl = ensureApiUrl(asset.url)
                 onUpdate((n) => n.type === 'image' ? ({ ...n, props: { ...(n.props || {}), src: fullUrl } } as Node) : n)
                 setMediaModalOpen(false)
                 setPreviewErrored(false)
