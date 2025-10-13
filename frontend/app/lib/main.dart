@@ -319,7 +319,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return Icon(
           Icons.church,
         );
-        return Icon(Icons.church);
       case 'description':
       case 'bulletins':
         return Icon(Icons.description);
@@ -378,7 +377,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return Icon(
           Icons.church,
         );
-        return Icon(Icons.church);
       case 'bulletins':
         return Icon(Icons.description);
       case 'events':

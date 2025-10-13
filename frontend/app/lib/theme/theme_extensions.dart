@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 // Further normalized locations for style referencing
-// Will likely replace or remove when all beatufication is compelte
+// Will likely replace or remove when all beatufication is complete
 
 extension ThemeExtensions on BuildContext {
   ThemeData get theme => Theme.of(this);
