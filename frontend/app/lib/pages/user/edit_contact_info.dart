@@ -100,7 +100,6 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final email = widget.user.email ?? '';
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -111,43 +110,40 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
           children: [
             Form(
               key: _formKey,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _phoneCtrl,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone',
-                        hintText: '(555) 123-4567',
-                      ),
-                      validator: (v) {
-                        final s = (v ?? '').trim();
-                        return null;
-                      },
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone',
+                      hintText: '(555) 123-4567',
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _addrCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Address',
-                        hintText: '123 Main St',
-                      ),
-                      validator: (v) {
-                        final s = (v ?? '').trim();
-                        if (s.isEmpty) return 'Address is required';
-                        return null;
-                      },
+                    validator: (v) {
+                      // Add phone validation if needed
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _addrCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Address',
+                      hintText: '123 Main St',
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _suiteCtrl,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Apt / Suite (optional)',
-                      ),
+                    validator: (v) {
+                      final s = (v ?? '').trim();
+                      if (s.isEmpty) return 'Address is required';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _suiteCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: 'Apt / Suite (optional)',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -196,16 +192,15 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _save,
+                      onPressed: _loading ? null : _save,
                       style: FilledButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: theme.colorScheme.onPrimary,
                       ),
-                      child: const Text('Save'),
+                      child: Text(_loading ? 'Saving…' : 'Save'),
                     ),
                   ),
                 ],

@@ -76,13 +76,6 @@ const ProfilePage: React.FC = () => {
         setDialogOpen(true);
     };
 
-    const openMembershipDialog = async (resubmission: boolean) => {
-        const latest = await readMembershipDetails();
-        setDialogDetails(latest);
-        setDialogResubmission(resubmission);
-        setDialogOpen(true);
-    };
-
     if (loading) return (
         <Layout>
             <div className="mx-auto max-w-5xl p-6">

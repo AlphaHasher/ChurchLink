@@ -308,7 +308,7 @@ async def update_contact(uid:str, contact_info: ContactInfo):
     safe_phone = safe_phone.strip().replace(" ", "")
 
     if safe_phone != "" and not PHONE_RE.fullmatch(safe_phone):
-        msg = 'Please only use numbers, (), +, and - in your phone number. Valid inputs include +5(555)555-5555 and 555-5555'
+        msg = 'Please enter a valid phone number!'
         return {"success":False, "msg":msg}
     
     # Account for safety of not saving without alteration
