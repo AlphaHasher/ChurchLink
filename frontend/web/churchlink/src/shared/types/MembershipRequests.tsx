@@ -22,3 +22,17 @@ export type MembershipRequest = {
     responded_to: string | null;
     history: MembershipRequestHistoryItem[];
 };
+
+export type ReadMembershipRequest = {
+    message: string | null;
+    resolved: boolean;
+    approved: boolean | null;
+    reason: string | null;
+    muted: boolean;
+
+}
+
+export type MembershipDetails = {
+    membership: boolean;
+    pending_request: ReadMembershipRequest | null;
+};

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Settings, CalendarDays } from "lucide-react";
+import { UserCog, CalendarDays, IdCard } from "lucide-react";
 import { ProfileCard } from "@/features/users/components/Profile/ProfileCard";
 import { PersonRail } from "@/features/users/components/Profile/PersonRail";
 import { PersonDetails } from "@/shared/types/Person";
@@ -17,6 +17,11 @@ import {
 } from "@/features/users/components/Profile/PersonInfoInput";
 import { ContactCard } from "../components/Profile/ContactCard";
 import { EditContactDialog } from "../components/Profile/EditContactDialog";
+
+import MembershipCard from "../components/Profile/MembershipCard";
+import MembershipRequestDialog from "../components/Profile/MembershipRequestDialog";
+import { readMembershipDetails } from "@/helpers/MembershipHelper";
+import type { MembershipDetails } from "@/shared/types/MembershipRequests";
 
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
@@ -35,8 +40,14 @@ const ProfilePage: React.FC = () => {
     const [loading, setLoading] = React.useState(true);
     const [profile, setProfile] = React.useState<ProfileInfo | null>(null);
     const [contact, setContact] = React.useState<ContactInfo | null>(null);
-
     const [members, setMembers] = React.useState<PersonDetails[]>([]);
+
+    const [dialogOpen, setDialogOpen] = React.useState(false);
+    const [dialogResubmission, setDialogResubmission] = React.useState(false);
+    const [dialogDetails, setDialogDetails] = React.useState<MembershipDetails | null>(null);
+
+    const [refreshKey, setRefreshKey] = React.useState(0);
+    const refreshCard = () => setRefreshKey((k) => k + 1);
 
     React.useEffect(() => {
         let alive = true;
@@ -56,6 +67,13 @@ const ProfilePage: React.FC = () => {
             alive = false;
         };
     }, []);
+
+    const openMembershipDialog = async (resubmission: boolean) => {
+        const latest = await readMembershipDetails();
+        setDialogDetails(latest);
+        setDialogResubmission(resubmission);
+        setDialogOpen(true);
+    };
 
     if (loading) return <div>Loading...</div>;
 
@@ -82,8 +100,15 @@ const ProfilePage: React.FC = () => {
                                     value="profile"
                                     className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <Settings className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    Settings
+                                    <UserCog className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    Profile
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="membership"
+                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
+                                >
+                                    <IdCard className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    Membership
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="events"
@@ -123,14 +148,27 @@ const ProfilePage: React.FC = () => {
                                 className="lg:ml-6"
                                 phone={contact?.phone ?? null}
                                 address={contact?.address ?? null}
-                                footer={
-                                    <EditContactDialog
-                                        initialContact={contact!}
-                                        onUpdated={(c) => setContact(c)}
-                                    />
-                                }
+                                footer={<EditContactDialog initialContact={contact!} onUpdated={(c) => setContact(c)} />}
                             />
                             <PersonRail className="lg:ml-6" people={members} />
+                        </motion.div>
+                    </TabsContent>
+
+                    <TabsContent value="membership">
+                        <motion.div
+                            className="flex justify-center"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <div className="w-full max-w-3xl">
+                                <MembershipCard
+                                    key={refreshKey}
+                                    onRequest={() => openMembershipDialog(false)}
+                                    onResubmit={() => openMembershipDialog(true)}
+                                    onRead={() => openMembershipDialog(false)}
+                                />
+                            </div>
                         </motion.div>
                     </TabsContent>
 
@@ -139,6 +177,16 @@ const ProfilePage: React.FC = () => {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {dialogDetails && (
+                <MembershipRequestDialog
+                    open={dialogOpen}
+                    onOpenChange={setDialogOpen}
+                    details={dialogDetails}
+                    resubmission={dialogResubmission}
+                    onSubmitted={refreshCard}
+                />
+            )}
         </Layout>
     );
 };

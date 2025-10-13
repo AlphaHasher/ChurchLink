@@ -304,7 +304,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                     onChange={(e) =>
                                         setContact((c) => ({ ...c, phone: e.target.value }))
                                     }
-                                    placeholder="(555) 555-1234"
+                                    placeholder={editing ? "(555) 555-5555" : ""}
                                     disabled={!editing}
                                 />
                             </div>
@@ -326,7 +326,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                                     address: { ...c.address, address: e.target.value },
                                                 }))
                                             }
-                                            placeholder="123 Main St"
+                                            placeholder={editing ? "123 Main St" : ""}
                                             disabled={!editing}
                                         />
                                     </div>
@@ -344,7 +344,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                                     address: { ...c.address, suite: e.target.value },
                                                 }))
                                             }
-                                            placeholder="Apt / Suite"
+                                            placeholder={editing ? "Apt / Suite" : ""}
                                             disabled={!editing}
                                         />
                                     </div>
@@ -362,7 +362,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                                     address: { ...c.address, city: e.target.value },
                                                 }))
                                             }
-                                            placeholder="City"
+                                            placeholder={editing ? "City" : ""}
                                             disabled={!editing}
                                         />
                                     </div>
@@ -380,7 +380,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                                     address: { ...c.address, state: e.target.value },
                                                 }))
                                             }
-                                            placeholder="CA"
+                                            placeholder={editing ? "CA" : ""}
                                             disabled={!editing}
                                         />
                                     </div>
@@ -398,7 +398,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                                     address: { ...c.address, country: e.target.value },
                                                 }))
                                             }
-                                            placeholder="United States"
+                                            placeholder={editing ? "United States" : ""}
                                             disabled={!editing}
                                         />
                                     </div>
@@ -416,7 +416,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                                     address: { ...c.address, postal_code: e.target.value },
                                                 }))
                                             }
-                                            placeholder="12345"
+                                            placeholder={editing ? "12345" : ""}
                                             disabled={!editing}
                                         />
                                     </div>

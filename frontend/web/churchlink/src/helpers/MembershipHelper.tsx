@@ -1,5 +1,5 @@
 import api from "../api/api";
-import { MembershipRequest } from "@/shared/types/MembershipRequests";
+import { MembershipDetails, MembershipRequest, ReadMembershipRequest } from "@/shared/types/MembershipRequests";
 
 export type MembershipSearchParams = {
     page: number;
@@ -52,4 +52,43 @@ export async function respondToMembershipRequest(uid: string, approved: boolean,
         console.error("Failed to respond to membership request:", err);
         return { success: false, msg: "Failed to respond to membership request." };
     }
+}
+
+
+export const readMembershipDetails = async (): Promise<MembershipDetails> => {
+    try {
+        const res = await api.get("v1/membership/membership-details");
+
+        if (res.data.details['pending_request'] == null) {
+            let ret: MembershipDetails = {
+                membership: res.data.details.membership,
+                pending_request: null,
+            }
+            return ret;
+        }
+        else {
+            const pend = res.data.details['pending_request'];
+            let req: ReadMembershipRequest = {
+                approved: pend['approved'] ?? null,
+                message: pend['message'] ?? null,
+                muted: pend['muted'],
+                reason: pend['reason'] ?? null,
+                resolved: pend['resolved'],
+            };
+
+            let ret: MembershipDetails = {
+                membership: res.data.details['membership'],
+                pending_request: req
+            };
+            return ret;
+        }
+    } catch (err) {
+        console.error("Failed to respond to read membership details:", err);
+        let ret: MembershipDetails = {
+            membership: false,
+            pending_request: null,
+        };
+        return ret;
+    }
+
 }
