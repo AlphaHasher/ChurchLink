@@ -111,6 +111,33 @@ class NotesApi {
     }
   }
 
+  /// Fetch ALL notes once via index route, replace local cache, and notify listeners.
+  static Future<List<RemoteNote>> getAllNotesApi() async {
+    final fresh = await getAllNotes();
+    await _Cache.replaceAll(fresh);
+    _syncedCtr.add(null);
+    return fresh;
+  }
+
+  static bool _primed = false;
+
+  /// Prepares the cache for offline use by fetching all notes once.
+  static Future<void> primeAllCache() async {
+    if (_primed) return;
+    try {
+      await getAllNotesApi();
+      _primed = true;
+    } catch (_) {
+      _primed = false; // allow retry later if first attempt failed/offline
+    }
+  }
+
+  /// Retrieve the cached notes
+  static Future<List<RemoteNote>> getAllNotesFromCache() async {
+    final raw = await _Cache._readAll();
+    return raw.map((e) => RemoteNote.fromJson(e)).toList();
+  }
+
   // --- Online ops (delegate to helper) ---
 
   static Future<RemoteNote> _createOnline(RemoteNote draft) async {
@@ -211,43 +238,6 @@ class NotesApi {
 
   // Public drain at boot/resume/reconnect
   static Future<void> drainOutbox() => _Outbox.drain();
-
-  // Prefetch all notes for the user into the local cache so they are available offline.
-  // Call this once after a user is signed in and books metadata is loaded.
-  static bool _primeAllOnce = false;
-
-  static Future<void> primeAllCache({required Map<String, int> books}) async {
-    if (_primeAllOnce) return;
-    _primeAllOnce = true;
-
-    for (final entry in books.entries) {
-      final book = entry.key;
-      final chapters = entry.value;
-      try {
-        // This fetch writes into the local cache via _Cache.replaceRange(...)
-        await getNotesForChapterRangeApi(
-          book: book,
-          chapterStart: 1,
-          chapterEnd: chapters,
-        );
-      } catch (e) {
-        if (_isOffline(e)) {
-          // If we went offline, allow re-try on the next schedule.
-          _primeAllOnce = false;
-          _scheduleRetry();
-          break;
-        } else {
-          if (kDebugMode) {
-            debugPrint('[NotesApi] primeAllCache error for $book: $e');
-          }
-        }
-      }
-    }
-
-    // Notify listeners that new data may now be available.
-    _syncedCtr.add(null);
-  }
-
 }
 
 // -----------------------------------------------------------------------------
@@ -343,6 +333,21 @@ class _Cache {
     final all = await _readAll();
     all.removeWhere((m) => (m['id']?.toString() ?? '') == id);
     await _writeAll(all);
+  }
+
+  static Future<void> replaceAll(List<RemoteNote> fresh) async {
+    final toWrite = fresh.map((n) => {
+      'id': n.id,
+      'book': n.book,
+      'chapter': n.chapter,
+      'verse_start': n.verseStart,
+      'verse_end': n.verseEnd,
+      'note': n.note,
+      'highlight_color': n.color?.name,
+      'created_at': n.createdAt?.toIso8601String(),
+      'updated_at': n.updatedAt?.toIso8601String(),
+    }).toList();
+    await _writeAll(toWrite);
   }
 
   static Future<void> updatePartial(
