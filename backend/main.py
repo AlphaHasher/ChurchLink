@@ -58,7 +58,7 @@ from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
 from routes.translator_routes import translator_router
-from routes.assets_routes import assets_router
+from routes.assets_routes import protected_assets_router, public_assets_router
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -251,7 +251,7 @@ public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
-public_router.include_router(assets_router)
+public_router.include_router(public_assets_router)
 
 
 #####################################################
@@ -316,6 +316,13 @@ layout_management_protected_router.include_router(mod_header_router)
 layout_management_protected_router.include_router(mod_footer_router)
 
 
+
+
+# MEDIA MANAGEMENT CORE
+media_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Media Protected"], required_perms=['media_management'])
+media_management_protected_router.include_router(protected_assets_router)
+
+
 # Include routers in main app
 app.include_router(public_router)
 app.include_router(private_router)
@@ -325,10 +332,9 @@ app.include_router(sermon_editing_protected_router)
 app.include_router(bulletin_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
+app.include_router(media_management_protected_router)
 
-# Mount static files for serving assets
-assets_path = Path("data/assets")
-app.mount("/assets", StaticFiles(directory=assets_path, html=False), name="assets")
+
 
 
 if __name__ == "__main__":
