@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getStreamIDs, getYTChannelLink } from "@/helpers/YoutubeHelper";
 import { NoStreams } from "../components/NoStreams";
 import { StreamViewer } from "../components/StreamViewer";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 const Streams = () => {
     const [streams, setStreams] = useState<string[]>([]);
@@ -26,7 +27,12 @@ const Streams = () => {
     }, []);
 
     if (loading) {
-        return <div>Loading...</div>;
+        return (
+            <div className="p-6">
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-48 w-full mt-3" />
+            </div>
+        );
     }
 
     return (

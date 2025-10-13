@@ -9,6 +9,23 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import { SortableItem } from "./SortableItem";
 
+const FRIENDLY_TYPE: Record<string, string> = {
+  text: "Text Field",
+  email: "Email Field",
+  url: "URL Field",
+  tel: "Phone Field",
+  textarea: "Paragraph Field",
+  number: "Number Field",
+  checkbox: "Checkbox",
+  switch: "Switch",
+  select: "Select Field",
+  radio: "Radio Group",
+  date: "Date Field",
+  time: "Time Field",
+  static: "Static Text",
+  price: "Price Field",
+};
+
 export function Canvas() {
   const fields = useBuilderStore((s) => s.schema.data);
   const select = useBuilderStore((s) => s.select);
@@ -59,7 +76,11 @@ export function Canvas() {
                         >
                           ⋮⋮
                         </span>
-                        {idx + 1}. {f.label} <span className="text-muted-foreground">({f.type}{f.width ? ` • ${f.width}` : ""})</span>
+                        {idx + 1}. {(() => {
+                          const raw = (f as any).label;
+                          const hasCustom = typeof raw === 'string' && raw.trim().length > 0;
+                          return hasCustom ? raw : FRIENDLY_TYPE[f.type] || `${f.type[0].toUpperCase()}${f.type.slice(1)} Field`;
+                        })()} <span className="text-muted-foreground">({f.type}{f.width ? ` • ${f.width}` : ""})</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Sheet>

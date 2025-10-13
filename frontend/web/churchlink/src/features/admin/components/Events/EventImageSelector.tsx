@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/shared/components/ui/button"
 import { fetchStrapiImages, processStrapiRedirect } from "@/helpers/StrapiInteraction"
 import { Label } from "@/shared/components/ui/label"
+import { Skeleton } from "@/shared/components/ui/skeleton"
 import {
     Command,
     CommandEmpty,
@@ -57,7 +58,7 @@ export function EventImageSelector({ value, onChange }: EventImageSelectorProps)
                             onValueChange={setSearchTerm}
                             className="placeholder:text-sm"
                         />
-                        <CommandEmpty>{loading ? "Loading..." : "No results found."}</CommandEmpty>
+                        <CommandEmpty>{loading ? <div className="py-2"><Skeleton className="h-4 w-24" /></div> : "No results found."}</CommandEmpty>
                         {results.length > 0 && (
                             <CommandGroup heading="Results">
                                 {results.map((img) => (
