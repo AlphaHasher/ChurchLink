@@ -271,9 +271,7 @@ class _UserSettingsState extends State<UserSettings> {
               if (user != null) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => MembershipScreen(user: user),
-                  ),
+                  MaterialPageRoute(builder: (context) => MembershipScreen()),
                 );
               }
             },

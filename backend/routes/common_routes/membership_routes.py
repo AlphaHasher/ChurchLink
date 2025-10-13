@@ -14,9 +14,16 @@ from models.membership_request import (
 
 from pydantic import BaseModel
 
+class ReadRequest(BaseModel):
+    message: Optional[str]
+    resolved: bool
+    approved: Optional[bool]
+    reason: Optional[str]
+    muted: bool
+
 class MembershipDetails(BaseModel):
     membership: bool
-    pending_request: Optional[MembershipRequest]
+    pending_request: Optional[ReadRequest]
 
 from controllers.users_functions import change_user_member_status
 
@@ -37,13 +44,21 @@ async def get_membership_details(request: Request):
     uid = request.state.uid
     membership_status = request.state.user['membership']
     pending_request_search = await get_mr_by_uid(uid)
+    if pending_request_search:
+        pending = ReadRequest(
+            message = pending_request_search.get("message", None),
+            resolved = pending_request_search.get("resolved"),
+            approved = pending_request_search.get("approved", None),
+            reason = pending_request_search.get("reason", None),
+            muted = pending_request_search.get("muted"),
+        )
+    else:
+        pending = None
     out = MembershipDetails(
         membership=membership_status,
-        pending_request=pending_request_search
+        pending_request=pending
     )
     return {'success':True, 'details':out}
-
-
 
 
 # Mod Route

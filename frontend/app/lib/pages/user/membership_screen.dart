@@ -1,256 +1,286 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'package:app/helpers/membership_helper.dart';
 import 'package:app/helpers/user_helper.dart';
-import 'package:app/models/profile_info.dart';
+import 'package:app/models/membership_request.dart';
+
+import 'package:app/widgets/user/visualize_membership.dart';
+import 'package:app/widgets/user/request_status.dart';
+import 'package:app/pages/user/submit_membership_request.dart';
+import 'package:app/pages/user/membership_denial.dart';
 
 class MembershipScreen extends StatefulWidget {
-  final User user;
-  final ProfileInfo? initialProfile;
-
-  const MembershipScreen({super.key, required this.user, this.initialProfile});
+  const MembershipScreen({super.key});
 
   @override
   State<MembershipScreen> createState() => _MembershipScreenState();
 }
 
+enum _PrimaryAction { none, openSubmit, openRead }
+
+class _UiPlan {
+  final String? message;
+  final String buttonLabel;
+  final _PrimaryAction action;
+  final bool resubmission;
+  final String? prefill;
+  final bool? readMuted;
+  final String? readReason;
+
+  const _UiPlan({
+    required this.message,
+    required this.buttonLabel,
+    required this.action,
+    required this.resubmission,
+    required this.prefill,
+    required this.readMuted,
+    required this.readReason,
+  });
+
+  static const none = _UiPlan(
+    message: null,
+    buttonLabel: "",
+    action: _PrimaryAction.none,
+    resubmission: false,
+    prefill: null,
+    readMuted: null,
+    readReason: null,
+  );
+}
+
 class _MembershipScreenState extends State<MembershipScreen> {
+  MembershipDetails? _details;
   bool _loading = true;
-  ProfileInfo? profile;
+  bool _online = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _prefillFromIncomingOrFallback();
+    _load();
   }
 
-  Future<void> _prefillFromIncomingOrFallback() async {
-    ProfileInfo? p =
-        widget.initialProfile ?? await UserHelper.readCachedProfile();
-    p ??= (await UserHelper.getMyProfile())?.profile;
-
+  Future<void> _load() async {
     if (!mounted) return;
     setState(() {
-      profile = p;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+
+    Future<void> _loadCache() async {
+      try {
+        final profile = await UserHelper.readCachedProfile();
+        final isMember = (profile == null ? false : profile.membership);
+        final synthesized = MembershipDetails(
+          membership: isMember,
+          pending_request: null,
+        );
+        if (!mounted) return;
+        setState(() {
+          _details = synthesized;
+          _loading = false;
+          _online = false;
+        });
+      } catch (e2) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = 'Failed to load membership details.';
+          _online = false;
+        });
+      }
+    }
+
+    try {
+      final fresh = await MembershipHelper.readMembershipDetails();
+      if (fresh == null) {
+        _loadCache();
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _details = fresh;
+        _loading = false;
+        _online = true;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _reload() => _load();
+
+  _UiPlan _deriveUi(MembershipDetails d) {
+    final pr = d.pending_request;
+
+    if (d.membership == true || _online == false) {
+      return _UiPlan.none;
+    }
+
+    // Muted special case:
+    // - muted + denied => allow "Read Request"
+    // - muted otherwise => no status/button
+    if (pr != null && pr.muted == true) {
+      if (pr.resolved == true && pr.approved == false) {
+        return _UiPlan(
+          message:
+              'Your previous membership request was denied. You can review your request below, there may be details as to why your request was denied.',
+          buttonLabel: 'Read Request',
+          action: _PrimaryAction.openRead,
+          resubmission: false,
+          prefill: null,
+          readMuted: pr.muted,
+          readReason: pr.reason,
+        );
+      }
+      return _UiPlan.none;
+    }
+
+    // No pending OR previously approved (membership later revoked) → Request
+    if (pr == null || (pr.approved == true)) {
+      return _UiPlan(
+        message:
+            'You’re not a member yet. But, you can submit a membership request to become one below!',
+        buttonLabel: 'Request Membership',
+        action: _PrimaryAction.openSubmit,
+        resubmission: false,
+        prefill: null,
+        readMuted: null,
+        readReason: null,
+      );
+    }
+
+    // Pending and unresolved → Re-submit
+    if (pr.resolved == false) {
+      return _UiPlan(
+        message:
+            'You already have a membership request pending review. If needed, you can re-submit it with a new or updated message below.',
+        buttonLabel: 'Re-Submit Request',
+        action: _PrimaryAction.openSubmit,
+        resubmission: true,
+        prefill: pr.message,
+        readMuted: null,
+        readReason: null,
+      );
+    }
+
+    // Resolved & denied → Read
+    if (pr.resolved == true && pr.approved == false) {
+      return _UiPlan(
+        message:
+            'Your previous membership request was denied. You can review the details below.',
+        buttonLabel: 'Read Request',
+        action: _PrimaryAction.openRead,
+        resubmission: false,
+        prefill: null,
+        readMuted: pr.muted,
+        readReason: pr.reason,
+      );
+    }
+
+    return _UiPlan.none;
+  }
+
+  Future<void> _handlePrimaryAction(_UiPlan plan) async {
+    switch (plan.action) {
+      case _PrimaryAction.openSubmit:
+        {
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder:
+                  (_) => SubmitMembershipRequestScreen(
+                    resubmission: plan.resubmission,
+                    initialMessage: plan.prefill,
+                  ),
+            ),
+          );
+          if (result == true) {
+            if (!mounted) return;
+            await _reload();
+          }
+          break;
+        }
+      case _PrimaryAction.openRead:
+        {
+          final refreshed = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder:
+                  (_) => ReadMembershipDenialScreen(
+                    muted: plan.readMuted ?? false,
+                    reason: plan.readReason,
+                    previousMessage: null,
+                  ),
+            ),
+          );
+          if (refreshed == true) {
+            if (!mounted) return;
+            await _reload();
+          }
+          break;
+        }
+      case _PrimaryAction.none:
+      default:
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
-    final isMember = profile?.membership == true;
+    if (_loading) {
+      return const Scaffold(body: LinearProgressIndicator());
+    }
+
+    final d = _details;
+    if (d == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Church Membership')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Unable to load membership details.'),
+        ),
+      );
+    }
+
+    final plan = _deriveUi(d);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Church Membership'),
-        backgroundColor: ssbcGray,
-      ),
-      body:
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
-                children: [
-                  Text(
-                    'Your Status',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _StatusCard(isMember: isMember),
-                  const SizedBox(height: 20),
-                  _PerksList(isMember: isMember),
-                  const SizedBox(height: 28),
-                  if (profile == null)
-                    _SubtleNote(
-                      text:
-                          'We couldn’t load your profile details. Pull down to refresh, or try again later.',
-                    ),
-                ],
-              ),
-    );
-  }
-}
-
-class _StatusCard extends StatefulWidget {
-  final bool isMember;
-  const _StatusCard({required this.isMember});
-
-  @override
-  State<_StatusCard> createState() => _StatusCardState();
-}
-
-class _StatusCardState extends State<_StatusCard> {
-  @override
-  Widget build(BuildContext context) {
-    final isMember = widget.isMember;
-
-    final gradient =
-        isMember
-            ? const LinearGradient(
-              colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
-            : const LinearGradient(
-              colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            );
-
-    final icon = isMember ? Icons.verified_rounded : Icons.cancel_rounded;
-    final title = isMember ? 'Official Member' : 'Not a Member';
-    final subtitle =
-        isMember
-            ? 'You are an official church member and will receive the benefits of lower members-only event prices!'
-            : 'You are not currently registered as an official church member. You won’t receive members-only pricing on events.';
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeInOut,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 280),
-            child: Container(
-              key: ValueKey<bool>(isMember),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: Colors.white, size: 34),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    title,
-                    key: ValueKey<bool>(isMember),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.95),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PerksList extends StatelessWidget {
-  final bool isMember;
-  const _PerksList({required this.isMember});
-
-  @override
-  Widget build(BuildContext context) {
-    final items =
-        isMember
-            ? const [
-              'Lower members-only event prices',
-              'Access to members-only events',
-              'Other benefits that are undefined',
-            ]
-            : const [
-              'General event pricing applies',
-              'Some members-only events may be restricted',
-              'Other benefits that are undefined',
-            ];
-
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+      appBar: AppBar(title: const Text('Church Membership')),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 100, 16, 0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              isMember ? 'What you get' : 'Heads up',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            ...items.map(
-              (t) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    Icon(
-                      isMember
-                          ? Icons.check_circle_rounded
-                          : Icons.info_rounded,
-                      size: 20,
-                      color:
-                          isMember
-                              ? const Color(0xFF16A34A)
-                              : const Color(0xFFB91C1C),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        t,
-                        style: Theme.of(context).textTheme.bodyMedium,
+            VisualizeMembership(membership: d.membership),
+
+            const SizedBox(height: 40),
+
+            if (plan.message != null && plan.message!.isNotEmpty) ...[
+              RequestStatus(message: plan.message!),
+              const SizedBox(height: 16),
+            ],
+
+            if (plan.buttonLabel.isNotEmpty)
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: ElevatedButton(
+                    onPressed: () => _handlePrimaryAction(plan),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                  ],
+                    child: Text(
+                      plan.buttonLabel,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SubtleNote extends StatelessWidget {
-  final String text;
-  const _SubtleNote({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-      ),
-      textAlign: TextAlign.center,
     );
   }
 }
