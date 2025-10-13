@@ -605,7 +605,8 @@ class PaymentAuditLogger:
         """Log transaction query operations for financial reporting"""
         record = self._create_audit_record(
             event_type=AuditEventType.TRANSACTION_QUERY,
-            user_id=user_id,
+            user_uid=user_id,
+            event_id=None,
             severity=AuditSeverity.INFO,
             message=f"Transaction query executed by user {user_id}",
             details={
@@ -625,7 +626,8 @@ class PaymentAuditLogger:
         """Log access to specific transaction details"""
         record = self._create_audit_record(
             event_type=AuditEventType.TRANSACTION_DETAIL_ACCESS,
-            user_id=user_id,
+            user_uid=user_id,
+            event_id=None,
             severity=AuditSeverity.INFO,
             message=f"Transaction detail accessed by user {user_id}",
             details={
@@ -648,7 +650,8 @@ class PaymentAuditLogger:
         """Log financial report and analytics access"""
         record = self._create_audit_record(
             event_type=AuditEventType.FINANCIAL_REPORT_ACCESS,
-            user_id=user_id,
+            user_uid=user_id,
+            event_id=event_id,
             severity=AuditSeverity.INFO,
             message=f"Financial report '{report_type}' accessed by user {user_id}",
             details={

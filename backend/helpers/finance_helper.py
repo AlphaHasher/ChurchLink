@@ -6,13 +6,14 @@ from fastapi import HTTPException
 from mongo.database import DB
 from models.transaction import Transaction
 from models.event import Event
-from helpers.audit_logger import PaymentAuditLogger
+from helpers.audit_logger import PaymentAuditLogger, AuditEventType
 
 class FinanceHelper:
     """Helper class for finance-related operations and analytics"""
     
     def __init__(self):
         self.audit_logger = PaymentAuditLogger()
+        self.logger = logging.getLogger(__name__)
 
     async def get_all_transactions(
         self,
@@ -513,8 +514,9 @@ class FinanceHelper:
 
     async def _get_payment_type_summary(self, date_filter: Dict[str, Any]) -> List[Dict]:
         """Get payment type summary using aggregation"""
+        match_filter = {"created_on": date_filter} if date_filter else {}
         pipeline = [
-            {"$match": {"created_on": date_filter} if date_filter else {"$match": {}}},
+            {"$match": match_filter},
             {"$group": {
                 "_id": "$payment_type",
                 "total_amount": {"$sum": "$amount"},
@@ -527,8 +529,9 @@ class FinanceHelper:
 
     async def _get_status_summary(self, date_filter: Dict[str, Any]) -> List[Dict]:
         """Get status summary using aggregation"""
+        match_filter = {"created_on": date_filter} if date_filter else {}
         pipeline = [
-            {"$match": {"created_on": date_filter} if date_filter else {"$match": {}}},
+            {"$match": match_filter},
             {"$group": {
                 "_id": "$status",
                 "total_amount": {"$sum": "$amount"},
@@ -547,8 +550,9 @@ class FinanceHelper:
             "year": {"$dateToString": {"format": "%Y", "date": {"$dateFromString": {"dateString": "$created_on"}}}}
         }
 
+        match_filter = {"created_on": date_filter} if date_filter else {}
         pipeline = [
-            {"$match": {"created_on": date_filter} if date_filter else {"$match": {}}},
+            {"$match": match_filter},
             {"$group": {
                 "_id": time_grouping.get(period, time_grouping["month"]),
                 "total_amount": {"$sum": "$amount"},
@@ -561,8 +565,9 @@ class FinanceHelper:
 
     async def _get_overall_totals(self, date_filter: Dict[str, Any]) -> Dict[str, Any]:
         """Get overall financial totals"""
+        match_filter = {"created_on": date_filter} if date_filter else {}
         pipeline = [
-            {"$match": {"created_on": date_filter} if date_filter else {"$match": {}}},
+            {"$match": match_filter},
             {"$group": {
                 "_id": None,
                 "total_revenue": {"$sum": "$amount"},
@@ -710,10 +715,9 @@ class FinanceHelper:
         """Get PayPal configuration status from environment variables"""
         try:
             # Log PayPal status check
-            await self.audit_logger.log_admin_action(
+            await self.audit_logger.log_financial_report_access(
                 user_id=user_id,
-                action="paypal_status_check",
-                details={"action": "Check PayPal configuration status"},
+                report_type="paypal_status_check",
                 request_ip=request_ip
             )
             
@@ -733,9 +737,10 @@ class FinanceHelper:
             
         except Exception as e:
             self.logger.error(f"Error checking PayPal status: {str(e)}")
-            await self.audit_logger.log_error(
-                event_type=self.audit_logger.AuditEventType.SYSTEM_ERROR,
-                user_id=user_id,
+            self.audit_logger.log_error(
+                event_type=AuditEventType.VALIDATION_FAILED,
+                user_uid=user_id,
+                event_id=None,
                 error_message=f"PayPal status check failed: {str(e)}",
                 exception=e,
                 request_ip=request_ip
@@ -746,10 +751,9 @@ class FinanceHelper:
         """Test PayPal API connection with current credentials"""
         try:
             # Log PayPal connection test
-            await self.audit_logger.log_admin_action(
+            await self.audit_logger.log_financial_report_access(
                 user_id=user_id,
-                action="paypal_connection_test",
-                details={"action": "Test PayPal API connection"},
+                report_type="paypal_connection_test",
                 request_ip=request_ip
             )
             
@@ -765,10 +769,9 @@ class FinanceHelper:
                 }
                 
                 # Log successful connection
-                await self.audit_logger.log_admin_action(
+                await self.audit_logger.log_financial_report_access(
                     user_id=user_id,
-                    action="paypal_connection_success",
-                    details={"result": "PayPal connection successful"},
+                    report_type="paypal_connection_success",
                     request_ip=request_ip
                 )
                 
@@ -781,10 +784,9 @@ class FinanceHelper:
                 }
                 
                 # Log failed connection
-                await self.audit_logger.log_admin_action(
+                await self.audit_logger.log_financial_report_access(
                     user_id=user_id,
-                    action="paypal_connection_failed",
-                    details={"result": "PayPal connection failed"},
+                    report_type="paypal_connection_failed",
                     request_ip=request_ip
                 )
                 
@@ -798,9 +800,10 @@ class FinanceHelper:
                 "connected": False
             }
             
-            await self.audit_logger.log_error(
-                event_type=self.audit_logger.AuditEventType.SYSTEM_ERROR,
-                user_id=user_id,
+            self.audit_logger.log_error(
+                event_type=AuditEventType.VALIDATION_FAILED,
+                user_uid=user_id,
+                event_id=None,
                 error_message=f"PayPal connection test failed: {str(e)}",
                 exception=e,
                 request_ip=request_ip
@@ -811,10 +814,9 @@ class FinanceHelper:
     async def get_paypal_credentials_info(self, user_id: str, request_ip: str) -> Dict[str, Any]:
         """Information about updating PayPal credentials"""
         # Log credentials info request
-        await self.audit_logger.log_admin_action(
+        await self.audit_logger.log_financial_report_access(
             user_id=user_id,
-            action="paypal_credentials_info",
-            details={"action": "Request PayPal credentials update information"},
+            report_type="paypal_credentials_info",
             request_ip=request_ip
         )
         
@@ -838,10 +840,9 @@ class FinanceHelper:
         """Get PayPal settings (non-credential settings stored in database)"""
         try:
             # Log settings retrieval
-            await self.audit_logger.log_admin_action(
+            await self.audit_logger.log_financial_report_access(
                 user_id=user_id,
-                action="paypal_settings_get",
-                details={"action": "Retrieve PayPal settings"},
+                report_type="paypal_settings",
                 request_ip=request_ip
             )
             
@@ -850,9 +851,10 @@ class FinanceHelper:
             
         except Exception as e:
             self.logger.error(f"Error getting PayPal settings: {str(e)}")
-            await self.audit_logger.log_error(
-                event_type=self.audit_logger.AuditEventType.SYSTEM_ERROR,
-                user_id=user_id,
+            self.audit_logger.log_error(
+                event_type=AuditEventType.VALIDATION_FAILED,
+                user_uid=user_id,
+                event_id=None,
                 error_message=f"Failed to get PayPal settings: {str(e)}",
                 exception=e,
                 request_ip=request_ip
@@ -868,10 +870,9 @@ class FinanceHelper:
         """Update PayPal settings (non-credential settings like church name, allowed funds)"""
         try:
             # Log settings update attempt
-            await self.audit_logger.log_admin_action(
+            await self.audit_logger.log_financial_report_access(
                 user_id=user_id,
-                action="paypal_settings_update_attempt",
-                details={"settings_keys": list(settings.keys())},
+                report_type="paypal_settings_update",
                 request_ip=request_ip
             )
             
@@ -903,10 +904,9 @@ class FinanceHelper:
                         updated_settings[key] = value
             
             # Log successful update
-            await self.audit_logger.log_admin_action(
+            await self.audit_logger.log_financial_report_access(
                 user_id=user_id,
-                action="paypal_settings_updated",
-                details={"updated_settings": updated_settings},
+                report_type="paypal_settings_updated",
                 request_ip=request_ip
             )
             
@@ -918,9 +918,10 @@ class FinanceHelper:
         
         except Exception as e:
             self.logger.error(f"Error updating PayPal settings: {str(e)}")
-            await self.audit_logger.log_error(
-                event_type=self.audit_logger.AuditEventType.SYSTEM_ERROR,
-                user_id=user_id,
+            self.audit_logger.log_error(
+                event_type=AuditEventType.VALIDATION_FAILED,
+                user_uid=user_id,
+                event_id=None,
                 error_message=f"Failed to update PayPal settings: {str(e)}",
                 exception=e,
                 request_ip=request_ip
