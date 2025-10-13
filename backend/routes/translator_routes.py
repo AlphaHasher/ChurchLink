@@ -22,6 +22,20 @@ def throttling_callback(event: Dict[str, Any]):
 BulkTranslator.set_throttling_callback(throttling_callback)
 
 
+@translator_router.get("/languages")
+async def get_supported_languages():
+    """Return the list of supported language codes and names.
+
+    Uses the LANGUAGES mapping from savedGoogleTrans constants.
+    """
+    try:
+        from BulkTranslator.savedGoogleTrans.constants import LANGUAGES
+        languages = [{"code": code, "name": name} for code, name in LANGUAGES.items()]
+        return {"languages": languages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load languages: {str(e)}")
+
+
 @translator_router.post("/translate-multi")
 async def translate_from_other_multi(
     items: List[str],
