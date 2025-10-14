@@ -1,6 +1,5 @@
 from mongo.churchuser import UserHandler as User
 from mongo.roles import RoleHandler
-from helpers.StrapiHelper import StrapiHelper
 
 from firebase_admin import auth
 
@@ -101,15 +100,6 @@ class FirebaseSyncer:
         except auth.UserNotFoundError:
             return None
 
-    @staticmethod
-    async def safe_strapi_sync(uid_param):
-        """Safe Strapi sync that doesn't fail if Strapi is unavailable"""
-        try:
-            return await StrapiHelper.sync_strapi_roles(uid_param)
-        except Exception as e:
-            print(f"Strapi sync failed for user {uid_param}: {e}")
-            print("Continuing without Strapi sync...")
-            return True  # Return True to indicate MongoDB update was successful
 
     @staticmethod
     async def assign_admin_role(uid: str):
@@ -121,9 +111,9 @@ class FirebaseSyncer:
                 print("Error finding admin role")
                 return False
 
-            # Update user roles in MongoDB with a safe Strapi sync function
+            # Update user roles in MongoDB
             admin_role_id_str = str(admin_role_id)
-            success = await User.update_roles(uid, [admin_role_id_str], FirebaseSyncer.safe_strapi_sync)
+            success = await User.update_roles(uid, [admin_role_id_str])
 
             if success:
                 return True

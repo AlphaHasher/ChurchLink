@@ -436,7 +436,7 @@ class UserHandler:
         return await DB.update_document("users", filterQuery, updateData)
 
     @staticmethod
-    async def update_roles(uid, roles, strapiSyncFunction):
+    async def update_roles(uid, roles):
         if not await UserHandler.is_user(uid):
             print(f"User with this uid does not exist: {uid}")
             return False
@@ -445,7 +445,6 @@ class UserHandler:
             await DB.update_document("users", {"uid": uid}, {
                     "roles": roles
             })
-            return await strapiSyncFunction(uid)
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False

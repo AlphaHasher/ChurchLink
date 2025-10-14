@@ -4,7 +4,6 @@ import '../models/family_member.dart';
 import '../models/event_registration_summary.dart';
 import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
-import '../helpers/strapi_helper.dart';
 import 'user/family_member_form.dart';
 import '../models/profile_info.dart';
 import '../caches/user_profile_cache.dart';
@@ -30,7 +29,8 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
   List<FamilyMember> _allFamilyMembers = [];
   List<FamilyMember> _eligibleFamilyMembers = [];
   final Map<String, FamilyMember?> _selectedPeople = {};
-  final Map<String, String> _personScopes = {}; // Track scope for each person: "series" or "occurrence"
+  final Map<String, String> _personScopes =
+      {}; // Track scope for each person: "series" or "occurrence"
   final Set<String> _initialSelectedPeopleIds = {};
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -55,9 +55,10 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
 
       _allFamilyMembers = await FamilyMemberService.getFamilyMembers();
 
-      _eligibleFamilyMembers = _allFamilyMembers
-          .where((member) => _isEligibleForEvent(member))
-          .toList();
+      _eligibleFamilyMembers =
+          _allFamilyMembers
+              .where((member) => _isEligibleForEvent(member))
+              .toList();
 
       if (widget.isUpdate && widget.existingRegistrations != null) {
         for (final reg in widget.existingRegistrations!) {
@@ -69,14 +70,15 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
           } else {
             final member = _allFamilyMembers.firstWhere(
               (m) => m.id == reg.personId,
-              orElse: () => FamilyMember(
-                id: '',
-                firstName: '',
-                lastName: '',
-                gender: 'M',
-                dateOfBirth: DateTime.now(),
-                createdOn: DateTime.now(),
-              ),
+              orElse:
+                  () => FamilyMember(
+                    id: '',
+                    firstName: '',
+                    lastName: '',
+                    gender: 'M',
+                    dateOfBirth: DateTime.now(),
+                    createdOn: DateTime.now(),
+                  ),
             );
             if (member.id.isNotEmpty) {
               personKey = member.id;
@@ -133,7 +135,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
 
   bool _hasChanges() {
     final currentIds = _selectedPeople.keys.toSet();
-    
+
     // Check if people selection changed
     if (currentIds.length != _initialSelectedPeopleIds.length) {
       return true;
@@ -141,7 +143,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
     if (!currentIds.every((id) => _initialSelectedPeopleIds.contains(id))) {
       return true;
     }
-    
+
     // Check if scope changed for any existing person
     if (widget.isUpdate && widget.existingRegistrations != null) {
       for (final id in currentIds.intersection(_initialSelectedPeopleIds)) {
@@ -159,7 +161,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
         }
       }
     }
-    
+
     return false;
   }
 
@@ -204,7 +206,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
       try {
         bool success;
         final scope = _personScopes[entry.key] ?? 'series'; // Default to series
-        
+
         if (entry.key == 'self') {
           success = await EventRegistrationService.registerForEvent(
             eventId: widget.event.id,
@@ -234,14 +236,13 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
   }
 
   Future<void> _handleUpdate() async {
-    final existingIds = widget.existingRegistrations!
-        .map((r) => r.personId ?? 'self')
-        .toSet();
+    final existingIds =
+        widget.existingRegistrations!.map((r) => r.personId ?? 'self').toSet();
     final selectedIds = _selectedPeople.keys.toSet();
 
     final toAdd = selectedIds.difference(existingIds);
     final toRemove = existingIds.difference(selectedIds);
-    
+
     // Check for scope changes (person exists but scope changed)
     final toUpdate = <String>[];
     for (final id in selectedIds.intersection(existingIds)) {
@@ -281,7 +282,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
         final existingReg = widget.existingRegistrations!.firstWhere(
           (r) => (r.personId ?? 'self') == id,
         );
-        
+
         // Remove old scope registration
         if (id == 'self') {
           await EventRegistrationService.unregisterFromEvent(
@@ -349,39 +350,43 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
   void _showSelectPeopleDialog() {
     showDialog(
       context: context,
-      builder: (context) => _SelectPeopleDialog(
-        event: widget.event,
-        eligibleMembers: _eligibleFamilyMembers,
-        allMembers: _allFamilyMembers,
-        selectedIds: _selectedPeople.keys.toSet(),
-        onSelectionChanged: (selected) {
-          setState(() {
-            _selectedPeople.clear();
+      builder:
+          (context) => _SelectPeopleDialog(
+            event: widget.event,
+            eligibleMembers: _eligibleFamilyMembers,
+            allMembers: _allFamilyMembers,
+            selectedIds: _selectedPeople.keys.toSet(),
+            onSelectionChanged: (selected) {
+              setState(() {
+                _selectedPeople.clear();
 
-            for (final id in selected) {
-              if (id == 'self') {
-                _selectedPeople['self'] = null;
-              } else {
-                final member = _allFamilyMembers.firstWhere(
-                  (m) => m.id == id,
-                );
-                _selectedPeople[id] = member;
-                _validatePerson(id, member);
-              }
-              
-              // Initialize scope if not already set (default to 'series' for recurring events, 'occurrence' for non-recurring)
-              if (!_personScopes.containsKey(id)) {
-                final isRecurringEvent = widget.event.recurring != null && widget.event.recurring != 'never';
-                _personScopes[id] = isRecurringEvent ? 'series' : 'occurrence';
-              }
-            }
-          });
-        },
-        onFamilyMembersUpdated: () async {
-          // Reload family members in the parent
-          await _loadInitialData();
-        },
-      ),
+                for (final id in selected) {
+                  if (id == 'self') {
+                    _selectedPeople['self'] = null;
+                  } else {
+                    final member = _allFamilyMembers.firstWhere(
+                      (m) => m.id == id,
+                    );
+                    _selectedPeople[id] = member;
+                    _validatePerson(id, member);
+                  }
+
+                  // Initialize scope if not already set (default to 'series' for recurring events, 'occurrence' for non-recurring)
+                  if (!_personScopes.containsKey(id)) {
+                    final isRecurringEvent =
+                        widget.event.recurring != null &&
+                        widget.event.recurring != 'never';
+                    _personScopes[id] =
+                        isRecurringEvent ? 'series' : 'occurrence';
+                  }
+                }
+              });
+            },
+            onFamilyMembersUpdated: () async {
+              // Reload family members in the parent
+              await _loadInitialData();
+            },
+          ),
     );
   }
 
@@ -395,123 +400,141 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isUpdate ? 'Update Registration' : 'Register for Event'),
+        title: Text(
+          widget.isUpdate ? 'Update Registration' : 'Register for Event',
+        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildEventSummaryCard(),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Registered People',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildEventSummaryCard(),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Registered People',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_selectedPeople.isEmpty)
-                    Card(
-                      color: widget.isUpdate ? Colors.orange[50] : null,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            if (widget.isUpdate)
-                              Icon(
-                                Icons.warning_amber,
-                                color: Colors.orange[800],
-                                size: 24,
-                              ),
-                            if (widget.isUpdate) const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                widget.isUpdate
-                                    ? 'No people selected. Updating will cancel all registrations for this event.'
-                                    : 'No people selected yet. Use the buttons below to add people.',
-                                style: TextStyle(
-                                  color: widget.isUpdate
-                                      ? Colors.orange[900]
-                                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                                  fontStyle: FontStyle.italic,
-                                  fontWeight: widget.isUpdate ? FontWeight.w500 : FontWeight.normal,
+                    const SizedBox(height: 12),
+                    if (_selectedPeople.isEmpty)
+                      Card(
+                        color: widget.isUpdate ? Colors.orange[50] : null,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              if (widget.isUpdate)
+                                Icon(
+                                  Icons.warning_amber,
+                                  color: Colors.orange[800],
+                                  size: 24,
+                                ),
+                              if (widget.isUpdate) const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  widget.isUpdate
+                                      ? 'No people selected. Updating will cancel all registrations for this event.'
+                                      : 'No people selected yet. Use the buttons below to add people.',
+                                  style: TextStyle(
+                                    color:
+                                        widget.isUpdate
+                                            ? Colors.orange[900]
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withOpacity(0.6),
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight:
+                                        widget.isUpdate
+                                            ? FontWeight.w500
+                                            : FontWeight.normal,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    ..._buildPersonCards(),
-                  const SizedBox(height: 24),
-                  _buildActionButtons(),
-                  const SizedBox(height: 24),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ElevatedButton(
-                        onPressed: _isSubmitting || 
-                            (widget.isUpdate && !_hasChanges()) ||
-                            (!widget.isUpdate && _selectedPeople.isEmpty)
-                            ? null
-                            : _handleSubmit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            ],
                           ),
-                          elevation: 4,
                         ),
-                        child: _isSubmitting
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              )
-                            : Text(
-                                widget.isUpdate
-                                    ? 'Update Registration'
-                                    : 'Complete Registration',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                      )
+                    else
+                      ..._buildPersonCards(),
+                    const SizedBox(height: 24),
+                    _buildActionButtons(),
+                    const SizedBox(height: 24),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ElevatedButton(
+                          onPressed:
+                              _isSubmitting ||
+                                      (widget.isUpdate && !_hasChanges()) ||
+                                      (!widget.isUpdate &&
+                                          _selectedPeople.isEmpty)
+                                  ? null
+                                  : _handleSubmit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color.fromARGB(
+                              255,
+                              142,
+                              163,
+                              168,
+                            ),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                          ),
+                          child:
+                              _isSubmitting
+                                  ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  )
+                                  : Text(
+                                    widget.isUpdate
+                                        ? 'Update Registration'
+                                        : 'Complete Registration',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                        ),
+                        if (!widget.isUpdate && _selectedPeople.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              'Please select at least one person to register',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).colorScheme.error,
+                                fontStyle: FontStyle.italic,
                               ),
-                      ),
-                      if (!widget.isUpdate && _selectedPeople.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Please select at least one person to register',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(context).colorScheme.error,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildPaymentPlaceholder(),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _buildPaymentPlaceholder(),
+                  ],
+                ),
               ),
-            ),
     );
   }
 
@@ -519,9 +542,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
     final cs = Theme.of(context).colorScheme;
     return Card(
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 4,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,7 +571,11 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.schedule, size: 16, color: cs.onPrimaryContainer),
+                    Icon(
+                      Icons.schedule,
+                      size: 16,
+                      color: cs.onPrimaryContainer,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       widget.event.formattedDateTime,
@@ -561,7 +586,11 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.location_on, size: 16, color: cs.onPrimaryContainer),
+                    Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: cs.onPrimaryContainer,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -575,7 +604,11 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.attach_money, size: 16, color: cs.onPrimaryContainer),
+                      Icon(
+                        Icons.attach_money,
+                        size: 16,
+                        color: cs.onPrimaryContainer,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '\$${widget.event.price.toStringAsFixed(2)} per person',
@@ -633,39 +666,51 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
     return _selectedPeople.entries.map((entry) {
       final isInvalid = _invalidPeople.contains(entry.key);
       final isSelf = entry.key == 'self';
-      
+
       // Build name and age/gender info
       String name;
       String? ageGenderInfo;
-      
+
       if (isSelf && _currentUserProfile != null) {
-        name = '${_currentUserProfile!.firstName} ${_currentUserProfile!.lastName} (Myself)';
+        name =
+            '${_currentUserProfile!.firstName} ${_currentUserProfile!.lastName} (Myself)';
         int? age;
         if (_currentUserProfile!.birthday != null) {
           final now = DateTime.now();
           age = now.year - _currentUserProfile!.birthday!.year;
           if (now.month < _currentUserProfile!.birthday!.month ||
-              (now.month == _currentUserProfile!.birthday!.month && now.day < _currentUserProfile!.birthday!.day)) {
+              (now.month == _currentUserProfile!.birthday!.month &&
+                  now.day < _currentUserProfile!.birthday!.day)) {
             age--;
           }
         }
-        final gender = _currentUserProfile!.gender == "M" ? "Male" : _currentUserProfile!.gender == "F" ? "Female" : "Unknown";
-        ageGenderInfo = age != null ? 'Age: $age • Gender: $gender' : 'Gender: $gender';
+        final gender =
+            _currentUserProfile!.gender == "M"
+                ? "Male"
+                : _currentUserProfile!.gender == "F"
+                ? "Female"
+                : "Unknown";
+        ageGenderInfo =
+            age != null ? 'Age: $age • Gender: $gender' : 'Gender: $gender';
       } else if (isSelf) {
         name = 'You (Myself)';
       } else {
         name = entry.value!.fullName;
-        ageGenderInfo = 'Age: ${entry.value!.age} • Gender: ${entry.value!.gender == "M" ? "Male" : "Female"}';
+        ageGenderInfo =
+            'Age: ${entry.value!.age} • Gender: ${entry.value!.gender == "M" ? "Male" : "Female"}';
       }
-      
+
       final isRecurring = _personScopes[entry.key] == 'series';
-      final isRecurringEvent = widget.event.recurring != null && widget.event.recurring != 'never';
+      final isRecurringEvent =
+          widget.event.recurring != null && widget.event.recurring != 'never';
 
       String? errorMessage;
       if (isInvalid && !isSelf) {
         final member = entry.value!;
-        if (member.age < widget.event.minAge || member.age > widget.event.maxAge) {
-          errorMessage = 'Age requirement: ${widget.event.minAge}-${widget.event.maxAge}';
+        if (member.age < widget.event.minAge ||
+            member.age > widget.event.maxAge) {
+          errorMessage =
+              'Age requirement: ${widget.event.minAge}-${widget.event.maxAge}';
         } else if (widget.event.gender.toLowerCase() != 'all') {
           errorMessage = 'Gender requirement: ${widget.event.gender}';
         }
@@ -681,21 +726,23 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: isInvalid
-                        ? Colors.red
-                        : Theme.of(context).colorScheme.primary,
-                    child: isSelf
-                        ? const Icon(Icons.person, color: Colors.white)
-                        : Text(
-                            entry.value!.firstName.isNotEmpty
-                                ? entry.value!.firstName[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
+                    backgroundColor:
+                        isInvalid
+                            ? Colors.red
+                            : Theme.of(context).colorScheme.primary,
+                    child:
+                        isSelf
+                            ? const Icon(Icons.person, color: Colors.white)
+                            : Text(
+                              entry.value!.firstName.isNotEmpty
+                                  ? entry.value!.firstName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
                             ),
-                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -749,7 +796,10 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
                       const SizedBox(width: 8),
                       const Text(
                         'Register Recurring',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -759,13 +809,15 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
                         : 'Registered for this occurrence only',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isRecurring ? Colors.green[700] : Colors.orange[700],
+                      color:
+                          isRecurring ? Colors.green[700] : Colors.orange[700],
                     ),
                   ),
                   value: isRecurring,
                   onChanged: (value) {
                     setState(() {
-                      _personScopes[entry.key] = value == true ? 'series' : 'occurrence';
+                      _personScopes[entry.key] =
+                          value == true ? 'series' : 'occurrence';
                     });
                   },
                 ),
@@ -828,10 +880,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
                   ),
                   Text(
                     'Payment functionality will be added in a future update.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.amber[900],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.amber[900]),
                   ),
                 ],
               ),
@@ -903,9 +952,7 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
     try {
       final result = await Navigator.push<bool>(
         context,
-        MaterialPageRoute(
-          builder: (context) => const FamilyMemberForm(),
-        ),
+        MaterialPageRoute(builder: (context) => const FamilyMemberForm()),
       );
 
       if (result == true && mounted) {
@@ -918,9 +965,10 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
         if (mounted) {
           setState(() {
             _allMembers = updatedMembers;
-            _eligibleMembers = updatedMembers
-                .where((member) => _isEligibleForEvent(member))
-                .toList();
+            _eligibleMembers =
+                updatedMembers
+                    .where((member) => _isEligibleForEvent(member))
+                    .toList();
             _isAddingMember = false;
           });
 
@@ -957,16 +1005,19 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
               padding: const EdgeInsets.only(bottom: 16),
               child: ElevatedButton.icon(
                 onPressed: _isAddingMember ? null : _handleAddFamilyMember,
-                icon: _isAddingMember
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.person_add, size: 18),
+                icon:
+                    _isAddingMember
+                        ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                        : const Icon(Icons.person_add, size: 18),
                 label: const Text(
                   'Add New Family Member',
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -974,7 +1025,10 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 142, 163, 168),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -998,7 +1052,9 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
             ..._eligibleMembers.map(
               (member) => CheckboxListTile(
                 title: Text(member.fullName),
-                subtitle: Text('Age: ${member.age} • Gender: ${member.gender == "M" ? "Male" : "Female"}'),
+                subtitle: Text(
+                  'Age: ${member.age} • Gender: ${member.gender == "M" ? "Male" : "Female"}',
+                ),
                 value: _tempSelection.contains(member.id),
                 onChanged: (value) {
                   setState(() {
@@ -1012,7 +1068,9 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
               ),
             ),
             // Show ineligible members section
-            if (_allMembers.where((m) => !_isEligibleForEvent(m)).isNotEmpty) ...[
+            if (_allMembers
+                .where((m) => !_isEligibleForEvent(m))
+                .isNotEmpty) ...[
               const Divider(thickness: 2),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -1025,31 +1083,28 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
                   ),
                 ),
               ),
-              ..._allMembers
-                  .where((m) => !_isEligibleForEvent(m))
-                  .map((member) {
+              ..._allMembers.where((m) => !_isEligibleForEvent(m)).map((
+                member,
+              ) {
                 String reason = '';
-                if (member.age < widget.event.minAge || member.age > widget.event.maxAge) {
-                  reason = ' (Age ${member.age} not in range: ${widget.event.minAge}-${widget.event.maxAge})';
+                if (member.age < widget.event.minAge ||
+                    member.age > widget.event.maxAge) {
+                  reason =
+                      ' (Age ${member.age} not in range: ${widget.event.minAge}-${widget.event.maxAge})';
                 } else if (widget.event.gender.toLowerCase() != 'all') {
                   final memberGender = member.gender == "M" ? "Male" : "Female";
                   reason = ' (Event requires: ${widget.event.gender})';
                 }
-                
+
                 return ListTile(
                   enabled: false,
                   title: Text(
                     member.fullName,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600),
                   ),
                   subtitle: Text(
                     'Age: ${member.age} • Gender: ${member.gender == "M" ? "Male" : "Female"}$reason',
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                   ),
                 );
               }),
