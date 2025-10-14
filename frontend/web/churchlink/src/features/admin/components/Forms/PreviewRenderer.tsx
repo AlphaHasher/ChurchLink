@@ -4,12 +4,13 @@ import { schemaToZodObject } from "./schemaGen";
 import { FieldRenderer } from "./FieldRenderer";
 import { useBuilderStore, type BuilderState } from "./store";
 import { Button } from "@/shared/components/ui/button";
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 import type { AnyField } from "./types";
-
+import { getBoundsViolations } from "./validation";
 export function PreviewRenderer() {
   const schema = useBuilderStore((s: BuilderState) => s.schema);
+  const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const zodSchema = schemaToZodObject(schema);
   
   // Set default values for payment method fields
@@ -36,6 +37,23 @@ export function PreviewRenderer() {
   });
   const values = form.watch();
   const [status, setStatus] = useState<string | null>(null);
+  if (boundsViolations.length > 0) {
+    return (
+      <Alert variant="warning">
+        <AlertTitle>Preview unavailable</AlertTitle>
+        <AlertDescription>
+          <p className="mb-1">Fix these min/max conflicts to continue:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            {boundsViolations.map((issue) => (
+              <li key={issue.fieldId}>
+                <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+              </li>
+            ))}
+          </ul>
+        </AlertDescription>
+      </Alert>
+    );
+  }
   // Language selection handled in parent card header
 
   // Get available payment methods from price fields

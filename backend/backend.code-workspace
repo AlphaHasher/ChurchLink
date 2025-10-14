@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../frontend/web/churchlink"
+		},
+		{
+			"path": "strapi/churchlink"
+		}
+	],
+	"settings": {}
+}

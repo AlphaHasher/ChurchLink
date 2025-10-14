@@ -10,6 +10,10 @@ class MyEventsService {
     bool expand = true,
   }) async {
     try {
+      print(
+        'DEBUG: Calling my-events API with expand=$expand, includeFamily=$includeFamily',
+      );
+
       final response = await api.get(
         '/v1/event-people/my-events',
         queryParameters: {
@@ -18,13 +22,41 @@ class MyEventsService {
         },
       );
 
+      print('DEBUG: API response status: ${response.statusCode}');
+      print('DEBUG: API response data type: ${response.data.runtimeType}');
+
       if (response.data is Map<String, dynamic>) {
-        return MyEventsResponse.fromJson(response.data as Map<String, dynamic>);
+        final responseData = response.data as Map<String, dynamic>;
+        print(
+          'DEBUG: Response has ${responseData['events']?.length ?? 0} events',
+        );
+
+        // Check if first event has expanded data
+        if (responseData['events'] != null &&
+            (responseData['events'] as List).isNotEmpty) {
+          final firstEvent = (responseData['events'] as List).first;
+          print(
+            'DEBUG: First event has "event" field: ${firstEvent['event'] != null}',
+          );
+          if (firstEvent['event'] != null) {
+            print(
+              'DEBUG: Event field keys: ${(firstEvent['event'] as Map).keys}',
+            );
+          } else {
+            print(
+              'WARNING: API returned events but "event" field is null - backend may not be expanding',
+            );
+            print('DEBUG: First event keys: ${firstEvent.keys}');
+          }
+        }
+
+        return MyEventsResponse.fromJson(responseData);
       }
 
       // If response format is unexpected, return empty success response
       return MyEventsResponse(success: false, events: []);
     } catch (e) {
+      print('ERROR: Failed to fetch my events: $e');
       throw Exception('Failed to fetch my events: $e');
     }
   }
@@ -130,7 +162,9 @@ class MyEventsService {
       }
 
       // Filter by specific ministry
-      if (filters.ministry != null && filters.ministry!.isNotEmpty && !event.ministry.contains(filters.ministry)) {
+      if (filters.ministry != null &&
+          filters.ministry!.isNotEmpty &&
+          !event.ministry.contains(filters.ministry)) {
         return false;
       }
 
@@ -152,7 +186,8 @@ class MyEventsService {
         // Clone the eventRef but initialize registrants with current displayName
         // Determine initial registrant name: prefer displayName, else 'You' for user's own registration
         String? initialName = eventRef.displayName;
-        if ((initialName == null || initialName.isEmpty) && eventRef.personId == null) {
+        if ((initialName == null || initialName.isEmpty) &&
+            eventRef.personId == null) {
           initialName = 'You';
         }
 

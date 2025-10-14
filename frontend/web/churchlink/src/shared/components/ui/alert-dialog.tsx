@@ -21,15 +21,11 @@ interface AlertDialogContentProps {
   children: React.ReactNode;
 }
 
-interface AlertDialogActionProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  onClick?: () => void;
-  children: React.ReactNode;
-}
+type ButtonProps = React.ComponentProps<typeof Button>;
 
-interface AlertDialogCancelProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  onClick?: () => void;
-  children: React.ReactNode;
-}
+interface AlertDialogActionProps extends ButtonProps {}
+
+interface AlertDialogCancelProps extends ButtonProps {}
 
 export const AlertDialog: React.FC<AlertDialogProps> = ({ open, onOpenChange, children }) => {
   return (
@@ -67,17 +63,17 @@ export const AlertDialogDescription: React.FC<{ children: React.ReactNode }> = (
   return <DialogDescription>{children}</DialogDescription>;
 };
 
-export const AlertDialogAction: React.FC<AlertDialogActionProps> = ({ onClick, children, ...props }) => {
+export const AlertDialogAction: React.FC<AlertDialogActionProps> = ({ children, ...props }) => {
   return (
-    <Button onClick={onClick} {...props}>
+    <Button {...props}>
       {children}
     </Button>
   );
 };
 
-export const AlertDialogCancel: React.FC<AlertDialogCancelProps> = ({ onClick, children, ...props }) => {
+export const AlertDialogCancel: React.FC<AlertDialogCancelProps> = ({ children, ...props }) => {
   return (
-    <Button variant="outline" onClick={onClick} {...props}>
+    <Button variant="outline" {...props}>
       {children}
     </Button>
   );

@@ -25,7 +25,7 @@ export type FormWidthOption = "100" | "85" | "70" | "55" | "40" | "25" | "15";
 
 export const FORM_WIDTH_VALUES: FormWidthOption[] = ["100", "85", "70", "55", "40", "25", "15"];
 
-export const DEFAULT_FORM_WIDTH: FormWidthOption = "100";
+export const DEFAULT_FORM_WIDTH: FormWidthOption = "55";
 
 const LEGACY_FORM_WIDTH_MAP: Record<string, FormWidthOption> = {
   full: "100",
@@ -69,8 +69,6 @@ export interface BaseField {
     label?: string;
     placeholder?: string;
     helpText?: string;
-    // static fields may also override content via i18n
-    content?: string;
   }>;
 }
 
@@ -139,8 +137,8 @@ export interface SwitchField extends BaseField {
 
 export interface DateField extends BaseField {
   type: "date";
-  minDate?: Date;
-  maxDate?: Date;
+  minDate?: string | Date;
+  maxDate?: string | Date;
   mode?: "single" | "range";
   pricing?: {
     enabled?: boolean;
@@ -164,7 +162,7 @@ export interface ColorField extends BaseField {
 
 export interface StaticTextField extends BaseField {
   type: "static";
-  content: string;
+  content?: string;
   as?: "p" | "h1" | "h2" | "h3" | "h4" | "small";
   color?: string; // CSS color string (e.g. #000000)
   bold?: boolean;
@@ -233,19 +231,49 @@ export const formWidthToClass = (w?: string) => {
   const normalized = normalizeFormWidth(w);
   switch (normalized) {
     case "15":
-      return "max-w-[15%]";
+      return "max-w-full lg:max-w-[15%]";
     case "25":
-      return "max-w-[25%]";
+      return "max-w-full lg:max-w-[25%]";
     case "40":
-      return "max-w-[40%]";
+      return "max-w-full lg:max-w-[40%]";
     case "55":
-      return "max-w-[55%]";
+      return "max-w-full lg:max-w-[55%]";
     case "70":
-      return "max-w-[70%]";
+      return "max-w-full lg:max-w-[70%]";
     case "85":
-      return "max-w-[85%]";
+      return "max-w-full lg:max-w-[85%]";
     case "100":
     default:
       return "max-w-full";
   }
+};
+
+export const collectAvailableLocales = (schema: FormSchema | undefined | null): string[] => {
+  if (!schema) return ['en'];
+  const set = new Set<string>();
+  const dl = schema.defaultLocale || 'en';
+  if (dl) set.add(dl);
+  for (const l of schema.locales || []) {
+    if (l) set.add(l);
+  }
+  for (const field of schema.data || []) {
+    const fieldI18n = (field as any)?.i18n as Record<string, any> | undefined;
+    if (fieldI18n) {
+      for (const key of Object.keys(fieldI18n)) {
+        if (key) set.add(key);
+      }
+    }
+    const options = (field as any)?.options as Array<any> | undefined;
+    if (Array.isArray(options)) {
+      for (const option of options) {
+        const optionI18n = option?.i18n as Record<string, any> | undefined;
+        if (optionI18n) {
+          for (const key of Object.keys(optionI18n)) {
+            if (key) set.add(key);
+          }
+        }
+      }
+    }
+  }
+  return Array.from(set);
 };

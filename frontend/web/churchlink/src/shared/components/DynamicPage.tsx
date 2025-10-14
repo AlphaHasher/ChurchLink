@@ -11,6 +11,7 @@ import MapSection from "@/features/admin/components/WebBuilder/sections/MapSecti
 import TextSectionRenderer from "@/features/admin/components/WebBuilder/sections/TextSectionRenderer";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 export interface SectionSettings {
   showFilters?: boolean;
@@ -127,7 +128,15 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     return () => ctrl.abort();
   }, [slug, isPreviewMode]);
 
-  if (loading) return <div className="text-center">Loading...</div>;
+  if (loading) return (
+    <div className="container mx-auto px-4 py-6">
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    </div>
+  );
   if (error) return <div className="text-center text-red-500">{error}</div>;
   if (notFound || !pageData) return <NotFoundPage />;
 

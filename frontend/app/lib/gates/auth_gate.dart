@@ -65,7 +65,12 @@ class _AuthGateState extends State<AuthGate> {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, authSnap) {
         if (authSnap.connectionState == ConnectionState.waiting) {
-          return const _CenteredLoader();
+          return Stack(
+            children: [
+              ModalBarrier(dismissible: false, color: Color(0x00000000)),
+              widget.child,
+            ],
+          );
         }
 
         if (authSnap.data == null) {
@@ -76,7 +81,12 @@ class _AuthGateState extends State<AuthGate> {
           future: _decide(),
           builder: (context, decSnap) {
             if (decSnap.connectionState == ConnectionState.waiting) {
-              return const _CenteredLoader();
+              return Stack(
+                children: [
+                  ModalBarrier(dismissible: false, color: Color(0x00000000)),
+                  widget.child,
+                ],
+              );
             }
             final decision = decSnap.data ?? _GateDecision.pass;
 
@@ -100,17 +110,6 @@ class _AuthGateState extends State<AuthGate> {
           },
         );
       },
-    );
-  }
-}
-
-class _CenteredLoader extends StatelessWidget {
-  const _CenteredLoader();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: SafeArea(child: Center(child: CircularProgressIndicator())),
     );
   }
 }

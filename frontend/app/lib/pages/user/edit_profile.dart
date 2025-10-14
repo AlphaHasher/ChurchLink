@@ -33,7 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _prefillFromIncomingOrFallback() async {
     ProfileInfo? p =
         widget.initialProfile ?? await UserHelper.readCachedProfile();
-    p ??= await UserHelper.getMyProfile();
+    p ??= (await UserHelper.getMyProfile())?.profile;
 
     if (p == null) {
       final first = '';
@@ -74,6 +74,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: widget.user.email ?? '',
+      membership: widget.initialProfile?.membership ?? false,
       birthday: birthday,
       gender: (gender == 'M' || gender == 'F') ? gender : null,
     );
@@ -99,12 +100,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        backgroundColor: ssbcGray,
-      ),
+      appBar: AppBar(title: const Text('Edit Profile')),
       body:
           _loading
               ? const Center(child: CircularProgressIndicator())

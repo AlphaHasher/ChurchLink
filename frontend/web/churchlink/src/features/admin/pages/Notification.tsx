@@ -90,7 +90,7 @@ const Notification = () => {
         if (ignore) return;
         setStreamNotificationMessage(s.streamNotificationMessage || "A new stream is live!");
         setYoutubeLiveTitle(s.streamNotificationTitle || "Live Stream Started");
-        setSelectedTimezone(s.YOUTUBE_TIMEZONE || "America/Los_Angeles");
+        setSelectedTimezone(s.LOCAL_TIMEZONE || "America/Los_Angeles");
         setEnvOverride(!!s.envOverride);
       } catch {
       } finally {

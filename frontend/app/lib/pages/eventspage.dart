@@ -49,7 +49,9 @@ class _EventsPageState extends State<EventsPage> {
 
     // Utilized for entering text into filters
     _nameController = TextEditingController(text: _nameQuery ?? '');
-    _maxPriceController = TextEditingController(text: _maxPrice?.toString() ?? '');
+    _maxPriceController = TextEditingController(
+      text: _maxPrice?.toString() ?? '',
+    );
     _ageController = TextEditingController(text: _age?.toString() ?? '');
 
     // Adjust the date slider so that it only shows one year in advance from the current date
@@ -89,18 +91,20 @@ class _EventsPageState extends State<EventsPage> {
     };
 
     // Always include upcoming-only events
-    queryParams['date_after'] = _minDate
-        .add(Duration(days: _dateRange.start.round()))
-        .toIso8601String()
-        .split('T')
-        .first;
+    queryParams['date_after'] =
+        _minDate
+            .add(Duration(days: _dateRange.start.round()))
+            .toIso8601String()
+            .split('T')
+            .first;
 
     if (_dateRange.end < totalDays) {
-      queryParams['date_before'] = _minDate
-          .add(Duration(days: _dateRange.end.round()))
-          .toIso8601String()
-          .split('T')
-          .first;
+      queryParams['date_before'] =
+          _minDate
+              .add(Duration(days: _dateRange.end.round()))
+              .toIso8601String()
+              .split('T')
+              .first;
     }
 
     // Free events shortcut (max_price == 0)
@@ -149,7 +153,9 @@ class _EventsPageState extends State<EventsPage> {
 
       try {
         final summary =
-            await EventRegistrationService.getEventRegistrationSummary(event.id);
+            await EventRegistrationService.getEventRegistrationSummary(
+              event.id,
+            );
 
         if (!mounted) return; // Check again after async operation
 
@@ -157,7 +163,9 @@ class _EventsPageState extends State<EventsPage> {
           _registrationSummaries[event.id] = summary;
         });
       } catch (e) {
-        debugPrint('Failed to load registration summary for event ${event.id}: $e');
+        debugPrint(
+          'Failed to load registration summary for event ${event.id}: $e',
+        );
       }
     }
   }
@@ -190,15 +198,19 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(labelText: "Search by Name"),
+                    decoration: const InputDecoration(
+                      labelText: "Search by Name",
+                    ),
                     onChanged: (value) => setModalState(() => tempName = value),
                   ),
                   TextField(
                     controller: _maxPriceController,
                     decoration: const InputDecoration(labelText: "Max Price"),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) =>
-                        setModalState(() => tempMaxPrice = double.tryParse(value)),
+                    onChanged:
+                        (value) => setModalState(
+                          () => tempMaxPrice = double.tryParse(value),
+                        ),
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
@@ -231,8 +243,9 @@ class _EventsPageState extends State<EventsPage> {
                     controller: _ageController,
                     decoration: const InputDecoration(labelText: "Age"),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) =>
-                        setModalState(() => tempAge = int.tryParse(value)),
+                    onChanged:
+                        (value) =>
+                            setModalState(() => tempAge = int.tryParse(value)),
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
@@ -281,8 +294,9 @@ class _EventsPageState extends State<EventsPage> {
                               .toString()
                               .split(' ')[0],
                         ),
-                        onChanged: (values) =>
-                            setModalState(() => tempDateRange = values),
+                        onChanged:
+                            (values) =>
+                                setModalState(() => tempDateRange = values),
                       ),
                     ],
                   ),
@@ -323,7 +337,8 @@ class _EventsPageState extends State<EventsPage> {
                             _dateRange = tempDateRange;
 
                             _nameController.text = _nameQuery ?? '';
-                            _maxPriceController.text = _maxPrice?.toString() ?? '';
+                            _maxPriceController.text =
+                                _maxPrice?.toString() ?? '';
                             _ageController.text = _age?.toString() ?? '';
                           });
                           Navigator.pop(context);
@@ -407,7 +422,10 @@ END:VCALENDAR
   }
 
   // ANDROID-ONLY: launch the Calendar "insert event" screen directly.
-  Future<bool> _openAndroidCalendarInsert(Event e, {String? packageName}) async {
+  Future<bool> _openAndroidCalendarInsert(
+    Event e, {
+    String? packageName,
+  }) async {
     try {
       final start = e.date.toLocal();
       final end = start.add(const Duration(hours: 1));
@@ -438,7 +456,10 @@ END:VCALENDAR
     // If it fails, use the same protocol but allow users to pick a calendar
     // If it fails that, use generic file sharing
     if (Platform.isAndroid) {
-      if (await _openAndroidCalendarInsert(event, packageName: 'com.google.android.calendar')) {
+      if (await _openAndroidCalendarInsert(
+        event,
+        packageName: 'com.google.android.calendar',
+      )) {
         return;
       }
       if (await _openAndroidCalendarInsert(event)) {
@@ -455,23 +476,27 @@ END:VCALENDAR
 
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    // Determine if we should show the back button:
+    // - If Navigator.canPop() is true, we were pushed from another screen (e.g., home page)
+    // - If Navigator.canPop() is false, we are the root of the events tab (accessed via navbar)
+    final bool showBackButton = Navigator.canPop(context);
+
     return Scaffold(
+      key: const ValueKey('screen-events'),
       appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Padding(
-          padding: EdgeInsets.only(left: 100),
-          child: Text("Events", style: TextStyle(color: Colors.white)),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        centerTitle: true,
+        title: const Text('Events'),
+        leading:
+            showBackButton
+                ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                )
+                : null,
+        automaticallyImplyLeading: showBackButton,
       ),
-      backgroundColor: const Color.fromARGB(255, 240, 240, 240),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
         child: SingleChildScrollView(
@@ -479,47 +504,46 @@ END:VCALENDAR
             children: [
               _isLoading
                   ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 50),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
+                    padding: EdgeInsets.symmetric(vertical: 50),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
                   : _events.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 50),
-                          child: Text("No events found."),
-                        )
-                      : ListView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: _events.length,
-                          itemBuilder: (context, index) {
-                            final event = _events[index];
-                            return Stack(
-                              children: [
-                                EnhancedEventCard(
-                                  event: event,
-                                  onViewPressed: () => _navigateToShowcase(event),
-                                  registrationSummary:
-                                      _registrationSummaries[event.id],
-                                ),
-                                Positioned(
-                                  bottom: 12,
-                                  right: 12,
-                                  child: IconButton(
-                                    tooltip: 'Add to Calendar',
-                                    icon: const Icon(Icons.calendar_month_outlined),
-                                    onPressed: () => _onAddToCalendar(event),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                  ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 50),
+                    child: Text("No events found."),
+                  )
+                  : ListView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: _events.length,
+                    itemBuilder: (context, index) {
+                      final event = _events[index];
+                      return Stack(
+                        children: [
+                          EnhancedEventCard(
+                            event: event,
+                            onViewPressed: () => _navigateToShowcase(event),
+                            registrationSummary:
+                                _registrationSummaries[event.id],
+                          ),
+                          Positioned(
+                            bottom: 12,
+                            right: 12,
+                            child: IconButton(
+                              tooltip: 'Add to Calendar',
+                              icon: const Icon(Icons.calendar_month_outlined),
+                              onPressed: () => _onAddToCalendar(event),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromARGB(255, 142, 163, 168),
         child: const Icon(Icons.filter_list),
         onPressed: () => _showFilterSheet(context),
       ),

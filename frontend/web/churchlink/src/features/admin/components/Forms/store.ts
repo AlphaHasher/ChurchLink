@@ -40,7 +40,7 @@ const newField = (type: FieldType): AnyField => {
     case "url":
       return { ...base, type: "url", placeholder: "https://" } as any;
     case "tel":
-      return { ...base, type: "tel", placeholder: "+1 (555) 123-4567" } as any;
+      return { ...base, type: "tel", placeholder: "(555) 123-4567" } as any;
     case "textarea":
       return { ...base, type: "textarea", placeholder: "Enter long text" };
     case "number":
@@ -58,7 +58,7 @@ const newField = (type: FieldType): AnyField => {
     case "time":
       return { ...base, type: "time", placeholder: "HH:MM" } as any;
     case "static":
-      return { ...base, type: "static", name: `static_${id}`, label: "Static Text", content: "Sample text", as: "p" } as any;
+      return { ...base, type: "static", name: `static_${id}`, label: "Static Text", as: "p" } as any;
     case "price":
       return { ...base, type: "price", label: "Price", amount: 10 } as any;
     default:

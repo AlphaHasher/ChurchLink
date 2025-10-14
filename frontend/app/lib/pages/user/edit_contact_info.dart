@@ -1,9 +1,12 @@
-// lib/pages/user/edit_contact_info.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'package:app/helpers/user_helper.dart';
+import 'package:app/models/contact_info.dart';
+
 class EditContactInfoScreen extends StatefulWidget {
-  final User user; // keep for future prefill/ownership
+  final User user;
+
   const EditContactInfoScreen({super.key, required this.user});
 
   @override
@@ -21,6 +24,30 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
   final _countryCtrl = TextEditingController();
   final _postalCtrl = TextEditingController();
 
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillFromCache();
+  }
+
+  Future<void> _prefillFromCache() async {
+    try {
+      final cached = await UserHelper.readCachedContact();
+      if (!mounted || cached == null) return;
+
+      _phoneCtrl.text = cached.phone ?? '';
+      _addrCtrl.text = cached.address.address ?? '';
+      _suiteCtrl.text = cached.address.suite ?? '';
+      _cityCtrl.text = cached.address.city ?? '';
+      _stateCtrl.text = cached.address.state ?? '';
+      _countryCtrl.text = cached.address.country ?? '';
+      _postalCtrl.text = cached.address.postal_code ?? '';
+      setState(() {});
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _phoneCtrl.dispose();
@@ -33,42 +60,54 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
     super.dispose();
   }
 
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _save() async {
+    final form = _formKey.currentState;
+    if (form == null) return;
+    if (!form.validate()) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Saved (local only). Wire API next.')),
+    setState(() => _loading = true);
+
+    final contact = ContactInfo(
+      phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+      address: AddressSchema(
+        address: _addrCtrl.text.trim(),
+        suite: _suiteCtrl.text.trim().isEmpty ? null : _suiteCtrl.text.trim(),
+        city: _cityCtrl.text.trim(),
+        state: _stateCtrl.text.trim(),
+        country: _countryCtrl.text.trim(),
+        postal_code: _postalCtrl.text.trim(),
+      ),
     );
-    Navigator.of(context).maybePop();
+
+    final res = await UserHelper.updateContactInfo(contact);
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    final msg =
+        (res.msg.isNotEmpty)
+            ? res.msg
+            : (res.success
+                ? 'Contact info updated.'
+                : 'Failed to update contact info.');
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+    if (res.success) {
+      Navigator.of(context).pop(res.contact);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final email = widget.user.email ?? '';
-
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Contact Info'),
-        backgroundColor: ssbcGray,
-      ),
+      appBar: AppBar(title: const Text('Edit Contact Info')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
           children: [
-            Text('Email', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 6),
-            TextFormField(
-              initialValue: email,
-              enabled: false,
-              decoration: const InputDecoration(
-                filled: true,
-                hintText: 'Email',
-              ),
-            ),
-            const SizedBox(height: 20),
-
             Form(
               key: _formKey,
               child: Column(
@@ -78,24 +117,33 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                     keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
                       labelText: 'Phone',
-                      hintText: '(555) 555-5555',
+                      hintText: '(555) 123-4567',
                     ),
+                    validator: (v) {
+                      // Add phone validation if needed
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _addrCtrl,
+                    textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: 'Address',
                       hintText: '123 Main St',
                     ),
+                    validator: (v) {
+                      final s = (v ?? '').trim();
+                      if (s.isEmpty) return 'Address is required';
+                      return null;
+                    },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _suiteCtrl,
+                    textCapitalization: TextCapitalization.characters,
                     decoration: const InputDecoration(
-                      labelText: 'Suite/Apt',
-                      hintText: 'Apt 4B',
+                      labelText: 'Apt / Suite (optional)',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -144,13 +192,15 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _save,
-                      child: const Text('Save'),
-                      style: FilledButton.styleFrom(backgroundColor: ssbcGray),
+                      onPressed: _loading ? null : _save,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                      ),
+                      child: Text(_loading ? 'Saving…' : 'Save'),
                     ),
                   ),
                 ],

@@ -1,4 +1,4 @@
-// lib/helpers/user_helper.dart
+import 'package:app/models/contact_info.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'api_client.dart';
 import 'logger.dart';
@@ -6,6 +6,7 @@ import 'logger.dart';
 import 'package:app/models/profile_info.dart';
 import 'package:app/caches/user_status_cache.dart';
 import 'package:app/caches/user_profile_cache.dart';
+import 'package:app/caches/user_contact_info_cache.dart';
 
 class UpdateProfileResult {
   final bool success;
@@ -16,6 +17,24 @@ class UpdateProfileResult {
     required this.msg,
     required this.profile,
   });
+}
+
+class UpdateContactResult {
+  final bool success;
+  final String msg;
+  final ContactInfo? contact;
+  const UpdateContactResult({
+    required this.success,
+    required this.msg,
+    required this.contact,
+  });
+}
+
+class FetchProfileReturn {
+  final ProfileInfo? profile;
+  final ContactInfo? contact;
+
+  const FetchProfileReturn({required this.profile, required this.contact});
 }
 
 class UserHelper {
@@ -60,7 +79,7 @@ class UserHelper {
     await UserStatusCache.clear(uid);
   }
 
-  static Future<ProfileInfo?> getMyProfile() async {
+  static Future<FetchProfileReturn?> getMyProfile() async {
     try {
       final res = await api.get('/v1/users/get-profile');
       final data = res.data;
@@ -69,14 +88,19 @@ class UserHelper {
       final piRaw = data['profile_info'];
       if (piRaw is! Map) return null;
 
+      final ciRaw = data['contact_info'];
+      if (ciRaw is! Map) return null;
+
       final profile = ProfileInfo.fromJson(Map<String, dynamic>.from(piRaw));
+      final contact = ContactInfo.fromJson(Map<String, dynamic>.from(ciRaw));
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         await UserProfileCache.write(uid, profile);
+        await ContactInfoCache.write(uid, contact);
       }
 
-      return profile;
+      return FetchProfileReturn(profile: profile, contact: contact);
     } catch (e, st) {
       logger.e('getMyProfile failed', error: e, stackTrace: st);
       return null;
@@ -89,10 +113,68 @@ class UserHelper {
     return UserProfileCache.read(uid);
   }
 
+  static Future<ContactInfo?> readCachedContact() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    return ContactInfoCache.read(uid);
+  }
+
   static Future<void> clearCachedProfile() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     await UserProfileCache.clear(uid);
+    await ContactInfoCache.clear(uid);
+  }
+
+  static Future<UpdateContactResult> updateContactInfo(
+    ContactInfo contact,
+  ) async {
+    try {
+      final sub_payload = <String, dynamic>{
+        'address': contact.address.address,
+        'suite': contact.address.suite,
+        'city': contact.address.city,
+        'state': contact.address.state,
+        'country': contact.address.country,
+        'postal_code': contact.address.postal_code,
+      };
+
+      final payload = <String, dynamic>{
+        'phone': contact.phone,
+        'address': sub_payload,
+      };
+
+      final res = await api.patch("/v1/users/update-contact", data: payload);
+
+      final data =
+          (res.data is Map)
+              ? Map<String, dynamic>.from(res.data)
+              : const <String, dynamic>{};
+
+      final success = data['success'] == true;
+      final msg = (data['msg'] is String) ? data['msg'] as String : '';
+
+      ContactInfo? updated;
+      final ciRaw = data['contact_info'];
+      if (ciRaw is Map) {
+        updated = ContactInfo.fromJson(Map<String, dynamic>.from(ciRaw));
+      }
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+
+      if (uid != null && updated != null) {
+        await ContactInfoCache.write(uid, updated);
+      }
+
+      return UpdateContactResult(success: success, msg: msg, contact: updated);
+    } catch (e, st) {
+      logger.e("updateContactInfo failed", error: e, stackTrace: st);
+      return const UpdateContactResult(
+        success: false,
+        msg: "Failed to update contact info",
+        contact: null,
+      );
+    }
   }
 
   static Future<UpdateProfileResult> updateProfileInfo(
@@ -103,6 +185,7 @@ class UserHelper {
         'first_name': profile.firstName,
         'last_name': profile.lastName,
         'email': profile.email,
+        'membership': profile.membership,
         'birthday': profile.birthday?.toIso8601String(),
         'gender': profile.gender,
       };

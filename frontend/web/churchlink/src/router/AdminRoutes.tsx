@@ -17,10 +17,13 @@ const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuil
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
+const MembershipRequests = lazy(() => import("../features/admin/pages/ManageMemberships"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const EventDetails = lazy(() => import("../features/admin/pages/EventDetails"));
 const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
-const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanManager"));
+const Bulletins = lazy(() => import("../features/admin/pages/Bulletins"));
+const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanBuilder"));
+const ManageBiblePlans = lazy(() => import("../features/admin/pages/ManageBiblePlans"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
@@ -33,14 +36,17 @@ export const AdminRoutes = () => {
       <Route path="/" element={<AdminLayout></AdminLayout>}>
         <Route index element={<AdminDashboard />} />
         <Route path="/webbuilder" element={<WebBuilder />} />
-        <Route path="/users" element={<Users />} />
+        <Route path="/users/manage-users" element={<Users />} />
+        <Route path="/users/membership-requests" element={<MembershipRequests />} />
         <Route path="/permissions" element={<Permissions />} />
         <Route path="/notifications" element={<Notification />} />
         <Route path="/events" element={<Events />} />
         <Route path="/events/:eventId" element={<EventDetails />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/sermons" element={<Sermons />} />
-        <Route path="/bible-plan-manager" element={<BiblePlanManager />} />
+        <Route path="/bible-plans/manage-plans" element={<ManageBiblePlans />} />
+        <Route path="/bible-plans/plan-builder" element={<BiblePlanManager />} />
+        <Route path="/bulletins" element={<Bulletins />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/mobile-ui-tab" element={<MobileUITab />} />
         <Route path="/forms/form-builder" element={<FormBuilder />} />

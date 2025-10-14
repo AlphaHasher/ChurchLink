@@ -8,6 +8,7 @@ const ArticlePage = lazy(() => import("../features/articles/pages/ArticlePage"))
 const Streams = lazy(() => import("../features/misc/pages/Streams"));
 const PaypalThankYouPage = lazy(() => import("../features/paypal/pages/thank-you"));
 const SermonsPage = lazy(() => import("../features/sermons/pages/SermonsPage"));
+const BulletinsPage = lazy(() => import("../features/bulletins/pages/BulletinsPage"));
 const FormPublicPage = lazy(() => import("../features/forms/pages/FormPublic"));
 const PaymentSuccessPage = lazy(() => import("../features/events/pages/PaymentSuccessPage"));
 const FormPaymentSuccessPage = lazy(() => import("../features/forms/pages/FormPaymentSuccessPage"));
@@ -33,6 +34,7 @@ export const PublicRoutes = () => {
         
         {/* PayPal Payment Success Route */}
         <Route path="events/:eventId/payment/success" element={<PaymentSuccessPage />} />
+        <Route path="weekly-bulletin" element={<BulletinsPage />} />
       </Routes>
     </Layout>
   );

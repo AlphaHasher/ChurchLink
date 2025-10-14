@@ -8,6 +8,7 @@ import 'package:app/models/profile_info.dart';
 import 'package:app/pages/user/edit_contact_info.dart';
 import 'package:app/pages/user/edit_profile.dart';
 import 'package:app/pages/user/family_members_page.dart';
+import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -16,12 +17,9 @@ import 'package:http/http.dart' as http;
 
 import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
-import '../../firebase/firebase_auth_service.dart';
-import 'edit_profile.dart';
-import 'family_members_page.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/theme/theme_controller.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -41,6 +39,7 @@ class _UserSettingsState extends State<UserSettings> {
   StreamSubscription<User?>? _userSub;
 
   ProfileInfo? _profile; // backend truth (cached/online)
+  String _selectedLanguage = 'English'; // Language preference
 
   @override
   void initState() {
@@ -85,21 +84,25 @@ class _UserSettingsState extends State<UserSettings> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (!mounted) return;
-      setState(() => _profile = null);
+      setState(() {
+        _profile = null;
+      });
       return;
     }
 
     final ok = await _tryFetchOnlineProfile();
     if (!ok) {
-      final cached = await UserHelper.readCachedProfile();
+      final cachedProfile = await UserHelper.readCachedProfile();
+      final cachedContact = await UserHelper.readCachedContact();
       if (!mounted) return;
       setState(() {
         _profile =
-            cached ??
+            cachedProfile ??
             ProfileInfo(
               firstName: (user.displayName ?? '').split(' ').firstOrNull ?? '',
               lastName: (user.displayName ?? '').split(' ').skip(1).join(' '),
               email: user.email ?? '',
+              membership: false,
               birthday: null,
               gender: null,
             );
@@ -109,10 +112,12 @@ class _UserSettingsState extends State<UserSettings> {
 
   Future<bool> _tryFetchOnlineProfile() async {
     try {
-      final p = await UserHelper.getMyProfile();
-      if (p == null) return false;
+      final data = await UserHelper.getMyProfile();
+      if (data == null) return false;
       if (!mounted) return true;
-      setState(() => _profile = p);
+      setState(() {
+        _profile = data.profile;
+      });
       return true;
     } catch (_) {
       return false;
@@ -142,10 +147,9 @@ class _UserSettingsState extends State<UserSettings> {
         "https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/upload",
       );
 
-      final request =
-          http.MultipartRequest("POST", uri)
-            ..fields['upload_preset'] = "user_avatars"
-            ..files.add(await http.MultipartFile.fromPath('file', file.path));
+      final request = http.MultipartRequest("POST", uri)
+        ..fields['upload_preset'] = "user_avatars"
+        ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
@@ -192,30 +196,182 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
+  // Show the theme selection bottom sheet
+  void _showThemeSheet() {
+    final current = ThemeController.instance.mode;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.wb_sunny_outlined),
+                title: const Text('Light'),
+                trailing: current == ThemeMode.light
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.light);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.brightness_auto),
+                title: const Text('System'),
+                trailing: current == ThemeMode.system
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.system);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.nights_stay_outlined),
+                title: const Text('Dark'),
+                trailing: current == ThemeMode.dark
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  ThemeController.instance.setMode(ThemeMode.dark);
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Show language selection bottom sheet
+  void _showLanguageSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Select Language',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: const Text('English'),
+                trailing: _selectedLanguage == 'English'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  setState(() => _selectedLanguage = 'English');
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Language set to English'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: const Text('Russian (Русский)'),
+                trailing: _selectedLanguage == 'Russian'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  setState(() => _selectedLanguage = 'Russian');
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Язык установлен на русский'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Show Terms and Policies popup
+  void _showTermsAndPolicies(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Terms & Policies'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Trust me bro',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text('.'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final theme = Theme.of(context);
     final user = authService.getCurrentUser();
     final bool loggedIn = user != null;
 
-    final displayName =
-        (() {
-          final p = _profile;
-          if (p != null) {
-            final fn = p.firstName.trim();
-            final ln = p.lastName.trim();
-            final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
-            if (joined.isNotEmpty) return joined;
-          }
-          return user?.displayName ?? "(Please set your display name)";
-        })();
+    final displayName = (() {
+      final p = _profile;
+      if (p != null) {
+        final fn = p.firstName.trim();
+        final ln = p.lastName.trim();
+        final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
+        if (joined.isNotEmpty) return joined;
+      }
+      return user?.displayName ?? "(Please set your display name)";
+    })();
 
-    final displayEmail =
-        (() {
-          final email = _profile?.email;
-          if (email != null && email.trim().isNotEmpty) return email.trim();
-          return user?.email ?? "(Please set your display email)";
-        })();
+    final displayEmail = (() {
+      final email = _profile?.email;
+      if (email != null && email.trim().isNotEmpty) return email.trim();
+      return user?.email ?? "(Please set your display email)";
+    })();
+
+    final mode = ThemeController.instance.mode;
+    final themeLabel = switch (mode) {
+      ThemeMode.light => 'Light',
+      ThemeMode.dark => 'Dark',
+      ThemeMode.system => 'System',
+    };
 
     final List<Map<String, dynamic>> settingsCategories = [
       {
@@ -231,11 +387,8 @@ class _UserSettingsState extends State<UserSettings> {
               final result = await Navigator.push<ProfileInfo>(
                 context,
                 MaterialPageRoute(
-                  builder:
-                      (context) => EditProfileScreen(
-                        user: user,
-                        initialProfile: _profile,
-                      ),
+                  builder: (context) =>
+                      EditProfileScreen(user: user, initialProfile: _profile),
                 ),
               );
               if (!mounted) return;
@@ -255,6 +408,19 @@ class _UserSettingsState extends State<UserSettings> {
                   MaterialPageRoute(
                     builder: (context) => EditContactInfoScreen(user: user),
                   ),
+                );
+              }
+            },
+          },
+          {
+            'icon': Icons.card_membership,
+            'title': 'View Membership Status',
+            'subtitle': 'View your Church Membership Status',
+            'ontap': () {
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MembershipScreen()),
                 );
               }
             },
@@ -318,12 +484,14 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.dark_mode,
             'title': 'Theme',
-            'subtitle': 'Light or dark mode',
+            'subtitle': themeLabel,
+            'ontap': _showThemeSheet,
           },
           {
             'icon': Icons.language,
             'title': 'Language',
-            'subtitle': 'Change app language',
+            'subtitle': _selectedLanguage,
+            'ontap': _showLanguageSheet,
           },
           {
             'icon': Icons.notifications,
@@ -344,11 +512,6 @@ class _UserSettingsState extends State<UserSettings> {
         'category': 'Privacy',
         'items': [
           {
-            'icon': Icons.visibility,
-            'title': 'Account Visibility',
-            'subtitle': 'Who can see your profile',
-          },
-          {
             'icon': Icons.delete,
             'title': 'Delete Account',
             'subtitle': 'Permanently remove your data',
@@ -359,19 +522,10 @@ class _UserSettingsState extends State<UserSettings> {
         'category': 'Support',
         'items': [
           {
-            'icon': Icons.help,
-            'title': 'Help Center',
-            'subtitle': 'FAQ and support resources',
-          },
-          {
-            'icon': Icons.feedback,
-            'title': 'Send Feedback',
-            'subtitle': 'Help us improve',
-          },
-          {
             'icon': Icons.policy,
             'title': 'Terms & Policies',
             'subtitle': 'Privacy policy and terms of use',
+            'ontap': () => _showTermsAndPolicies(context),
           },
         ],
       },
@@ -391,20 +545,18 @@ class _UserSettingsState extends State<UserSettings> {
                 children: [
                   CircleAvatar(
                     radius: 32,
-                    backgroundColor: ssbcGray,
-                    backgroundImage:
-                        _profileImage != null
-                            ? FileImage(_profileImage!) as ImageProvider
-                            : (user?.photoURL != null &&
-                                    user!.photoURL!.isNotEmpty
-                                ? NetworkImage(user.photoURL!)
-                                : const AssetImage('assets/user/ssbc-dove.png')
+                    backgroundColor: theme.colorScheme.primary,
+                    backgroundImage: _profileImage != null
+                        ? FileImage(_profileImage!) as ImageProvider
+                        : (user.photoURL != null && user.photoURL!.isNotEmpty
+                              ? NetworkImage(user.photoURL!)
+                              : const AssetImage('assets/user/ssbc-dove.png')
                                     as ImageProvider),
                   ),
                   if (_isUploading)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withOpacity(0.3),
                         child: const Center(
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
@@ -458,15 +610,39 @@ class _UserSettingsState extends State<UserSettings> {
         pageWidgets.add(
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: theme.colorScheme.primary.withOpacity(0.2),
+                width: 3,
+              ),
             ),
-            child: ListTile(
-              leading: Icon(item['icon'] as IconData, color: ssbcGray),
-              title: Text(item['title'] as String),
-              subtitle: Text(item['subtitle'] as String),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: item['ontap'] as void Function()?,
+            shadowColor: Colors.black.withOpacity(0.1),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                leading: Icon(
+                  item['icon'] as IconData,
+                  color: theme.colorScheme.primary,
+                ),
+                title: Text(item['title'] as String),
+                subtitle: Text(item['subtitle'] as String),
+                trailing:
+                    item['trailing'] as Widget? ??
+                    const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: item['ontap'] as void Function()?,
+              ),
             ),
           ),
         );
@@ -480,6 +656,17 @@ class _UserSettingsState extends State<UserSettings> {
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
           width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                spreadRadius: 0,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: ElevatedButton(
             onPressed: () async {
               authService.signOut();
@@ -487,11 +674,17 @@ class _UserSettingsState extends State<UserSettings> {
               await UserHelper.clearCachedProfile();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: ssbcGray,
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 12),
+              elevation: 0,
+              shadowColor: Colors.transparent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  width: 4,
+                ),
               ),
             ),
             child: const Text('Logout', style: TextStyle(fontSize: 16)),
@@ -501,16 +694,10 @@ class _UserSettingsState extends State<UserSettings> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: ssbcGray,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          "User Settings",
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-      ),
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
+      appBar: AppBar(title: const Text("User Settings"), centerTitle: true),
+      backgroundColor: theme.brightness == Brightness.dark
+          ? theme.colorScheme.surface
+          : theme.colorScheme.surfaceContainerLow,
       body: SafeArea(
         child: ListView(
           controller: _scrollController,
@@ -519,12 +706,5 @@ class _UserSettingsState extends State<UserSettings> {
         ),
       ),
     );
-  }
-}
-
-extension _SplitName on String {
-  String? get firstOrNull {
-    final parts = trim().split(RegExp(r'\s+'));
-    return parts.isEmpty ? null : parts.first;
   }
 }

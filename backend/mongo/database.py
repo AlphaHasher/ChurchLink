@@ -66,6 +66,10 @@ class DB:
             "compound_indexes": [["user_id", "created_at"]],
         },
         {
+            "name": "bible_plan_tracker",
+            "compound_indexes": [["uid", "plan_id"], ["uid", "subscribed_at"]],
+        },
+        {
             "name": "bible_plan_templates",
             "indexes": ["name"]
         },

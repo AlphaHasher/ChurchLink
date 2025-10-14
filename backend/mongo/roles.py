@@ -12,6 +12,7 @@ class RoleHandler:
         "sermon_editing": False,
         "finance": False,
 
+        "bulletin_editing": False,
     }
 
     @staticmethod
@@ -98,6 +99,27 @@ class RoleHandler:
     async def get_user_sermon_editor_roles(role_ids, perms):
         returnable_roles = []
         roles = await RoleHandler.find_roles_with_permissions(['sermon_editing'])
+        if perms['admin']:
+            returnable_roles = roles.copy()
+            admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])
+            for role in admin_roles:
+                if role in returnable_roles:
+                    returnable_roles.remove(role)
+        else:
+            for role in roles:
+                if str(role['_id']) in role_ids:
+                    returnable_roles.append(role)
+        return returnable_roles
+
+    @staticmethod
+    async def get_user_bulletin_editor_roles(role_ids, perms):
+        """
+        Get bulletin editor roles available to user.
+        Admins can access all bulletin-editing roles except admin roles.
+        Non-admins can only access bulletin-editing roles they already have.
+        """
+        returnable_roles = []
+        roles = await RoleHandler.find_roles_with_permissions(['bulletin_editing'])
         if perms['admin']:
             returnable_roles = roles.copy()
             admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])

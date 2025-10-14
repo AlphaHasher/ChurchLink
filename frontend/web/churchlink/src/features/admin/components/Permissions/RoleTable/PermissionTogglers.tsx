@@ -106,6 +106,14 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
                 disabled={!editor_permissions.admin && !editor_permissions.sermon_editing}
             />
             <RadioToggler
+                name="bulletin_editing"
+                label="Bulletin Editor"
+                description="This option grants the user the ability to create, edit, and manage bulletins across the site."
+                value={permissions.bulletin_editing}
+                onChange={handleChange("bulletin_editing")}
+                disabled={!editor_permissions.admin && !editor_permissions.bulletin_editing}
+            />
+            <RadioToggler
                 name="media_management"
                 label="Media Management"
                 description="This option grants the user the ability to add or remove media from the site"
