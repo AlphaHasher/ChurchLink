@@ -10,54 +10,51 @@ import {
 import "ag-grid-community/styles/ag-theme-quartz.css";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-import { AccountPermissions } from "@/shared/types/AccountPermissions";
-import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo";
-import { AssignRolesDialog } from "./AssignRolesDialog";
-import { recoverRoleArray } from "@/helpers/DataFunctions";
-import DetailedUserDialog from "./DetailedUserDialog";
+import {
+  fmt,
+} from "@/helpers/MembershipHelper";
 
-interface UsersTableProps {
-  data: BaseUserMask[];
+import { MembershipRequest } from "@/shared/types/MembershipRequests";
+
+import DetailedUserDialog from "../BaseUserTable/DetailedUserDialog";
+import MembershipReviewDialog from "./MembershipReviewDialog";
+
+type SortDir = "asc" | "desc";
+
+interface MembershipRequestTableProps {
+  data: MembershipRequest[];
   total: number;
-  permData: AccountPermissions[];
-  onSave: () => Promise<void>;
   loading?: boolean;
 
   page: number;
   pageSize: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
-  onSortChange?: (field: string, dir: "asc" | "desc") => void;
+
+  onSortChange?: (field: string, dir: SortDir) => void;
   onSearchChange?: (field: "name" | "email", term: string) => void;
+
+  onSave?: () => Promise<void> | void;
 }
 
-const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
-  const { data, context } = props;
-  if (!data) return null;
+type Row = MembershipRequest & { name?: string };
 
-  const { permData, onSave } = context as {
-    permData: AccountPermissions[];
-    onSave: () => Promise<void>;
-  };
+const ActionsCellRenderer = (props: ICellRendererParams<Row>) => {
+  const row = props.data;
+  const { onSave } = (props.context || {}) as { onSave?: () => Promise<void> | void };
+  if (!row) return null;
 
   return (
     <div className="flex items-center gap-2">
-      <DetailedUserDialog userId={data.uid} onSaved={onSave} />
-      <AssignRolesDialog
-        userData={data}
-        initialRoles={recoverRoleArray(data)}
-        permData={permData}
-        onSave={onSave}
-      />
+      <MembershipReviewDialog request={row} onUpdated={onSave} />
+      <DetailedUserDialog userId={row.uid} onSaved={onSave} />
     </div>
   );
 };
 
-export function UsersTable({
+export default function MembershipRequestTable({
   data,
   total,
-  permData,
-  onSave,
   loading,
   page,
   pageSize,
@@ -65,17 +62,40 @@ export function UsersTable({
   onPageSizeChange,
   onSortChange,
   onSearchChange,
-}: UsersTableProps) {
+  onSave,
+}: MembershipRequestTableProps) {
   const gridApiRef = useRef<GridApi | null>(null);
 
-  const columnDefs: ColDef<BaseUserMask>[] = useMemo(
+  const columnDefs: ColDef<Row>[] = useMemo(
     () => [
-      { field: "name", headerName: UserLabels.name, sortable: true, filter: true, flex: 2, minWidth: 150 },
-      { field: "email", headerName: UserLabels.email, sortable: true, filter: true, flex: 3, minWidth: 200 },
-      { field: "membership", headerName: UserLabels.membership, sortable: true, filter: true, flex: 2, width: 50 },
-      { field: "permissions", headerName: UserLabels.permissions, sortable: true, filter: false, flex: 2, minWidth: 150 },
-      { field: "uid", headerName: UserLabels.uid, sortable: true, filter: false, flex: 2, minWidth: 200 },
-      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 130 },
+      {
+        field: "name",
+        headerName: "Name",
+        sortable: true,
+        filter: true,
+        flex: 2,
+        minWidth: 150,
+        valueGetter: (p) => `${p.data?.first_name ?? ""} ${p.data?.last_name ?? ""}`.trim(),
+      },
+      {
+        field: "email",
+        headerName: "Email",
+        sortable: true,
+        filter: true,
+        flex: 3,
+        minWidth: 200,
+      },
+      {
+        field: "created_on",
+        headerName: "Submitted On",
+        sortable: true,
+        filter: false,
+        flex: 2,
+        minWidth: 180,
+        valueGetter: (p) => fmt(p.data?.created_on),
+      },
+      { field: "uid", headerName: "UID", sortable: true, filter: false, flex: 2, minWidth: 200 },
+      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 160 },
     ],
     []
   );
@@ -86,11 +106,8 @@ export function UsersTable({
     if (!onSortChange) return;
     const state = ev.api.getColumnState();
     const sorted = state.find((c: any) => c.sort != null);
-    if (sorted?.colId) {
-      onSortChange(sorted.colId, (sorted.sort as "asc" | "desc") ?? "asc");
-    } else {
-      onSortChange("createdOn", "asc");
-    }
+    if (sorted?.colId) onSortChange(sorted.colId, (sorted.sort as SortDir) ?? "asc");
+    else onSortChange("created_on", "asc");
   };
 
   const handleFilterChanged = (ev: any) => {
@@ -98,16 +115,10 @@ export function UsersTable({
     const model = ev.api.getFilterModel?.() || {};
     const nameModel = model["name"];
     const emailModel = model["email"];
-
     const lastChangedColId = ev.column?.getColId?.();
-    if (lastChangedColId === "name" && nameModel) {
-      onSearchChange("name", nameModel.filter ?? "");
-      return;
-    }
-    if (lastChangedColId === "email" && emailModel) {
-      onSearchChange("email", emailModel.filter ?? "");
-      return;
-    }
+
+    if (lastChangedColId === "name" && nameModel) return onSearchChange("name", nameModel.filter ?? "");
+    if (lastChangedColId === "email" && emailModel) return onSearchChange("email", emailModel.filter ?? "");
 
     if (nameModel?.filter) onSearchChange("name", nameModel.filter);
     else if (emailModel?.filter) onSearchChange("email", emailModel.filter);
@@ -121,7 +132,6 @@ export function UsersTable({
           rowData={data}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          context={{ permData, onSave }}
           suppressPaginationPanel={true}
           animateRows={true}
           enableCellTextSelection={true}
@@ -130,9 +140,9 @@ export function UsersTable({
           }}
           onSortChanged={handleSortChanged}
           onFilterChanged={handleFilterChanged}
-          onPaginationChanged={() => { }}
           suppressScrollOnNewData={true}
-          overlayNoRowsTemplate={loading ? "<span></span>" : "<span>No users found</span>"}
+          overlayNoRowsTemplate={loading ? "<span></span>" : "<span>No membership requests found</span>"}
+          context={{ onSave }}
         />
       </div>
 
@@ -166,7 +176,6 @@ function ServerPager({
   const totalPages = Math.max(1, Math.ceil((total || 0) / (pageSize || 10)));
   const canPrev = page > 0;
   const canNext = page + 1 < totalPages;
-
   const from = total === 0 ? 0 : page * pageSize + 1;
   const to = Math.min((page + 1) * pageSize, total);
 
@@ -210,5 +219,3 @@ function ServerPager({
     </div>
   );
 }
-
-export default UsersTable;

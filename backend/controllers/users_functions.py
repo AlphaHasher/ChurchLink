@@ -1,17 +1,19 @@
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from fastapi import Request
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Literal
 from datetime import datetime
 import re
 from datetime import datetime, timezone
 from bson import ObjectId
 from firebase_admin import auth
-from models.user import get_family_member_by_id
+from models.user import get_family_member_by_id, AddressSchema
+from models.membership_request import get_membership_request_by_uid, explicit_update_membership_request
 
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'\-]{0,49}$")
+PHONE_RE = re.compile(r"^\+?[0-9\s().-]{7,}$")
 
 
 class MyPermsRequest(BaseModel):
@@ -23,8 +25,31 @@ class PersonalInfo(BaseModel):
     first_name: str
     last_name: str
     email: str
+    membership: bool
     birthday: Optional[datetime]
     gender: Optional[str]
+
+class ContactInfo(BaseModel):
+    phone: Optional[str]
+    address: AddressSchema
+
+class DetailedUserInfo(BaseModel):
+    uid: str
+    verified: bool
+    personal_info: PersonalInfo
+    contact_info: ContactInfo
+
+class UsersSearchParams(BaseModel):
+    page: int
+    pageSize: int
+    searchField: Literal["email", "name"] = "email"
+    searchTerm: str = ""
+    sortBy: Literal["email", "name", "createdOn", "uid"] = "createdOn"
+    sortDir: Literal["asc", "desc"] = "asc"
+    hasRolesOnly: bool = False
+
+AUTOMATIC_REQUEST_REASON = "REQUEST AUTOMATICALLY HANDLED. Reason: Somebody specifically changed the user member status from user detailed view while request was active, therefore it was handled as resolving the request."
+
 
 
 def is_valid_name(s: str) -> bool:
@@ -59,6 +84,43 @@ async def fetch_users():
         for u in raw_users
     ]
     return {"success": True, "users": users}
+
+async def fetch_users_with_role_id(role_id: str):
+    try:
+        users = await UserHandler.fetch_focused_user_content_with_role_id(role_id)
+        return {"success": True, "users": users}
+    except ValueError:
+        return {"success": False, "msg": "Invalid role_id"}
+    except Exception as e:
+        return {"success": False, "msg": f"Error fetching users by role: {str(e)}"}
+
+
+async def search_users_paged(params: UsersSearchParams):
+    total, users = await UserHandler.search_users_paged(params)
+    # Normalize down to the fields the UI already uses in /get-users
+    items = [
+        {
+            "uid": u.get("uid"),
+            "first_name": u.get("first_name"),
+            "last_name": u.get("last_name"),
+            "email": u.get("email"),
+            "membership": u.get("membership"),
+            "roles": u.get("roles", []),
+        }
+        for u in users
+    ]
+    return {
+        "success": True,
+        "items": items,
+        "total": total,
+        "page": params.page,
+        "pageSize": params.pageSize,
+    }
+
+async def search_logical_users_paged(params: UsersSearchParams):
+    # Force hasRolesOnly True at controller level for safety
+    params.hasRolesOnly = True
+    return await search_users_paged(params)
     
 async def get_my_permissions(payload: MyPermsRequest, request:Request):
     user = request.state.user
@@ -115,19 +177,189 @@ async def fetch_profile_info(request: Request):
         first_name=user.get("first_name", ""),
         last_name=user.get("last_name", ""),
         email=user.get("email", ""),
+        membership = user.get("membership", ""),
         birthday=user.get("birthday"),
         gender=user.get("gender")
     )
 
+    contact_info = ContactInfo(
+        phone = user.get("phone", ""),
+        address = user.get("address")
+    )
+
     return {
         "success": True,
-        "profile_info": profile_info.model_dump()
+        "profile_info": profile_info.model_dump(),
+        "contact_info": contact_info.model_dump()
     }
 
-async def update_profile(request: Request, profile_info: PersonalInfo):
-    uid = request.state.uid
+async def fetch_detailed_user(uid: str):
+    user = await UserHandler.find_by_uid(uid)
+
+    if not user:
+        return {"success":False, "msg":"Could not find user!"}
+
+    try:
+        profile_info_load = PersonalInfo(
+            first_name=user.get("first_name", ""),
+            last_name=user.get("last_name", ""),
+            email=user.get("email", ""),
+            membership = user.get("membership", ""),
+            birthday=user.get("birthday"),
+            gender=user.get("gender"),
+        )
+
+        contact_info_load = ContactInfo(
+            phone = user.get("phone", ""),
+            address = user.get("address")
+        )
+
+        detailed_info = DetailedUserInfo(
+            uid=uid,
+            verified = user.get("verified"),
+            personal_info=profile_info_load,
+            contact_info=contact_info_load,
+        )
+    except Exception as e:
+        print(e)
+        return {"success":False, "msg":"Could not form detailed info!"}
+    
+    return {"success":True, "msg":"Detailed info returned!", "info":detailed_info.model_dump()}
+
+async def change_user_member_status(uid:str, set:bool, fromUserPatch:bool = False):
+    old_user = await UserHandler.find_by_uid(uid)
+
+    if not old_user:
+        return {"success":False, "msg": "Could not find user!"}
+    
+    if old_user.get("membership") == set:
+        return {"success":True, "msg": "Trivial success. Requested membership status is the same as current."}
+    
+    update_data = {
+        "membership":set
+    }
+
+    # Update the user information
+    modified = await UserHandler.update_user({"uid": uid}, update_data)
+    if not modified:
+        return {"success": False, "msg": "Error in changing membership status!"}
+    
+    # Only if we are coming from the case where we aren't explicitly responding to a request approval/deny, check to see if any requests exist
+    if fromUserPatch:
+        print("user patch!")
+
+        # Try to find request
+        request = await get_membership_request_by_uid(uid)
+        # If request exists
+        if request:
+            # If request hasn't already been responded to, we need to update
+            if request.get("resolved") == False:
+
+                # Assemble update information
+                update_request = {
+                    "resolved":True,
+                    "approved":set,
+                    "reason": AUTOMATIC_REQUEST_REASON,
+                }
+
+                modified = await explicit_update_membership_request({"uid":uid}, update_request)
+
+    
+    return {"success":True, "msg":"Successfully updated membership status!"}
+
+    
+
+async def execute_patch_detailed_user(uid:str, details: DetailedUserInfo):
+
+    # First try membership patch
+    membership_try = await change_user_member_status(uid, details.personal_info.membership, True)
+
+    if not membership_try['success']:
+        return {"success":False, "msg": "Could not make any updates!: " + membership_try['msg']}
+    
+    # Then try profile patch
+    profile_try = await update_profile(uid, details.personal_info)
+
+    if not profile_try['success']:
+        return {"success":False, "msg": "Successfully changed membership status! But failed on profile/contact update! Profile failure: " + profile_try['msg']}
+    
+    # Finally try contact info patch
+    contact_try = await update_contact(uid, details.contact_info)
+    if not contact_try['success']:
+        return {"success":False, "msg":"Successfully changed membership status and profile! But failed on contact update! Contact failure: " + contact_try['msg']}
+    
+    # Return success
+    return {"success":True, "msg":"Updates are successful to the user!"}
+
+
+
+async def update_contact(uid:str, contact_info: ContactInfo):
+
+    # Get an old user for comparison
+    old_user = await UserHandler.find_by_uid(uid)
+    
+    if not old_user:
+        return {"success":False, "msg":"Could not find original user!"}
+
+    # Ensure phone number is a reasonable input
+    safe_phone = contact_info.phone
+    if not safe_phone:
+        safe_phone = ""
+    safe_phone = safe_phone.strip().replace(" ", "")
+
+    if safe_phone != "" and not PHONE_RE.fullmatch(safe_phone):
+        msg = 'Please enter a valid phone number!'
+        return {"success":False, "msg":msg}
+    
+    # Account for safety of not saving without alteration
+    if safe_phone == old_user.get("phone") and contact_info.address.model_dump() == old_user.get("address"):
+        return {
+            "success": True,
+            "msg": "Profile detail update success!",
+            "contact_info": contact_info.model_dump()
+        }
+
+
+    # Get update data
+    update_data = {
+        "phone": safe_phone,
+        "address": contact_info.address.model_dump(),
+    }
+
+    # Update the user information
+    modified = await UserHandler.update_user({"uid": uid}, update_data)
+    if not modified:
+        return {"success": False, "msg": "Error in changing contact info!"}
+    
+    # Re-fetch and return the latest contact data data for dynamic updating purposes
+    updated = await UserHandler.find_by_uid(uid)
+    if not updated or updated == False:
+        return {"success": False, "msg": "Error retrieving updated contact info!"}
+    
+    refreshed = ContactInfo(
+        phone = updated.get("phone", ""),
+        address = updated.get("address")
+    )
+
+    return {
+        "success":True,
+        "msg":"Contact info update success!",
+        "contact_info":refreshed.model_dump()
+    }
+    
+
+
+async def update_profile(uid:str, profile_info: PersonalInfo):
+
+    # Get an old user for comparison
+    old_user = await UserHandler.find_by_uid(uid)
+    
+    if not old_user:
+        return {"success":False, "msg":"Could not find original user!"}
+
 
     # Excluding Email because we never want to change email from the profile changing section, so we may as well prune it here.
+    # Same situation with "Membership". This will be modified via a different subroutine
     update_data = {
         "first_name": (profile_info.first_name or "").strip(),
         "last_name": (profile_info.last_name or "").strip(),
@@ -156,6 +388,18 @@ async def update_profile(request: Request, profile_info: PersonalInfo):
     gender = update_data["gender"]
     if gender is None or (isinstance(gender, str) and gender.lower() not in ['m', 'f']):
         return {"success":False, "msg":"Please select a gender for your account so we may determine your event eligibility!"}
+    
+    comp_birthday = old_user.get("birthday")
+    if comp_birthday and comp_birthday.tzinfo is None:
+        comp_birthday = comp_birthday.replace(tzinfo = timezone.utc)
+
+    # Trivial Case (No Changes Made, just to not return an error)
+    if update_data['first_name'] == old_user.get("first_name") and update_data['last_name'] == old_user.get("last_name") and update_data['birthday'] == comp_birthday and update_data['gender'] == old_user.get("gender"):
+        return {
+            "success": True,
+            "msg": "Profile detail update success!",
+            "profile_info": update_data
+        }
 
     # Update the user information
     modified = await UserHandler.update_user({"uid": uid}, update_data)
@@ -171,6 +415,7 @@ async def update_profile(request: Request, profile_info: PersonalInfo):
         first_name=updated.get("first_name", ""),
         last_name=updated.get("last_name", ""),
         email=updated.get("email", ""),
+        membership = updated.get("membership", ""),
         birthday=updated.get("birthday"),
         gender=updated.get("gender"),
     )

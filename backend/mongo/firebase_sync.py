@@ -42,7 +42,7 @@ class FirebaseSyncer:
                 await FirebaseSyncer.assign_admin_role(user['uid'])
             return
         else:
-            await User.create_user(first_name="Fake", last_name="Name", email=user['email'], uid = user['uid'], roles=[], verified=(user['has_google'] or user['email_verified']))
+            await User.create_user(first_name="Unitialized", last_name="Name", email=user['email'], uid = user['uid'], roles=[], verified=(user['has_google'] or user['email_verified']))
 
             # Auto-assign admin role to admin@testing.com
             if user['email'] == 'admin@testing.com':

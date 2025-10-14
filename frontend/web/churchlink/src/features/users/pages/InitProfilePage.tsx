@@ -7,7 +7,7 @@ const InitProfilePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white">
-            <InitProfileDialog email={user?.email ?? ""} />
+            <InitProfileDialog email={user?.email ?? ""} membership={false} />
         </div>
     );
 };
