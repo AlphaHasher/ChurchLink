@@ -166,8 +166,11 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   // If this is a v2 page, render with the v2 renderer
   const maybeV2 = (pageData as any)?.version;
   if (maybeV2 === 2) {
+    const searchParams = new URLSearchParams(location.search);
+    const localeParam = searchParams.get('locale') || undefined;
     return (
-      <DynamicPageV2Renderer page={pageData as unknown as PageV2} />
+      <DynamicPageV2Renderer page={pageData as unknown as PageV2} activeLocale={localeParam} defaultLocale={(pageData as any)?.defaultLocale}
+      />
     );
   }
 

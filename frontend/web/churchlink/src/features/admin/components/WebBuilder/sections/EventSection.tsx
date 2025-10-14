@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat } from "lucide-react";
 import api from "@/api/api";
-import { getBaseURL } from "@/helpers/StrapiInteraction";
+import { getAssetUrl } from "@/helpers/MediaInteraction";
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -782,7 +782,7 @@ const EventSection: React.FC<EventSectionProps> = ({
         ) : (
           <div className="flex flex-wrap gap-8 justify-center max-w-7xl mx-auto">
             {events.slice(0, visibleCount).map((ev) => {
-              const primary = ev.image_url ? getBaseURL(ev.image_url) : null;
+              const primary = ev.image_url ? getAssetUrl(ev.image_url) : null;
               const bg = primary
                 ? `url("${primary}"), url("/assets/default-thumbnail.jpg")`
                 : `url("/assets/default-thumbnail.jpg")`;
@@ -895,7 +895,7 @@ const EventSection: React.FC<EventSectionProps> = ({
               {/* Image */}
               {selectedEvent.image_url && (
                 <img
-                  src={getBaseURL(selectedEvent.image_url)}
+                  src={getAssetUrl(selectedEvent.image_url)}
                   alt={selectedEvent.name}
                   className="w-full object-cover rounded-lg mb-6"
                   onError={(e) => {

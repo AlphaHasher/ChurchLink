@@ -24,6 +24,8 @@ interface ElementInspectorProps {
   onOpenChange: (open: boolean) => void;
   selectedNode: Node | null;
   onUpdateNode: (updater: (node: Node) => Node) => void;
+  activeLocale?: string;
+  defaultLocale?: string;
   fontManager?: any; // Font manager from useFontManager hook
   gridSize?: number; // px per grid unit for converting wu/hu ⇄ px/rem
   onRequestDeleteNode?: () => void;
@@ -34,6 +36,8 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   onOpenChange,
   selectedNode,
   onUpdateNode,
+  activeLocale,
+  defaultLocale,
   fontManager,
   gridSize,
   onRequestDeleteNode,
@@ -541,14 +545,16 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             <TextInspector
               node={selectedNode as TextNode}
               onUpdate={onUpdateNode}
+              activeLocale={activeLocale}
+              defaultLocale={defaultLocale}
               fontManager={fontManager}
               gridSize={gridSize}
             />
           )}
 
-          {selectedNode.type === "button" && <ButtonInspector node={selectedNode} onUpdate={onUpdateNode} />}
+          {selectedNode.type === "button" && <ButtonInspector node={selectedNode} onUpdate={onUpdateNode} activeLocale={activeLocale} defaultLocale={defaultLocale} />}
 
-          {selectedNode.type === "image" && <ImageInspector node={selectedNode} onUpdate={onUpdateNode} />}
+          {selectedNode.type === "image" && <ImageInspector node={selectedNode} onUpdate={onUpdateNode} activeLocale={activeLocale} defaultLocale={defaultLocale} />}
 
           {selectedNode.type === "container" && <ContainerInspector node={selectedNode} onUpdate={onUpdateNode} />}
 

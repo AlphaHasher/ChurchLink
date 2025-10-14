@@ -22,6 +22,11 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --header-height: 50px;
+    --animation-easing: cubic-bezier(0.32, 0.72, 0, 1);
+    --animation-speed: 1.4;
+    --density: 0.75;
+    --icon-stroke: 1;
   }
 
   .dark {
@@ -37,46 +42,53 @@
 }
 
 :root {
-  /* Church Management System - Light Theme */
-  /* Warm, welcoming colors for spiritual community */
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
 
-  --background: oklch(0.98 0.008 45); /* Warm off-white background */
-  --foreground: oklch(0.15 0.02 215); /* Deep blue-grey text for trust */
-  --card: oklch(1 0 0); /* Pure white cards for clarity */
-  --card-foreground: oklch(0.15 0.02 215); /* Deep blue-grey card text */
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 215);
-  --primary: oklch(0.45 0.15 245); /* Deep spiritual blue primary */
-  --primary-foreground: oklch(0.98 0.005 45); /* Warm white text on primary */
-  --secondary: oklch(0.96 0.01 45); /* Warm light background for contrast */
-  --secondary-foreground: oklch(0.20 0.02 215); /* Darker secondary text */
-  --muted: oklch(0.94 0.01 45); /* Warm muted background */
-  --muted-foreground: oklch(0.45 0.02 215); /* Medium blue-grey muted text */
-  --accent: oklch(0.75 0.12 65); /* Warm gold accent for divinity */
-  --accent-foreground: oklch(0.15 0.02 215); /* Dark text on gold */
-  --destructive: oklch(0.6 0.2 25); /* Keep red for alerts */
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.88 0.01 45); /* Warm light border */
-  --input: oklch(0.98 0.01 45); /* Very light warm input background */
-  --ring: oklch(0.45 0.15 245 / 0.35); /* Blue focus ring */
-  --chart-1: oklch(0.45 0.15 245); /* Deep blue */
-  --chart-2: oklch(0.65 0.12 185); /* Medium blue-green */
-  --chart-3: oklch(0.75 0.12 65); /* Gold */
-  --chart-4: oklch(0.55 0.14 125); /* Purple for spirituality */
-  --chart-5: oklch(0.70 0.13 45); /* Warm earth tone */
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --background: rgb(255, 255, 255);
+  --foreground: rgb(31, 41, 55);
+  --card: rgb(255, 255, 255);
+  --card-foreground: rgb(31, 41, 55);
+  --popover: rgb(255, 255, 255);
+  --popover-foreground: rgb(31, 41, 55);
+  --primary: rgb(37, 99, 235);
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(243, 244, 246);
+  --secondary-foreground: rgb(31, 41, 55);
+  --muted: rgb(243, 244, 246);
+  --muted-foreground: rgb(107, 114, 128);
+  --accent: rgb(243, 244, 246);
+  --accent-foreground: rgb(31, 41, 55);
+  --destructive: rgb(220, 38, 38);
+  --destructive-foreground: rgb(255, 255, 255);
+  --border: rgb(229, 231, 235);
+  --input: rgb(229, 231, 235);
+  --ring: rgb(59, 130, 246);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
 
-  /* Warm sidebar theme for church community */
-  --sidebar: oklch(0.98 0.008 45); /* Warm off-white sidebar */
-  --sidebar-foreground: oklch(0.15 0.02 215); /* Deep blue-grey text */
-  --sidebar-primary: oklch(0.45 0.15 245); /* Deep blue highlights */
-  --sidebar-primary-foreground: oklch(0.98 0.005 45);
-  --sidebar-accent: oklch(0.94 0.01 45); /* Warm hover background */
-  --sidebar-accent-foreground: oklch(0.15 0.02 215);
-  --sidebar-border: oklch(0.88 0.01 45); /* Warm border */
-  --sidebar-ring: oklch(0.45 0.15 245 / 0.5); /* Blue focus in sidebar */
-
-  /* Warm gradient definitions for church theme */
   --gradient-primary: linear-gradient(135deg, oklch(0.45 0.15 245) 0%, oklch(0.55 0.14 215) 100%);
   --gradient-secondary: linear-gradient(135deg, oklch(0.98 0.008 45) 0%, oklch(0.94 0.01 45) 100%);
   --gradient-accent: linear-gradient(135deg, oklch(0.75 0.12 65) 0%, oklch(0.70 0.13 45) 100%);
@@ -133,49 +145,50 @@ h1 {
 }
 
 .dark {
-  /* Church Management System - Dark Theme */
-  /* Warm, welcoming dark colors maintaining spiritual community feel */
-
-  --background: oklch(0.18 0.02 215); /* Deep warm dark background */
-  --foreground: oklch(0.95 0.005 45); /* Warm off-white text */
-  --card: oklch(0.22 0.02 215); /* Slightly raised warm dark card */
-  --card-foreground: oklch(0.95 0.005 45);
-  --popover: oklch(0.22 0.02 215);
-  --popover-foreground: oklch(0.95 0.005 45);
-  --primary: oklch(0.65 0.18 285); /* Warm purple-blue for dark mode spirituality */
-  --primary-foreground: oklch(0.95 0.005 45);
-  --secondary: oklch(0.28 0.03 215); /* Warm dark surface for contrast */
-  --secondary-foreground: oklch(0.95 0.005 45);
-  --muted: oklch(0.26 0.02 215); /* Warm muted dark background */
-  --muted-foreground: oklch(0.65 0.02 215); /* Medium warm grey text */
-  --accent: oklch(0.78 0.14 65); /* Warm gold accent for dark mode */
-  --accent-foreground: oklch(0.15 0.02 215);
-  --destructive: oklch(0.65 0.22 25); /* Keep red for alerts */
-  --destructive-foreground: oklch(0.95 0.005 45);
-  --border: oklch(0.35 0.02 215); /* Warm dark border */
-  --input: oklch(0.26 0.02 215); /* Dark input background */
-  --ring: oklch(0.65 0.18 285 / 0.5); /* Purple-blue focus ring */
-  --chart-1: oklch(0.65 0.18 285); /* Warm purple-blue */
-  --chart-2: oklch(0.70 0.15 185); /* Medium blue-green */
-  --chart-3: oklch(0.78 0.14 65); /* Warm gold */
-  --chart-4: oklch(0.60 0.16 125); /* Purple for spirituality */
-  --chart-5: oklch(0.72 0.13 45); /* Warm earth tone */
-
-  /* Dark sidebar with warm undertones */
-  --sidebar: oklch(0.20 0.02 215); /* Warm dark sidebar */
-  --sidebar-foreground: oklch(0.95 0.005 45); /* Warm off-white text */
-  --sidebar-primary: oklch(0.65 0.18 285); /* Warm purple-blue highlights */
-  --sidebar-primary-foreground: oklch(0.95 0.005 45);
-  --sidebar-accent: oklch(0.28 0.03 215); /* Warm dark hover */
-  --sidebar-accent-foreground: oklch(0.95 0.005 45);
-  --sidebar-border: oklch(0.32 0.02 215); /* Warm dark border */
-  --sidebar-ring: oklch(0.65 0.18 285 / 0.5); /* Purple-blue focus */
-
-  /* Dark mode gradients with warm spirituality */
-  --gradient-primary: linear-gradient(135deg, oklch(0.65 0.18 285) 0%, oklch(0.60 0.16 255) 100%);
-  --gradient-secondary: linear-gradient(135deg, oklch(0.22 0.02 215) 0%, oklch(0.26 0.02 215) 100%);
-  --gradient-accent: linear-gradient(135deg, oklch(0.78 0.14 65) 0%, oklch(0.72 0.13 45) 100%);
+  --background: #0D1117;
+  --foreground: #FFFFFF;
+  --card: #0C0D10;
+  --card-foreground: #FFFFFF;
+  --popover: #0C0D10;
+  --popover-foreground: #FFFFFF;
+  --primary: #6187C9;
+  --primary-foreground: #FFFFFF;
+  --secondary: #14171C;
+  --secondary-foreground: #FFFFFF;
+  --muted: #23272E;
+  --muted-foreground: #FFFFFF;
+  --accent: #00A2EE;
+  --accent-foreground: #0D1117;
+  --destructive: #B00020;
+  --destructive-foreground: #FFFFFF;
+  --border: #1A2D4D;
+  --input: #14171C;
+  --ring: #31425F;
+  --chart-1: #6187C9;
+  --chart-2: #1F242C;
+  --chart-3: #00A2EE;
+  --chart-4: #608F4D;
+  --chart-5: #971A1A;
+  --sidebar: #14171C;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #6187C9;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1F242C;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #1A2D4D;
+  --sidebar-ring: #31425F;
+  --tag-color: #007AEB;
+  --tag-background: #11161D;
+  --tag-background-hover: #3FA3FF;
+  --graph-node-tag: #608F4D;
+  --graph-node-unresolved: #971A1A;
 }
+
+.dark ::selection { background: #31425F; color: #FFFFFF; }
+.dark a { color: #00A2EE; text-decoration: none; }
+.dark a:hover { color: #3DC1FF; }
+.dark a[href^="http"] { color: #1989F1; }
+.dark a[href^="http"]:hover { color: #44A5FF; }
 
 @theme inline {
   --color-background: var(--background);
@@ -224,6 +237,16 @@ h1 {
   body {
     @apply bg-background text-foreground;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 1.6em; }
+  h2 { font-size: 1.5em; font-weight: 400; font-style: normal; text-transform: none; }
+  h3 { font-size: 1.3em; }
+  h4 { font-size: 1.25em; font-variant: normal; }
+  h5 { font-size: 1.12em; font-variant: normal; }
+  h6 { font-size: 1.12em; font-variant: normal; }
 
   /* Church-themed gradient button helpers */
   .btn-gradient-primary {

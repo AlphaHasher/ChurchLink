@@ -11,14 +11,13 @@ import {
     DialogClose,
 } from "@/shared/components/ui/Dialog";
 import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";
-import { PersonDetails } from "@/shared/types/Person";
 import { addFamilyMember } from "@/helpers/UserHelper";
 
 type AddPersonDialogProps = {
-    onAdded?: (person: PersonDetails) => void;
+    onCreated?: () => void;
 };
 
-export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onAdded }) => {
+export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) => {
     const [info, setInfo] = React.useState<PersonInfo>({
         firstName: "",
         lastName: "",
@@ -36,14 +35,13 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onAdded }) => 
         info.dob.yyyy.length === 4 &&
         (info.gender === "M" || info.gender === "F");
 
-    const toDetails = (p: PersonInfo): PersonDetails => {
+    const toApiPayload = (p: PersonInfo) => {
         const yyyy = parseInt(p.dob.yyyy, 10);
-        const mm = parseInt(p.dob.mm, 10) - 1; // 0–11
+        const mm = parseInt(p.dob.mm, 10) - 1;
         const dd = parseInt(p.dob.dd, 10);
         const date = new Date(yyyy, mm, dd);
 
         return {
-            id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
             first_name: p.firstName.trim(),
             last_name: p.lastName.trim(),
             date_of_birth: date,
@@ -65,16 +63,20 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onAdded }) => 
         setSubmitting(true);
         setError(null);
 
-        const details = toDetails(info);
+        const payload = toApiPayload(info);
 
-        const res = await addFamilyMember(details);
-        setSubmitting(false);
-
-        if (res?.success) {
-            onAdded?.(details);
-            resetForm();
-        } else {
+        try {
+            const res = await addFamilyMember(payload as any);
+            if (res?.success) {
+                onCreated?.();
+                resetForm();
+            } else {
+                setError("Failed to add family member. Please try again.");
+            }
+        } catch (e) {
             setError("Failed to add family member. Please try again.");
+        } finally {
+            setSubmitting(false);
         }
     };
 

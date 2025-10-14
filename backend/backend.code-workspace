@@ -8,6 +8,9 @@
         },
         {
             "path": "strapi/churchlink"
+        },
+        {
+            "path": "../frontend/app"
         }
     ]
 }

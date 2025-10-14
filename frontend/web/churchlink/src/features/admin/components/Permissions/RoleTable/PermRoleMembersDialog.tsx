@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AccountPermissions } from "@/shared/types/AccountPermissions";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -10,44 +10,65 @@ import {
     DialogTrigger,
 } from "@/shared/components/ui/Dialog";
 import RoleMembersTable from "./RoleMembersTable";
-import { applyRoleMemberMask } from "@/helpers/DataFunctions";
-import { UserInfo } from "@/shared/types/UserInfo";
+import { PermRoleMemberMask } from "@/shared/types/UserInfo";
 import { Users } from "lucide-react";
+import { fetchUsersWithRole } from "@/helpers/UserHelper";
+
 interface PermRoleMembersDialogProps {
     permissions: AccountPermissions;
-    userData: UserInfo[];
-    permData: AccountPermissions[];
 }
 
-//Dialog that allows the user to delete an existing permission
-export function PermRoleMembersDialog({
-    permissions: initialPermissions, userData: userData, permData: permData,
-}: PermRoleMembersDialogProps) {
+export function PermRoleMembersDialog({ permissions }: PermRoleMembersDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [members, setMembers] = useState<PermRoleMemberMask[]>([]);
+
+    // When dialog opens, fetch users for this role id
+    useEffect(() => {
+        const run = async () => {
+            if (!isOpen) return;
+            setLoading(true);
+            try {
+                const users = await fetchUsersWithRole(permissions._id);
+                const masked: PermRoleMemberMask[] = users.map(u => ({
+                    name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || u.uid,
+                    email: u.email,
+                }));
+                setMembers(masked);
+            } catch (e) {
+                console.error("Failed fetching users for role", e);
+                setMembers([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        run();
+    }, [isOpen, permissions._id]);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(open)}>
             <DialogTrigger asChild>
                 <Button
-                    variant="outline"
-                    className="!bg-background text-destructive border shadow-sm !hover:bg-destructive"
-                    onClick={() => setIsOpen(true)} // Open the dialog when the button is clicked
+                    variant="secondary"
+                    onClick={() => setIsOpen(true)}
+                    title="View members"
                 >
                     <Users />
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Users with Permissions Role "{initialPermissions.name}"</DialogTitle>
-                    <DialogDescription>
-                    </DialogDescription>
+                    <DialogTitle>
+                        Users with Permission Role &quot;{permissions.name}&quot;
+                    </DialogTitle>
+                    <DialogDescription />
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <small className="text-gray-500 text-m">
-                            A table quickly allowing you to examine who has the "{initialPermissions.name}" Permission Role. You can assign and unassign Permission Roles in the "Manage Users" section of the dashboard.
+                            Quickly examine which users have the &quot;{permissions.name}&quot; role. Assign/unassign roles in the Manage Users section.
                         </small>
-                        <RoleMembersTable data={applyRoleMemberMask(userData, permData, initialPermissions.name)} />
+                        <RoleMembersTable data={members} loading={loading} />
                     </div>
                 </div>
             </DialogContent>

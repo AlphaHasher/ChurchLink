@@ -40,6 +40,7 @@ from routes.common_routes.sermon_routes import public_sermon_router, private_ser
 from routes.common_routes.bulletin_routes import bulletin_editing_router, public_bulletin_router, service_bulletin_editing_router, public_service_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_mod_router, user_private_router
+from routes.common_routes.membership_routes import member_private_router, member_mod_router
 from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
 
@@ -58,7 +59,7 @@ from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
 from routes.translator_routes import translator_router
-from routes.assets_routes import assets_router
+from routes.assets_routes import protected_assets_router, public_assets_router
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -251,7 +252,7 @@ public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
-public_router.include_router(assets_router)
+public_router.include_router(public_assets_router)
 
 
 #####################################################
@@ -267,6 +268,7 @@ private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)
 private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
+private_router.include_router(member_private_router)
 private_router.include_router(private_forms_router)
 public_router.include_router(public_forms_router)
 
@@ -284,6 +286,7 @@ mod_router.include_router(private_notification_router)
 mod_router.include_router(strapi_protected_router)
 mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
+mod_router.include_router(member_mod_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
@@ -316,6 +319,13 @@ layout_management_protected_router.include_router(mod_header_router)
 layout_management_protected_router.include_router(mod_footer_router)
 
 
+
+
+# MEDIA MANAGEMENT CORE
+media_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Media Protected"], required_perms=['media_management'])
+media_management_protected_router.include_router(protected_assets_router)
+
+
 # Include routers in main app
 app.include_router(public_router)
 app.include_router(private_router)
@@ -325,10 +335,9 @@ app.include_router(sermon_editing_protected_router)
 app.include_router(bulletin_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
+app.include_router(media_management_protected_router)
 
-# Mount static files for serving assets
-assets_path = Path("data/assets")
-app.mount("/assets", StaticFiles(directory=assets_path, html=False), name="assets")
+
 
 
 if __name__ == "__main__":

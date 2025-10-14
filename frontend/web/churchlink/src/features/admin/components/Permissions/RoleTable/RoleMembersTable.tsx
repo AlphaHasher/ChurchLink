@@ -1,190 +1,87 @@
-
+import { useEffect, useMemo, useRef } from "react";
+import { AgGridReact } from "ag-grid-react";
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table"
-import { ArrowUpDown } from "lucide-react"
+  AllCommunityModule,
+  ColDef,
+  ModuleRegistry,
+} from "ag-grid-community";
+import "ag-grid-community/styles/ag-theme-quartz.css";
+ModuleRegistry.registerModules([AllCommunityModule]);
 
-import { Button } from "@/shared/components/ui/button"
-import { Input } from "@/shared/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/DataTable"
-
-
-import { PermRoleMemberMask, RoleMembersLabels } from "@/shared/types/UserInfo"
-import { useState } from "react"
-
+import { PermRoleMemberMask, RoleMembersLabels } from "@/shared/types/UserInfo";
 
 interface RoleMembersTableProps {
-  data: PermRoleMemberMask[]; // Define the expected data type
+  data: PermRoleMemberMask[];
+  loading?: boolean;
 }
 
-// In the Table, this creates the Columns that display the permissions they have.
-const createColumn = (accessorKey: keyof PermRoleMemberMask): ColumnDef<PermRoleMemberMask> => {
-  const label = RoleMembersLabels[accessorKey];
+const RoleMembersTable = ({ data, loading }: RoleMembersTableProps) => {
+  const gridRef = useRef<AgGridReact<PermRoleMemberMask>>(null);
+  const pageSize = 10;
 
-  return {
-    accessorKey,
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        {label}
-        <ArrowUpDown />
-      </Button>
-    ),
-    cell: ({ row }) => {
+  const columns: ColDef<PermRoleMemberMask>[] = useMemo(
+    () => [
+      {
+        field: "name",
+        headerName: RoleMembersLabels.name,
+        sortable: true,
+        filter: true,
+        flex: 2,
+        minWidth: 160,
+      },
+      {
+        field: "email",
+        headerName: RoleMembersLabels.email,
+        sortable: true,
+        filter: true,
+        flex: 2,
+        minWidth: 220,
+      },
+    ],
+    []
+  );
 
-      return (
-        <div
-          className={`flex items-center space-x-2 w-full "justify-center"
-            text-center`}
-        >
-          <div>
-            {row.getValue(accessorKey)}
-          </div>
-        </div>
-      );
-    },
-  };
-};
+  const defaultColDef: ColDef = useMemo(() => ({ resizable: true }), []);
 
-export const columns: ColumnDef<PermRoleMemberMask>[] = [];
+  useEffect(() => {
+    const api = gridRef.current?.api;
+    if (!api) return;
 
-Object.keys(RoleMembersLabels).forEach((key) => {
-  columns.push(createColumn(key as keyof PermRoleMemberMask));
-});
-
-export function RoleMembersTable({ data }: RoleMembersTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
-
-  const table = useReactTable({
-    data,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
-  });
+    if (loading) {
+      api.showLoadingOverlay();
+    } else if (!data || data.length === 0) {
+      api.showNoRowsOverlay();
+    } else {
+      api.hideOverlay();
+    }
+  }, [loading, data?.length]);
 
   return (
-    <div className="container mx-start">
-      <div className="flex items-center py-4">
-        {/* Search Input */}
-        <Input
-          placeholder="Search Name..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("name")?.setFilterValue(event.target.value)
+    <div className="ag-theme-quartz" style={{ height: 400, width: "100%" }}>
+      <AgGridReact
+        ref={gridRef}
+        rowData={data}
+        columnDefs={columns}
+        defaultColDef={defaultColDef}
+        pagination={true}
+        paginationPageSize={pageSize}
+        paginationPageSizeSelector={[10, 25, 50]}
+        animateRows={true}
+        enableCellTextSelection={true}
+        overlayLoadingTemplate="<span>Loading…</span>"
+        overlayNoRowsTemplate="<span>No results.</span>"
+        onGridReady={(params) => {
+          const api = params.api as any;
+          api.setGridOption?.("paginationPageSize", pageSize);
+          if (loading) {
+            api.showLoadingOverlay();
+          } else if (!data || data.length === 0) {
+            api.showNoRowsOverlay();
           }
-          className="max-w-sm"
-        />
-      </div>
-
-      {/* Scrollable Table Container */}
-      <div className="rounded-md border overflow-x-auto max-w-full">
-        <Table className="w-full min-w-max">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="text-sm text-gray-600">
-          {`Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-${Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
-          )} of ${table.getFilteredRowModel().rows.length}`}
-        </div>
-
-        <div className="space-x-2">
-          <Button
-            className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            className="!bg-background text-foreground border border-border shadow-sm hover:bg-muted"
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+        }}
+      />
     </div>
   );
-}
+};
 
 export default RoleMembersTable;

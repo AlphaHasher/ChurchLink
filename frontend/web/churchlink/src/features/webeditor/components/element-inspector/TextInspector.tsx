@@ -29,11 +29,20 @@ type TextInspectorProps = {
   onUpdate: (updater: (node: Node) => Node) => void;
   fontManager?: any;
   gridSize?: number;
+  activeLocale?: string;
+  defaultLocale?: string;
 };
 
-export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fontManager, gridSize }) => {
+function resolveLocalized(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
+  const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
+  const locale = activeLocale || defaultLocale;
+  if (locale && i18n && i18n[locale] && i18n[locale].hasOwnProperty(key)) return i18n[locale][key];
+  return (node as any).props?.[key];
+}
+
+export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fontManager, gridSize, activeLocale, defaultLocale }) => {
   const [customFontActive, setCustomFontActive] = React.useState<boolean>(false);
-  const [localHtml, setLocalHtml] = React.useState(node.props?.html || node.props?.text || '');
+  const [localHtml, setLocalHtml] = React.useState(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
   const prevRef = React.useRef<Node | null>(null);
   const [colorOpen, setColorOpen] = React.useState(false);
 
@@ -44,8 +53,8 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
   }, [node.style, fontManager?.fontOptions]);
 
   React.useEffect(() => {
-    setLocalHtml(node.props?.html || node.props?.text || '');
-  }, [node.props?.html, node.props?.text]);
+    setLocalHtml(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
+  }, [node.props?.html, (node as any).i18n, activeLocale, defaultLocale, node.props?.text]);
 
   const handleHtmlChange = (value: string) => {
     setLocalHtml(value);
@@ -53,15 +62,27 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
 
   const handleHtmlBlur = () => {
     const before = { ...node };
-    onUpdate((n) =>
-      n.type === 'text'
-        ? ({ ...n, props: { ...(n.props || {}), html: localHtml } } as Node)
-        : n
-    );
+    onUpdate((n) => {
+      if (n.type !== 'text') return n;
+      const useLocale = activeLocale && defaultLocale && activeLocale !== defaultLocale ? activeLocale : null;
+      if (useLocale) {
+        const prevI18n = ((n as any).i18n || {}) as Record<string, Record<string, any>>;
+        const prevFor = prevI18n[useLocale] || {};
+        return { ...(n as any), i18n: { ...prevI18n, [useLocale]: { ...prevFor, html: localHtml } } } as Node;
+      }
+      return ({ ...n, props: { ...(n.props || {}), html: localHtml } } as Node);
+    });
     const sectionId = BuilderState.selection?.sectionId;
     const nodeId = BuilderState.selection?.nodeId;
     if (sectionId && nodeId) {
-      BuilderState.pushNode(sectionId, nodeId, before, { ...node, props: { ...(node.props || {}), html: localHtml } });
+      const useLocale = activeLocale && defaultLocale && activeLocale !== defaultLocale ? activeLocale : null;
+      if (useLocale) {
+        const prevI18n = ((node as any).i18n || {}) as Record<string, Record<string, any>>;
+        const prevFor = prevI18n[useLocale] || {};
+        BuilderState.pushNode(sectionId, nodeId, before, { ...(node as any), i18n: { ...prevI18n, [useLocale]: { ...prevFor, html: localHtml } } });
+      } else {
+        BuilderState.pushNode(sectionId, nodeId, before, { ...node, props: { ...(node.props || {}), html: localHtml } });
+      }
     }
   };
 

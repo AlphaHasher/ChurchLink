@@ -9,9 +9,18 @@ import { BuilderState } from '@/features/webeditor/state/BuilderState';
 type ButtonInspectorProps = {
   node: Node;
   onUpdate: (updater: (node: Node) => Node) => void;
+  activeLocale?: string;
+  defaultLocale?: string;
 };
 
-export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate }) => {
+function resolveLocalized(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
+  const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
+  const locale = activeLocale || defaultLocale;
+  if (locale && i18n && i18n[locale] && i18n[locale].hasOwnProperty(key)) return i18n[locale][key];
+  return (node as any).props?.[key];
+}
+
+export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate, activeLocale, defaultLocale }) => {
   const prevRef = React.useRef<Node | null>(null);
   return (
     <div className="space-y-4">
@@ -19,14 +28,20 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
         <Label htmlFor="button-label">Button Label</Label>
         <Input
           id="button-label"
-          value={node.props?.label || ''}
-          onChange={(e) =>
-            onUpdate((n) =>
-              n.type === 'button'
-                ? ({ ...n, props: { ...(n.props || {}), label: e.target.value } } as Node)
-                : n
-            )
-          }
+          value={resolveLocalized(node, 'label', activeLocale, defaultLocale) || ''}
+          onChange={(e) => {
+            const value = e.target.value;
+            onUpdate((n) => {
+              if (n.type !== 'button') return n;
+              const useLocale = activeLocale && defaultLocale && activeLocale !== defaultLocale ? activeLocale : null;
+              if (useLocale) {
+                const prevI18n = ((n as any).i18n || {}) as Record<string, Record<string, any>>;
+                const prevFor = prevI18n[useLocale] || {};
+                return { ...(n as any), i18n: { ...prevI18n, [useLocale]: { ...prevFor, label: value } } } as Node;
+              }
+              return ({ ...n, props: { ...(n.props || {}), label: value } } as Node);
+            });
+          }}
           onFocus={() => { prevRef.current = { ...node }; }}
           onBlur={() => {
             const sectionId = BuilderState.selection?.sectionId;

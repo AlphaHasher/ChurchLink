@@ -1,6 +1,10 @@
 import React, { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/Dialog";
+import { Input } from "@/shared/components/ui/input";
+import api from "@/api/api";
 import { DynamicPageV2RendererBuilder } from "@/features/webeditor/grid/DynamicPageV2RendererBuilder";
 import { ModeToggle } from "@/shared/components/ModeToggle";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
@@ -39,6 +43,9 @@ const WebEditor: React.FC = () => {
     saveState,
     publishState,
     publish,
+    addLocale,
+    activeLocale,
+    setActiveLocale,
   } = usePageManager(slug);
 
   // Section management
@@ -88,6 +95,53 @@ const WebEditor: React.FC = () => {
 
   const [openInspector, setOpenInspector] = React.useState(false);
   const [openElementInspector, setOpenElementInspector] = React.useState(false);
+  const [addLocaleOpen, setAddLocaleOpen] = React.useState(false);
+  const [localeSearch, setLocaleSearch] = React.useState("");
+  const [localeOptions, setLocaleOptions] = React.useState<Array<{ code: string; name: string }>>([]);
+  const [loadingLocales, setLoadingLocales] = React.useState(false);
+  const existingLocales = (page?.locales || [String((page as any)?.defaultLocale || 'en')]);
+
+  // Collect translatable text pairs from current sections
+  const collectTranslatablePairs = React.useCallback((sectionsInput: SectionV2[]) => {
+    const pairs: Array<{ id: string; key: 'html' | 'label' | 'alt'; value: string }> = [];
+    const walk = (nodes: Node[]) => {
+      for (const n of nodes) {
+        const t = (n as any).type;
+        if (t === 'text') {
+          const v = String(((n as any).props?.html ?? '') as string);
+          if (v && v.trim()) pairs.push({ id: (n as any).id, key: 'html', value: v });
+        } else if (t === 'button') {
+          const v = String(((n as any).props?.label ?? '') as string);
+          if (v && v.trim()) pairs.push({ id: (n as any).id, key: 'label', value: v });
+        } else if (t === 'image') {
+          const v = String(((n as any).props?.alt ?? '') as string);
+          if (v && v.trim()) pairs.push({ id: (n as any).id, key: 'alt', value: v });
+        }
+        if ((n as any).children && (n as any).children.length) walk((n as any).children);
+      }
+    };
+    for (const s of sectionsInput) walk((s.children || []) as any);
+    return pairs;
+  }, []);
+
+  React.useEffect(() => {
+    if (!addLocaleOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingLocales(true);
+        const res = await api.get('/v1/translator/languages');
+        if (cancelled) return;
+        const langs = (res?.data?.languages || []) as Array<{ code: string; name: string }>;
+        setLocaleOptions(langs);
+      } catch (_) {
+        setLocaleOptions([]);
+      } finally {
+        if (!cancelled) setLoadingLocales(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [addLocaleOpen]);
 
   const handleFocusSection = (id: string) => {
     const el = document.getElementById(`section-${id}`) as HTMLElement | null;
@@ -420,6 +474,129 @@ const WebEditor: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Locale switcher */}
+            <div className="hidden md:flex items-center gap-2 mr-2">
+              <Select value={(page?.locales || []).includes(String((page as any)?.defaultLocale || 'en')) ? (activeLocale || (page as any)?.defaultLocale || 'en') : (activeLocale || 'en')} onValueChange={(val) => setActiveLocale(val)}>
+                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Locale" /></SelectTrigger>
+                <SelectContent>
+                  {(page?.locales || [String((page as any)?.defaultLocale || 'en')]).map((lc) => (
+                    <SelectItem key={lc} value={lc}>{lc}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Dialog open={addLocaleOpen} onOpenChange={setAddLocaleOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">+ Locale</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Add Locale</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Search locales (e.g., Spanish, es)"
+                      value={localeSearch}
+                      onChange={(e) => setLocaleSearch(e.target.value)}
+                    />
+                    <div className="max-h-80 overflow-auto border rounded">
+                      {loadingLocales ? (
+                        <div className="p-3 text-sm text-muted-foreground">Loading…</div>
+                      ) : (
+                        (localeOptions
+                          .filter((l) => {
+                            if (!localeSearch.trim()) return true;
+                            const q = localeSearch.toLowerCase();
+                            return l.code.toLowerCase().includes(q) || l.name.toLowerCase().includes(q);
+                          })
+                          .filter((l) => !existingLocales.includes(l.code))
+                        ).map((l) => (
+                          <button
+                            key={l.code}
+                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-accent border-b last:border-b-0"
+                            onClick={async () => {
+                              const code = l.code;
+                              // Add locale to page config immediately
+                              addLocale(code);
+                              // Build translation set from base language
+                              const src = String((page as any)?.defaultLocale || 'en');
+                              const pairs = collectTranslatablePairs(managedSections);
+                              const items = Array.from(new Set(pairs.map(p => p.value).filter(Boolean)));
+                              if (items.length) {
+                                try {
+                                  setLoadingLocales(true);
+                                  const res = await api.post('/v1/translator/translate-multi', {
+                                    items,
+                                    dest_languages: [code],
+                                    src,
+                                  });
+                                  const map = (res?.data?.translations || {}) as Record<string, Record<string, string>>;
+                                  // Apply translations to sections → i18n[code]
+                                  setSections((prev) => prev.map((section) => {
+                                    const walkApply = (nodes: Node[]): Node[] => nodes.map((n) => {
+                                      const t = (n as any).type;
+                                      let updated: any = n;
+                                      if (t === 'text') {
+                                        const base = String(((n as any).props?.html ?? '') as string);
+                                        const tr = map[base]?.[code];
+                                        if (tr && tr.trim()) {
+                                          const prevI18n = (updated.i18n || {}) as Record<string, Record<string, any>>;
+                                          const prevFor = prevI18n[code] || {};
+                                          if (prevFor.html == null) {
+                                            updated = { ...updated, i18n: { ...prevI18n, [code]: { ...prevFor, html: tr } } };
+                                          }
+                                        }
+                                      } else if (t === 'button') {
+                                        const base = String(((n as any).props?.label ?? '') as string);
+                                        const tr = map[base]?.[code];
+                                        if (tr && tr.trim()) {
+                                          const prevI18n = (updated.i18n || {}) as Record<string, Record<string, any>>;
+                                          const prevFor = prevI18n[code] || {};
+                                          if (prevFor.label == null) {
+                                            updated = { ...updated, i18n: { ...prevI18n, [code]: { ...prevFor, label: tr } } };
+                                          }
+                                        }
+                                      } else if (t === 'image') {
+                                        const base = String(((n as any).props?.alt ?? '') as string);
+                                        const tr = map[base]?.[code];
+                                        if (tr && tr.trim()) {
+                                          const prevI18n = (updated.i18n || {}) as Record<string, Record<string, any>>;
+                                          const prevFor = prevI18n[code] || {};
+                                          if (prevFor.alt == null) {
+                                            updated = { ...updated, i18n: { ...prevI18n, [code]: { ...prevFor, alt: tr } } };
+                                          }
+                                        }
+                                      }
+                                      if ((n as any).children && (n as any).children.length) {
+                                        const nextChildren = walkApply((n as any).children);
+                                        if (nextChildren !== (n as any).children) {
+                                          updated = { ...updated, children: nextChildren };
+                                        }
+                                      }
+                                      return updated as Node;
+                                    });
+                                    return { ...section, children: walkApply(section.children || []) };
+                                  }));
+                                } finally {
+                                  setLoadingLocales(false);
+                                }
+                              }
+                              setAddLocaleOpen(false);
+                              setLocaleSearch("");
+                            }}
+                          >
+                            <span className="font-medium">{l.name}</span>
+                            <span className="text-xs text-muted-foreground">{l.code}</span>
+                          </button>
+                        ))
+                      )}
+                      {!loadingLocales && localeOptions.length === 0 && (
+                        <div className="p-3 text-sm text-muted-foreground">No locales available.</div>
+                      )}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             {/* Save status badge */}
             <MultiStateBadge
               state={saveState}
@@ -531,6 +708,8 @@ const WebEditor: React.FC = () => {
               {/* Builder renderer with grid and draggable support */}
               <DynamicPageV2RendererBuilder
                 page={{ ...page, sections: [s] }}
+                activeLocale={activeLocale}
+                defaultLocale={(page as any)?.defaultLocale || 'en'}
                 highlightNodeId={highlightNodeId || undefined}
                 hoveredNodeId={hoveredNodeId}
                 selectedNodeId={selection?.nodeId || null}
@@ -578,6 +757,8 @@ const WebEditor: React.FC = () => {
         }}
         selectedNode={selectedNode}
         onUpdateNode={updateSelectedNode}
+        activeLocale={activeLocale}
+        defaultLocale={(page as any)?.defaultLocale || 'en'}
         fontManager={fontManager}
         gridSize={selectedGridSize}
         onRequestDeleteNode={() => {

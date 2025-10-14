@@ -90,7 +90,6 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
                 variant="outline"
-                className="!bg-background text-foreground border shadow-sm hover:bg-primary"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {

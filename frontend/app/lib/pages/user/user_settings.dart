@@ -8,6 +8,7 @@ import 'package:app/models/profile_info.dart';
 import 'package:app/pages/user/edit_contact_info.dart';
 import 'package:app/pages/user/edit_profile.dart';
 import 'package:app/pages/user/family_members_page.dart';
+import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -18,9 +19,7 @@ import '../../components/auth_popup.dart';
 import '../../components/password_reset.dart';
 import 'notification_settings_page.dart';
 import '../my_events_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/theme/theme_controller.dart';
-
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -85,21 +84,25 @@ class _UserSettingsState extends State<UserSettings> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (!mounted) return;
-      setState(() => _profile = null);
+      setState(() {
+        _profile = null;
+      });
       return;
     }
 
     final ok = await _tryFetchOnlineProfile();
     if (!ok) {
-      final cached = await UserHelper.readCachedProfile();
+      final cachedProfile = await UserHelper.readCachedProfile();
+      final cachedContact = await UserHelper.readCachedContact();
       if (!mounted) return;
       setState(() {
         _profile =
-            cached ??
+            cachedProfile ??
             ProfileInfo(
               firstName: (user.displayName ?? '').split(' ').firstOrNull ?? '',
               lastName: (user.displayName ?? '').split(' ').skip(1).join(' '),
               email: user.email ?? '',
+              membership: false,
               birthday: null,
               gender: null,
             );
@@ -109,10 +112,12 @@ class _UserSettingsState extends State<UserSettings> {
 
   Future<bool> _tryFetchOnlineProfile() async {
     try {
-      final p = await UserHelper.getMyProfile();
-      if (p == null) return false;
+      final data = await UserHelper.getMyProfile();
+      if (data == null) return false;
       if (!mounted) return true;
-      setState(() => _profile = p);
+      setState(() {
+        _profile = data.profile;
+      });
       return true;
     } catch (_) {
       return false;
@@ -142,10 +147,9 @@ class _UserSettingsState extends State<UserSettings> {
         "https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/upload",
       );
 
-      final request =
-          http.MultipartRequest("POST", uri)
-            ..fields['upload_preset'] = "user_avatars"
-            ..files.add(await http.MultipartFile.fromPath('file', file.path));
+      final request = http.MultipartRequest("POST", uri)
+        ..fields['upload_preset'] = "user_avatars"
+        ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
@@ -208,8 +212,9 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.wb_sunny_outlined),
                 title: const Text('Light'),
-                trailing:
-                    current == ThemeMode.light ? const Icon(Icons.check) : null,
+                trailing: current == ThemeMode.light
+                    ? const Icon(Icons.check)
+                    : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.light);
                   Navigator.pop(context);
@@ -219,10 +224,9 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.brightness_auto),
                 title: const Text('System'),
-                trailing:
-                    current == ThemeMode.system
-                        ? const Icon(Icons.check)
-                        : null,
+                trailing: current == ThemeMode.system
+                    ? const Icon(Icons.check)
+                    : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.system);
                   Navigator.pop(context);
@@ -232,8 +236,9 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.nights_stay_outlined),
                 title: const Text('Dark'),
-                trailing:
-                    current == ThemeMode.dark ? const Icon(Icons.check) : null,
+                trailing: current == ThemeMode.dark
+                    ? const Icon(Icons.check)
+                    : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.dark);
                   Navigator.pop(context);
@@ -269,10 +274,9 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.language),
                 title: const Text('English'),
-                trailing:
-                    _selectedLanguage == 'English'
-                        ? const Icon(Icons.check)
-                        : null,
+                trailing: _selectedLanguage == 'English'
+                    ? const Icon(Icons.check)
+                    : null,
                 onTap: () {
                   setState(() => _selectedLanguage = 'English');
                   Navigator.pop(context);
@@ -287,10 +291,9 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 leading: const Icon(Icons.language),
                 title: const Text('Russian (Русский)'),
-                trailing:
-                    _selectedLanguage == 'Russian'
-                        ? const Icon(Icons.check)
-                        : null,
+                trailing: _selectedLanguage == 'Russian'
+                    ? const Icon(Icons.check)
+                    : null,
                 onTap: () {
                   setState(() => _selectedLanguage = 'Russian');
                   Navigator.pop(context);
@@ -314,30 +317,29 @@ class _UserSettingsState extends State<UserSettings> {
   void _showTermsAndPolicies(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Terms & Policies'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Trust me bro',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('.'),
-                ],
+      builder: (context) => AlertDialog(
+        title: const Text('Terms & Policies'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Trust me bro',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
+              const SizedBox(height: 8),
+              const Text('.'),
             ],
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -347,24 +349,22 @@ class _UserSettingsState extends State<UserSettings> {
     final user = authService.getCurrentUser();
     final bool loggedIn = user != null;
 
-    final displayName =
-        (() {
-          final p = _profile;
-          if (p != null) {
-            final fn = p.firstName.trim();
-            final ln = p.lastName.trim();
-            final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
-            if (joined.isNotEmpty) return joined;
-          }
-          return user?.displayName ?? "(Please set your display name)";
-        })();
+    final displayName = (() {
+      final p = _profile;
+      if (p != null) {
+        final fn = p.firstName.trim();
+        final ln = p.lastName.trim();
+        final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
+        if (joined.isNotEmpty) return joined;
+      }
+      return user?.displayName ?? "(Please set your display name)";
+    })();
 
-    final displayEmail =
-        (() {
-          final email = _profile?.email;
-          if (email != null && email.trim().isNotEmpty) return email.trim();
-          return user?.email ?? "(Please set your display email)";
-        })();
+    final displayEmail = (() {
+      final email = _profile?.email;
+      if (email != null && email.trim().isNotEmpty) return email.trim();
+      return user?.email ?? "(Please set your display email)";
+    })();
 
     final mode = ThemeController.instance.mode;
     final themeLabel = switch (mode) {
@@ -387,11 +387,8 @@ class _UserSettingsState extends State<UserSettings> {
               final result = await Navigator.push<ProfileInfo>(
                 context,
                 MaterialPageRoute(
-                  builder:
-                      (context) => EditProfileScreen(
-                        user: user,
-                        initialProfile: _profile,
-                      ),
+                  builder: (context) =>
+                      EditProfileScreen(user: user, initialProfile: _profile),
                 ),
               );
               if (!mounted) return;
@@ -411,6 +408,19 @@ class _UserSettingsState extends State<UserSettings> {
                   MaterialPageRoute(
                     builder: (context) => EditContactInfoScreen(user: user),
                   ),
+                );
+              }
+            },
+          },
+          {
+            'icon': Icons.card_membership,
+            'title': 'View Membership Status',
+            'subtitle': 'View your Church Membership Status',
+            'ontap': () {
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MembershipScreen()),
                 );
               }
             },
@@ -536,13 +546,11 @@ class _UserSettingsState extends State<UserSettings> {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: theme.colorScheme.primary,
-                    backgroundImage:
-                        _profileImage != null
-                            ? FileImage(_profileImage!) as ImageProvider
-                            : (user.photoURL != null &&
-                                    user.photoURL!.isNotEmpty
-                                ? NetworkImage(user.photoURL!)
-                                : const AssetImage('assets/user/ssbc-dove.png')
+                    backgroundImage: _profileImage != null
+                        ? FileImage(_profileImage!) as ImageProvider
+                        : (user.photoURL != null && user.photoURL!.isNotEmpty
+                              ? NetworkImage(user.photoURL!)
+                              : const AssetImage('assets/user/ssbc-dove.png')
                                     as ImageProvider),
                   ),
                   if (_isUploading)

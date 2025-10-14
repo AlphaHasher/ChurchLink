@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../../../../../../../../../backend/strapi/churchlink"
+		},
+		{
+			"path": "../../../../../../../../app"
 		}
 	],
 	"settings": {}
