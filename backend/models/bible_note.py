@@ -114,7 +114,7 @@ async def create_bible_note(note_data: BibleNoteCreate, user_id: str) -> Optiona
 async def get_bible_notes_by_user(
     user_id: str,
     skip: int = 0,
-    limit: int = 100,
+    limit: Optional[int] = 100,
     book: Optional[str] = None,
     chapter: Optional[int] = None,
     highlight_color: Optional[str] = None
@@ -131,10 +131,21 @@ async def get_bible_notes_by_user(
             query["highlight_color"] = highlight_color
         
         # Execute query with pagination
-        cursor = DB.db.bible_notes.find(query).skip(skip).limit(limit).sort([("book", 1), ("chapter", 1), ("verse_start", 1)])
-        notes = await cursor.to_list(length=limit)
-        
-        return [_convert_db_note_to_output(note) for note in notes]
+        cursor = (
+            DB.db.bible_notes
+            .find(query)
+            .skip(skip)
+            .sort([("book", 1), ("chapter", 1), ("verse_start", 1)])
+        )
+
+        # limit=0 is interpreted as unlimited
+        if isinstance(limit, int) and limit > 0:
+            cursor = cursor.limit(limit)
+
+        results: List[BibleNoteOut] = []
+        async for doc in cursor:
+            results.append(_convert_db_note_to_output(doc))
+        return results
     except Exception as e:
         print(f"Error fetching Bible notes: {e}")
         return []

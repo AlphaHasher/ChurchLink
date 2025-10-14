@@ -155,3 +155,21 @@ Future<void> deleteNote(String id) async {
     throw StateError('DELETE note failed: ${resp.statusCode} ${resp.data}');
   }
 }
+
+/// GET all notes using the index route with limit=0 (means "unlimited").
+Future<List<RemoteNote>> getAllNotes() async {
+  final resp = await api.get<List<dynamic>>(
+    '/v1/bible-notes',
+    queryParameters: {'skip': 0, 'limit': 0},
+  );
+
+  if (resp.statusCode != 200 || resp.data == null) {
+    throw StateError('GET all notes failed: ${resp.statusCode} ${resp.data}');
+  }
+
+  final items = resp.data!;
+  return items
+      .cast<Map>()
+      .map((m) => RemoteNote.fromJson(Map<String, dynamic>.from(m)))
+      .toList();
+}

@@ -6,6 +6,7 @@ class RegistrationEntry {
   final String displayName;
   final DateTime registeredOn;
   final String kind;
+  final String scope; // "series" for recurring, "occurrence" for one-time
 
   RegistrationEntry({
     required this.userUid,
@@ -15,6 +16,7 @@ class RegistrationEntry {
     required this.displayName,
     required this.registeredOn,
     required this.kind,
+    this.scope = 'series', // Default to series for backwards compatibility
   });
 
   factory RegistrationEntry.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class RegistrationEntry {
               ? DateTime.parse(json['registered_on'])
               : DateTime.now(),
       kind: json['kind'] ?? 'rsvp',
+      scope: json['scope'] ?? 'series', // Default to series if not provided
     );
   }
 
@@ -41,6 +44,7 @@ class RegistrationEntry {
       'display_name': displayName,
       'registered_on': registeredOn.toIso8601String(),
       'kind': kind,
+      'scope': scope,
     };
   }
 

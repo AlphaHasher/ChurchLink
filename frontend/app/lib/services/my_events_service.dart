@@ -227,4 +227,81 @@ class MyEventsService {
 
     return grouped.values.toList();
   }
+
+  /// Check if event is in user's My Events
+  /// Returns Map with keys: 'inMyEvents' (bool), 'scope' (String?)
+  static Future<Map<String, dynamic>> checkEventInMyEvents({
+    required String eventId,
+  }) async {
+    try {
+      final response = await api.get(
+        '/v1/event-people/my-events',
+        queryParameters: {'expand': 'false'},
+      );
+
+      if (response.data['success'] == true) {
+        final events = response.data['events'] as List;
+        final match = events.firstWhere(
+          (e) => e['event_id'] == eventId,
+          orElse: () => null,
+        );
+
+        if (match != null && match['reason'] == 'watch') {
+          return {
+            'inMyEvents': true,
+            'scope': match['scope'],
+          };
+        }
+      }
+
+      return {'inMyEvents': false, 'scope': null};
+    } catch (e) {
+      throw Exception('Failed to check My Events status: $e');
+    }
+  }
+
+  /// Add event to My Events (watch)
+  static Future<bool> addToMyEvents({
+    required String eventId,
+    required String scope,
+    String? occurrenceStart,
+  }) async {
+    try {
+      final params = {'scope': scope};
+      if (occurrenceStart != null) {
+        params['occurrenceStart'] = occurrenceStart;
+      }
+
+      final response = await api.post(
+        '/v1/event-people/watch/$eventId',
+        queryParameters: params,
+      );
+
+      return response.data['success'] == true && response.data['added'] == true;
+    } catch (e) {
+      throw Exception('Failed to add to My Events: $e');
+    }
+  }
+
+  /// Remove event from My Events
+  static Future<bool> removeFromMyEvents({
+    required String eventId,
+    String? scope,
+    String? occurrenceStart,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (scope != null) params['scope'] = scope;
+      if (occurrenceStart != null) params['occurrenceStart'] = occurrenceStart;
+
+      final response = await api.delete(
+        '/v1/event-people/watch/$eventId',
+        queryParameters: params,
+      );
+
+      return response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to remove from My Events: $e');
+    }
+  }
 }

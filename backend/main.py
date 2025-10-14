@@ -21,9 +21,9 @@ from mongo.scheduled_notifications import scheduled_notification_loop
 from helpers.Firebase_helpers import role_based_access
 from helpers.youtubeHelper import YoutubeHelper
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
-from get_bearer_token import generate_test_token
-from add_roles import add_user_role, RoleUpdate
-
+import asyncio
+import os
+import logging
 
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
@@ -37,7 +37,7 @@ from routes.bible_routes.bible_plan_notification_routes import bible_notificatio
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
-from routes.common_routes.bulletin_routes import bulletin_editing_router, public_bulletin_router, service_bulletin_editing_router, public_service_router
+from routes.common_routes.bulletin_routes import public_bulletin_router,bulletin_editing_router,public_service_router,service_bulletin_editing_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_mod_router, user_private_router
 from routes.common_routes.membership_routes import member_private_router, member_mod_router
@@ -144,13 +144,14 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
 
-        logger.info("Application startup completed")
+        logger.info("Application startup completed successfully")
         yield
 
         # Cleanup
         logger.info("Shutting down background tasks and closing DB")
         youtubeSubscriptionCheck.cancel()
         scheduledNotifTask.cancel()
+        eventCleanupTask.cancel()
         DatabaseManager.close_db()
         logger.info("Shutdown complete")
 
@@ -306,7 +307,11 @@ sermon_editing_protected_router.include_router(sermon_editing_router)
 bulletin_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Bulletins"], required_perms=["bulletin_editing"])
 
 bulletin_editing_protected_router.include_router(bulletin_editing_router)
-bulletin_editing_protected_router.include_router(service_bulletin_editing_router)
+
+# SERVICE BULLETIN EDITING CORE
+service_editing_protected_router = PermProtectedRouter(prefix="/api/v1/bulletins", tags=["Services"], required_perms=["bulletin_editing"])
+
+service_editing_protected_router.include_router(service_bulletin_editing_router)
 
 # PERMISSIONS MANAGEMENT CORE
 permissions_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["permissions"], required_perms=['permissions_management'])
@@ -333,6 +338,7 @@ app.include_router(mod_router)
 app.include_router(event_editing_protected_router)
 app.include_router(sermon_editing_protected_router)
 app.include_router(bulletin_editing_protected_router)
+app.include_router(service_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
 app.include_router(media_management_protected_router)

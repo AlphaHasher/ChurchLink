@@ -79,22 +79,6 @@ Look for the "debug" configuration in the output. You'll see both SHA-1 and SHA-
 5. Click "Add fingerprint"
 6. Add both SHA-1 and SHA-256 keys for both debug and release configurations
 
-#### **Generating Release Key**
-For the release key (release-key.jks), use:
-```sh
-keytool -list -v -keystore app/release-key.jks -alias RandomTestingKey
-```
-When prompted, enter the keystore password.
-
----
-In order to generate a release-key.jks file run this command in the terminal:
-```sh
-keytool -genkey -v -keystore android/app/release-key.jks -alias RandomTestingKey -keyalg RSA -keysize 2048 -validity 10000
-```
-When prompted, enter the keystore password and other details from your keystore.properties file.
-
----
-
 #### **Configure Keystore Properties**
 Create or edit `android/keystore.properties` to match your keystore settings:
 ```properties
@@ -104,6 +88,21 @@ keyAlias=your_key_alias
 keyPassword=your_key_password
 ```
 Make sure these values match your actual keystore configuration.
+
+#### **Generating Release Key**
+
+In order to generate a release-key.jks file run this command in the terminal:
+
+```sh
+keytool -genkey -v -keystore android/app/release-key.jks -alias RandomTestingKey -keyalg RSA -keysize 2048 -validity 10000
+```
+When prompted, enter the keystore password and other details from your keystore.properties file.
+
+In order to get the SHA keys, use this command
+```sh
+keytool -list -v -keystore app/release-key.jks -alias RandomTestingKey
+```
+Don't forget to add them to the Firebase Console (same place as the debug key - instructions above)
 
 ### **9. Troubleshooting**
 If you face issues, try running with additional logs:
