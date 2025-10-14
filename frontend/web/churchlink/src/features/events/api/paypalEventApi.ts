@@ -49,16 +49,25 @@ export interface BulkRegistrationCompletionResponse {
  */
 export const paypalEventApi = {
   /**
-   * Create a bulk PayPal payment order for multiple event registrations
+   * Create a PayPal payment order for multiple event registrations (unified API)
    */
   createBulkPaymentOrder: async (
     eventId: string,
     request: BulkPaymentOrderRequest
   ): Promise<BulkPaymentOrderResponse> => {
     try {
+      // Convert old request format to new unified format
+      const unifiedRequest = {
+        registrations: request.registrations.map(reg => ({
+          person_id: reg.family_member_id,
+          name: reg.name
+        })),
+        donation_amount: 0 // Donation amount should be passed separately if needed
+      };
+
       const response = await api.post(
-        `/v1/events/${eventId}/payment/create-bulk-order`,
-        request
+        `/v1/event-people/create-payment-order/${eventId}`,
+        unifiedRequest
       );
 
       if (response.status === 200 && response.data) {
@@ -71,13 +80,13 @@ export const paypalEventApi = {
 
       return {
         success: false,
-        error: response.data?.detail || 'Failed to create bulk payment order',
+        error: response.data?.message || 'Failed to create payment order',
       };
     } catch (error: any) {
-      console.error('[PayPal] Bulk payment order creation failed:', error);
+      console.error('[PayPal] Payment order creation failed:', error);
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Network error',
+        error: error.response?.data?.message || error.message || 'Network error',
       };
     }
   },
@@ -115,13 +124,17 @@ export const paypalEventApi = {
   },
 
   /**
-   * Complete bulk event registration after successful payment
+   * Complete event registration after successful payment (unified API)
+   * Note: With the unified system, payment completion is handled automatically
+   * This function is kept for backward compatibility but may not be needed
    */
   completeBulkRegistration: async (
     eventId: string,
     request: BulkRegistrationCompletionRequest
   ): Promise<BulkRegistrationCompletionResponse> => {
     try {
+      // With unified system, payment completion is automatic via PayPal webhooks
+      // This endpoint may no longer exist but kept for compatibility
       const response = await api.post(
         `/v1/events/${eventId}/payment/complete-bulk-registration`,
         request
@@ -136,19 +149,19 @@ export const paypalEventApi = {
 
       return {
         success: false,
-        error: response.data?.detail || 'Failed to complete bulk registration',
+        error: response.data?.message || 'Failed to complete registration',
       };
     } catch (error: any) {
-      console.error('[PayPal] Bulk registration completion failed:', error);
+      console.error('[PayPal] Registration completion failed:', error);
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Network error',
+        error: error.response?.data?.message || error.message || 'Network error',
       };
     }
   },
 
   /**
-   * Create individual event payment order (using bulk system for consistency)
+   * Create individual event payment order (using unified API)
    */
   createEventPaymentOrder: async (
     eventId: string,
@@ -157,22 +170,19 @@ export const paypalEventApi = {
     cancelUrl?: string
   ): Promise<BulkPaymentOrderResponse> => {
     try {
-      // Use bulk payment system with single registration for consistency
+      // Use unified API with single registration
       const registrations = [
         {
-          name: "Event Registration",
-          family_member_id: null, // Self registration
-          donation_amount: 0.0
+          person_id: null, // Self registration
+          name: "Event Registration"
         }
       ];
 
       const response = await api.post(
-        `/v1/events/${eventId}/payment/create-bulk-order`,
+        `/v1/event-people/create-payment-order/${eventId}`,
         {
           registrations,
-          message,
-          return_url: returnUrl,
-          cancel_url: cancelUrl,
+          donation_amount: 0
         }
       );
 

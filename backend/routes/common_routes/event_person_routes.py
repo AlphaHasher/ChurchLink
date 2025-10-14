@@ -89,7 +89,7 @@ async def register_user_for_event(event_id: str, request: Request):
     )
 
 
-# Private Route
+# Private Router
 # Remove user from event (cancel RSVP)
 @event_person_registration_router.delete("/unregister/{event_id}", response_model=dict)
 async def unregister_user_from_event(event_id: str, request: Request):
@@ -97,6 +97,117 @@ async def unregister_user_from_event(event_id: str, request: Request):
         event_id=event_id,
         user_uid=request.state.uid
     )
+
+
+# Private Router
+# Unified registration for single or multiple people
+@event_person_registration_router.post("/register-multiple/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def register_multiple_people_for_event(
+    event_id: str, 
+    request: Request,
+    registration_data: dict = Body(...)
+):
+    """
+    Unified endpoint for registering single or multiple people for an event.
+    
+    Expected body:
+    {
+        "registrations": [
+            {"person_id": null, "name": "John Doe"},  // null person_id = self
+            {"person_id": "family_member_id", "name": "Jane Doe"}  // family member
+        ],
+        "payment_option": "paypal" | "door" | null,  // for free events
+        "donation_amount": 25.50  // optional donation
+    }
+    """
+    from controllers.event_functions import register_multiple_people
+    
+    try:
+        registrations = registration_data.get('registrations', [])
+        payment_option = registration_data.get('payment_option')
+        donation_amount = float(registration_data.get('donation_amount', 0))
+        
+        if not registrations:
+            raise HTTPException(status_code=400, detail="No registrations provided")
+        
+        success, message = await register_multiple_people(
+            event_id=event_id,
+            uid=request.state.uid,
+            registrations=registrations,
+            payment_option=payment_option,
+            donation_amount=donation_amount
+        )
+        
+        if success:
+            return {"success": True, "message": message}
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except Exception as e:
+        logging.error(f"Error in unified registration: {e}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+
+# Private Router  
+# Create payment order for multiple registrations (simplified)
+@event_person_registration_router.post("/create-payment-order/{event_id}", response_model=dict)
+async def create_registration_payment_order(
+    event_id: str,
+    request: Request, 
+    payment_data: dict = Body(...)
+):
+    """
+    Simplified payment order creation for event registrations.
+    
+    Expected body:
+    {
+        "registrations": [...],  // same as register-multiple
+        "payment_option": "paypal",
+        "donation_amount": 25.50,
+        "total_amount": 75.50
+    }
+    """
+    from helpers.paypalHelper import create_order_from_data
+    from models.event import get_event_by_id
+    
+    try:
+        registrations = payment_data.get('registrations', [])
+        total_amount = float(payment_data.get('total_amount', 0))
+        donation_amount = float(payment_data.get('donation_amount', 0))
+        
+        if not registrations or total_amount <= 0:
+            raise HTTPException(status_code=400, detail="Invalid payment data")
+        
+        # Get event for payment description
+        event = await get_event_by_id(event_id)
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        
+        # Create simplified PayPal order
+        order_data = {
+            "amount": total_amount,
+            "description": f"Registration for {event.name} ({len(registrations)} people)",
+            "return_url": f"/events/{event_id}/payment-success",
+            "cancel_url": f"/events/{event_id}/payment-cancel"
+        }
+        
+        paypal_response = await create_order_from_data(order_data)
+        
+        if "error" in paypal_response:
+            raise HTTPException(status_code=500, detail=paypal_response.get("error", "Payment order creation failed"))
+        
+        # Store minimal payment info in user's session/temporary storage instead of separate collection
+        # The actual registration will happen after payment confirmation
+        return {
+            "success": True,
+            "payment_id": paypal_response.get("payment_id"),
+            "approval_url": paypal_response.get("approval_url"),
+            "message": "Payment order created successfully"
+        }
+        
+    except Exception as e:
+        logging.error(f"Error creating payment order: {e}")
+        raise HTTPException(status_code=500, detail=f"Payment order creation failed: {str(e)}")
 
 
 # Private Route

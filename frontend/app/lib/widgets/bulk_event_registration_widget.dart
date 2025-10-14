@@ -5,8 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/event.dart';
-import '../services/paypal_service.dart';
-import '../helpers/api_client.dart';
+
+
+import '../services/event_registration_service.dart';
 
 // Custom input formatter for currency amounts
 class CurrencyInputFormatter extends TextInputFormatter {
@@ -438,25 +439,19 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     log('[BulkRegistration] Processing pay-at-door registration');
     
     try {
-      // Register each person individually but mark them as "pay at door"
-      for (final registration in widget.registrations) {
-        // Add payment method to registration data
-        final registrationData = Map<String, dynamic>.from(registration);
-        registrationData['payment_method'] = 'door';
-        registrationData['payment_status'] = 'pending_door';
-        
-        final response = await api.post(
-          '/v1/events/${widget.event.id}/register',
-          data: registrationData,
-        );
-        
-        // Check for successful status codes (200 OK or 201 Created)
-        if (response.statusCode != 200 && response.statusCode != 201) {
-          throw Exception('Failed to register ${registration['name']}');
-        }
-      }
+      // Use the simplified unified registration API with door payment option
+      final success = await EventRegistrationService.registerMultiplePeople(
+        eventId: widget.event.id,
+        registrations: widget.registrations,
+        paymentOption: 'door',  // Mark as pay at door
+        donationAmount: _donationAmount,
+      );
 
-      log('[BulkRegistration] Pay-at-door registrations completed');
+      if (success) {
+        log('[BulkRegistration] Pay-at-door registrations completed');
+      } else {
+        throw Exception('Door payment registration failed');
+      }
       widget.onSuccess?.call();
     } catch (e) {
       log('[BulkRegistration] Error during pay-at-door registration: $e');
@@ -478,16 +473,15 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     // Store pending bulk registration data for deep link completion
     await _storePendingBulkRegistration(registrationsWithPayment);
     
-    final result = await PaypalService.createBulkEventPaymentOrder(
+    final result = await EventRegistrationService.createPaymentOrderForMultiple(
       eventId: widget.event.id,
-      registrations: registrationsWithPayment,
-      message: 'Bulk registration for ${widget.event.name} (${widget.registrations.length} people)',
-      returnUrl: 'churchlink://paypal-success/${widget.event.id}',
-      cancelUrl: 'churchlink://paypal-cancel/${widget.event.id}',
+      registrations: widget.registrations,  // Use original registrations, not modified ones
+      totalAmount: _totalAmount,
+      donationAmount: _donationAmount,
     );
 
-    if (result == null || !result['success']) {
-      throw Exception(result?['error'] ?? 'Failed to create payment order');
+    if (!result['success']) {
+      throw Exception(result['message'] ?? 'Failed to create payment order');
     }
 
     final approvalUrl = result['approval_url'];
@@ -522,37 +516,8 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     }
   }
 
-  static Future<Map<String, dynamic>?> getPendingBulkRegistration() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final pendingDataString = prefs.getString('pending_bulk_registration');
-      if (pendingDataString != null) {
-        final pendingData = jsonDecode(pendingDataString) as Map<String, dynamic>;
-        // Check if data is not too old (e.g., within last hour)
-        final timestamp = pendingData['timestamp'] as int;
-        final now = DateTime.now().millisecondsSinceEpoch;
-        if (now - timestamp < 3600000) { // 1 hour
-          return pendingData;
-        } else {
-          // Clear old data
-          await prefs.remove('pending_bulk_registration');
-        }
-      }
-    } catch (e) {
-      log('[BulkRegistration] Failed to get pending registration: $e');
-    }
-    return null;
-  }
-
-  static Future<void> clearPendingBulkRegistration() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('pending_bulk_registration');
-      log('[BulkRegistration] Cleared pending bulk registration data');
-    } catch (e) {
-      log('[BulkRegistration] Failed to clear pending registration: $e');
-    }
-  }
+  // Simplified: No need for complex pending registration storage
+  // The unified API handles registration directly
 
   Future<void> _handleFreeRegistration() async {
     log('[BulkRegistration] Processing free registrations');
@@ -561,21 +526,20 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     // This matches the React frontend pattern
     
     try {
-      // Register each person individually for free events
-      for (final registration in widget.registrations) {
-        final response = await api.post(
-          '/v1/events/${widget.event.id}/register',
-          data: registration,
-        );
-        
-        // Check for successful status codes (200 OK or 201 Created)
-        if (response.statusCode != 200 && response.statusCode != 201) {
-          throw Exception('Failed to register ${registration['name']}');
-        }
-      }
+      // Use the simplified unified registration API
+      final success = await EventRegistrationService.registerMultiplePeople(
+        eventId: widget.event.id,
+        registrations: widget.registrations,
+        paymentOption: null,  // null for free events
+        donationAmount: _donationAmount,
+      );
 
-      log('[BulkRegistration] Free registrations completed');
-      widget.onSuccess?.call();
+      if (success) {
+        log('[BulkRegistration] Free registrations completed');
+        widget.onSuccess?.call();
+      } else {
+        throw Exception('Registration failed');
+      }
     } catch (e) {
       log('[BulkRegistration] Error during free registration: $e');
       rethrow;

@@ -3,7 +3,7 @@ from models.event import create_event, EventCreate, get_event_by_id, update_even
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 from bson import ObjectId
-from typing import Optional
+from typing import Optional, List
 
 async def process_create_event(event: EventCreate, request:Request):
     # Verify Event has Roles Attached
@@ -161,4 +161,70 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None):
     except Exception as e:
         print(f"Warning: user my_events cleanup failed: {e}")
     return True
+
+
+async def register_multiple_people(
+    event_id: str, 
+    uid: str, 
+    registrations: List[dict], 
+    payment_option: Optional[str] = None,
+    donation_amount: float = 0.0
+) -> tuple[bool, str]:
+    """
+    Unified registration function that handles single or multiple people registration.
+    
+    Args:
+        event_id: Event ID to register for
+        uid: User ID making the registration
+        registrations: List of registration objects with 'person_id' (optional) and 'name'
+        payment_option: 'paypal', 'door', or None for free events
+        donation_amount: Optional donation amount for the entire registration
+    
+    Returns:
+        (success, message) tuple
+    """
+    print(f"DEBUG: Registering {len(registrations)} people for event {event_id}")
+    
+    successful_registrations = []
+    failed_registrations = []
+    
+    # Determine payment status based on payment option
+    payment_status = None
+    if payment_option == 'door':
+        payment_status = 'pending_door'
+    elif payment_option == 'paypal':
+        payment_status = 'awaiting_payment'
+    
+    # Register each person
+    for registration in registrations:
+        person_id = registration.get('person_id')  # None for self, ObjectId string for family members
+        display_name = registration.get('name', '')
+        
+        try:
+            success, reason = await register_rsvp(
+                event_id=event_id,
+                uid=uid,
+                person_id=person_id,
+                display_name=display_name,
+                payment_option=payment_option
+            )
+            
+            if success:
+                successful_registrations.append(display_name)
+                print(f"DEBUG: Successfully registered {display_name}")
+            else:
+                failed_registrations.append(f"{display_name}: {reason}")
+                print(f"DEBUG: Failed to register {display_name}: {reason}")
+                
+        except Exception as e:
+            failed_registrations.append(f"{display_name}: {str(e)}")
+            print(f"ERROR: Exception registering {display_name}: {e}")
+    
+    # Determine overall result
+    if len(successful_registrations) == len(registrations):
+        return True, f"Successfully registered {', '.join(successful_registrations)}"
+    elif len(successful_registrations) > 0:
+        return True, f"Partially successful: {', '.join(successful_registrations)} registered. Failed: {'; '.join(failed_registrations)}"
+    else:
+        return False, f"All registrations failed: {'; '.join(failed_registrations)}"
 

@@ -120,19 +120,20 @@ export function BulkEventRegistrationWidget({
   const handlePayAtDoorRegistration = async () => {
     console.log('[BulkRegistration] Processing pay-at-door registration');
     
-    // Register each person individually but mark them as "pay at door"
-    for (const registration of registrations) {
-      const registrationData = {
-        ...registration,
-        payment_method: 'door',
-        payment_status: 'pending_door'
-      };
-      
-      const response = await api.post(`/v1/events/${event.id}/register`, registrationData);
-      
-      if (response.status !== 200 && response.status !== 201) {
-        throw new Error(`Failed to register ${registration.name}`);
-      }
+    // Use simplified unified registration API
+    const requestData = {
+      registrations: registrations.map(reg => ({
+        person_id: reg.family_member_id,
+        name: reg.name
+      })),
+      payment_option: 'door',
+      donation_amount: donationAmount
+    };
+    
+    const response = await api.post(`/v1/event-people/register-multiple/${event.id}`, requestData);
+    
+    if (!response.data?.success) {
+      throw new Error(response.data?.message || 'Failed to register for door payment');
     }
 
     console.log('[BulkRegistration] Pay-at-door registrations completed');
@@ -143,24 +144,18 @@ export function BulkEventRegistrationWidget({
   const handlePayPalPayment = async () => {
     console.log('[BulkRegistration] Creating PayPal payment order');
     
-    const registrationsWithPayment = registrations.map((reg) => ({
-      ...reg,
-      payment_method: 'paypal',
-      payment_amount_per_person: selectedPaymentOption === 'paypal' ? event.price : 0,
-      donation_amount: donationAmount
-    }));
-    
-    const orderData = {
-      registrations: registrationsWithPayment,
-      message: `Bulk registration for ${event.name} (${registrations.length} people)`,
-      return_url: `${window.location.origin}/events/${event.id}/payment/success`,
-      cancel_url: `${window.location.origin}/events/${event.id}/payment/cancel`
+    const requestData = {
+      registrations: registrations.map(reg => ({
+        person_id: reg.family_member_id,
+        name: reg.name
+      })),
+      donation_amount: donationAmount || 0
     };
 
-    const response = await api.post(`/v1/events/${event.id}/payment/create-bulk-order`, orderData);
+    const response = await api.post(`/v1/event-people/create-payment-order/${event.id}`, requestData);
 
     if (!response.data?.success) {
-      throw new Error(response.data?.error || 'Failed to create payment order');
+      throw new Error(response.data?.message || 'Failed to create payment order');
     }
 
     const approvalUrl = response.data.approval_url;
@@ -174,12 +169,20 @@ export function BulkEventRegistrationWidget({
   const handleFreeRegistration = async () => {
     console.log('[BulkRegistration] Processing free registrations');
     
-    for (const registration of registrations) {
-      const response = await api.post(`/v1/events/${event.id}/register`, registration);
-      
-      if (response.status !== 200 && response.status !== 201) {
-        throw new Error(`Failed to register ${registration.name}`);
-      }
+    // Use simplified unified registration API
+    const requestData = {
+      registrations: registrations.map(reg => ({
+        person_id: reg.family_member_id,
+        name: reg.name
+      })),
+      payment_option: 'free',
+      donation_amount: donationAmount || 0
+    };
+    
+    const response = await api.post(`/v1/event-people/register-multiple/${event.id}`, requestData);
+    
+    if (!response.data?.success) {
+      throw new Error(response.data?.message || 'Failed to register for free');
     }
 
     console.log('[BulkRegistration] Free registrations completed');

@@ -153,7 +153,7 @@ class EventRegistrationService {
     }
   }
 
-  /// Check if multiple family members are registered for event (bulk operation)
+  /// Check if multiple family members are registered for event (bulk operation)  
   /// Returns a map of family member ID to registration status
   static Future<Map<String, bool>> areFamilyMembersRegistered({
     required String eventId,
@@ -176,6 +176,64 @@ class EventRegistrationService {
       return {};
     } catch (e) {
       throw Exception('Failed to check family members registration status: $e');
+    }
+  }
+
+  /// Register multiple people for an event (unified method)
+  static Future<bool> registerMultiplePeople({
+    required String eventId,
+    required List<Map<String, dynamic>> registrations,
+    String? paymentOption,
+    double donationAmount = 0.0,
+  }) async {
+    try {
+      final data = {
+        'registrations': registrations,
+        'donation_amount': donationAmount,
+      };
+
+      if (paymentOption != null) {
+        data['payment_option'] = paymentOption;
+      }
+
+      final response = await api.post(
+        '/v1/event-people/register-multiple/$eventId',
+        data: data,
+      );
+
+      return response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to register multiple people: $e');
+    }
+  }
+
+  /// Create payment order for multiple registrations (simplified)
+  static Future<Map<String, dynamic>> createPaymentOrderForMultiple({
+    required String eventId,
+    required List<Map<String, dynamic>> registrations,  
+    required double totalAmount,
+    double donationAmount = 0.0,
+  }) async {
+    try {
+      final data = {
+        'registrations': registrations,
+        'total_amount': totalAmount,
+        'donation_amount': donationAmount,
+        'payment_option': 'paypal',
+      };
+
+      final response = await api.post(
+        '/v1/event-people/create-payment-order/$eventId',
+        data: data,
+      );
+
+      if (response.data['success'] == true) {
+        return response.data;
+      }
+
+      throw Exception(response.data['message'] ?? 'Failed to create payment order');
+    } catch (e) {
+      throw Exception('Failed to create payment order: $e');
     }
   }
 }

@@ -366,16 +366,18 @@ function EventRegistrationForm({
         console.log('📋 [EVENT SECTION] Prepared registrations for PayPal:', registrations);
         
         try {
-          // Create PayPal bulk order using backend bulk payment endpoint
+          // Create PayPal order using unified API
           const orderData = {
-            registrations: registrations,
-            total_amount: registrations.reduce((sum, reg) => sum + (reg.payment_amount_per_person || 0), 0),
-            user_uid: 'current_user' // This should be set by the backend from auth
+            registrations: registrations.map(reg => ({
+              person_id: reg.family_member_id,
+              name: reg.name
+            })),
+            donation_amount: 0 // Add donation amount if needed
           };
           
-          console.log('📤 [EVENT SECTION] Creating PayPal bulk order:', orderData);
+          console.log('📤 [EVENT SECTION] Creating PayPal order:', orderData);
           
-          const response = await api.post(`/v1/events/${event.id}/payment/create-bulk-order`, orderData);
+          const response = await api.post(`/v1/event-people/create-payment-order/${event.id}`, orderData);
           
           if (response.status === 200 && response.data) {
             const { approval_url, payment_id } = response.data;
@@ -405,37 +407,33 @@ function EventRegistrationForm({
       } else if (isPaidEvent && isDoorPayment) {
         console.log('🚪 [EVENT SECTION] Paid event with door payment - registering with pending status');
         
-        // For door payment, register with payment_method: 'door' and payment_status: 'pending_door'
+        // Prepare registrations for unified API
+        const doorRegistrations = [];
+        
         if (wantSelf && !haveSelf) {
-          console.log('📝 [EVENT SECTION] Registering self for door payment');
-          const response = await api.post(`/v1/events/${event.id}/register`, {
-            name: me ? `${me.first} ${me.last}` : 'You',
-            family_member_id: null,
-            payment_method: 'door',
-            payment_status: 'pending_door'
+          doorRegistrations.push({
+            person_id: null,
+            name: me ? `${me.first} ${me.last}` : 'You'
           });
-          
-          if (response.status !== 200 && response.status !== 201) {
-            throw new Error('Failed to register yourself for door payment');
-          }
         }
         
-        // Register selected family members for door payment
         for (const id of toAdd) {
           const person = people.find(p => p.id === id);
-          const personName = person ? `${person.first_name} ${person.last_name}` : 'Family Member';
-          
-          console.log(`📝 [EVENT SECTION] Registering family member for door payment: ${personName}`);
-          const response = await api.post(`/v1/events/${event.id}/register`, {
-            name: personName,
-            family_member_id: id,
-            payment_method: 'door',
-            payment_status: 'pending_door'
+          doorRegistrations.push({
+            person_id: id,
+            name: person ? `${person.first_name} ${person.last_name}` : 'Family Member'
           });
-          
-          if (response.status !== 200 && response.status !== 201) {
-            throw new Error(`Failed to register ${personName} for door payment`);
-          }
+        }
+        
+        // Use unified registration API for door payment
+        const response = await api.post(`/v1/event-people/register-multiple/${event.id}`, {
+          registrations: doorRegistrations,
+          payment_option: 'door',
+          donation_amount: 0
+        });
+        
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || 'Failed to register for door payment');
         }
         
         console.log('✅ [EVENT SECTION] Door payment registrations completed');

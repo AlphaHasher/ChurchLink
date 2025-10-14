@@ -77,25 +77,19 @@ export function EventPayPalButton({
     onPaymentStarted?.();
 
     try {
-      // Use new bulk payment endpoint with single registration for consistency
+      // Use unified API for single registration
       const registrations = [{
-        family_member_id: null, // null for self-registration
-        name: "Event Registration",
-        donation_amount: isFreeDonation ? donationAmount : 0,
-        payment_amount_per_person: isPaidEvent ? amount : 0
+        person_id: null, // null for self-registration
+        name: "Event Registration"
       }];
 
       const orderData = {
         registrations: registrations,
-        message: isPaidEvent 
-          ? `Payment for event: ${event?.name || 'Event'}`
-          : `Donation for event: ${event?.name || 'Event'}`,
-        return_url: `${window.location.origin}/events/${eventId}/payment/success`,
-        cancel_url: `${window.location.origin}/events/${eventId}/payment/cancel`
+        donation_amount: isFreeDonation ? donationAmount : 0
       };
 
       console.log('Creating PayPal payment order:', orderData);
-      const response = await api.post(`/v1/events/${eventId}/payment/create-bulk-order`, orderData);
+      const response = await api.post(`/v1/event-people/create-payment-order/${eventId}`, orderData);
 
       if (response.data && response.data.approval_url) {
         console.log('Redirecting to PayPal:', response.data.approval_url);
