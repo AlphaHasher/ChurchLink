@@ -1,3 +1,4 @@
+import 'package:app/helpers/asset_helper.dart';
 import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../models/family_member.dart';
