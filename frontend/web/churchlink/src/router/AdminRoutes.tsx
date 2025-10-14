@@ -18,10 +18,11 @@ const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/su
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
 const MediaLibrary = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/MediaLibrary"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
+const MembershipRequests = lazy(() => import("../features/admin/pages/ManageMemberships"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
 const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
 const Bulletins = lazy(() => import("../features/admin/pages/Bulletins"));
-const BiblePlanBuilder = lazy(() => import("../features/admin/pages/BiblePlanBuilder"));
+const BiblePlanManager = lazy(() => import("../features/admin/pages/BiblePlanBuilder"));
 const ManageBiblePlans = lazy(() => import("../features/admin/pages/ManageBiblePlans"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
@@ -34,16 +35,16 @@ export const AdminRoutes = () => {
     <Routes>
       <Route path="/" element={<AdminLayout></AdminLayout>}>
         <Route index element={<AdminDashboard />} />
-        <Route path="webbuilder" element={<WebBuilder />} />
-        <Route path="webbuilder/media" element={<MediaLibrary />} />
-        <Route path="sermons" element={<Sermons />} />
-        <Route path="users" element={<Users />} />
-        <Route path="permissions" element={<Permissions />} />
-        <Route path="notifications" element={<Notification />} />
-        <Route path="events" element={<Events />} />
-        <Route path="finance" element={<Finance />} />
-        <Route path="bible-plans/manage-plans" element={<ManageBiblePlans />} />
-        <Route path="/bible-plans/plan-builder" element={<BiblePlanBuilder />} />
+        <Route path="/webbuilder" element={<WebBuilder />} />
+        <Route path="/users/manage-users" element={<Users />} />
+        <Route path="/users/membership-requests" element={<MembershipRequests />} />
+        <Route path="/permissions" element={<Permissions />} />
+        <Route path="/notifications" element={<Notification />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/finance" element={<Finance />} />
+        <Route path="/sermons" element={<Sermons />} />
+        <Route path="/bible-plans/manage-plans" element={<ManageBiblePlans />} />
+        <Route path="/bible-plans/plan-builder" element={<BiblePlanManager />} />
         <Route path="/bulletins" element={<Bulletins />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/mobile-ui-tab" element={<MobileUITab />} />

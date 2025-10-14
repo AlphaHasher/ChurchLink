@@ -2,7 +2,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 
-// Register all community features
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 import { ChevronDown } from "lucide-react"
@@ -24,17 +23,14 @@ import {
 } from "@/shared/types/AccountPermissions"
 import { PermRoleMembersDialog } from "./PermRoleMembersDialog"
 
-import { UserInfo } from "@/shared/types/UserInfo"
 import { getDisplayValue } from "@/helpers/DataFunctions"
 import { useState, useRef, useEffect } from "react"
 import { updateRole } from "@/helpers/PermissionsHelper"
 import { Checkbox } from "@/shared/components/ui/checkbox"
 import MultiStateBadge from "@/shared/components/MultiStageBadge"
 
-
 interface PermissionsTableProps {
   data: AccountPermissions[];
-  userData: UserInfo[];
   onSave: () => Promise<void>;
 }
 
@@ -43,11 +39,7 @@ const ActionsCellRenderer = (props: ICellRendererParams<AccountPermissions>) => 
   const { data, context } = props;
   if (!data) return null;
 
-  const { userData, permData, onSave } = context as {
-    userData: UserInfo[],
-    permData: AccountPermissions[],
-    onSave: () => Promise<void>
-  };
+  const { onSave } = context as { onSave: () => Promise<void> };
 
   return (
     <div className="flex space-x-2">
@@ -57,13 +49,15 @@ const ActionsCellRenderer = (props: ICellRendererParams<AccountPermissions>) => 
           <DeletePermDialog permissions={data} onSave={onSave} />
         </>
       )}
-      <PermRoleMembersDialog permissions={data} userData={userData} permData={permData} />
+      <PermRoleMembersDialog permissions={data} />
     </div>
   );
 };
 
 // Cell renderer for permission columns
-const PermissionCellRenderer = (props: ICellRendererParams<AccountPermissions> & { permissionKey: keyof AccountPermissions }) => {
+const PermissionCellRenderer = (
+  props: ICellRendererParams<AccountPermissions> & { permissionKey: keyof AccountPermissions }
+) => {
   const { data, value, permissionKey, context } = props;
   if (!data) return null;
 
@@ -73,35 +67,26 @@ const PermissionCellRenderer = (props: ICellRendererParams<AccountPermissions> &
   const isDisabled = data.name === "Administrator" || badgeState !== "custom";
 
   const handleTogglePermission = async (checked: boolean) => {
-    if (data.name === "Administrator") return; // Don't allow toggling Administrator permissions
+    if (data.name === "Administrator") return;
 
     setBadgeState("processing");
-
     try {
-      const updatedRole = {
-        ...data,
-        [permissionKey]: checked
-      };
-
+      const updatedRole = { ...data, [permissionKey]: checked };
       const result = await updateRole(updatedRole);
       if (result) {
         setBadgeState("success");
-        // Hold success for visibility, then refresh data and return to custom
         setTimeout(async () => {
           await onSave();
           setBadgeState("custom");
         }, 900);
       } else {
         setBadgeState("error");
-        // Hold error for visibility
         setTimeout(() => setBadgeState("custom"), 1200);
       }
     } catch (error) {
       console.error('Failed to update permission:', error);
       setBadgeState("error");
       setTimeout(() => setBadgeState("custom"), 1200);
-    } finally {
-      // no-op; badgeState handles visual state
     }
   };
 
@@ -121,55 +106,40 @@ const PermissionCellRenderer = (props: ICellRendererParams<AccountPermissions> &
   );
 };
 
-
-
-export function PermissionsTable({ data, userData, onSave }: PermissionsTableProps) {
+export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
   const [quickFilterText, setQuickFilterText] = useState('');
   const gridRef = useRef<AgGridReact<AccountPermissions>>(null);
 
-  // Initialize column visibility state - show all columns by default, load from localStorage if available
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
     const savedState = localStorage.getItem('permissions-table-column-visibility');
     if (savedState) {
-      try {
-        return JSON.parse(savedState);
-      } catch (e) {
-        console.warn('Failed to parse saved column visibility state:', e);
-      }
+      try { return JSON.parse(savedState); } catch (err) { console.error("Failed to parse permissions-table-column-visibility from localStorage:", err); }
     }
-
-    // Default: all columns visible
     const initialState: Record<string, boolean> = {};
-    Object.keys(permissionLabels).forEach((key) => {
-      initialState[key] = true;
-    });
-    initialState.Actions = true; // Actions column is always visible
+    Object.keys(permissionLabels).forEach((key) => { initialState[key] = true; });
+    initialState.name = true;
+    initialState.Actions = true;
     return initialState;
   });
 
-  // Save column visibility to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('permissions-table-column-visibility', JSON.stringify(columnVisibility));
   }, [columnVisibility]);
 
-  // Create column definitions dynamically from permissionLabels
-  const columnDefs: ColDef<AccountPermissions>[] = Object.keys(permissionLabels).map((key) => {
-    const permissionKey = key as keyof AccountPermissions;
-
-    if (permissionKey === 'name') {
-      return {
-        field: permissionKey,
-        headerName: permissionLabels[permissionKey],
-        sortable: true,
-        filter: true,
-        flex: 2,
-        minWidth: 150,
-        valueFormatter: (params) => getDisplayValue(params.value, permissionKey),
-        cellClass: 'font-medium',
-        hide: !columnVisibility[permissionKey],
-      };
-    } else {
-      // Permission columns use the custom cell renderer
+  const columnDefs: ColDef<AccountPermissions>[] = [
+    {
+      field: "name",
+      headerName: "Permission Role Name",
+      sortable: true,
+      filter: true,
+      flex: 2,
+      minWidth: 180,
+      valueFormatter: (params) => getDisplayValue(params.value, "name" as any),
+      cellClass: "font-medium",
+      hide: !columnVisibility["name"],
+    },
+    ...Object.keys(permissionLabels).map((key) => {
+      const permissionKey = key as keyof AccountPermissions;
       return {
         field: permissionKey,
         headerName: permissionLabels[permissionKey],
@@ -182,56 +152,44 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
         cellRenderer: (props: ICellRendererParams<AccountPermissions>) =>
           PermissionCellRenderer({ ...props, permissionKey }),
         hide: !columnVisibility[permissionKey],
-      };
-    }
-  });
+      } as ColDef<AccountPermissions>;
+    }),
+    {
+      headerName: 'Actions',
+      cellRenderer: ActionsCellRenderer,
+      sortable: false,
+      filter: false,
+      width: 200,
+      suppressSizeToFit: true,
+      pinned: 'right',
+      hide: false,
+    },
+  ];
 
-  // Add actions column
-  columnDefs.push({
-    headerName: 'Actions',
-    cellRenderer: ActionsCellRenderer,
-    sortable: false,
-    filter: false,
-    width: 200,
-    suppressSizeToFit: true,
-    pinned: 'right',
-    hide: false,
-  });
-
-  const defaultColDef: ColDef = {
-    resizable: true,
-  };
+  const defaultColDef: ColDef = { resizable: true };
 
   const handleHideAllPermissions = () => {
-    const newVisibility = { ...columnVisibility };
-    Object.keys(permissionLabels).forEach((key) => {
-      newVisibility[key] = false;
-    });
-    newVisibility.name = true; // Keep name column visible
-    newVisibility.Actions = true; // Keep actions column visible
-    setColumnVisibility(newVisibility);
+    const next = { ...columnVisibility };
+    Object.keys(permissionLabels).forEach((key) => { next[key] = false; });
+    next.name = true;
+    next.Actions = true;
+    setColumnVisibility(next);
   };
 
   const handleShowAllPermissions = () => {
-    const newVisibility = { ...columnVisibility };
-    Object.keys(permissionLabels).forEach((key) => {
-      newVisibility[key] = true;
-    });
-    newVisibility.Actions = true; // Keep actions column visible
-    setColumnVisibility(newVisibility);
+    const next = { ...columnVisibility };
+    Object.keys(permissionLabels).forEach((key) => { next[key] = true; });
+    next.Actions = true;
+    setColumnVisibility(next);
   };
 
   const handleColumnVisibilityChange = (columnId: string, visible: boolean) => {
-    setColumnVisibility(prev => ({
-      ...prev,
-      [columnId]: visible,
-    }));
+    setColumnVisibility(prev => ({ ...prev, [columnId]: visible }));
   };
 
   return (
     <div className="container mx-auto">
       <div className="flex items-center py-4">
-        {/* Search Input */}
         <Input
           placeholder="Search Permission Name..."
           value={quickFilterText}
@@ -239,7 +197,6 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
           className="max-w-sm"
         />
 
-        {/* Permission Focus Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -260,25 +217,21 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
               Show All Permissions
             </Button>
 
-            {Object.keys(permissionLabels)
-              .filter((key) => key !== 'name')
-              .map((key) => (
-                <DropdownMenuCheckboxItem
-                  key={key}
-                  className="capitalize"
-                  checked={columnVisibility[key] ?? false}
-                  onCheckedChange={(value) =>
-                    handleColumnVisibilityChange(key, !!value)
-                  }
-                  onSelect={(event) => event.preventDefault()}
-                >
-                  {permissionLabels[key as keyof typeof permissionLabels]}
-                </DropdownMenuCheckboxItem>
-              ))}
+            {/* allow toggling any permission column */}
+            {["name", ...Object.keys(permissionLabels)].map((key) => (
+              <DropdownMenuCheckboxItem
+                key={key}
+                className="capitalize"
+                checked={columnVisibility[key] ?? false}
+                onCheckedChange={(value) => handleColumnVisibilityChange(key, !!value)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                {key === "name" ? "Permission Role Name" : permissionLabels[key as keyof typeof permissionLabels]}
+              </DropdownMenuCheckboxItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Create Permission Dialog (Aligned Right) */}
         <div className="ml-auto">
           <CreatePermDialog onSave={onSave} />
         </div>
@@ -291,7 +244,7 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
           rowData={data}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          context={{ userData, permData: data, onSave }}
+          context={{ onSave }}
           pagination={true}
           paginationPageSize={10}
           paginationPageSizeSelector={[10, 25, 50]}
@@ -302,8 +255,6 @@ export function PermissionsTable({ data, userData, onSave }: PermissionsTablePro
       </div>
     </div>
   );
-
-
 }
 
 export default PermissionsTable;

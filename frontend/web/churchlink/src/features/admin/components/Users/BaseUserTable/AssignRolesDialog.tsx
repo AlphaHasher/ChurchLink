@@ -22,7 +22,7 @@ import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 interface AssignRolesDialogProps {
     userData: BaseUserMask;
     permData: AccountPermissions[];
-    initialRoles: string[]; // List of initial selected roles
+    initialRoles: string[];
     onSave: () => Promise<void>;
 }
 
