@@ -7,7 +7,7 @@ import '../services/event_registration_service.dart';
 import '../services/my_events_service.dart';
 import '../providers/tab_provider.dart';
 import 'event_registration_page.dart';
-import '../helpers/strapi_helper.dart';
+import '../helpers/asset_helper.dart'; 
 
 class EventShowcase extends StatefulWidget {
   final Event event;
