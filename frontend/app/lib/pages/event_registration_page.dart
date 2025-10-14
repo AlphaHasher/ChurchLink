@@ -6,6 +6,9 @@ import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
 import '../helpers/strapi_helper.dart';
 import 'user/family_member_form.dart';
+import '../models/profile_info.dart';
+import '../caches/user_profile_cache.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EventRegistrationPage extends StatefulWidget {
   final Event event;
@@ -32,6 +35,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
   bool _isLoading = true;
   bool _isSubmitting = false;
   final Set<String> _invalidPeople = {};
+  ProfileInfo? _currentUserProfile;
 
   @override
   void initState() {
@@ -43,6 +47,12 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Load current user profile
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        _currentUserProfile = await UserProfileCache.read(currentUser.uid);
+      }
+
       _allFamilyMembers = await FamilyMemberService.getFamilyMembers();
 
       _eligibleFamilyMembers = _allFamilyMembers
@@ -623,7 +633,31 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
     return _selectedPeople.entries.map((entry) {
       final isInvalid = _invalidPeople.contains(entry.key);
       final isSelf = entry.key == 'self';
-      final name = isSelf ? 'You' : entry.value!.fullName;
+      
+      // Build name and age/gender info
+      String name;
+      String? ageGenderInfo;
+      
+      if (isSelf && _currentUserProfile != null) {
+        name = '${_currentUserProfile!.firstName} ${_currentUserProfile!.lastName} (Myself)';
+        int? age;
+        if (_currentUserProfile!.birthday != null) {
+          final now = DateTime.now();
+          age = now.year - _currentUserProfile!.birthday!.year;
+          if (now.month < _currentUserProfile!.birthday!.month ||
+              (now.month == _currentUserProfile!.birthday!.month && now.day < _currentUserProfile!.birthday!.day)) {
+            age--;
+          }
+        }
+        final gender = _currentUserProfile!.gender == "M" ? "Male" : _currentUserProfile!.gender == "F" ? "Female" : "Unknown";
+        ageGenderInfo = age != null ? 'Age: $age • Gender: $gender' : 'Gender: $gender';
+      } else if (isSelf) {
+        name = 'You (Myself)';
+      } else {
+        name = entry.value!.fullName;
+        ageGenderInfo = 'Age: ${entry.value!.age} • Gender: ${entry.value!.gender == "M" ? "Male" : "Female"}';
+      }
+      
       final isRecurring = _personScopes[entry.key] == 'series';
       final isRecurringEvent = widget.event.recurring != null && widget.event.recurring != 'never';
 
@@ -675,9 +709,9 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
                             fontSize: 16,
                           ),
                         ),
-                        if (!isSelf) ...[
+                        if (ageGenderInfo != null) ...[
                           Text(
-                            'Age: ${entry.value!.age}',
+                            ageGenderInfo,
                             style: const TextStyle(fontSize: 14),
                           ),
                         ],
@@ -964,7 +998,7 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
             ..._eligibleMembers.map(
               (member) => CheckboxListTile(
                 title: Text(member.fullName),
-                subtitle: Text('Age: ${member.age}'),
+                subtitle: Text('Age: ${member.age} • Gender: ${member.gender == "M" ? "Male" : "Female"}'),
                 value: _tempSelection.contains(member.id),
                 onChanged: (value) {
                   setState(() {
@@ -977,6 +1011,49 @@ class _SelectPeopleDialogState extends State<_SelectPeopleDialog> {
                 },
               ),
             ),
+            // Show ineligible members section
+            if (_allMembers.where((m) => !_isEligibleForEvent(m)).isNotEmpty) ...[
+              const Divider(thickness: 2),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                child: Text(
+                  'Ineligible for this event',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              ..._allMembers
+                  .where((m) => !_isEligibleForEvent(m))
+                  .map((member) {
+                String reason = '';
+                if (member.age < widget.event.minAge || member.age > widget.event.maxAge) {
+                  reason = ' (Age ${member.age} not in range: ${widget.event.minAge}-${widget.event.maxAge})';
+                } else if (widget.event.gender.toLowerCase() != 'all') {
+                  final memberGender = member.gender == "M" ? "Male" : "Female";
+                  reason = ' (Event requires: ${widget.event.gender})';
+                }
+                
+                return ListTile(
+                  enabled: false,
+                  title: Text(
+                    member.fullName,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Age: ${member.age} • Gender: ${member.gender == "M" ? "Male" : "Female"}$reason',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              }),
+            ],
           ],
         ),
       ),
