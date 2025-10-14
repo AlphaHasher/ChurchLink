@@ -4,9 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
 import '../models/family_member.dart';
 import '../models/event_registration_summary.dart';
+import '../models/profile_info.dart';
+import '../caches/user_profile_cache.dart';
 import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
 import '../providers/tab_provider.dart';
+import '../widgets/bulk_event_registration_widget.dart';
 import 'user/family_members_page.dart';
 
 class EventShowcase extends StatefulWidget {
@@ -25,6 +28,7 @@ class _EventShowcaseState extends State<EventShowcase> {
   bool _isUserRegistered = false;
   Map<String, bool> _familyMemberRegistrations = {};
   EventRegistrationSummary? _registrationSummary;
+  ProfileInfo? _currentUserProfile;
   late Stream<User?> _authStateStream;
 
   @override
@@ -40,6 +44,7 @@ class _EventShowcaseState extends State<EventShowcase> {
             _familyMembers = [];
             _familyMemberRegistrations = {};
             _isUserRegistered = false;
+            _currentUserProfile = null;
             _selectedRegistrants.clear();
           });
         }
@@ -58,10 +63,32 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
 
     await Future.wait([
+      _loadCurrentUserProfile(),
       _loadFamilyMembers(),
       _checkRegistrationStatus(),
       _loadRegistrationDetails(),
     ]);
+  }
+
+  Future<void> _loadCurrentUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _currentUserProfile = null);
+      return;
+    }
+
+    try {
+      final profile = await UserProfileCache.read(user.uid);
+      debugPrint('🔍 [EventShowcase] Loaded user profile: ${profile?.toJson()}');
+      if (mounted) {
+        setState(() => _currentUserProfile = profile);
+      }
+    } catch (e) {
+      debugPrint('❌ [EventShowcase] Failed to load user profile: $e');
+      if (mounted) {
+        setState(() => _currentUserProfile = null);
+      }
+    }
   }
 
   Future<void> _loadFamilyMembers() async {
@@ -179,114 +206,76 @@ class _EventShowcaseState extends State<EventShowcase> {
   Future<void> _handleRegistration() async {
     if (_selectedRegistrants.isEmpty) return;
 
-    setState(() => _isRegistering = true);
-
-    final registrationResults = <String, bool>{};
-    final registrationErrors = <String, String>{};
-
-    try {
-      // Process each selected registrant
-      for (final selectedId in _selectedRegistrants) {
-        try {
-          bool success;
-          String registrantName;
-
-          if (selectedId == 'self') {
-            success = await EventRegistrationService.registerForEvent(
-              eventId: widget.event.id,
-            );
-            registrantName = 'You';
-          } else {
-            final familyMember = _familyMembers.firstWhere(
-              (member) => member.id == selectedId,
-            );
-            success = await EventRegistrationService.registerForEvent(
-              eventId: widget.event.id,
-              familyMemberId: familyMember.id,
-            );
-            registrantName = familyMember.fullName;
-          }
-
-          registrationResults[registrantName] = success;
-          if (!success) {
-            registrationErrors[registrantName] = 'Registration failed';
-          }
-        } catch (e) {
-          final registrantName =
-              selectedId == 'self'
-                  ? 'You'
-                  : _familyMembers
-                      .firstWhere((m) => m.id == selectedId)
-                      .fullName;
-          registrationResults[registrantName] = false;
-          registrationErrors[registrantName] = e.toString();
-        }
-      }
-
-      // Show results to user
-      final successCount =
-          registrationResults.values.where((success) => success).length;
-      final totalCount = registrationResults.length;
-
-      if (mounted) {
-        if (successCount == totalCount) {
-          // All successful
-          final names = registrationResults.keys
-              .where((name) => registrationResults[name] == true)
-              .join(', ');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '$names successfully registered for ${widget.event.name}!',
-              ),
-              backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-            ),
-          );
-        } else if (successCount > 0) {
-          // Partial success
-          final successNames = registrationResults.keys
-              .where((name) => registrationResults[name] == true)
-              .join(', ');
-          final failedNames = registrationResults.keys
-              .where((name) => registrationResults[name] == false)
-              .join(', ');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Partial success: $successNames registered. Failed: $failedNames',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        } else {
-          // All failed
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('All registrations failed. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-
-      // Refresh registration status
-      await _checkRegistrationStatus();
-      await _checkFamilyMemberRegistrations();
-      await _loadRegistrationDetails();
-
-      setState(() => _selectedRegistrants.clear());
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Registration failed: $e'),
-            backgroundColor: Colors.red,
-          ),
+    // Prepare registration data for bulk registration
+    final registrations = <Map<String, dynamic>>[];
+    
+    for (final selectedId in _selectedRegistrants) {
+      if (selectedId == 'self') {
+        // Current user registration
+        registrations.add({
+          'family_member_id': null, // null indicates current user
+          'name': 'You', // Will be replaced by backend with actual user name
+        });
+      } else {
+        // Family member registration
+        final familyMember = _familyMembers.firstWhere(
+          (member) => member.id == selectedId,
         );
+        registrations.add({
+          'family_member_id': familyMember.id,
+          'name': familyMember.fullName,
+        });
       }
-    } finally {
-      setState(() => _isRegistering = false);
     }
+
+    // Show bulk registration dialog
+    _showBulkRegistrationDialog(registrations);
+  }
+
+  void _showBulkRegistrationDialog(List<Map<String, dynamic>> registrations) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Register for ${widget.event.name}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: BulkEventRegistrationWidget(
+            event: widget.event,
+            registrations: registrations,
+            onSuccess: () async {
+              Navigator.of(context).pop();
+              
+              // Show success message
+              final names = registrations.map((r) => r['name']).join(', ');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '$names successfully registered for ${widget.event.name}!',
+                  ),
+                  backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+                ),
+              );
+
+              // Refresh registration status
+              await _checkRegistrationStatus();
+              await _checkFamilyMemberRegistrations();
+              await _loadRegistrationDetails();
+              setState(() => _selectedRegistrants.clear());
+            },
+            onCancel: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleUnregistration(
@@ -426,7 +415,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                             ),
                             const SizedBox(width: 12),
                             const Text(
-                              'Add form',
+                              'Event Registration',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -564,7 +553,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                _buildDialogRegistrationForm(setDialogState),
+                                _buildPersonSelectionStep(setDialogState),
                               ],
                             ],
                           ),
@@ -763,7 +752,89 @@ class _EventShowcaseState extends State<EventShowcase> {
     return true;
   }
 
-  Widget _buildDialogRegistrationForm(StateSetter setDialogState) {
+  /// Check if the current user is eligible for the event based on gender and age requirements
+  bool _isCurrentUserEligibleForEvent() {
+    debugPrint('🔍 [EventShowcase] Checking user eligibility for event: ${widget.event.name}');
+    debugPrint('🔍 [EventShowcase] Event gender requirement: "${widget.event.gender}"');
+    debugPrint('🔍 [EventShowcase] Event age requirement: ${widget.event.minAge}-${widget.event.maxAge}');
+    debugPrint('🔍 [EventShowcase] User profile loaded: ${_currentUserProfile != null}');
+    
+    // Check gender requirements first
+    // Event gender can be "all", "male", "female", "M", or "F"
+    final eventGender = widget.event.gender.toLowerCase();
+    
+    // If event is open to all genders, we still need to check age if profile exists
+    if (eventGender != 'all') {
+      // For gender-restricted events, we need profile data
+      if (_currentUserProfile == null) {
+        debugPrint('❌ [EventShowcase] Gender-restricted event but no user profile - blocking registration');
+        return false;
+      }
+
+      debugPrint('🔍 [EventShowcase] User gender: "${_currentUserProfile!.gender}"');
+      
+      final userGender = _currentUserProfile!.gender?.toLowerCase();
+
+      debugPrint('🔍 [EventShowcase] Comparing - Event: "$eventGender" vs User: "$userGender"');
+
+      // If user has no gender set in their profile, block registration for gender-restricted events
+      if (userGender == null) {
+        debugPrint('❌ [EventShowcase] Gender-restricted event but user has no gender set - blocking registration');
+        return false;
+      }
+
+      // Handle different gender formats
+      if (eventGender == 'male' || eventGender == 'm') {
+        if (userGender != 'm' && userGender != 'male') {
+          debugPrint('❌ [EventShowcase] User gender mismatch - event requires male, user is $userGender');
+          return false;
+        }
+      } else if (eventGender == 'female' || eventGender == 'f') {
+        if (userGender != 'f' && userGender != 'female') {
+          debugPrint('❌ [EventShowcase] User gender mismatch - event requires female, user is $userGender');
+          return false;
+        }
+      }
+    }
+    
+    // Check age requirements if profile is available
+    if (_currentUserProfile?.birthday != null) {
+      final userAge = _calculateAge(_currentUserProfile!.birthday!);
+      debugPrint('🔍 [EventShowcase] User age: $userAge');
+      
+      if (userAge < widget.event.minAge || userAge > widget.event.maxAge) {
+        debugPrint('❌ [EventShowcase] User age mismatch - event requires ${widget.event.minAge}-${widget.event.maxAge}, user is $userAge');
+        return false;
+      }
+    } else if (_currentUserProfile != null) {
+      // Profile exists but no birthday - for age-restricted events, this could be an issue
+      debugPrint('⚠️ [EventShowcase] User profile exists but no birthday set - cannot validate age');
+      // For now, we'll allow registration, but this could be made stricter if needed
+    } else {
+      // No profile at all
+      if (eventGender != 'all') {
+        // Already handled above
+      } else {
+        debugPrint('⚠️ [EventShowcase] No user profile but event is open to all genders - allowing registration');
+      }
+    }
+
+    debugPrint('✅ [EventShowcase] User is eligible for this event');
+    return true;
+  }
+
+  /// Calculate age from birthday (same logic as FamilyMember.age)
+  int _calculateAge(DateTime birthday) {
+    final now = DateTime.now();
+    int age = now.year - birthday.year;
+    if (now.month < birthday.month ||
+        (now.month == birthday.month && now.day < birthday.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  Widget _buildPersonSelectionStep(StateSetter setDialogState) {
     // Check authentication before building registration form
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -782,10 +853,17 @@ class _EventShowcaseState extends State<EventShowcase> {
 
     final availableRegistrants = <Map<String, String>>[];
 
-    // Add self if not registered (Note: For current user, we would need to check their profile data)
-    // For now, we'll assume the current user is always eligible unless we implement user profile validation
-    if (!_isUserRegistered) {
+    debugPrint('🔍 [EventShowcase] Building registration form...');
+    debugPrint('🔍 [EventShowcase] User registered: $_isUserRegistered');
+    
+    // Add self if not registered AND meets event requirements (gender filtering)
+    if (!_isUserRegistered && _isCurrentUserEligibleForEvent()) {
+      debugPrint('✅ [EventShowcase] Adding "Myself" option - user is eligible');
       availableRegistrants.add({'id': 'self', 'name': 'Myself'});
+    } else if (!_isUserRegistered) {
+      debugPrint('❌ [EventShowcase] NOT adding "Myself" option - user not eligible');
+    } else {
+      debugPrint('ℹ️ [EventShowcase] NOT adding "Myself" option - user already registered');
     }
 
     // Add family members who are not registered and meet event requirements
@@ -797,6 +875,48 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
 
     if (availableRegistrants.isEmpty) {
+      // Check why no registrants are available
+      final isGenderRestricted = widget.event.gender.toLowerCase() != 'all';
+      final isAgeRestricted = widget.event.minAge > 0 || widget.event.maxAge < 150;
+      final userNeedsProfile = !_isUserRegistered && _currentUserProfile == null && (isGenderRestricted || isAgeRestricted);
+      
+      if (userNeedsProfile) {
+        String requirements = '';
+        if (isGenderRestricted && isAgeRestricted) {
+          requirements = 'gender and age information';
+        } else if (isGenderRestricted) {
+          requirements = 'gender information';
+        } else {
+          requirements = 'age information';
+        }
+        
+        return Column(
+          children: [
+            Icon(Icons.person_off, size: 48, color: Colors.orange),
+            const SizedBox(height: 16),
+            Text(
+              'Complete your profile to register for this event.',
+              style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This event requires $requirements. Go to Profile → Edit Profile to complete your profile.',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            if (isAgeRestricted) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Age requirement: ${widget.event.minAge}-${widget.event.maxAge} years',
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        );
+      }
+      
       return const Text(
         'All family members are already registered for this event.',
         style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
@@ -1016,13 +1136,15 @@ class _EventShowcaseState extends State<EventShowcase> {
                   );
                   return;
                 }
-                if ((_registrationSummary?.availableSpots ?? 1) > 0) {
+                if ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                    (_registrationSummary?.availableSpots ?? 1) == -1) {  // Allow unlimited spots
                   _showRegistrationDialog();
                 }
               },
               icon: const Icon(Icons.person_add, size: 18),
               label: Text(
-                (_registrationSummary?.availableSpots ?? 1) > 0
+                ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                 (_registrationSummary?.availableSpots ?? 1) == -1)
                     ? 'Register'
                     : 'Event Full',
                 style: const TextStyle(
@@ -1032,7 +1154,8 @@ class _EventShowcaseState extends State<EventShowcase> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor:
-                    (_registrationSummary?.availableSpots ?? 1) > 0
+                    ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                     (_registrationSummary?.availableSpots ?? 1) == -1)
                         ? const Color.fromARGB(255, 142, 163, 168)
                         : Colors.grey,
                 foregroundColor: Colors.white,
@@ -1044,7 +1167,8 @@ class _EventShowcaseState extends State<EventShowcase> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 elevation:
-                    (_registrationSummary?.availableSpots ?? 1) > 0 ? 4 : 0,
+                    ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                     (_registrationSummary?.availableSpots ?? 1) == -1) ? 4 : 0,
               ),
             ),
           ),

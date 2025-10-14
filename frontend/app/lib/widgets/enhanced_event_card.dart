@@ -158,9 +158,10 @@ class EnhancedEventCard extends StatelessWidget {
   }
 
   Widget _buildCostLabel() {
-    // Check if event is full first
+    // Check if event is full first (but not if unlimited spots)
     if (registrationSummary != null &&
-        registrationSummary!.availableSpots <= 0) {
+        registrationSummary!.availableSpots <= 0 &&
+        registrationSummary!.availableSpots != -1) {  // Don't show full for unlimited spots
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -182,32 +183,62 @@ class EnhancedEventCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 142, 163, 168),
+          color: event.hasPayPalOption 
+              ? const Color.fromARGB(255, 46, 125, 50) // Green for donations enabled
+              : const Color.fromARGB(255, 142, 163, 168), // Gray for completely free
           borderRadius: BorderRadius.circular(15),
         ),
-        child: const Text(
-          'FREE',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'FREE',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            if (event.hasPayPalOption) ...[
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.volunteer_activism,
+                color: Colors.white,
+                size: 12,
+              ),
+            ],
+          ],
         ),
       );
     } else {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 142, 163, 168),
+          color: event.hasPayPalOption
+              ? const Color(0xFF0070BA) // PayPal blue for online payment
+              : const Color.fromARGB(255, 142, 163, 168), // Gray for pay at door
           borderRadius: BorderRadius.circular(15),
         ),
-        child: Text(
-          '\$${event.price.toStringAsFixed(2)}',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '\$${event.price.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            if (event.hasPayPalOption) ...[
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.payment,
+                color: Colors.white,
+                size: 12,
+              ),
+            ],
+          ],
         ),
       );
     }

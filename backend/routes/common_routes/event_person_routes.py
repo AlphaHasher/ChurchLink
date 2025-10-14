@@ -131,6 +131,7 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
 # Unregister a family member from an event
 @event_person_registration_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
 async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
+    print(f"DEBUG: Unregister family member route called - event_id: {event_id}, family_member_id: {family_member_id}")
     return await event_person_helper.unregister_family_member_from_event(
         event_id=event_id,
         family_member_id=family_member_id,
@@ -156,5 +157,11 @@ async def get_family_member_events(family_member_id: str, request: Request):
         family_member_id=family_member_id,
         user_uid=request.state.uid
     )
+
+# Test route to verify router is working
+@event_person_registration_router.delete("/test-delete/{test_id}", response_model=dict)
+async def test_delete_route(test_id: str, request: Request):
+    print(f"DEBUG: Test delete route called - test_id: {test_id}")
+    return {"success": True, "message": "Test delete route working", "test_id": test_id}
 
 

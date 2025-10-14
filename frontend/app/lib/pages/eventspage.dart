@@ -118,8 +118,13 @@ class _EventsPageState extends State<EventsPage> {
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = response.data;
+        final allEvents = jsonData.map((json) => Event.fromJson(json)).toList();
+        
+        // Filter to only show upcoming events
+        final upcomingEvents = Event.upcomingEvents(allEvents);
+        
         setState(() {
-          _events = jsonData.map((json) => Event.fromJson(json)).toList();
+          _events = upcomingEvents;
           _isLoading = false;
         });
         // Load registration details for all events

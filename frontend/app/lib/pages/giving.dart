@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:app/services/paypal_service.dart';
+import '../services/paypal_service.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:developer';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class Giving extends StatefulWidget {
@@ -36,18 +39,167 @@ class _GivingState extends State<Giving> {
   void initState() {
     super.initState();
     _appLinks = AppLinks();
-    _linkSubscription = _appLinks!.uriLinkStream.listen((Uri uri) async {
+    _linkSubscription = _appLinks!.uriLinkStream.listen((uri) async {
+      log('[DeepLink] Received deep link: $uri');
       if (!mounted) return;
+      
       if (uri.scheme == 'churchlink' && uri.host == 'paypal-success') {
+        log('[DeepLink] PayPal success deep link detected');
         if (!mounted) return;
-        Navigator.of(context).pushNamed(
-          '/paypal-success',
-          arguments: {'token': uri.queryParameters['token']},
-        );
+        
+        // Extract PayPal parameters from the URI
+        final paymentId = uri.queryParameters['paymentId'] ?? uri.queryParameters['payment_id'];
+        final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
+        final token = uri.queryParameters['token'];
+        
+        log('[DeepLink] Extracted parameters - paymentId: $paymentId, payerId: $payerId, token: $token');
+        
+        // Check if this is an event payment by looking for eventId in path or query parameters
+        String? eventId = uri.queryParameters['eventId'] ?? uri.queryParameters['event_id'];
+        
+        // If not in query parameters, check if it's in the path (new format: churchlink://paypal-success/eventId)
+        if (eventId == null && uri.pathSegments.isNotEmpty) {
+          eventId = uri.pathSegments.first;
+        }
+        
+        log('[DeepLink] Extracted eventId: $eventId');
+        
+        if (eventId != null && paymentId != null && payerId != null) {
+          // This is an event payment completion
+          try {
+            log('[DeepLink] Event payment detected - eventId: $eventId, paymentId: $paymentId, payerId: $payerId');
+            
+            // Check if this is a bulk registration by looking for pending bulk registration data
+            final pendingBulkData = await _getPendingBulkRegistration();
+            log('[DeepLink] Pending bulk data: $pendingBulkData');
+            log('[DeepLink] Bulk data exists: ${pendingBulkData != null}');
+            if (pendingBulkData != null) {
+              log('[DeepLink] Bulk data eventId: ${pendingBulkData['eventId']}, current eventId: $eventId');
+              log('[DeepLink] EventId match: ${pendingBulkData['eventId'] == eventId}');
+            }
+            
+            if (pendingBulkData != null && pendingBulkData['eventId'] == eventId) {
+              // This is a bulk registration completion
+              log('[DeepLink] Processing bulk registration completion');
+              final registrations = pendingBulkData['registrations'] as List<dynamic>;
+              final result = await PaypalService.completeBulkEventRegistration(
+                eventId: eventId,
+                registrations: registrations.cast<Map<String, dynamic>>(),
+                paymentId: paymentId,
+                payerId: payerId,
+              );
+              
+              log('[DeepLink] Bulk registration API result: $result');
+              
+              // Clear pending data
+              await _clearPendingBulkRegistration();
+              
+              if (result != null && result['success'] == true) {
+                log('[DeepLink] Bulk registration completed successfully');
+                // Close any open dialogs and clear navigation stack
+                Navigator.of(context).popUntil((route) => route.isFirst);
+                
+                // Navigate to events list, replacing the current route
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/events',
+                  (route) => false, // Remove all previous routes
+                );
+                
+                // Show success message after navigation
+                final numberOfPeople = registrations.length;
+                Future.delayed(Duration(milliseconds: 800), () {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                  }
+                });
+              } else {
+                log('[DeepLink] Bulk registration failed: ${result?['error']}');
+                _showEventPaymentErrorDialog(result?['error'] ?? 'Bulk registration failed');
+              }
+            } else {
+              // Single event payment
+              log('[DeepLink] Processing single event payment completion');
+              
+              // Get current user email for registration
+              final userEmail = FirebaseAuth.instance.currentUser?.email;
+              log('[DeepLink] Current user email: $userEmail');
+              
+              final result = await PaypalService.completeEventPayment(
+                eventId: eventId,
+                paymentId: paymentId,
+                payerId: payerId,
+                userEmail: userEmail,
+              );
+              
+              log('[DeepLink] Single event payment API result: $result');
+              
+              if (result != null && result['success'] == true) {
+                log('[DeepLink] Single event payment completed successfully');
+                // Close any open dialogs and clear navigation stack
+                Navigator.of(context).popUntil((route) => route.isFirst);
+                
+                // Navigate to events list, replacing the current route
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/events',
+                  (route) => false, // Remove all previous routes
+                );
+                
+                // Show success message after navigation
+                Future.delayed(Duration(milliseconds: 800), () {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✅ Event payment completed successfully!'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                  }
+                });
+              } else {
+                log('[DeepLink] Single event payment failed: ${result?['error']}');
+                _showEventPaymentErrorDialog(result?['error'] ?? 'Payment completion failed');
+              }
+            }
+          } catch (e) {
+            log('[DeepLink] Error completing payment: $e');
+            _showEventPaymentErrorDialog('Error completing payment: $e');
+          }
+        } else {
+          // Regular donation payment - use existing route navigation
+          Navigator.of(context).pushNamed(
+            '/paypal-success',
+            arguments: {'token': token},
+          );
+        }
       }
+      
       if (uri.scheme == 'churchlink' && uri.host == 'paypal-cancel') {
         if (!mounted) return;
-        Navigator.of(context).pushNamed('/cancel');
+        
+        // Check if this is an event payment cancellation by looking for eventId in path or query parameters
+        String? eventId = uri.queryParameters['eventId'] ?? uri.queryParameters['event_id'];
+        
+        // If not in query parameters, check if it's in the path (new format: churchlink://paypal-cancel/eventId)
+        if (eventId == null && uri.pathSegments.isNotEmpty) {
+          eventId = uri.pathSegments.first;
+        }
+        
+        if (eventId != null) {
+          // Event payment was cancelled
+          _showEventPaymentCancelDialog();
+        } else {
+          // Regular donation cancellation
+          Navigator.of(context).pushNamed('/cancel');
+        }
       }
     });
     _accountEmail = FirebaseAuth.instance.currentUser?.email;
@@ -585,5 +737,126 @@ class _GivingState extends State<Giving> {
         ),
       ),
     );
+  }
+
+  void _showEventPaymentErrorDialog(String error) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Payment Error'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              'Event payment failed: $error',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Please try again or contact support if the problem persists.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pushReplacementNamed('/events');
+            },
+            child: const Text('Back to Events'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEventPaymentCancelDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Payment Cancelled'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cancel, color: Colors.orange, size: 48),
+            const SizedBox(height: 16),
+            const Text(
+              'Event payment was cancelled. Your registration is not confirmed yet.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'You can try again later or complete payment at the event if applicable.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pushReplacementNamed('/events');
+            },
+            child: const Text('Back to Events'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _getPendingBulkRegistration() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pendingDataString = prefs.getString('pending_bulk_registration');
+      log('[DeepLink] Raw pending data string: $pendingDataString');
+      
+      if (pendingDataString != null) {
+        final pendingData = jsonDecode(pendingDataString) as Map<String, dynamic>;
+        log('[DeepLink] Parsed pending data: $pendingData');
+        
+        // Check if data is not too old (e.g., within last hour)
+        final timestamp = pendingData['timestamp'] as int;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final ageMinutes = (now - timestamp) / 60000;
+        log('[DeepLink] Pending data age: ${ageMinutes.toStringAsFixed(1)} minutes');
+        
+        if (now - timestamp < 3600000) { // 1 hour
+          log('[DeepLink] Pending data is valid');
+          return pendingData;
+        } else {
+          // Clear old data
+          log('[DeepLink] Pending data is too old, clearing');
+          await prefs.remove('pending_bulk_registration');
+        }
+      } else {
+        log('[DeepLink] No pending data found');
+      }
+    } catch (e) {
+      log('[DeepLink] Failed to get pending registration: $e');
+    }
+    return null;
+  }
+
+  Future<void> _clearPendingBulkRegistration() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('pending_bulk_registration');
+      log('[DeepLink] Cleared pending bulk registration data');
+    } catch (e) {
+      log('[DeepLink] Failed to clear pending registration: $e');
+    }
   }
 }

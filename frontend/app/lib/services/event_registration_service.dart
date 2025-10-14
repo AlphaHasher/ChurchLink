@@ -1,5 +1,8 @@
 import '../helpers/api_client.dart';
 import '../models/event_registration_summary.dart';
+import '../models/event.dart';
+import '../pages/event_payment_screen.dart';
+import 'package:flutter/material.dart';
 
 class EventRegistrationService {
   /// Register user or family member for an event
@@ -95,6 +98,58 @@ class EventRegistrationService {
       return response.data['is_registered'] == true;
     } catch (e) {
       throw Exception('Failed to check family member registration status: $e');
+    }
+  }
+
+  /// Register for event and handle payment flow if needed
+  static Future<bool> registerForEventWithPayment({
+    required BuildContext context,
+    required Event event,
+    String? familyMemberId,
+  }) async {
+    try {
+      // First, register for the event
+      final registrationSuccess = await registerForEvent(
+        eventId: event.id,
+        familyMemberId: familyMemberId,
+      );
+
+      if (!registrationSuccess) {
+        return false;
+      }
+
+      // If PayPal is enabled for this event, show payment screen
+      if (event.hasPayPalOption) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => EventPaymentScreen(
+              event: event,
+              registrationData: {
+                'eventId': event.id,
+                'familyMemberId': familyMemberId,
+              },
+            ),
+          ),
+        );
+      } else {
+        // Show success message for events without payment
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully registered for ${event.name}!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      return true;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
     }
   }
 
