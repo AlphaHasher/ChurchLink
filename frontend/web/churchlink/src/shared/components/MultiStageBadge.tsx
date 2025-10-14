@@ -126,9 +126,16 @@ export default function MultiStateBadge({ state, onClick, className = "", label,
         transition={SPRING}
       >
         {onClick ? (
-          <motion.button
-            type="button"
+          <motion.div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                onClick()
+              }
+            }}
             className="relative inline-flex items-center gap-2 rounded-full px-3.5 py-1.5"
             layout="size"
             transition={SPRING}
@@ -145,7 +152,7 @@ export default function MultiStateBadge({ state, onClick, className = "", label,
                 </motion.span>
               </motion.div>
             )}
-          </motion.button>
+          </motion.div>
         ) : (
           <>
             {customComponent}

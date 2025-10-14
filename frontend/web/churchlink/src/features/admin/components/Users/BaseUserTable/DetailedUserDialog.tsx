@@ -220,7 +220,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
         <>
             <Button
                 variant="outline"
-                className="!bg-white text-black border shadow-sm hover:bg-blue-600"
+                size="icon"
                 onClick={open}
                 aria-label="View details"
                 title="View details"

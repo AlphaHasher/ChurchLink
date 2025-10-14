@@ -49,8 +49,7 @@ export function PermRoleMembersDialog({ permissions }: PermRoleMembersDialogProp
         <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(open)}>
             <DialogTrigger asChild>
                 <Button
-                    variant="outline"
-                    className="!bg-white text-red border shadow-sm !hover:bg-red-600"
+                    variant="secondary"
                     onClick={() => setIsOpen(true)}
                     title="View members"
                 >

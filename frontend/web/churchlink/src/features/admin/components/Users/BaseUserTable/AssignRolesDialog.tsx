@@ -104,7 +104,7 @@ export function AssignRolesDialog({
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
                 variant="outline"
-                className="!bg-background text-foreground border-border shadow-sm hover:bg-primary hover:text-primary-foreground"
+                size="icon"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {
@@ -137,13 +137,7 @@ export function AssignRolesDialog({
                 }}
                 disabled={checkingPerms}
             >
-                {checkingPerms ? (
-                    <>
-                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                    </>
-                ) : (
-                    <ShieldPlus className="h-4 w-4" />
-                )}
+                {checkingPerms ? <Loader2 className="animate-spin h-4 w-4" /> : <ShieldPlus className="h-4 w-4" />}
             </Button>
 
             <Dialog open={isOpen} onOpenChange={handleDialogCloseChange}>
@@ -164,11 +158,11 @@ export function AssignRolesDialog({
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     {roleList.length === 0 ? (
-                                        <Button variant="outline" className="!bg-muted text-muted-foreground cursor-not-allowed" disabled>
+                                        <Button variant="secondary" disabled>
                                             No Selectable Roles
                                         </Button>
                                     ) : (
-                                        <Button variant="outline" className="!bg-background text-foreground border-border flex items-center gap-2 hover:bg-accent hover:text-accent-foreground">
+                                        <Button variant="outline" className="flex items-center gap-2">
                                             Select Roles <ChevronDown className="h-4 w-4" />
                                         </Button>
                                     )}
