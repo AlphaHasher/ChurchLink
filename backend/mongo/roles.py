@@ -131,6 +131,26 @@ class RoleHandler:
                 role_ids.append((await RoleHandler.find_role(role))[0]["_id"])
         return role_ids
 
+    @staticmethod
+    async def ids_to_names(role_ids):
+        """
+        Convert role IDs to role names
+        Args:
+            role_ids: List of role IDs (ObjectId or string)
+        Returns:
+            List of role names corresponding to the IDs
+        """
+        role_names = []
+        for role_id in role_ids:
+            try:
+                role = await RoleHandler.find_role_by_id(str(role_id))
+                if role:
+                    role_names.append(role["name"])
+            except Exception as e:
+                print(f"Error converting role ID {role_id} to name: {e}")
+                continue
+        return role_names
+
     ################
     ## Operations ##
     ################

@@ -111,7 +111,7 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
     # Determine payment status based on payment option
     payment_status = None
     if payment_option == 'door':
-        payment_status = 'pending'  # Payment to be collected at the door
+        payment_status = 'pending_door'  # Payment to be collected at the door
     elif payment_option == 'paypal':
         payment_status = 'awaiting_payment'  # Will be updated when PayPal payment completes
     # For free events or no payment option, payment_status remains None
@@ -127,9 +127,11 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
             event_id=ObjectId(event_id),
             reason="rsvp",
             scope="series",  # or "occurrence" depending on your model
-            person_id=person_object_id
+            person_id=person_object_id,
+            payment_method=payment_option,
+            payment_status=payment_status
         )
-        print(f"DEBUG: Successfully registered user {uid} for event {event_id} with payment option {payment_option}")
+        print(f"DEBUG: Successfully registered user {uid} for event {event_id} with payment option {payment_option}, status {payment_status}")
     except Exception as e:
         # Event RSVP succeeded, but user record failed.
         # Log this for reconciliation later.

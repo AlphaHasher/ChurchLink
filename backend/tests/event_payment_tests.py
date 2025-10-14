@@ -27,7 +27,7 @@ class TestEventPaymentValidation:
     
     @pytest.mark.asyncio
     async def test_validate_user_event_access_with_roles(self):
-        """Test user access validation with role requirements"""
+        """Test user access validation - authenticated user can register (roles don't restrict registration)"""
         # Mock event with role requirements
         mock_event = Event(
             id="test_event",
@@ -64,7 +64,7 @@ class TestEventPaymentValidation:
     
     @pytest.mark.asyncio
     async def test_validate_user_event_access_without_roles(self):
-        """Test user access validation when user lacks required roles"""
+        """Test user access validation - all authenticated users can register regardless of roles"""
         mock_event = Event(
             id="test_event",
             name="Test Event",
@@ -81,20 +81,20 @@ class TestEventPaymentValidation:
             min_age=18,
             max_age=65,
             gender="all",
-            roles=["Admin", "Event Manager"],
+            roles=["Admin", "Event Manager"],  # These are for management only, not registration
             published=True,
             payment_options=["paypal"]
         )
         
         mock_user = {
             "uid": TEST_USER_UID,
-            "roles": ["role_id_1"]
+            "roles": ["role_id_1"]  # User has different roles - should still be allowed to register
         }
         
-        with patch('mongo.roles.RoleHandler.ids_to_names', return_value=["Member"]):
-            can_access, reason = await event_payment_helper.validate_user_event_access(TEST_USER_UID, mock_event, mock_user)
-            assert can_access is False
-            assert "does not have required roles" in reason
+        # No need to mock RoleHandler.ids_to_names since role checking is removed for registration
+        can_access, reason = await event_payment_helper.validate_user_event_access(TEST_USER_UID, mock_event, mock_user)
+        assert can_access is True  # Changed: now allows all authenticated users
+        assert "Access granted" in reason
     
     @pytest.mark.asyncio
     async def test_validate_family_member_access_valid(self):

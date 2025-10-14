@@ -117,6 +117,8 @@ async def create_event(event: EventCreate) -> Optional[EventOut]:
             event_data = await DB.db["events"].find_one({"_id": inserted_id})
             if event_data is not None:
                 event_data["id"] = str(event_data.pop("_id"))
+                # Ensure all ObjectIds are serialized to strings
+                event_data = serialize_objectid_deep(event_data)
                 return EventOut(**event_data)
         # Return None if insertion or fetching failed
         return None
@@ -134,6 +136,8 @@ async def get_event_by_id(event_id: str) -> Optional[EventOut]:
         event_doc = await DB.db["events"].find_one({"_id": ObjectId(event_id)})
         if event_doc is not None:
             event_doc["id"] = str(event_doc.pop("_id"))
+            # Ensure all ObjectIds are serialized to strings
+            event_doc = serialize_objectid_deep(event_doc)
             return EventOut(**event_doc)
         return None
     except Exception as e:
@@ -245,6 +249,8 @@ async def search_events(
     events_out = []
     for event in events:
         event["id"] = str(event.pop("_id"))
+        # Ensure all ObjectIds are serialized to strings
+        event = serialize_objectid_deep(event)
         events_out.append(EventOut(**event))
     return events_out
 

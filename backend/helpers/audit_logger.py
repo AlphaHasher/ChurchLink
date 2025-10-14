@@ -399,6 +399,26 @@ class PaymentAuditLogger:
             request_ip=request_ip
         )
         self.logger.info(json.dumps(record))
+    
+    def log_registration_completed(self, user_uid: str, event_id: str, registration_count: int, payment_id: str, total_amount: float, request_ip: Optional[str] = None):
+        """Log when a bulk registration is completed after payment"""
+        self.logger.info(
+            f"Bulk registration completed - User: {user_uid}, Event: {event_id}, "
+            f"Count: {registration_count}, PaymentID: {payment_id}, Amount: ${total_amount:.2f}, "
+            f"IP: {request_ip or 'unknown'}"
+        )
+    
+        # You might also want to add this to your audit trail database if you're storing audit logs
+        audit_entry = {
+            "event_type": "registration_completed",
+            "user_uid": user_uid,
+            "event_id": event_id,
+            "registration_count": registration_count,
+            "payment_id": payment_id,
+            "total_amount": total_amount,
+            "request_ip": request_ip,
+            "timestamp": datetime.now().isoformat()
+    }
 
     def log_donation_completed(
         self,
@@ -568,6 +588,36 @@ class PaymentAuditLogger:
         )
         self.logger.error(json.dumps(record))
 
+    def log_form_payment_order_created(
+        self,
+        order_id: str,
+        user_id: str,
+        amount: float,
+        form_slug: Optional[str] = None,
+        client_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ):
+        """Log form payment order creation"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.FORM_SUBMISSION_CREATED,
+            user_uid=user_id,
+            event_id=order_id,
+            severity=AuditSeverity.INFO,
+            message=f"Form payment order created: order_id={order_id}, user_id={user_id}, amount={amount}",
+            details={
+                "order_id": order_id,
+                "form_slug": form_slug,
+                "amount": amount,
+                "currency": "USD",
+                "client_ip": client_ip,
+                "user_agent": user_agent,
+                "metadata": metadata or {}
+            },
+            request_ip=client_ip
+        )
+        self.logger.info(json.dumps(record))
+
     def log_large_transaction(
         self,
         user_identifier: str,
@@ -695,3 +745,5 @@ def get_user_agent(request) -> Optional[str]:
         return request.headers.get('User-Agent')
     except Exception:
         return None
+    
+

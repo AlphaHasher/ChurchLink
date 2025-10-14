@@ -92,3 +92,47 @@ async def update_registration_payment_status(
         registration_key=registration_key,
         status_data=status_data
     )
+
+
+@event_payment_router.get("/{event_id}/payment/success")
+async def handle_paypal_success(
+    event_id: str,
+    request: Request,
+    paymentId: str = None,
+    token: str = None,
+    PayerID: str = None
+):
+    """Handle PayPal success redirect and complete payment"""
+    client_ip = get_client_ip(request)
+    
+    if not paymentId or not PayerID:
+        raise HTTPException(
+            status_code=400, 
+            detail="Missing required PayPal parameters (paymentId and PayerID)"
+        )
+    
+    return await event_payment_helper.handle_paypal_success(
+        event_id=event_id,
+        payment_id=paymentId,
+        payer_id=PayerID,
+        token=token,
+        client_ip=client_ip,
+        request=request
+    )
+
+
+@event_payment_router.get("/{event_id}/payment/cancel")
+async def handle_paypal_cancel(
+    event_id: str,
+    request: Request,
+    token: str = None
+):
+    """Handle PayPal cancel redirect and cleanup pending payment"""
+    client_ip = get_client_ip(request)
+    
+    return await event_payment_helper.handle_paypal_cancel(
+        event_id=event_id,
+        token=token,
+        client_ip=client_ip,
+        request=request
+    )

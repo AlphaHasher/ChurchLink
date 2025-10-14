@@ -290,7 +290,6 @@ finance_management_protected_router.include_router(finance_router)
 # EVENT PAYMENT ROUTES
 from routes.event_payment_routes.event_payment_routes import event_payment_router
 app.include_router(event_payment_router, prefix="/api/v1")
-app.include_router(form_payment_router, prefix="/api/v1")
 
 
 # Include routers in main app
