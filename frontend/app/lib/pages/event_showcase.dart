@@ -8,7 +8,7 @@ import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
 import '../providers/tab_provider.dart';
 import 'user/family_members_page.dart';
-import '../helpers/strapi_helper.dart';
+import '../helpers/asset_helper.dart'; 
 
 class EventShowcase extends StatefulWidget {
   final Event event;
@@ -999,6 +999,10 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildHeroImage() {
     final cs = Theme.of(context).colorScheme;
+    final imageUrl = widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
+        ? AssetHelper.getAssetUrl(widget.event.imageUrl!)
+        : null;
+
     return SizedBox(
       height: 250,
       width: double.infinity,
@@ -1073,18 +1077,16 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildEventThumb() {
-    if (widget.event.imageUrl == null ||
-        widget.event.imageUrl!.trim().isEmpty) {
+    final imageUrl = widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
+        ? AssetHelper.getAssetUrl(widget.event.imageUrl!)
+        : null;
+
+    if (imageUrl == null) {
       return _buildImagePlaceholder();
     } else {
-      final url = StrapiHelper.getTrueImageURL(widget.event.imageUrl!);
-
-      // CHECK IF EVENT_URL RESOLVES TO REAL IMAGE
-      // IF IT DOES, USE THAT IMAGE
-      // IF IT DOESNT DEFAULT TO PLACEHOLDER IMAGE
       return SizedBox.expand(
         child: Image.network(
-          url,
+          imageUrl,
           fit: BoxFit.cover,
           // While loading, show the placeholder (keeps the card pretty)
           loadingBuilder: (context, child, loadingProgress) {

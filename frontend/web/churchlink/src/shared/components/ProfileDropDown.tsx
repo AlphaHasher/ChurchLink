@@ -47,13 +47,13 @@ function ProfileDropDown({ className }: ProfileDropDownProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-56 bg-black/95 border border-white/10 rounded-xl shadow-lg mt-2"
+        className="w-56 bg-popover border border-border rounded-xl shadow-lg mt-2"
         sideOffset={5}
       >
         <DropdownMenuItem asChild>
           <Link
             to="/profile"
-            className="flex items-center gap-2 px-3 py-2 text-sm text-white! hover:bg-white/10 cursor-pointer rounded-lg mx-1 my-0.5"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
           >
             <User className="h-4 w-4" />
             <span>Profile</span>
@@ -62,7 +62,7 @@ function ProfileDropDown({ className }: ProfileDropDownProps) {
         <DropdownMenuItem asChild>
           <Link
             to="/settings"
-            className="flex items-center gap-2 px-3 py-2 text-sm text-white! hover:bg-white/10 cursor-pointer rounded-lg mx-1 my-0.5"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
           >
             <Settings className="h-4 w-4" />
             <span>Settings</span>
@@ -72,7 +72,7 @@ function ProfileDropDown({ className }: ProfileDropDownProps) {
           onClick={() => {
             signOut(auth);
           }}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-white! hover:bg-white/10 cursor-pointer rounded-lg mx-1 my-0.5"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
         >
           <LogOut className="h-4 w-4" />
           <span>Log out</span>

@@ -12,6 +12,8 @@ import TextSectionRenderer from "@/features/admin/components/WebBuilder/sections
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import DynamicPageV2Renderer from "@/shared/components/DynamicPageV2Renderer";
+import { PageV2 } from "@/shared/types/pageV2";
 
 export interface SectionSettings {
   showFilters?: boolean;
@@ -128,6 +130,22 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     return () => ctrl.abort();
   }, [slug, isPreviewMode]);
 
+  // In preview mode, don't check visibility; in public mode, check visibility
+  const isEffectivelyPreview =
+    isPreviewMode ||
+    (new URLSearchParams(location.search).get("staging") === "1" ||
+      new URLSearchParams(location.search).get("staging") === "true") ||
+    (new URLSearchParams(location.search).get("preview") === "true");
+
+  // Add preview class to body for CSS targeting (must be before any early returns to keep hook order stable)
+  React.useEffect(() => {
+    if (isEffectivelyPreview) {
+      document.body.classList.add("preview-content");
+    } else {
+      document.body.classList.remove("preview-content");
+    }
+  }, [isEffectivelyPreview]);
+
   if (loading) return (
     <div className="container mx-auto px-4 py-6">
       <div className="space-y-4">
@@ -140,12 +158,21 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   if (error) return <div className="text-center text-red-500">{error}</div>;
   if (notFound || !pageData) return <NotFoundPage />;
 
-  // In preview mode, don't check visibility; in public mode, check visibility
-  const isEffectivelyPreview = isPreviewMode || (new URLSearchParams(location.search).get("staging") === "1" || new URLSearchParams(location.search).get("staging") === "true");
   if (!isEffectivelyPreview && pageData.visible === false) return <InConstructionPage />;
 
   console.log("DynamicPage: Rendering page:", pageData);
   console.log("DynamicPage: Page sections:", pageData.sections);
+
+  // If this is a v2 page, render with the v2 renderer
+  const maybeV2 = (pageData as any)?.version;
+  if (maybeV2 === 2) {
+    const searchParams = new URLSearchParams(location.search);
+    const localeParam = searchParams.get('locale') || undefined;
+    return (
+      <DynamicPageV2Renderer page={pageData as unknown as PageV2} activeLocale={localeParam} defaultLocale={(pageData as any)?.defaultLocale}
+      />
+    );
+  }
 
   return (
     <>

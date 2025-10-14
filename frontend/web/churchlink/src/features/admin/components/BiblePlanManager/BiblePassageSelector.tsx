@@ -124,7 +124,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     onCreatePassage?.(passage);
   };
 
-  let isInvalidVerseRange = false;
+  const isInvalidVerseRange = false;
 
   const addVerseRange = () => {
     if (!selectedDay) return;

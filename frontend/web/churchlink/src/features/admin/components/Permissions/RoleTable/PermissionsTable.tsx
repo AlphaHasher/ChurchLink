@@ -188,7 +188,7 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
   };
 
   return (
-    <div className="container mx-start">
+    <div className="container mx-auto">
       <div className="flex items-center py-4">
         <Input
           placeholder="Search Permission Name..."
@@ -199,21 +199,19 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-4 !bg-white">
+            <Button variant="outline" className="ml-4">
               Permission Focus <ChevronDown />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <Button
               variant="outline"
-              className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
               onClick={handleHideAllPermissions}
             >
               Hide All Permissions
             </Button>
             <Button
               variant="outline"
-              className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
               onClick={handleShowAllPermissions}
             >
               Show All Permissions

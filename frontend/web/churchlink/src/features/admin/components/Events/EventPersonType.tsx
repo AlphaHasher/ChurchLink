@@ -2,7 +2,7 @@ import { Input } from "@/shared/components/ui/input"
 import { Label } from "@/shared/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group"
 
-type GenderOption = "all" | "male" | "female"
+export type GenderOption = "all" | "male" | "female"
 
 interface EventPersonTypeProps {
     min_age?: number

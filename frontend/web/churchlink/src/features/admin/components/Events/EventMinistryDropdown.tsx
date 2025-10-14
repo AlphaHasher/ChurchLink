@@ -7,6 +7,7 @@ import {
 import { Button } from "@/shared/components/ui/button"
 import { ChevronDown } from "lucide-react"
 import { Label } from "@/shared/components/ui/label"
+import { cn } from "@/lib/utils"
 
 interface EventMinistryDropdownProps {
     selected: string[]
@@ -29,12 +30,17 @@ export function EventMinistryDropdown({
 
     return (
         <div className="flex flex-col gap-2">
-            <Label className="text-sm">Select Ministries</Label>
+            <Label className="text-sm font-medium text-black dark:text-white">Select Ministries</Label>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="outline"
-                        className="w-[300px] justify-between !bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
+                        className={cn(
+                            "w-[300px] justify-between",
+                            "bg-white dark:bg-gray-800 text-black dark:text-white",
+                            "border border-gray-300 dark:border-gray-600 shadow-sm",
+                            "hover:bg-gray-50 dark:hover:bg-gray-700"
+                        )}
                     >
                         {selected.length > 0
                             ? `${selected.length} selected`
@@ -46,7 +52,11 @@ export function EventMinistryDropdown({
                     align="start"
                     side="bottom"
                     sideOffset={4}
-                    className="max-h-64 overflow-y-auto w-[300px]"
+                    className={cn(
+                        "max-h-64 overflow-y-auto w-[300px]",
+                        "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600",
+                        "text-black dark:text-white"
+                    )}
                 >
                     {ministries.map((ministry) => (
                         <DropdownMenuCheckboxItem
@@ -54,7 +64,12 @@ export function EventMinistryDropdown({
                             checked={selected.includes(ministry)}
                             onCheckedChange={() => toggle(ministry)}
                             onSelect={(e) => e.preventDefault()}
-                            className="capitalize data-[state=checked]:!bg-blue-500 data-[state=checked]:!text-white focus:!bg-gray-100"
+                            className={cn(
+                                "capitalize",
+                                "data-[state=checked]:bg-blue-500 data-[state=checked]:text-white",
+                                "focus:bg-gray-100 dark:focus:bg-gray-700",
+                                "text-black dark:text-white"
+                            )}
                         >
                             {ministry}
                         </DropdownMenuCheckboxItem>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat } from "lucide-react";
 import api from "@/api/api";
-import { getBaseURL } from "@/helpers/StrapiInteraction";
+import { getAssetUrl } from "@/helpers/MediaInteraction";
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -508,11 +508,19 @@ const EventSection: React.FC<EventSectionProps> = ({
     return `Repeats ${ev.recurring}`;
   };
 
-  const RecurrenceBadge = ({ ev }: { ev: Event }) => (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-      {recurrenceLabel(ev)}
-    </span>
-  );
+  const RecurrenceBadge = ({ ev }: { ev: Event }) => {
+    const recurring = ev.recurring && ev.recurring !== "never";
+    return (
+      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
+        recurring 
+          ? "bg-indigo-600 text-white" 
+          : "bg-white/90 text-slate-700 backdrop-blur-sm border border-slate-200"
+      }`}>
+        {recurring && <FiRepeat className="w-3 h-3" />}
+        {recurrenceLabel(ev)}
+      </span>
+    );
+  };
 
   const fetchMinistries = async () => {
     try {
@@ -721,80 +729,137 @@ const EventSection: React.FC<EventSectionProps> = ({
     <section className="w-full bg-white">
       <div className="w-full max-w-screen-xl mx-auto px-4 py-8">
         {showFilters && (
-          <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
-            <label>
-              Ministry:
-              <select value={ministry} onChange={(e) => setMinistry(e.target.value)}>
-                <option value="">All</option>
-                {availableMinistries.map((min) => (
-                  <option key={min} value={min}>
-                    {min}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Age Range:
-              <select value={ageRange} onChange={(e) => setAgeRange(e.target.value)}>
-                <option value="">All</option>
-                <option value="0-12">0–12</option>
-                <option value="13-17">13–17</option>
-                <option value="18-35">18–35</option>
-                <option value="36-60">36–60</option>
-                <option value="60+">60+</option>
-              </select>
-            </label>
+          <div className="mb-6 flex flex-wrap items-center gap-3 justify-between">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-slate-700">
+                Ministry
+                <select
+                  value={ministry}
+                  onChange={(e) => setMinistry(e.target.value)}
+                  className="ml-2 border px-3 py-2 rounded-lg bg-white text-sm shadow-sm"
+                >
+                  <option value="">All</option>
+                  {availableMinistries.map((min) => (
+                    <option key={min} value={min}>
+                      {min}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-slate-700">
+                Age Range
+                <select
+                  value={ageRange}
+                  onChange={(e) => setAgeRange(e.target.value)}
+                  className="ml-2 border px-3 py-2 rounded-lg bg-white text-sm shadow-sm"
+                >
+                  <option value="">All</option>
+                  <option value="0-12">0–12</option>
+                  <option value="13-17">13–17</option>
+                  <option value="18-35">18–35</option>
+                  <option value="36-60">36–60</option>
+                  <option value="60+">60+</option>
+                </select>
+              </label>
+            </div>
+            <div className="text-sm text-slate-500">
+              {events.length} total
+            </div>
           </div>
         )}
 
         {showTitle !== false && (
-          <h2 className="text-3xl font-bold mb-6 text-center">{title || "Upcoming Events"}</h2>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-center text-slate-900 mb-12">
+            {title || "Upcoming Events"}
+          </h2>
         )}
         {events.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "4rem 1rem", color: "#555" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📅</div>
-            <h3 style={{ fontSize: "1.5rem", fontWeight: 600 }}>There are no upcoming events.</h3>
+          <div className="text-center py-20 text-slate-600">
+            <div className="text-6xl mb-4">📅</div>
+            <h3 className="text-2xl font-semibold text-slate-700">No upcoming events</h3>
+            <p className="text-slate-500 mt-2">Check back soon for new events!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+          <div className="flex flex-wrap gap-8 justify-center max-w-7xl mx-auto">
             {events.slice(0, visibleCount).map((ev) => {
-              const primary = ev.image_url ? getBaseURL(ev.image_url) : null;
+              const primary = ev.image_url ? getAssetUrl(ev.image_url) : null;
               const bg = primary
                 ? `url("${primary}"), url("/assets/default-thumbnail.jpg")`
                 : `url("/assets/default-thumbnail.jpg")`;
 
               return (
-                <div key={ev.id} className="rounded-2xl shadow-md overflow-hidden bg-white flex flex-col h-full">
-                  <div
-                    className="h-100 w-full bg-cover bg-center"
-                    style={{
-                      backgroundImage: bg,
-                    }}
-                  />
-                  <div className="flex flex-col h-full">
-                    <div className="flex flex-col justify-between flex-grow p-4">
-                      <div>
-                        <h2 className="text-xl font-semibold mb-2">{ev.name}</h2>
-                        <div className="mb-2"><RecurrenceBadge ev={ev} /></div>
-                        <p className="text-sm text-gray-600 mb-2">{ev.description}</p>
-                        <p className="text-sm text-gray-800 font-medium">{new Date(ev.date).toLocaleDateString()}</p>
-                        <p className="text-sm text-gray-800 mb-1">{ev.location}</p>
-                        <p className="text-sm text-gray-800">
-                          {ev.rsvp ? "Registration required" : "No registration required"}
-                          {ev.recurring && ev.recurring !== "never" ? " • Recurring" : ""}
+                <div key={ev.id} className="group rounded-3xl overflow-hidden bg-white flex flex-col shadow-lg hover:shadow-2xl transition-all duration-300 w-full sm:w-[calc(50%-1rem)] lg:w-[380px] border border-slate-100">
+                  {/* Image Header */}
+                  <div className="relative overflow-hidden">
+                    <div
+                      className="w-full bg-cover bg-center aspect-[16/9] group-hover:scale-105 transition-transform duration-300"
+                      style={{
+                        backgroundImage: bg,
+                      }}
+                    />
+                    <div className="absolute top-3 right-3">
+                      <RecurrenceBadge ev={ev} />
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="flex flex-col flex-grow p-6">
+                    <div className="flex-grow">
+                      <h3 className="text-2xl font-bold mb-3 text-slate-900 leading-tight line-clamp-2">
+                        {ev.name}
+                      </h3>
+                      
+                      {/* Date & Location */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-start gap-2 text-slate-700">
+                          <FiCalendar className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm font-medium">
+                            {new Date(ev.date).toLocaleDateString(undefined, {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        {ev.location && (
+                          <div className="flex items-start gap-2 text-slate-700">
+                            <FiMapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <span className="text-sm line-clamp-1">{ev.location}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {ev.description && (
+                        <p className="text-sm text-slate-600 leading-relaxed line-clamp-3 mb-4">
+                          {ev.description}
                         </p>
-                      </div>
+                      )}
 
-                      <div className="mt-4 space-y-2">
-                        {ev.rsvp ? <RegisterButtons ev={ev} /> : <WatchButtons ev={ev} />}
-
-                        <button
-                          className="w-full px-4 py-2 bg-white text-blue-600 font-semibold border border-blue-600 rounded-xl hover:bg-blue-50 transition duration-200"
-                          onClick={() => setSelectedEvent(ev)}
-                        >
-                          View Details
-                        </button>
+                      {/* Registration Badge */}
+                      <div className="flex items-center gap-2 mb-4">
+                        {ev.rsvp ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            Registration required
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            No registration required
+                          </span>
+                        )}
                       </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                      {ev.rsvp ? <RegisterButtons ev={ev} /> : <WatchButtons ev={ev} />}
+
+                      <button
+                        className="w-full px-4 py-2.5 bg-white text-slate-700 font-medium border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+                        onClick={() => setSelectedEvent(ev)}
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -830,7 +895,7 @@ const EventSection: React.FC<EventSectionProps> = ({
               {/* Image */}
               {selectedEvent.image_url && (
                 <img
-                  src={getBaseURL(selectedEvent.image_url)}
+                  src={getAssetUrl(selectedEvent.image_url)}
                   alt={selectedEvent.name}
                   className="w-full object-cover rounded-lg mb-6"
                   onError={(e) => {

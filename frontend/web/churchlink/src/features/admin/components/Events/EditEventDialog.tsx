@@ -27,7 +27,7 @@ interface EditEventDialogProps {
 }
 
 const requestOptions: MyPermsRequest = {
-    user_assignable_roles: false,
+    user_assignable_roles: true,
     event_editor_roles: true,
     user_role_ids: true,
 }
@@ -68,55 +68,47 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
         setEvent({ ...event, [field]: value })
     }
 
+    const handleDialogOpen = async () => {
+        setCheckingPerms(true);
+        try {
+            const result = await getMyPermissions(requestOptions);
+            const user_roles = result?.user_role_ids || [];
+
+            if (result?.success) {
+                const available_roles = result?.user_assignable_roles
+                setRoleList(available_roles)
+                if (result?.perms.admin || result?.perms.event_management) {
+                    setIsOpen(true)
+                    setRolesEnabled(true)
+                } else if (available_roles.length > 0) {
+                    const hasPermission = event.roles.some(roleId => user_roles.includes(roleId))
+
+                    if (hasPermission) {
+                        setIsOpen(true)
+                        setRolesEnabled(true)
+                    } else {
+                        alert("You do not have one of the necessary permission roles associated with this event! This requirement can only be circumvented if you are an Administrator or Event Manager")
+                    }
+                } else {
+                    alert("There are no permission roles with the Event Editor permission! Please create at least one such role to edit events")
+                }
+            } else {
+                alert(result?.msg || "You don't have permission to edit events.")
+            }
+        } catch (err) {
+            alert("An error occurred while checking your permissions.")
+            console.error(err)
+        }
+        setCheckingPerms(false)
+    };
+
     return (
         <>
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
-                variant="outline"
-                className="!bg-white text-black border shadow-sm hover:bg-blue-600"
-                onClick={async () => {
-                    setCheckingPerms(true)
-                    try {
-                        const result = await getMyPermissions(requestOptions)
-
-                        if (result?.success) {
-                            if (result?.perms.admin || result?.perms.event_editing || result?.perms.event_management) {
-                                const available_roles = result?.event_editor_roles
-                                const user_roles = result?.user_role_ids
-                                setRoleList(available_roles)
-                                if (available_roles.length > 0) {
-                                    if (result?.perms.admin || result?.perms.event_management) {
-                                        setIsOpen(true)
-                                        setRolesEnabled(true)
-                                    }
-                                    else {
-                                        const hasPermission = event.roles.some(roleId => user_roles.includes(roleId))
-
-                                        if (hasPermission) {
-                                            setIsOpen(true)
-                                        } else {
-                                            alert("You do not have one of the necessary permission roles associated with this event! This requirement can only be circumvented if you are an Administrator or Event Manager")
-                                        }
-                                    }
-                                }
-                                else {
-                                    alert("There are no permission roles with the Event Editor permission! Please create at least one such role to edit events")
-                                }
-
-                            }
-                            else {
-                                alert("You must be an Administrator, Event Editor, or Event Manager to edit events.")
-                            }
-                        }
-                        else {
-                            alert(result?.msg || "You don't have permission to edit events.")
-                        }
-                    } catch (err) {
-                        alert("An error occurred while checking your permissions.")
-                        console.error(err)
-                    }
-                    setCheckingPerms(false)
-                }}
+                variant="ghost"
+                size="sm"
+                onClick={handleDialogOpen}
                 disabled={checkingPerms}
             >
                 {checkingPerms ? (
@@ -124,7 +116,7 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
                         <Loader2 className="animate-spin mr-2 h-4 w-4" />
                     </>
                 ) : (
-                    <Pencil />
+                    <Pencil className="h-4 w-4" />
                 )}
             </Button>
 

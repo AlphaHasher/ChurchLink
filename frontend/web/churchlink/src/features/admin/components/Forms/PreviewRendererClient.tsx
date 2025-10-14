@@ -7,6 +7,7 @@ import { Button } from "@/shared/components/ui/button";
 import type { AnyField, DateField, SelectField } from "./types";
 import { format } from "date-fns";
 import api from '@/api/api';
+import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 import { MailCheck } from 'lucide-react';
@@ -71,12 +72,10 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
     // If a slug prop is provided, submit to public endpoint and redirect to thank-you
     if (slug) {
       try {
-        setSubmitState('submitting');
-        setSubmitMessage('Submitting...');
+        setStatus('Submitting...');
         await api.post(`/v1/forms/slug/${slug}/responses`, data);
-        setSubmitState('success');
-        setSubmitMessage('Thanks for your response! We have received it.');
-        form.reset();
+        setStatus('Submitted');
+        navigate('/forms/thank-you');
       } catch (err: any) {
         console.error('Submit failed', err);
         const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Submit failed';
@@ -100,11 +99,7 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
         setSubmitState('error');
         setSubmitMessage(typeof detail === 'string' ? detail : 'Submit failed');
       }
-      return;
     }
-
-    setSubmitState('success');
-    setSubmitMessage('Preview submission captured.');
   });
 
   const computeTotal = (): number => {
@@ -238,7 +233,6 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
   const isSubmitting = submitState === 'submitting' || form.formState.isSubmitting;
 
   return (
-  <div className={cn("mx-auto w-full", formWidthClass)}>
   <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
       {/* Show errors for hidden required fields too */}
       {hiddenErrors.length > 0 && (
@@ -265,16 +259,8 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
         />
       ))}
       <div className="col-span-12">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Submitting...' : 'Submit'}
-        </Button>
-        {submitMessage && submitState !== 'success' && (
-          <div
-            className={`text-sm mt-2 ${submitState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
-          >
-            {submitMessage}
-          </div>
-        )}
+        <Button type="submit">Submit</Button>
+        {status && <div className="text-sm text-muted-foreground mt-2">{status}</div>}
       </div>
       {showPricingBar && (
         <div className="col-span-12">
@@ -287,6 +273,5 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
         </div>
       )}
     </form>
-    </div>
   );
 }

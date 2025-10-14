@@ -9,7 +9,7 @@ const AdminPagePreview: React.FC = () => {
 
   const handleEditClick = () => {
     if (slug) {
-      navigate(`/admin/webbuilder/edit/${encodeURIComponent(slug)}`);
+      navigate(`/web-editor/${encodeURIComponent(slug)}`);
     }
   };
 

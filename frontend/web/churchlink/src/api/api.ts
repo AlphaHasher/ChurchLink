@@ -50,6 +50,17 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Public API instance without Firebase auth/interceptors (for proxy endpoints that don't need user auth)
+export const publicApi = axios.create({
+  baseURL: `${import.meta.env.VITE_API_HOST}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  },
+  withXSRFToken: true,
+  withCredentials: true,
+});
+
 // Helper endpoints for page staging/publish
 export const pageApi = {
   // Autosave to staging by slug
@@ -78,18 +89,24 @@ api.interceptors.request.use(async (config) => {
   return Promise.reject(error);
 });
 
-// Optional: Handle token refresh on 401 responses
+// Optional: Handle token refresh on 401 responses (single retry guard)
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      // Token might be expired, try to refresh
+    const status = error.response?.status;
+    const originalConfig = error.config || {};
+    if (status === 401) {
       const user = auth.currentUser;
-      if (user) {
+      // Avoid infinite retry loops: retry at most once per request
+      if (user && !(originalConfig as any)._retryOnce) {
         try {
-          const newToken = await user.getIdToken(true); // Force refresh
-          error.config.headers.Authorization = `Bearer ${newToken}`;
-          return api.request(error.config);
+          const newToken = await user.getIdToken(true);
+          (originalConfig as any)._retryOnce = true;
+          originalConfig.headers = {
+            ...(originalConfig.headers || {}),
+            Authorization: `Bearer ${newToken}`,
+          };
+          return api.request(originalConfig);
         } catch (refreshError) {
           console.error('Error refreshing token:', refreshError);
         }
