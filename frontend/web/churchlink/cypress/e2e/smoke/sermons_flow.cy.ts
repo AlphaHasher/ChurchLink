@@ -1,13 +1,12 @@
-
-describe('Events', () => {
+describe('Sermons', () => {
   beforeEach(() => {
-    cy.visit('/events');
+    cy.visit('/sermons');
   });
 
-  it('loads the page successfully', () => {
+  it('loads the sermons page successfully', () => {
     cy.findByRole('navigation').should('exist');
     cy.get('body').should('be.visible');
-    cy.url().should('include', '/events');
+    cy.url().should('include', '/sermons');
   });
 
   it('displays page content', () => {

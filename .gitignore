@@ -73,3 +73,4 @@ frontend/app/ios/Flutter/Debug.xcconfig
 frontend/app/.env
 /venv/
 bearer.txt
+/frontend/web/churchlink/cypress/videos

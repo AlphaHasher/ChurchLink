@@ -133,9 +133,15 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: theme.colorScheme.primary,
-                          child: Icon(
-                            member.gender == 'M' ? Icons.male : Icons.female,
-                            color: theme.colorScheme.onPrimary,
+                          child: Text(
+                            member.firstName.isNotEmpty
+                                ? member.firstName[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              color: theme.colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
                           ),
                         ),
                         title: Text(
