@@ -71,8 +71,7 @@ export function DeletePermDialog({
         <>
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
-                variant="outline"
-                className="!bg-white text-red border shadow-sm !hover:bg-red-600"
+                variant="destructive"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {
@@ -157,7 +156,7 @@ export function DeletePermDialog({
                         </Button>
                         <Button
                             type="button"
-                            className="!bg-red-30"
+                            variant="destructive"
                             onClick={handleDelete}
                             disabled={!isDeleteEnabled || isDeleting}
                         >

@@ -7,7 +7,8 @@
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@sections/*": ["src/features/admin/components/WebBuilder/sections/*"]
     }
   }
 }

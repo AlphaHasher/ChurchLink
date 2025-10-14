@@ -247,7 +247,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
                 const items: React.ReactNode[] = [];
                 const maxNumbersToShow = 5; // center window size
                 let start = Math.max(0, currentPage - 2);
-                let end = Math.min(totalPages - 1, start + maxNumbersToShow - 1);
+                const end = Math.min(totalPages - 1, start + maxNumbersToShow - 1);
                 if (end - start < maxNumbersToShow - 1) {
                   start = Math.max(0, end - (maxNumbersToShow - 1));
                 }

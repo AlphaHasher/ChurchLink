@@ -2,8 +2,8 @@
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
-import Settings from "../features/admin/pages/Settings";
 import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
+import Settings from "../features/admin/pages/Settings";
 
 
 // Lazy load admin components
@@ -28,6 +28,7 @@ const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
 
 const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
+const MediaLibrary = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/MediaLibrary"));
 
 export const AdminRoutes = () => {
   return (
@@ -47,13 +48,14 @@ export const AdminRoutes = () => {
         <Route path="/bulletins" element={<Bulletins />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/mobile-ui-tab" element={<MobileUITab />} />
-        <Route path="/forms/form-builder" element={<FormBuilder />} />
-        <Route path="/forms/manage-forms" element={<ManageForms />} />
-        <Route path="/forms/responses" element={<FormResponses />} />
-        <Route path="/webbuilder/edit/:slug" element={<EditPage />} />
-        <Route path="/webbuilder/preview/:slug" element={<AdminPagePreview />} />
-        <Route path="/webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
-        <Route path="/webbuilder/footer" element={<WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>} />
+        <Route path="forms/form-builder" element={<FormBuilder />} />
+        <Route path="forms/manage-forms" element={<ManageForms />} />
+        <Route path="forms/responses" element={<FormResponses />} />
+        <Route path="webbuilder/edit/:slug" element={<EditPage />} />
+        <Route path="webbuilder/preview/:slug" element={<AdminPagePreview />} />
+        <Route path="webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
+        <Route path="webbuilder/footer" element={<WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>} />
+        <Route path="webbuilder/media" element={<MediaLibrary />} />
       </Route>
     </Routes>
   );

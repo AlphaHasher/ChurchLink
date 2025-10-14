@@ -167,7 +167,7 @@ const TextSection: React.FC<TextSectionProps> = ({ data, isEditing, onChange }) 
       lastSavedJsonRef.current = incoming;
       currentDataRef.current = data;
     }
-  }, [data.editorjs, isEditorReady, data]);
+  }, [data.editorjs, isEditorReady]);
 
   // Toggle read-only mode for exact visual parity on preview
   useEffect(() => {
