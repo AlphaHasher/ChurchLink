@@ -7,10 +7,11 @@ import path from 'path'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
-  const apiHost = env.VITE_API_HOST
-  const allowedHosts = (env.VITE_ALLOWED_HOSTS)
-    .split(',')
-    .map(h => h.trim())
+  const apiHost = (env.VITE_API_HOST)
+  const allowedHosts = (env.VITE_ALLOWED_HOSTS || '')
+  .split(',')
+  .map(h => h.trim())
+  .filter(Boolean);
 
   return {
     plugins: [
