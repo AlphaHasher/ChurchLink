@@ -13,6 +13,9 @@ from scalar_fastapi import get_scalar_api_reference
 import firebase_admin
 from firebase_admin import credentials
 
+from get_bearer_token import generate_test_token
+from add_roles import add_user_role, RoleUpdate
+
 from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
@@ -151,7 +154,6 @@ async def lifespan(app: FastAPI):
         logger.info("Shutting down background tasks and closing DB")
         youtubeSubscriptionCheck.cancel()
         scheduledNotifTask.cancel()
-        eventCleanupTask.cancel()
         DatabaseManager.close_db()
         logger.info("Shutdown complete")
 
