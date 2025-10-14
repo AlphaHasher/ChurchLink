@@ -38,6 +38,7 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: widget.user.email ?? '',
+      membership: false,
       birthday: birthday,
       gender: (gender == 'M' || gender == 'F') ? gender : null,
     );
@@ -79,13 +80,9 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
   @override
   Widget build(BuildContext context) {
     final (first, last) = _splitFirebaseName();
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Initialize Profile'),
-        backgroundColor: ssbcGray,
-      ),
+      appBar: AppBar(title: const Text('Initialize Profile')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),

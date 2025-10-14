@@ -15,9 +15,6 @@ class SermonsPage extends StatefulWidget {
 }
 
 class _SermonsPageState extends State<SermonsPage> {
-  static const Color _backgroundColor = Color.fromARGB(255, 245, 245, 245);
-  static const Color _appBarColor = Color.fromARGB(255, 142, 163, 168);
-
   @override
   void initState() {
     super.initState();
@@ -32,18 +29,13 @@ class _SermonsPageState extends State<SermonsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('screen-sermons'),
       appBar: AppBar(
-        backgroundColor: _appBarColor,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Sermons', style: TextStyle(color: Colors.white)),
+        title: const Text('Sermons'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
-            onPressed: _openFilters,
-          ),
+          IconButton(icon: const Icon(Icons.search), onPressed: _openFilters),
         ],
       ),
-      backgroundColor: _backgroundColor,
       body: SafeArea(
         child: Consumer<SermonsProvider>(
           builder: (context, provider, _) {
@@ -174,13 +166,14 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Material(
-      color: Colors.red[100],
+      color: theme.colorScheme.error.withOpacity(0.1),
       child: ListTile(
-        leading: const Icon(Icons.error_outline, color: Colors.red),
-        title: Text(message, style: const TextStyle(color: Colors.red)),
+        leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
+        title: Text(message, style: TextStyle(color: theme.colorScheme.error)),
         trailing: IconButton(
-          icon: const Icon(Icons.close, color: Colors.red),
+          icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,
         ),
       ),

@@ -30,7 +30,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:intl/intl.dart';
 import '../../application/last_sync_store.dart';
 
-
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({
     super.key,
@@ -252,8 +251,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
   bool _showSearch = false;
   String _searchText = '';
   // Convert VerseRef -> record expected by reader_logic helpers.
-  ({String book, int chapter, int verse}) _r(VerseRef v) =>
-      (book: v.book, chapter: v.chapter, verse: v.verse);
+  ({String book, int chapter, int verse}) _r(VerseRef v) => (
+    book: v.book,
+    chapter: v.chapter,
+    verse: v.verse,
+  );
 
   final _repo = ElishaBibleRepo();
 
@@ -284,8 +286,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
   };
 
   // Remote ID index (so we can update/delete correct rows)
-  final Map<String, String> _noteIdByKey = <String, String>{}; // "Book|C|V" -> id
-  final Map<String, String> _noteIdByCluster = <String, String>{}; // clusterId -> id
+  final Map<String, String> _noteIdByKey =
+      <String, String>{}; // "Book|C|V" -> id
+  final Map<String, String> _noteIdByCluster =
+      <String, String>{}; // clusterId -> id
 
   // Connectivity state
   bool _offline = false;
@@ -298,13 +302,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
 
   // Books catalog state
   bool _booksReady = false;
-  String _localeForTx(String tx) => tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
+  String _localeForTx(String tx) =>
+      tx.trim().toLowerCase() == 'rst' ? 'ru' : 'en';
 
   // Catalog wrappers
-  List<String> get _bookNames => _booksReady ? Books.instance.names() : const <String>[];
+  List<String> get _bookNames =>
+      _booksReady ? Books.instance.names() : const <String>[];
   String _abbr(String book) => _booksReady ? Books.instance.abbrev(book) : book;
-  int _chapterCount(String book) => _booksReady ? Books.instance.chapterCount(book) : 1;
-  int _bookIndex(String book) => _booksReady ? (Books.instance.orderIndex(book) - 1) : 0;
+  int _chapterCount(String book) =>
+      _booksReady ? Books.instance.chapterCount(book) : 1;
+  int _bookIndex(String book) =>
+      _booksReady ? (Books.instance.orderIndex(book) - 1) : 0;
 
   List<Map<String, String>>? _currentRuns;
   Map<int, Map<String, dynamic>>? _currentBlocks; // verse -> block info
@@ -326,10 +334,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     provideBooksIndex: () {
       if (!_booksReady) return <String, int>{};
       return {
-        for (final name in Books.instance.names()) name: Books.instance.chapterCount(name),
+        for (final name in Books.instance.names())
+          name: Books.instance.chapterCount(name),
       };
     },
-    hydrateCurrent: () async => syncFetchChapterNotes(_ctx, book: _book, chapter: _chapter),
+    hydrateCurrent:
+        () async => syncFetchChapterNotes(_ctx, book: _book, chapter: _chapter),
     onOfflineChanged: (off) {
       if (mounted) setState(() => _offline = off);
     },
@@ -349,20 +359,31 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
         chapterEnd: chapterCount,
       );
       for (final n in bookNotes) {
-        final chapterVerses = await _repo.getChapter(translation: _translation, book: n.book, chapter: n.chapter);
+        final chapterVerses = await _repo.getChapter(
+          translation: _translation,
+          book: n.book,
+          chapter: n.chapter,
+        );
         final v = chapterVerses.firstWhere(
-          (v) => v.$1.book == n.book && v.$1.chapter == n.chapter && v.$1.verse == n.verseStart,
+          (v) =>
+              v.$1.book == n.book &&
+              v.$1.chapter == n.chapter &&
+              v.$1.verse == n.verseStart,
           orElse: () => (VerseRef(n.book, n.chapter, n.verseStart), ''),
         );
         notes.add((v.$1, v.$2, n.note));
-        debugPrint('[NOTE-LOAD] ${n.book} ${n.chapter}:${n.verseStart} note="${n.note}" text="${v.$2}"');
+        debugPrint(
+          '[NOTE-LOAD] ${n.book} ${n.chapter}:${n.verseStart} note="${n.note}" text="${v.$2}"',
+        );
       }
     }
     debugPrint('[NOTE-LOAD] Total notes loaded: \\${notes.length}');
-    setState(() {
-      _allUserNotes = notes;
-      _allNotesLoaded = true;
-    });
+    if (mounted) {
+      setState(() {
+        _allUserNotes = notes;
+        _allNotesLoaded = true;
+      });
+    }
   }
 
   // Helpers
@@ -404,7 +425,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
       if (!mounted) return;
       Books.instance.setLocaleCode(_localeForTx(_translation));
       _booksReady = true;
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
 
       // Kick initial load + prime once books exist
       await _load();
@@ -434,7 +457,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     await ElishaBibleRepo.ensureInitialized();
 
     if (kDebugMode) {
-      debugPrint('[BibleReader] getChapter tx=$_translation book=$_book ch=$_chapter');
+      debugPrint(
+        '[BibleReader] getChapter tx=$_translation book=$_book ch=$_chapter',
+      );
     }
 
     final r = await _loader.load(
@@ -443,11 +468,13 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
       chapter: _chapter,
     );
     if (!mounted) return;
-    setState(() {
-      _verses = r.verses;
-      _currentRuns = r.runs;
-      _currentBlocks = r.blocks;
-    });
+    if (mounted) {
+      setState(() {
+        _verses = r.verses;
+        _currentRuns = r.runs;
+        _currentBlocks = r.blocks;
+      });
+    }
 
     // Ensure matcher exists and promote local entries to shared clusters
     await ensureMatcherLoaded(_ctx);
@@ -478,13 +505,15 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     final i = _bookIndex(_book);
     final count = _chapterCount(_book);
     if (_chapter < count) {
-      setState(() => _chapter += 1);
+      if (mounted) setState(() => _chapter += 1);
     } else {
       final ni = (i + 1) % _bookNames.length;
-      setState(() {
-        _book = Books.instance.englishByOrder(ni + 1);
-        _chapter = 1;
-      });
+      if (mounted) {
+        setState(() {
+          _book = Books.instance.englishByOrder(ni + 1);
+          _chapter = 1;
+        });
+      }
     }
     _load();
     // Reset scroll position to top when changing chapters
@@ -497,13 +526,15 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     if (!_booksReady) return;
     final i = _bookIndex(_book);
     if (_chapter > 1) {
-      setState(() => _chapter -= 1);
+      if (mounted) setState(() => _chapter -= 1);
     } else {
       final pi = (i - 1 + _bookNames.length) % _bookNames.length;
-      setState(() {
-        _book = Books.instance.englishByOrder(pi + 1);
-        _chapter = _chapterCount(_book);
-      });
+      if (mounted) {
+        setState(() {
+          _book = Books.instance.englishByOrder(pi + 1);
+          _chapter = _chapterCount(_book);
+        });
+      }
     }
     _load();
     // Reset scroll position to top when changing chapters
@@ -524,10 +555,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     );
 
     if (result != null) {
-      setState(() {
-        _book = Books.instance.canonEnglishName(result.$1);
-        _chapter = result.$2;
-      });
+      if (mounted) {
+        setState(() {
+          _book = Books.instance.canonEnglishName(result.$1);
+          _chapter = result.$2;
+        });
+      }
 
       if (kDebugMode) {
         debugPrint('[BibleReader] jump -> $_translation $_book:$_chapter');
@@ -556,13 +589,15 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
       if (kDebugMode && mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text('Refreshed'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-            margin: EdgeInsets.all(12),
-            shape: StadiumBorder(),
-          ));
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Refreshed'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+              margin: EdgeInsets.all(12),
+              shape: StadiumBorder(),
+            ),
+          );
       }
       if (kDebugMode) debugPrint('[PULL] done');
     }
@@ -572,11 +607,12 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     final res = await showModalBottomSheet<ActionResult>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => VerseActionsSheet(
-        verseLabel: v.$1.toString(),
-        currentHighlight: colorFor(_ctx, _r(v.$1)),
-        existingNote: noteFor(_ctx, _r(v.$1)),
-      ),
+      builder:
+          (ctx) => VerseActionsSheet(
+            verseLabel: v.$1.toString(),
+            currentHighlight: colorFor(_ctx, _r(v.$1)),
+            existingNote: noteFor(_ctx, _r(v.$1)),
+          ),
     );
     if (res == null) return;
 
@@ -612,16 +648,17 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     if (trimmedSearch.isNotEmpty && _booksReady) {
       if (_searchType == 'Book') {
         final allBookNames = Books.instance.names();
-        filteredVerses = allBookNames
-            .where((book) => book.toLowerCase().contains(query))
-            .map((book) {
-              final verse = _verses.firstWhere(
-                (v) => v.$1.book == book,
-                orElse: () => (VerseRef(book, 1, 1), ''),
-              );
-              return verse;
-            })
-            .toList();
+        filteredVerses =
+            allBookNames
+                .where((book) => book.toLowerCase().contains(query))
+                .map((book) {
+                  final verse = _verses.firstWhere(
+                    (v) => v.$1.book == book,
+                    orElse: () => (VerseRef(book, 1, 1), ''),
+                  );
+                  return verse;
+                })
+                .toList();
       } else if (_searchType == 'Verse') {
         // Global async paged search for Verse
         if (_lastVerseSearchQuery != trimmedSearch) {
@@ -638,7 +675,11 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
           for (final book in Books.instance.names()) {
             final chapterCount = Books.instance.chapterCount(book);
             for (int ch = 1; ch <= chapterCount; ch++) {
-              final chapterVerses = await _repo.getChapter(translation: _translation, book: book, chapter: ch);
+              final chapterVerses = await _repo.getChapter(
+                translation: _translation,
+                book: book,
+                chapter: ch,
+              );
               for (final v in chapterVerses) {
                 final ref = v.$1;
                 final text = v.$2.toLowerCase();
@@ -646,7 +687,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
                 final verseMatch = ref.verse.toString().contains(query);
                 final verseTextMatch = text.contains(query);
                 if (chapterMatch || verseMatch || verseTextMatch) {
-                  if (loaded >= _verseSearchLoaded && newResults.length < _verseSearchPageSize) {
+                  if (loaded >= _verseSearchLoaded &&
+                      newResults.length < _verseSearchPageSize) {
                     newResults.add(v);
                   }
                   loaded++;
@@ -655,23 +697,29 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
               }
             }
           }
-          setState(() {
-            _verseSearchResults.addAll(newResults);
-            _verseSearchLoaded += newResults.length;
+          if (mounted) {
+            setState(() {
+              _verseSearchResults.addAll(newResults);
+              _verseSearchLoaded += newResults.length;
+              _isLoadingVersePage = false;
+            });
+          } else {
             _isLoadingVersePage = false;
-          });
+          }
         }
+
         if (_verseSearchResults.isEmpty && !_isLoadingVersePage) {
           loadMoreVerses();
         }
-        filteredVerses = _verseSearchResults.where((v) {
-          final ref = v.$1;
-          final text = v.$2.toLowerCase();
-          final chapterMatch = ref.chapter.toString().contains(query);
-          final verseMatch = ref.verse.toString().contains(query);
-          final verseTextMatch = text.contains(query);
-          return chapterMatch || verseMatch || verseTextMatch;
-        }).toList();
+        filteredVerses =
+            _verseSearchResults.where((v) {
+              final ref = v.$1;
+              final text = v.$2.toLowerCase();
+              final chapterMatch = ref.chapter.toString().contains(query);
+              final verseMatch = ref.verse.toString().contains(query);
+              final verseTextMatch = text.contains(query);
+              return chapterMatch || verseMatch || verseTextMatch;
+            }).toList();
       } else if (_searchType == 'Note') {
         // Global async paged search for Note
         if (!_allNotesLoaded) {
@@ -683,27 +731,45 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
           for (final n in _allUserNotes) {
             final noteLower = n.$3.toLowerCase();
             final contains = noteLower.contains(query);
-            debugPrint('[NOTE-SEARCH] Check: ${n.$1.book} ${n.$1.chapter}:${n.$1.verse} note="${n.$3}" containsQuery=$contains');
+            debugPrint(
+              '[NOTE-SEARCH] Check: ${n.$1.book} ${n.$1.chapter}:${n.$1.verse} note="${n.$3}" containsQuery=$contains',
+            );
             if (contains) matchCount++;
           }
-          final filtered = _allUserNotes.where((n) => n.$3.toLowerCase().contains(query)).toList();
-          debugPrint('[NOTE-SEARCH] Matches found: $matchCount, Filtered list length: ${filtered.length}');
+          final filtered =
+              _allUserNotes
+                  .where((n) => n.$3.toLowerCase().contains(query))
+                  .toList();
+          debugPrint(
+            '[NOTE-SEARCH] Matches found: $matchCount, Filtered list length: ${filtered.length}',
+          );
           filteredVerses = filtered.map((n) => (n.$1, n.$2)).toList();
           _isLoadingNotePage = false;
         }
       } else {
-        filteredVerses = _verses.where((v) {
-          final ref = v.$1;
-          final text = v.$2.toLowerCase();
-          final bookMatch = ref.book.toLowerCase().contains(query);
-          final chapterMatch = ref.chapter.toString().contains(query);
-          final verseMatch = ref.verse.toString().contains(query);
-          final verseTextMatch = text.contains(query);
-          final noteShared = _notesShared[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
-          final notePerTx = _notesPerTx[_translation]?[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
-          final noteMatch = noteShared.toLowerCase().contains(query) || notePerTx.toLowerCase().contains(query);
-          return bookMatch || chapterMatch || verseMatch || verseTextMatch || noteMatch;
-        }).toList();
+        filteredVerses =
+            _verses.where((v) {
+              final ref = v.$1;
+              final text = v.$2.toLowerCase();
+              final bookMatch = ref.book.toLowerCase().contains(query);
+              final chapterMatch = ref.chapter.toString().contains(query);
+              final verseMatch = ref.verse.toString().contains(query);
+              final verseTextMatch = text.contains(query);
+              final noteShared =
+                  _notesShared[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
+              final notePerTx =
+                  _notesPerTx[_translation]?[ref.book +
+                      '|${ref.chapter}|${ref.verse}'] ??
+                  '';
+              final noteMatch =
+                  noteShared.toLowerCase().contains(query) ||
+                  notePerTx.toLowerCase().contains(query);
+              return bookMatch ||
+                  chapterMatch ||
+                  verseMatch ||
+                  verseTextMatch ||
+                  noteMatch;
+            }).toList();
       }
     }
 
@@ -719,20 +785,24 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
           onNextChapter: _isAtLastChapter ? null : _nextChapter,
           onOpenJumpPicker: _openJumpPicker,
           onSelectTranslation: (val) {
-            setState(() {
-              _translation = val;
-              _ctx.translation = val; // keep logic layer in sync
-              if (_booksReady) {
-                Books.instance.setLocaleCode(_localeForTx(_translation));
-              }
-            });
+            if (mounted) {
+              setState(() {
+                _translation = val;
+                _ctx.translation = val; // keep logic layer in sync
+                if (_booksReady) {
+                  Books.instance.setLocaleCode(_localeForTx(_translation));
+                }
+              });
+            }
             _load();
           },
           onSearchPressed: () {
-            setState(() {
-              _showSearch = !_showSearch;
-              if (!_showSearch) _searchText = '';
-            });
+            if (mounted) {
+              setState(() {
+                _showSearch = !_showSearch;
+                if (!_showSearch) _searchText = '';
+              });
+            }
           },
         ),
         if (_showSearch) ...[
@@ -740,49 +810,65 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white, width: 1.2),
+                border: Border.all(color: Theme.of(context).dividerColor, width: 1.2),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
                   DropdownButton<String>(
-                    dropdownColor: Colors.black,
                     value: _searchType,
-                    style: const TextStyle(color: Colors.white),
-                    iconEnabledColor: Colors.white,
                     items: const [
-                      DropdownMenuItem(value: 'Book', child: Text('Book', style: TextStyle(color: Colors.white))),
-                      DropdownMenuItem(value: 'Verse', child: Text('Verse', style: TextStyle(color: Colors.white))),
-                      DropdownMenuItem(value: 'Note', child: Text('Note', style: TextStyle(color: Colors.white))),
+                      DropdownMenuItem(
+                        value: 'Book',
+                        child: Text(
+                          'Book',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Verse',
+                        child: Text(
+                          'Verse',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Note',
+                        child: Text(
+                          'Note',
+                        ),
+                      ),
                     ],
                     onChanged: (val) {
-                      if (val != null) setState(() => _searchType = val);
+                      if (val != null) {
+                        if (mounted) setState(() => _searchType = val);
+                      }
                     },
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
                       autofocus: true,
-                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: _searchType == 'Verse'
-                            ? 'Search verse text, chapter, or number...'
-                            : 'Search...',
-                        hintStyle: const TextStyle(color: Colors.white70),
+                        hintText:
+                            _searchType == 'Verse'
+                                ? 'Search verse text, chapter, or number...'
+                                : 'Search...',
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0,
+                          horizontal: 0,
+                        ),
                         isDense: true,
                         filled: false,
                       ),
-                      cursorColor: Colors.white,
                       onChanged: (val) {
-                        setState(() {
-                          _searchText = val;
-                        });
+                        if (mounted) {
+                          setState(() {
+                            _searchText = val;
+                          });
+                        }
                       },
                     ),
                   ),
@@ -799,140 +885,226 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
                 border: Border.all(color: Theme.of(context).dividerColor),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: (_isLoadingVersePage && _searchType == 'Verse' && _verseSearchResults.isEmpty) ||
-                      (_isLoadingNotePage && _searchType == 'Note' && filteredVerses.isEmpty)
-                  ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
-                  : filteredVerses.isEmpty
-                      ? ListTile(title: Text('No ${_searchType.toLowerCase()} results found'))
+              child:
+                  (_isLoadingVersePage &&
+                              _searchType == 'Verse' &&
+                              _verseSearchResults.isEmpty) ||
+                          (_isLoadingNotePage &&
+                              _searchType == 'Note' &&
+                              filteredVerses.isEmpty)
+                      ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                      : filteredVerses.isEmpty
+                      ? ListTile(
+                        title: Text(
+                          'No ${_searchType.toLowerCase()} results found',
+                        ),
+                      )
                       : ListView.builder(
-                          controller: _searchScrollController,
-                          shrinkWrap: true,
-                          itemCount: filteredVerses.length + ((_isLoadingVersePage && _searchType == 'Verse' && _verseSearchResults.isNotEmpty) || (_isLoadingNotePage && _searchType == 'Note' && filteredVerses.isNotEmpty) ? 1 : 0),
-                          itemBuilder: (ctx, i) {
-                            if ((_isLoadingVersePage && _searchType == 'Verse' && i == filteredVerses.length) ||
-                                (_isLoadingNotePage && _searchType == 'Note' && i == filteredVerses.length)) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
-                            }
-                            final v = filteredVerses[i];
-                            final ref = v.$1;
-                            final noteShared = _notesShared[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
-                            final notePerTx = _notesPerTx[_translation]?[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
-                            final note = noteShared.isNotEmpty ? noteShared : notePerTx;
-                            if (_searchType == 'Book') {
-                              final bookName = ref.book;
-                              final chapterCount = _booksReady ? Books.instance.chapterCount(bookName) : 0;
-                              return ListTile(
-                                dense: true,
-                                title: Text(bookName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: chapterCount > 0
-                                    ? Padding(
+                        controller: _searchScrollController,
+                        shrinkWrap: true,
+                        itemCount:
+                            filteredVerses.length +
+                            ((_isLoadingVersePage &&
+                                        _searchType == 'Verse' &&
+                                        _verseSearchResults.isNotEmpty) ||
+                                    (_isLoadingNotePage &&
+                                        _searchType == 'Note' &&
+                                        filteredVerses.isNotEmpty)
+                                ? 1
+                                : 0),
+                        itemBuilder: (ctx, i) {
+                          if ((_isLoadingVersePage &&
+                                  _searchType == 'Verse' &&
+                                  i == filteredVerses.length) ||
+                              (_isLoadingNotePage &&
+                                  _searchType == 'Note' &&
+                                  i == filteredVerses.length)) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          final v = filteredVerses[i];
+                          final ref = v.$1;
+                          final noteShared =
+                              _notesShared[ref.book +
+                                  '|${ref.chapter}|${ref.verse}'] ??
+                              '';
+                          final notePerTx =
+                              _notesPerTx[_translation]?[ref.book +
+                                  '|${ref.chapter}|${ref.verse}'] ??
+                              '';
+                          final note =
+                              noteShared.isNotEmpty ? noteShared : notePerTx;
+                          if (_searchType == 'Book') {
+                            final bookName = ref.book;
+                            final chapterCount =
+                                _booksReady
+                                    ? Books.instance.chapterCount(bookName)
+                                    : 0;
+                            return ListTile(
+                              dense: true,
+                              title: Text(
+                                bookName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle:
+                                  chapterCount > 0
+                                      ? Padding(
                                         padding: const EdgeInsets.only(top: 4),
                                         child: Wrap(
                                           spacing: 6,
                                           runSpacing: 4,
-                                          children: List.generate(chapterCount, (i) {
-                                            final chapNum = i + 1;
-                                            return ActionChip(
-                                              label: Text('Ch $chapNum'),
-                                              onPressed: () {
-                                                setState(() {
-                                                  _book = bookName;
-                                                  _chapter = chapNum;
-                                                  _showSearch = false;
-                                                  _searchText = '';
-                                                });
-                                                _load();
-                                              },
-                                            );
-                                          }),
+                                          children: List.generate(
+                                            chapterCount,
+                                            (i) {
+                                              final chapNum = i + 1;
+                                              return ActionChip(
+                                                label: Text('Ch $chapNum'),
+                                                onPressed: () {
+                                                  if (mounted) {
+                                                    setState(() {
+                                                      _book = bookName;
+                                                      _chapter = chapNum;
+                                                      _showSearch = false;
+                                                      _searchText = '';
+                                                    });
+                                                  }
+                                                  _load();
+                                                },
+                                              );
+                                            },
+                                          ),
                                         ),
                                       )
-                                    : null,
-                              );
-                            } else if (_searchType == 'Note') {
-                              String noteContent = '';
-                              final match = _allUserNotes.firstWhere(
-                                (n) => n.$1 == ref,
-                                orElse: () => (ref, v.$2, ''),
-                              );
-                              noteContent = match.$3;
-                              return ListTile(
-                                dense: true,
-                                title: Text(noteContent, maxLines: 3, overflow: TextOverflow.ellipsis),
-                                subtitle: Text('${ref.book} ${ref.chapter}:${ref.verse}', style: const TextStyle(fontSize: 13, color: Colors.blueGrey)),
-                                onTap: () async {
-                                  if (_book != ref.book || _chapter != ref.chapter) {
+                                      : null,
+                            );
+                          } else if (_searchType == 'Note') {
+                            String noteContent = '';
+                            final match = _allUserNotes.firstWhere(
+                              (n) => n.$1 == ref,
+                              orElse: () => (ref, v.$2, ''),
+                            );
+                            noteContent = match.$3;
+                            return ListTile(
+                              dense: true,
+                              title: Text(
+                                noteContent,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                '${ref.book} ${ref.chapter}:${ref.verse}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.blueGrey,
+                                ),
+                              ),
+                              onTap: () async {
+                                if (_book != ref.book ||
+                                    _chapter != ref.chapter) {
+                                  if (mounted) {
                                     setState(() {
                                       _book = ref.book;
                                       _chapter = ref.chapter;
                                       _showSearch = false;
                                       _searchText = '';
                                     });
-                                    await _load();
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      _scrollToVerse(ref);
-                                      _openActions(v);
-                                    });
-                                  } else {
+                                  }
+                                  await _load();
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    _scrollToVerse(ref);
+                                    _openActions(v);
+                                  });
+                                } else {
+                                  if (mounted) {
                                     setState(() {
                                       _showSearch = false;
                                       _searchText = '';
                                     });
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      _scrollToVerse(ref);
-                                      _openActions(v);
-                                    });
                                   }
-                                },
-                              );
-                            } else {
-                              return ListTile(
-                                dense: true,
-                                title: Text('${ref.book} ${ref.chapter}:${ref.verse}'),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(v.$2, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                    if (note.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text('Note: $note', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    _scrollToVerse(ref);
+                                    _openActions(v);
+                                  });
+                                }
+                              },
+                            );
+                          } else {
+                            return ListTile(
+                              dense: true,
+                              title: Text(
+                                '${ref.book} ${ref.chapter}:${ref.verse}',
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    v.$2,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (note.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        'Note: $note',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.blueGrey,
+                                        ),
                                       ),
-                                  ],
-                                ),
-                                onTap: () async {
-                                  if (_searchType == 'Verse') {
-                                    if (_book != ref.book || _chapter != ref.chapter) {
+                                    ),
+                                ],
+                              ),
+                              onTap: () async {
+                                if (_searchType == 'Verse') {
+                                  if (_book != ref.book ||
+                                      _chapter != ref.chapter) {
+                                    if (mounted) {
                                       setState(() {
                                         _book = ref.book;
                                         _chapter = ref.chapter;
                                         _showSearch = false;
                                         _searchText = '';
                                       });
-                                      await _load();
-                                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                                        _scrollToVerse(ref);
-                                      });
-                                    } else {
+                                    }
+                                    await _load();
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                          _scrollToVerse(ref);
+                                        });
+                                  } else {
+                                    if (mounted) {
                                       setState(() {
                                         _showSearch = false;
                                         _searchText = '';
                                       });
-                                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                                        _scrollToVerse(ref);
-                                      });
                                     }
-                                  } else {
-                                    _openActions(v);
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                          _scrollToVerse(ref);
+                                        });
                                   }
-                                },
-                              );
-                            }
-                          },
-                        ),
+                                } else {
+                                  _openActions(v);
+                                }
+                              },
+                            );
+                          }
+                        },
+                      ),
             ),
         ],
         const Divider(height: 12),
@@ -1026,19 +1198,33 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
                     child: Material(
                       elevation: 4,
                       borderRadius: BorderRadius.circular(12),
-                      color: Theme.of(context).colorScheme.tertiaryContainer,
+                      color: Theme.of(context).colorScheme.primary,
                       child: ListTile(
                         dense: true,
-                        leading: const Icon(Icons.wifi_off),
-                        title: const Text('You’re offline'),
+                        leading: Icon(
+                          Icons.wifi_off,
+                          color: Theme.of(context).colorScheme.onPrimary
+                        ),
+                        title: Text(
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary
+                          ),
+                          'You\'re offline'
+                        ),
                         subtitle: FutureBuilder<DateTime?>(
                           future: LastSyncStore.readLocal(),
                           builder: (context, snap) {
                             final last = snap.data;
-                            final pretty = last == null
-                                ? 'never'
-                                : DateFormat.yMMMd().add_jm().format(last); // e.g., Sep 22, 3:41 PM
+                            final pretty =
+                                last == null
+                                    ? 'never'
+                                    : DateFormat.yMMMd().add_jm().format(
+                                      last,
+                                    ); // e.g., Sep 22, 3:41 PM
                             return Text(
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onPrimary
+                              ),
                               'Last sync: $pretty\nChanges are saved and will sync later.',
                             );
                           },

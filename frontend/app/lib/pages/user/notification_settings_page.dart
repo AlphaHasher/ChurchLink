@@ -19,6 +19,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     'Event Notification': true,
     'App Announcements': true,
     'Live Stream Alerts': true,
+    'Bible Plan Reminders': true,
   };
   bool _loading = true;
   String get _baseUrl => '${dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000/'}api/v1/notification/preferences';

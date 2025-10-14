@@ -42,10 +42,12 @@ class _FormsState extends State<Forms> {
     });
 
     try {
-      final response = await api.get('/v1/forms/');
+      // Call server-side public endpoint which only returns visible, non-expired forms.
+      final response = await api.get('/v1/forms/public');
       if (response.statusCode == 200) {
+        final raw = response.data as List<dynamic>;
         setState(() {
-          _forms = response.data as List<dynamic>;
+          _forms = raw;
           _isLoading = false;
         });
       } else {
@@ -67,6 +69,7 @@ class _FormsState extends State<Forms> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
+      key: const ValueKey('screen-forms'),
       appBar: AppBar(title: const Text('Forms'), backgroundColor: Colors.black),
       body: SafeArea(
         child: Padding(
@@ -163,8 +166,9 @@ class _FormsState extends State<Forms> {
                                                 FormSubmitPage(form: f),
                                           ),
                                         );
-                                        // If submission happened, reload forms (some forms may change)
-                                        if (result == true) {
+                                        // If the user returned from the form page (submission or server-side state change),
+                                        // reload the list so expired / hidden forms are removed.
+                                        if (result != null) {
                                           _loadForms();
                                         }
                                       },

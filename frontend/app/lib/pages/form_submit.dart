@@ -1,4 +1,19 @@
 import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/form_localization_helper.dart';
+import 'package:app/pages/forms/checkbox_form_component.dart';
+import 'package:app/pages/forms/date_form_component.dart';
+import 'package:app/pages/forms/email_form_component.dart';
+import 'package:app/pages/forms/number_form_component.dart';
+import 'package:app/pages/forms/price_form_component.dart';
+import 'package:app/pages/forms/radio_form_component.dart';
+import 'package:app/pages/forms/select_form_component.dart';
+import 'package:app/pages/forms/static_form_component.dart';
+import 'package:app/pages/forms/switch_form_component.dart';
+import 'package:app/pages/forms/text_form_component.dart';
+import 'package:app/pages/forms/textarea_form_component.dart';
+import 'package:app/pages/forms/time_form_component.dart';
+import 'package:app/pages/forms/phone_form_component.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class FormSubmitPage extends StatefulWidget {
@@ -18,11 +33,25 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
   late Map<String, dynamic> _form; // local, refreshable copy of the form
   int _formInstanceId = 0; // bump to reset Form state after refresh
   bool _isDirty = false; // tracks whether user has typed/changed anything
+  List<String> _availableLocales = <String>[];
+  late String _activeLocale;
 
   @override
   void initState() {
     super.initState();
     _form = Map<String, dynamic>.from(widget.form);
+    _setupLocales();
+  }
+
+  @override
+  void didUpdateWidget(covariant FormSubmitPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!mapEquals(oldWidget.form, widget.form)) {
+      setState(() {
+        _form = Map<String, dynamic>.from(widget.form);
+        _setupLocales(preferredLocale: _activeLocale);
+      });
+    }
   }
 
   // Helper to extract field list from form
@@ -30,6 +59,34 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     final data = _form['data'];
     if (data is List) return List<Map<String, dynamic>>.from(data);
     return [];
+  }
+
+  String get _defaultLocale => FormLocalizationHelper.defaultLocale(_form);
+
+  void _setupLocales({String? preferredLocale}) {
+    final localeState = FormLocalizationHelper.initializeLocales(
+      _form,
+      preferredLocale: preferredLocale,
+    );
+    _availableLocales = List<String>.from(localeState.locales);
+    _activeLocale = localeState.activeLocale;
+  }
+
+  String? _getLocalizedString(Map<String, dynamic> source, String key) {
+    return FormLocalizationHelper.getLocalizedString(
+      source,
+      key,
+      activeLocale: _activeLocale,
+      defaultLocale: _defaultLocale,
+    );
+  }
+
+  Map<String, dynamic> _localizedField(Map<String, dynamic> field) {
+    return FormLocalizationHelper.localizedField(
+      field,
+      activeLocale: _activeLocale,
+      defaultLocale: _defaultLocale,
+    );
   }
 
   // Basic visibleIf evaluator similar to web: `name op value` where op in == != >= <= > <
@@ -207,56 +264,13 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     return total;
   }
 
-  // Parse a time string that may be in "HH:MM" (24h) or "h:MM AM/PM" to TimeOfDay.
-  TimeOfDay? _parseTimeOfDay(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return null;
-    final s = raw.trim();
-    // 24-hour HH:MM
-    final m24 = RegExp(r"^([01]?\d|2[0-3]):([0-5]\d)$");
-    final m12 = RegExp(r"^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$");
-    var match = m24.firstMatch(s);
-    if (match != null) {
-      final h = int.tryParse(match.group(1)!);
-      final m = int.tryParse(match.group(2)!);
-      if (h != null && m != null) return TimeOfDay(hour: h, minute: m);
-    }
-    match = m12.firstMatch(s);
-    if (match != null) {
-      var h = int.tryParse(match.group(1)!);
-      final m = int.tryParse(match.group(2)!);
-      final ampm = match.group(3)!.toUpperCase();
-      if (h != null && m != null) {
-        if (ampm == 'AM') {
-          if (h == 12) h = 0; // 12 AM -> 00
-        } else {
-          if (h != 12) h = h + 12; // add 12 for PM except 12 PM
-        }
-        return TimeOfDay(hour: h, minute: m);
+  void _updateValue(String fieldName, dynamic value) {
+    setState(() {
+      _values[fieldName] = value;
+      if (!_isDirty) {
+        _isDirty = true;
       }
-    }
-    return null;
-  }
-
-  String _formatHHMM(TimeOfDay t) {
-    final hh = t.hour.toString().padLeft(2, '0');
-    final mm = t.minute.toString().padLeft(2, '0');
-    return '$hh:$mm';
-  }
-
-  int? _hhmmToMinutes(String? hhmm) {
-    if (hhmm == null || hhmm.trim().isEmpty) return null;
-    final m = RegExp(r'^([01]?\d|2[0-3]):([0-5]\d)$').firstMatch(hhmm.trim());
-    if (m == null) return null;
-    final h = int.tryParse(m.group(1)!);
-    final min = int.tryParse(m.group(2)!);
-    if (h == null || min == null) return null;
-    return h * 60 + min;
-  }
-
-  void _markDirty() {
-    if (!_isDirty) {
-      setState(() => _isDirty = true);
-    }
+    });
   }
 
   bool _hasAnyInput() {
@@ -292,23 +306,30 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             _error = null;
             _formInstanceId++;
             _isDirty = false;
+            _setupLocales(preferredLocale: _activeLocale);
           });
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Form reloaded. All inputs were cleared.')),
+            const SnackBar(
+              content: Text('Form reloaded. All inputs were cleared.'),
+            ),
           );
           return;
         }
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to reload form${response?.statusCode != null ? ' (${response.statusCode})' : ''}')),
+        SnackBar(
+          content: Text(
+            'Failed to reload form${response?.statusCode != null ? ' (${response.statusCode})' : ''}',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error reloading form: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error reloading form: $e')));
     }
   }
 
@@ -319,21 +340,23 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     }
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reload form?'),
-        content: const Text(
-            'Reloading will fetch the latest form and clear all data you\'ve entered. Continue?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Reload form?'),
+            content: const Text(
+              'Reloading will fetch the latest form and clear all data you\'ve entered. Continue?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Reload'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reload'),
-          ),
-        ],
-      ),
     );
     if (confirm == true) {
       await _reloadForm();
@@ -342,540 +365,310 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
 
   Widget _buildField(Map<String, dynamic> f) {
     if (!_isVisible(f)) return const SizedBox.shrink();
-    final type = (f['type'] ?? 'text').toString();
+    final field = _localizedField(f);
+    final type = (field['type'] ?? f['type'] ?? 'text').toString();
     final fieldName =
-        (f['name'] ??
+        (field['name'] ??
+                f['name'] ??
                 f['key'] ??
                 f['id'] ??
                 f['label'] ??
                 UniqueKey().toString())
             .toString();
-    final label = f['label'] ?? f['name'] ?? '';
-    final required = f['required'] == true;
-
+    final labelText =
+        (field['label'] ?? f['label'] ?? f['name'] ?? fieldName).toString();
+    final placeholder =
+        (field['placeholder'] ?? field['hint'] ?? f['placeholder'] ?? f['hint'])
+            ?.toString();
+    final helperText =
+        (field['helpText'] ??
+                field['helperText'] ??
+                field['description'] ??
+                f['helperText'] ??
+                f['description'])
+            ?.toString();
+    final inlineLabel =
+        (field['inlineLabel'] ??
+                field['inline_label'] ??
+                field['inline'] ??
+                f['inlineLabel'] ??
+                f['inline_label'] ??
+                f['inline'])
+            ?.toString();
+    final requiredField = (field['required'] ?? f['required']) == true;
+    int? _asInt(dynamic raw) {
+      if (raw is int) return raw;
+      if (raw is num) return raw.toInt();
+      if (raw is String) return int.tryParse(raw.trim());
+      return null;
+    }
+    Widget widget;
     switch (type) {
       case 'static':
-        final as = (f['as'] ?? 'p').toString();
-        TextStyle style = const TextStyle(fontSize: 14);
-        if (as == 'h1') {
-          style = const TextStyle(fontSize: 22, fontWeight: FontWeight.bold);
-        } else if (as == 'h2') {
-          style = const TextStyle(fontSize: 18, fontWeight: FontWeight.w600);
-        } else if (as == 'small') {
-          style = const TextStyle(fontSize: 12, color: Colors.grey);
-        }
-        final content = (f['content'] ?? label ?? '').toString();
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6.0),
-          child: Text(content, style: style),
+        widget = StaticFormComponent(
+          field: field,
+          labelOverride: labelText,
+          helperOverride: helperText,
         );
-
+        break;
       case 'price':
-        return const SizedBox.shrink();
-
+        widget = const PriceFormComponent();
+        break;
       case 'textarea':
-        return TextFormField(
+        widget = TextareaFormComponent(
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
           initialValue: _values[fieldName]?.toString(),
-          decoration: InputDecoration(labelText: label),
-          maxLines: 4,
-          validator:
-              required
-                  ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
-                  : null,
-          onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
-          },
+          onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
+          minLength: _asInt(field['minLength'] ?? f['minLength']),
+          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
         );
-
+        break;
       case 'email':
-        return TextFormField(
+        widget = EmailFormComponent(
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
           initialValue: _values[fieldName]?.toString(),
-          decoration: InputDecoration(labelText: label),
-          keyboardType: TextInputType.emailAddress,
-          validator: (v) {
-            if (required && (v == null || v.trim().isEmpty)) return 'Required';
-            if (v != null &&
-                v.isNotEmpty &&
-                !RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v)) {
-              return 'Invalid email';
-            }
-            return null;
-          },
           onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
+            final trimmed = v.trim();
+            _updateValue(fieldName, trimmed.isEmpty ? null : trimmed);
           },
+          onSaved: (v) {
+            final trimmed = (v ?? '').trim();
+            _values[fieldName] = trimmed.isEmpty ? null : trimmed;
+          },
+          minLength: _asInt(field['minLength'] ?? f['minLength']),
+          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
+        );
+        break;
+      case 'tel':
+        final current = _values[fieldName];
+        final initialPhone = current is String ? current : null;
+        widget = PhoneFormComponent(
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
+          initialValue: initialPhone,
+          onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
         );
-
+        break;
       case 'number':
-        return TextFormField(
-          initialValue: _values[fieldName]?.toString(),
-          decoration: InputDecoration(labelText: label),
-          keyboardType: TextInputType.number,
-          validator: (v) {
-            if (required && (v == null || v.trim().isEmpty)) return 'Required';
-            if (v != null && v.isNotEmpty && double.tryParse(v) == null) {
-              return 'Invalid number';
-            }
-            if (v != null && v.isNotEmpty) {
-              final n = double.tryParse(v);
-              if (n != null) {
-                final min = (f['min'] is num) ? (f['min'] as num).toDouble() : null;
-                final max = (f['max'] is num) ? (f['max'] as num).toDouble() : null;
-                if (min != null && n < min) {
-                  final dec = min.truncateToDouble() == min ? 0 : 2;
-                  return 'Must be ≥ ${min.toStringAsFixed(dec)}';
-                }
-                if (max != null && n > max) {
-                  final dec = max.truncateToDouble() == max ? 0 : 2;
-                  return 'Must be ≤ ${max.toStringAsFixed(dec)}';
-                }
-                if (f['allowedValues'] is String) {
-                  final allowed = (f['allowedValues'] as String)
-                      .split(',')
-                      .map((s) => s.trim())
-                      .where((s) => s.isNotEmpty)
-                      .map((s) => double.tryParse(s))
-                      .where((x) => x != null)
-                      .map((x) => x!)
-                      .toList();
-                  if (allowed.isNotEmpty && !allowed.contains(n)) {
-                    final fmt = allowed
-                        .map((x) => x.truncateToDouble() == x ? x.toStringAsFixed(0) : x.toString())
-                        .join(', ');
-                    return 'Must be one of: $fmt';
-                  }
-                }
-              }
-            }
-            return null;
-          },
-          onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
-          },
-          onSaved:
-              (v) =>
-                  _values[fieldName] =
-                      v != null && v.isNotEmpty ? double.tryParse(v) : null,
-        );
-
-      case 'checkbox':
-        final bool current = _values[fieldName] == true;
-        return CheckboxListTile(
-          value: current,
-          title: Text(label),
-          controlAffinity: ListTileControlAffinity.leading,
-          onChanged: (val) => setState(() {
-            _values[fieldName] = val ?? false;
-            _markDirty();
-          }),
-        );
-
-      case 'switch':
-        final bool current = _values[fieldName] == true;
-        return SwitchListTile(
-          value: current,
-          title: Text(label),
-          onChanged: (val) => setState(() {
-            _values[fieldName] = val;
-            _markDirty();
-          }),
-        );
-
-      case 'select':
-        final List options = f['options'] ?? f['choices'] ?? [];
-        final bool multiple = f['multiple'] == true;
-        if (multiple) {
-          final List<String> current =
-              (_values[fieldName] as List?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              [];
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if ((label?.toString() ?? '').isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(label.toString()),
-                ),
-              Wrap(
-                spacing: 6,
-                runSpacing: -8,
-                children:
-                    current.isEmpty
-                        ? [const Chip(label: Text('None selected'))]
-                        : current.map((v) => Chip(label: Text(v))).toList(),
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: () async {
-                    final selected = Set<String>.from(current);
-                    final updated = await showDialog<List<String>>(
-                      context: context,
-                      builder: (ctx) {
-                        return AlertDialog(
-                          title: Text('Select ${label.toString()}'),
-                          content: SizedBox(
-                            width: double.maxFinite,
-                            child: ListView(
-                              shrinkWrap: true,
-                              children:
-                                  options.map<Widget>((opt) {
-                                    final val =
-                                        (opt is Map
-                                                ? (opt['value'] ??
-                                                    opt['id'] ??
-                                                    opt['label'])
-                                                : opt)
-                                            .toString();
-                                    final display =
-                                        (opt is Map
-                                                ? (opt['label'] ??
-                                                    opt['value'] ??
-                                                    opt['id'] ??
-                                                    opt)
-                                                : opt)
-                                            .toString();
-                                    final checked = selected.contains(val);
-                                    return CheckboxListTile(
-                                      value: checked,
-                                      title: Text(display),
-                                      onChanged: (v) {
-                                        if (v == true) {
-                                          selected.add(val);
-                                        } else {
-                                          selected.remove(val);
-                                        }
-                                        // ignore: invalid_use_of_protected_member
-                                        (ctx as Element).markNeedsBuild();
-                                      },
-                                    );
-                                  }).toList(),
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancel'),
-                            ),
-                            ElevatedButton(
-                              onPressed:
-                                  () => Navigator.pop(ctx, selected.toList()),
-                              child: const Text('OK'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                    if (updated != null) {
-                      setState(() {
-                        _values[fieldName] = updated;
-                        _markDirty();
-                      });
-                    }
-                  },
-                  child: const Text('Choose'),
-                ),
-              ),
-            ],
-          );
-        } else {
-          final current = _values[fieldName]?.toString();
-          return DropdownButtonFormField<String>(
-            value: current?.isNotEmpty == true ? current : null,
-            decoration: InputDecoration(labelText: label.toString()),
-            validator:
-                required
-                    ? (v) => (v == null || v.isEmpty) ? 'Required' : null
-                    : null,
-            items:
-                options.map<DropdownMenuItem<String>>((opt) {
-                  final val =
-                      (opt is Map
-                              ? (opt['value'] ?? opt['id'] ?? opt['label'])
-                              : opt)
-                          .toString();
-                  final display =
-                      (opt is Map
-                              ? (opt['label'] ??
-                                  opt['value'] ??
-                                  opt['id'] ??
-                                  opt)
-                              : opt)
-                          .toString();
-                  return DropdownMenuItem<String>(
-                    value: val,
-                    child: Text(display),
-                  );
-                }).toList(),
-            onChanged: (v) => setState(() {
-              _values[fieldName] = v;
-              _markDirty();
-            }),
-          );
+        final current = _values[fieldName];
+        num? initial;
+        if (current is num) {
+          initial = current;
+        } else if (current is String) {
+          initial = double.tryParse(current);
         }
-
-      case 'radio':
-        final List options = f['options'] ?? f['choices'] ?? [];
-        final String? current = _values[fieldName]?.toString();
-        return FormField<String>(
-          initialValue: current,
-          validator:
-              required
-                  ? (v) => (v == null || v.isEmpty) ? 'Required' : null
-                  : null,
-          builder:
-              (state) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (label.isNotEmpty) Text(label),
-                  ...options.map<Widget>((opt) {
-                    final val =
-                        opt is Map
-                            ? (opt['value'] ?? opt['id'] ?? opt['label'])
-                            : opt;
-                    final display =
-                        opt is Map
-                            ? (opt['label'] ??
+        final allowedValuesSource = f['allowedValues'] ?? f['allowed'];
+        final allowedValues = <num>[];
+        if (allowedValuesSource is List) {
+          for (final item in allowedValuesSource) {
+            if (item is num) {
+              allowedValues.add(item);
+            } else if (item is String) {
+              final parsed = double.tryParse(item);
+              if (parsed != null) allowedValues.add(parsed);
+            }
+          }
+        } else if (allowedValuesSource is String) {
+          final parts = allowedValuesSource.split(',');
+          for (final part in parts) {
+            final parsed = double.tryParse(part.trim());
+            if (parsed != null) allowedValues.add(parsed);
+          }
+        }
+        num? parseNum(dynamic raw) {
+          if (raw is num) return raw;
+          if (raw is String) return double.tryParse(raw.trim());
+          return null;
+        }
+        final minValue = parseNum(f['min'] ?? f['minimum']);
+        final maxValue = parseNum(f['max'] ?? f['maximum']);
+        final stepValue = parseNum(f['step']);
+        widget = NumberFormComponent(
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
+          initialValue: initial,
+          min: minValue,
+          max: maxValue,
+          step: stepValue,
+          allowedValues: allowedValues.isEmpty ? const <num>[] : allowedValues,
+          onChanged: (v) => _updateValue(fieldName, v),
+          onSaved: (v) => _values[fieldName] = v,
+        );
+        break;
+      case 'checkbox':
+        widget = CheckboxFormComponent(
+          label: labelText,
+          inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
+          helperText: helperText,
+          requiredField: requiredField,
+          value: _values[fieldName] == true,
+          onChanged: (val) => _updateValue(fieldName, val),
+          onSaved: (val) => _values[fieldName] = val,
+        );
+        break;
+      case 'switch':
+        widget = SwitchFormComponent(
+          label: labelText,
+          inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
+          helperText: helperText,
+          requiredField: requiredField,
+          value: _values[fieldName] == true,
+          onChanged: (val) => _updateValue(fieldName, val),
+          onSaved: (val) => _values[fieldName] = val,
+        );
+        break;
+      case 'select':
+        final rawOptions =
+            (field['options'] ??
+                    field['choices'] ??
+                    f['options'] ??
+                    f['choices'] ??
+                    const <dynamic>[])
+                as List;
+        final opts =
+            rawOptions
+                .map((opt) {
+                  if (opt is Map) {
+                    final value =
+                        (opt['value'] ?? opt['id'] ?? opt['label'] ?? '')
+                            .toString();
+                    final label =
+                        (opt['label'] ??
                                 opt['value'] ??
                                 opt['id'] ??
-                                opt.toString())
-                            : opt.toString();
-                    final sel = state.value == val.toString();
-                    return ListTile(
-                      leading: Icon(
-                        sel ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                        color: sel ? Theme.of(context).colorScheme.primary : null,
-                      ),
-                      title: Text(display.toString()),
-                      onTap: () {
-                        final vstr = val.toString();
-                        state.didChange(vstr);
-                        _values[fieldName] = vstr;
-                        _markDirty();
-                      },
-                    );
-                  }),
-                  if (state.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12.0, top: 4),
-                      child: Text(
-                        state.errorText ?? '',
-                        style: TextStyle(color: Colors.red[700], fontSize: 12),
-                      ),
-                    ),
-                ],
-              ),
+                                f['label'] ??
+                                '')
+                            .toString();
+                    return SelectOption(value: value, label: label);
+                  }
+                  final value = opt?.toString() ?? '';
+                  return SelectOption(value: value, label: value);
+                })
+                .where((opt) => opt.value.isNotEmpty || opt.label.isNotEmpty)
+                .toList();
+        final multiple = (field['multiple'] ?? f['multiple']) == true;
+        widget = SelectFormComponent(
+          label: labelText,
+          placeholder:
+              (field['buttonLabel'] ?? f['buttonLabel'] ?? placeholder)
+                  ?.toString(),
+          helperText: helperText,
+          requiredField: requiredField,
+          options: opts,
+          multiple: multiple,
+          value: _values[fieldName],
+          onChanged: (selection) => _updateValue(fieldName, selection),
+          onSaved: (selection) {
+            if (multiple) {
+              final list =
+                  (selection as List?)
+                      ?.map((e) => e.toString())
+                      .where((e) => e.isNotEmpty)
+                      .toList() ??
+                  <String>[];
+              _values[fieldName] = list;
+            } else {
+              _values[fieldName] = selection?.toString();
+            }
+          },
         );
-
+        break;
+      case 'radio':
+        widget = RadioFormComponent(
+          field: field,
+          value: _values[fieldName]?.toString(),
+          onChanged: (v) => _updateValue(fieldName, v),
+        );
+        break;
       case 'date':
-        final mode = (f['mode'] ?? 'single').toString();
-        if (mode == 'range') {
-          final Map<String, dynamic>? current = (_values[fieldName] as Map?)?.cast<String, dynamic>();
-          return FormField<Map<String, dynamic>>(
-            initialValue: current,
-            validator: (val) {
-              final req = f['required'] == true;
-              DateTime? parseDateOnly(String? iso) {
-                if (iso == null || iso.isEmpty) return null;
-                final d = DateTime.tryParse(iso);
-                if (d == null) return null;
-                return DateTime(d.year, d.month, d.day);
-              }
-              final minD = parseDateOnly(f['minDate']?.toString());
-              final maxD = parseDateOnly(f['maxDate']?.toString());
-              final fromD = parseDateOnly(val?['from']?.toString());
-              final toD = parseDateOnly(val?['to']?.toString());
-              if (req && (fromD == null || toD == null)) return 'Required';
-              if (fromD == null || toD == null) return null;
-              if (toD.isBefore(fromD)) return 'End date must be on or after start date';
-              if (minD != null && fromD.isBefore(minD)) return 'Start must be on or after ${minD.toIso8601String().split('T').first}';
-              if (maxD != null && toD.isAfter(maxD)) return 'End must be on or before ${maxD.toIso8601String().split('T').first}';
-              return null;
-            },
-            builder: (state) {
-              final v = state.value ?? current;
-              final sFrom = v?['from']?.toString();
-              final sTo = v?['to']?.toString();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ListTile(
-                    title: Text(label),
-                    subtitle: Text(
-                      sFrom != null && sTo != null
-                          ? '${sFrom.split('T').first} → ${sTo.split('T').first}'
-                          : 'Select date range',
-                    ),
-                    onTap: () async {
-                      final initial = DateTime.now();
-                      final res = await showDateRangePicker(
-                        context: context,
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime(2100),
-                        initialDateRange: (sFrom != null && sTo != null)
-                            ? DateTimeRange(
-                                start: DateTime.tryParse(sFrom) ?? initial,
-                                end: DateTime.tryParse(sTo) ?? initial,
-                              )
-                            : null,
-                      );
-                      if (res != null) {
-                        final newVal = {
-                          'from': DateTime(res.start.year, res.start.month, res.start.day).toIso8601String(),
-                          'to': DateTime(res.end.year, res.end.month, res.end.day).toIso8601String(),
-                        };
-                        setState(() {
-                          _values[fieldName] = newVal;
-                          _markDirty();
-                        });
-                        state.didChange(newVal);
-                      }
-                    },
-                  ),
-                  if (state.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12.0, top: 4),
-                      child: Text(state.errorText ?? '', style: TextStyle(color: Colors.red[700], fontSize: 12)),
-                    ),
-                ],
-              );
-            },
-          );
-        } else {
-          final String? current = _values[fieldName]?.toString();
-          return FormField<String>(
-            initialValue: current,
-            validator: (val) {
-              final req = f['required'] == true;
-              if (req && (val == null || val.trim().isEmpty)) return 'Required';
-              if (val == null || val.trim().isEmpty) return null;
-              DateTime? parseDateOnly(String? iso) {
-                if (iso == null || iso.isEmpty) return null;
-                final d = DateTime.tryParse(iso);
-                if (d == null) return null;
-                return DateTime(d.year, d.month, d.day);
-              }
-              final d = parseDateOnly(val);
-              if (d == null) return 'Invalid date';
-              final minD = parseDateOnly(f['minDate']?.toString());
-              final maxD = parseDateOnly(f['maxDate']?.toString());
-              if (minD != null && d.isBefore(minD)) return 'Must be on or after ${minD.toIso8601String().split('T').first}';
-              if (maxD != null && d.isAfter(maxD)) return 'Must be on or before ${maxD.toIso8601String().split('T').first}';
-              return null;
-            },
-            builder: (state) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  title: Text(label),
-                  subtitle: Text(state.value ?? 'Select date'),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.tryParse(state.value ?? '') ?? DateTime.now(),
-                      firstDate: DateTime(1900),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) {
-                      final d = DateTime(picked.year, picked.month, picked.day).toIso8601String();
-                      setState(() {
-                        _values[fieldName] = d;
-                        _markDirty();
-                      });
-                      state.didChange(d);
-                    }
-                  },
-                ),
-                if (state.hasError)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 12.0, top: 4),
-                    child: Text(state.errorText ?? '', style: TextStyle(color: Colors.red[700], fontSize: 12)),
-                  ),
-              ],
-            ),
-          );
-        }
-
-      case 'time':
-        final String? currentRaw = _values[fieldName]?.toString();
-        final minTime = (f['minTime'] ?? f['min'])?.toString();
-        final maxTime = (f['maxTime'] ?? f['max'])?.toString();
-        return FormField<String>(
-          initialValue: currentRaw,
-          validator: (val) {
-            final req = f['required'] == true;
-            if (req && (val == null || val.trim().isEmpty)) return 'Required';
-            if (val == null || val.trim().isEmpty) return null;
-            if (_hhmmToMinutes(val) == null) return 'Invalid time';
-            final vMin = _hhmmToMinutes(minTime);
-            final vMax = _hhmmToMinutes(maxTime);
-            final v = _hhmmToMinutes(val)!;
-            if (vMin != null && v < vMin) return 'Must be on or after $minTime';
-            if (vMax != null && v > vMax) return 'Must be on or before $maxTime';
-            return null;
-          },
-          builder: (state) {
-            final initialTod = _parseTimeOfDay(state.value) ?? TimeOfDay.now();
-            final display = (state.value != null && state.value!.isNotEmpty) ? state.value! : 'Select time';
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  title: Text(label),
-                  subtitle: Text(display),
-                  onTap: () async {
-                    final picked = await showTimePicker(
-                      context: context,
-                      initialTime: initialTod,
-                    );
-                    if (picked != null) {
-                      final value = _formatHHMM(picked);
-                      setState(() {
-                        _values[fieldName] = value;
-                        _markDirty();
-                      });
-                      state.didChange(value);
-                    }
-                  },
-                ),
-                if (state.hasError)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 12.0, top: 4),
-                    child: Text(state.errorText ?? '', style: TextStyle(color: Colors.red[700], fontSize: 12)),
-                  ),
-              ],
-            );
-          },
+        widget = DateFormComponent(
+          field: field,
+          value: _values[fieldName],
+          onChanged: (val) => _updateValue(fieldName, val),
         );
-
+        break;
+      case 'time':
+        widget = TimeFormComponent(
+          field: field,
+          value: _values[fieldName]?.toString(),
+          onChanged: (val) => _updateValue(fieldName, val),
+        );
+        break;
       default:
-        // default to simple text input
-        return TextFormField(
+        widget = TextFormComponent(
+          label: labelText,
+          placeholder: placeholder,
+          helperText: helperText,
+          requiredField: requiredField,
           initialValue: _values[fieldName]?.toString(),
-          decoration: InputDecoration(labelText: label),
-          validator:
-              required
-                  ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
-                  : null,
-          onChanged: (v) {
-            _values[fieldName] = v;
-            _markDirty();
-          },
+          onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
+          minLength: _asInt(field['minLength'] ?? f['minLength']),
+          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
         );
     }
+
+    return _wrapWithRequiredBadge(widget, requiredField);
+  }
+
+  Widget _wrapWithRequiredBadge(Widget child, bool requiredField) {
+    if (!requiredField) return child;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          top: 4,
+          right: 0,
+          child: IgnorePointer(
+            child: Text(
+              '*',
+              style: TextStyle(
+                color: Colors.red[600],
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _submit() async {
-  if (!_scaffoldFormKey.currentState!.validate()) return;
-  _scaffoldFormKey.currentState!.save();
+    final formState = _scaffoldFormKey.currentState;
+    if (formState == null) return;
+
+    final isValid = formState.validate();
+    if (!isValid) {
+      setState(() {
+        _error = 'Please fix the highlighted fields before submitting.';
+      });
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Please fix the highlighted fields before submitting.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    formState.save();
 
     setState(() {
       _submitting = true;
@@ -894,6 +687,52 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         return;
       }
 
+      // Locally check visibility and expiry before attempting to submit.
+      try {
+        final visibleFlag = widget.form.containsKey('visible') ? (widget.form['visible'] == true) : false;
+        if (!visibleFlag) {
+          if (!mounted) return;
+            await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Form unavailable'),
+              content: const Text('This form is not available for public viewing.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Ok')),
+              ],
+            ),
+          );
+          if (!mounted) return;
+          Navigator.of(context).pop(false);
+          return;
+        }
+
+        final expiresRaw = widget.form['expires_at'] ?? widget.form['expiresAt'] ?? widget.form['expires'];
+        if (expiresRaw != null) {
+          final expires = DateTime.tryParse(expiresRaw.toString());
+          if (expires == null || !expires.isAfter(DateTime.now())) {
+            if (!mounted) return;
+            await showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Form unavailable'),
+                content: const Text('This form has expired and is no longer accepting responses.'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Ok')),
+                ],
+              ),
+            );
+            if (!mounted) return;
+            Navigator.of(context).pop(false);
+            return;
+          }
+        }
+      } catch (_) {
+        // If anything goes wrong during local checks, proceed to call the server which will provide authoritative reason.
+      }
+
       final response = await api.post(
         '/v1/forms/slug/$slug/responses',
         data: _values,
@@ -906,14 +745,55 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         ).showSnackBar(const SnackBar(content: Text('Response submitted')));
         Navigator.of(context).pop(true);
       } else {
-        setState(() {
-          _error = 'Failed to submit (${response.statusCode})';
-        });
+        // Map server detail to friendly message when possible
+        final detail = response.data is Map ? (response.data['detail'] ?? response.data['message']) : null;
+        final detailStr = detail is String ? detail.toLowerCase() : null;
+        String msg = 'Failed to submit (${response.statusCode})';
+        if (detailStr != null) {
+          if (detailStr.contains('expired')) msg = 'This form has expired and is no longer accepting responses.';
+          else if (detailStr.contains('not available') || detailStr.contains('not visible')) msg = 'This form is not available for public viewing.';
+          else if (detailStr.contains('not found')) msg = 'Form not found.';
+        }
+        // Show blocking dialog with Ok to return to list
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Form unavailable'),
+            content: Text(msg),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                },
+                child: const Text('Ok'),
+              ),
+            ],
+          ),
+        );
+        Navigator.of(context).pop(false);
       }
     } catch (e) {
-      setState(() {
-        _error = 'Error submitting response: $e';
-      });
+      // Network or other error: show dialog and go back
+      final msg = 'Error submitting response: $e';
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Submission failed'),
+            content: Text(msg),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Ok'),
+              ),
+            ],
+          ),
+        );
+        Navigator.of(context).pop(false);
+      }
     } finally {
       setState(() {
         _submitting = false;
@@ -923,22 +803,23 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
 
   @override
   Widget build(BuildContext context) {
-    final title = _form['title'] ?? 'Form';
-    final description = _form['description'] ?? '';
+    final title =
+        _getLocalizedString(_form, 'title') ?? _form['title'] ?? 'Form';
+    final description =
+        _getLocalizedString(_form, 'description') ?? _form['description'] ?? '';
     final String slug = (_form['slug']?.toString() ?? '').trim();
     final bool canSubmit = slug.isNotEmpty && slug.toLowerCase() != 'null';
-  final List<Map<String, dynamic>> visibleFields = _fields
-    .where(_isVisible)
-    .where((f) => (f['type'] ?? 'text').toString() != 'price')
-    .toList();
+    final List<Map<String, dynamic>> visibleFields =
+        _fields
+            .where(_isVisible)
+            .where((f) => (f['type'] ?? 'text').toString() != 'price')
+            .toList();
     final bool showPricing = _hasPricing();
     final double total = _computeTotal();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: Colors.black,
-      ),
+      key: const ValueKey('screen-form_submit'),
+      appBar: AppBar(title: Text(title), backgroundColor: Colors.black),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -948,6 +829,30 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Text(description),
+                ),
+              if (_availableLocales.length > 1)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _activeLocale,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _activeLocale = value;
+                        });
+                      },
+                      items:
+                          _availableLocales
+                              .map(
+                                (locale) => DropdownMenuItem<String>(
+                                  value: locale,
+                                  child: Text(locale.toUpperCase()),
+                                ),
+                              )
+                              .toList(),
+                    ),
+                  ),
                 ),
               if (!canSubmit)
                 Container(

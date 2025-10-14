@@ -1,0 +1,35 @@
+{
+  "kind": "collectionType",
+  "collectionName": "dashboard_tiles",
+  "info": {
+    "singularName": "dashboard-tile",
+    "pluralName": "dashboard-tiles",
+    "displayName": "Dashboard Tile"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "backgroundImage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images"
+      ]
+    }
+  }
+}

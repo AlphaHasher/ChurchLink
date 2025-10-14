@@ -1,4 +1,5 @@
 import api from "../api/api"
+const STRAPI_URL = `${import.meta.env.VITE_STRAPI_URL}/uploads/`;
 
 export const processStrapiRedirect = async () => {
     try {
@@ -24,3 +25,11 @@ export const fetchStrapiImages = async (query: string) => {
         return []
     }
 }
+
+export const getBaseURL = (image_url: string): string => {
+    return `${STRAPI_URL}${image_url}`
+};
+
+export const getThumbnailURL = (image_url: string): string => {
+    return `${STRAPI_URL}thumbnail_${image_url}`
+};

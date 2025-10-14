@@ -13,6 +13,7 @@ import { ProfileInfo as ApiPersonalInfo } from "@/shared/types/ProfileInfo";
 
 type ProfileEditDialogProps = {
     email: string;
+    membership: boolean;
     initialPerson: PersonInfo;
     onUpdated?: (p: ApiPersonalInfo) => void;
     className?: string;
@@ -20,6 +21,7 @@ type ProfileEditDialogProps = {
 
 export const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
     email,
+    membership,
     initialPerson,
     onUpdated,
     className,
@@ -40,6 +42,7 @@ export const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
             first_name: p.firstName,
             last_name: p.lastName,
             email,
+            membership,
             birthday: valid ? new Date(yyyy, mm - 1, dd) : null,
             gender: (p.gender as Gender) || null,
         };

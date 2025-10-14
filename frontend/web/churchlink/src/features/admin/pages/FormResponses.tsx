@@ -32,7 +32,13 @@ const FormResponses = () => {
   const query = useQuery();
   const formId = query.get('formId') || '';
 
-  const [formMeta, setFormMeta] = useState<{ title: string; description?: string; data?: any[] } | null>(null);
+  const [formMeta, setFormMeta] = useState<{
+    title: string;
+    description?: string;
+    data?: any[];
+    defaultLocale?: string;
+    locales?: string[];
+  } | null>(null);
   const [responses, setResponses] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any>; id?: string; _id?: string }[]>([]);
   const [userInfo, setUserInfo] = useState<Record<string, { name: string; email: string }>>({});
   const [loading, setLoading] = useState(false);
@@ -50,7 +56,13 @@ const FormResponses = () => {
       if (!formId) return;
       try {
         const resp = await api.get(`/v1/forms/${formId}`);
-        const meta = { title: resp.data?.title || 'Form', description: resp.data?.description, data: resp.data?.data };
+        const meta = {
+          title: resp.data?.title || 'Form',
+          description: resp.data?.description,
+          data: resp.data?.data,
+          defaultLocale: resp.data?.defaultLocale || resp.data?.default_locale,
+          locales: resp.data?.locales,
+        };
         setFormMeta(meta);
       } catch (e) {
         // ignore
@@ -202,6 +214,150 @@ const FormResponses = () => {
     responseItems.find((item) => item.key === selectedResponseKey) ||
     (filteredResponseItems.length > 0 ? filteredResponseItems[0] : null);
 
+  const getFieldLabel = (field: any): string => {
+    if (!field) return 'Field';
+    const nameCandidate = field?.name;
+    if (typeof nameCandidate === 'string') {
+      const trimmedName = nameCandidate.trim();
+      if (trimmedName.length > 0) {
+        return trimmedName;
+      }
+    }
+
+    const fallbackCandidates = [field?.id, field?.key, field?.fieldKey];
+    for (const candidate of fallbackCandidates) {
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        if (trimmed.length > 0) {
+          return trimmed;
+        }
+      }
+    }
+    return 'Field';
+  };
+
+  const getFieldValueFromResponse = (field: any, responseData: Record<string, any>) => {
+    if (!field || !responseData) return undefined;
+    const candidates = [field?.name, field?.key, field?.id, field?.fieldKey];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate in responseData) {
+        return responseData[candidate];
+      }
+    }
+    return undefined;
+  };
+
+  const formatDateString = (raw: unknown): string | null => {
+    if (typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    const isoParts = trimmed.split('-');
+    if (isoParts.length === 3 && isoParts[0].length === 4) {
+      const [yearStr, monthStr, dayStr] = isoParts;
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      const day = Number(dayStr);
+      if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: '2-digit',
+        });
+      }
+    }
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+      });
+    }
+    return trimmed;
+  };
+
+  const formatDateRangeValue = (value: any): string => {
+    if (!value || typeof value !== 'object') return '—';
+    const fromRaw = value.from ?? value.start ?? value.begin;
+    const toRaw = value.to ?? value.end ?? value.finish;
+    const from = formatDateString(fromRaw) ?? '';
+    const to = formatDateString(toRaw) ?? '';
+    if (from && to) return `${from} – ${to}`;
+    if (from) return from;
+    if (to) return to;
+    return '—';
+  };
+
+  const formatTimeString = (raw: unknown): string => {
+    if (typeof raw !== 'string') return raw == null ? '—' : String(raw);
+    const trimmed = raw.trim();
+    if (!trimmed) return '—';
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(trimmed);
+    if (!match) return trimmed;
+    let hour = Number(match[1]);
+    const minute = match[2];
+    if (Number.isNaN(hour)) return trimmed;
+    const period = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    if (hour === 0) hour = 12;
+    return `${hour}:${minute} ${period}`;
+  };
+
+  const formatArrayValue = (values: any[]): string => {
+    const formatted = values
+      .map((item) => {
+        if (item == null) return '';
+        if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+          return String(item);
+        }
+        if (typeof item === 'object') {
+          if ('label' in item && item.label) return String(item.label);
+          if ('value' in item && item.value) return String(item.value);
+          return JSON.stringify(item);
+        }
+        return '';
+      })
+      .filter((segment) => segment.trim().length > 0);
+    return formatted.length > 0 ? formatted.join(', ') : '—';
+  };
+
+  const formatFieldValue = (field: any, rawValue: any): string => {
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+      return '—';
+    }
+
+    if (typeof rawValue === 'boolean') {
+      return rawValue ? 'Yes' : 'No';
+    }
+
+    if (field?.type === 'time') {
+      return formatTimeString(rawValue);
+    }
+
+    if (field?.type === 'date') {
+      if (field?.mode === 'range') {
+        return formatDateRangeValue(rawValue);
+      }
+      if (typeof rawValue === 'string') {
+        return formatDateString(rawValue) ?? '—';
+      }
+    }
+
+    if (Array.isArray(rawValue)) {
+      return formatArrayValue(rawValue);
+    }
+
+    if (typeof rawValue === 'object') {
+      if (field?.type === 'date' && field?.mode === 'range') {
+        return formatDateRangeValue(rawValue);
+      }
+      return JSON.stringify(rawValue, null, 2);
+    }
+
+    return String(rawValue);
+  };
+
   const renderFieldRows = () => {
     if (!selectedItem || !formMeta?.data) return null;
 
@@ -209,29 +365,17 @@ const FormResponses = () => {
       .filter((field: any) => field && field.type !== 'static' && field.type !== 'price')
       .map((field: any, index: number) => {
         const fieldKey = field.id || field.name || index;
-        const value = selectedItem.response.response[field.name];
-        let displayValue = '';
-
-        if (value === null || value === undefined || value === '') {
-          displayValue = '—';
-        } else if (typeof value === 'boolean') {
-          displayValue = value ? 'Yes' : 'No';
-        } else if (Array.isArray(value)) {
-          displayValue = value
-            .map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v)))
-            .join(', ');
-        } else if (typeof value === 'object') {
-          displayValue = JSON.stringify(value, null, 2);
-        } else {
-          displayValue = String(value);
-        }
+        const responseData = selectedItem.response?.response || {};
+        const rawValue = getFieldValueFromResponse(field, responseData);
+        const displayValue = formatFieldValue(field, rawValue);
+        const label = getFieldLabel(field);
 
         return (
           <div
             key={fieldKey}
             className="grid grid-cols-1 gap-2 border-b py-3 last:border-b-0 sm:grid-cols-[minmax(0,220px)_1fr] sm:gap-6"
           >
-            <div className="text-sm font-medium text-muted-foreground">{field.label || field.name}</div>
+            <div className="text-sm font-medium text-muted-foreground">{label}</div>
             <div className="text-sm whitespace-pre-wrap break-words">{displayValue}</div>
           </div>
         );

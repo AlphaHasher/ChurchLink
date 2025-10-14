@@ -46,28 +46,17 @@ class _JoinLiveState extends State<JoinLive> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('screen-joinlive'),
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 255, 0, 0),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('YouTube Live'),
         centerTitle: true,
-        title: const Text(
-          "YouTube Live",
-          style: TextStyle(color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
       ),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
         child: Center(
-          child:
-              (_streamIds.isEmpty)
-                  ? NoLivestreams(channelLink: _channelLink)
-                  : StreamViewer(streamIds: _streamIds),
+          child: (_streamIds.isEmpty)
+              ? NoLivestreams(channelLink: _channelLink)
+              : StreamViewer(streamIds: _streamIds),
         ),
       ),
     );
