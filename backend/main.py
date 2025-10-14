@@ -58,6 +58,7 @@ from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_r
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
+from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router

@@ -401,47 +401,46 @@ export function BuilderShell() {
 
   const previewOverlay = previewExpanded
     ? createPortal(
-      <div className="fixed inset-0 z-[100] bg-background">
-        <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
-          {/* Width and locale selectors in overlay so changes are visible live when maximized */}
-          <Select value={formWidth} onValueChange={handleFormWidthChange}>
-            <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-              <SelectValue placeholder="Width" />
-            </SelectTrigger>
-            <SelectContent align="end" className="z-[200]">
-              {widthOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-            <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="end" className="z-[200]">
-              {availableLocales.map((l) => (
-                <SelectItem key={l} value={l}>{l}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg"
-            onClick={() => setPreviewExpanded(false)}
-            aria-label="Collapse preview"
-          >
-            <Minimize2 className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex h-full w-full flex-col overflow-auto p-6">
-          <div className="mx-auto w-full max-w-6xl">
-            <ErrorBoundary>
-              <PreviewRendererClient applyFormWidth={true} />
-            </ErrorBoundary>
+        <div className="fixed inset-0 z-[100] bg-background">
+          <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
+            {/* Width and locale selectors in overlay so changes are visible live when maximized */}
+            <Select value={formWidth} onValueChange={handleFormWidthChange}>
+              <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+                <SelectValue placeholder="Width" />
+              </SelectTrigger>
+              <SelectContent align="end" className="z-[200]">
+                {widthOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+              <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end" className="z-[200]">
+                {availableLocales.map((l) => (
+                  <SelectItem key={l} value={l}>{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="rounded-full shadow-lg"
+              onClick={() => setPreviewExpanded(false)}
+              aria-label="Collapse preview"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
           </div>
           <div className="flex h-full w-full flex-col overflow-auto p-6">
+            <div className="mx-auto w-full max-w-6xl">
+              <ErrorBoundary>
+                <PreviewRendererClient applyFormWidth={true} />
+              </ErrorBoundary>
+            </div>
             <div className="mx-auto w-full max-w-6xl">
               <ErrorBoundary>
                 <PreviewRendererClient instanceId="expanded" />
@@ -452,6 +451,7 @@ export function BuilderShell() {
         document.body
       )
     : null;
+
   return (
     <ErrorBoundary>
       <div className="p-2">

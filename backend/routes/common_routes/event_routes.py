@@ -238,10 +238,6 @@ async def get_event_registration_summary_route(event_id: str, request: Request):
                 
                 display_name = await create_display_name(attendee_uid, person_id, user_name, person_name)
                 
-                # Get payment status from the attendee data
-                payment_status = attendee.get('payment_status', None)
-                print(f"[REG_SUMMARY] Attendee: {display_name}, Payment Status: {payment_status}")
-                
                 user_family_registrations.append({
                     "user_uid": attendee_uid,
                     "user_name": user_name,
@@ -249,8 +245,7 @@ async def get_event_registration_summary_route(event_id: str, request: Request):
                     "person_name": person_name,
                     "display_name": display_name,
                     "registered_on": attendee.get('addedOn', datetime.now()),
-                    "kind": attendee.get('kind', 'rsvp'),
-                    "payment_status": payment_status
+                    "kind": attendee.get('kind', 'rsvp')
                 })
         
         return {
