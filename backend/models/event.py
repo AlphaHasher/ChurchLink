@@ -4,15 +4,14 @@
 # Free/Paid
 # Search
 
-
+from typing import Literal, Optional, List, Dict
 from http.client import HTTPException
 from typing import Literal, Optional, List
 from datetime import datetime, time, timezone
 from mongo.database import DB
 from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
-
-
+from helpers.MongoHelper import serialize_objectid_deep
 
 class Event(BaseModel):
     id: str
@@ -33,6 +32,9 @@ class Event(BaseModel):
     image_url: Optional[str] = None  # Add optional image URL
     roles: List[str]
     published: bool
+    seats_taken: int = 0
+    attendee_keys: List[str] = []
+    attendees: List[Dict] = []
 
 
 class EventCreate(BaseModel):
@@ -53,6 +55,9 @@ class EventCreate(BaseModel):
     image_url: Optional[str] = None
     roles: List[str]
     published: bool
+    seats_taken: Optional[int] = 0
+    attendee_keys: Optional[List[str]] = []
+    attendees: Optional[List[Dict]] = []
 
 
 class EventOut(Event):
@@ -243,8 +248,8 @@ async def sort_events(
         query["min_age"] = {"$lte": age}
         query["max_age"] = {"$gte": age}
 
-    if gender is not None:
-        query["gender"] = gender
+    if gender and gender in ("male", "female"):
+        query["gender"] = {"$in": ["all", gender]}
 
     if is_free is not None and is_free:
         # Only free events
@@ -278,11 +283,12 @@ async def sort_events(
     # Convert MongoDB documents to EventOut objects
     events_out = []
     for event in events:
-        event["id"] = str(
-            event.pop("_id")
-        )  # Add 'id' field using the value from '_id', then remove '_id'
+        # Convert _id to id string first
+        event["id"] = str(event.pop("_id"))
+        # Then serialize any remaining ObjectIds in nested structures
+        event_clean = serialize_objectid_deep(event)
         events_out.append(
-            EventOut(**event)
+            EventOut(**event_clean)
         )  # Create EventOut by unpacking the modified dict
     return events_out
 
@@ -317,3 +323,93 @@ async def get_all_ministries():
             status_code=500,
             detail={"error": "Failed to fetch ministries", "reason": str(e)}
         )
+
+def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp") -> str:
+    # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
+    return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}"
+
+def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp") -> Dict:
+    return {
+        "key": _attendee_key(uid, person_id, kind),
+        "kind": kind,  # "rsvp" | "registration"
+        "user_uid": uid,
+        "person_id": person_id,
+        "display_name": display_name,
+        "addedOn": datetime.now(),
+    }
+
+async def rsvp_add_person(
+    event_id: str,
+    uid: str,
+    person_id: Optional[ObjectId] = None,
+    display_name: Optional[str] = None,
+    kind: str = "rsvp",
+) -> bool:
+    """
+    Add RSVP atomically. Only manages the event collection.
+    """
+    ev_oid = ObjectId(event_id)
+    key = _attendee_key(uid, person_id, kind)
+    attendee = _attendee_doc(uid, person_id, display_name, kind)
+
+    result = await DB.db["events"].find_one_and_update(
+        {
+            "_id": ev_oid,
+            "attendee_keys": {"$ne": key},
+            "$expr": {"$lte": [{"$add": ["$seats_taken", 1]}, "$spots"]},
+        },
+        {
+            "$inc": {"seats_taken": 1},
+            "$addToSet": {"attendee_keys": key},
+            "$push": {"attendees": attendee},
+        },
+        return_document=False,
+    )
+    return result is not None
+
+async def rsvp_remove_person(
+    event_id: str,
+    uid: str,
+    person_id: Optional[ObjectId] = None,
+    kind: str = "rsvp",
+) -> bool:
+    """
+    Remove RSVP atomically. Only manages the event collection.
+    """
+    ev_oid = ObjectId(event_id)
+    key = _attendee_key(uid, person_id, kind)
+
+    result = await DB.db["events"].find_one_and_update(
+        {"_id": ev_oid, "attendee_keys": key},
+        {
+            "$inc": {"seats_taken": -1},
+            "$pull": {
+                "attendees": {"key": key},
+                "attendee_keys": key
+            },
+        },
+        return_document=False,
+    )
+    return result is not None
+
+async def rsvp_add_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:
+    added: List[Optional[ObjectId]] = []
+    for pid in person_ids:
+        ok = await rsvp_add_person(event_id, uid, pid, None, kind)
+        if not ok:
+            break
+        added.append(pid)
+    return added
+
+async def rsvp_remove_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:
+    removed: List[Optional[ObjectId]] = []
+    for pid in person_ids:
+        if await rsvp_remove_person(event_id, uid, pid, kind):
+            removed.append(pid)
+    return removed
+
+async def rsvp_list(event_id: str) -> Dict:
+    ev = await DB.db["events"].find_one(
+        {"_id": ObjectId(event_id)}, {"attendees": 1, "seats_taken": 1, "spots": 1}
+    )
+    return ev or {"attendees": [], "seats_taken": 0, "spots": 0}

@@ -5,7 +5,7 @@ type Props = React.HTMLAttributes<HTMLDivElement> & {
   passage: BiblePassage;
 };
 
-const base = "inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-sm font-medium cursor-grab hover:bg-blue-200 transition-colors whitespace-nowrap max-w-full min-w-0";
+const base = "inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-1 text-sm font-medium text-primary transition-colors hover:bg-primary/20 cursor-grab whitespace-nowrap max-w-full min-w-0";
 
 const PassageBadge = React.forwardRef<HTMLDivElement, Props>(({ passage, className, ...rest }, ref) => {
   return (

@@ -28,6 +28,11 @@ class DB:
             "indexes": ["name"]
         },
         {
+            "name": "sermons",
+            "indexes": ["title", "video_id"],
+            "compound_indexes": [["published", "date_posted"]],
+        },
+        {
             "name": "pages",
             "indexes": ["title"]
         },
@@ -42,6 +47,18 @@ class DB:
         {
             "name": "bible_notes",
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
+        },
+        {
+            "name": "donations_subscriptions",
+            "indexes": ["subscription_id"]
+        },
+        {
+            "name": "transactions",
+            "indexes": ["transaction_id"]
+        },
+        {
+            "name": "settings",
+            "indexes": ["key"]
         }
         ,
         {
@@ -49,9 +66,17 @@ class DB:
             "compound_indexes": [["user_id", "created_at"]],
         },
         {
+            "name": "bible_plan_tracker",
+            "compound_indexes": [["uid", "plan_id"], ["uid", "subscribed_at"]],
+        },
+        {
             "name": "bible_plan_templates",
             "indexes": ["name"]
-        }
+        },
+        {
+            "name": "app_config",
+            "indexes": ["config_type"]
+        },
     ]
 
     ###########
@@ -118,6 +143,15 @@ class DB:
                             name="_".join(compound_index) + "_compound_index"
                         )
                     ])
+
+            if collection_name == "sermons":
+                await DB.db[collection_name].create_index([("ministry", pymongo.ASCENDING)])
+                await DB.db[collection_name].create_index([("speaker", pymongo.ASCENDING)])
+                await DB.db[collection_name].create_index([("date_posted", pymongo.DESCENDING)])
+                await DB.db[collection_name].create_index(
+                    [("title", "text"), ("description", "text")],
+                    name="sermons_text_index"
+                )
 
             # Import migration data if collection is empty
             await DB.import_migration_data(collection_name)
@@ -272,3 +306,60 @@ class DB:
         except Exception as e:
             print(f"Error deleting documents from {collection_name}: {e}")
             return 0
+            
+    @staticmethod
+    async def get_setting(key: str, default_value=None):
+        """Get a setting from the database by key."""
+        if DB.db is None:
+            print("Database not initialized.")
+            return default_value
+        try:
+            setting = await DB.db["settings"].find_one({"key": key})
+            if setting:
+                return setting["value"]
+            return default_value
+        except Exception as e:
+            print(f"Error getting setting {key}: {e}")
+            return default_value
+        
+    @staticmethod
+    async def set_setting(key: str, value):
+        """Set or update a setting in the database."""
+        if DB.db is None:
+            print("Database not initialized.")
+            return False
+        try:
+            result = await DB.db["settings"].update_one(
+                {"key": key},
+                {"$set": {"key": key, "value": value, "updated_at": datetime.now().isoformat()}},
+                upsert=True
+            )
+            return result.modified_count > 0 or result.upserted_id is not None
+        except Exception as e:
+            print(f"Error setting {key}: {e}")
+            return False
+        
+    @staticmethod
+    async def get_paypal_settings():
+        """Get all PayPal settings as a dictionary."""
+        settings = {}
+        # Define default values
+        defaults = {
+            "PAYPAL_PLAN_NAME": "Church Donation Subscription",
+            "PAYPAL_PLAN_DESCRIPTION": "Recurring donation to Church",
+            "CHURCH_NAME": "Church",
+            "ALLOWED_FUNDS": ["General", "Building", "Missions", "Youth", "Other"]
+        }
+        
+        # Try to get settings from database, fall back to defaults or env vars
+        for key, default in defaults.items():
+            # Try to get from database first
+            value = await DB.get_setting(key, None)
+            
+            # If not in database, use default (keep environment variables separate)
+            if value is None:
+                value = default
+                
+            settings[key] = value
+            
+        return settings

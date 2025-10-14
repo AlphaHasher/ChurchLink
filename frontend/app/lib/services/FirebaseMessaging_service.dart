@@ -2,12 +2,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:app/pages/dashboard.dart';
-import 'package:provider/provider.dart';
-import 'package:app/providers/tab_provider.dart';
+import 'dart:convert';
+import 'package:app/services/deep_linking_service.dart';
+import '../main.dart'; // Import to access the main navigatorKey
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   debugPrint("Background notification received: ${message.notification?.title}");
@@ -16,17 +15,53 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
 Future<void> setupLocalNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings =
-      InitializationSettings(android: initializationSettingsAndroid);
+  final DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsIOS,
+  );
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) async {
       final payload = response.payload;
       if (payload != null && payload.isNotEmpty) {
-        if (Uri.tryParse(payload)?.isAbsolute ?? false) {
-          await launchUrl(Uri.parse(payload));
-        } else {
-          navigatorKey.currentState?.pushNamed(payload);
+        debugPrint('Local notification tapped with payload: $payload');
+        
+        try {
+          // Try to parse payload as JSON first (new format with complete data)
+          final Map<String, dynamic> data = jsonDecode(payload);
+          debugPrint('Parsed JSON data from payload: $data');
+          await DeepLinkingService.handleNotificationData(data);
+        } catch (e) {
+          debugPrint('Failed to parse JSON payload, trying legacy format: $e');
+          // Fallback to legacy single-value payload handling
+          try {
+            final Map<String, dynamic> data = {};
+            if (Uri.tryParse(payload)?.isAbsolute ?? false) {
+              data['link'] = payload;
+            } else if (payload.startsWith('/event/')) {
+              // Extract eventId from route format
+              final eventId = payload.split('/').last;
+              data['eventId'] = eventId;
+              data['actionType'] = 'event';
+            } else {
+              data['route'] = payload;
+            }
+            debugPrint('Using legacy fallback data: $data');
+            await DeepLinkingService.handleNotificationData(data);
+          } catch (fallbackError) {
+            debugPrint('Legacy fallback failed: $fallbackError');
+            // Final fallback to original simple handling
+            if (Uri.tryParse(payload)?.isAbsolute ?? false) {
+              await launchUrl(Uri.parse(payload));
+            } else {
+              navigatorKey.currentState?.pushNamed(payload);
+            }
+          }
         }
       }
     },
@@ -39,6 +74,7 @@ void setupFirebaseMessaging() async {
     alert: true,
     badge: true,
     sound: true,
+    provisional: false,
   );
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     debugPrint("User granted permission");
@@ -52,24 +88,10 @@ void setupFirebaseMessaging() async {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint("Notification clicked!");
       final data = message.data;
-      if (data['tab'] != null) {
-        final tabValue = data['tab'];
-        if (tabValue is String) {
-          TabProvider.instance?.setTabByName(tabValue);
-        } else if (tabValue is int) {
-          TabProvider.instance?.setTab(tabValue);
-        } else {
-          // Try to parse string as int if possible
-          int? idx = int.tryParse(tabValue.toString());
-          if (idx != null) TabProvider.instance?.setTab(idx);
-        }
-      } else if (data['link'] != null) {
-        launchUrl(Uri.parse(data['link']));
-      } else if (data['route'] != null) {
-        navigatorKey.currentState?.pushNamed(data['route']);
-      } else {
-        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => DashboardPage()));
-      }
+      debugPrint("Notification data: $data");
+      
+      // Use enhanced deep linking service for notification handling
+      DeepLinkingService.handleNotificationData(data);
     });
   } else {
     debugPrint("User denied permission");
@@ -85,14 +107,31 @@ void showLocalNotification(RemoteMessage message) async {
     priority: Priority.high,
     ticker: 'ticker',
   );
-  const NotificationDetails platformChannelSpecifics =
-      NotificationDetails(android: androidPlatformChannelSpecifics);
+  const DarwinNotificationDetails iosPlatformChannelSpecifics = DarwinNotificationDetails();
+  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
+    iOS: iosPlatformChannelSpecifics,
+  );
+  
+  // Enhanced payload construction for local notifications
   String? payload;
-  if (message.data['link'] != null) {
-    payload = message.data['link'];
-  } else if (message.data['route'] != null) {
-    payload = message.data['route'];
+  if (message.data.isNotEmpty) {
+    // Convert the full data to JSON string to preserve all notification data
+    try {
+      payload = jsonEncode(message.data);
+    } catch (e) {
+      // Fallback to legacy single-value payload
+      if (message.data['link'] != null) {
+        payload = message.data['link'];
+      } else if (message.data['route'] != null) {
+        payload = message.data['route'];
+      } else if (message.data['eventId'] != null) {
+        // Store eventId as a special route format
+        payload = '/event/${message.data['eventId']}';
+      }
+    }
   }
+  
   await flutterLocalNotificationsPlugin.show(
     0,
     message.notification?.title,

@@ -22,7 +22,7 @@ import { MyPermsRequest } from "@/shared/types/MyPermsRequest";
 interface AssignRolesDialogProps {
     userData: BaseUserMask;
     permData: AccountPermissions[];
-    initialRoles: string[]; // List of initial selected roles
+    initialRoles: string[];
     onSave: () => Promise<void>;
 }
 
@@ -104,7 +104,7 @@ export function AssignRolesDialog({
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
                 variant="outline"
-                className="!bg-white text-black border shadow-sm hover:bg-blue-600"
+                size="icon"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {
@@ -137,13 +137,7 @@ export function AssignRolesDialog({
                 }}
                 disabled={checkingPerms}
             >
-                {checkingPerms ? (
-                    <>
-                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                    </>
-                ) : (
-                    <ShieldPlus />
-                )}
+                {checkingPerms ? <Loader2 className="animate-spin h-4 w-4" /> : <ShieldPlus className="h-4 w-4" />}
             </Button>
 
             <Dialog open={isOpen} onOpenChange={handleDialogCloseChange}>
@@ -164,12 +158,12 @@ export function AssignRolesDialog({
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     {roleList.length === 0 ? (
-                                        <Button variant="outline" className="!bg-gray-200 text-gray-500 cursor-not-allowed" disabled>
+                                        <Button variant="secondary" disabled>
                                             No Selectable Roles
                                         </Button>
                                     ) : (
-                                        <Button variant="outline" className="!bg-white flex items-center gap-2">
-                                            Select Roles <ChevronDown />
+                                        <Button variant="outline" className="flex items-center gap-2">
+                                            Select Roles <ChevronDown className="h-4 w-4" />
                                         </Button>
                                     )}
                                 </DropdownMenuTrigger>
@@ -188,14 +182,14 @@ export function AssignRolesDialog({
                         </div>
 
                         {/* Permissions Table (Bounded & Scrollable) */}
-                        <div className="border rounded-lg shadow-sm p-4 bg-gray-50 max-h-[40vh] overflow-y-auto">
+                        <div className="border border-border rounded-lg shadow-sm p-4 bg-muted/30 max-h-[40vh] overflow-y-auto">
                             <PermBeforeAfterTable data={createPermComps(initialRoles, selectedRoles, permData)} />
                         </div>
                     </div>
 
                     {/* Footer Buttons */}
                     <DialogFooter className="flex justify-end gap-2 mt-4">
-                        <Button variant="outline" className="text-white" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
+                        <Button variant="outline" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
                         <Button variant="default" onClick={handleSaveChanges} disabled={saving}>
                             {saving ? (
                                 <>

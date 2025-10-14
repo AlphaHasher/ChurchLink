@@ -1,6 +1,10 @@
 @import "tailwindcss";
-
 @plugin "tailwindcss-animate";
+
+
+* {
+  font-family: 'Inter', sans-serif;
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -18,6 +22,11 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --header-height: 50px;
+    --animation-easing: cubic-bezier(0.32, 0.72, 0, 1);
+    --animation-speed: 1.4;
+    --density: 0.75;
+    --icon-stroke: 1;
   }
 
   .dark {
@@ -32,7 +41,6 @@
   }
 }
 
-
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -46,7 +54,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  
+
   --background: rgb(255, 255, 255);
   --foreground: rgb(31, 41, 55);
   --card: rgb(255, 255, 255);
@@ -80,6 +88,10 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+
+  --gradient-primary: linear-gradient(135deg, oklch(0.45 0.15 245) 0%, oklch(0.55 0.14 215) 100%);
+  --gradient-secondary: linear-gradient(135deg, oklch(0.98 0.008 45) 0%, oklch(0.94 0.01 45) 100%);
+  --gradient-accent: linear-gradient(135deg, oklch(0.75 0.12 65) 0%, oklch(0.70 0.13 45) 100%);
 }
 
 html,
@@ -87,6 +99,12 @@ body,
 #root {
   width: 100%;
   height: 100%;
+}
+
+/* Fix scrollbar jerking by always reserving space for scrollbar */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 a {
@@ -127,46 +145,50 @@ h1 {
 }
 
 .dark {
-  --background: rgb(31, 41, 55);
-  --foreground: rgb(255, 255, 255);
-  --card: rgb(31, 41, 55);
-  --card-foreground: rgb(255, 255, 255);
-  --popover: rgb(31, 41, 55);
-  --popover-foreground: rgb(255, 255, 255);
-  --primary: rgb(59, 130, 246);
-  --primary-foreground: rgb(255, 255, 255);
-  --secondary: rgb(55, 65, 81);
-  --secondary-foreground: rgb(255, 255, 255);
-  --muted: rgb(55, 65, 81);
-  --muted-foreground: rgb(156, 163, 175);
-  --accent: rgb(55, 65, 81);
-  --accent-foreground: rgb(255, 255, 255);
-  --destructive: rgb(239, 68, 68);
-  --destructive-foreground: rgb(255, 255, 255);
-  --border: rgb(55, 65, 81);
-  --input: rgb(55, 65, 81);
-  --ring: rgb(59, 130, 246);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.279 0.041 260.031);
-  --input: oklch(0.279 0.041 260.031);
-  --ring: oklch(0.446 0.043 257.281);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(0.279 0.041 260.031);
-  --sidebar-ring: oklch(0.446 0.043 257.281);
+  --background: #0D1117;
+  --foreground: #FFFFFF;
+  --card: #0C0D10;
+  --card-foreground: #FFFFFF;
+  --popover: #0C0D10;
+  --popover-foreground: #FFFFFF;
+  --primary: #6187C9;
+  --primary-foreground: #FFFFFF;
+  --secondary: #14171C;
+  --secondary-foreground: #FFFFFF;
+  --muted: #23272E;
+  --muted-foreground: #FFFFFF;
+  --accent: #00A2EE;
+  --accent-foreground: #0D1117;
+  --destructive: #B00020;
+  --destructive-foreground: #FFFFFF;
+  --border: #1A2D4D;
+  --input: #14171C;
+  --ring: #31425F;
+  --chart-1: #6187C9;
+  --chart-2: #1F242C;
+  --chart-3: #00A2EE;
+  --chart-4: #608F4D;
+  --chart-5: #971A1A;
+  --sidebar: #14171C;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #6187C9;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1F242C;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #1A2D4D;
+  --sidebar-ring: #31425F;
+  --tag-color: #007AEB;
+  --tag-background: #11161D;
+  --tag-background-hover: #3FA3FF;
+  --graph-node-tag: #608F4D;
+  --graph-node-unresolved: #971A1A;
 }
+
+.dark ::selection { background: #31425F; color: #FFFFFF; }
+.dark a { color: #00A2EE; text-decoration: none; }
+.dark a:hover { color: #3DC1FF; }
+.dark a[href^="http"] { color: #1989F1; }
+.dark a[href^="http"]:hover { color: #44A5FF; }
 
 @theme inline {
   --color-background: var(--background);
@@ -215,4 +237,334 @@ h1 {
   body {
     @apply bg-background text-foreground;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 1.6em; }
+  h2 { font-size: 1.5em; font-weight: 400; font-style: normal; text-transform: none; }
+  h3 { font-size: 1.3em; }
+  h4 { font-size: 1.25em; font-variant: normal; }
+  h5 { font-size: 1.12em; font-variant: normal; }
+  h6 { font-size: 1.12em; font-variant: normal; }
+
+  /* Church-themed gradient button helpers */
+  .btn-gradient-primary {
+    background: var(--gradient-primary);
+    color: var(--primary-foreground);
+  }
+  .btn-gradient-primary:hover {
+    opacity: 0.9;
+  }
+  .btn-gradient-ring {
+    --tw-ring-color: var(--color-ring);
+  }
+
+  /* Church-themed gradient utility classes */
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .bg-gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+
+  .bg-gradient-accent {
+    background: var(--gradient-accent);
+  }
+
+  /* Warm gold theme enhancements for church app */
+  .church-glow {
+    box-shadow: 0 0 20px oklch(0.75 0.12 65 / 0.2);
+  }
+
+  .church-border-glow {
+    border: 1px solid oklch(0.75 0.12 65 / 0.3);
+    box-shadow: 0 0 10px oklch(0.75 0.12 65 / 0.1);
+  }
+}
+
+/* Removed forced light theme for iframe content - now respects theme settings */
+
+/* Custom Church-themed Scrollbar Styles */
+@layer base {
+  /* Webkit-based browsers (Chrome, Safari, Edge) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-muted);
+    border-radius: var(--radius-sm);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted-foreground);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: var(--color-muted);
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) var(--color-muted);
+  }
+
+  /* Enhanced styling for church data grids and tables */
+  .ag-theme-quartz ::-webkit-scrollbar,
+  .ag-theme-quartz-dark ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .ag-theme-quartz ::-webkit-scrollbar-track,
+  .ag-theme-quartz-dark ::-webkit-scrollbar-track {
+    background: var(--ag-background-color);
+    border-radius: var(--radius-sm);
+  }
+
+  .ag-theme-quartz ::-webkit-scrollbar-thumb,
+  .ag-theme-quartz-dark ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border: 2px solid var(--ag-background-color);
+    border-radius: var(--radius-md);
+  }
+
+  .ag-theme-quartz ::-webkit-scrollbar-thumb:hover,
+  .ag-theme-quartz-dark ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-accent);
+  }
+
+  /* Dark mode specific scrollbar adjustments for church theme */
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(0.4 0.08 215);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary);
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: oklch(0.18 0.04 215);
+  }
+}
+
+/* Church-themed animations */
+@keyframes slideOutLeft {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    display: block;
+  }
+  40% {
+    opacity: 0.7;
+    transform: translateX(-30%);
+  }
+  70% {
+    opacity: 0.3;
+    transform: translateX(-120%); /* Overshoot */
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-100%); /* Bounce back */
+    display: none;
+  }
+}
+
+/* Center AG Grid permission cells and allow badge overflow */
+.perm-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+.perm-cell .ag-cell-wrapper,
+.perm-cell .ag-cell-value {
+  overflow: visible !important;
+}
+
+/* AG Grid Church Theme Support */
+.ag-theme-quartz {
+  --ag-background-color: var(--color-background);
+  --ag-foreground-color: var(--color-foreground);
+  /* Warm church header styling */
+  --ag-header-background-color: oklch(from var(--color-muted) l calc(l - 0.02) c h); /* subtle warm tinted bg */
+  --ag-header-foreground-color: var(--color-foreground);
+  --ag-header-column-resize-handle-color: var(--color-border);
+  --ag-odd-row-background-color: var(--color-muted);
+  --ag-row-border-color: var(--color-border);
+  --ag-selected-row-background-color: oklch(from var(--color-accent) l c h / 0.15); /* Semi-transparent warm gold */
+  --ag-range-selection-border-color: var(--color-accent);
+  --ag-input-focus-border-color: var(--color-ring);
+  --ag-border-color: var(--color-border);
+  --ag-secondary-border-color: var(--color-border);
+  --ag-accent-color: var(--color-primary);
+  --ag-icon-color: var(--color-foreground);
+  --ag-header-cell-hover-background-color: var(--color-secondary);
+  --ag-row-hover-color: var(--color-secondary);
+  --ag-column-hover-color: var(--color-secondary);
+  --ag-header-column-hover-color: var(--color-secondary);
+  --ag-input-disabled-background-color: oklch(from var(--color-background) l calc(l + 0.02) c h); /* Slightly lighter warm background */
+  --ag-font-family: inherit; /* Use church app's font */
+  --ag-font-size: inherit; /* Use church app's font size */
+  --ag-grid-size: var(--radius-sm); /* Controls spacing/padding, link to radius */
+  --ag-border-radius: var(--radius-md);
+}
+
+.ag-theme-quartz-dark {
+  /* Church dark theme - reuse most light theme mappings with dark variables */
+  --ag-selected-row-background-color: oklch(from var(--color-accent) l c h / 0.2); /* Slightly more opaque for dark */
+  --ag-input-disabled-background-color: oklch(from var(--color-background) l calc(l - 0.02) c h); /* Slightly darker warm background */
+}
+
+/* Warm church header polish for settings grids */
+.church-settings-grid .ag-header {
+  background: var(--gradient-secondary);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 1px 0 var(--color-border), 0 6px 16px oklch(from var(--color-background) l calc(l - 0.08) c h / 0.15);
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+}
+
+.church-settings-grid .ag-header .ag-header-cell,
+.church-settings-grid .ag-header .ag-header-group-cell {
+  background: transparent;
+}
+
+.church-settings-grid .ag-header-cell-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.church-settings-grid .ag-header-cell-text {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--color-foreground);
+}
+
+.church-settings-grid .ag-header-cell:hover {
+  background-color: oklch(from var(--color-secondary) l c h / 0.6) !important;
+}
+
+.church-settings-grid .ag-header-viewport .ag-header-row .ag-header-cell:first-child {
+  border-top-left-radius: var(--radius-md);
+}
+.church-settings-grid .ag-header-viewport .ag-header-row .ag-header-cell:last-child {
+  border-top-right-radius: var(--radius-md);
+}
+
+/* AG Grid Dark Mode Support with Church Theme */
+.dark .ag-theme-quartz {
+  --ag-background-color: oklch(0.18 0.02 215);
+  --ag-foreground-color: oklch(0.95 0.005 45);
+  --ag-secondary-foreground-color: oklch(0.65 0.02 215);
+  --ag-border-color: oklch(0.35 0.02 215);
+  --ag-header-background-color: oklch(0.22 0.02 215);
+  --ag-header-foreground-color: oklch(0.95 0.005 45);
+  --ag-odd-row-background-color: oklch(0.18 0.02 215);
+  --ag-row-hover-color: oklch(0.22 0.02 215);
+  --ag-selected-row-background-color: oklch(0.28 0.03 215);
+  --ag-range-selection-background-color: oklch(from oklch(0.65 0.18 285) l c h / 0.2);
+  --ag-input-background-color: oklch(0.22 0.02 215);
+  --ag-input-foreground-color: oklch(0.95 0.005 45);
+  --ag-input-border-color: oklch(0.35 0.02 215);
+  --ag-input-focus-border-color: oklch(0.65 0.18 285);
+  --ag-checkbox-background-color: oklch(0.22 0.02 215);
+  --ag-checkbox-border-color: oklch(0.35 0.02 215);
+  --ag-checkbox-checked-color: oklch(0.65 0.18 285);
+  --ag-menu-background-color: oklch(0.22 0.02 215);
+  --ag-menu-foreground-color: oklch(0.95 0.005 45);
+  --ag-menu-border-color: oklch(0.35 0.02 215);
+  --ag-tooltip-background-color: oklch(0.22 0.02 215);
+  --ag-tooltip-foreground-color: oklch(0.95 0.005 45);
+  --ag-tooltip-border-color: oklch(0.35 0.02 215);
+}
+
+/* Center AG Grid permission cells and allow badge overflow */
+.perm-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+.perm-cell .ag-cell-wrapper,
+.perm-cell .ag-cell-value {
+  overflow: visible !important;
+}
+
+/* AG Grid Dark Mode Support */
+.dark .ag-theme-quartz {
+  --ag-background-color: rgb(31, 41, 55);
+  --ag-foreground-color: rgb(255, 255, 255);
+  --ag-secondary-foreground-color: rgb(156, 163, 175);
+  --ag-border-color: rgb(55, 65, 81);
+  --ag-header-background-color: rgb(31, 41, 55);
+  --ag-header-foreground-color: rgb(255, 255, 255);
+  --ag-odd-row-background-color: rgb(31, 41, 55);
+  --ag-row-hover-color: rgb(55, 65, 81);
+  --ag-selected-row-background-color: rgb(55, 65, 81);
+  --ag-range-selection-background-color: rgba(59, 130, 246, 0.1);
+  --ag-input-background-color: rgb(55, 65, 81);
+  --ag-input-foreground-color: rgb(255, 255, 255);
+  --ag-input-border-color: rgb(75, 85, 99);
+  --ag-input-focus-border-color: rgb(59, 130, 246);
+  --ag-checkbox-background-color: rgb(55, 65, 81);
+  --ag-checkbox-border-color: rgb(75, 85, 99);
+  --ag-checkbox-checked-color: rgb(59, 130, 246);
+  --ag-menu-background-color: rgb(31, 41, 55);
+  --ag-menu-foreground-color: rgb(255, 255, 255);
+  --ag-menu-border-color: rgb(55, 65, 81);
+  --ag-tooltip-background-color: rgb(31, 41, 55);
+  --ag-tooltip-foreground-color: rgb(255, 255, 255);
+  --ag-tooltip-border-color: rgb(55, 65, 81);
+}
+
+
+/* Center AG Grid permission cells and allow badge overflow */
+.perm-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+.perm-cell .ag-cell-wrapper,
+.perm-cell .ag-cell-value {
+  overflow: visible !important;
+}
+
+/* AG Grid Dark Mode Support */
+.dark .ag-theme-quartz {
+  --ag-background-color: rgb(31, 41, 55);
+  --ag-foreground-color: rgb(255, 255, 255);
+  --ag-secondary-foreground-color: rgb(156, 163, 175);
+  --ag-border-color: rgb(55, 65, 81);
+  --ag-header-background-color: rgb(31, 41, 55);
+  --ag-header-foreground-color: rgb(255, 255, 255);
+  --ag-odd-row-background-color: rgb(31, 41, 55);
+  --ag-row-hover-color: rgb(55, 65, 81);
+  --ag-selected-row-background-color: rgb(55, 65, 81);
+  --ag-range-selection-background-color: rgba(59, 130, 246, 0.1);
+  --ag-input-background-color: rgb(55, 65, 81);
+  --ag-input-foreground-color: rgb(255, 255, 255);
+  --ag-input-border-color: rgb(75, 85, 99);
+  --ag-input-focus-border-color: rgb(59, 130, 246);
+  --ag-checkbox-background-color: rgb(55, 65, 81);
+  --ag-checkbox-border-color: rgb(75, 85, 99);
+  --ag-checkbox-checked-color: rgb(59, 130, 246);
+  --ag-menu-background-color: rgb(31, 41, 55);
+  --ag-menu-foreground-color: rgb(255, 255, 255);
+  --ag-menu-border-color: rgb(55, 65, 81);
+  --ag-tooltip-background-color: rgb(31, 41, 55);
+  --ag-tooltip-foreground-color: rgb(255, 255, 255);
+  --ag-tooltip-border-color: rgb(55, 65, 81);
 }

@@ -1,4 +1,8 @@
+import 'package:app/components/livestreams/no_livestreams.dart';
+import 'package:app/components/livestreams/stream_viewer.dart';
 import 'package:flutter/material.dart';
+import '../helpers/youtube_helper.dart';
+import '../helpers/logger.dart';
 
 class JoinLive extends StatefulWidget {
   const JoinLive({super.key});
@@ -8,40 +12,53 @@ class JoinLive extends StatefulWidget {
 }
 
 class _JoinLiveState extends State<JoinLive> {
+  List<String> _streamIds = [];
+  String _channelLink = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadYoutubeData();
+  }
+
+  Future<void> _loadYoutubeData() async {
+    try {
+      final streamIdsFuture = YoutubeHelper.fetchStreamIDs();
+      final channelLinkFuture = YoutubeHelper.fetchChannelLink();
+
+      final ids = await streamIdsFuture;
+      final link = await channelLinkFuture;
+
+      if (!mounted) return;
+      setState(() {
+        _streamIds = ids;
+        _channelLink = link;
+      });
+    } catch (e, st) {
+      logger.e(
+        'JoinLive: failed to load YouTube data',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-          return Scaffold(
-            appBar: AppBar(
-            backgroundColor: const Color.fromARGB(159, 144, 79, 230),
-             iconTheme: const IconThemeData(
-                    color: Colors.white), // back arrow color
-              title: Padding(
-                 padding: const EdgeInsets.only(left: 100),
-                 child: Text(
-                   "Join Live",
-                  style:
-                  const TextStyle(color: Colors.white), // title color
-                ),
-              ),
-              leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  Navigator.pop(context);
-                 },
-              ),
-            ),
-            backgroundColor: const Color.fromARGB(246, 244, 236, 255), //old: const Color.fromARGB(156, 102, 133, 161),
-             body: SafeArea(
-              minimum: const EdgeInsets.symmetric(horizontal: 10),
-              child: SingleChildScrollView(
-                child: Column(
-                 children: [
-                      Text( "Hello")
-                  ],
-                 ),
-               ),
-            ),
-          );
-         }
-      }
-  
+    return Scaffold(
+      key: const ValueKey('screen-joinlive'),
+      appBar: AppBar(
+        title: const Text('YouTube Live'),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        minimum: const EdgeInsets.symmetric(horizontal: 10),
+        child: Center(
+          child: (_streamIds.isEmpty)
+              ? NoLivestreams(channelLink: _channelLink)
+              : StreamViewer(streamIds: _streamIds),
+        ),
+      ),
+    );
+  }
+}

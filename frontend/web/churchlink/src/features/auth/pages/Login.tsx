@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "../hooks/auth-context";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Dove from "@/assets/Dove";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
 
@@ -19,10 +19,23 @@ function Login() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine where to go after login
+  const getRedirectTo = (): string => {
+    const state = location.state as { redirectTo?: string } | null;
+    const fromState = state?.redirectTo;
+    if (fromState) return fromState;
+    const params = new URLSearchParams(location.search);
+    const qp = params.get("redirectTo");
+    if (qp) return qp;
+    return "/";
+  };
 
   useEffect(() => {
     if (user) {
-      navigate("/pages/");
+      navigate(getRedirectTo(), { replace: true });
+      navigate(getRedirectTo(), { replace: true });
     }
   }, [user]);
 
@@ -52,7 +65,7 @@ function Login() {
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
-      // Successful login - you can add navigation here
+      navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -69,7 +82,7 @@ function Login() {
 
       const verified = await verifyAndSyncUser(setError);
       if (!verified) return;
-      // Successful login - you can add navigation here
+      navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -166,7 +179,7 @@ function Login() {
         <button
           onClick={handleGoogleLogin}
           type="button"
-          className="w-full bg-white border-2 border-gray-400 hover:bg-gray-50 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-white border-2 border-gray-400 hover:bg-gray-50 !text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path

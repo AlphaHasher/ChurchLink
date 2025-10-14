@@ -13,9 +13,9 @@ const WebBuilderSidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 h-screen bg-gray-900 shadow-md p-4 text-white">
+    <aside className="w-64 h-screen bg-sidebar shadow-md p-4 text-sidebar-foreground">
     <h2 className="text-2xl font-bold mb-6">Web Builder</h2>
-      <Link to="/admin" className="flex items-center text-indigo-400 hover:underline mb-6" aria-label="Back to Admin Dashboard">
+      <Link to="/admin" className="flex items-center text-sidebar-primary hover:underline mb-6" aria-label="Back to Admin Dashboard">
         ← Back to Admin
       </Link>
       <nav className="flex flex-col gap-4" role="navigation">
@@ -23,8 +23,8 @@ const WebBuilderSidebar: React.FC = () => {
           <Link
             key={name}
             to={to}
-            className={`text-lg font-medium hover:text-indigo-400 ${
-              pathname === to ? "text-indigo-400" : "text-gray-300"
+            className={`text-lg font-medium hover:text-sidebar-primary ${
+              pathname === to ? "text-sidebar-primary" : "text-sidebar-foreground/70"
             }`}
           >
             {name}

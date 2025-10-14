@@ -1,19 +1,25 @@
-// import { LoginPage } from '../features/auth';
 import { Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import { PublicRoute } from "../features/auth/guards/PublicRoute";
 import { PublicRoutes } from "./PublicRoutes";
 import PrivateRoute from "../features/auth/guards/PrivateRoute";
-import { PrivateRoutes } from "./PrivateRoutes";
-import DynamicPage from "../shared/components/DynamicPage";
+import { AdminRoutes } from "./AdminRoutes";
+import InitRoute from "@/features/auth/guards/InitRoute";
+import { ProfileRoutes } from "./ProfileRoutes";
+import AdminRoute from "@/features/auth/guards/AdminRoute";
+import VerificationRoute from "@/features/auth/guards/VerificationRoute";
+import PaypalThankYouPage from "../features/paypal/pages/thank-you";
 
-// Lazy load components
 const Login = lazy(() => import("../features/auth/pages/Login"));
 const Signup = lazy(() => import("../features/auth/pages/Signup"));
+const WebEditor = lazy(() => import("@/features/webeditor/pages/WebEditor"));
+const ProfileInit = lazy(() => import("../features/users/pages/InitProfilePage"));
+const VerifyEmail = lazy(() => import("../features/users/pages/VerifyEmailPage"));
 
 export const AppRouter = () => {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+  <Suspense fallback={<div className="p-6"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-6 w-full mt-2" /></div>}>
       <Routes>
         <Route
           path="/auth/login"
@@ -32,40 +38,64 @@ export const AppRouter = () => {
           }
         />
 
-
         <Route
-          path="/"
+          path="/auth/init"
           element={
-            <PublicRoute>
-              <DynamicPage />
-            </PublicRoute>
-          }
-        />
-        {/* Dynamic page route for any URL */}
-        <Route
-          path="/:slug/*" // Catch all routes. Apparently works with slashes compared to "/:slug", though functionality does not work at the moment.
-          element={
-            <PublicRoute>
-              <DynamicPage />
-            </PublicRoute>
+            <InitRoute>
+              <ProfileInit />
+            </InitRoute>
           }
         />
 
         <Route
-          path="/pages/*"
+          path="/auth/verify-email"
+          element={
+            <VerificationRoute>
+              <VerifyEmail />
+            </VerificationRoute>
+          }
+        />
+
+        <Route
+          path="/*"
           element={
             <PublicRoute>
               <PublicRoutes />
             </PublicRoute>
           }
         />
+        <Route
+          path="/thank-you"
+          element={
+            <PublicRoute>
+              <PaypalThankYouPage />
+            </PublicRoute>
+          }
+        />
 
+        <Route
+          path="/profile/*"
+          element={
+            <PrivateRoute>
+              <ProfileRoutes />
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/admin/*"
           element={
-            <PrivateRoute>
-              <PrivateRoutes />
-            </PrivateRoute>
+            <AdminRoute>
+              <AdminRoutes />
+            </AdminRoute>
+          }
+        />
+        {/* Standalone Web Editor (admin-guarded, no AdminLayout) */}
+        <Route
+          path="/web-editor/:slug"
+          element={
+            <AdminRoute>
+              <WebEditor />
+            </AdminRoute>
           }
         />
       </Routes>

@@ -1,32 +1,38 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import Sidebar from "@/features/admin/components/AdminDashboardSideBar";
-import TopBar from "@/features/admin/components/AdminDashboardTopBar";
-import WebBuilderSidebar from "@/features/admin/components/WebBuilder/WebBuilderSidebar";
-import WebBuilderTopBar from "@/features/admin/components/WebBuilder/WebBuilderTopBar";
 import { ReactNode } from "react";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/shared/components/ui/sidebar";
+import { ModeToggle } from "@/shared/components/ModeToggle";
 
 interface AdminLayoutProps {
-  customSidebar?: ReactNode;
   children?: ReactNode;
 }
 
-const AdminLayout = ({ customSidebar, children }: AdminLayoutProps) => {
-  const location = useLocation();
-  const isWebBuilderRoute = location.pathname.includes("/webbuilder");
+const AdminLayout = ({ children }: AdminLayoutProps) => {
+  
 
-  const renderedSidebar =
-    customSidebar ?? (isWebBuilderRoute ? <WebBuilderSidebar /> : <Sidebar />);
+  const renderedSidebar = <Sidebar />;
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <SidebarProvider
+      defaultOpen={true}
+      style={{ ["--sidebar-width" as any]: "18rem", ["--sidebar-width-icon" as any]: "3.25rem" }}
+    >
       {renderedSidebar}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {isWebBuilderRoute ? <WebBuilderTopBar /> : <TopBar />}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-          {children || <Outlet />}
+      <SidebarInset>
+        <div className="relative flex h-screen flex-col overflow-hidden">
+          <div className="absolute right-4 top-4 z-50">
+            <ModeToggle />
+          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+            <div className="mb-3">
+              <SidebarTrigger />
+            </div>
+            {children || <Outlet />}
+          </div>
         </div>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 };
 

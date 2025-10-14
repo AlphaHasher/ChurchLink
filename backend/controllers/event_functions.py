@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Request
-from models.event import create_event, EventCreate, get_event_by_id, update_event, delete_event
+from models.event import create_event, EventCreate, get_event_by_id, update_event, delete_event, rsvp_add_person, rsvp_remove_person
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
+from bson import ObjectId
+from typing import Optional
 
 async def process_create_event(event: EventCreate, request:Request):
     # Verify Event has Roles Attached
@@ -92,4 +94,52 @@ async def process_delete_event(event_id:str, request:Request):
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     return {"message": "Event deleted successfully", "success": True}
+
+async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None):
+    """
+    High-level action: RSVP an event *and* reflect it in the user's my_events.
+    """
+    # Convert person_id to ObjectId if provided
+    person_object_id = ObjectId(person_id) if person_id else None
+    ok = await rsvp_add_person(event_id, uid, person_object_id, display_name)
+    if not ok:
+        return False
+
+    try:
+        await UserHandler.add_to_my_events(
+            uid=uid,
+            event_id=ObjectId(event_id),
+            reason="rsvp",
+            scope="series",  # or "occurrence" depending on your model
+            person_id=person_object_id
+        )
+    except Exception as e:
+        # Event RSVP succeeded, but user record failed.
+        # Log this for reconciliation later.
+        print(f"Warning: user my_events update failed: {e}")
+
+    return True
+
+
+async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None):
+    """
+    High-level action: cancel RSVP from event + user my_events.
+    """
+    # Convert person_id to ObjectId if provided
+    person_object_id = ObjectId(person_id) if person_id else None
+    ok = await rsvp_remove_person(event_id, uid, person_object_id)
+    if not ok:
+        return False
+
+    try:
+        await UserHandler.remove_from_my_events(
+            uid=uid,
+            event_id=ObjectId(event_id),
+            reason="rsvp",
+            scope="series",
+            person_id=person_object_id,
+        )
+    except Exception as e:
+        print(f"Warning: user my_events cleanup failed: {e}")
+    return True
 

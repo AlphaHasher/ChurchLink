@@ -1,210 +1,214 @@
-
+import { useMemo, useRef } from "react";
+import { AgGridReact } from "ag-grid-react";
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table"
-import { ArrowUpDown } from "lucide-react"
+  AllCommunityModule,
+  ColDef,
+  GridApi,
+  ICellRendererParams,
+  ModuleRegistry,
+} from "ag-grid-community";
+import "ag-grid-community/styles/ag-theme-quartz.css";
+ModuleRegistry.registerModules([AllCommunityModule]);
 
-import { Button } from "@/shared/components/ui/button"
-import { Input } from "@/shared/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/DataTable"
-
-import { AccountPermissions } from "@/shared/types/AccountPermissions"
-import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo"
-import { AssignRolesDialog } from "./AssignRolesDialog"
-import { recoverRoleArray } from "@/helpers/DataFunctions"
-import { useState } from "react"
-
+import { AccountPermissions } from "@/shared/types/AccountPermissions";
+import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo";
+import { AssignRolesDialog } from "./AssignRolesDialog";
+import { recoverRoleArray } from "@/helpers/DataFunctions";
+import DetailedUserDialog from "./DetailedUserDialog";
 
 interface UsersTableProps {
   data: BaseUserMask[];
+  total: number;
   permData: AccountPermissions[];
   onSave: () => Promise<void>;
+  loading?: boolean;
+
+  page: number;
+  pageSize: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
+  onSortChange?: (field: string, dir: "asc" | "desc") => void;
+  onSearchChange?: (field: "name" | "email", term: string) => void;
 }
 
-// In the Table, this creates the Columns that display user information
-const createColumn = (
-  accessorKey: keyof BaseUserMask,
-  permData: AccountPermissions[],
-  onSave: () => Promise<void>
-): ColumnDef<BaseUserMask> => {
-  const label = UserLabels[accessorKey];
+const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
+  const { data, context } = props;
+  if (!data) return null;
 
-  return {
-    accessorKey,
-    header: ({ column }) => (
-      <div className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-start" : "justify-center"
-        } text-center`} ><Button
-          variant="ghost"
-          className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          {label}
-          <ArrowUpDown />
-        </Button></div>
-
-    ),
-    cell: ({ row }) => {
-
-      return (
-        <div
-          className={`flex items-center space-x-2 w-full ${accessorKey === "name" ? "justify-end" : "justify-center"
-            } text-center`}
-        >
-          <div>
-            {row.getValue(accessorKey)}
-          </div>
-
-          {accessorKey === "name" && (
-            <div className="ml-auto flex space-x-2">
-              <AssignRolesDialog userData={row.original} initialRoles={recoverRoleArray(row.original)} permData={permData} onSave={onSave}></AssignRolesDialog>
-            </div>
-          )}
-        </div>
-      );
-    },
+  const { permData, onSave } = context as {
+    permData: AccountPermissions[];
+    onSave: () => Promise<void>;
   };
+
+  return (
+    <div className="flex items-center gap-2">
+      <DetailedUserDialog userId={data.uid} onSaved={onSave} />
+      <AssignRolesDialog
+        userData={data}
+        initialRoles={recoverRoleArray(data)}
+        permData={permData}
+        onSave={onSave}
+      />
+    </div>
+  );
 };
 
+export function UsersTable({
+  data,
+  total,
+  permData,
+  onSave,
+  loading,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+  onSortChange,
+  onSearchChange,
+}: UsersTableProps) {
+  const gridApiRef = useRef<GridApi | null>(null);
 
+  const columnDefs: ColDef<BaseUserMask>[] = useMemo(
+    () => [
+      { field: "name", headerName: UserLabels.name, sortable: true, filter: true, flex: 2, minWidth: 150 },
+      { field: "email", headerName: UserLabels.email, sortable: true, filter: true, flex: 3, minWidth: 200 },
+      { field: "membership", headerName: UserLabels.membership, sortable: true, filter: true, flex: 2, width: 50 },
+      { field: "permissions", headerName: UserLabels.permissions, sortable: true, filter: false, flex: 2, minWidth: 150 },
+      { field: "uid", headerName: UserLabels.uid, sortable: true, filter: false, flex: 2, minWidth: 200 },
+      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 130 },
+    ],
+    []
+  );
 
-export function UsersTable({ data, permData, onSave }: UsersTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
+  const defaultColDef: ColDef = useMemo(() => ({ resizable: true }), []);
 
-  const columns: ColumnDef<BaseUserMask>[] = [];
+  const handleSortChanged = (ev: any) => {
+    if (!onSortChange) return;
+    const state = ev.api.getColumnState();
+    const sorted = state.find((c: any) => c.sort != null);
+    if (sorted?.colId) {
+      onSortChange(sorted.colId, (sorted.sort as "asc" | "desc") ?? "asc");
+    } else {
+      onSortChange("createdOn", "asc");
+    }
+  };
 
-  Object.keys(UserLabels).forEach((key) => {
-    columns.push(createColumn(key as keyof BaseUserMask, permData, onSave));
-  });
+  const handleFilterChanged = (ev: any) => {
+    if (!onSearchChange) return;
+    const model = ev.api.getFilterModel?.() || {};
+    const nameModel = model["name"];
+    const emailModel = model["email"];
 
-  const table = useReactTable({
-    data,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
-  });
+    const lastChangedColId = ev.column?.getColId?.();
+    if (lastChangedColId === "name" && nameModel) {
+      onSearchChange("name", nameModel.filter ?? "");
+      return;
+    }
+    if (lastChangedColId === "email" && emailModel) {
+      onSearchChange("email", emailModel.filter ?? "");
+      return;
+    }
+
+    if (nameModel?.filter) onSearchChange("name", nameModel.filter);
+    else if (emailModel?.filter) onSearchChange("email", emailModel.filter);
+    else onSearchChange("name", "");
+  };
 
   return (
     <div className="container mx-start">
-      <div className="flex items-center py-4">
-        {/* Search Input */}
-        <Input
-          placeholder="Search Name..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("name")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
+      <div className="ag-theme-quartz" style={{ height: 600, width: "100%" }}>
+        <AgGridReact
+          rowData={data}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          context={{ permData, onSave }}
+          suppressPaginationPanel={true}
+          animateRows={true}
+          enableCellTextSelection={true}
+          onGridReady={(params) => {
+            gridApiRef.current = params.api;
+          }}
+          onSortChanged={handleSortChanged}
+          onFilterChanged={handleFilterChanged}
+          onPaginationChanged={() => { }}
+          suppressScrollOnNewData={true}
+          overlayNoRowsTemplate={loading ? "<span></span>" : "<span>No users found</span>"}
         />
       </div>
 
-      {/* Scrollable Table Container */}
-      <div className="rounded-md border overflow-x-auto max-w-full">
-        <Table className="w-full min-w-max">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
+      <ServerPager
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        loading={loading}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
+    </div>
+  );
+}
 
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+function ServerPager({
+  total,
+  page,
+  pageSize,
+  loading,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  total: number;
+  page: number;
+  pageSize: number;
+  loading?: boolean;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil((total || 0) / (pageSize || 10)));
+  const canPrev = page > 0;
+  const canNext = page + 1 < totalPages;
+
+  const from = total === 0 ? 0 : page * pageSize + 1;
+  const to = Math.min((page + 1) * pageSize, total);
+
+  return (
+    <div className="flex items-center justify-between py-2 text-sm">
+      <div className="text-muted-foreground">
+        {loading ? "Loading…" : `Showing ${from}-${to} of ${total}`}
       </div>
+      <div className="flex items-center gap-2">
+        <button
+          className="px-2 py-1 border rounded disabled:opacity-50"
+          onClick={() => onPageChange?.(Math.max(0, page - 1))}
+          disabled={loading || !canPrev}
+        >
+          Prev
+        </button>
+        <span>
+          Page {Math.min(page + 1, totalPages)} of {totalPages}
+        </span>
+        <button
+          className="px-2 py-1 border rounded disabled:opacity-50"
+          onClick={() => onPageChange?.(Math.min(totalPages - 1, page + 1))}
+          disabled={loading || !canNext}
+        >
+          Next
+        </button>
 
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="text-sm text-gray-600">
-          {`Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-${Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
-          )} of ${table.getFilteredRowModel().rows.length}`}
-        </div>
-
-        <div className="space-x-2">
-          <Button
-            className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            className="!bg-white text-black border border-gray-300 shadow-sm hover:bg-gray-100"
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+        <select
+          className="ml-2 border rounded px-2 py-1"
+          value={pageSize}
+          onChange={(e) => onPageSizeChange?.(parseInt(e.target.value, 10))}
+          disabled={loading}
+        >
+          {[10, 25, 50].map((s) => (
+            <option key={s} value={s}>
+              {s}/page
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
-
-
 }
 
 export default UsersTable;

@@ -79,22 +79,6 @@ Look for the "debug" configuration in the output. You'll see both SHA-1 and SHA-
 5. Click "Add fingerprint"
 6. Add both SHA-1 and SHA-256 keys for both debug and release configurations
 
-#### **Generating Release Key**
-For the release key (release-key.jks), use:
-```sh
-keytool -list -v -keystore app/release-key.jks -alias RandomTestingKey
-```
-When prompted, enter the keystore password.
-
----
-In order to generate a release-key.jks file run this command in the terminal:
-```sh
-keytool -genkey -v -keystore android/app/release-key.jks -alias RandomTestingKey -keyalg RSA -keysize 2048 -validity 10000
-```
-When prompted, enter the keystore password and other details from your keystore.properties file.
-
----
-
 #### **Configure Keystore Properties**
 Create or edit `android/keystore.properties` to match your keystore settings:
 ```properties
@@ -105,6 +89,21 @@ keyPassword=your_key_password
 ```
 Make sure these values match your actual keystore configuration.
 
+#### **Generating Release Key**
+
+In order to generate a release-key.jks file run this command in the terminal:
+
+```sh
+keytool -genkey -v -keystore android/app/release-key.jks -alias RandomTestingKey -keyalg RSA -keysize 2048 -validity 10000
+```
+When prompted, enter the keystore password and other details from your keystore.properties file.
+
+In order to get the SHA keys, use this command
+```sh
+keytool -list -v -keystore app/release-key.jks -alias RandomTestingKey
+```
+Don't forget to add them to the Firebase Console (same place as the debug key - instructions above)
+
 ### **9. Troubleshooting**
 If you face issues, try running with additional logs:
 ```sh
@@ -113,9 +112,32 @@ flutter run --verbose
 
 For more details, check the Flutter documentation: [Flutter Docs](https://flutter.dev/docs).
 
-### **10. Avatar API https://api.cloudinary.com
+### 10. Avatar API https://api.cloudinary.com
 1/ create account, setup upload present in setting
 2/ duplicate .envexample rename it to .env
 3/ Fill in info API, Upload Present, cloud name
 
+### 11. Integrated Testing (Patrol + Flutter Integration Tests)
+This project includes a fully integrated UI testing setup using
+Patrol and Flutter’s built-in integration_test framework.
+Patrol allows Flutter UI tests to interact with both Flutter widgets
+and native Android/iOS elements (e.g. permission dialogs, notifications, WebViews).
 
+*** Note ***
+IOS patrol testing is currently unimplemented due to not having a proper testing
+environment to implement on available. Android emulator only.
+
+#### Install Patrol CLI
+`code dart pub global activate patrol_cli code`
+
+#### Ensure Patrol is correctly working
+`patrol doctor`
+
+#### Example / Template Test
+Included in integration_test is example_test.dart, this is a basic test that will
+always pass. Can be used as a template for other tests
+
+#### How to run a Patrol Test
+`patrol test --target integration_test --dart-define=TEST_MODE=true`
+This command assumes you are running it from frontend/app, the last flag
+of the command is necessary for it to run correctly, do not omit it.

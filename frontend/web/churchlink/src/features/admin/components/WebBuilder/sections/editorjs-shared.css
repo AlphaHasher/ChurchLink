@@ -1,0 +1,253 @@
+/* Shared Editor.js styling used by both editor and renderer to ensure parity */
+/* Church Management System - Enhanced Editor.js styling with warm, welcoming theme */
+
+.editorjs-renderer {
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  display: block;
+}
+
+/* Church-themed focus styles for better accessibility */
+.editorjs-holder:focus-within {
+  box-shadow: 0 0 0 2px oklch(0.45 0.15 245 / 0.2);
+  border-radius: 8px;
+}
+
+.editorjs-renderer .editorjs-holder {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.editorjs-holder {
+  min-height: 120px;
+  overflow: visible;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+}
+
+.editorjs-holder .codex-editor__redactor {
+  min-height: 0 !important;
+  padding-bottom: 12px;
+}
+
+.editorjs-holder .ce-block__content,
+.editorjs-holder .ce-toolbar__content {
+  max-width: none;
+}
+
+.editorjs-holder .ce-paragraph[data-placeholder]:empty::before {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+/* Church-themed header styling with warm, welcoming typography */
+.editorjs-holder .ce-header {
+  margin: 1em 0 0.5em 0;
+  color: var(--foreground);
+  transition: color 0.2s ease;
+}
+
+.editorjs-holder h1.ce-header {
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  line-height: 1.2;
+  margin: 0.5em 0;
+  color: oklch(0.15 0.02 215);
+  letter-spacing: -0.025em;
+}
+
+.editorjs-holder h2.ce-header {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3;
+  margin: 0.5em 0;
+  color: oklch(0.18 0.02 215);
+  letter-spacing: -0.025em;
+}
+
+.editorjs-holder h3.ce-header {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  line-height: 1.35;
+  margin: 0.5em 0;
+  color: oklch(0.20 0.02 215);
+}
+
+.editorjs-holder h4.ce-header {
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4;
+  margin: 0.5em 0;
+  color: oklch(0.22 0.02 215);
+}
+
+.editorjs-holder h5.ce-header {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4;
+  margin: 0.5em 0;
+  color: oklch(0.25 0.02 215);
+}
+
+.editorjs-holder h6.ce-header {
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4;
+  margin: 0.5em 0;
+  color: oklch(0.28 0.02 215);
+}
+
+/* Church-themed hover effects for headers */
+.editorjs-holder .ce-header:hover {
+  color: oklch(0.45 0.15 245);
+}
+
+/* Church-themed list styling with warm, welcoming colors */
+.editorjs-holder .cdx-list {
+  margin: 0.5em 0;
+  padding-left: 1.25em;
+  color: var(--foreground);
+}
+
+.editorjs-holder .cdx-list-unordered {
+  list-style: none;
+  padding-left: 0;
+}
+
+.editorjs-holder .cdx-list-unordered .cdx-list__item {
+  position: relative;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.editorjs-holder .cdx-list-unordered .cdx-list__item::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: oklch(0.75 0.12 65); /* Warm gold bullet points */
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.editorjs-holder .cdx-list-ordered {
+  list-style: decimal;
+  padding-left: 1.5em;
+}
+
+.editorjs-holder .cdx-list__item {
+  margin: 0.5em 0;
+  line-height: 1.5;
+}
+
+.editorjs-holder .cdx-list__item-content {
+  display: inline-block;
+  color: var(--foreground);
+}
+
+/* Underline parity */
+.editorjs-holder u,
+.editorjs-holder .cdx-underline,
+.editorjs-preview u,
+.editorjs-preview .cdx-underline {
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+
+
+/* Preview-only defaults (when rendering static HTML) - Church theme */
+.editorjs-preview h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0.6em 0;
+  color: oklch(0.15 0.02 215);
+  letter-spacing: -0.025em;
+}
+
+.editorjs-preview h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0.6em 0;
+  color: oklch(0.18 0.02 215);
+  letter-spacing: -0.025em;
+}
+
+.editorjs-preview h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.6em 0;
+  color: oklch(0.20 0.02 215);
+}
+
+.editorjs-preview h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0.6em 0;
+  color: oklch(0.22 0.02 215);
+}
+
+.editorjs-preview h5 {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0.6em 0;
+  color: oklch(0.25 0.02 215);
+}
+
+.editorjs-preview h6 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0.6em 0;
+  color: oklch(0.28 0.02 215);
+}
+
+.editorjs-preview ul, .editorjs-preview ol {
+  margin: 0.75em 0 0.75em 1.25em;
+  color: var(--foreground);
+}
+
+.editorjs-preview li {
+  margin: 0.5em 0;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+
+/* Church-themed preview list styling */
+.editorjs-preview ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.editorjs-preview ul li {
+  position: relative;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.editorjs-preview ul li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: oklch(0.75 0.12 65); /* Warm gold bullet points */
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.editorjs-preview ol {
+  padding-left: 1.5em;
+}
+
+

@@ -1,53 +1,167 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { BarChart2, Settings, LogOut, Home, Shield, User, Folder, Loader2, CalendarFold, BookOpen } from "lucide-react"; // ← Add Loader2 icon
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { processStrapiRedirect } from "@/helpers/StrapiInteraction";
+import { useMemo, useState, type ComponentType } from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  BarChart2,
+  Home,
+  Shield,
+  User,
+  Folder,
+  Loader2,
+  CalendarFold,
+  BookOpen,
+  Bell,
+  DollarSign,
+  FileText,
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarRail,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+} from "@/shared/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/ui/collapsible";
+import ProfilePill from "@/shared/components/ProfilePill";
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
-const Sidebar = () => {
-  const [loading, setLoading] = useState(false);
+const AdminDashboardSideBar = () => {
+  const location = useLocation();
+  const [loadingKey] = useState<string | null>(null);
 
-  const handleMediaRedirect = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    await processStrapiRedirect();
-    setLoading(false);
+  const isActive = (path?: string) =>
+    !!path && (location.pathname === path || location.pathname.startsWith(path + "/"));
+
+  type Item = {
+    title: string;
+    url?: string;
+    icon: ComponentType<{ className?: string }>;
+    onClick?: (e: React.MouseEvent) => void | Promise<void>;
+    loadingKey?: string;
+    children?: { title: string; url: string }[];
   };
 
-  return (
-    <div className="w-64 h-screen bg-gray-800 text-white flex flex-col p-4">
-      <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
-      <nav className="flex flex-col gap-4">
-        <Link to="/pages/home" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><Home /> Home</Link>
-        <Link to="/admin" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><BarChart2 /> Dashboard</Link>
-        <Link to="/admin/users" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><User /> Manage Users</Link>
-        <Link to="/admin/permissions" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><Shield /> Permissions</Link>
+  const webBuilderChildren = useMemo(
+    () => [
+      { title: "Pages", url: "/admin/webbuilder" },
+      { title: "Header", url: "/admin/webbuilder/header" },
+      { title: "Footer", url: "/admin/webbuilder/footer" },
+      { title: "Media", url: "/admin/webbuilder/media" },
+      { title: "Settings", url: "/admin/webbuilder/settings" },
+    ],
+    []
+  );
 
-        {/* Media Library, wrapped in a Link for style consistency*/}
-        <Link
-          to="#"
-          onClick={handleMediaRedirect}
-          className={`flex items-center gap-2 no-underline ${loading ? "text-gray-400 cursor-wait" : "text-white hover:text-gray-300"
-            }`}
-        >
-          {loading ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <Folder />
-          )}
-          {loading ? "Loading..." : "Media Library"}
-        </Link>
-        <Link to="/admin/events" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><CalendarFold /> Events</Link>
-        <Link to="/admin/bible-plan-manager" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><BookOpen /> Bible Plan Manager</Link>
-        <Link to="/admin/webbuilder" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">🧱 Web Builder</Link>
-        <Link to="/admin/finance" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">💰 Finance</Link>
-        <Link to="/admin/notifications" className="flex items-center gap-2 text-white no-underline hover:text-gray-300">📢 Notifications</Link>
-        <Link to="/admin/settings" className="flex items-center gap-2 text-white no-underline hover:text-gray-300"><Settings /> Settings</Link>
-        <div onClick={() => signOut(auth)} className="flex items-center gap-2 text-white hover:text-gray-300 cursor-pointer"><LogOut /> Logout</div>
-      </nav>
-    </div>
+  const items: Item[] = [
+    { title: "Home", url: "/", icon: Home },
+    { title: "Dashboard", url: "/admin", icon: BarChart2 },
+    {
+      title: "Users", url: "/admin/users", icon: User, children: [
+        { title: "Management", url: "/admin/users/manage-users" },
+        { title: "Membership Requests", url: "/admin/users/membership-requests" }
+      ]
+    },
+
+    { title: "Permissions", url: "/admin/permissions", icon: Shield },
+    { title: "Web Builder", icon: Folder, children: webBuilderChildren },
+    { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Shield },
+    { title: "Events", url: "/admin/events", icon: CalendarFold },
+    {
+      title: "Forms", icon: Folder, children: [
+        { title: "Manage Forms", url: "/admin/forms/manage-forms" },
+        { title: "Form Builder", url: "/admin/forms/form-builder" },
+      ]
+    },
+    { title: "Weekly Bulletin", url: "/admin/bulletins", icon: FileText },
+    { title: "Sermons Manager", url: "/admin/sermons", icon: BookOpen },
+    {
+      title: "Bible Plans", icon: BookOpen, children: [
+        { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
+        { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
+      ]
+    },
+    { title: "Finance", url: "/admin/finance", icon: DollarSign },
+    { title: "Notifications", url: "/admin/notifications", icon: Bell },
+  ];
+
+  return (
+    <Sidebar collapsible="icon" autoCollapse={false} hoverable={false} className="border-r">
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Admin</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                item.children ? (
+                  <Collapsible key={item.title} defaultOpen className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip={item.title}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.children.map((child) => (
+                            <SidebarMenuSubItem key={child.url}>
+                              <SidebarMenuSubButton asChild isActive={isActive(child.url)}>
+                                <Link to={child.url}>{child.title}</Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                ) : (
+                  <SidebarMenuItem key={item.title}>
+                    {item.onClick ? (
+                      <SidebarMenuButton
+                        onClick={item.onClick}
+                        aria-disabled={item.loadingKey ? loadingKey === item.loadingKey : undefined}
+                        isActive={isActive(item.url)}
+                        tooltip={item.title}
+                      >
+                        {item.loadingKey && loadingKey === item.loadingKey ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <item.icon />
+                        )}
+                        <span>
+                          {item.loadingKey && loadingKey === item.loadingKey ? <Skeleton className="h-4 w-20 inline-block" /> : item.title}
+                        </span>
+                      </SidebarMenuButton>
+                    ) : item.url ? (
+                      <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                        <Link to={item.url}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    ) : null}
+                  </SidebarMenuItem>
+                )
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      {/* Disable rail hover interaction entirely */}
+      <SidebarRail disabled />
+      <SidebarFooter>
+        <ProfilePill className="mx-2 mb-2" />
+      </SidebarFooter>
+    </Sidebar>
   );
 };
 
-export default Sidebar;
+export default AdminDashboardSideBar;

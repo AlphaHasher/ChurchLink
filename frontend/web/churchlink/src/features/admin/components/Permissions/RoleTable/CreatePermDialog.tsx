@@ -31,7 +31,10 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         permissions_management: false,
         event_editing: false,
         event_management: false,
+        sermon_editing: false,
+        bulletin_editing: false,
         media_management: false,
+        layout_management: false,
     }
 
     const initialEditorPermissions: PermMask = {
@@ -39,7 +42,10 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         permissions_management: false,
         event_editing: false,
         event_management: false,
+        sermon_editing: false,
         media_management: false,
+        layout_management: false,
+        bulletin_editing: false,
     }
 
 
@@ -90,8 +96,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         <>
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
-                variant="outline"
-                className="!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600"
+                variant="default"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {

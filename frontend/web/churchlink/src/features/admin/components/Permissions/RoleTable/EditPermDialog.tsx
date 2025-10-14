@@ -35,7 +35,10 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
         permissions_management: false,
         event_editing: false,
         event_management: false,
+        sermon_editing: false,
         media_management: false,
+        layout_management: false,
+        bulletin_editing: false,
     }
 
 
@@ -87,7 +90,6 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
                 variant="outline"
-                className="!bg-white text-black border shadow-sm hover:bg-blue-600"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {

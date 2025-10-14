@@ -13,7 +13,7 @@ settings = {
         "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
         "PRIMARY_CHANNEL_ID": os.getenv("PRIMARY_CHANNEL_ID"),
         "PUBLIC_DOMAIN": os.getenv("PUBLIC_DOMAIN"),
-        "YOUTUBE_TIMEZONE": os.getenv("YOUTUBE_TIMEZONE"),
+        "LOCAL_TIMEZONE": os.getenv("LOCAL_TIMEZONE"),
     }
 async def load_youtube_settings():
     try:
@@ -31,7 +31,7 @@ def get_youtube_client(api_key):
     return build("youtube", "v3", developerKey=api_key)
 
 def get_callback_url(public_domain):
-    return f"{public_domain}/api/v1/webhook_listener/youtube_listener/live"
+    return f"{public_domain}/api/v1/youtube_listener/live"
 
 NOTIF_SUB_DELAY = 86400
 HUB_URL = "https://pubsubhubbub.appspot.com/subscribe"
@@ -44,6 +44,7 @@ class YoutubeHelper:
     isStreaming = False
     activeStreamIDs = []
     youtubeClient = None
+    default_settings = settings
 
   
     @staticmethod
