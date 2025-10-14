@@ -8,6 +8,7 @@ export type AccountPermissions = {
   event_management: boolean;
   sermon_editing: boolean;
   media_management: boolean;
+  finance: boolean;
 };
 
 
@@ -26,6 +27,7 @@ export const permissionLabels: Record<string, string> = {
   event_management: "Event Manager",
   sermon_editing: "Sermon Editor",
   media_management: "Media Library Manager",
+  finance: "Finance Manager",
 };
 
 export const PermCompLabels: Record<string, string> = {

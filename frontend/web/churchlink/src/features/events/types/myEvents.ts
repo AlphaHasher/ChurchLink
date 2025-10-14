@@ -11,6 +11,10 @@ export interface MyEvent {
   key: string;                    // Unique composite key
   meta: Record<string, unknown>;      // Additional metadata
   addedOn: string;                // When user added this event
+  
+  // Payment tracking fields (for RSVP events with payments)
+  payment_method?: "paypal" | "door";  // Payment method used
+  payment_status?: "awaiting_payment" | "completed" | "pending_door"; // Payment status
 
   // Full event details (when expand=True used)
   event?: {
@@ -35,6 +39,9 @@ export interface MyEvent {
     seats_taken: number;
     attendee_keys: string[];
     attendees: unknown[];
+    // Payment settings  
+    payment_options?: string[]; // ['paypal', 'door'] - available payment methods
+    refund_policy?: string;
   };
 
   // Family member display name (if person_id exists)
@@ -62,6 +69,39 @@ export interface GroupedEvent {
   isUpcoming: boolean;
   eventDate: Date;
   allRegistrants: MyEvent[]; // Combined list for easy iteration
+  registration_count?: number; // Total registration count from backend aggregation
+}
+
+// Family member interface for bulk registration
+export interface FamilyMember {
+  id: string;
+  full_name: string;
+  age?: number;
+  gender?: 'male' | 'female';
+  is_eligible?: boolean;
+  is_registered?: boolean;
+}
+
+// Bulk registration interfaces
+export interface BulkRegistrationSelection {
+  includeUser: boolean;
+  selectedFamilyMembers: string[]; // Family member IDs
+}
+
+export interface BulkRegistrationCandidate {
+  type: 'user' | 'family';
+  id?: string; // family member ID (null for user)
+  name: string;
+  is_registered: boolean;
+  is_eligible: boolean;
+}
+
+export interface PaymentCalculation {
+  basePrice: number;
+  registrationCount: number;
+  totalAmount: number;
+  isFree: boolean;
+  paymentRequired: boolean;
 }
 
 export interface MyEventsResponse {

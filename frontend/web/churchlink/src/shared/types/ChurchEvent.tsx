@@ -19,6 +19,9 @@ export type ChurchEvent = {
     image_url: string;
     roles: string[];
     published: boolean;
+    // Payment processing fields
+    payment_options?: string[];
+    refund_policy?: string;
 };
 
 export const eventLabels: Record<string, string> = {

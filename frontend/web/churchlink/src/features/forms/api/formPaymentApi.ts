@@ -89,7 +89,7 @@ export const formPaymentApi = {
 
       console.log('[FormPayment] Completion response:', {
         status: response.status,
-        data: response.data
+        data: response.data,
       });
 
       if (response.status === 200 && response.data) {

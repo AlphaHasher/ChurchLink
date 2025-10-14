@@ -69,11 +69,40 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
           </div>
         )}
 
-        {/* Capacity (kept minimal) */}
+        {/* Registration Summary - Combined display */}
         {event.spots > 0 && (
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Users className="h-4 w-4" />
-            <span>{event.seats_taken || 0} registered</span>
+            <span>
+              {(() => {
+                // Show registration count and payment status if user has registrations
+                if (groupedEvent.allRegistrants.some(r => r.reason === 'rsvp')) {
+                  const rsvpRegistrants = groupedEvent.allRegistrants.filter(r => r.reason === 'rsvp');
+                  const totalRegistered = rsvpRegistrants.length;
+                  
+                  // Free events - simple count
+                  if (event.price === 0) {
+                    return `${totalRegistered} registered`;
+                  }
+
+                  // Paid events - show payment status summary
+                  const pendingCount = rsvpRegistrants.filter(r => 
+                    !r.payment_status || 
+                    r.payment_status === 'awaiting_payment' || 
+                    r.payment_status === 'pending_door'
+                  ).length;
+
+                  if (pendingCount === 0) {
+                    return `${totalRegistered} registered - all paid`;
+                  } else {
+                    return `${totalRegistered} registered - ${pendingCount} required payment`;
+                  }
+                } else {
+                  // Show general event registration count if user not registered
+                  return `${groupedEvent.registration_count || event.seats_taken || 0} registered`;
+                }
+              })()}
+            </span>
           </div>
         )}
 
