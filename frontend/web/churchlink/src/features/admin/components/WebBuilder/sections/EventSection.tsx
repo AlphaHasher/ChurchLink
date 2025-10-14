@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat } from "lucide-react";
 import api from "@/api/api";
 import { getBaseURL } from "@/helpers/StrapiInteraction";
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
 type MyEventScope = "series" | "occurrence";
@@ -683,7 +684,12 @@ const EventSection: React.FC<EventSectionProps> = ({
     setRegEvent(null);
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return (
+    <div className="p-4">
+      <Skeleton className="h-8 w-1/3" />
+      <Skeleton className="h-32 w-full mt-2" />
+    </div>
+  );
 
   const WatchButtons = ({ ev }: { ev: Event }) => {
     const watched = isWatched(ev);

@@ -1,20 +1,26 @@
-from fastapi import FastAPI, APIRouter, Depends
+from contextlib import asynccontextmanager
+import asyncio
+import logging
+import os
+import sys
+
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
 from scalar_fastapi import get_scalar_api_reference
-from mongo.database import DB as DatabaseManager
+
 import firebase_admin
-from helpers.Firebase_helpers import role_based_access
 from firebase_admin import credentials
-from helpers.youtubeHelper import YoutubeHelper
-from get_bearer_token import generate_test_token
-from add_roles import add_user_role, RoleUpdate
+
+from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
-from contextlib import asynccontextmanager
-from pydantic import BaseModel
 from mongo.scheduled_notifications import scheduled_notification_loop
+
+from helpers.Firebase_helpers import role_based_access
+from helpers.youtubeHelper import YoutubeHelper
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
-from helpers.event_cleanup_scheduler import event_cleanup_loop
 import asyncio
 import os
 import logging
@@ -31,14 +37,10 @@ from routes.bible_routes.bible_plan_notification_routes import bible_notificatio
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
-from routes.common_routes.bulletin_routes import (
-	public_bulletin_router,
-	bulletin_editing_router,
-	public_service_router,
-	service_bulletin_editing_router,
-)
+from routes.common_routes.bulletin_routes import public_bulletin_router,bulletin_editing_router,public_service_router,service_bulletin_editing_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
 from routes.common_routes.user_routes import user_mod_router, user_private_router
+from routes.common_routes.membership_routes import member_private_router, member_mod_router
 from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
 
@@ -53,13 +55,14 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 
 from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
 
-from routes.forms_routes import mod_forms_router
+from routes.form_routes.mod_forms_routes import mod_forms_router
+from routes.form_routes.private_forms_routes import private_forms_router
+from routes.form_routes.public_forms_routes import public_forms_router
 from routes.translator_routes import translator_router
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
-
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -71,88 +74,87 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
 
-FRONTEND_URL = os.getenv("FRONTEND_URL").strip()
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+ADDITIONAL_ORIGINS = os.getenv("ADDITIONAL_ORIGINS", "")
+
+def _normalize_origin(orig: str) -> str | None:
+    if not orig:
+        return None
+    o = orig.strip()
+    return o.rstrip('/')
+
+ALLOWED_ORIGINS = []
+if FRONTEND_URL:
+    norm = _normalize_origin(FRONTEND_URL)
+    if norm:
+        ALLOWED_ORIGINS.append(norm)
+
+if ADDITIONAL_ORIGINS:
+    for origin in ADDITIONAL_ORIGINS.split(','):
+        norm = _normalize_origin(origin)
+        if norm:
+            ALLOWED_ORIGINS.append(norm)
+
+ALLOWED_ORIGINS = list(dict.fromkeys([o for o in ALLOWED_ORIGINS if o]))
+
+logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        logger.info("Starting application initialization...")
+        logger.info("Starting application initialization")
 
         # Initialize Firebase Admin SDK if not already initialized
         if not firebase_admin._apps:
-            logger.info("Initializing Firebase Admin SDK...")
+            logger.info("Initializing Firebase Admin SDK")
             from firebase.firebase_credentials import get_firebase_credentials
 
             cred = credentials.Certificate(get_firebase_credentials())
             firebase_admin.initialize_app(cred)
-            logger.info("Firebase Admin SDK initialized successfully")
+            logger.info("Firebase Admin SDK initialized")
 
         # MongoDB connection setup - CRITICAL: Will stop app if fails
-        logger.info("Initializing MongoDB connection...")
+        logger.info("Connecting to MongoDB...")
         await DatabaseManager.init_db()
-        logger.info("MongoDB connection established successfully")
+        logger.info("MongoDB connected")
 
         if not BYPASS_FIREBASE_SYNC:
-            # Sync MongoDB to Firebase
-            logger.info("Starting Firebase synchronization...")
+            logger.info("Running initial Firebase -> Mongo sync")
             await FirebaseSyncer.SyncDBToFirebase()
-            logger.info("Firebase synchronization completed")
+            logger.info("Initial Firebase sync complete")
 
-        # Verify that an Administrator Role (Mandatory) exists
-        logger.info("Verifying administrator role exists...")
+        # Ensure required roles exist
+        logger.info("Ensuring administrator role exists")
         await RoleHandler.verify_admin_role()
-        logger.info("Administrator role verification completed")
+        logger.info("Administrator role verified")
 
-        if not BYPASS_FIREBASE_SYNC:
-            # Sync MongoDB to Firebase
-            await FirebaseSyncer.SyncDBToFirebase()
-
-        # Verify that an Administrator Role (Mandatory) exists
-        await RoleHandler.verify_admin_role()
-
-        # Run Youtube Notification loop
-        logger.info("Starting YouTube subscription monitoring...")
-        youtubeSubscriptionCheck = asyncio.create_task(
-            YoutubeHelper.youtubeSubscriptionLoop()
-        )
-        logger.info("YouTube subscription monitoring started")
-        
-        #Run Push Notification Scheduler loop
+        # Background tasks
+        logger.info("Starting background tasks")
+        youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
-        logger.info("Push notification scheduler started")
 
         # Initialize Bible Plan Notification System
-        logger.info("Initializing Bible plan notification system...")
+        logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
-        logger.info("Bible plan notification system started")
-
-        # Run Event Cleanup Scheduler loop
-        logger.info("Starting event cleanup scheduler...")
-        eventCleanupTask = asyncio.create_task(event_cleanup_loop(DatabaseManager.db))
-        logger.info("Event cleanup scheduler started")
 
         logger.info("Application startup completed successfully")
         yield
 
         # Cleanup
-        logger.info("Shutting down application...")
+        logger.info("Shutting down background tasks and closing DB")
         youtubeSubscriptionCheck.cancel()
         scheduledNotifTask.cancel()
         eventCleanupTask.cancel()
         DatabaseManager.close_db()
-        logger.info("Application shutdown completed")
+        logger.info("Shutdown complete")
 
     except Exception as e:
-        logger.error(f"Application startup failed: {str(e)}")
-        logger.error("Make sure MongoDB is running and the MONGODB_URL is correct")
-        # Force exit the application
-        import sys
+        logger.error(f"Application startup failed: {e}")
+        logger.error("Ensure MongoDB is running and MONGODB_URL is correct")
         sys.exit(1)
 
 
@@ -160,12 +162,12 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],  # Get frontend URL from env
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,  # Required for auth tokens/cookies
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.) - we should probably lock this down later
     allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers
 )
-
 
 @app.get("/")
 async def root():
@@ -263,6 +265,9 @@ private_router.include_router(event_person_management_router)
 private_router.include_router(private_event_router)
 private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
+private_router.include_router(member_private_router)
+private_router.include_router(private_forms_router)
+public_router.include_router(public_forms_router)
 
 #####################################################
 # Mod Routers - Requires at least 1 perm role, agnostic to specific permissions
@@ -278,6 +283,7 @@ mod_router.include_router(private_notification_router)
 mod_router.include_router(strapi_protected_router)
 mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
+mod_router.include_router(member_mod_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions

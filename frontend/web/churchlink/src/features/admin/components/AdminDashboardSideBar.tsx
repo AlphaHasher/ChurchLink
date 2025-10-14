@@ -31,6 +31,7 @@ import {
 } from "@/shared/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/ui/collapsible";
 import ProfilePill from "@/shared/components/ProfilePill";
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 const AdminDashboardSideBar = () => {
   const location = useLocation();
@@ -72,25 +73,35 @@ const AdminDashboardSideBar = () => {
   const items: Item[] = [
     { title: "Home", url: "/", icon: Home },
     { title: "Dashboard", url: "/admin", icon: BarChart2 },
-    { title: "Manage Users", url: "/admin/users", icon: User },
+    {
+      title: "Users", url: "/admin/users", icon: User, children: [
+        { title: "Management", url: "/admin/users/manage-users" },
+        { title: "Membership Requests", url: "/admin/users/membership-requests" }
+      ]
+    },
+
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
     { title: "Web Builder", icon: Folder, children: webBuilderChildren },
     { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Shield },
     { title: "Media Library", icon: Folder, onClick: handleMediaRedirect, loadingKey: "media" },
     { title: "Events", url: "/admin/events", icon: CalendarFold },
-    { title: "Forms", icon: Folder, children: [
-      { title: "Manage Forms", url: "/admin/forms/manage-forms" },
-      { title: "Form Builder", url: "/admin/forms/form-builder" },
-    ] },
+    {
+      title: "Forms", icon: Folder, children: [
+        { title: "Manage Forms", url: "/admin/forms/manage-forms" },
+        { title: "Form Builder", url: "/admin/forms/form-builder" },
+      ]
+    },
     { title: "Weekly Bulletin", url: "/admin/bulletins", icon: FileText },
     { title: "Sermons Manager", url: "/admin/sermons", icon: BookOpen },
-        { title: "Bible Plans", icon: BookOpen, children: [
-          { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
-          { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
-        ] },
-        { title: "Finance", url: "/admin/finance", icon: DollarSign },
-        { title: "Notifications", url: "/admin/notifications", icon: Bell },
-      ];
+    {
+      title: "Bible Plans", icon: BookOpen, children: [
+        { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
+        { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
+      ]
+    },
+    { title: "Finance", url: "/admin/finance", icon: DollarSign },
+    { title: "Notifications", url: "/admin/notifications", icon: Bell },
+  ];
 
   return (
     <Sidebar collapsible="icon">
@@ -137,7 +148,7 @@ const AdminDashboardSideBar = () => {
                           <item.icon />
                         )}
                         <span>
-                          {item.loadingKey && loadingKey === item.loadingKey ? "Loading..." : item.title}
+                          {item.loadingKey && loadingKey === item.loadingKey ? <Skeleton className="h-4 w-20 inline-block" /> : item.title}
                         </span>
                       </SidebarMenuButton>
                     ) : item.url ? (

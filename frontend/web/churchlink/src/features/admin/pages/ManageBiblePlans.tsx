@@ -97,7 +97,7 @@ const ManageBiblePlans = () => {
   const loadPlans = async () => {
     try {
       setLoading(true);
-      const resp = await api.get('/v1/bible-plans');
+  const resp = await api.get('/v1/bible-plans/');
       setAllPlans(resp.data || []);
       setLoading(false);
     } catch (err) {
@@ -257,19 +257,14 @@ const ManageBiblePlans = () => {
         </div>
       </div>
 
-      {status && (
-        <div className="mb-4 p-3 rounded-md bg-muted text-sm">
-          {status}
-        </div>
-      )}
-
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Input
           placeholder="Search by plan name..."
           value={searchName}
           onChange={(e) => setSearchName(e.target.value)}
           className="max-w-md"
         />
+        {status && <div className="text-sm text-muted-foreground">{status}</div>}
       </div>
 
       {loading ? (

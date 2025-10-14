@@ -7,7 +7,7 @@ import PassageBadge from '../components/BiblePlanManager/PassageBadge';
 import { BiblePassage, ReadingPlan } from '@/shared/types/BiblePlan';
 import api from '@/api/api';
 
-const BiblePlanManager = () => {
+const BiblePlanBuilder = () => {
   const [searchParams] = useSearchParams();
   const planIdFromUrl = searchParams.get('id');
   
@@ -148,4 +148,4 @@ const BiblePlanManager = () => {
   );
 };
 
-export default BiblePlanManager;
+export default BiblePlanBuilder;
