@@ -16,7 +16,6 @@ const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
-const MediaLibrary = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/MediaLibrary"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const MembershipRequests = lazy(() => import("../features/admin/pages/ManageMemberships"));
 const Events = lazy(() => import("../features/admin/pages/Events"));
