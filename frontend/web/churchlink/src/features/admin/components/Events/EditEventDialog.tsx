@@ -16,6 +16,7 @@ import { EventPersonType } from "./EventPersonType"
 import { EventRSVPSelection } from "./EventRSVPSelection"
 import { EventMinistryDropdown } from "./EventMinistryDropdown"
 import { EventImageSelector } from "./EventImageSelector"
+import { EventPaymentSettings } from "./EventPaymentSettings"
 import { handleEventEdit } from "@/helpers/EventsHelper"
 import { EventManagementOptions } from "./EventManagementOptions"
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
@@ -190,6 +191,23 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
                                     [field]: typeof value === "number" && isNaN(value) ? 0 : value,
                                 }))
                             }
+                        />
+
+                        <EventPaymentSettings
+                            payment_options={event.payment_options}
+                            refund_policy={event.refund_policy}
+                            price={event.price}
+                            onChange={(field, value) => {
+                                console.log('EditEventDialog onChange:', { field, value })
+                                setEvent((prev) => {
+                                    const updated = {
+                                        ...prev,
+                                        [field]: value,
+                                    }
+                                    console.log('Updated edit event state:', updated)
+                                    return updated
+                                })
+                            }}
                         />
 
                         <EventManagementOptions

@@ -46,7 +46,7 @@ export function EventImageSelector({ value, onChange }: EventImageSelectorProps)
 
     return (
         <div className="flex flex-col gap-4">
-            <Label className="text-sm font-medium">Enter Image File Name</Label>
+            <Label className="text-sm font-medium">Enter Image File Name (Optional)</Label>
 
             <div className="flex gap-4 items-start flex-wrap">
                 <div className="w-[300px]">
@@ -87,6 +87,16 @@ export function EventImageSelector({ value, onChange }: EventImageSelectorProps)
                 >
                     Open Media Library
                 </Button>
+                
+                {value && (
+                    <Button
+                        type="button"
+                        onClick={() => onChange("")}
+                        className="!bg-gray-500 text-white hover:!bg-gray-600"
+                    >
+                        Clear Image
+                    </Button>
+                )}
             </div>
 
             {value && (

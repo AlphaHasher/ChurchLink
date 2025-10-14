@@ -10,7 +10,8 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown } from "lucide-react"
+import { ArrowUpDown, Eye } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
@@ -40,7 +41,7 @@ interface EventsTableProps {
 const skipTerms = ["id", "description", "image_url", "thumbnail_url", "ru_name", "ru_description"];
 
 
-const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<void>, permData: AccountPermissions[]): ColumnDef<ChurchEvent> => {
+const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<void>, permData: AccountPermissions[], navigate: (path: string) => void): ColumnDef<ChurchEvent> => {
     const label = eventLabels[accessorKey];
 
     return {
@@ -71,6 +72,15 @@ const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<
                     </div>
                     {accessorKey === "name" && (
                         <div className="ml-auto flex space-x-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/admin/events/${rowData.id}`)}
+                                className="h-8 w-8 p-0"
+                                title="View Details"
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
                             <EditEventDialog event={rowData} onSave={onSave} />
                             <DeleteEventDialog event={rowData} onSave={onSave} />
                         </div>
@@ -82,6 +92,7 @@ const createPermColumn = (accessorKey: keyof ChurchEvent, onSave: () => Promise<
 }
 
 export function EventsTable({ data, permData, onSave }: EventsTableProps) {
+    const navigate = useNavigate();
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -90,7 +101,7 @@ export function EventsTable({ data, permData, onSave }: EventsTableProps) {
     const columns: ColumnDef<ChurchEvent>[] = []
     Object.keys(eventLabels).forEach((key) => {
         if (!skipTerms.includes(key)) {
-            columns.push(createPermColumn(key as keyof ChurchEvent, onSave, permData))
+            columns.push(createPermColumn(key as keyof ChurchEvent, onSave, permData, navigate))
         }
     })
 

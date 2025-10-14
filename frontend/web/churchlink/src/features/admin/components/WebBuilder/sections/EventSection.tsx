@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat } from "lucide-react";
+import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat, Users, CreditCard } from "lucide-react";
 import api from "@/api/api";
+import { EventPayPalButton } from "@/features/events/components/EventPayPalButton";
+import { useUserProfile } from "@/helpers/useUserProfile";
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
 type MyEventScope = "series" | "occurrence";
@@ -22,6 +24,10 @@ interface Event {
   min_age?: number;             // if your payload includes them
   max_age?: number;
   gender?: Gender;
+  
+  // Payment processing fields
+  payment_options?: string[]; // Available payment methods: ['PayPal', 'Door']
+  refund_policy?: string;
 }
 
 interface MyEventRef {
@@ -42,6 +48,22 @@ interface EventSectionProps {
 
 /* ---------- Registration Form (modal content) ---------- */
 
+// Helper function to check if event requires payment
+const requiresPayment = (event: Event): boolean => {
+  // An event requires payment if it has a price > 0 and any payment options available
+  return !!(event.price && event.price > 0 && event.payment_options && event.payment_options.length > 0);
+};
+
+// Helper function to check if PayPal payment is available
+const hasPayPalOption = (event: Event): boolean => {
+  return !!(event.payment_options?.includes('PayPal') || event.payment_options?.includes('paypal'));
+};
+
+// Registration step enum for single-step flow
+enum RegistrationStep {
+  PEOPLE_SELECTION = 'people_selection'
+}
+
 function EventRegistrationForm({
   event,
   onClose,
@@ -49,7 +71,7 @@ function EventRegistrationForm({
 }: {
   event: Event;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (paymentMethod?: 'paypal' | 'door') => void;
   onAddPerson?: () => void;
 }) {
   type Person = {
@@ -69,6 +91,8 @@ function EventRegistrationForm({
       display_name: string;
       registered_on: string;
       kind: "rsvp";
+      payment_method?: "paypal" | "door";
+      payment_status?: "awaiting_payment" | "completed" | "pending_door";
     }>;
     total_registrations: number;
     available_spots: number;
@@ -80,12 +104,21 @@ function EventRegistrationForm({
   const [saving, setSaving] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [summary, setSummary] = useState<RegistrationSummary | null>(null);
+  
+  // Single-step flow state
+  const currentStep = RegistrationStep.PEOPLE_SELECTION;
+
+  // Payment method state
+  const [selectedPaymentOption, setSelectedPaymentOption] = useState<'paypal' | 'door'>('paypal');
 
   // local selections
   const [selfSelected, setSelfSelected] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [me, setMe] = useState<{ first: string; last: string } | null>(null);
+
+  // Use cached profile hook
+  const { profile: currentUserProfile } = useUserProfile();
 
   /** ---------- INLINE ADD PERSON (schema-conformant) ---------- **/
   const [showAdd, setShowAdd] = useState(false);
@@ -101,6 +134,16 @@ function EventRegistrationForm({
     setNewDob("");
   };
 
+  // Step navigation functions
+  const handleNextStep = () => {
+    console.log('➡️ [EVENT SECTION] handleNextStep called - will trigger registration');
+    // No next step - go directly to payment flow after registration
+    createOrUpdate();
+  };
+
+  // Check if any people are selected for registration
+  const hasSelections = selfSelected || selectedIds.size > 0;
+
   const fetchPeople = async () => {
     const res = await api.get("/v1/users/me/people");
     const ppl = res.data?.people ?? res.data ?? [];
@@ -112,25 +155,18 @@ function EventRegistrationForm({
       try {
         setLoading(true);
 
-        const [_, regRes, profileRes] = await Promise.all([
+        const [, regRes] = await Promise.all([
           fetchPeople(),
-           api.get(`/v1/events/${event.id}/registrations/summary`),
-           api.get(`/v1/users/get-profile`),
-         ]);
+          api.get(`/v1/events/${event.id}/registrations/summary`),
+        ]);
+        
+        setSummary(regRes.data);
 
-        const p = profileRes?.data?.profile_info ?? {};
-        const first = p.first_name ?? "";
-        const last  = p.last_name  ?? "";
-        setMe(first || last ? { first, last } : null);
-
+        // Initialize with empty selection (already registered people should NOT be selected)
         const current = new Set<string>();
-        let selfIsRegistered = false;
-        (regRes.data?.user_registrations ?? []).forEach((r: any) => {
-          if (r.person_id) current.add(r.person_id);
-          else selfIsRegistered = true;
-        });
-        setSelectedIds(current);
-        setSelfSelected(selfIsRegistered);
+        // Don't pre-select anyone - users should manually select who they want to register
+        setSelectedIds(current); // Empty set - no one should be pre-selected
+        setSelfSelected(false);  // Self should not be pre-selected
       } catch (e) {
         console.error("Failed to load registration form data:", e);
       } finally {
@@ -138,6 +174,16 @@ function EventRegistrationForm({
       }
     })();
   }, [event.id]);
+
+  // Update display name when profile loads
+  useEffect(() => {
+    if (currentUserProfile?.first_name && currentUserProfile?.last_name) {
+      setMe({ 
+        first: currentUserProfile.first_name, 
+        last: currentUserProfile.last_name 
+      });
+    }
+  }, [currentUserProfile]);
 
   const registeredSet = useMemo(() => {
     const s = new Set<string>();
@@ -151,10 +197,17 @@ function EventRegistrationForm({
   );
   
 
-  // --- validation used for selection list (unchanged) ---
+  // --- validation used for selection list (enhanced with proper null handling) ---
   const validatePersonForEvent = (person: Person, ev: Event): string | null => {
   const evGender = ev.gender ?? "all"; // "male" | "female" | "all"
-  if (evGender !== "all" && person.gender) {
+  
+  // Check gender requirements - FIXED: properly handle null/undefined gender
+  if (evGender !== "all") {
+    if (!person.gender) {
+      // No gender set - block registration for gender-restricted events
+      return `Please set gender in profile to register for this ${evGender}-only event.`;
+    }
+    
     const personAsEventGender = person.gender === "M" ? "male" : "female";
     if (personAsEventGender !== evGender) {
       return `This event is ${evGender}-only.`;
@@ -175,14 +228,45 @@ function EventRegistrationForm({
   return null;
 };
 
+  // Validate current user for event eligibility
+  const validateCurrentUserForEvent = (ev: Event): string | null => {
+    if (!currentUserProfile) {
+      return "Unable to load your profile. Please refresh the page and try again.";
+    }
+
+    // Convert current user profile to person-like object for validation
+    const currentUserAsPerson: Person = {
+      id: "current-user", // Add required id field
+      first_name: currentUserProfile.first_name || "", // Handle undefined
+      last_name: currentUserProfile.last_name || "", // Handle undefined  
+      date_of_birth: currentUserProfile.birthday, // Use correct field name
+      gender: currentUserProfile.gender,
+    };
+
+    const validationError = validatePersonForEvent(currentUserAsPerson, ev);
+    if (validationError) {
+      return validationError;
+    }
+
+    return null; // No error - user is eligible
+  };
+
   useEffect(() => {
-  const errs: Record<string, string | null> = {};
-  for (const p of people) errs[p.id] = validatePersonForEvent(p, event);
-    errs["__self__"] = null;
+    const errs: Record<string, string | null> = {};
+    for (const p of people) errs[p.id] = validatePersonForEvent(p, event);
+    
+    // FIXED: Actually validate the current user instead of always setting null
+    errs["__self__"] = validateCurrentUserForEvent(event);
+    
     setErrors(errs);
   }, [people, event]);
 
   const togglePerson = (id: string) => {
+    // Prevent toggling already registered people
+    if (registeredSet.has(id)) {
+      return;
+    }
+    
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -202,8 +286,10 @@ function EventRegistrationForm({
       setSummary(regRes.data);
       if (personId === null) setSelfSelected(false);
       else setSelectedIds((prev) => { const n = new Set(prev); n.delete(personId); return n; });
-    } catch {
-      alert("Failed to remove registration.");
+    } catch (error: any) {
+      console.error("Remove registration failed:", error);
+      const errorMessage = error?.response?.data?.detail || error?.message || "Unknown error occurred";
+      alert(`Failed to remove registration: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -236,21 +322,159 @@ function EventRegistrationForm({
         return;
       }
 
+      // Check if this is a paid event and determine payment method
+      const isPaidEvent = requiresPayment(event);
+      const isPayPalPayment = selectedPaymentOption === 'paypal';
+      const isDoorPayment = selectedPaymentOption === 'door';
+      
+      if (isPaidEvent && isPayPalPayment) {
+        console.log('💳 [EVENT SECTION] Paid event with PayPal - creating PayPal order without registration');
+        console.log('⚠️ [EVENT SECTION] Registration will be deferred until PayPal payment completion');
+        
+        // Prepare bulk registration data for PayPal order
+        const registrations = [];
+        
+        // Add self if selected
+        if (wantSelf && !haveSelf) {
+          const selfName = me ? `${me.first} ${me.last}` : 'You';
+          registrations.push({
+            name: selfName,
+            family_member_id: null, // null for self
+            donation_amount: 0,
+            payment_amount_per_person: event.price || 0
+          });
+        }
+        
+        // Add family members
+        for (const id of toAdd) {
+          const person = people.find(p => p.id === id);
+          const personName = person ? `${person.first_name} ${person.last_name}` : 'Family Member';
+          registrations.push({
+            name: personName,
+            family_member_id: id,
+            donation_amount: 0,
+            payment_amount_per_person: event.price || 0
+          });
+        }
+        
+        if (registrations.length === 0) {
+          alert('No people selected for registration.');
+          setSaving(false);
+          return;
+        }
+        
+        console.log('📋 [EVENT SECTION] Prepared registrations for PayPal:', registrations);
+        
+        try {
+          // Create PayPal bulk order using backend bulk payment endpoint
+          const orderData = {
+            registrations: registrations,
+            total_amount: registrations.reduce((sum, reg) => sum + (reg.payment_amount_per_person || 0), 0),
+            user_uid: 'current_user' // This should be set by the backend from auth
+          };
+          
+          console.log('📤 [EVENT SECTION] Creating PayPal bulk order:', orderData);
+          
+          const response = await api.post(`/v1/events/${event.id}/payment/create-bulk-order`, orderData);
+          
+          if (response.status === 200 && response.data) {
+            const { approval_url, payment_id } = response.data;
+            
+            if (approval_url) {
+              console.log('✅ [EVENT SECTION] PayPal order created successfully');
+              console.log('🔗 [EVENT SECTION] Redirecting to PayPal:', approval_url);
+              console.log('🆔 [EVENT SECTION] Payment ID:', payment_id);
+              console.log('⏳ [EVENT SECTION] People will be registered ONLY after successful payment');
+              
+              // Redirect to PayPal
+              window.location.href = approval_url;
+              return; // Don't continue with immediate registration
+            } else {
+              throw new Error('No PayPal approval URL received');
+            }
+          } else {
+            throw new Error(response.data?.detail || 'Failed to create PayPal order');
+          }
+        } catch (error: any) {
+          console.error('❌ [EVENT SECTION] PayPal order creation failed:', error);
+          const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to create PayPal payment order';
+          alert(`PayPal payment failed: ${errorMessage}`);
+          setSaving(false);
+          return;
+        }
+      } else if (isPaidEvent && isDoorPayment) {
+        console.log('🚪 [EVENT SECTION] Paid event with door payment - registering with pending status');
+        
+        // For door payment, register with payment_method: 'door' and payment_status: 'pending_door'
+        if (wantSelf && !haveSelf) {
+          console.log('📝 [EVENT SECTION] Registering self for door payment');
+          const response = await api.post(`/v1/events/${event.id}/register`, {
+            name: me ? `${me.first} ${me.last}` : 'You',
+            family_member_id: null,
+            payment_method: 'door',
+            payment_status: 'pending_door'
+          });
+          
+          if (response.status !== 200 && response.status !== 201) {
+            throw new Error('Failed to register yourself for door payment');
+          }
+        }
+        
+        // Register selected family members for door payment
+        for (const id of toAdd) {
+          const person = people.find(p => p.id === id);
+          const personName = person ? `${person.first_name} ${person.last_name}` : 'Family Member';
+          
+          console.log(`📝 [EVENT SECTION] Registering family member for door payment: ${personName}`);
+          const response = await api.post(`/v1/events/${event.id}/register`, {
+            name: personName,
+            family_member_id: id,
+            payment_method: 'door',
+            payment_status: 'pending_door'
+          });
+          
+          if (response.status !== 200 && response.status !== 201) {
+            throw new Error(`Failed to register ${personName} for door payment`);
+          }
+        }
+        
+        console.log('✅ [EVENT SECTION] Door payment registrations completed');
+        onSaved('door'); // parent refreshes + closes with door payment method
+        return;
+      } else {
+        console.log('🆓 [EVENT SECTION] Free event - registering immediately');
+      }
+
+      // If free event with PayPal donation, it will be handled in the payment flow
+      // No need to handle donation here
+
+      // For free events, register immediately (existing behavior)
       // self
-      if (wantSelf && !haveSelf) await api.post(`/v1/event-people/register/${event.id}`);
-      else if (!wantSelf && haveSelf) await api.delete(`/v1/event-people/unregister/${event.id}`);
+      if (wantSelf && !haveSelf) {
+        console.log('📝 [EVENT SECTION] Registering self');
+        await api.post(`/v1/event-people/register/${event.id}`);
+      }
+      else if (!wantSelf && haveSelf) {
+        console.log('❌ [EVENT SECTION] Unregistering self');
+        await api.delete(`/v1/event-people/unregister/${event.id}`);
+      }
 
       // family
       for (const id of toAdd) {
+        console.log(`📝 [EVENT SECTION] Registering family member: ${id}`);
         await api.post(`/v1/event-people/register/${event.id}/family-member/${id}`);
       }
       for (const id of toRemove) {
+        console.log(`❌ [EVENT SECTION] Unregistering family member: ${id}`);
         await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}`);
       }
 
-      onSaved(); // parent refreshes + closes
-    } catch {
-      alert("Failed to update registration.");
+      console.log('✅ [EVENT SECTION] Registration completed successfully');
+      onSaved(selectedPaymentOption); // parent refreshes + closes with payment method
+    } catch (error: any) {
+      console.error("❌ [EVENT SECTION] Registration update failed:", error);
+      const errorMessage = error?.response?.data?.detail || error?.message || "Unknown error occurred";
+      alert(`Failed to update registration: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -319,10 +543,19 @@ function EventRegistrationForm({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-semibold">Register for: {event.name}</h3>
+          <h3 className="text-xl font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Select People for {event.name}
+          </h3>
           <p className="text-sm text-gray-600">
-            {new Date(event.date).toLocaleString()} • {summary?.available_spots ?? 0} spots left (of{" "}
-            {summary?.total_spots ?? "?"})
+            {new Date(event.date).toLocaleString()} • {
+              summary?.available_spots === -1 
+                ? "Unlimited spots" 
+                : summary?.available_spots !== undefined && summary?.available_spots >= 0
+                ? `${summary.available_spots} spots left`
+                : "Loading spots..."
+            } (of{" "}
+            {summary?.total_spots === 0 ? "unlimited" : summary?.total_spots ?? "?"})
           </p>
         </div>
         <button className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200" onClick={onClose}>
@@ -330,17 +563,86 @@ function EventRegistrationForm({
         </button>
       </div>
 
+      {/* Step 1: People Selection */}
+      {currentStep === RegistrationStep.PEOPLE_SELECTION && (
+        <>
+          {/* Event Summary */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-900 mb-2">Event Information</h4>
+            <div className="space-y-1 text-sm text-blue-800">
+              <p>Event: {event.name}</p>
+              {requiresPayment(event) ? (
+                <p>Price per person: ${event.price?.toFixed(2)}</p>
+              ) : (
+                <p className="text-green-700 font-medium">This event is free!</p>
+              )}
+              {event.price === 0 && hasPayPalOption(event) && (
+                <p className="text-blue-600">Optional donations welcome</p>
+              )}
+            </div>
+          </div>
+
       {/* Already registered */}
       <div>
-        <h4 className="font-medium mb-2">Already Registered</h4>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="font-medium">Already Registered</h4>
+          {/* Payment Status Summary for paid events */}
+          {summary?.user_registrations?.length && (event.price ?? 0) > 0 && (
+            <div className="text-xs text-gray-500">
+              {(() => {
+                const registrations = summary.user_registrations;
+                const completedPayments = registrations.filter(r => r.payment_status === 'completed').length;
+                const doorPayments = registrations.filter(r => r.payment_status === 'pending_door').length;
+                const pendingPayments = registrations.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
+                
+                const parts = [];
+                if (completedPayments > 0) parts.push(`${completedPayments} paid online`);
+                if (doorPayments > 0) parts.push(`${doorPayments} pay at door`);
+                if (pendingPayments > 0) parts.push(`${pendingPayments} pending`);
+                
+                return parts.length > 0 ? parts.join(' • ') : 'All paid';
+              })()}
+            </div>
+          )}
+        </div>
         {summary?.user_registrations?.length ? (
           <div className="space-y-2">
             {summary.user_registrations.map((r) => (
               <div key={`${r.person_id ?? "__self__"}`} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
+                <div className="flex-1">
                   <div className="font-medium">{r.display_name}</div>
                   <div className="text-xs text-gray-500">
                     Registered on {new Date(r.registered_on).toLocaleString()}
+                  </div>
+                  {/* Context-aware Payment Status Display */}
+                  <div className="mt-1">
+                    {event.price === 0 ? (
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 inline-block">
+                        ✅ Registered (Free Event)
+                      </span>
+                    ) : r.payment_status ? (
+                      <span className={`text-xs px-2 py-1 rounded-full inline-block ${
+                        r.payment_status === 'completed' 
+                          ? 'bg-green-100 text-green-700' 
+                          : r.payment_status === 'pending_door'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : r.payment_status === 'awaiting_payment'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {r.payment_status === 'completed' 
+                          ? '✅ Paid Online' 
+                          : r.payment_status === 'pending_door'
+                          ? '🚪 Pay at Door'
+                          : r.payment_status === 'awaiting_payment'
+                          ? '⏳ PayPal Processing'
+                          : '❌ Payment Required'}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block">
+                        ❌ Payment Required
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
@@ -423,15 +725,24 @@ function EventRegistrationForm({
         <h4 className="font-medium mb-2">Choose from your saved Event People</h4>
 
         {/* Self */}
-        <label className="flex items-center gap-3 rounded-lg border p-3 mb-2">
+        <label className={`flex items-center gap-3 rounded-lg border p-3 mb-2 ${
+          selfRegistered ? "border-green-300 bg-green-50 opacity-60 cursor-not-allowed" : "cursor-pointer"
+        }`}>
           <input
             type="checkbox"
             checked={selfSelected}
-            onChange={(e) => setSelfSelected(e.target.checked)}
+            disabled={selfRegistered}
+            onChange={(e) => {
+              if (!selfRegistered) {
+                setSelfSelected(e.target.checked);
+              }
+            }}
+            className={selfRegistered ? "cursor-not-allowed" : ""}
           />
         <div>
-          <div className="font-medium">
+          <div className={`font-medium ${selfRegistered ? "text-green-700" : ""}`}>
              {me ? `${me.first} ${me.last} (you)` : "You"}
+             {selfRegistered && <span className="ml-2 text-xs text-green-600 font-semibold">✓ Already Registered</span>}
          </div>
          {errors["__self__"] && <div className="text-sm text-red-600">{errors["__self__"]}</div>}
         </div>
@@ -445,15 +756,27 @@ function EventRegistrationForm({
             people.map((p) => {
               const checked = selectedIds.has(p.id);
               const err = errors[p.id];
+              const isAlreadyRegistered = registeredSet.has(p.id);
+              
               return (
                 <label
                   key={p.id}
-                  className={`flex items-center gap-3 rounded-lg border p-3 ${err ? "border-red-300 bg-red-50" : ""}`}
+                  className={`flex items-center gap-3 rounded-lg border p-3 ${
+                    err ? "border-red-300 bg-red-50" : 
+                    isAlreadyRegistered ? "border-green-300 bg-green-50 opacity-60" : ""
+                  } ${isAlreadyRegistered ? "cursor-not-allowed" : "cursor-pointer"}`}
                 >
-                  <input type="checkbox" checked={checked} onChange={() => togglePerson(p.id)} />
+                  <input 
+                    type="checkbox" 
+                    checked={checked} 
+                    disabled={isAlreadyRegistered}
+                    onChange={() => togglePerson(p.id)}
+                    className={isAlreadyRegistered ? "cursor-not-allowed" : ""}
+                  />
                   <div>
-                    <div className="font-medium">
+                    <div className={`font-medium ${isAlreadyRegistered ? "text-green-700" : ""}`}>
                       {p.first_name} {p.last_name}
+                      {isAlreadyRegistered && <span className="ml-2 text-xs text-green-600 font-semibold">✓ Already Registered</span>}
                     </div>
                     {p.date_of_birth && (
                       <div className="text-xs text-gray-500">DOB: {new Date(p.date_of_birth).toLocaleDateString()}</div>
@@ -467,17 +790,109 @@ function EventRegistrationForm({
         </div>
       </div>
 
-      {/* Submit */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600">Payment is not required for this step.</div>
+      {/* Selected People Summary */}
+      {hasSelections && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h4 className="font-medium text-green-900 mb-2">
+            Selected for Registration ({(selfSelected ? 1 : 0) + selectedIds.size} people)
+          </h4>
+          <div className="text-sm text-green-800">
+            {selfSelected && <p>• You</p>}
+            {Array.from(selectedIds).map(personId => {
+              const person = people.find(p => p.id === personId);
+              return person ? <p key={personId}>• {person.first_name} {person.last_name}</p> : null;
+            })}
+            {requiresPayment(event) && (
+              <p className="font-medium mt-2">
+                Total Cost: ${((event.price || 0) * ((selfSelected ? 1 : 0) + selectedIds.size)).toFixed(2)}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Payment Method Selection for Paid Events */}
+      {requiresPayment(event) && hasSelections && (
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-lg font-semibold mb-3">Choose Payment Method</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setSelectedPaymentOption('paypal')}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                selectedPaymentOption === 'paypal'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="text-center">
+                <CreditCard className="h-6 w-6 mx-auto mb-2" />
+                <div className="font-medium">Pay Online</div>
+                <div className="text-sm opacity-75">Pay now with PayPal</div>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setSelectedPaymentOption('door')}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                selectedPaymentOption === 'door'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="text-center">
+                <FiDollarSign className="h-6 w-6 mx-auto mb-2" />
+                <div className="font-medium">Pay at Door</div>
+                <div className="text-sm opacity-75">Pay when you arrive</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 1 Navigation */}
+      <div className="flex justify-between pt-4">
         <button
-          disabled={saving}
-          onClick={createOrUpdate}
-          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+          onClick={onClose}
+          className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
         >
-          {summary?.user_registrations?.length ? "Update Registration" : "Create Registration"}
+          Cancel
+        </button>
+
+        <button
+          onClick={handleNextStep}
+          disabled={!hasSelections || saving}
+          className="min-w-[120px] px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+        >
+          {saving ? (
+            "Processing..."
+          ) : (
+            <>
+              {requiresPayment(event) ? (
+                <>
+                  {selectedPaymentOption === 'paypal' ? (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Register & Pay Online
+                    </>
+                  ) : (
+                    <>
+                      <FiDollarSign className="h-4 w-4" />
+                      Register & Pay at Door
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Users className="h-4 w-4" />
+                  Register Now
+                </>
+              )}
+            </>
+          )}
         </button>
       </div>
+    </>
+  )}
     </div>
   );
 }
@@ -512,6 +927,13 @@ const EventSection: React.FC<EventSectionProps> = ({
 
   // NEW: registration modal event
   const [regEvent, setRegEvent] = useState<Event | null>(null);
+  
+  // Payment state management
+  const [showPaymentRequired, setShowPaymentRequired] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [donationAmount, setDonationAmount] = useState<number>(0);
+    const now = new Date();
+    const upcomingEvents = events.filter(ev => new Date(ev.date) >= now);
 
   const recurrenceLabel = (ev: Event) => {
     if (!ev.recurring || ev.recurring === "never") return "One-time";
@@ -563,7 +985,16 @@ const EventSection: React.FC<EventSectionProps> = ({
     }
 
     const { data } = await api.get(`/v1/events/upcoming?${params.toString()}`);
-    setEvents(data);
+    
+    // Process events to ensure payment fields have default values and handle migration
+    const processedEvents = data.map((event: any) => ({
+      ...event,
+      // Ensure payment_options field exists with backward compatibility
+      payment_options: event.payment_options || (event.paypal_enabled ? ['PayPal'] : []),
+      refund_policy: event.refund_policy ?? "",
+    }));
+    
+    setEvents(processedEvents);
   } catch (error) {
     console.error("Failed to fetch events:", error);
   } finally {
@@ -637,9 +1068,26 @@ const removeWatch = async (ev: Event) => {
 
   // registration open/close hooks
   const openRegistration = (ev: Event) => setRegEvent(ev);
-  const handleRegistrationSaved = async () => {
+  const handleRegistrationSaved = async (paymentMethod?: 'paypal' | 'door') => {
     await fetchMyEvents(); // reflect buttons instantly
-    setRegEvent(null);
+    
+    // Only show payment interface for PayPal payments, not for door payments
+    if (regEvent && (hasPayPalOption(regEvent) || requiresPayment(regEvent))) {
+      // Check if door payment was selected - if so, skip payment interface
+      if (paymentMethod === 'door') {
+        console.log('🚪 [EVENT SECTION] Door payment completed - registration complete, no payment interface needed');
+        setRegEvent(null); // Close registration modal directly
+      } else {
+        // PayPal payment or free event with PayPal donation - show payment interface
+        console.log('💳 [EVENT SECTION] PayPal payment selected - showing payment interface');
+        setShowPaymentRequired(true);
+        setPaymentCompleted(false);
+        setDonationAmount(0); // Reset donation amount
+      }
+    } else {
+      // No payment options available, close normally (registration complete)
+      setRegEvent(null);
+    }
   };
 
   if (loading) return <div>Loading...</div>;
@@ -773,14 +1221,14 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
         {showTitle !== false && (
           <h2 className="text-3xl font-bold mb-6 text-center">{title || "Upcoming Events"}</h2>
         )}
-        {events.length === 0 ? (
+        {upcomingEvents.length === 0 ? (
           <div style={{ textAlign: "center", padding: "4rem 1rem", color: "#555" }}>
             <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📅</div>
             <h3 style={{ fontSize: "1.5rem", fontWeight: 600 }}>There are no upcoming events.</h3>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-            {events.slice(0, visibleCount).map((ev) => (
+            {upcomingEvents.slice(0, visibleCount).map((ev) => (
               <div key={ev.id} className="rounded-2xl shadow-md overflow-hidden bg-white flex flex-col h-full">
                 <div
                   className="h-40 w-full bg-cover bg-center"
@@ -804,6 +1252,7 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                       <p className="text-sm text-gray-800 mb-1">{ev.location}</p>
                       <p className="text-sm text-gray-800">
                         {ev.rsvp ? "Registration required" : "No registration required"}
+                        {requiresPayment(ev) && ` • $${ev.price} payment required`}
                         {ev.recurring && ev.recurring !== "never" ? " • Recurring" : ""}
                       </p>
                     </div>
@@ -921,7 +1370,9 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
         <div className="flex items-center gap-2">
           <FiDollarSign />
           <span>
-            {selectedEvent.price != null && selectedEvent.price > 0
+            {requiresPayment(selectedEvent) 
+              ? `$${selectedEvent.price} - PayPal payment required`
+              : selectedEvent.price != null && selectedEvent.price > 0
               ? `$${selectedEvent.price}`
               : "Free"}
           </span>
@@ -1081,15 +1532,154 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
 
         {/* Registration modal */}
         {regEvent && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative">
-              <EventRegistrationForm
-                event={regEvent}
-                onClose={() => setRegEvent(null)}
-                onSaved={handleRegistrationSaved}
-                onAddPerson={() => {
-                }}
-              />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-50 overflow-y-auto py-8">
+            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative mx-4 my-auto min-h-fit max-h-full overflow-y-auto">
+              {!showPaymentRequired ? (
+                <EventRegistrationForm
+                  event={regEvent}
+                  onClose={() => setRegEvent(null)}
+                  onSaved={handleRegistrationSaved}
+                  onAddPerson={() => {
+                  }}
+                />
+              ) : (
+                <div className="space-y-6">
+                  <div className="border-b pb-4">
+                    <h2 className="text-2xl font-bold text-gray-900">Complete Your Registration</h2>
+                    <p className="text-gray-600 mt-2">
+                      You have successfully registered for <strong>{regEvent.name}</strong>. 
+                      {regEvent.price && regEvent.price > 0 
+                        ? "You can pay online now or pay at the door."
+                        : "You may optionally make a donation to support this event."
+                      }
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-lg font-medium">Event:</span>
+                      <span className="text-lg">{regEvent.name}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-lg font-medium">
+                        {regEvent.price && regEvent.price > 0 ? "Event Cost:" : "Base Amount:"}
+                      </span>
+                      <span className="text-lg font-bold">${regEvent.price?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-medium">Date:</span>
+                      <span className="text-lg">{new Date(regEvent.date).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+
+                  {/* Donation Input for Free Events */}
+                  {regEvent.price === 0 && hasPayPalOption(regEvent) && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h3 className="font-medium text-blue-900 mb-3">Optional Donation</h3>
+                      <label htmlFor="donationInput" className="block text-sm font-medium text-gray-700 mb-2">
+                        Donation Amount (USD)
+                      </label>
+                      <div className="flex items-center">
+                        <FiDollarSign className="h-4 w-4 text-gray-500 mr-2" />
+                        <input
+                          id="donationInput"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="border rounded px-3 py-2 w-32"
+                          placeholder="0.00"
+                          value={donationAmount || ''}
+                          onChange={(e) => setDonationAmount(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        This event is free, but you can make an optional donation to support it.
+                      </p>
+                    </div>
+                  )}
+
+                  {!paymentCompleted ? (
+                    <div className="space-y-4">
+                      <EventPayPalButton
+                        eventId={regEvent.id}
+                        event={{
+                          name: regEvent.name,
+                          price: regEvent.price || 0,
+                          requires_payment: (regEvent.price && regEvent.price > 0) || false,
+                          is_free_event: !regEvent.price || regEvent.price === 0,
+                          payment_options: regEvent.payment_options
+                        }}
+                        donationAmount={donationAmount}
+                        onPaymentSuccess={() => {
+                          setPaymentCompleted(true);
+                        }}
+                        onPaymentError={(error) => {
+                          console.error("Payment failed:", error);
+                          alert(`Payment failed: ${error}`);
+                        }}
+                        className="w-full"
+                      />
+                      
+                      {/* Show skip button for various scenarios */}
+                      <button
+                        onClick={() => {
+                          setRegEvent(null);
+                          setShowPaymentRequired(false);
+                          setPaymentCompleted(false);
+                          setDonationAmount(0);
+                        }}
+                        className="w-full px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                      >
+                        {regEvent.price && regEvent.price > 0 
+                          ? "I'll Pay at the Door" 
+                          : "Skip Donation & Complete Registration"
+                        }
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-4">
+                      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                        Payment completed successfully! Your registration is confirmed.
+                      </div>
+                      <button
+                        onClick={() => {
+                          setRegEvent(null);
+                          setShowPaymentRequired(false);
+                          setPaymentCompleted(false);
+                          setDonationAmount(0);
+                        }}
+                        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between">
+                    <button
+                      onClick={() => {
+                        setShowPaymentRequired(false);
+                        setPaymentCompleted(false);
+                        setDonationAmount(0);
+                      }}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      ← Back to Registration
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRegEvent(null);
+                        setShowPaymentRequired(false);
+                        setPaymentCompleted(false);
+                        setDonationAmount(0);
+                      }}
+                      className="px-4 py-2 text-red-600 hover:text-red-800 transition-colors"
+                    >
+                      Cancel Registration
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

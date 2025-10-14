@@ -17,6 +17,7 @@ import { EventPersonType } from "./EventPersonType"
 import { EventRSVPSelection } from "./EventRSVPSelection"
 import { EventMinistryDropdown } from "./EventMinistryDropdown"
 import { EventImageSelector } from "./EventImageSelector"
+import { EventPaymentSettings } from "./EventPaymentSettings"
 import { handleEventCreation } from "@/helpers/EventsHelper"
 import { getMyPermissions } from "@/helpers/UserHelper"
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
@@ -47,6 +48,9 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
         image_url: "",
         roles: [],
         published: true,
+        // Payment processing fields
+        payment_options: [],
+        refund_policy: "",
     }
 
     const requestOptions: MyPermsRequest = {
@@ -69,6 +73,13 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
     const handleSaveChanges = async () => {
         setSaving(true)
         try {
+            // Validate payment options for paid events
+            if (event.price > 0 && (!event.payment_options || event.payment_options.length === 0)) {
+                alert("Paid events must have at least one payment option selected (PayPal or Pay at Door)")
+                setSaving(false)
+                return
+            }
+            
             await handleEventCreation(event)
             await onSave()
             handleDialogClose()
@@ -199,6 +210,23 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
                                     [field]: typeof value === "number" && isNaN(value) ? 0 : value,
                                 }))
                             }
+                        />
+
+                        <EventPaymentSettings
+                            payment_options={event.payment_options}
+                            refund_policy={event.refund_policy}
+                            price={event.price}
+                            onChange={(field, value) => {
+                                console.log('CreateEventDialog onChange:', { field, value })
+                                setEvent((prev) => {
+                                    const updated = {
+                                        ...prev,
+                                        [field]: value,
+                                    }
+                                    console.log('Updated event state:', updated)
+                                    return updated
+                                })
+                            }}
                         />
 
                         <EventManagementOptions
