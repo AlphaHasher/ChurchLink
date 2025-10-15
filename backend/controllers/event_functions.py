@@ -144,13 +144,20 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None):
     """
     High-level action: cancel RSVP from event + user my_events.
     """
+    print(f"DEBUG: cancel_rsvp called - event_id: {event_id}, uid: {uid}, person_id: {person_id}")
+    
     # Convert person_id to ObjectId if provided
     person_object_id = ObjectId(person_id) if person_id else None
+    
+    print(f"DEBUG: Attempting to remove person from event - person_object_id: {person_object_id}")
     ok = await rsvp_remove_person(event_id, uid, person_object_id)
+    
+    print(f"DEBUG: rsvp_remove_person result: {ok}")
     if not ok:
         return False
 
     try:
+        print(f"DEBUG: Attempting to remove from user my_events")
         await UserHandler.remove_from_my_events(
             uid=uid,
             event_id=ObjectId(event_id),
@@ -158,6 +165,7 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None):
             scope="series",
             person_id=person_object_id,
         )
+        print(f"DEBUG: Successfully removed from my_events")
     except Exception as e:
         print(f"Warning: user my_events cleanup failed: {e}")
     return True

@@ -15,7 +15,7 @@ import {
 import api from '@/api/api';
 
 interface PaymentInfo {
-  status: 'completed' | 'pending' | 'failed' | 'not_required' | 'pending_door' | 'awaiting_payment';
+  status: 'completed' | 'paid' | 'pending' | 'failed' | 'not_required' | 'pending_door' | 'awaiting_payment';
   amount?: number;
   method?: 'paypal' | 'door' | 'free';
   transaction_id?: string;
@@ -92,6 +92,8 @@ export function EventPaymentStatusCard({
   const getStatusBadge = (status: PaymentInfo['status']) => {
     switch (status) {
       case 'completed':
+        return { variant: 'default' as const, label: 'Paid', icon: CheckCircle, color: 'text-green-600' };
+      case 'paid':
         return { variant: 'default' as const, label: 'Paid', icon: CheckCircle, color: 'text-green-600' };
       case 'pending':
         return { variant: 'outline' as const, label: 'Payment Pending', icon: Clock, color: 'text-yellow-600' };

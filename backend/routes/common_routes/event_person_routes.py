@@ -1,8 +1,10 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Request, Query, Body
 from bson import ObjectId
+from datetime import datetime
 
 from helpers.event_person_helper import event_person_helper
+from config.settings import settings
 import logging
 
 
@@ -174,27 +176,76 @@ async def create_registration_payment_order(
         registrations = payment_data.get('registrations', [])
         total_amount = float(payment_data.get('total_amount', 0))
         donation_amount = float(payment_data.get('donation_amount', 0))
+        return_url = payment_data.get('return_url', '')
+        cancel_url = payment_data.get('cancel_url', '')
+        
+        # Debug: Print the received URLs
+        print(f"DEBUG: Received payment_data: {payment_data}")
+        print(f"DEBUG: return_url = '{return_url}'")
+        print(f"DEBUG: cancel_url = '{cancel_url}'")
         
         if not registrations or total_amount <= 0:
-            raise HTTPException(status_code=400, detail="Invalid payment data")
+            raise HTTPException(status_code=400, detail="Invalid payment data: No registrations or zero total amount")
         
         # Get event for payment description
         event = await get_event_by_id(event_id)
         if not event:
             raise HTTPException(status_code=404, detail="Event not found")
         
-        # Create simplified PayPal order
+        # Create PayPal order with proper v2 structure
         order_data = {
-            "amount": total_amount,
-            "description": f"Registration for {event.name} ({len(registrations)} people)",
-            "return_url": f"/events/{event_id}/payment-success",
-            "cancel_url": f"/events/{event_id}/payment-cancel"
+            "purchase_units": [
+                {
+                    "amount": {
+                        "value": f"{total_amount:.2f}",
+                        "currency_code": "USD"
+                    },
+                    "description": f"Registration for {event.name} ({len(registrations)} people)",
+                    "items": [
+                        {
+                            "name": f"Registration for {event.name}",
+                            "unit_amount": {
+                                "value": f"{total_amount:.2f}",
+                                "currency_code": "USD"
+                            },
+                            "quantity": 1
+                        }
+                    ]
+                }
+            ],
+            "application_context": {
+                "return_url": return_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/success",
+                "cancel_url": cancel_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
+            }
         }
+        
+        # Debug: Print final URLs being sent to PayPal
+        final_return_url = return_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/success"
+        final_cancel_url = cancel_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
+        print(f"DEBUG: Final return_url sent to PayPal: '{final_return_url}'")
+        print(f"DEBUG: Final cancel_url sent to PayPal: '{final_cancel_url}'")
         
         paypal_response = await create_order_from_data(order_data)
         
         if "error" in paypal_response:
             raise HTTPException(status_code=500, detail=paypal_response.get("error", "Payment order creation failed"))
+        
+        # Store registration details temporarily for success handler to use
+        payment_id = paypal_response.get("payment_id")
+        if payment_id:
+            from mongo.database import DB
+            registration_session = {
+                "payment_id": payment_id,
+                "event_id": event_id,
+                "user_uid": request.state.uid,  # Add user UID for registration
+                "registrations": registrations,
+                "total_amount": total_amount,
+                "donation_amount": donation_amount,
+                "registration_count": len(registrations),
+                "created_at": datetime.now().isoformat(),
+                "status": "pending"
+            }
+            await DB.insert_document("payment_sessions", registration_session)
         
         # Store minimal payment info in user's session/temporary storage instead of separate collection
         # The actual registration will happen after payment confirmation

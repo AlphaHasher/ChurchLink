@@ -274,7 +274,7 @@ const EventOccurrenceCard: React.FC<EventOccurrenceCardProps> = ({
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge 
-                          variant={attendee.payment_status === "completed" ? "default" : "secondary"}
+                          variant={(attendee.payment_status === "completed" || attendee.payment_status === "paid") ? "default" : "secondary"}
                           className="text-xs"
                         >
                           <CreditCard className="h-3 w-3 mr-1" />

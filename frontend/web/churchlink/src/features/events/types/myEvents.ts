@@ -14,7 +14,7 @@ export interface MyEvent {
   
   // Payment tracking fields (for RSVP events with payments)
   payment_method?: "paypal" | "door";  // Payment method used
-  payment_status?: "awaiting_payment" | "completed" | "pending_door"; // Payment status
+  payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door"; // Payment status
 
   // Full event details (when expand=True used)
   event?: {

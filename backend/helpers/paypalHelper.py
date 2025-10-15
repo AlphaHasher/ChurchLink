@@ -311,13 +311,14 @@ async def capture_payment_by_id(payment_id: str, payer_id: str):
         transaction_data = transactions[0]
         amount_data = transaction_data.get("amount", {})
         
-        # Log successful capture
-        payment_audit_logger.log_paypal_capture_success(
+        # Log successful capture using the existing payment_completed method
+        payment_audit_logger.log_payment_completed(
+            user_uid=None,  # User UID not available in this context
+            event_id=None,  # Event ID not available in this context
             payment_id=payment_id,
-            payer_id=payer_id,
             amount=float(amount_data.get("total", 0)),
-            currency=amount_data.get("currency", "USD"),
-            payer_email=payer_info.get("email"),
+            successful_registrations=1,  # Single payment capture
+            failed_registrations=0,
             request_ip=None
         )
         

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Body, Request
 from models.user import ( PersonCreate, PersonUpdateRequest,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member, get_user_by_uid, get_user_by_id
 )
+from mongo.churchuser import UserHandler
 from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
@@ -227,11 +228,29 @@ async def add_person_alias(request: Request, family_member_data: PersonCreate = 
     from helpers.MongoHelper import serialize_objectid
     try:
         user_id = request.state.uid
+        
+        # Check if user exists first
+        user = await UserHandler.find_by_uid(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"User with UID {user_id} not found in database"
+            )
+        
         created_member = await add_family_member(user_id, family_member_data)
         if not created_member:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error adding person")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Failed to add family member - user may not exist or database error occurred"
+            )
         return {"success": True, "person": serialize_objectid(created_member)}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding person: {str(e)}")
+        print(f"Unexpected error in add_person_alias: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Error adding person: {str(e)}"
+        )

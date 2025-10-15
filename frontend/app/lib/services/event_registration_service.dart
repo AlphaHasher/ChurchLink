@@ -1,8 +1,5 @@
 import '../helpers/api_client.dart';
 import '../models/event_registration_summary.dart';
-import '../models/event.dart';
-import '../pages/event_payment_screen.dart';
-import 'package:flutter/material.dart';
 
 class EventRegistrationService {
   /// Register user or family member for an event
@@ -101,58 +98,6 @@ class EventRegistrationService {
     }
   }
 
-  /// Register for event and handle payment flow if needed
-  static Future<bool> registerForEventWithPayment({
-    required BuildContext context,
-    required Event event,
-    String? familyMemberId,
-  }) async {
-    try {
-      // First, register for the event
-      final registrationSuccess = await registerForEvent(
-        eventId: event.id,
-        familyMemberId: familyMemberId,
-      );
-
-      if (!registrationSuccess) {
-        return false;
-      }
-
-      // If PayPal is enabled for this event, show payment screen
-      if (event.hasPayPalOption) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => EventPaymentScreen(
-              event: event,
-              registrationData: {
-                'eventId': event.id,
-                'familyMemberId': familyMemberId,
-              },
-            ),
-          ),
-        );
-      } else {
-        // Show success message for events without payment
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully registered for ${event.name}!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-
-      return true;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Registration failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
-    }
-  }
-
   /// Check if multiple family members are registered for event (bulk operation)  
   /// Returns a map of family member ID to registration status
   static Future<Map<String, bool>> areFamilyMembersRegistered({
@@ -234,6 +179,27 @@ class EventRegistrationService {
       throw Exception(response.data['message'] ?? 'Failed to create payment order');
     } catch (e) {
       throw Exception('Failed to create payment order: $e');
+    }
+  }
+
+  /// Complete PayPal payment for event registration
+  static Future<bool> completePayPalPayment({
+    required String eventId,
+    required String paymentId,
+    required String payerId,
+  }) async {
+    try {
+      final response = await api.post(
+        '/v1/events/$eventId/payment/complete-bulk-registration',
+        data: {
+          'payment_id': paymentId,
+          'payer_id': payerId,
+        },
+      );
+
+      return response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to complete PayPal payment: $e');
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/event.dart';
@@ -485,19 +485,14 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     }
 
     final approvalUrl = result['approval_url'];
+    final paymentId = result['payment_id'] ?? '';
 
-    log('[BulkRegistration] Opening PayPal browser: $approvalUrl');
+    log('[BulkRegistration] Opening PayPal WebView: $approvalUrl');
 
-    final uri = Uri.parse(approvalUrl);
-    if (!await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    )) {
-      throw Exception('Could not launch PayPal payment page');
-    }
+    // Use WebView instead of external browser
+    await _showPayPalWebView(approvalUrl, paymentId);
 
-    // No longer show manual completion dialog - deep link will handle it automatically
-    // _showPaymentCompletionDialog(paymentId);
+    // No longer show manual completion dialog - WebView will handle it automatically
   }
 
   Future<void> _storePendingBulkRegistration(List<Map<String, dynamic>> registrations) async {
@@ -542,6 +537,113 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
       }
     } catch (e) {
       log('[BulkRegistration] Error during free registration: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _showPayPalWebView(String approvalUrl, String paymentId) async {
+    // Define success and cancel URLs that the WebView can intercept
+    final successUrl = 'http://localhost:3000/events/${widget.event.id}/payment/success';
+    final cancelUrl = 'http://localhost:3000/events/${widget.event.id}/payment/cancel';
+    
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Complete Payment'),
+          backgroundColor: Theme.of(context).primaryColor,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _errorMessage = 'Payment cancelled by user';
+              });
+            },
+          ),
+        ),
+        body: WebViewWidget(
+          controller: WebViewController()
+            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+            ..setNavigationDelegate(
+              NavigationDelegate(
+                onNavigationRequest: (NavigationRequest request) async {
+                  log('[BulkRegistration] WebView navigation request: ${request.url}');
+                  
+                  // Handle success URL
+                  if (request.url.startsWith(successUrl)) {
+                    final uri = Uri.parse(request.url);
+                    final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
+                    final token = uri.queryParameters['token'];
+                    
+                    log('[BulkRegistration] Payment success detected - PayerID: $payerId, token: $token');
+                    
+                    if (payerId != null && token != null) {
+                      // Close WebView and trigger success handling
+                      Navigator.pop(context);
+                      
+                      // Complete the bulk registration
+                      await _completeBulkRegistrationAfterPayment(paymentId, payerId);
+                      
+                      // Trigger success callback
+                      widget.onSuccess?.call();
+                    }
+                    return NavigationDecision.prevent;
+                  }
+                  
+                  // Handle cancel URL  
+                  if (request.url.startsWith(cancelUrl)) {
+                    log('[BulkRegistration] Payment cancel detected');
+                    Navigator.pop(context);
+                    setState(() {
+                      _errorMessage = 'Payment cancelled by user';
+                    });
+                    return NavigationDecision.prevent;
+                  }
+                  
+                  return NavigationDecision.navigate;
+                },
+              ),
+            )
+            ..loadRequest(Uri.parse(approvalUrl)),
+        ),
+      ),
+    ));
+  }
+
+  // Complete bulk registration after successful PayPal payment
+  Future<void> _completeBulkRegistrationAfterPayment(String paymentId, String payerId) async {
+    try {
+      log('[BulkRegistration] Completing registration after payment - PaymentID: $paymentId, PayerID: $payerId');
+      
+      // For WebView payments, we need to call the backend completion endpoint directly
+      // This simulates what the deep link handler would do
+      await _callPaymentCompletionEndpoint(paymentId, payerId);
+      
+      log('[BulkRegistration] Bulk registration completed successfully after payment');
+    } catch (e) {
+      log('[BulkRegistration] Error completing registration after payment: $e');
+      setState(() {
+        _errorMessage = 'Payment successful but registration failed. Please contact support.';
+      });
+      rethrow;
+    }
+  }
+
+  // Call the backend payment completion endpoint
+  Future<void> _callPaymentCompletionEndpoint(String paymentId, String payerId) async {
+    try {
+      final response = await EventRegistrationService.completePayPalPayment(
+        eventId: widget.event.id,
+        paymentId: paymentId,
+        payerId: payerId,
+      );
+      
+      if (!response) {
+        throw Exception('Payment completion failed');
+      }
+    } catch (e) {
+      log('[BulkRegistration] Error calling payment completion endpoint: $e');
       rethrow;
     }
   }

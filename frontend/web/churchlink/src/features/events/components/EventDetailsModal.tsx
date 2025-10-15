@@ -107,6 +107,11 @@ export function EventDetailsModal({
             text: '✅ Paid Online',
             description: `${displayName} has completed PayPal payment`
           },
+          'paid': { 
+            bg: 'bg-green-100 text-green-700', 
+            text: '✅ Paid Online',
+            description: `${displayName} has completed PayPal payment`
+          },
           'pending_door': { 
             bg: 'bg-yellow-100 text-yellow-700', 
             text: '🚪 Pay at Door',
@@ -218,7 +223,7 @@ export function EventDetailsModal({
                         {registrant.display_name || 'You'}:
                       </span>
                       <span className="text-blue-600">
-                        {registrant.payment_status === 'completed' 
+                        {(registrant.payment_status === 'completed' || registrant.payment_status === 'paid')
                           ? '✅ Paid via PayPal' 
                           : registrant.payment_status === 'pending_door'
                           ? '🚪 Will pay at door'
@@ -247,7 +252,7 @@ export function EventDetailsModal({
                   <div className="text-xs text-gray-500">
                     {(() => {
                       const rsvpRegistrants = allRegistrants.filter(r => r.reason === 'rsvp');
-                      const completedPayments = rsvpRegistrants.filter(r => r.payment_status === 'completed').length;
+                      const completedPayments = rsvpRegistrants.filter(r => r.payment_status === 'completed' || r.payment_status === 'paid').length;
                       const doorPayments = rsvpRegistrants.filter(r => r.payment_status === 'pending_door').length;
                       const pendingPayments = rsvpRegistrants.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
                       
@@ -354,7 +359,7 @@ export function EventDetailsModal({
                       <div>
                         {(() => {
                           const rsvpRegistrants = allRegistrants.filter(r => r.reason === 'rsvp');
-                          const paidOnline = rsvpRegistrants.filter(r => r.payment_status === 'completed').length;
+                          const paidOnline = rsvpRegistrants.filter(r => r.payment_status === 'completed' || r.payment_status === 'paid').length;
                           const payAtDoor = rsvpRegistrants.filter(r => r.payment_status === 'pending_door').length;
                           const pending = rsvpRegistrants.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
                           

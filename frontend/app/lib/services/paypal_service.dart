@@ -116,7 +116,7 @@ class PaypalService {
 
   // Event-specific PayPal methods
   
-  /// Create a PayPal payment order for an event using bulk system for consistency
+  /// Create a PayPal payment order for an event using the simplified endpoint
   static Future<Map<String, dynamic>?> createEventPaymentOrder({
     required String eventId,
     required String eventName,
@@ -125,30 +125,34 @@ class PaypalService {
     String? returnUrl,
     String? cancelUrl,
   }) async {
-    final endpoint = '/v1/events/$eventId/payment/create-bulk-order';
+    final endpoint = '/v1/event-people/create-payment-order/$eventId';
     log('[PaypalService] Creating event payment order for event: $eventId');
     
     // Use mobile deep links if no custom URLs provided
     final successUrl = returnUrl ?? 'churchlink://paypal-success';
     final cancelUrlFinal = cancelUrl ?? 'churchlink://paypal-cancel';
     
-    // Use bulk registration system with single registration for consistency
+    // Use simplified registration format
     final registrations = [
       {
+        'person_id': null, // Self registration
         'name': 'Event Registration',
-        'family_member_id': null, // Self registration
-        'donation_amount': amount, // For donations on free events
       }
     ];
 
     final payload = {
       'registrations': registrations,
-      'message': message ?? 'Payment for event: $eventName',
+      'payment_option': 'paypal',
+      'donation_amount': amount > 0 ? amount : 0.0,
+      'total_amount': amount,
       'return_url': successUrl,
       'cancel_url': cancelUrlFinal,
     };
     
     log('[PaypalService] Event payment payload: ${jsonEncode(payload)}');
+    log('[PaypalService] Using endpoint: $endpoint');
+    log('[PaypalService] Return URL: $successUrl');
+    log('[PaypalService] Cancel URL: $cancelUrlFinal');
     
     try {
       final response = await api.post(

@@ -92,7 +92,7 @@ function EventRegistrationForm({
       registered_on: string;
       kind: "rsvp";
       payment_method?: "paypal" | "door";
-      payment_status?: "awaiting_payment" | "completed" | "pending_door";
+      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door";
     }>;
     total_registrations: number;
     available_spots: number;
@@ -366,13 +366,18 @@ function EventRegistrationForm({
         console.log('📋 [EVENT SECTION] Prepared registrations for PayPal:', registrations);
         
         try {
+          // Calculate total amount
+          const total_amount = registrations.reduce((sum, reg) => sum + (reg.payment_amount_per_person || 0), 0);
+          const donation_amount = registrations.reduce((sum, reg) => sum + (reg.donation_amount || 0), 0);
+          
           // Create PayPal order using unified API
           const orderData = {
             registrations: registrations.map(reg => ({
               person_id: reg.family_member_id,
               name: reg.name
             })),
-            donation_amount: 0 // Add donation amount if needed
+            total_amount: total_amount,
+            donation_amount: donation_amount
           };
           
           console.log('📤 [EVENT SECTION] Creating PayPal order:', orderData);
@@ -589,7 +594,7 @@ function EventRegistrationForm({
             <div className="text-xs text-gray-500">
               {(() => {
                 const registrations = summary.user_registrations;
-                const completedPayments = registrations.filter(r => r.payment_status === 'completed').length;
+                const completedPayments = registrations.filter(r => r.payment_status === 'completed' || r.payment_status === 'paid').length;
                 const doorPayments = registrations.filter(r => r.payment_status === 'pending_door').length;
                 const pendingPayments = registrations.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
                 
@@ -620,7 +625,7 @@ function EventRegistrationForm({
                       </span>
                     ) : r.payment_status ? (
                       <span className={`text-xs px-2 py-1 rounded-full inline-block ${
-                        r.payment_status === 'completed' 
+                        (r.payment_status === 'completed' || r.payment_status === 'paid')
                           ? 'bg-green-100 text-green-700' 
                           : r.payment_status === 'pending_door'
                           ? 'bg-yellow-100 text-yellow-700'
@@ -628,7 +633,7 @@ function EventRegistrationForm({
                           ? 'bg-blue-100 text-blue-700'
                           : 'bg-red-100 text-red-700'
                       }`}>
-                        {r.payment_status === 'completed' 
+                        {(r.payment_status === 'completed' || r.payment_status === 'paid')
                           ? '✅ Paid Online' 
                           : r.payment_status === 'pending_door'
                           ? '🚪 Pay at Door'

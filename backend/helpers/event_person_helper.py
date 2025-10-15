@@ -282,14 +282,19 @@ class EventPersonHelper:
             Dict with unregistration success confirmation
         """
         try:
+            self.logger.info(f"Attempting to unregister user {user_uid} from event {event_id}")
+            
+            # Try to remove with default 'rsvp' kind first
             result = await cancel_rsvp(event_id, user_uid)
             
             if not result:
+                self.logger.warning(f"Unregistration failed for user {user_uid} from event {event_id} - user may not be registered")
                 raise HTTPException(
                     status_code=400, 
-                    detail="Unregistration failed"
+                    detail="Unregistration failed - you may not be registered for this event or have already been unregistered"
                 )
             
+            self.logger.info(f"Successfully unregistered user {user_uid} from event {event_id}")
             return {"success": True, "message": "Unregistered successfully"}
             
         except HTTPException:

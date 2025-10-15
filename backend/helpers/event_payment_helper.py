@@ -271,6 +271,11 @@ class EventPaymentHelper:
             return_url = bulk_data.get("return_url", "")
             cancel_url = bulk_data.get("cancel_url", "")
             
+            # Debug: Log the received URLs
+            self.logger.info(f"DEBUG: Received return_url: '{return_url}'")
+            self.logger.info(f"DEBUG: Received cancel_url: '{cancel_url}'")
+            self.logger.info(f"DEBUG: Full bulk_data: {bulk_data}")
+            
             if not registrations:
                 raise HTTPException(status_code=400, detail="No registrations provided")
             
@@ -979,6 +984,12 @@ class EventPaymentHelper:
                 }
             }
             
+            # Debug: Log the final URLs being sent to PayPal
+            final_return_url = return_url or f"{settings.FRONTEND_URL}/events/{event.id}/payment/success"
+            final_cancel_url = cancel_url or f"{settings.FRONTEND_URL}/events/{event.id}/payment/cancel"
+            self.logger.info(f"DEBUG: Final return_url sent to PayPal: '{final_return_url}'")
+            self.logger.info(f"DEBUG: Final cancel_url sent to PayPal: '{final_cancel_url}'")
+            
             return paypal_order_data
             
         except Exception as e:
@@ -994,9 +1005,9 @@ class EventPaymentHelper:
         client_ip: str,
         request
     ) -> Dict[str, Any]:
-        """Handle PayPal success callback and complete payment"""
+        """Handle PayPal success callback and complete payment for individual registrations"""
         try:
-            self.logger.info(f"Processing PayPal success for event {event_id}, payment {payment_id}")
+            self.logger.info(f"Processing PayPal success for event {event_id}, payment {payment_id}, token {token}")
             
             # Capture the payment using PayPal API
             capture_result = await capture_payment_by_id(payment_id, payer_id)
@@ -1008,82 +1019,125 @@ class EventPaymentHelper:
                     detail=f"Payment capture failed: {capture_result['error']}"
                 )
             
-            # Retrieve pending bulk registration data
-            bulk_registration = await DB.db["bulk_registrations"].find_one({"payment_id": payment_id})
+            # For the simplified registration system, try to get registration details from payment session
+            registration_session = None
+            registration_count = 1  # Default
+            total_registrations = []
             
-            if not bulk_registration:
-                self.logger.error(f"No bulk registration found for payment_id: {payment_id}")
-                raise HTTPException(
-                    status_code=404,
-                    detail="Registration data not found for this payment"
-                )
-            
-            # Update bulk registration status
-            await DB.update_document(
-                "bulk_registrations",
-                {"payment_id": payment_id},
-                {
-                    "status": "completed",
-                    "payment_captured_at": datetime.now().isoformat(),
-                    "payer_id": payer_id,
-                    "capture_details": capture_result
-                }
-            )
-            
-            # Complete the registration process
-            completion_result = await self.complete_bulk_registration(
-                event_id=bulk_registration["event_id"],
-                user_uid=bulk_registration["user_uid"],
-                completion_data={
-                    "payment_id": payment_id,
-                    "payer_id": payer_id,
-                    "payment_method": "paypal"
-                },
-                client_ip=client_ip
-            )
+            # Try to find the payment session by payment_id (order ID) or token
+            try:
+                registration_session = await DB.db["payment_sessions"].find_one({"payment_id": payment_id})
+                if not registration_session and token:
+                    registration_session = await DB.db["payment_sessions"].find_one({"payment_id": token})
+                
+                if registration_session:
+                    registration_count = registration_session.get("registration_count", 1)
+                    raw_registrations = registration_session.get("registrations", [])
+                    user_uid = registration_session.get("user_uid")
+                    
+                    # Actually register the people for the event after payment confirmation
+                    from controllers.event_functions import register_multiple_people
+                    
+                    if user_uid:
+                        self.logger.info(f"Attempting to register {registration_count} people for event {event_id} by user {user_uid}")
+                        
+                        try:
+                            # Register the people using the stored registration data
+                            success, message = await register_multiple_people(
+                                event_id=event_id,
+                                uid=user_uid,
+                                registrations=raw_registrations,
+                                payment_option="paypal",
+                                donation_amount=registration_session.get("donation_amount", 0.0)
+                            )
+                            
+                            if success:
+                                self.logger.info(f"Successfully registered people after payment: {message}")
+                                
+                                # Now update payment status for all registered attendees to 'paid'
+                                from models.event import update_attendee_payment_status
+                                
+                                for registration in raw_registrations:
+                                    person_id = registration.get('person_id')  # None for self, ObjectId string for family members
+                                    
+                                    # Generate attendee key to identify the specific attendee
+                                    attendee_key = f"{user_uid}|{person_id if person_id else 'self'}|rsvp"
+                                    
+                                    # Update payment status to 'paid'
+                                    update_success = await update_attendee_payment_status(
+                                        event_id=event_id,
+                                        attendee_key=attendee_key,
+                                        payment_status='paid',
+                                        transaction_id=payment_id
+                                    )
+                                    
+                                    if update_success:
+                                        self.logger.info(f"Updated payment status to 'paid' for attendee {attendee_key}")
+                                    else:
+                                        self.logger.error(f"Failed to update payment status for attendee {attendee_key}")
+                                
+                            else:
+                                self.logger.error(f"Failed to register people after payment: {message}")
+                                
+                        except Exception as e:
+                            self.logger.error(f"Exception while registering people after payment: {str(e)}")
+                    else:
+                        self.logger.error("No user_uid found in payment session - cannot register people")
+                    
+                    # Transform registrations to expected format for response
+                    total_registrations = []
+                    for reg in raw_registrations:
+                        # Parse the full name into first and last name
+                        full_name = reg.get("name", "Unknown")
+                        name_parts = full_name.split(" ", 1)
+                        first_name = name_parts[0] if len(name_parts) > 0 else ""
+                        last_name = name_parts[1] if len(name_parts) > 1 else ""
+                        
+                        transformed_reg = {
+                            "first_name": first_name,
+                            "last_name": last_name, 
+                            "full_name": full_name,
+                            "email": "",  # Not available in current registration data
+                            "payment_amount": float(reg.get("payment_amount_per_person", 0)),
+                            "donation_amount": float(reg.get("donation_amount", 0))
+                        }
+                        total_registrations.append(transformed_reg)
+                    
+                    self.logger.info(f"Found payment session with {registration_count} registrations")
+                    
+                    # Update the session status to completed
+                    await DB.update_document(
+                        "payment_sessions",
+                        {"_id": registration_session["_id"]},
+                        {
+                            "status": "completed",
+                            "payment_captured_at": datetime.now().isoformat(),
+                            "capture_details": capture_result
+                        }
+                    )
+            except Exception as e:
+                self.logger.warning(f"Could not retrieve payment session: {str(e)}")
             
             # Log successful payment completion
             payment_audit_logger.log_payment_completed(
-                user_uid=bulk_registration["user_uid"],
+                user_uid=None,  # May not have user context in simplified flow
                 event_id=event_id,
                 payment_id=payment_id,
-                amount=bulk_registration["total_event_fee"] + bulk_registration["total_donation"],
-                payment_method="paypal",
+                amount=float(capture_result.get("amount", 0)),
+                successful_registrations=registration_count,
+                failed_registrations=0,
                 request_ip=client_ip
             )
-            
-            # Calculate total amount safely
-            total_event_fee = float(bulk_registration.get("total_event_fee", 0) or 0)
-            total_donation = float(bulk_registration.get("total_donation", 0) or 0)
-            total_amount = total_event_fee + total_donation
-            
-            # Extract registration details with names
-            registered_people = []
-            for registration in bulk_registration.get("registrations", []):
-                person_info = {
-                    "first_name": registration.get("first_name", ""),
-                    "last_name": registration.get("last_name", ""),
-                    "email": registration.get("email", ""),
-                    "phone": registration.get("phone", ""),
-                    "payment_amount": float(registration.get("payment_amount_per_person", 0) or 0),
-                    "donation_amount": float(registration.get("donation_amount", 0) or 0)
-                }
-                # Create full name
-                full_name = f"{person_info['first_name']} {person_info['last_name']}".strip()
-                person_info["full_name"] = full_name if full_name else "Unknown"
-                registered_people.append(person_info)
             
             return {
                 "success": True,
                 "message": "Payment completed successfully",
                 "payment_id": payment_id,
-                "registration_count": len(bulk_registration["registrations"]),
-                "registered_people": registered_people,
-                "total_amount": total_amount,
-                "total_event_fee": total_event_fee,
-                "total_donation": total_donation,
-                "redirect_url": f"{settings.FRONTEND_URL}/events/{event_id}/my-events",
-                "completion_details": completion_result
+                "registration_count": registration_count,
+                "registered_people": total_registrations,
+                "total_amount": capture_result.get("amount", 0),
+                "redirect_url": f"{settings.FRONTEND_URL}/events/{event_id}/payment/success-confirmation",
+                "capture_details": capture_result
             }
             
         except HTTPException:
@@ -1092,9 +1146,7 @@ class EventPaymentHelper:
             self.logger.error(f"Error processing PayPal success: {str(e)}")
             
             # Log failed payment completion attempt
-            payment_audit_logger.log_payment_failed(
-                user_uid=None,
-                event_id=event_id,
+            payment_audit_logger.log_paypal_capture_failed(
                 payment_id=payment_id,
                 error_message=str(e),
                 request_ip=client_ip
@@ -1134,11 +1186,11 @@ class EventPaymentHelper:
                 )
                 
                 # Log payment cancellation
-                payment_audit_logger.log_payment_cancelled(
+                payment_audit_logger.log_error(
+                    event_type=AuditEventType.PAYMENT_FAILED,
                     user_uid=bulk_registration.get("user_uid"),
                     event_id=event_id,
-                    payment_id=bulk_registration.get("payment_id", "unknown"),
-                    reason="PayPal payment cancelled by user",
+                    error_message="PayPal payment cancelled by user",
                     request_ip=client_ip
                 )
                 
@@ -1151,7 +1203,7 @@ class EventPaymentHelper:
                 "success": True,
                 "message": "Payment cancelled successfully",
                 "payment_id": payment_id,
-                "redirect_url": f"{settings.FRONTEND_URL}/events/{event_id}"
+                "redirect_url": f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
             }
             
         except Exception as e:

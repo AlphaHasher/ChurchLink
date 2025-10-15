@@ -2,10 +2,12 @@
 
 from typing import List, Dict, Any
 from fastapi import APIRouter, Request, HTTPException, Body
+from fastapi.responses import RedirectResponse
 from bson import ObjectId
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from helpers.event_payment_helper import event_payment_helper
 from helpers.audit_logger import get_client_ip, get_user_agent
+from config.settings import settings
 import json
 import os
 import traceback
@@ -111,7 +113,8 @@ async def handle_paypal_success(
             detail="Missing required PayPal parameters (paymentId and PayerID)"
         )
     
-    return await event_payment_helper.handle_paypal_success(
+    # Process the payment completion and return the result as JSON
+    result = await event_payment_helper.handle_paypal_success(
         event_id=event_id,
         payment_id=paymentId,
         payer_id=PayerID,
@@ -119,6 +122,8 @@ async def handle_paypal_success(
         client_ip=client_ip,
         request=request
     )
+    
+    return result
 
 
 @event_payment_router.get("/{event_id}/payment/cancel")
@@ -130,9 +135,23 @@ async def handle_paypal_cancel(
     """Handle PayPal cancel redirect and cleanup pending payment"""
     client_ip = get_client_ip(request)
     
-    return await event_payment_helper.handle_paypal_cancel(
-        event_id=event_id,
-        token=token,
-        client_ip=client_ip,
-        request=request
-    )
+    try:
+        # Process the cancellation in the helper
+        result = await event_payment_helper.handle_paypal_cancel(
+            event_id=event_id,
+            token=token,
+            client_ip=client_ip,
+            request=request
+        )
+        
+        # Redirect to the frontend cancel page with query parameters
+        cancel_url = f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
+        if token:
+            cancel_url += f"?token={token}"
+            
+        return RedirectResponse(url=cancel_url, status_code=302)
+        
+    except Exception as e:
+        # If there's an error, still redirect to cancel page but with error info
+        cancel_url = f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel?error=true"
+        return RedirectResponse(url=cancel_url, status_code=302)

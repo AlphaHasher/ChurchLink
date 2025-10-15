@@ -6,8 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui
 import { Badge } from '@/shared/components/ui/badge';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { Separator } from '@/shared/components/ui/separator';
-import { paypalEventApi } from '../api/paypalEventApi';
-import { useAuth } from '@/features/auth/hooks/auth-context';
 import api from '@/api/api';
 import jsPDF from 'jspdf';
 
@@ -44,7 +42,6 @@ export const PaymentSuccessPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   // Payment URL parameters
   const paymentId = searchParams.get('paymentId');
@@ -59,7 +56,13 @@ export const PaymentSuccessPage: React.FC = () => {
 
   useEffect(() => {
     const processPaymentSuccess = async () => {
-      if (!eventId || !paymentId || !payerId || !token) {
+      if (!eventId) {
+        setStatus('error');
+        setMessage('Event ID is missing. Please contact support if this error persists.');
+        return;
+      }
+
+      if (!paymentId || !payerId || !token) {
         setStatus('error');
         setMessage('Missing required payment information. Please contact support if this error persists.');
         return;
@@ -68,42 +71,59 @@ export const PaymentSuccessPage: React.FC = () => {
       try {
         setStatus('loading');
 
-        // Complete the payment and register attendees in one step
-        // The backend capture endpoint handles both verification and registration
-        console.log('Completing payment and registration...', { paymentId, payerId });
-        const completionResult = await paypalEventApi.completeEventPayment(
-          eventId,
-          paymentId,
-          payerId,
-          user?.email || undefined
-        );
+        // Call the backend success endpoint to complete the payment
+        console.log('Completing payment via backend...', { paymentId, payerId, token });
+        const response = await api.get(`/v1/events/${eventId}/payment/success`, {
+          params: {
+            paymentId,
+            PayerID: payerId,
+            token
+          }
+        });
 
-        if (!completionResult.success) {
-          throw new Error(completionResult.error || 'Failed to complete event registration');
+        console.log('Backend response:', response.data);
+
+        if (response.data && response.data.success) {
+          // Extract completion data from backend response
+          const backendData = response.data;
+          
+          // Handle response format with registration details
+          const completionData = {
+            registrations_completed: backendData.registration_count || 1,
+            total_amount: backendData.total_amount || 0,
+            registered_people: backendData.registered_people || [],
+            total_event_fee: backendData.total_amount || 0, // Use total_amount as event fee
+            total_donation: 0 // Default to 0 for simplified flow
+          };
+
+          setCompletionData(completionData);
+          setStatus('success');
+          setMessage('Payment completed successfully! Your event registration is confirmed.');
+
+          // Fetch event details for display
+          try {
+            const eventResponse = await api.get(`/v1/events/${eventId}`);
+            setEventDetails(eventResponse.data);
+          } catch (eventError) {
+            console.warn('Could not fetch event details:', eventError);
+            // Don't fail the whole process if we can't get event details
+          }
+
+        } else {
+          throw new Error(response.data?.message || 'Payment completion failed');
         }
-
-        // Step 3: Fetch event details for display
-        try {
-          const eventResponse = await api.get(`/v1/events/${eventId}`);
-          setEventDetails(eventResponse.data);
-        } catch (eventError) {
-          console.warn('Could not fetch event details:', eventError);
-          // Don't fail the whole process if we can't get event details
-        }
-
-        // Step 4: Store completion data
-        if (completionResult.data) {
-          console.log('Payment completion data received:', completionResult.data);
-          setCompletionData(completionResult.data);
-        }
-
-        setStatus('success');
-        setMessage('Payment completed successfully! Your event registration is confirmed.');
 
       } catch (error: any) {
         console.error('Payment processing error:', error);
         setStatus('error');
-        setMessage(error.message || 'An unexpected error occurred while processing your payment');
+        
+        if (error.response?.status === 404) {
+          setMessage('Payment record not found. The payment may already be processed or the session may have expired. Please check your registration status or contact support.');
+        } else if (error.response?.status === 400) {
+          setMessage('Invalid payment parameters. Please contact support with your payment ID for assistance.');
+        } else {
+          setMessage(error.response?.data?.detail || error.message || 'An unexpected error occurred while processing your payment. Please contact support.');
+        }
       }
     };
 
