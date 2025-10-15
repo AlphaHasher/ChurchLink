@@ -1,12 +1,9 @@
 from typing import Optional
-from fastapi import APIRouter, HTTPException, status, Request, Query, Body
+from fastapi import APIRouter, HTTPException, status, Request, Query
 from bson import ObjectId
-from datetime import datetime
 
-from helpers.event_person_helper import event_person_helper
-from config.settings import settings
-import logging
-
+from models.user import get_family_member_by_id, get_family_members
+from helpers.MongoHelper import serialize_objectid
 
 event_person_registration_router = APIRouter(prefix="/event-people", tags=["Event Registration"])
 event_person_management_router = APIRouter(prefix="/event-people", tags=["Event People Management"])
@@ -28,12 +25,33 @@ async def watch_event_route(
     Adds an event to the user's 'My Events' as a 'watch' reference.
     scope=series|occurrence; when scope=occurrence you may pass occurrenceStart (ISO8601).
     """
-    return await event_person_helper.watch_event(
-        event_id=event_id,
-        user_uid=request.state.uid,
-        scope=scope,
-        occurrence_start=occurrenceStart
-    )
+    try:
+        from mongo.churchuser import UserHandler
+        from datetime import datetime
+
+        ev_oid = ObjectId(event_id)
+        occurrence_dt = None
+        if scope == "occurrence" and occurrenceStart:
+            try:
+                occurrence_dt = datetime.fromisoformat(occurrenceStart)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid occurrenceStart; must be ISO8601")
+
+        added = await UserHandler.add_to_my_events(
+            uid=request.state.uid,
+            event_id=ev_oid,
+            reason="watch",
+            scope=scope,
+            occurrence_start=occurrence_dt,
+        )
+        if not added:
+            # Already present or user not found
+            return {"success": True, "added": False}
+        return {"success": True, "added": True, "event": serialize_objectid(added)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error adding event to My Events: {str(e)}")
 
 
 # Private Router
@@ -50,21 +68,44 @@ async def unwatch_event_route(
     If scope/occurrenceStart are provided, removal will target that specific reference.
     Otherwise it removes any 'watch' entries for that event.
     """
-    return await event_person_helper.unwatch_event(
-        event_id=event_id,
-        user_uid=request.state.uid,
-        scope=scope,
-        occurrence_start=occurrenceStart
-    )
+    try:
+        from mongo.churchuser import UserHandler
+        from datetime import datetime
+
+        ev_oid = ObjectId(event_id)
+        occurrence_dt = None
+        if occurrenceStart:
+            try:
+                occurrence_dt = datetime.fromisoformat(occurrenceStart)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid occurrenceStart; must be ISO8601")
+
+        # Build a precise removal; only removes reason="watch"
+        removed = await UserHandler.remove_from_my_events(
+            uid=request.state.uid,
+            event_id=ev_oid,
+            reason="watch",
+            scope=scope,
+            occurrence_start=occurrence_dt,
+        )
+        return {"success": True, "removed": bool(removed)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error removing event from My Events: {str(e)}")
 
 
 # Private Router
 # Get all events for a user (My Events)
 @event_person_management_router.get("/user", response_model=dict)
 async def get_user_events_route(request: Request):
-    return await event_person_helper.get_user_events(
-        user_uid=request.state.uid
-    )
+    try:
+        from mongo.churchuser import UserHandler
+
+        events = await UserHandler.list_my_events(request.state.uid)
+        return {"success": True, "events": serialize_objectid(events)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error fetching user events: {str(e)}")
 
 
 # Private Router
@@ -75,220 +116,106 @@ async def get_registration_status_route(event_id: str, request: Request):
     Uses rsvp_list() which returns: { attendees: [...], seats_taken, spots }
     Each attendee has: user_uid, person_id, key, kind, addedOn, ...
     """
-    return await event_person_helper.get_registration_status(
-        event_id=event_id,
-        user_uid=request.state.uid
-    )
+    try:
+        from models.event import rsvp_list
+
+        data = await rsvp_list(event_id)
+        attendees = data.get("attendees", [])
+        user_registered = any(a.get("user_uid") == request.state.uid and a.get("person_id") is None for a in attendees)
+
+        return {
+            "success": True,
+            "status": {
+                "event_id": event_id,
+                "user_id": request.state.uid,
+                "registered": user_registered
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error fetching registration status: {str(e)}")
 
 
 # Private Route
 # Add user to event (RSVP/register)
 @event_person_registration_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register_user_for_event(
-    event_id: str, 
-    request: Request,
-    scope: str = Query("series", regex="^(series|occurrence)$", description="Scope: 'series' for recurring, 'occurrence' for one-time")
-):
+async def register_user_for_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
 
-        result = await register_rsvp(event_id, request.state.uid, None, None, scope)
+        result = await register_rsvp(event_id, request.state.uid)
         if not result:
             raise HTTPException(status_code=400, detail="Registration failed")
-        return {"success": True, "registration": True, "scope": scope}
+        return {"success": True, "registration": True}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error registering for event: {str(e)}")
 
 
-# Private Router
+# Private Route
 # Remove user from event (cancel RSVP)
 @event_person_registration_router.delete("/unregister/{event_id}", response_model=dict)
-async def unregister_user_from_event(
-    event_id: str, 
-    request: Request,
-    scope: Optional[str] = Query(None, regex="^(series|occurrence)$", description="Optional scope to remove specific registration")
-):
+async def unregister_user_from_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
 
-        result = await cancel_rsvp(event_id, request.state.uid, None, scope)
+        result = await cancel_rsvp(event_id, request.state.uid)
         if not result:
             raise HTTPException(status_code=400, detail="Unregistration failed")
         return {"success": True, "message": "Unregistered successfully"}
     except HTTPException:
         raise
-
-
-# Private Router
-# Unified registration for single or multiple people
-@event_person_registration_router.post("/register-multiple/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register_multiple_people_for_event(
-    event_id: str, 
-    request: Request,
-    registration_data: dict = Body(...)
-):
-    """
-    Unified endpoint for registering single or multiple people for an event.
-    
-    Expected body:
-    {
-        "registrations": [
-            {"person_id": null, "name": "John Doe"},  // null person_id = self
-            {"person_id": "family_member_id", "name": "Jane Doe"}  // family member
-        ],
-        "payment_option": "paypal" | "door" | null,  // for free events
-        "donation_amount": 25.50  // optional donation
-    }
-    """
-    from controllers.event_functions import register_multiple_people
-    
-    try:
-        registrations = registration_data.get('registrations', [])
-        payment_option = registration_data.get('payment_option')
-        donation_amount = float(registration_data.get('donation_amount', 0))
-        
-        if not registrations:
-            raise HTTPException(status_code=400, detail="No registrations provided")
-        
-        success, message = await register_multiple_people(
-            event_id=event_id,
-            uid=request.state.uid,
-            registrations=registrations,
-            payment_option=payment_option,
-            donation_amount=donation_amount
-        )
-        
-        if success:
-            return {"success": True, "message": message}
-        else:
-            raise HTTPException(status_code=400, detail=message)
-            
     except Exception as e:
-        logging.error(f"Error in unified registration: {e}")
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
-
-
-# Private Router  
-# Create payment order for multiple registrations (simplified)
-@event_person_registration_router.post("/create-payment-order/{event_id}", response_model=dict)
-async def create_registration_payment_order(
-    event_id: str,
-    request: Request, 
-    payment_data: dict = Body(...)
-):
-    """
-    Simplified payment order creation for event registrations.
-    
-    Expected body:
-    {
-        "registrations": [...],  // same as register-multiple
-        "payment_option": "paypal",
-        "donation_amount": 25.50,
-        "total_amount": 75.50
-    }
-    """
-    from helpers.paypalHelper import create_order_from_data
-    from models.event import get_event_by_id
-    
-    try:
-        registrations = payment_data.get('registrations', [])
-        total_amount = float(payment_data.get('total_amount', 0))
-        donation_amount = float(payment_data.get('donation_amount', 0))
-        return_url = payment_data.get('return_url', '')
-        cancel_url = payment_data.get('cancel_url', '')
-        
-        # Debug: Print the received URLs
-        print(f"DEBUG: Received payment_data: {payment_data}")
-        print(f"DEBUG: return_url = '{return_url}'")
-        print(f"DEBUG: cancel_url = '{cancel_url}'")
-        
-        if not registrations or total_amount <= 0:
-            raise HTTPException(status_code=400, detail="Invalid payment data: No registrations or zero total amount")
-        
-        # Get event for payment description
-        event = await get_event_by_id(event_id)
-        if not event:
-            raise HTTPException(status_code=404, detail="Event not found")
-        
-        # Create PayPal order with proper v2 structure
-        order_data = {
-            "purchase_units": [
-                {
-                    "amount": {
-                        "value": f"{total_amount:.2f}",
-                        "currency_code": "USD"
-                    },
-                    "description": f"Registration for {event.name} ({len(registrations)} people)",
-                    "items": [
-                        {
-                            "name": f"Registration for {event.name}",
-                            "unit_amount": {
-                                "value": f"{total_amount:.2f}",
-                                "currency_code": "USD"
-                            },
-                            "quantity": 1
-                        }
-                    ]
-                }
-            ],
-            "application_context": {
-                "return_url": return_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/success",
-                "cancel_url": cancel_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
-            }
-        }
-        
-        # Debug: Print final URLs being sent to PayPal
-        final_return_url = return_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/success"
-        final_cancel_url = cancel_url or f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
-        print(f"DEBUG: Final return_url sent to PayPal: '{final_return_url}'")
-        print(f"DEBUG: Final cancel_url sent to PayPal: '{final_cancel_url}'")
-        
-        paypal_response = await create_order_from_data(order_data)
-        
-        if "error" in paypal_response:
-            raise HTTPException(status_code=500, detail=paypal_response.get("error", "Payment order creation failed"))
-        
-        # Store registration details temporarily for success handler to use
-        payment_id = paypal_response.get("payment_id")
-        if payment_id:
-            from mongo.database import DB
-            registration_session = {
-                "payment_id": payment_id,
-                "event_id": event_id,
-                "user_uid": request.state.uid,  # Add user UID for registration
-                "registrations": registrations,
-                "total_amount": total_amount,
-                "donation_amount": donation_amount,
-                "registration_count": len(registrations),
-                "created_at": datetime.now().isoformat(),
-                "status": "pending"
-            }
-            await DB.insert_document("payment_sessions", registration_session)
-        
-        # Store minimal payment info in user's session/temporary storage instead of separate collection
-        # The actual registration will happen after payment confirmation
-        return {
-            "success": True,
-            "payment_id": paypal_response.get("payment_id"),
-            "approval_url": paypal_response.get("approval_url"),
-            "message": "Payment order created successfully"
-        }
-        
-    except Exception as e:
-        logging.error(f"Error creating payment order: {e}")
-        raise HTTPException(status_code=500, detail=f"Payment order creation failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error unregistering from event: {str(e)}")
 
 
 # Private Route
 # Get user's events (alias of /user)
 @event_person_registration_router.get("/my-events", response_model=dict)
 async def get_my_events(request: Request, include_family: bool = True, expand: bool = False):
-    return await event_person_helper.get_user_events(
-        user_uid=request.state.uid,
-        expand=expand
-    )
+    try:
+        from mongo.churchuser import UserHandler
+        from bson import ObjectId
+        import logging
+
+        if not request.state.uid:
+            raise HTTPException(status_code=401, detail="User authentication required")
+
+        # Pass the expand parameter to the handler
+        events = await UserHandler.list_my_events(request.state.uid, expand=expand)
+        
+        # If include_family is True, aggregate family member events
+        if include_family:
+            try:
+                # Get user's family members
+                family_members = await get_family_members(request.state.uid)
+                
+                # Fetch events for each family member
+                for member in family_members:
+                    member_id = member.id
+                    if member_id:
+                        person_oid = ObjectId(str(member_id))
+                        family_events = await UserHandler.list_my_events(
+                            request.state.uid, 
+                            expand=expand, 
+                            person_id=person_oid
+                        )
+                        events.extend(family_events)
+            except Exception as e:
+                logging.warning(f"Could not fetch family member events: {e}")
+                # Continue without family events rather than failing completely
+        
+        return {"success": True, "events": serialize_objectid(events)}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        import logging as _logging
+        _logging.error(f"Invalid data format in user events for user {request.state.uid}: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid data format in user events")
+    except Exception as e:
+        import logging as _logging
+        _logging.error(f"Unexpected error fetching user events for user {request.state.uid}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching user events")
 
 
 #
@@ -298,12 +225,7 @@ async def get_my_events(request: Request, include_family: bool = True, expand: b
 # Private Route
 # Register a family member for an event
 @event_person_registration_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register_family_member_for_event(
-    event_id: str, 
-    family_member_id: str, 
-    request: Request,
-    scope: str = Query("series", regex="^(series|occurrence)$", description="Scope: 'series' for recurring, 'occurrence' for one-time")
-):
+async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
 
@@ -312,28 +234,21 @@ async def register_family_member_for_event(
         if not member:
             raise HTTPException(status_code=404, detail="Family member not found")
 
-        result = await register_rsvp(event_id, request.state.uid, family_member_id, None, scope)
+        result = await register_rsvp(event_id, request.state.uid, family_member_id)
         if not result:
             raise HTTPException(status_code=400, detail="Registration failed")
 
-        return {"success": True, "registration": True, "scope": scope}
+        return {"success": True, "registration": True}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error registering family member for event: {str(e)}")
 
-# Redundant donation endpoint removed - now using bulk payment system for all event donations
-# Free events with donations should use: /events/{id}/payment/create-bulk-order
 
 # Private Route
 # Unregister a family member from an event
 @event_person_registration_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
-async def unregister_family_member_from_event(
-    event_id: str, 
-    family_member_id: str, 
-    request: Request,
-    scope: Optional[str] = Query(None, regex="^(series|occurrence)$", description="Optional scope to remove specific registration")
-):
+async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
     try:
         from controllers.event_functions import cancel_rsvp
 
@@ -342,7 +257,7 @@ async def unregister_family_member_from_event(
         if not member:
             raise HTTPException(status_code=404, detail="Family member not found")
 
-        result = await cancel_rsvp(event_id, request.state.uid, family_member_id, scope)
+        result = await cancel_rsvp(event_id, request.state.uid, family_member_id)
         if not result:
             raise HTTPException(status_code=400, detail="Unregistration failed")
 
@@ -357,25 +272,53 @@ async def unregister_family_member_from_event(
 # Get all events for user's family members (currently returns all; filter if needed)
 @event_person_registration_router.get("/my-family-members-events", response_model=dict)
 async def get_my_family_members_events(request: Request, filters: Optional[str] = None):
-    return await event_person_helper.get_family_members_events(
-        user_uid=request.state.uid,
-        filters=filters
-    )
+    try:
+        from mongo.churchuser import UserHandler
+        events = await UserHandler.list_my_events(request.state.uid)
+        return {"success": True, "events": serialize_objectid(events)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error fetching family member events: {str(e)}")
 
 
 # Private Route
 # Get events for a specific family member
 @event_person_registration_router.get("/family-member/{family_member_id}/events", response_model=dict)
 async def get_family_member_events(family_member_id: str, request: Request):
-    return await event_person_helper.get_family_member_events(
-        family_member_id=family_member_id,
-        user_uid=request.state.uid
-    )
+    try:
+        from mongo.churchuser import UserHandler
+        import logging
 
-# Test route to verify router is working
-@event_person_registration_router.delete("/test-delete/{test_id}", response_model=dict)
-async def test_delete_route(test_id: str, request: Request):
-    print(f"DEBUG: Test delete route called - test_id: {test_id}")
-    return {"success": True, "message": "Test delete route working", "test_id": test_id}
+        if not request.state.uid:
+            raise HTTPException(status_code=401, detail="User authentication required")
+
+        try:
+            family_member_object_id = ObjectId(family_member_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid family member ID format")
+
+        # Validate family member ownership
+        member = await get_family_member_by_id(request.state.uid, family_member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Family member not found or not owned by user")
+
+        # Filter by person_id
+        events = await UserHandler.list_my_events(request.state.uid, person_id=family_member_object_id)
+        return {
+            "success": True,
+            "events": serialize_objectid(events),
+            "family_member_id": family_member_id
+        }
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logging.error(
+            f"Invalid data format in family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}"
+        )
+        raise HTTPException(status_code=400, detail="Invalid data format in family member events")
+    except Exception as e:
+        logging.error(
+            f"Unexpected error fetching family member events for user {request.state.uid}, family member {family_member_id}: {str(e)}"
+        )
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching family member events")
 
 

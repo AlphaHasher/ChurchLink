@@ -1,9 +1,10 @@
 from bson import ObjectId
-
+import re
 from mongo.database import DB
 from datetime import datetime
 from mongo.roles import RoleHandler
 from helpers.MongoHelper import serialize_objectid_deep
+from typing import Tuple, List, Dict
 
 
 _PERSON_ID_NOT_PROVIDED = object()
@@ -23,6 +24,7 @@ class UserHandler:
             "last_name": last_name,
             "email": email,
             "verified":verified,
+            "membership": False,
             "uid": uid,
             "roles": await RoleHandler.names_to_ids(roles),
             "phone": phone,
@@ -84,7 +86,7 @@ class UserHandler:
             "last_name": last_name,
             "gender": gender,
             "date_of_birth": date_of_birth,   # (aka DOB)
-            "created_on": datetime.now(),
+            "createdOn": datetime.now(),
         }
 
     @staticmethod
@@ -96,9 +98,7 @@ class UserHandler:
         occurrence_id: ObjectId = None,  # optional: if occurrences are stored as docs
         occurrence_start=None,  # optional: datetime for the chosen occurrence time
         meta: dict | None = None,
-        person_id: ObjectId = None,  # optional: for family member registrations
-        payment_method: str = None,  # optional: "paypal" | "door" | None (for free events)
-        payment_status: str = None   # optional: "completed" | "pending_door" | "pending" | "failed" | None
+        person_id: ObjectId = None  # optional: for family member registrations
     ):
         """
         A normalized reference to an event the user is 'involved in'.
@@ -116,7 +116,7 @@ class UserHandler:
         ]
         unique_key = "|".join(parts)
 
-        ref = {
+        return {
             "_id": ObjectId(),          # local id of the embedded record
             "event_id": event_id,       # required
             "person_id": person_id,     # optional: for family member registrations
@@ -129,14 +129,6 @@ class UserHandler:
             "meta": meta or {},         # room for notification prefs, etc.
             "addedOn": datetime.now(),
         }
-        
-        # Add payment information if provided
-        if payment_method is not None:
-            ref["payment_method"] = payment_method
-        if payment_status is not None:
-            ref["payment_status"] = payment_status
-            
-        return ref
 
     @staticmethod
     def create_sermon_ref_schema(
@@ -152,14 +144,116 @@ class UserHandler:
             "meta": meta or {},
             "addedOn": datetime.now(),
         }
+    
+    # Intelligent pagination search for the users in admin dash
+    @staticmethod
+    async def search_users_paged(params) -> Tuple[int, List[Dict]]:
+        """
+        Server-side search/pagination/sort for users.
+        - params.searchField: "email" | "name"
+        - params.searchTerm: case-insensitive "contains"
+        - params.sortBy: "email" | "name" | "createdOn" | "uid" | "membership"
+        - params.sortDir: "asc" | "desc"
+        - params.hasRolesOnly: if True, filter to users with roles != []
+        Returns: (total_count, users_list)
+        """
+        db = DB.db["users"]
+
+        filt: Dict = {}
+
+        if getattr(params, "hasRolesOnly", False):
+            filt["roles"] = {"$exists": True, "$ne": []}
+
+        term = (params.searchTerm or "").strip()
+        if term:
+            pat = re.escape(term)
+            if params.searchField == "email":
+                filt["email"] = {"$regex": pat, "$options": "i"}
+            else:
+                name_or = [
+                    {"first_name": {"$regex": pat, "$options": "i"}},
+                    {"last_name": {"$regex": pat, "$options": "i"}},
+                    {
+                        "$expr": {
+                            "$regexMatch": {
+                                "input": {"$concat": ["$first_name", " ", "$last_name"]},
+                                "regex": pat,
+                                "options": "i",
+                            }
+                        }
+                    },
+                ]
+                filt["$or"] = name_or
+
+        sort_dir = 1 if params.sortDir == "asc" else -1
+        if params.sortBy == "email":
+            sort_keys = [("email", sort_dir), ("uid", 1)]
+        elif params.sortBy == "uid":
+            sort_keys = [("uid", sort_dir)]
+        elif params.sortBy == "membership":
+            sort_keys = [("membership", sort_dir)]
+        elif params.sortBy == "name":
+            sort_keys = [("last_name", sort_dir), ("first_name", sort_dir), ("email", 1)]
+        else:
+            sort_keys = [("createdOn", sort_dir), ("uid", 1)]
+
+        total = await db.count_documents(filt)
+
+        skip = max(0, params.page) * max(1, params.pageSize)
+        limit = max(1, params.pageSize)
+
+        cursor = (
+            db.find(
+                filt,
+                {
+                    "_id": 0,
+                    "uid": 1,
+                    "first_name": 1,
+                    "last_name": 1,
+                    "email": 1,
+                    "membership": 1,
+                    "roles": 1,
+                    "createdOn": 1,
+                },
+            )
+            .sort(sort_keys)
+            .skip(skip)
+            .limit(limit)
+        )
+        users = [doc async for doc in cursor]
+        return total, users
 
     @staticmethod
     async def find_all_users():
         return await DB.find_documents("users", {})
 
+
     @staticmethod
     async def find_users_with_role_id(role_id):
         return await DB.find_documents("users", {"roles": role_id})
+    
+    @staticmethod
+    async def fetch_focused_user_content_with_role_id(role_id: str) -> List[Dict]:
+        rid = (role_id or "").strip()
+        if not rid:
+            raise ValueError("invalid role_id")
+
+        coll = DB.db["users"]
+
+        query = {"roles": rid}
+
+        cursor = coll.find(
+            query,
+            {
+                "_id": 0,
+                "uid": 1,
+                "first_name": 1,
+                "last_name": 1,
+                "email": 1,
+                "roles": 1,
+            },
+        )
+        return [doc async for doc in cursor]
 
     @staticmethod
     async def find_users_with_permissions(permission_names):
@@ -257,34 +351,9 @@ class UserHandler:
                 "as": "event"
             }},
             {"$unwind": "$event"},
-            # Group by event_id to consolidate multiple registrations for the same event
-            {"$group": {
-                "_id": "$my_events.event_id",
-                "event": {"$first": "$event"},
-                "registrations": {"$push": "$my_events"},
-                "registration_count": {"$sum": 1},
-                "reasons": {"$addToSet": "$my_events.reason"},
-                "scopes": {"$addToSet": "$my_events.scope"},
-                # Keep the first occurrence data for backwards compatibility
-                "event_id": {"$first": "$my_events.event_id"},
-                "reason": {"$first": "$my_events.reason"},
-                "scope": {"$first": "$my_events.scope"},
-                "occurrence_start": {"$first": "$my_events.occurrence_start"},
-                "person_id": {"$first": "$my_events.person_id"}
-            }},
             {"$replaceRoot": {"newRoot": {
                 "$mergeObjects": [
-                    {
-                        "event_id": "$event_id",
-                        "reason": "$reason",
-                        "scope": "$scope", 
-                        "occurrence_start": "$occurrence_start",
-                        "person_id": "$person_id",
-                        "registration_count": "$registration_count",
-                        "registrations": "$registrations",
-                        "all_reasons": "$reasons",
-                        "all_scopes": "$scopes"
-                    },
+                    "$my_events",
                     {"event": "$event"}
                 ]
             }}}
@@ -407,9 +476,7 @@ class UserHandler:
         occurrence_id: ObjectId | None = None,
         occurrence_start=None,
         meta: dict | None = None,
-        person_id: ObjectId = None,       # optional: for family member registrations
-        payment_method: str = None,       # optional: "paypal" | "door" | None
-        payment_status: str = None        # optional: payment status
+        person_id: ObjectId = None        # optional: for family member registrations
     ):
         ref = UserHandler.create_event_ref_schema(
             event_id=event_id,
@@ -419,9 +486,7 @@ class UserHandler:
             occurrence_id=occurrence_id,
             occurrence_start=occurrence_start,
             meta=meta,
-            person_id=person_id,
-            payment_method=payment_method,
-            payment_status=payment_status
+            person_id=person_id
         )
 
         result = await DB.db["users"].update_one(
@@ -549,52 +614,6 @@ class UserHandler:
             return result.modified_count == 1
         except Exception as e:
             print(f"Error removing person {person_id}: {e}")
-            return False
-    
-    @staticmethod
-    async def update_my_events_payment_status(
-        uid: str,
-        event_id: ObjectId,
-        person_id: ObjectId = None,
-        payment_status: str = "completed"
-    ):
-        """
-        Update payment status for a specific event registration in user's my_events.
-        
-        Args:
-            uid: User's UID
-            event_id: Event ObjectId
-            person_id: Optional person ObjectId for family member registrations
-            payment_status: New payment status ("completed", "pending", "failed", etc.)
-        """
-        try:
-            # Build match criteria to find the specific event registration
-            match_criteria = {
-                "uid": uid,
-                "my_events.event_id": event_id
-            }
-            
-            # Add person_id to match criteria if provided
-            if person_id:
-                match_criteria["my_events.person_id"] = person_id
-            else:
-                # Match registrations where person_id is null (self registrations)
-                match_criteria["my_events.person_id"] = None
-            
-            print(f"[USER_HANDLER] Updating payment status - UID: {uid}, Event: {event_id}, Person: {person_id}, Status: {payment_status}")
-            print(f"[USER_HANDLER] Match criteria: {match_criteria}")
-            
-            # Update the payment status for the matching event registration
-            result = await DB.db["users"].update_one(
-                match_criteria,
-                {"$set": {"my_events.$.payment_status": payment_status}}
-            )
-            
-            print(f"[USER_HANDLER] Update result - Modified count: {result.modified_count}")
-            return result.modified_count > 0
-            
-        except Exception as e:
-            print(f"Error updating payment status for user {uid}, event {event_id}: {e}")
             return False
     
     

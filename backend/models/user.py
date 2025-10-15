@@ -1,7 +1,7 @@
-from typing import Optional, List, Literal, Dict, Union
+from typing import Optional, List, Literal, Dict
 from datetime import datetime
 from pydantic import (
-    BaseModel, Field, EmailStr, ConfigDict, field_validator
+    BaseModel, Field, EmailStr, ConfigDict
 )
 from bson import ObjectId
 from mongo.database import DB
@@ -274,22 +274,7 @@ class PersonCreate(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50) 
     gender: Literal["M", "F"]
-    date_of_birth: Union[datetime, str]
-    
-    @field_validator('date_of_birth')
-    @classmethod
-    def validate_date_of_birth(cls, v):
-        if isinstance(v, str):
-            try:
-                # Parse date string like "YYYY-MM-DD" 
-                return datetime.strptime(v, '%Y-%m-%d')
-            except ValueError:
-                try:
-                    # Try parsing ISO format with time
-                    return datetime.fromisoformat(v.replace('Z', '+00:00'))
-                except ValueError:
-                    raise ValueError('Invalid date format. Expected YYYY-MM-DD or ISO format')
-        return v
+    date_of_birth: datetime
 
 class PersonOut(BaseModel):
     id: str  # ObjectId converted to string
@@ -317,12 +302,6 @@ async def add_family_member(user_uid: str, person_data: PersonCreate) -> Optiona
     (Direct wrapper for UserHandler.add_person_to_user)
     """
     try:
-        # First check if user exists
-        user_exists = await UserHandler.find_by_uid(user_uid)
-        if not user_exists:
-            print(f"User with UID {user_uid} not found in database")
-            return None
-            
         person_id = await UserHandler.add_person_to_user(
             user_uid, 
             person_data.first_name, 
@@ -335,9 +314,6 @@ async def add_family_member(user_uid: str, person_data: PersonCreate) -> Optiona
             person = await UserHandler.get_person(user_uid, person_id)
             if person:
                 person['id'] = str(person.pop('_id'))
-                # Map created_on to createdOn for the PersonOut model
-                if 'created_on' in person:
-                    person['createdOn'] = person.pop('created_on')
                 return PersonOut(**person)
         return None
     except Exception as e:
@@ -354,9 +330,6 @@ async def get_family_members(user_uid: str) -> List[PersonOut]:
         result = []
         for person in people:
             person['id'] = str(person.pop('_id'))
-            # Map created_on to createdOn for the PersonOut model
-            if 'created_on' in person:
-                person['createdOn'] = person.pop('created_on')
             result.append(PersonOut(**person))
         return result
     except Exception as e:
@@ -372,9 +345,6 @@ async def get_family_member_by_id(user_uid: str, person_id: str) -> Optional[Per
         person = await UserHandler.get_person(user_uid, ObjectId(person_id))
         if person:
             person['id'] = str(person.pop('_id'))
-            # Map created_on to createdOn for the PersonOut model
-            if 'created_on' in person:
-                person['createdOn'] = person.pop('created_on')
             return PersonOut(**person)
         return None
     except Exception as e:
