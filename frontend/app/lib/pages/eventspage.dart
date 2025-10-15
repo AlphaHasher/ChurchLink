@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 import '../helpers/api_client.dart';
 import '../models/event.dart';
@@ -27,6 +28,7 @@ class _EventsPageState extends State<EventsPage> {
   List<Event> _events = [];
   bool _isLoading = true;
   final Map<String, EventRegistrationSummary> _registrationSummaries = {};
+  Timer? _refreshTimer;
 
   // Declare variables for dynamic filter values
   int? _minAge;
@@ -61,10 +63,16 @@ class _EventsPageState extends State<EventsPage> {
     _dateRange = RangeValues(0, totalDays);
 
     _loadEvents();
+    
+    // Auto-refresh every 60 seconds when page is visible
+    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) _loadEvents();
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _nameController.dispose();
     _maxPriceController.dispose();
     _ageController.dispose();
@@ -209,7 +217,7 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
-                    value: tempGender,
+                    initialValue: tempGender,
                     items:
                         [
                           null, // Show all: no filtering
@@ -244,7 +252,7 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
-                    value: tempMinistry,
+                    initialValue: tempMinistry,
                     items:
                         [
                           null,
@@ -494,47 +502,51 @@ END:VCALENDAR
       ),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _isLoading
-                  ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                  : _events.isEmpty
-                  ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Text("No events found."),
-                  )
-                  : ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: _events.length,
-                    itemBuilder: (context, index) {
-                      final event = _events[index];
-                      return Stack(
-                        children: [
-                          EnhancedEventCard(
-                            event: event,
-                            onViewPressed: () => _navigateToShowcase(event),
-                            registrationSummary:
-                                _registrationSummaries[event.id],
-                          ),
-                          Positioned(
-                            bottom: 12,
-                            right: 12,
-                            child: IconButton(
-                              tooltip: 'Add to Calendar',
-                              icon: const Icon(Icons.calendar_month_outlined),
-                              onPressed: () => _onAddToCalendar(event),
+        child: RefreshIndicator(
+          onRefresh: _loadEvents,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                _isLoading
+                    ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 50),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                    : _events.isEmpty
+                    ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 50),
+                      child: Text("No events found."),
+                    )
+                    : ListView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: _events.length,
+                      itemBuilder: (context, index) {
+                        final event = _events[index];
+                        return Stack(
+                          children: [
+                            EnhancedEventCard(
+                              event: event,
+                              onViewPressed: () => _navigateToShowcase(event),
+                              registrationSummary:
+                                  _registrationSummaries[event.id],
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-            ],
+                            Positioned(
+                              bottom: 12,
+                              right: 12,
+                              child: IconButton(
+                                tooltip: 'Add to Calendar',
+                                icon: const Icon(Icons.calendar_month_outlined),
+                                onPressed: () => _onAddToCalendar(event),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+              ],
+            ),
           ),
         ),
       ),

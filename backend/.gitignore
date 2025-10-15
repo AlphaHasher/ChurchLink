@@ -7,3 +7,4 @@ bearer.txt
 __pycache__/
 .env
 /migrations
+data/

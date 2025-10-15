@@ -1,4 +1,3 @@
-import 'package:app/helpers/bible_notes_helper.dart' as bh;
 // Renders the bible reader itself
 // Top bar extracted earlier; now also extracts loader, actions, and jump picker sheet.
 
@@ -26,6 +25,7 @@ import '../sheets/jump_picker_sheet.dart';
 import '../../data/notes_api.dart' as api;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:async';
 
 import 'package:intl/intl.dart';
 import '../../application/last_sync_store.dart';
@@ -348,36 +348,33 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
   // Fast note search: cache all notes for instant search
   List<(VerseRef, String, String)> _allUserNotes = [];
   bool _allNotesLoaded = false;
+  StreamSubscription<void>? _notesSyncedSub;
 
   Future<void> _loadAllNotes() async {
-    List<(VerseRef, String, String)> notes = [];
-    for (final book in Books.instance.names()) {
-      final chapterCount = Books.instance.chapterCount(book);
-      final bookNotes = await bh.getNotesForChapterRange(
-        book: book,
-        chapterStart: 1,
-        chapterEnd: chapterCount,
+    // Read from local cache only (no network here).
+    final allNotes = await api.NotesApi.getAllNotesFromCache();
+
+    final List<(VerseRef, String, String)> notes = [];
+    for (final n in allNotes) {
+      final chapterVerses = await _repo.getChapter(
+        translation: _translation,
+        book: n.book,
+        chapter: n.chapter,
       );
-      for (final n in bookNotes) {
-        final chapterVerses = await _repo.getChapter(
-          translation: _translation,
-          book: n.book,
-          chapter: n.chapter,
-        );
-        final v = chapterVerses.firstWhere(
-          (v) =>
-              v.$1.book == n.book &&
-              v.$1.chapter == n.chapter &&
-              v.$1.verse == n.verseStart,
-          orElse: () => (VerseRef(n.book, n.chapter, n.verseStart), ''),
-        );
-        notes.add((v.$1, v.$2, n.note));
-        debugPrint(
-          '[NOTE-LOAD] ${n.book} ${n.chapter}:${n.verseStart} note="${n.note}" text="${v.$2}"',
-        );
-      }
+      final v = chapterVerses.firstWhere(
+        (v) =>
+            v.$1.book == n.book &&
+            v.$1.chapter == n.chapter &&
+            v.$1.verse == n.verseStart,
+        orElse: () => (VerseRef(n.book, n.chapter, n.verseStart), ''),
+      );
+      notes.add((v.$1, v.$2, n.note));
+      debugPrint(
+        '[NOTE-LOAD] ${n.book} ${n.chapter}:${n.verseStart} note="${n.note}" text="${v.$2}"',
+      );
     }
-    debugPrint('[NOTE-LOAD] Total notes loaded: \\${notes.length}');
+
+    debugPrint('[NOTE-LOAD] Total notes loaded: ${notes.length}');
     if (mounted) {
       setState(() {
         _allUserNotes = notes;
@@ -406,15 +403,14 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
       parent: _slideAnimationController,
       curve: Curves.easeInOut,
     ));
+    _translation = widget.initialTranslation;
+    _book = widget.initialBook;
+    _chapter = widget.initialChapter;
 
     // Fast note search: load all notes at startup
     Books.instance.ensureLoaded().then((_) {
       _loadAllNotes();
     });
-
-    _translation = widget.initialTranslation;
-    _book = widget.initialBook;
-    _chapter = widget.initialChapter;
 
     if (kDebugMode) {
       debugPrint('[BibleReader] boot -> $_translation $_book:$_chapter');
@@ -437,6 +433,15 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     // Start side-effect orchestrator (auth/connectivity/sync stream)
     _sync.start();
 
+    // One-shot: fetch ALL notes via index route (limit=0) and fill cache.
+    api.NotesApi.primeAllCache();
+
+    // When cache finishes writing (or outbox drains), refresh local search data.
+    _notesSyncedSub = api.NotesApi.onSynced.listen((_) {
+      if (!mounted) return;
+      _loadAllNotes();
+    });
+
     // Belt & suspenders: reflect very first connectivity state in the UI.
     Connectivity().checkConnectivity().then((r) {
       if (!mounted) return;
@@ -450,6 +455,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     _searchScrollController.dispose();
     _mainScrollController.dispose();
     _slideAnimationController.dispose();
+    _notesSyncedSub?.cancel();
     super.dispose();
   }
 

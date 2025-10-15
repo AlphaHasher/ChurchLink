@@ -71,7 +71,7 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
 
     const onBlurMM = () => {
         if (!value.dob.mm) return;
-        let n = clamp(parseInt(value.dob.mm, 10) || 0, 1, 12);
+        const n = clamp(parseInt(value.dob.mm, 10) || 0, 1, 12);
         updateDob({ mm: pad2(String(n)) });
     };
 
@@ -92,7 +92,7 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
         const mmNum = clamp(parseInt(value.dob.mm || "0", 10) || 1, 1, 12);
         const yyNum = clamp(parseInt(value.dob.yyyy || "2000", 10) || 2000, 1900, currentYear);
         const max = daysInMonth(yyNum, mmNum);
-        let n = clamp(parseInt(value.dob.dd, 10) || 0, 1, max);
+        const n = clamp(parseInt(value.dob.dd, 10) || 0, 1, max);
         updateDob({ dd: pad2(String(n)) });
     };
 
@@ -107,7 +107,7 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
 
     const onBlurYYYY = () => {
         if (!value.dob.yyyy) return;
-        let n = clamp(parseInt(value.dob.yyyy, 10) || 0, 1900, currentYear);
+        const n = clamp(parseInt(value.dob.yyyy, 10) || 0, 1900, currentYear);
         updateDob({ yyyy: String(n) });
     };
 

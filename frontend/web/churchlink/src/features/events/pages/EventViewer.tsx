@@ -22,7 +22,13 @@ function EventViewer() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await api.get("/v1/events/");
+        // Filter to show only upcoming events (from today onwards)
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        const response = await api.get("/v1/events/", {
+          params: {
+            date_after: today,
+          },
+        });
         setEvents(response.data);
       } catch (error) {
         console.error("Error fetching events:", error);

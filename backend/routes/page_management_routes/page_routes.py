@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Path, HTTPException, Depends
+from fastapi import APIRouter, Body, Path, HTTPException
 from mongo.database import DB
 from models.page_models import Page
 from bson import ObjectId, errors as bson_errors
@@ -10,6 +10,13 @@ mod_page_router = APIRouter(prefix="/pages", tags=["pages mod"])
 
 public_page_router = APIRouter(prefix="/pages", tags=["pages public"])
 
+
+# Internal helper to normalize slugs consistently (handles double-encoding and home/root)
+def _normalize_slug(raw_slug: str) -> str:
+    decoded = unquote(unquote(raw_slug or "")).strip()
+    if decoded == "" or decoded == "home":
+        return "/"
+    return decoded
 
 # Mod Router
 # @router.post("/api/pages", dependencies=[Depends(permission_required(["can_create_pages"]))])
@@ -35,9 +42,7 @@ async def create_page(page: Page = Body(...)):
 @public_page_router.get("/slug/{slug:path}")
 async def get_page_by_slug(slug: str):
     # Normalize and safely decode slug (handles double-encoding)
-    decoded = unquote(unquote(slug or "")).strip()
-    if decoded == "" or decoded == "home":
-        decoded = "/"
+    decoded = _normalize_slug(slug)
 
     # Try exact match first
     page = await DB.db["pages"].find_one({
@@ -51,6 +56,7 @@ async def get_page_by_slug(slug: str):
             "slug": "home",
             "visible": True
         })
+
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
     page["_id"] = str(page["_id"])
@@ -105,9 +111,21 @@ async def update_page_sections(
 @public_page_router.get("/staging/{slug:path}")
 async def get_staging_page(slug: str):
     """Fetch a staging (draft) page by slug (public preview)."""
-    page = await DB.db["pages_staging"].find_one({"slug": slug})
+    decoded = _normalize_slug(slug)
+    # Try exact match first
+    page = await DB.db["pages_staging"].find_one({"slug": decoded})
+    # Fallback: if root not found, try "home"
+    if not page and decoded == "/":
+        page = await DB.db["pages_staging"].find_one({"slug": "home"})
+    # If no staging draft exists, fall back to live page for previewing with staging=1
     if not page:
-        raise HTTPException(status_code=404, detail="Staging page not found")
+        live = await DB.db["pages"].find_one({"slug": decoded, "visible": True})
+        if not live and decoded == "/":
+            live = await DB.db["pages"].find_one({"slug": "home", "visible": True})
+        if not live:
+            raise HTTPException(status_code=404, detail="Staging page not found")
+        live["_id"] = str(live["_id"])
+        return live
     page["_id"] = str(page["_id"])
     return page
 
@@ -119,11 +137,16 @@ async def upsert_staging_page(
 ):
     """Create or update a staging (draft) page by slug. Upserts by slug."""
     data = {**data}
-    data["slug"] = slug
+    decoded = _normalize_slug(slug)
+    data["slug"] = decoded
     data["updated_at"] = datetime.utcnow()
+    # Sanitize client-sent fields that would conflict with $setOnInsert or DB internals
+    for forbidden in ["_id", "created_at", "createdAt", "updatedAt"]:
+        if forbidden in data:
+            data.pop(forbidden, None)
 
     result = await DB.db["pages_staging"].update_one(
-        {"slug": slug},
+        {"slug": decoded},
         {"$set": data, "$setOnInsert": {"created_at": datetime.utcnow()}},
         upsert=True,
     )
@@ -132,7 +155,11 @@ async def upsert_staging_page(
 
 @mod_page_router.delete("/staging/{slug:path}")
 async def delete_staging_page(slug: str):
-    result = await DB.db["pages_staging"].delete_one({"slug": slug})
+    decoded = _normalize_slug(slug)
+    # Prefer normalized slug, but also try deleting "home" if deleting root
+    result = await DB.db["pages_staging"].delete_one({"slug": decoded})
+    if result.deleted_count == 0 and decoded == "/":
+        result = await DB.db["pages_staging"].delete_one({"slug": "home"})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Staging page not found")
     return {"deleted": result.deleted_count}
@@ -141,30 +168,44 @@ async def delete_staging_page(slug: str):
 @mod_page_router.post("/publish/{slug:path}")
 async def publish_staging_page(slug: str):
     """Publish staging page to live collection by slug, replacing or creating live page. Removes staging copy afterwards."""
-    # Normalize and safely decode slug to mirror preview/get behavior
-    decoded = unquote(unquote(slug or "")).strip()
-    if decoded == "" or decoded == "home":
-        decoded = "/"
+    try:
+        # Normalize and safely decode slug to mirror preview/get behavior
+        decoded = _normalize_slug(slug)
 
-    staging = await DB.db["pages_staging"].find_one({"slug": decoded})
-    if not staging:
-        raise HTTPException(status_code=404, detail="Staging page not found")
+        # Load staging with fallback for root/home
+        staging = await DB.db["pages_staging"].find_one({"slug": decoded})
+        if not staging and decoded == "/":
+            staging = await DB.db["pages_staging"].find_one({"slug": "home"})
+        if not staging:
+            raise HTTPException(status_code=404, detail="Staging page not found")
 
-    # Fields allowed to publish
-    publish_fields = {k: staging.get(k) for k in ["title", "slug", "sections", "visible"] if k in staging}
-    # Ensure slug reflects normalized version
-    publish_fields["slug"] = decoded
-    publish_fields["updated_at"] = datetime.utcnow()
+        # Build publish fields with sane defaults and include style tokens for v2
+        allowed_keys = ["title", "slug", "sections", "visible", "version", "styleTokens"]
+        publish_fields = {k: staging.get(k) for k in allowed_keys if k in staging}
+        publish_fields["slug"] = decoded
+        publish_fields.setdefault("version", 2)
+        publish_fields.setdefault("sections", [])
+        publish_fields.setdefault("title", decoded)
+        publish_fields["updated_at"] = datetime.utcnow()
 
-    await DB.db["pages"].update_one(
-        {"slug": decoded},
-        {"$set": publish_fields, "$setOnInsert": {"created_at": datetime.utcnow()}},
-        upsert=True,
-    )
+        await DB.db["pages"].update_one(
+            {"slug": decoded},
+            {"$set": publish_fields, "$setOnInsert": {"created_at": datetime.utcnow()}},
+            upsert=True,
+        )
 
-    # Optionally remove staging version after publish
-    await DB.db["pages_staging"].delete_one({"slug": decoded})
-    return {"published": True}
+        # Remove staging version after publish (try both normalized and home for root)
+        await DB.db["pages_staging"].delete_one({"slug": decoded})
+        if decoded == "/":
+            await DB.db["pages_staging"].delete_one({"slug": "home"})
+
+        return {"published": True}
+    except HTTPException:
+        # Re-raise explicit HTTP errors
+        raise
+    except Exception as e:
+        # Surface internal error for easier debugging during development
+        raise HTTPException(status_code=500, detail=f"Publish failed: {str(e)}")
 
 # Mod Router
 @mod_page_router.delete("/{page_id}")
@@ -225,9 +266,7 @@ async def preview_page_by_slug(slug: str):
     Preview any page by slug for admin purposes (bypasses visibility checks)
     This allows admins to preview pages even when they're hidden
     """
-    decoded = unquote(unquote(slug or "")).strip()
-    if decoded == "" or decoded == "home":
-        decoded = "/"
+    decoded = _normalize_slug(slug)
     page = await DB.db["pages"].find_one({"slug": decoded})
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")

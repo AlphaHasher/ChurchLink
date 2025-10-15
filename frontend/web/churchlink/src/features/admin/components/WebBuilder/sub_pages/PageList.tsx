@@ -55,8 +55,8 @@ const VisibilityCellRendererComponent: React.FC<{ data: Page; value: boolean; se
           <span
             className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
               value
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
+                ? "bg-green-500/20 text-green-400 dark:bg-green-400 dark:text-green-900"
+                : "bg-red-500/20 text-red-400 dark:bg-red-400 dark:text-red-900"
             }`}
           >
             {value ? "Visible" : "Hidden"}
@@ -122,6 +122,33 @@ const WebBuilderPageList = () => {
     }
   };
 
+  const openEditor = async (slug: string) => {
+    const encoded = encodeURIComponent(slug);
+    const goNew = () => navigate(`/web-editor/${encoded}`);
+    const goOld = () => navigate(`/admin/webbuilder/edit/${encoded}`);
+    try {
+      // Prefer staging draft if exists
+      try {
+        const s = await api.get(`/v1/pages/staging/${encoded}`);
+        const data = s.data || {};
+        const isV2 = data?.version === 2;
+        const isEmpty = !Array.isArray(data?.sections) || data.sections.length === 0;
+        return (isV2 || isEmpty) ? goNew() : goOld();
+      } catch (e: any) {
+        if (e?.response?.status !== 404) throw e;
+      }
+      // Fallback to preview/live
+      const p = await api.get(`/v1/pages/preview/${encoded}`);
+      const pdata = p.data || {};
+      const isV2 = pdata?.version === 2;
+      const isEmpty = !Array.isArray(pdata?.sections) || pdata.sections.length === 0;
+      return (isV2 || isEmpty) ? goNew() : goOld();
+    } catch (err) {
+      console.error("Failed to decide editor route, defaulting to old editor", err);
+      return goOld();
+    }
+  };
+
   const columnDefs = useMemo<ColDef[]>(() => [
     {
       headerName: "Title",
@@ -174,7 +201,7 @@ const WebBuilderPageList = () => {
       cellRenderer: (params: any) => (
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => navigate(`/admin/webbuilder/edit/${encodeURIComponent(params.data.slug)}`)}
+            onClick={() => openEditor(params.data.slug)}
             className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
             title="Edit page"
           >
