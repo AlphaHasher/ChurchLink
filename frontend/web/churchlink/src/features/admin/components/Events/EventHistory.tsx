@@ -327,91 +327,15 @@ export const EventHistory: React.FC<EventHistoryProps> = ({
       console.error("Failed to fetch event history:", err);
       setError("Failed to load event history");
       
-      // For demo purposes, provide mock data if API fails
-      setOccurrences(generateMockOccurrences());
-      setStats(generateMockStats());
+      
     } finally {
       setLoading(false);
     }
   };
 
-  // Mock data generator for demonstration
-  const generateMockOccurrences = (): EventOccurrence[] => {
-    const now = new Date();
-    const occurrences: EventOccurrence[] = [];
-    
-    // Mock attendee names for variety
-    const mockNames = [
-      "John Smith", "Sarah Johnson", "Michael Brown", "Emily Davis", "David Wilson",
-      "Lisa Anderson", "Robert Taylor", "Jennifer Miller", "Christopher Moore", "Amanda Jackson",
-      "Matthew White", "Jessica Harris", "Daniel Martin", "Ashley Thompson", "James Garcia",
-      "Melissa Rodriguez", "William Lewis", "Stephanie Lee", "Joseph Walker", "Nicole Hall"
-    ];
-    
-    for (let i = 0; i < 6; i++) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - (i + 1) * 7); // Weekly occurrences going back
-      
-      const attendeesCount = Math.floor(Math.random() * 25) + 15;
-      
-      // Generate mock attendees for this occurrence
-      const attendees: Attendee[] = [];
-      for (let j = 0; j < attendeesCount; j++) {
-        const name = mockNames[j % mockNames.length];
-        const registrationDate = new Date(date);
-        registrationDate.setDate(registrationDate.getDate() - Math.floor(Math.random() * 14)); // Registered 0-14 days before event
-        
-        const paymentCompleted = Math.random() > 0.2; // 80% completed payments
-        const paymentTypes = ["card", "paypal", "cash", "bank_transfer", "free"];
-        const selectedPaymentType = paymentTypes[Math.floor(Math.random() * paymentTypes.length)];
-        
-        attendees.push({
-          key: `attendee-${i}-${j}`,
-          display_name: `${name} ${j > mockNames.length - 1 ? (j + 1) : ''}`.trim(),
-          user_email: `${name.toLowerCase().replace(' ', '.')}${j > mockNames.length - 1 ? j + 1 : ''}@example.com`,
-          phone: `(555) ${String(Math.floor(Math.random() * 900) + 100)}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-          addedOn: registrationDate.toISOString(),
-          payment_status: paymentCompleted ? "completed" : "pending",
-          payment_type: selectedPaymentType,
-          transaction_id: paymentCompleted && selectedPaymentType !== "free" ? 
-            `${selectedPaymentType === "paypal" ? "PP" : selectedPaymentType === "card" ? "CH" : "BT"}_${Math.random().toString(36).substr(2, 9).toUpperCase()}` : 
-            undefined,
-          payment_required: selectedPaymentType !== "free"
-        });
-      }
-      
-      occurrences.push({
-        id: `mock-${i}`,
-        name: eventName,
-        date: date.toISOString(),
-        location: "Church Main Hall",
-        price: 25,
-        spots: 30,
-        attendees_count: attendeesCount,
-        revenue: attendeesCount * 25,
-        status: "completed",
-        attendance_rate: Math.floor((attendeesCount / 30) * 100),
-        attendees: attendees
-      });
-    }
-    
-    return occurrences;
-  };
+  
 
-  const generateMockStats = (): EventHistoryStats => {
-    return {
-      total_occurrences: 6,
-      total_attendees: 126,
-      total_revenue: 3150,
-      average_attendance: 21,
-      average_revenue: 525,
-      best_attendance: {
-        count: 28,
-        date: "2025-09-15"
-      },
-      trend: "increasing"
-    };
-  };
+  
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -529,13 +453,9 @@ export const EventHistory: React.FC<EventHistoryProps> = ({
 
   // View occurrence details - navigate to event details if it's a real event
   const viewOccurrenceDetails = (occurrence: EventOccurrence) => {
-    if (occurrence.id.startsWith('mock-')) {
-      // For mock data, show an alert with details
-      alert(`Event Details:\n\nName: ${occurrence.name}\nDate: ${formatDate(occurrence.date)}\nAttendees: ${occurrence.attendees_count}/${occurrence.spots}\nRevenue: ${formatCurrency(occurrence.revenue)}\nStatus: ${occurrence.status}\n\nNote: This is mock historical data. In a real implementation, this would navigate to the actual event details.`);
-    } else {
-      // Navigate to the actual event details page
-      navigate(`/admin/events/${occurrence.id}`);
-    }
+    // Navigate to the actual event details page
+    navigate(`/admin/events/${occurrence.id}`);
+    
   };
 
   if (loading) {
