@@ -6,8 +6,8 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:app/features/bible/data/notes_api.dart' as api;
-import 'package:app/features/bible/application/last_sync_store.dart';
+import 'package:app/pages/bible_reader/notes_api.dart' as api;
+import 'package:app/pages/bible_reader/last_sync_store.dart';
 
 typedef BooksIndexProvider = Map<String, int> Function();
 

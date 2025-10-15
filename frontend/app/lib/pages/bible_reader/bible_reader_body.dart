@@ -4,31 +4,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-import 'package:app/features/bible/data/bible_repo_elisha.dart';
-import 'package:app/features/bible/data/elisha_json_source.dart';
-import 'package:app/features/bible/data/books.dart';
-import 'package:app/features/bible/data/verse_matching.dart' show VerseMatching;
+import 'package:app/pages/bible_reader/bible_repo_elisha.dart';
+import 'package:app/pages/bible_reader/elisha_json_source.dart';
+import 'package:app/models/bible_reader/books.dart';
+import 'package:app/pages/bible_reader/verse_matching.dart' show VerseMatching;
 
-import 'package:app/features/bible/presentation/widgets/flowing_chapter_text.dart';
-import 'package:app/features/bible/domain/highlight.dart';
-import 'package:app/features/bible/application/reader_logic.dart';
-import 'package:app/features/bible/application/reader_sync.dart';
-import 'package:app/features/bible/presentation/sheets/verse_actions_sheet.dart';
-import 'package:app/features/bible/presentation/widgets/reader_top_bar.dart';
+import 'package:app/pages/bible_reader/flowing_chapter_text.dart';
+import 'package:app/models/bible_reader/highlight.dart';
+import 'package:app/pages/bible_reader/reader_logic.dart';
+import 'package:app/pages/bible_reader/reader_sync.dart';
+import 'package:app/widgets/bible_reader/verse_actions_sheet.dart';
+import 'package:app/widgets/bible_reader/reader_top_bar.dart';
 
 // New extractions
-import 'package:app/features/bible/application/reader_loader.dart';
-import 'package:app/features/bible/application/reader_actions.dart';
-import 'package:app/features/bible/presentation/sheets/jump_picker_sheet.dart';
+import 'package:app/pages/bible_reader/reader_loader.dart';
+import 'package:app/pages/bible_reader/reader_actions.dart';
+import 'package:app/widgets/bible_reader/jump_picker_sheet.dart';
 
 // Notes API for network + caching
-import 'package:app/features/bible/data/notes_api.dart' as api;
+import 'package:app/pages/bible_reader/notes_api.dart' as api;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 
 import 'package:intl/intl.dart';
-import 'package:app/features/bible/application/last_sync_store.dart';
+import 'package:app/pages/bible_reader/last_sync_store.dart';
 
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({

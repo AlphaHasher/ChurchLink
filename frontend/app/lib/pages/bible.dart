@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../features/bible/presentation/pages/bible_reader_body.dart';
-import '../features/bible/data/bible_repo_elisha.dart';
-import '../helpers/bible_plan_auth_utils.dart';
+import 'package:app/pages/bible_reader/bible_reader_body.dart';
+import 'package:app/pages/bible_reader/bible_repo_elisha.dart';
+import 'package:app/helpers/bible_plan_auth_utils.dart';
 
 class BiblePage extends StatefulWidget {
   const BiblePage({super.key});
