@@ -95,16 +95,29 @@ async def process_delete_event(event_id:str, request:Request):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     return {"message": "Event deleted successfully", "success": True}
 
-async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None, scope: str = "series"):
+async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None, scope: str = "series", payment_option: Optional[str] = None):
     """
     High-level action: RSVP an event *and* reflect it in the user's my_events.
     scope: "series" for recurring registration, "occurrence" for one-time registration
+    payment_option: "paypal", "door", "free", or None
+    Returns: (success, reason)
     """
     # Convert person_id to ObjectId if provided
     person_object_id = ObjectId(person_id) if person_id else None
-    ok = await rsvp_add_person(event_id, uid, person_object_id, display_name, kind="rsvp", scope=scope)
+    
+    # Map payment option to payment status
+    payment_status = None
+    if payment_option == "door":
+        payment_status = "pending_door"
+    elif payment_option == "paypal":
+        payment_status = "awaiting_payment"
+    elif payment_option == "free":
+        payment_status = None  # Free events don't need payment status
+    # If payment_option is None, payment_status remains None (free registration)
+    
+    ok, reason = await rsvp_add_person(event_id, uid, person_object_id, display_name, kind="rsvp", scope=scope, payment_status=payment_status)
     if not ok:
-        return False
+        return False, reason
 
     try:
         await UserHandler.add_to_my_events(
@@ -118,7 +131,7 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
         # Event RSVP succeeded, but user record failed
         print(f"Warning: user my_events update failed: {e}")
 
-    return True
+    return True, "success"
 
 
 async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, scope: Optional[str] = None):

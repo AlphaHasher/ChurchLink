@@ -629,16 +629,26 @@ class EventPaymentHelper:
                         
                         # Update payment status to completed after successful PayPal payment
                         try:
-                            print(f"[BULK_REGISTRATION] Updating payment status for {registration_data.get('name')} - Event: {event_id}, Person: {person_id}")
+                            # Update user's my_events payment status
                             await UserHandler.update_my_events_payment_status(
                                 user_uid, 
                                 ObjectId(event_id), 
                                 person_id=ObjectId(person_id) if person_id else None,
                                 payment_status="completed"
                             )
-                            print(f"[BULK_REGISTRATION] Successfully updated payment status to 'completed' for {registration_data.get('name')}")
+                            
+                            # Also update event attendee payment status
+                            from models.event import update_attendee_payment_status
+                            attendee_key = f"{user_uid}|{person_id if person_id else 'self'}|rsvp|occurrence"
+                            await update_attendee_payment_status(
+                                event_id=event_id,
+                                attendee_key=attendee_key,
+                                payment_status='completed',
+                                transaction_id=payment_id
+                            )
+                            
+                            self.logger.info(f"Successfully updated payment status to 'completed' for {registration_data.get('name')}")
                         except Exception as update_error:
-                            print(f"[BULK_REGISTRATION] Failed to update payment status for {registration_data.get('name')}: {str(update_error)}")
                             self.logger.warning(f"Failed to update payment status for {registration_data.get('name')}: {str(update_error)}")
                             # Don't fail the whole registration, just log the warning
                     else:
@@ -1030,6 +1040,13 @@ class EventPaymentHelper:
                 if not registration_session and token:
                     registration_session = await DB.db["payment_sessions"].find_one({"payment_id": token})
                 
+                # If no payment session found, check bulk_registrations collection
+                bulk_registration = None
+                if not registration_session:
+                    bulk_registration = await DB.db["bulk_registrations"].find_one({"payment_id": payment_id})
+                    if not bulk_registration and token:
+                        bulk_registration = await DB.db["bulk_registrations"].find_one({"payment_id": token})
+                
                 if registration_session:
                     registration_count = registration_session.get("registration_count", 1)
                     raw_registrations = registration_session.get("registrations", [])
@@ -1063,16 +1080,16 @@ class EventPaymentHelper:
                                     # Generate attendee key to identify the specific attendee
                                     attendee_key = f"{user_uid}|{person_id if person_id else 'self'}|rsvp"
                                     
-                                    # Update payment status to 'paid'
+                                    # Update payment status to 'completed'
                                     update_success = await update_attendee_payment_status(
                                         event_id=event_id,
                                         attendee_key=attendee_key,
-                                        payment_status='paid',
+                                        payment_status='completed',
                                         transaction_id=payment_id
                                     )
                                     
                                     if update_success:
-                                        self.logger.info(f"Updated payment status to 'paid' for attendee {attendee_key}")
+                                        self.logger.info(f"Updated payment status to 'completed' for attendee {attendee_key}")
                                     else:
                                         self.logger.error(f"Failed to update payment status for attendee {attendee_key}")
                                 
@@ -1115,6 +1132,130 @@ class EventPaymentHelper:
                             "capture_details": capture_result
                         }
                     )
+                elif bulk_registration:
+                    # Handle bulk registration flow
+                    self.logger.info(f"Found bulk registration with {len(bulk_registration.get('registrations', []))} registrations")
+                    
+                    registration_count = len(bulk_registration.get("registrations", []))
+                    raw_registrations = bulk_registration.get("registrations", [])
+                    user_uid = bulk_registration.get("user_uid")
+                    
+                    # Transform registrations to expected format for response
+                    total_registrations = []
+                    
+                    for reg in raw_registrations:
+                        # Try to get name from different possible fields
+                        full_name = (
+                            reg.get("name") or 
+                            reg.get("full_name") or 
+                            f"{reg.get('first_name', '')} {reg.get('last_name', '')}".strip() or
+                            "Unknown"
+                        )
+                        
+                        # Parse the full name into first and last name
+                        name_parts = full_name.split(" ", 1)
+                        first_name = name_parts[0] if len(name_parts) > 0 else ""
+                        last_name = name_parts[1] if len(name_parts) > 1 else ""
+                        
+                        transformed_reg = {
+                            "first_name": first_name,
+                            "last_name": last_name, 
+                            "full_name": full_name,
+                            "email": reg.get("email", ""),
+                            "payment_amount": float(reg.get("payment_amount_per_person", 0)),
+                            "donation_amount": float(reg.get("donation_amount", 0))
+                        }
+                        total_registrations.append(transformed_reg)
+                    
+                    # Now actually register each person to the event after payment confirmation
+                    try:
+                        from controllers.event_functions import register_rsvp
+                        
+                        self.logger.info(f"Processing registration and payment status update for {registration_count} people")
+                        
+                        successful_registrations = 0
+                        for i, registration in enumerate(raw_registrations):
+                            person_id = registration.get('person_id')  # None for self, ObjectId string for family members
+                            display_name = registration.get('name')
+                            
+                            try:
+                                # Register this person to the event
+                                success, message = await register_rsvp(
+                                    event_id=event_id,
+                                    uid=user_uid,
+                                    person_id=person_id,
+                                    display_name=display_name,
+                                    scope="occurrence",  # Single event registration
+                                    payment_option="paypal"
+                                )
+                                
+                                if success:
+                                    self.logger.info(f"Successfully registered {display_name} for event")
+                                    successful_registrations += 1
+                                elif message == "already_registered":
+                                    self.logger.info(f"{display_name} is already registered - updating payment status only")
+                                    successful_registrations += 1  # Count as success since they're registered
+                                else:
+                                    self.logger.error(f"Failed to register {display_name}: {message}")
+                                    continue  # Skip payment status update for failed registrations
+                                
+                                # Update payment status to 'completed' for both new and existing registrations
+                                try:
+                                    from models.event import update_attendee_payment_status
+                                    
+                                    # Generate attendee key to identify the specific attendee (must include scope)
+                                    attendee_key = f"{user_uid}|{person_id if person_id else 'self'}|rsvp|occurrence"
+                                    
+                                    # Update both user's my_events and event attendee payment status
+                                    
+                                    # 1. Update user's my_events payment status
+                                    try:
+                                        await UserHandler.update_my_events_payment_status(
+                                            user_uid, 
+                                            ObjectId(event_id), 
+                                            person_id=ObjectId(person_id) if person_id else None,
+                                            payment_status="completed"
+                                        )
+                                        self.logger.info(f"Updated my_events payment status for {display_name}")
+                                    except Exception as e:
+                                        self.logger.error(f"Failed to update my_events payment status for {display_name}: {str(e)}")
+                                    
+                                    # 2. Update event attendee payment status
+                                    update_success = await update_attendee_payment_status(
+                                        event_id=event_id,
+                                        attendee_key=attendee_key,
+                                        payment_status='completed',
+                                        transaction_id=payment_id
+                                    )
+                                    
+                                    if update_success:
+                                        self.logger.info(f"Successfully updated event attendee payment status for {display_name}")
+                                    else:
+                                        self.logger.error(f"Failed to update event attendee payment status for {display_name}")
+                                        
+                                except Exception as e:
+                                    self.logger.error(f"Exception while updating payment status for {display_name}: {str(e)}")
+                                    
+                            except Exception as e:
+                                self.logger.error(f"Exception while registering {display_name}: {str(e)}")
+                        
+                        self.logger.info(f"Registration completed: {successful_registrations}/{registration_count} people registered successfully")
+                        
+                    except Exception as e:
+                        self.logger.error(f"Exception during bulk registration: {str(e)}")
+                    
+                    self.logger.info(f"Found bulk registration with {registration_count} registrations")
+                    
+                    # Update the bulk registration status to completed
+                    await DB.update_document(
+                        "bulk_registrations",
+                        {"_id": bulk_registration["_id"]},
+                        {
+                            "status": "completed",
+                            "payment_captured_at": datetime.now().isoformat(),
+                            "capture_details": capture_result
+                        }
+                    )
             except Exception as e:
                 self.logger.warning(f"Could not retrieve payment session: {str(e)}")
             
@@ -1133,9 +1274,12 @@ class EventPaymentHelper:
                 "success": True,
                 "message": "Payment completed successfully",
                 "payment_id": payment_id,
-                "registration_count": registration_count,
+                "registration_count": registration_count,  # Keep for backward compatibility
+                "registrations_completed": registration_count,  # Add for consistency with bulk flow
                 "registered_people": total_registrations,
                 "total_amount": capture_result.get("amount", 0),
+                "total_event_fee": capture_result.get("amount", 0),  # For individual flow, all amount is event fee
+                "total_donation": 0,  # Individual flow doesn't handle donations separately
                 "redirect_url": f"{settings.FRONTEND_URL}/events/{event_id}/payment/success-confirmation",
                 "capture_details": capture_result
             }

@@ -120,20 +120,27 @@ export function BulkEventRegistrationWidget({
   const handlePayAtDoorRegistration = async () => {
     console.log('[BulkRegistration] Processing pay-at-door registration');
     
-    // Use simplified unified registration API
-    const requestData = {
-      registrations: registrations.map(reg => ({
-        person_id: reg.family_member_id,
-        name: reg.name
-      })),
-      payment_option: 'door',
-      donation_amount: donationAmount
-    };
+    // Register each person individually since there's no bulk endpoint
+    const registrationPromises = registrations.map(async (reg) => {
+      if (reg.family_member_id) {
+        // Register family member
+        return api.post(`/v1/event-people/register/${event.id}/family-member/${reg.family_member_id}`, {
+          payment_option: 'door'
+        });
+      } else {
+        // Register self
+        return api.post(`/v1/event-people/register/${event.id}`, {
+          payment_option: 'door'
+        });
+      }
+    });
+
+    const responses = await Promise.all(registrationPromises);
     
-    const response = await api.post(`/v1/event-people/register-multiple/${event.id}`, requestData);
-    
-    if (!response.data?.success) {
-      throw new Error(response.data?.message || 'Failed to register for door payment');
+    // Check if all registrations succeeded
+    const failures = responses.filter(response => !response.data?.success);
+    if (failures.length > 0) {
+      throw new Error(`Failed to register ${failures.length} person(s) for door payment`);
     }
 
     console.log('[BulkRegistration] Pay-at-door registrations completed');
@@ -147,12 +154,16 @@ export function BulkEventRegistrationWidget({
     const requestData = {
       registrations: registrations.map(reg => ({
         person_id: reg.family_member_id,
-        name: reg.name
+        name: reg.name,
+        donation_amount: (donationAmount || 0) / registrations.length, // Split donation among registrations
+        payment_amount_per_person: 0
       })),
-      donation_amount: donationAmount || 0
+      message: "",
+      return_url: "",
+      cancel_url: ""
     };
 
-    const response = await api.post(`/v1/event-people/create-payment-order/${event.id}`, requestData);
+    const response = await api.post(`/v1/events/${event.id}/payment/create-bulk-order`, requestData);
 
     if (!response.data?.success) {
       throw new Error(response.data?.message || 'Failed to create payment order');
@@ -169,20 +180,27 @@ export function BulkEventRegistrationWidget({
   const handleFreeRegistration = async () => {
     console.log('[BulkRegistration] Processing free registrations');
     
-    // Use simplified unified registration API
-    const requestData = {
-      registrations: registrations.map(reg => ({
-        person_id: reg.family_member_id,
-        name: reg.name
-      })),
-      payment_option: 'free',
-      donation_amount: donationAmount || 0
-    };
+    // Register each person individually since there's no bulk endpoint
+    const registrationPromises = registrations.map(async (reg) => {
+      if (reg.family_member_id) {
+        // Register family member
+        return api.post(`/v1/event-people/register/${event.id}/family-member/${reg.family_member_id}`, {
+          payment_option: 'free'
+        });
+      } else {
+        // Register self
+        return api.post(`/v1/event-people/register/${event.id}`, {
+          payment_option: 'free'
+        });
+      }
+    });
+
+    const responses = await Promise.all(registrationPromises);
     
-    const response = await api.post(`/v1/event-people/register-multiple/${event.id}`, requestData);
-    
-    if (!response.data?.success) {
-      throw new Error(response.data?.message || 'Failed to register for free');
+    // Check if all registrations succeeded
+    const failures = responses.filter(response => !response.data?.success);
+    if (failures.length > 0) {
+      throw new Error(`Failed to register ${failures.length} person(s) for free`);
     }
 
     console.log('[BulkRegistration] Free registrations completed');

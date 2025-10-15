@@ -427,23 +427,22 @@ function EventRegistrationForm({
         console.log('📋 [EVENT SECTION] Prepared registrations for PayPal:', registrations);
         
         try {
-          // Calculate total amount
-          const total_amount = registrations.reduce((sum, reg) => sum + (reg.payment_amount_per_person || 0), 0);
-          const donation_amount = registrations.reduce((sum, reg) => sum + (reg.donation_amount || 0), 0);
-          
           // Create PayPal order using unified API
           const orderData = {
             registrations: registrations.map(reg => ({
               person_id: reg.family_member_id,
-              name: reg.name
+              name: reg.name,
+              donation_amount: reg.donation_amount || 0,
+              payment_amount_per_person: reg.payment_amount_per_person || 0
             })),
-            total_amount: total_amount,
-            donation_amount: donation_amount
+            message: "",
+            return_url: "",
+            cancel_url: ""
           };
           
           console.log('📤 [EVENT SECTION] Creating PayPal order:', orderData);
           
-          const response = await api.post(`/v1/event-people/create-payment-order/${event.id}`, orderData);
+          const response = await api.post(`/v1/events/${event.id}/payment/create-bulk-order`, orderData);
           
           if (response.status === 200 && response.data) {
             const { approval_url, payment_id } = response.data;
@@ -473,33 +472,31 @@ function EventRegistrationForm({
       } else if (isPaidEvent && isDoorPayment) {
         console.log('🚪 [EVENT SECTION] Paid event with door payment - registering with pending status');
         
-        // Prepare registrations for unified API
-        const doorRegistrations = [];
+        // Register each person individually for door payment
+        const registrationPromises = [];
         
         if (wantSelf && !haveSelf) {
-          doorRegistrations.push({
-            person_id: null,
-            name: me ? `${me.first} ${me.last}` : 'You'
-          });
+          registrationPromises.push(
+            api.post(`/v1/event-people/register/${event.id}`, {
+              payment_option: 'door'
+            })
+          );
         }
         
         for (const id of toAdd) {
-          const person = people.find(p => p.id === id);
-          doorRegistrations.push({
-            person_id: id,
-            name: person ? `${person.first_name} ${person.last_name}` : 'Family Member'
-          });
+          registrationPromises.push(
+            api.post(`/v1/event-people/register/${event.id}/family-member/${id}`, {
+              payment_option: 'door'
+            })
+          );
         }
         
-        // Use unified registration API for door payment
-        const response = await api.post(`/v1/event-people/register-multiple/${event.id}`, {
-          registrations: doorRegistrations,
-          payment_option: 'door',
-          donation_amount: 0
-        });
+        const responses = await Promise.all(registrationPromises);
         
-        if (!response.data?.success) {
-          throw new Error(response.data?.message || 'Failed to register for door payment');
+        // Check if all registrations succeeded
+        const failures = responses.filter(response => !response.data?.success);
+        if (failures.length > 0) {
+          throw new Error(`Failed to register ${failures.length} person(s) for door payment`);
         }
         
         console.log('✅ [EVENT SECTION] Door payment registrations completed');
@@ -1398,17 +1395,7 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                       </button>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="space-y-2 pt-4 border-t border-slate-100">
-                      {ev.rsvp ? <RegisterButtons ev={ev} /> : <WatchButtons ev={ev} />}
-
-                      <button
-                        className="w-full px-4 py-2.5 bg-white text-slate-700 font-medium border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
-                        onClick={() => setSelectedEvent(ev)}
-                      >
-                        View Details
-                      </button>
-                    </div>
+                    
                   </div>
                 </div>
               </div>

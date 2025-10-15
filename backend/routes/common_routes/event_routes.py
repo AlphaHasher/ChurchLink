@@ -247,7 +247,9 @@ async def get_event_registration_summary_route(event_id: str, request: Request):
                     "display_name": display_name,
                     "registered_on": attendee.get('addedOn', datetime.now()),
                     "kind": attendee.get('kind', 'rsvp'),
-                    "scope": scope  # Include scope field
+                    "scope": scope,  # Include scope field
+                    "payment_status": attendee.get('payment_status'),  # Include payment status
+                    "payment_method": attendee.get('payment_method')   # Include payment method if available
                 })
         
         return {

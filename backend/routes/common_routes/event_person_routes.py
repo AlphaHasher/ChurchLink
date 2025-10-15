@@ -142,9 +142,9 @@ async def register_user_for_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
 
-        result = await register_rsvp(event_id, request.state.uid)
+        result, reason = await register_rsvp(event_id, request.state.uid)
         if not result:
-            raise HTTPException(status_code=400, detail="Registration failed")
+            raise HTTPException(status_code=400, detail=f"Registration failed: {reason}")
         return {"success": True, "registration": True}
     except HTTPException:
         raise
@@ -234,9 +234,9 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
         if not member:
             raise HTTPException(status_code=404, detail="Family member not found")
 
-        result = await register_rsvp(event_id, request.state.uid, family_member_id)
+        result, reason = await register_rsvp(event_id, request.state.uid, family_member_id)
         if not result:
-            raise HTTPException(status_code=400, detail="Registration failed")
+            raise HTTPException(status_code=400, detail=f"Registration failed: {reason}")
 
         return {"success": True, "registration": True}
     except HTTPException:

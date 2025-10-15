@@ -89,11 +89,11 @@ export const PaymentSuccessPage: React.FC = () => {
           
           // Handle response format with registration details
           const completionData = {
-            registrations_completed: backendData.registration_count || 1,
+            registrations_completed: backendData.registrations_completed || backendData.registration_count || 1,
             total_amount: backendData.total_amount || 0,
             registered_people: backendData.registered_people || [],
-            total_event_fee: backendData.total_amount || 0, // Use total_amount as event fee
-            total_donation: 0 // Default to 0 for simplified flow
+            total_event_fee: backendData.total_event_fee || backendData.total_amount || 0,
+            total_donation: backendData.total_donation || 0
           };
 
           setCompletionData(completionData);

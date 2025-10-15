@@ -452,7 +452,6 @@ async def rsvp_add_person(
     query_conditions = {
         "_id": ev_oid,
         "attendee_keys": {"$ne": key},
-        "$expr": {"$lte": [{"$add": ["$seats_taken", 1]}, "$spots"]},
     }
     
     # Only add capacity constraint if event has limited spots
@@ -479,16 +478,16 @@ async def rsvp_add_person(
     print(f"[RSVP_ADD] Success: {'SUCCESS' if success else 'FAILED'}")
     
     if not success:
-        # If the update failed, let's check why
+        # If the update failed, let's check why with more detailed debugging
         print(f"[RSVP_ADD] Update failed, investigating...")
         
         # Check if event exists
-        event_check = await DB.db["events"].find_one({"_id": ev_oid}, {"_id": 1, "name": 1})
+        event_check = await DB.db["events"].find_one({"_id": ev_oid}, {"_id": 1, "name": 1, "seats_taken": 1, "spots": 1})
         if not event_check:
             print(f"[RSVP_ADD] Event not found with ID: {ev_oid}")
             return False, "event_not_found"
         else:
-            print(f"[RSVP_ADD] Event exists: {event_check.get('name', 'No name')}")
+            print(f"[RSVP_ADD] Event exists: {event_check.get('name', 'No name')}, seats_taken: {event_check.get('seats_taken', 0)}, spots: {event_check.get('spots', 0)}")
         
         # Check if key already exists
         key_check = await DB.db["events"].find_one(
@@ -501,21 +500,37 @@ async def rsvp_add_person(
         else:
             print(f"[RSVP_ADD] Key does not exist in attendee_keys")
         
-        # Check capacity constraint
-        capacity_check = await DB.db["events"].find_one(
+        # Check capacity constraint manually
+        current_event = await DB.db["events"].find_one(
             {"_id": ev_oid}, 
             {"seats_taken": 1, "spots": 1}
         )
-        if capacity_check:
-            seats_taken = capacity_check.get("seats_taken", 0)
-            spots = capacity_check.get("spots", 0)
-            print(f"[RSVP_ADD] Capacity check - seats_taken: {seats_taken}, spots: {spots}")
+        if current_event:
+            seats_taken = current_event.get("seats_taken", 0)
+            spots = current_event.get("spots", 0)
+            print(f"[RSVP_ADD] Final capacity check - seats_taken: {seats_taken}, spots: {spots}")
             if spots > 0 and seats_taken >= spots:
                 print(f"[RSVP_ADD] Event is full")
                 return False, "event_full"
         
+        # Try a simpler update to see if there's a validation error
+        try:
+            simple_test = await DB.db["events"].find_one_and_update(
+                {"_id": ev_oid},
+                {"$set": {"test_field": "test"}},
+                return_document=False,
+            )
+            if simple_test:
+                print(f"[RSVP_ADD] Simple update works, issue is with query conditions")
+                # Remove test field
+                await DB.db["events"].update_one({"_id": ev_oid}, {"$unset": {"test_field": 1}})
+            else:
+                print(f"[RSVP_ADD] Simple update also fails, event may be locked or have other issues")
+        except Exception as e:
+            print(f"[RSVP_ADD] Exception during simple test: {e}")
+        
         print(f"[RSVP_ADD] Unknown reason for update failure")
-        return False, "unknown_error"
+        return False, "update_failed"
     
     if success:
         return True, "success"

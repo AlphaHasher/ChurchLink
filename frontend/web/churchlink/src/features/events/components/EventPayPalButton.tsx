@@ -80,16 +80,20 @@ export function EventPayPalButton({
       // Use unified API for single registration
       const registrations = [{
         person_id: null, // null for self-registration
-        name: "Event Registration"
+        name: "Event Registration",
+        donation_amount: isFreeDonation ? donationAmount : 0,
+        payment_amount_per_person: 0
       }];
 
       const orderData = {
         registrations: registrations,
-        donation_amount: isFreeDonation ? donationAmount : 0
+        message: "",
+        return_url: "",
+        cancel_url: ""
       };
 
       console.log('Creating PayPal payment order:', orderData);
-      const response = await api.post(`/v1/event-people/create-payment-order/${eventId}`, orderData);
+      const response = await api.post(`/v1/events/${eventId}/payment/create-bulk-order`, orderData);
 
       if (response.data && response.data.approval_url) {
         console.log('Redirecting to PayPal:', response.data.approval_url);

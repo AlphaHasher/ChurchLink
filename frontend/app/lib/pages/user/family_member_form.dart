@@ -162,7 +162,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedGender,
+                      value: _selectedGender,
                       decoration: const InputDecoration(
                         labelText: 'Gender',
                         border: OutlineInputBorder(),

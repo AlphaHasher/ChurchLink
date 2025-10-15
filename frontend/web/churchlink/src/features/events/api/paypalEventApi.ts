@@ -56,17 +56,21 @@ export const paypalEventApi = {
     request: BulkPaymentOrderRequest
   ): Promise<BulkPaymentOrderResponse> => {
     try {
-      // Convert old request format to new unified format
+      // Convert to backend's expected format
       const unifiedRequest = {
         registrations: request.registrations.map(reg => ({
           person_id: reg.family_member_id,
-          name: reg.name
+          name: reg.name,
+          donation_amount: 0,
+          payment_amount_per_person: 0
         })),
-        donation_amount: 0 // Donation amount should be passed separately if needed
+        message: "",
+        return_url: request.return_url || "",
+        cancel_url: request.cancel_url || ""
       };
 
       const response = await api.post(
-        `/v1/event-people/create-payment-order/${eventId}`,
+        `/v1/events/${eventId}/payment/create-bulk-order`,
         unifiedRequest
       );
 
@@ -174,15 +178,19 @@ export const paypalEventApi = {
       const registrations = [
         {
           person_id: null, // Self registration
-          name: "Event Registration"
+          name: "Event Registration",
+          donation_amount: 0,
+          payment_amount_per_person: 0
         }
       ];
 
       const response = await api.post(
-        `/v1/event-people/create-payment-order/${eventId}`,
+        `/v1/events/${eventId}/payment/create-bulk-order`,
         {
           registrations,
-          donation_amount: 0
+          message: message || "",
+          return_url: returnUrl || "",
+          cancel_url: cancelUrl || ""
         }
       );
 
