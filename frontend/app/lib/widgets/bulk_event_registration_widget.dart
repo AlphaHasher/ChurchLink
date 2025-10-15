@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/event.dart';
 import '../pages/payment_cancel_page.dart';
+import '../pages/payment_success_page.dart';
 
 import '../services/event_registration_service.dart';
 
@@ -51,9 +52,10 @@ class CurrencyInputFormatter extends TextInputFormatter {
 class BulkEventRegistrationWidget extends StatefulWidget {
   final Event event;
   final List<Map<String, dynamic>> registrations;
-  final VoidCallback? onSuccess;
+  final Function(String paymentType)? onSuccess; // Modified to include payment type
   final VoidCallback? onCancel;
   final Function(String paymentId, String payerId)? onPaymentSuccess; // New callback for payment success
+  final bool navigateOnPayAtDoor; // New parameter to enable direct navigation
 
   const BulkEventRegistrationWidget({
     Key? key,
@@ -62,6 +64,7 @@ class BulkEventRegistrationWidget extends StatefulWidget {
     this.onSuccess,
     this.onCancel,
     this.onPaymentSuccess, // Add this parameter
+    this.navigateOnPayAtDoor = false, // Default to false for backward compatibility
   }) : super(key: key);
 
   @override
@@ -465,13 +468,43 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
 
       if (success) {
         log('[BulkRegistration] Pay-at-door registrations completed');
+        
+        // Handle navigation directly if requested
+        if (widget.navigateOnPayAtDoor) {
+          log('[BulkRegistration] Navigating directly to success page for pay-at-door');
+          try {
+            // Navigate immediately while context is still valid
+            Navigator.of(context, rootNavigator: true).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => PaymentSuccessPage(
+                  paymentId: null, // No payment ID for pay-at-door
+                  payerId: null,   // No payer ID for pay-at-door
+                  eventId: widget.event.id,
+                  eventName: widget.event.name,
+                ),
+              ),
+            );
+            log('[BulkRegistration] Direct navigation completed successfully');
+            return; // Don't call the callback since we're handling navigation directly
+          } catch (e) {
+            log('[BulkRegistration] Direct navigation failed: $e');
+            // Fall back to callback approach
+          }
+        }
+        
+        // Call success callback in a separate try-catch to avoid UI exceptions affecting registration
+        try {
+          widget.onSuccess?.call('door'); // Pass payment type
+        } catch (callbackError) {
+          log('[BulkRegistration] Error in success callback: $callbackError');
+          // Don't rethrow callback errors, the registration was successful
+        }
       } else {
         throw Exception('Door payment registration failed');
       }
-      widget.onSuccess?.call();
     } catch (e) {
       log('[BulkRegistration] Error during pay-at-door registration: $e');
-      rethrow;
+      throw e;
     }
   }
 
@@ -547,7 +580,14 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
 
       if (success) {
         log('[BulkRegistration] Free registrations completed');
-        widget.onSuccess?.call();
+        
+        // Call success callback in a separate try-catch to avoid UI exceptions affecting registration
+        try {
+          widget.onSuccess?.call('free'); // Pass payment type
+        } catch (callbackError) {
+          log('[BulkRegistration] Error in success callback: $callbackError');
+          // Don't rethrow callback errors, the registration was successful
+        }
       } else {
         throw Exception('Registration failed');
       }

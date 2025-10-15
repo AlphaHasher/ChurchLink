@@ -49,7 +49,7 @@ class PaymentSuccessPage extends StatelessWidget {
               
               // Success Title
               Text(
-                'Payment Successful!',
+                paymentId != null ? 'Payment Successful!' : 'Registration Successful!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.green.shade700,
                   fontWeight: FontWeight.bold,
@@ -61,7 +61,9 @@ class PaymentSuccessPage extends StatelessWidget {
               
               // Success Message
               Text(
-                'Your payment has been processed successfully.',
+                paymentId != null 
+                    ? 'Your payment has been processed successfully.'
+                    : 'Your registration has been completed successfully.',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey.shade700,
                 ),
@@ -77,6 +79,37 @@ class PaymentSuccessPage extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                // Add pay-at-door reminder if no payment ID
+                if (paymentId == null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.orange.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Remember to pay at the door',
+                            style: TextStyle(
+                              color: Colors.orange.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
               
               const SizedBox(height: 24),

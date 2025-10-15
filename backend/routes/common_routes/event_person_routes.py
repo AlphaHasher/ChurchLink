@@ -142,7 +142,17 @@ async def register_user_for_event(event_id: str, request: Request):
     try:
         from controllers.event_functions import register_rsvp
 
-        result, reason = await register_rsvp(event_id, request.state.uid)
+        # Get request body to extract payment option
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            # No body or invalid JSON, use defaults
+            pass
+        
+        payment_option = body.get("payment_option")
+
+        result, reason = await register_rsvp(event_id, request.state.uid, payment_option=payment_option)
         if not result:
             raise HTTPException(status_code=400, detail=f"Registration failed: {reason}")
         return {"success": True, "registration": True}
@@ -234,7 +244,17 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
         if not member:
             raise HTTPException(status_code=404, detail="Family member not found")
 
-        result, reason = await register_rsvp(event_id, request.state.uid, family_member_id)
+        # Get request body to extract payment option
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            # No body or invalid JSON, use defaults
+            pass
+        
+        payment_option = body.get("payment_option")
+
+        result, reason = await register_rsvp(event_id, request.state.uid, family_member_id, payment_option=payment_option)
         if not result:
             raise HTTPException(status_code=400, detail=f"Registration failed: {reason}")
 

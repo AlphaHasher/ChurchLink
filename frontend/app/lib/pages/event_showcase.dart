@@ -351,42 +351,40 @@ class _EventShowcaseState extends State<EventShowcase> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Register for ${widget.event.name}'),
         content: SizedBox(
           width: double.maxFinite,
           child: BulkEventRegistrationWidget(
             event: widget.event,
             registrations: registrations,
-            onSuccess: () async {
-              // Check if widget is still mounted before doing anything
-              if (!mounted) return;
+            navigateOnPayAtDoor: true, // Enable direct navigation for pay-at-door
+            onSuccess: (String paymentType) async {
+              print('[EventShowcase] Success callback called with paymentType: $paymentType');
               
-              Navigator.of(context).pop();
-              
-              // Check mounted again after navigation
-              if (!mounted) return;
-              
-              // Show success message
-              final names = registrations.map((r) => r['name']).join(', ');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '$names successfully registered for ${widget.event.name}!',
-                  ),
-                  backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-                ),
-              );
-
-              // Refresh registration status
-              await _checkRegistrationStatus();
-              await _checkFamilyMemberRegistrations();
-              await _loadRegistrationDetails();
-              
-              // Check mounted before setState
-              if (mounted) {
-                setState(() => _selectedRegistrants.clear());
+              // For pay-at-door, navigation is handled directly by the widget
+              // For other payment types, close dialog and show snackbar
+              if (paymentType != 'door') {
+                // For other payment types, close dialog first then show snackbar
+                if (Navigator.of(dialogContext).canPop()) {
+                  Navigator.of(dialogContext).pop();
+                }
+                
+                if (mounted) {
+                  final names = registrations.map((r) => r['name']).join(', ');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$names registered successfully!'),
+                      backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+                      duration: const Duration(seconds: 4),
+                    ),
+                  );
+                }
               }
+
+              // Refresh data in background for all payment types
+              print('[EventShowcase] Refreshing registration data in background');
+              _refreshRegistrationData();
             },
             onPaymentSuccess: (String paymentId, String payerId) async {
               // For PayPal payments, handle success here and refresh data
@@ -575,8 +573,10 @@ class _EventShowcaseState extends State<EventShowcase> {
           );
         }
 
-        // Refresh registration status
+        // Refresh registration status and reload family members to update availability
         await _loadRegistrationDetails();
+        await _checkRegistrationStatus();
+        await _checkFamilyMemberRegistrations();
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -601,6 +601,23 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
+  void _showFallbackSuccessMessage(String names) {
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$names registered successfully! Remember to pay at the door.'),
+            backgroundColor: const Color.fromARGB(255, 255, 193, 7),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        print('[EventShowcase] Fallback success message shown');
+      }
+    } catch (e) {
+      print('[EventShowcase] Even fallback message failed: $e');
+    }
+  }
+
   void _showRegistrationDialog() {
     // Check authentication before showing registration dialog
     final user = FirebaseAuth.instance.currentUser;
@@ -614,16 +631,17 @@ class _EventShowcaseState extends State<EventShowcase> {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setDialogState) {
-              return ConstrainedBox(
+    // Reload family list before showing dialog to ensure it's up to date
+    _loadFamilyMembers().then((_) {      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setDialogState) {
+                return ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: 400,
                   maxHeight: MediaQuery.of(context).size.height * 0.8,
@@ -804,6 +822,7 @@ class _EventShowcaseState extends State<EventShowcase> {
         );
       },
     );
+    });
   }
 
   Widget _buildCurrentRegistrations() {
@@ -1308,6 +1327,27 @@ class _EventShowcaseState extends State<EventShowcase> {
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
     );
+  }
+
+  // Helper method to refresh registration data in background
+  void _refreshRegistrationData() {
+    // Run data refresh in background without blocking UI
+    Future.delayed(Duration(milliseconds: 500), () async {
+      try {
+        if (mounted) {
+          await _checkRegistrationStatus();
+          await _checkFamilyMemberRegistrations();
+          await _loadRegistrationDetails();
+          
+          if (mounted) {
+            setState(() => _selectedRegistrants.clear());
+            print('[EventShowcase] Background data refresh completed');
+          }
+        }
+      } catch (e) {
+        print('[EventShowcase] Error during background data refresh: $e');
+      }
+    });
   }
 
   @override

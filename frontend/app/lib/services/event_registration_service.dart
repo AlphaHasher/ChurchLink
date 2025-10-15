@@ -6,10 +6,12 @@ class EventRegistrationService {
   /// If familyMemberId is null, registers the current user
   /// If familyMemberId is provided, registers that family member
   /// scope: "series" for recurring registration, "occurrence" for one-time registration
+  /// paymentOption: "paypal", "door", "free", or null
   static Future<bool> registerForEvent({
     required String eventId,
     String? familyMemberId,
     String scope = 'series',
+    String? paymentOption,
   }) async {
     try {
       final String endpoint;
@@ -20,9 +22,15 @@ class EventRegistrationService {
         endpoint = '/v1/event-people/register/$eventId';
       }
 
+      final data = <String, dynamic>{};
+      if (paymentOption != null) {
+        data['payment_option'] = paymentOption;
+      }
+
       final response = await api.post(
         endpoint,
         queryParameters: {'scope': scope},
+        data: data.isNotEmpty ? data : null,
       );
       return response.data['success'] == true;
     } catch (e) {
@@ -144,21 +152,45 @@ class EventRegistrationService {
     double donationAmount = 0.0,
   }) async {
     try {
-      final data = {
-        'registrations': registrations,
-        'donation_amount': donationAmount,
-      };
+      bool allSuccessful = true;
+      List<String> errors = [];
 
-      if (paymentOption != null) {
-        data['payment_option'] = paymentOption;
+      // Register each person individually using the existing registerForEvent function
+      for (final registration in registrations) {
+        try {
+          final type = registration['type'];
+          String? familyMemberId;
+          
+          if (type == 'family_member') {
+            familyMemberId = registration['family_member_id'];
+            if (familyMemberId == null) {
+              allSuccessful = false;
+              errors.add('Missing family member ID for registration');
+              continue;
+            }
+          }
+
+          final success = await EventRegistrationService.registerForEvent(
+            eventId: eventId,
+            familyMemberId: familyMemberId,
+            paymentOption: paymentOption,
+          );
+          
+          if (!success) {
+            allSuccessful = false;
+            errors.add('Failed to register ${type == 'user' ? 'user' : 'family member'}');
+          }
+        } catch (e) {
+          allSuccessful = false;
+          errors.add('Registration error: $e');
+        }
       }
 
-      final response = await api.post(
-        '/v1/event-people/register-multiple/$eventId',
-        data: data,
-      );
+      if (!allSuccessful) {
+        throw Exception('Some registrations failed: ${errors.join(', ')}');
+      }
 
-      return response.data['success'] == true;
+      return true;
     } catch (e) {
       throw Exception('Failed to register multiple people: $e');
     }
