@@ -7,7 +7,7 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show FlutterError;
-import 'books.dart';
+import 'package:app/features/bible/data/books.dart';
 
 /// Converts values to int.
 int _toInt(dynamic v) {

@@ -6,8 +6,8 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../../data/bible_repo_elisha.dart';
-import '../../domain/highlight.dart'; // for HighlightColor
+import 'package:app/features/bible/data/bible_repo_elisha.dart';
+import 'package:app/features/bible/domain/highlight.dart'; // for HighlightColor
 
 /// The following elements are stored in this class:
 /// - verses: Pairs of VerseRef (verse ID) + verse text

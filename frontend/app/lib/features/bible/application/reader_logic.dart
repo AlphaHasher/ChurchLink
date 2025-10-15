@@ -3,9 +3,9 @@
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-import '../data/verse_matching.dart' show VerseMatching, VerseKey;
-import '../domain/highlight.dart';
-import '../data/notes_api.dart' as api; // NotesApi
+import 'package:app/features/bible/data/verse_matching.dart' show VerseMatching, VerseKey;
+import 'package:app/features/bible/domain/highlight.dart';
+import 'package:app/features/bible/data/notes_api.dart' as api; // NotesApi
 
 /// Accept the record type directly
 typedef RefRec = ({String book, int chapter, int verse});

@@ -4,31 +4,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-import '../../data/bible_repo_elisha.dart';
-import '../../data/elisha_json_source.dart';
-import '../../data/books.dart';
-import '../../data/verse_matching.dart' show VerseMatching;
+import 'package:app/features/bible/data/bible_repo_elisha.dart';
+import 'package:app/features/bible/data/elisha_json_source.dart';
+import 'package:app/features/bible/data/books.dart';
+import 'package:app/features/bible/data/verse_matching.dart' show VerseMatching;
 
-import '../widgets/flowing_chapter_text.dart';
-import '../../domain/highlight.dart';
-import '../../application/reader_logic.dart';
-import '../../application/reader_sync.dart';
-import '../sheets/verse_actions_sheet.dart';
-import '../widgets/reader_top_bar.dart';
+import 'package:app/features/bible/presentation/widgets/flowing_chapter_text.dart';
+import 'package:app/features/bible/domain/highlight.dart';
+import 'package:app/features/bible/application/reader_logic.dart';
+import 'package:app/features/bible/application/reader_sync.dart';
+import 'package:app/features/bible/presentation/sheets/verse_actions_sheet.dart';
+import 'package:app/features/bible/presentation/widgets/reader_top_bar.dart';
 
 // New extractions
-import '../../application/reader_loader.dart';
-import '../../application/reader_actions.dart';
-import '../sheets/jump_picker_sheet.dart';
+import 'package:app/features/bible/application/reader_loader.dart';
+import 'package:app/features/bible/application/reader_actions.dart';
+import 'package:app/features/bible/presentation/sheets/jump_picker_sheet.dart';
 
 // Notes API for network + caching
-import '../../data/notes_api.dart' as api;
+import 'package:app/features/bible/data/notes_api.dart' as api;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 
 import 'package:intl/intl.dart';
-import '../../application/last_sync_store.dart';
+import 'package:app/features/bible/application/last_sync_store.dart';
 
 class BibleReaderBody extends StatefulWidget {
   const BibleReaderBody({
@@ -245,8 +245,8 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
   bool _isLoadingVersePage = false;
   String _lastVerseSearchQuery = '';
   bool _isLoadingNotePage = false;
-  ScrollController _searchScrollController = ScrollController();
-  ScrollController _mainScrollController = ScrollController();
+  final ScrollController _searchScrollController = ScrollController();
+  final ScrollController _mainScrollController = ScrollController();
   String _searchType = 'Verse';
   bool _showSearch = false;
   String _searchText = '';
@@ -762,10 +762,9 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
               final verseMatch = ref.verse.toString().contains(query);
               final verseTextMatch = text.contains(query);
               final noteShared =
-                  _notesShared[ref.book + '|${ref.chapter}|${ref.verse}'] ?? '';
+                  _notesShared['${ref.book}|${ref.chapter}|${ref.verse}'] ?? '';
               final notePerTx =
-                  _notesPerTx[_translation]?[ref.book +
-                      '|${ref.chapter}|${ref.verse}'] ??
+                  _notesPerTx[_translation]?['${ref.book}|${ref.chapter}|${ref.verse}'] ??
                   '';
               final noteMatch =
                   noteShared.toLowerCase().contains(query) ||
@@ -938,12 +937,10 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
                           final v = filteredVerses[i];
                           final ref = v.$1;
                           final noteShared =
-                              _notesShared[ref.book +
-                                  '|${ref.chapter}|${ref.verse}'] ??
+                              _notesShared['${ref.book}|${ref.chapter}|${ref.verse}'] ??
                               '';
                           final notePerTx =
-                              _notesPerTx[_translation]?[ref.book +
-                                  '|${ref.chapter}|${ref.verse}'] ??
+                              _notesPerTx[_translation]?['${ref.book}|${ref.chapter}|${ref.verse}'] ??
                               '';
                           final note =
                               noteShared.isNotEmpty ? noteShared : notePerTx;
