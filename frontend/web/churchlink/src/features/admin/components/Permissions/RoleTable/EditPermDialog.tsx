@@ -39,6 +39,7 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
         media_management: false,
         layout_management: false,
         bulletin_editing: false,
+        finance: false,
     }
 
 
