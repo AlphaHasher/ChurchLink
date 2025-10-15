@@ -33,8 +33,8 @@ export const ProfilePill = ({ className }: ProfilePillProps) => {
       <DropdownMenuTrigger asChild>
         <div
           className={`flex items-center ${
-            isCollapsed ? "justify-center p-1.5" : "gap-3 p-3"
-          } rounded-full border border-border bg-background hover:bg-accent cursor-pointer transition-colors ${className}`}
+            isCollapsed ? "justify-center p-1.5" : "gap-3 p-3 rounded-full border border-border bg-background hover:bg-accent"
+          } cursor-pointer transition-colors ${className}`}
           title={!isCollapsed ? undefined : getDisplayName()}
         >
           <Avatar className="h-8 w-8 rounded-full">

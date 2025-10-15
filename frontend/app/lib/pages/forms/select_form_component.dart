@@ -128,7 +128,7 @@ class SelectFormComponent extends StatelessWidget {
 
     final current = value?.toString();
     return DropdownButtonFormField<String>(
-      initialValue: current?.isNotEmpty == true ? current : null,
+      value: current?.isNotEmpty == true ? current : null,
       decoration: InputDecoration(
         labelText: label,
         hintText: placeholder?.trim().isEmpty ?? true ? null : placeholder,
