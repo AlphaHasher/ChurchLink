@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Label } from "@/shared/components/ui/label"
-import MediaLibrary from "@/features/admin/components/WebBuilder/sub_pages/MediaLibrary"
+import MediaLibrary from "@/features/admin/pages/MediaLibrary"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog"
 import { Button } from "@/shared/components/ui/button"
 import { getAssetUrl } from "@/helpers/MediaInteraction"
@@ -32,8 +32,8 @@ export function EventImageSelector({ value, onChange }: EventImageSelectorProps)
         <div className="flex flex-col gap-4">
             <Label className="text-sm font-medium">Event Image</Label>
 
-            <Button 
-                type="button" 
+            <Button
+                type="button"
                 onClick={() => setIsModalOpen(true)}
                 className="w-full justify-start"
             >

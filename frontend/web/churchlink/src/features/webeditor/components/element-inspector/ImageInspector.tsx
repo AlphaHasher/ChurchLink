@@ -7,7 +7,7 @@ import { Button } from '@/shared/components/ui/button';
 import { uploadAssets, listAssets, createFolder, listFolders } from '@/helpers/MediaInteraction';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/shared/components/ui/Dialog';
 import { BuilderState } from '@/features/webeditor/state/BuilderState';
-import MediaLibrary from '@/features/admin/components/WebBuilder/sub_pages/MediaLibrary'
+import MediaLibrary from '@/features/admin/pages/MediaLibrary'
 
 const API_BASE = import.meta.env.VITE_API_HOST
 
@@ -269,7 +269,7 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({ node, onUpdate, 
               }}>
                 {results.map((asset) => (
                   <button key={asset.filename} className="border rounded overflow-hidden hover:ring" onClick={() => handlePick(asset)} type="button">
-                <img src={withThumbnailParam(ensureApiUrl(asset.url))} alt={asset.filename} className="w-full h-24 object-cover" />
+                    <img src={withThumbnailParam(ensureApiUrl(asset.url))} alt={asset.filename} className="w-full h-24 object-cover" />
                   </button>
                 ))}
                 {loading && <div className="col-span-5 text-sm text-muted-foreground">Loading…</div>}

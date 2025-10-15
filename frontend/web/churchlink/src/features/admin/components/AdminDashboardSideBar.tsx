@@ -1,17 +1,20 @@
 import { useMemo, useState, type ComponentType } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  BarChart2,
   Home,
   Shield,
   User,
-  Folder,
   Loader2,
   CalendarFold,
   BookOpen,
   Bell,
-  DollarSign,
   FileText,
+  Image,
+  Smartphone,
+  ClipboardList,
+  Newspaper,
+  Lectern,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,7 +56,6 @@ const AdminDashboardSideBar = () => {
       { title: "Pages", url: "/admin/webbuilder" },
       { title: "Header", url: "/admin/webbuilder/header" },
       { title: "Footer", url: "/admin/webbuilder/footer" },
-      { title: "Media", url: "/admin/webbuilder/media" },
       { title: "Settings", url: "/admin/webbuilder/settings" },
     ],
     []
@@ -61,7 +63,6 @@ const AdminDashboardSideBar = () => {
 
   const items: Item[] = [
     { title: "Home", url: "/", icon: Home },
-    { title: "Dashboard", url: "/admin", icon: BarChart2 },
     {
       title: "Users", url: "/admin/users", icon: User, children: [
         { title: "Management", url: "/admin/users/manage-users" },
@@ -70,24 +71,25 @@ const AdminDashboardSideBar = () => {
     },
 
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
-    { title: "Web Builder", icon: Folder, children: webBuilderChildren },
-    { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Shield },
+    { title: "Web Builder", icon: FileText, children: webBuilderChildren },
+    { title: "Media Library", url: "/admin/media-library", icon: Image },
+    { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Smartphone },
     { title: "Events", url: "/admin/events", icon: CalendarFold },
     {
-      title: "Forms", icon: Folder, children: [
+      title: "Forms", icon: ClipboardList, children: [
         { title: "Manage Forms", url: "/admin/forms/manage-forms" },
         { title: "Form Builder", url: "/admin/forms/form-builder" },
       ]
     },
-    { title: "Weekly Bulletin", url: "/admin/bulletins", icon: FileText },
-    { title: "Sermons Manager", url: "/admin/sermons", icon: BookOpen },
+    { title: "Weekly Bulletin", url: "/admin/bulletins", icon: Newspaper },
+    { title: "Sermons Manager", url: "/admin/sermons", icon: Lectern },
     {
       title: "Bible Plans", icon: BookOpen, children: [
         { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
         { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
       ]
     },
-    { title: "Finance", url: "/admin/finance", icon: DollarSign },
+    { title: "Finance", url: "/admin/finance", icon: Wallet },
     { title: "Notifications", url: "/admin/notifications", icon: Bell },
   ];
 
