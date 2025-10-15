@@ -1,5 +1,9 @@
 from fastapi import APIRouter, Request, HTTPException, status, Query
 from typing import List
+from bson import ObjectId
+
+from mongo.database import DB
+from models.bible_plan import _convert_plan_doc_to_out
 
 from models.bible_plan import (
     ReadingPlanCreate,
@@ -7,7 +11,6 @@ from models.bible_plan import (
     ReadingPlanUpdate,
     ReadingPlanTemplateOut,
     create_reading_plan,
-    list_reading_plans,
     get_reading_plan_by_id,
     get_reading_plans_from_user,
     update_reading_plan,
@@ -27,6 +30,9 @@ public_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans P
 # Consider changing in future to be based on PermProtectedRouter if specific perm is implemented
 # The name is a proactive change because in the future, we will also need public routes, so the name change is pre-empitive
 mod_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans"])
+
+# Private router for authenticated users to access their own plans
+private_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans Private"])
 
 
 # Public Route - Get all published Bible plans (visible=True)
@@ -97,6 +103,28 @@ async def get_plan(plan_id: str, request: Request) -> ReadingPlanOut:
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     return plan
+
+
+# Private Route - allow authenticated users to fetch their own plan by id
+@private_bible_plan_router.get("/{plan_id}", response_model=ReadingPlanOut)
+async def get_plan_private(plan_id: str, request: Request) -> ReadingPlanOut:
+    """Allow the authenticated owner of a plan to fetch it (no mod role required)."""
+    uid = request.state.uid
+    try:
+        pid = ObjectId(plan_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Bible plan ID")
+
+    doc = await DB.db.bible_plans.find_one({"_id": pid})
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    # Allow if owner or if plan is published (visible=True)
+    if doc.get("user_id") == uid or doc.get("visible", False):
+        return _convert_plan_doc_to_out(doc)
+
+    # Fake 404 to avoid leaking existence of plan to non-owners
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
 
 # Mod Route
 @mod_bible_plan_router.put("/{plan_id}", response_model=ReadingPlanOut)
