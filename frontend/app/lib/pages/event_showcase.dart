@@ -10,6 +10,7 @@ import '../services/event_registration_service.dart';
 import '../services/my_events_service.dart';
 import '../providers/tab_provider.dart';
 import '../widgets/bulk_event_registration_widget.dart';
+import '../pages/payment_success_page.dart';
 import 'user/family_members_page.dart';
 import '../helpers/asset_helper.dart'; 
 
@@ -358,7 +359,13 @@ class _EventShowcaseState extends State<EventShowcase> {
             event: widget.event,
             registrations: registrations,
             onSuccess: () async {
+              // Check if widget is still mounted before doing anything
+              if (!mounted) return;
+              
               Navigator.of(context).pop();
+              
+              // Check mounted again after navigation
+              if (!mounted) return;
               
               // Show success message
               final names = registrations.map((r) => r['name']).join(', ');
@@ -375,7 +382,39 @@ class _EventShowcaseState extends State<EventShowcase> {
               await _checkRegistrationStatus();
               await _checkFamilyMemberRegistrations();
               await _loadRegistrationDetails();
-              setState(() => _selectedRegistrants.clear());
+              
+              // Check mounted before setState
+              if (mounted) {
+                setState(() => _selectedRegistrants.clear());
+              }
+            },
+            onPaymentSuccess: (String paymentId, String payerId) async {
+              // For PayPal payments, handle success here and refresh data
+              // Navigate to payment success page
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PaymentSuccessPage(
+                    paymentId: paymentId,
+                    payerId: payerId,
+                    eventId: widget.event.id,
+                    eventName: widget.event.name,
+                  ),
+                ),
+              );
+              
+              // Also refresh registration status after payment success
+              // Use a delay to let the payment complete
+              Future.delayed(Duration(seconds: 2), () async {
+                if (mounted) {
+                  await _checkRegistrationStatus();
+                  await _checkFamilyMemberRegistrations();
+                  await _loadRegistrationDetails();
+                  if (mounted) {
+                    setState(() => _selectedRegistrants.clear());
+                  }
+                }
+              });
             },
             onCancel: () {
               Navigator.of(context).pop();
@@ -642,7 +681,8 @@ class _EventShowcaseState extends State<EventShowcase> {
                             children: [
                               // Event Full Warning
                               if (!widget.event.hasSpots &&
-                                  widget.event.spots != null) ...[
+                                  widget.event.spots != null &&
+                                  widget.event.spots! > 0) ...[
                                 Container(
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
@@ -1437,12 +1477,14 @@ class _EventShowcaseState extends State<EventShowcase> {
         _registrationSummary!.userRegistrations.isEmpty) {
       return ElevatedButton.icon(
         onPressed:
-            (_registrationSummary?.availableSpots ?? 1) > 0
+            ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+             (_registrationSummary?.availableSpots ?? 1) == -1)
                 ? _showRegistrationDialog
                 : null,
         icon: const Icon(Icons.person_add, size: 18),
         label: Text(
-          (_registrationSummary?.availableSpots ?? 1) > 0
+          ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+           (_registrationSummary?.availableSpots ?? 1) == -1)
               ? 'Register'
               : 'Event Full',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),

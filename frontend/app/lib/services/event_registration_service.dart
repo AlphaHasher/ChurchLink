@@ -172,6 +172,11 @@ class EventRegistrationService {
     double donationAmount = 0.0,
   }) async {
     try {
+      // Prevent creating PayPal orders with zero or negative amounts
+      if (totalAmount <= 0) {
+        throw Exception('PayPal orders require a positive amount. Total amount provided: $totalAmount');
+      }
+
       final data = {
         'registrations': registrations,
         'total_amount': totalAmount,
@@ -180,7 +185,7 @@ class EventRegistrationService {
       };
 
       final response = await api.post(
-        '/v1/event-people/create-payment-order/$eventId',
+        '/v1/events/$eventId/payment/create-bulk-order',
         data: data,
       );
 

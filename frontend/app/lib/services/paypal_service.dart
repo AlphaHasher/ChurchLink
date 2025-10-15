@@ -125,7 +125,13 @@ class PaypalService {
     String? returnUrl,
     String? cancelUrl,
   }) async {
-    final endpoint = '/v1/event-people/create-payment-order/$eventId';
+    // Prevent creating PayPal orders with zero or negative amounts
+    if (amount <= 0) {
+      log('[PaypalService] Cannot create PayPal order with amount: $amount');
+      throw Exception('PayPal orders require a positive amount. Amount provided: $amount');
+    }
+    
+    final endpoint = '/v1/events/$eventId/payment/create-bulk-order';
     log('[PaypalService] Creating event payment order for event: $eventId');
     
     // Use mobile deep links if no custom URLs provided

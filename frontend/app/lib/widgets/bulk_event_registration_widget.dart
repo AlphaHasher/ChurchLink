@@ -5,7 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/event.dart';
-
+import '../pages/payment_cancel_page.dart';
 
 import '../services/event_registration_service.dart';
 
@@ -53,6 +53,7 @@ class BulkEventRegistrationWidget extends StatefulWidget {
   final List<Map<String, dynamic>> registrations;
   final VoidCallback? onSuccess;
   final VoidCallback? onCancel;
+  final Function(String paymentId, String payerId)? onPaymentSuccess; // New callback for payment success
 
   const BulkEventRegistrationWidget({
     Key? key,
@@ -60,6 +61,7 @@ class BulkEventRegistrationWidget extends StatefulWidget {
     required this.registrations,
     this.onSuccess,
     this.onCancel,
+    this.onPaymentSuccess, // Add this parameter
   }) : super(key: key);
 
   @override
@@ -102,8 +104,10 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
       return 'Register & Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} at Door';
     } else if (_selectedPaymentOption == 'paypal' && widget.event.requiresPayment) {
       return 'Pay \$${_totalAmount.toStringAsFixed(2)} with PayPal';
-    } else if (_selectedPaymentOption == 'paypal' && !widget.event.requiresPayment) {
+    } else if (_selectedPaymentOption == 'paypal' && !widget.event.requiresPayment && _donationAmount > 0) {
       return 'Donate \$${_donationAmount.toStringAsFixed(2)} with PayPal';
+    } else if (_selectedPaymentOption == 'paypal' && !widget.event.requiresPayment && _donationAmount <= 0) {
+      return 'Register ${widget.registrations.length} people';
     } else if (_donationAmount > 0) {
       return 'Donate \$${_donationAmount.toStringAsFixed(2)}';
     }
@@ -167,8 +171,9 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
                     errorStyle: TextStyle(fontSize: 12),
                   ),
                   validator: (value) {
+                    // For free events, donation is optional
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a donation amount';
+                      return null; // Allow empty for optional donations
                     }
                     final amount = double.tryParse(value);
                     if (amount == null) {
@@ -412,15 +417,26 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     });
 
     try {
+      // Debug logging
+      log('[BulkRegistration] Registration debug info:');
+      log('[BulkRegistration] Selected payment option: $_selectedPaymentOption');
+      log('[BulkRegistration] Total amount: $_totalAmount');
+      log('[BulkRegistration] Donation amount: $_donationAmount');
+      log('[BulkRegistration] Event requires payment: ${widget.event.requiresPayment}');
+      log('[BulkRegistration] Event price: ${widget.event.price}');
+      log('[BulkRegistration] Registration count: ${widget.registrations.length}');
+
       // Determine registration flow based on selected payment option
       if (_selectedPaymentOption == 'door') {
         // Register but mark as "pay at door"
         await _handlePayAtDoorRegistration();
-      } else if (_selectedPaymentOption == 'paypal' || _donationAmount > 0) {
-        // Use PayPal flow for PayPal payments or donations
+      } else if (_selectedPaymentOption == 'paypal' && _totalAmount > 0) {
+        // Use PayPal flow only when there's actually money to process
+        log('[BulkRegistration] Using PayPal flow - total: $_totalAmount, donation: $_donationAmount');
         await _handlePayPalPayment();
       } else {
         // Use direct registration for completely free events
+        log('[BulkRegistration] Using free registration flow');
         await _handleFreeRegistration();
       }
     } catch (e) {
@@ -475,7 +491,7 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     
     final result = await EventRegistrationService.createPaymentOrderForMultiple(
       eventId: widget.event.id,
-      registrations: widget.registrations,  // Use original registrations, not modified ones
+      registrations: registrationsWithPayment,  // Use registrations with payment data
       totalAmount: _totalAmount,
       donationAmount: _donationAmount,
     );
@@ -542,9 +558,8 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
   }
 
   Future<void> _showPayPalWebView(String approvalUrl, String paymentId) async {
-    // Define success and cancel URLs that the WebView can intercept
-    final successUrl = 'http://localhost:3000/events/${widget.event.id}/payment/success';
-    final cancelUrl = 'http://localhost:3000/events/${widget.event.id}/payment/cancel';
+    // Enhanced success/cancel detection using PayPal parameters
+    // Instead of relying on specific URLs, look for PayPal success/cancel indicators
     
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => Scaffold(
@@ -562,42 +577,161 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
             },
           ),
         ),
-        body: WebViewWidget(
+        body: Column(
+          children: [
+            // WebView
+            Expanded(
+              child: WebViewWidget(
           controller: WebViewController()
             ..setJavaScriptMode(JavaScriptMode.unrestricted)
             ..setNavigationDelegate(
               NavigationDelegate(
+                onPageStarted: (String url) {
+                  log('[BulkRegistration] Page started loading: $url');
+                },
+                onPageFinished: (String url) {
+                  log('[BulkRegistration] Page finished loading: $url');
+                  
+                  // Also check for success indicators when page finishes loading
+                  if (url.contains('PayerID=') || url.contains('payer_id=')) {
+                    log('[BulkRegistration] SUCCESS DETECTED in onPageFinished: $url');
+                    
+                    final uri = Uri.parse(url);
+                    final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
+                    
+                    if (payerId != null) {
+                      log('[BulkRegistration] Triggering success flow from onPageFinished');
+                      
+                      // Use a simple callback approach instead of complex navigation
+                      Future.delayed(Duration(milliseconds: 100), () {
+                        // Pop the WebView dialog first
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                        
+                        // Small delay then pop the member registration list dialog
+                        Future.delayed(Duration(milliseconds: 200), () {
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context); // Pop the member list dialog
+                          }
+                          
+                          // Use callback to let parent handle success page navigation
+                          Future.delayed(Duration(milliseconds: 100), () {
+                            log('[BulkRegistration] Calling payment success callback');
+                            widget.onPaymentSuccess?.call(paymentId, payerId);
+                            // Don't call onSuccess for PayPal payments since onPaymentSuccess handles it
+                          });
+                        });
+                      });
+                      
+                      // Complete registration in background
+                      if (payerId.isNotEmpty) {
+                        _completeBulkRegistrationAfterPayment(paymentId, payerId).catchError((error) {
+                          log('[BulkRegistration] Background registration completion failed: $error');
+                        });
+                      }
+                      
+                      // Don't call onSuccess for PayPal payments - onPaymentSuccess handles it
+                    }
+                  }
+                },
                 onNavigationRequest: (NavigationRequest request) async {
                   log('[BulkRegistration] WebView navigation request: ${request.url}');
                   
-                  // Handle success URL
-                  if (request.url.startsWith(successUrl)) {
-                    final uri = Uri.parse(request.url);
-                    final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
-                    final token = uri.queryParameters['token'];
-                    
+                  final uri = Uri.parse(request.url);
+                  final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
+                  final token = uri.queryParameters['token'];
+                  
+                  log('[BulkRegistration] URL parameters - PayerID: $payerId, token: $token');
+                  
+                  // Check for PayPal success indicators
+                  bool isPayPalSuccess = (payerId != null && token != null) || 
+                                        request.url.contains('payment/success') ||
+                                        request.url.contains('/success');
+                  
+                  // Check for PayPal cancel indicators  
+                  bool isPayPalCancel = request.url.contains('payment/cancel') ||
+                                       request.url.contains('/cancel') ||
+                                       request.url.contains('cancelled');
+                  
+                  log('[BulkRegistration] Detection - isPayPalSuccess: $isPayPalSuccess, isPayPalCancel: $isPayPalCancel');
+                  
+                  // Handle success
+                  if (isPayPalSuccess) {
                     log('[BulkRegistration] Payment success detected - PayerID: $payerId, token: $token');
+                    log('[BulkRegistration] Success URL: ${request.url}');
                     
-                    if (payerId != null && token != null) {
-                      // Close WebView and trigger success handling
-                      Navigator.pop(context);
+                    // Use callback approach for onNavigationRequest too
+                    Future.delayed(Duration(milliseconds: 100), () {
+                      // Pop the WebView dialog first
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
                       
-                      // Complete the bulk registration
-                      await _completeBulkRegistrationAfterPayment(paymentId, payerId);
-                      
-                      // Trigger success callback
-                      widget.onSuccess?.call();
+                      // Small delay then pop the member registration list dialog
+                      Future.delayed(Duration(milliseconds: 200), () {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context); // Pop the member list dialog
+                        }
+                        
+                        // Use callback to let parent handle success page navigation
+                        Future.delayed(Duration(milliseconds: 100), () {
+                          log('[BulkRegistration] Calling payment success callback via onNavigationRequest');
+                          if (payerId != null) {
+                            widget.onPaymentSuccess?.call(paymentId, payerId);
+                            // Don't call onSuccess for PayPal payments since onPaymentSuccess handles it
+                          }
+                        });
+                      });
+                    });
+                    
+                    // Complete the bulk registration in background
+                    if (payerId != null) {
+                      _completeBulkRegistrationAfterPayment(paymentId, payerId).catchError((error) {
+                        log('[BulkRegistration] Background registration completion failed: $error');
+                      });
                     }
+                    
+                    // Don't call onSuccess for PayPal payments - onPaymentSuccess handles it
+                    
                     return NavigationDecision.prevent;
                   }
                   
-                  // Handle cancel URL  
-                  if (request.url.startsWith(cancelUrl)) {
+                  // Handle cancel
+                  if (isPayPalCancel) {
                     log('[BulkRegistration] Payment cancel detected');
-                    Navigator.pop(context);
-                    setState(() {
-                      _errorMessage = 'Payment cancelled by user';
+                    log('[BulkRegistration] Cancel URL: ${request.url}');
+                    
+                    // Use delayed approach for cancel too
+                    Future.delayed(Duration(milliseconds: 100), () {
+                      // Pop the WebView dialog first
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      
+                      // Small delay then pop the member registration list dialog
+                      Future.delayed(Duration(milliseconds: 200), () {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context); // Pop the member list dialog
+                        }
+                        
+                        // Another delay then show cancel page
+                        Future.delayed(Duration(milliseconds: 200), () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PaymentCancelPage(
+                                paymentId: paymentId,
+                                eventId: widget.event.id,
+                                eventName: widget.event.name,
+                                reason: 'Payment was cancelled by the user',
+                              ),
+                            ),
+                          );
+                        });
+                      });
                     });
+                    
                     return NavigationDecision.prevent;
                   }
                   
@@ -606,6 +740,9 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
               ),
             )
             ..loadRequest(Uri.parse(approvalUrl)),
+              ),
+            ),
+          ],
         ),
       ),
     ));
@@ -623,9 +760,12 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
       log('[BulkRegistration] Bulk registration completed successfully after payment');
     } catch (e) {
       log('[BulkRegistration] Error completing registration after payment: $e');
-      setState(() {
-        _errorMessage = 'Payment successful but registration failed. Please contact support.';
-      });
+      
+      // Don't navigate to cancel page here since we've already shown success page
+      // PayPal payment succeeded, but registration completion failed
+      // User should contact support with their payment ID
+      
+      // Note: This is a background operation, so UI has already shown success
       rethrow;
     }
   }

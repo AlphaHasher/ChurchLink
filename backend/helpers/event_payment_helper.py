@@ -344,8 +344,10 @@ class EventPaymentHelper:
             
             for i, registration_data in enumerate(registrations):
                 # Validate individual registration
+                self.logger.info(f"Validating registration {i+1}: {registration_data}")
                 is_valid, validation_message = await self.validate_registration_data(registration_data, event, user_uid)
                 if not is_valid:
+                    self.logger.error(f"Registration {i+1} validation failed: {validation_message}")
                     raise HTTPException(
                         status_code=400,
                         detail=f"Registration {i+1} validation failed: {validation_message}"
@@ -462,6 +464,7 @@ class EventPaymentHelper:
                 return {
                     "success": True,
                     "order_id": payment_id,
+                    "payment_id": payment_id,  # Add payment_id for Flutter compatibility
                     "approval_url": order_data.get("approval_url"),
                     "total_amount": round(float(existing_transaction.amount or 0), 2),
                     "currency": "USD",
@@ -491,6 +494,7 @@ class EventPaymentHelper:
             return {
                 "success": True,
                 "order_id": payment_id,
+                "payment_id": payment_id,  # Add payment_id for Flutter compatibility
                 "approval_url": order_data.get("approval_url"),
                 "total_amount": total_amount,
                 "currency": "USD",
@@ -629,13 +633,14 @@ class EventPaymentHelper:
                         
                         # Update payment status to completed after successful PayPal payment
                         try:
-                            # Update user's my_events payment status
-                            await UserHandler.update_my_events_payment_status(
-                                user_uid, 
-                                ObjectId(event_id), 
-                                person_id=ObjectId(person_id) if person_id else None,
-                                payment_status="completed"
-                            )
+                            # TODO: Add payment status tracking to user's my_events
+                            # Currently my_events schema doesn't include payment status
+                            # await UserHandler.update_my_events_payment_status(
+                            #     user_uid, 
+                            #     ObjectId(event_id), 
+                            #     person_id=ObjectId(person_id) if person_id else None,
+                            #     payment_status="completed"
+                            # )
                             
                             # Also update event attendee payment status
                             from models.event import update_attendee_payment_status
@@ -1210,13 +1215,15 @@ class EventPaymentHelper:
                                     
                                     # 1. Update user's my_events payment status
                                     try:
-                                        await UserHandler.update_my_events_payment_status(
-                                            user_uid, 
-                                            ObjectId(event_id), 
-                                            person_id=ObjectId(person_id) if person_id else None,
-                                            payment_status="completed"
-                                        )
-                                        self.logger.info(f"Updated my_events payment status for {display_name}")
+                                        # TODO: Add payment status tracking to user's my_events
+                                        # Currently my_events schema doesn't include payment status
+                                        # await UserHandler.update_my_events_payment_status(
+                                        #     user_uid, 
+                                        #     ObjectId(event_id), 
+                                        #     person_id=ObjectId(person_id) if person_id else None,
+                                        #     payment_status="completed"
+                                        # )
+                                        self.logger.info(f"Skipped my_events payment status update for {display_name} (method not implemented)")
                                     except Exception as e:
                                         self.logger.error(f"Failed to update my_events payment status for {display_name}: {str(e)}")
                                     
