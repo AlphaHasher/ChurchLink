@@ -1009,7 +1009,7 @@ class EventPaymentHelper:
                 )
             
             # Retrieve pending bulk registration data
-            bulk_registration = await DB.get_document("bulk_registrations", {"payment_id": payment_id})
+            bulk_registration = await DB.db["bulk_registrations"].find_one({"payment_id": payment_id})
             
             if not bulk_registration:
                 self.logger.error(f"No bulk registration found for payment_id: {payment_id}")
@@ -1117,8 +1117,7 @@ class EventPaymentHelper:
             self.logger.info(f"Processing PayPal cancellation for event {event_id}, token {token}")
             
             # Try to find bulk registration by token (if we stored it) or by status
-            bulk_registration = await DB.get_document(
-                "bulk_registrations", 
+            bulk_registration = await DB.db["bulk_registrations"].find_one(
                 {"status": "pending", "event_id": event_id}
             )
             

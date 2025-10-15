@@ -205,7 +205,8 @@ class FormPaymentHelper:
                 "message": "Form submission completed successfully",
                 "payment_id": payment_id,
                 "submission_id": submission_result.get("submission_id"),
-                "transaction_id": transaction.id if transaction else None
+                "transaction_id": transaction.id if transaction else None,
+                "total_amount": payment_session.get("amount", 0)
             }
             
         except HTTPException:
@@ -490,7 +491,7 @@ class FormPaymentHelper:
 
     async def _get_payment_session(self, payment_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve payment session data"""
-        return await DB.get_document("payment_sessions", {"payment_id": payment_id})
+        return await DB.db["payment_sessions"].find_one({"payment_id": payment_id})
 
     async def _submit_form_response(
         self,
@@ -625,7 +626,7 @@ class FormPaymentHelper:
         """Get payment statistics for a form"""
         try:
             # Get transactions for this form
-            transactions = await DB.get_documents("transactions", {"form_id": form_id})
+            transactions = await DB.db["transactions"].find({"form_id": form_id}).to_list(length=None)
             
             total_amount = sum(tx.get("amount", 0) for tx in transactions)
             successful_payments = len([tx for tx in transactions if tx.get("status") == "COMPLETED"])

@@ -562,6 +562,33 @@ class PaymentAuditLogger:
         )
         self.logger.error(json.dumps(record))
 
+    def log_form_submission_completed(
+        self,
+        user_id: str,
+        form_slug: str,
+        payment_id: str,
+        submission_id: Optional[str] = None,
+        client_ip: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ):
+        """Log completed form submission after successful payment"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.FORM_SUBMISSION_CREATED,
+            user_uid=user_id,
+            event_id=form_slug,
+            severity=AuditSeverity.INFO,
+            message=f"Form submission completed for {form_slug} with payment {payment_id}",
+            details={
+                "form_slug": form_slug,
+                "payment_id": payment_id,
+                "submission_id": submission_id,
+                "client_ip": client_ip,
+                "user_agent": user_agent
+            },
+            request_ip=client_ip
+        )
+        self.logger.info(json.dumps(record))
+
     def log_paypal_capture_failed(
         self,
         payment_id: str,
