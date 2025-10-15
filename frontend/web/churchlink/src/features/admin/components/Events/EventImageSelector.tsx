@@ -66,10 +66,10 @@ export function EventImageSelector({ value, onChange }: EventImageSelectorProps)
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogContent className="max-w-6xl max-h-[90vh] p-0">
                     <DialogHeader className="p-4 border-b">
-                        <DialogTitle>Select Event Image</DialogTitle>
+                        <DialogTitle>Select or Upload Event Image</DialogTitle>
                     </DialogHeader>
                     <div className="p-4 overflow-auto max-h-[70vh]">
-                        <MediaLibrary onSelect={handleSelectImage} selectionMode={true} />
+                        <MediaLibrary onSelect={handleSelectImage} selectionMode={false} />
                     </div>
                 </DialogContent>
             </Dialog>
