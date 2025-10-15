@@ -3,6 +3,8 @@ import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign,
 import api from "@/api/api";
 import { EventPayPalButton } from "@/features/events/components/EventPayPalButton";
 import { useUserProfile } from "@/helpers/useUserProfile";
+import { getAssetUrl } from "@/helpers/MediaInteraction";
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
 type MyEventScope = "series" | "occurrence";
@@ -93,6 +95,7 @@ function EventRegistrationForm({
       kind: "rsvp";
       payment_method?: "paypal" | "door";
       payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door";
+      scope?: "series" | "occurrence";
     }>;
     total_registrations: number;
     available_spots: number;
@@ -116,6 +119,13 @@ function EventRegistrationForm({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [me, setMe] = useState<{ first: string; last: string } | null>(null);
+  
+  // Per-person scope selection (series = recurring, occurrence = one-time)
+  const [personScopes, setPersonScopes] = useState<Record<string, "series" | "occurrence">>({});
+  const [selfScope, setSelfScope] = useState<"series" | "occurrence">("series");
+  
+  // Check if event is recurring
+  const isRecurring = event.recurring && event.recurring !== "never";
 
   // Use cached profile hook
   const { profile: currentUserProfile } = useUserProfile();
@@ -162,11 +172,25 @@ function EventRegistrationForm({
         
         setSummary(regRes.data);
 
-        // Initialize with empty selection (already registered people should NOT be selected)
         const current = new Set<string>();
-        // Don't pre-select anyone - users should manually select who they want to register
-        setSelectedIds(current); // Empty set - no one should be pre-selected
-        setSelfSelected(false);  // Self should not be pre-selected
+        let selfIsRegistered = false;
+        const scopes: Record<string, "series" | "occurrence"> = {};
+        let selfScopeValue: "series" | "occurrence" = "series";
+        
+        (regRes.data?.user_registrations ?? []).forEach((r: any) => {
+          if (r.person_id) {
+            current.add(r.person_id);
+            scopes[r.person_id] = r.scope || "series";
+          } else {
+            selfIsRegistered = true;
+            selfScopeValue = r.scope || "series";
+          }
+        });
+        
+        setSelectedIds(current);
+        setSelfSelected(false);
+        setPersonScopes(scopes);
+        setSelfScope(selfScopeValue);
       } catch (e) {
         console.error("Failed to load registration form data:", e);
       } finally {
@@ -269,7 +293,15 @@ function EventRegistrationForm({
     
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // Initialize scope to series if not set
+        if (!personScopes[id]) {
+          setPersonScopes((prev) => ({ ...prev, [id]: "series" }));
+        }
+      }
       return next;
     });
   };
@@ -294,6 +326,13 @@ function EventRegistrationForm({
       setSaving(false);
     }
   };
+  
+  const togglePersonScope = (id: string) => {
+    setPersonScopes((prev) => ({
+      ...prev,
+      [id]: prev[id] === "series" ? "occurrence" : "series",
+    }));
+  };
 
   const createOrUpdate = async () => {
     if (saving) return;
@@ -306,10 +345,32 @@ function EventRegistrationForm({
 
       const toAdd: string[] = [];
       const toRemove: string[] = [];
-      want.forEach((id) => !have.has(id) && toAdd.push(id));
+      const toUpdateScope: string[] = [];
+      
+      // Check for new registrations and scope changes
+      want.forEach((id) => {
+        if (!have.has(id)) {
+          toAdd.push(id);
+        } else {
+          // Check if scope changed for existing registration
+          const currentReg = summary?.user_registrations?.find(r => r.person_id === id);
+          const currentScope = currentReg?.scope || "series";
+          const desiredScope = personScopes[id] || "series";
+          if (currentScope !== desiredScope) {
+            toUpdateScope.push(id);
+          }
+        }
+      });
       have.forEach((id) => !want.has(id) && toRemove.push(id));
 
-      // pre-validate selections
+      // Check if self scope changed
+      let selfScopeChanged = false;
+      if (wantSelf && haveSelf) {
+        const currentSelfReg = summary?.user_registrations?.find(r => r.person_id === null);
+        const currentSelfScope = currentSelfReg?.scope || "series";
+        selfScopeChanged = currentSelfScope !== selfScope;
+      }
+
       if (wantSelf && errors["__self__"]) {
         alert(`Cannot register yourself: ${errors["__self__"]}`);
         setSaving(false);
@@ -451,15 +512,17 @@ function EventRegistrationForm({
       // If free event with PayPal donation, it will be handled in the payment flow
       // No need to handle donation here
 
-      // For free events, register immediately (existing behavior)
-      // self
+      // Handle self registration/unregistration
       if (wantSelf && !haveSelf) {
-        console.log('📝 [EVENT SECTION] Registering self');
-        await api.post(`/v1/event-people/register/${event.id}`);
-      }
-      else if (!wantSelf && haveSelf) {
-        console.log('❌ [EVENT SECTION] Unregistering self');
+        await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
+      } else if (!wantSelf && haveSelf) {
+        // Unregister with old scope (or null to remove all)
         await api.delete(`/v1/event-people/unregister/${event.id}`);
+      } else if (selfScopeChanged && wantSelf && haveSelf) {
+        // Update self scope: remove old scope, add new scope
+        const oldScope = summary?.user_registrations?.find(r => r.person_id === null)?.scope || "series";
+        await api.delete(`/v1/event-people/unregister/${event.id}?scope=${oldScope}`);
+        await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
       }
 
       // family
@@ -467,10 +530,30 @@ function EventRegistrationForm({
         console.log(`📝 [EVENT SECTION] Registering family member: ${id}`);
         await api.post(`/v1/event-people/register/${event.id}/family-member/${id}`);
       }
+
+      // Add new registrations
+      for (const id of toAdd) {
+        const scope = personScopes[id] || "series";
+        await api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${scope}`);
+      }
+      
+      // Remove registrations
       for (const id of toRemove) {
         console.log(`❌ [EVENT SECTION] Unregistering family member: ${id}`);
         await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}`);
       }
+      
+      // Update scope for existing registrations (remove old scope, add new scope)
+      for (const id of toUpdateScope) {
+        const oldScope = summary?.user_registrations?.find(r => r.person_id === id)?.scope || "series";
+        const newScope = personScopes[id] || "series";
+        await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}?scope=${oldScope}`);
+        await api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${newScope}`);
+      }
+
+      // Refetch the summary to update the registered state
+      const regRes = await api.get(`/v1/events/${event.id}/registrations/summary`);
+      setSummary(regRes.data);
 
       console.log('✅ [EVENT SECTION] Registration completed successfully');
       onSaved(selectedPaymentOption); // parent refreshes + closes with payment method
@@ -748,6 +831,16 @@ function EventRegistrationForm({
              {selfRegistered && <span className="ml-2 text-xs text-green-600 font-semibold">✓ Already Registered</span>}
          </div>
          {errors["__self__"] && <div className="text-sm text-red-600">{errors["__self__"]}</div>}
+         {isRecurring && selfSelected && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={selfScope === "series"}
+                onChange={() => setSelfScope(selfScope === "series" ? "occurrence" : "series")}
+              />
+              <span className="text-gray-700">Register for all occurrences</span>
+            </label>
+          )}
         </div>
         </label>
 
@@ -761,8 +854,9 @@ function EventRegistrationForm({
               const err = errors[p.id];
               const isAlreadyRegistered = registeredSet.has(p.id);
               
+              const scope = personScopes[p.id] || "series";
               return (
-                <label
+                <div
                   key={p.id}
                   className={`flex items-center gap-3 rounded-lg border p-3 ${
                     err ? "border-red-300 bg-red-50" : 
@@ -786,7 +880,17 @@ function EventRegistrationForm({
                     )}
                     {err && <div className="text-sm text-red-600">{err}</div>}
                   </div>
-                </label>
+                  {isRecurring && checked && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={scope === "series"}
+                        onChange={() => togglePersonScope(p.id)}
+                      />
+                      <span className="text-gray-700">Register for all occurrences</span>
+                    </label>
+                  )}
+                </div>
               );
             })
           )}
@@ -944,11 +1048,19 @@ const EventSection: React.FC<EventSectionProps> = ({
     return `Repeats ${ev.recurring}`;
   };
 
-  const RecurrenceBadge = ({ ev }: { ev: Event }) => (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-      {recurrenceLabel(ev)}
-    </span>
-  );
+  const RecurrenceBadge = ({ ev }: { ev: Event }) => {
+    const recurring = ev.recurring && ev.recurring !== "never";
+    return (
+      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
+        recurring 
+          ? "bg-indigo-600 text-white" 
+          : "bg-white/90 text-slate-700 backdrop-blur-sm border border-slate-200"
+      }`}>
+        {recurring && <FiRepeat className="w-3 h-3" />}
+        {recurrenceLabel(ev)}
+      </span>
+    );
+  };
 
   const fetchMinistries = async () => {
     try {
@@ -1195,34 +1307,49 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
     <section className="w-full bg-white">
       <div className="w-full max-w-screen-xl mx-auto px-4 py-8">
         {showFilters && (
-          <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
-            <label>
-              Ministry:
-              <select value={ministry} onChange={(e) => setMinistry(e.target.value)}>
-                <option value="">All</option>
-                {availableMinistries.map((min) => (
-                  <option key={min} value={min}>
-                    {min}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Age Range:
-              <select value={ageRange} onChange={(e) => setAgeRange(e.target.value)}>
-                <option value="">All</option>
-                <option value="0-12">0–12</option>
-                <option value="13-17">13–17</option>
-                <option value="18-35">18–35</option>
-                <option value="36-60">36–60</option>
-                <option value="60+">60+</option>
-              </select>
-            </label>
+          <div className="mb-6 flex flex-wrap items-center gap-3 justify-between">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-slate-700">
+                Ministry
+                <select
+                  value={ministry}
+                  onChange={(e) => setMinistry(e.target.value)}
+                  className="ml-2 border px-3 py-2 rounded-lg bg-white text-sm shadow-sm"
+                >
+                  <option value="">All</option>
+                  {availableMinistries.map((min) => (
+                    <option key={min} value={min}>
+                      {min}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-slate-700">
+                Age Range
+                <select
+                  value={ageRange}
+                  onChange={(e) => setAgeRange(e.target.value)}
+                  className="ml-2 border px-3 py-2 rounded-lg bg-white text-sm shadow-sm"
+                >
+                  <option value="">All</option>
+                  <option value="0-12">0–12</option>
+                  <option value="13-17">13–17</option>
+                  <option value="18-35">18–35</option>
+                  <option value="36-60">36–60</option>
+                  <option value="60+">60+</option>
+                </select>
+              </label>
+            </div>
+            <div className="text-sm text-slate-500">
+              {events.length} total
+            </div>
           </div>
         )}
 
         {showTitle !== false && (
-          <h2 className="text-3xl font-bold mb-6 text-center">{title || "Upcoming Events"}</h2>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-center text-slate-900 mb-12">
+            {title || "Upcoming Events"}
+          </h2>
         )}
         {upcomingEvents.length === 0 ? (
           <div style={{ textAlign: "center", padding: "4rem 1rem", color: "#555" }}>
@@ -1265,6 +1392,18 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
 
                       <button
                         className="w-full px-4 py-2 bg-white text-blue-600 font-semibold border border-blue-600 rounded-xl hover:bg-blue-50 transition duration-200"
+                        onClick={() => setSelectedEvent(ev)}
+                      >
+                        View Details
+                      </button>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                      {ev.rsvp ? <RegisterButtons ev={ev} /> : <WatchButtons ev={ev} />}
+
+                      <button
+                        className="w-full px-4 py-2.5 bg-white text-slate-700 font-medium border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
                         onClick={() => setSelectedEvent(ev)}
                       >
                         View Details

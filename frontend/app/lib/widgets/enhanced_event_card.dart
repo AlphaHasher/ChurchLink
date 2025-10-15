@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../models/event_registration_summary.dart';
-import '../helpers/strapi_helper.dart';
+import '../helpers/asset_helper.dart';  // New import for asset URL resolution
 
 class EnhancedEventCard extends StatelessWidget {
   final Event event;
@@ -162,11 +162,8 @@ class EnhancedEventCard extends StatelessWidget {
     if (event.imageUrl == null || event.imageUrl!.trim().isEmpty) {
       return _buildPlaceholderImage();
     } else {
-      final url = StrapiHelper.getTrueImageURL(event.imageUrl!);
+      final url = AssetHelper.getAssetUrl(event.imageUrl!); 
 
-      // CHECK IF EVENT_URL RESOLVES TO REAL IMAGE
-      // IF IT DOES, USE THAT IMAGE
-      // IF IT DOESNT DEFAULT TO PLACEHOLDER IMAGE
       return SizedBox.expand(
         child: Image.network(
           url,

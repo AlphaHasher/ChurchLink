@@ -155,13 +155,25 @@ function Sidebar({
   collapsible = "offcanvas",
   className,
   children,
+  // New: disable desktop auto-collapse and hover-open/close when false
+  autoCollapse = true,
+  hoverable = true,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right"
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
+  autoCollapse?: boolean
+  hoverable?: boolean
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, openMobile, setOpenMobile, setOpen } = useSidebar()
+
+  // Auto-collapse by default on desktop for left sidebar
+  React.useEffect(() => {
+    if (autoCollapse && !isMobile && side === "left") {
+      setOpen(false)
+    }
+  }, [autoCollapse, isMobile, side, setOpen])
 
   if (collapsible === "none") {
     return (
@@ -211,6 +223,12 @@ function Sidebar({
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
+      onMouseEnter={() => {
+        if (hoverable && !isMobile) setOpen(true)
+      }}
+      onMouseLeave={() => {
+        if (hoverable && !isMobile) setOpen(false)
+      }}
     >
       {/* This is what handles the sidebar gap on desktop */}
       <div
@@ -223,6 +241,9 @@ function Sidebar({
             ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)"
         )}
+        onMouseEnter={() => {
+          if (hoverable && !isMobile) setOpen(true)
+        }}
       />
       <div
         data-slot="sidebar-container"
@@ -277,8 +298,8 @@ function SidebarTrigger({
   )
 }
 
-function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
-  const { toggleSidebar } = useSidebar()
+function SidebarRail({ className, ...props }: React.ComponentProps<"button"> & { disabled?: boolean }) {
+  const { toggleSidebar, setOpen, isMobile } = useSidebar()
 
   return (
     <button
@@ -286,7 +307,10 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
       data-slot="sidebar-rail"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
-      onClick={toggleSidebar}
+      onClick={(e) => {
+        if ((props as any).disabled) { e.preventDefault(); return }
+        toggleSidebar()
+      }}
       title="Toggle Sidebar"
       className={cn(
         "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
@@ -297,6 +321,14 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
         "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
         className
       )}
+      onMouseEnter={() => {
+        if ((props as any).disabled) return
+        if (!isMobile) setOpen(true)
+      }}
+      onMouseLeave={() => {
+        if ((props as any).disabled) return
+        if (!isMobile) setOpen(false)
+      }}
       {...props}
     />
   )
@@ -307,7 +339,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "bg-background relative flex w-full flex-1 flex-col",
+        "bg-background relative flex flex-1 flex-col",
         "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className
       )}
@@ -579,22 +611,20 @@ function SidebarMenuBadge({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="sidebar-menu-badge"
-      data-sidebar="menu-badge"
-      className={cn(
-        "text-sidebar-foreground pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums select-none",
-        "peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground",
-        "peer-data-[size=sm]/menu-button:top-1",
-        "peer-data-[size=default]/menu-button:top-1.5",
-        "peer-data-[size=lg]/menu-button:top-2.5",
-        "group-data-[collapsible=icon]:hidden",
-        className
-      )}
-      {...props}
-    />
-  )
+  return React.createElement("div", {
+    "data-slot": "sidebar-menu-badge",
+    "data-sidebar": "menu-badge",
+    className: cn(
+      "text-sidebar-foreground pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums select-none",
+      "peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground",
+      "peer-data-[size=sm]/menu-button:top-1",
+      "peer-data-[size=default]/menu-button:top-1.5",
+      "peer-data-[size=lg]/menu-button:top-2.5",
+      "group-data-[collapsible=icon]:hidden",
+      className
+    ),
+    ...props,
+  })
 }
 
 function SidebarMenuSkeleton({

@@ -64,12 +64,11 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
   pageData: initialPageData,
   onHeaderDataChange,
   onFooterDataChange,
-  onPageDataChange
 }) => {
   const [activeTab, setActiveTab] = useState("edit");
   const [currentHeaderData, setCurrentHeaderData] = useState<HeaderItem[] | undefined>(initialHeaderData);
   const [currentFooterData, setCurrentFooterData] = useState<FooterSection[] | undefined>(initialFooterData);
-  const [currentPageData, setCurrentPageData] = useState<{ slug: string; sections: PageSection[] } | undefined>(initialPageData);
+  const [currentPageData] = useState<{ slug: string; sections: PageSection[] } | undefined>(initialPageData);
   const [useStagingPreview, setUseStagingPreview] = useState<boolean>(true);
 
   const handleHeaderDataChange = (data: HeaderItem[]) => {
@@ -111,7 +110,7 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
   return (
     <div className="min-h-screen flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-        <div className="border-b bg-white">
+        <div className="bg-background">
           <div className="container mx-auto px-4">
             <TabsList className="grid w-full max-w-md grid-cols-2">
               <TabsTrigger value="edit">Edit {type === "header" ? "Header" : type === "footer" ? "Footer" : "Page"}</TabsTrigger>
@@ -150,16 +149,20 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
             {/* Full page preview via iframe to staging for pages; component render for header/footer */}
             {type === "page" ? (
               <>
-                <div className="absolute inset-0 border rounded-lg overflow-hidden bg-white" />
+                <div className="absolute inset-0 border rounded-lg overflow-hidden bg-background" />
                 <iframe
                   title="page-preview"
                   key={`${currentPageData?.slug}-${useStagingPreview ? 'staging' : 'live'}`}
-                  src={`/${(currentPageData?.slug && currentPageData.slug !== "/" ? currentPageData.slug.replace(/^\/+/, "") : "")}${useStagingPreview ? "?staging=1" : ""}`}
+                  src={`/${(currentPageData?.slug && currentPageData.slug !== "/" ? currentPageData.slug.replace(/^\/+/, "") : "")}${useStagingPreview ? "?staging=1&" : "?"}preview=true`}
                   className="absolute inset-0 w-full h-full"
+                  style={{
+                    background: 'white',
+                    border: 'none'
+                  }}
                 />
               </>
             ) : (
-              <div className="absolute inset-0 border rounded-lg overflow-hidden bg-white flex flex-col min-h-0">
+              <div className="absolute inset-0 border rounded-lg overflow-hidden bg-background flex flex-col min-h-0">
                 <NavBar headerData={type === "header" ? currentHeaderData : undefined} />
                 <div className="flex-1 overflow-auto">
                   <DynamicPage isPreviewMode={true} previewSlug="home" showPreviewHeader={false} />

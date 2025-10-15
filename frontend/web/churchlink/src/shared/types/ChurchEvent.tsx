@@ -1,5 +1,7 @@
 export type Recurrence = "never" | "weekly" | "monthly" | "yearly"
 
+export type GenderOption = "all" | "male" | "female"
+
 export type ChurchEvent = {
     id: string;
     name: string;
@@ -15,7 +17,7 @@ export type ChurchEvent = {
     ministry: string[];
     min_age: number;
     max_age: number;
-    gender: string;
+    gender: GenderOption;
     image_url: string;
     roles: string[];
     published: boolean;
@@ -51,7 +53,7 @@ export type FetchEventsParams = {
     limit?: number;
     ministry?: string;
     age?: number;
-    gender?: "male" | "female" | "all";
+    gender?: GenderOption;
     is_free?: boolean;
     sort?: "asc" | "desc";
     sort_by?: "date" | "name" | "location" | "price" | "ministry" | "min_age" | "max_age" | "gender";

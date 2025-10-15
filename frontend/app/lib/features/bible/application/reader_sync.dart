@@ -63,7 +63,7 @@ class ReaderSync {
   Future<void> onBooksReady() async {
     final books = provideBooksIndex();
     if (books.isNotEmpty) {
-      await api.NotesApi.primeAllCache(books: books);
+      await api.NotesApi.primeAllCache();
     }
   }
 
@@ -74,13 +74,14 @@ class ReaderSync {
 
   Future<void> _drainPrimeHydrate() async {
     await api.NotesApi.drainOutbox();
-    final books = provideBooksIndex();
-    if (books.isNotEmpty) {
-      await api.NotesApi.primeAllCache(books: books);
+
+    if (provideBooksIndex().isNotEmpty) {
+      await api.NotesApi.primeAllCache();
     }
+
     await hydrateCurrent();
 
-    // NEW: record a completed successful sync round-trip (only when online)
+    // Record a completed successful sync round-trip (only when online)
     if (!_offline) {
       await LastSyncStore.markNowUtc();
     }

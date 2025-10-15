@@ -375,14 +375,15 @@ async def get_all_ministries():
             detail={"error": "Failed to fetch ministries", "reason": str(e)}
         )
 
-def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp") -> str:
+def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp", scope: str = "series") -> str:
     # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
-    return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}"
+    return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|{scope}"
 
-def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", payment_status: Optional[str] = None) -> Dict:
+def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", scope: str = "series", payment_status: Optional[str] = None) -> Dict:
     attendee_doc = {
-        "key": _attendee_key(uid, person_id, kind),
+        "key": _attendee_key(uid, person_id, kind, scope),
         "kind": kind,  # "rsvp" | "registration"
+        "scope": scope,  # "series" | "occurrence"
         "user_uid": uid,
         "person_id": person_id,
         "display_name": display_name,
@@ -401,6 +402,7 @@ async def rsvp_add_person(
     person_id: Optional[ObjectId] = None,
     display_name: Optional[str] = None,
     kind: str = "rsvp",
+    scope: str = "series",
     payment_status: Optional[str] = None,
 ) -> tuple[bool, str]:
     """
@@ -408,8 +410,9 @@ async def rsvp_add_person(
     Returns (success, reason) where reason explains why it failed if success is False.
     """
     ev_oid = ObjectId(event_id)
-    key = _attendee_key(uid, person_id, kind)
-    attendee = _attendee_doc(uid, person_id, display_name, kind, payment_status)
+    key = _attendee_key(uid, person_id, kind, scope)
+    attendee = _attendee_doc(uid, person_id, display_name, kind, scope, payment_status)
+
 
     print(f"[RSVP_ADD] Debug info:")
     print(f"  - Event ID: {event_id}")
@@ -449,6 +452,7 @@ async def rsvp_add_person(
     query_conditions = {
         "_id": ev_oid,
         "attendee_keys": {"$ne": key},
+        "$expr": {"$lte": [{"$add": ["$seats_taken", 1]}, "$spots"]},
     }
     
     # Only add capacity constraint if event has limited spots
@@ -523,25 +527,85 @@ async def rsvp_remove_person(
     uid: str,
     person_id: Optional[ObjectId] = None,
     kind: str = "rsvp",
+    scope: Optional[str] = None,
 ) -> bool:
     """
     Remove RSVP atomically. Only manages the event collection.
+    If scope is None, removes all registrations for this person (both occurrence and series).
+    If scope is specified, only removes that specific scope registration.
     """
     ev_oid = ObjectId(event_id)
-    key = _attendee_key(uid, person_id, kind)
-
-    result = await DB.db["events"].find_one_and_update(
-        {"_id": ev_oid, "attendee_keys": key},
-        {
-            "$inc": {"seats_taken": -1},
-            "$pull": {
-                "attendees": {"key": key},
-                "attendee_keys": key
-            },
-        },
-        return_document=False,
-    )
-    return result is not None
+    
+    if scope is not None:
+        # Remove specific scope registration
+        key = _attendee_key(uid, person_id, kind, scope)
+        
+        try:
+            result = await DB.db["events"].find_one_and_update(
+                {"_id": ev_oid, "attendee_keys": key},
+                {
+                    "$inc": {"seats_taken": -1},
+                    "$pull": {
+                        "attendees": {"key": key},
+                        "attendee_keys": key
+                    },
+                },
+                return_document=False,
+            )
+            
+            if result is None:
+                # FALLBACK: Try the opposite scope if the requested one doesn't exist
+                opposite_scope = 'occurrence' if scope == 'series' else 'series'
+                fallback_key = _attendee_key(uid, person_id, kind, opposite_scope)
+                
+                result = await DB.db["events"].find_one_and_update(
+                    {"_id": ev_oid, "attendee_keys": fallback_key},
+                    {
+                        "$inc": {"seats_taken": -1},
+                        "$pull": {
+                            "attendees": {"key": fallback_key},
+                            "attendee_keys": fallback_key
+                        },
+                    },
+                    return_document=False,
+                )
+            
+            return result is not None
+        except Exception as e:
+            print(f"Error in rsvp_remove_person: {e}")
+            return False
+    else:
+        # Remove all registrations for this person (both scopes if they exist)
+        try:
+            # First, find how many registrations exist
+            event = await DB.db["events"].find_one({"_id": ev_oid})
+            if not event:
+                return False
+                
+            # Count matching attendees
+            user_key_prefix = f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|"
+            matching_keys = [k for k in event.get("attendee_keys", []) if k.startswith(user_key_prefix)]
+            count_to_remove = len(matching_keys)
+            
+            if count_to_remove == 0:
+                return False
+                
+            # Remove all matching registrations
+            result = await DB.db["events"].update_one(
+                {"_id": ev_oid},
+                {
+                    "$inc": {"seats_taken": -count_to_remove},
+                    "$pull": {
+                        "attendees": {"user_uid": uid, "person_id": person_id, "kind": kind},
+                        "attendee_keys": {"$in": matching_keys}
+                    },
+                },
+            )
+            
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error in rsvp_remove_person: {e}")
+            return False
 
 async def rsvp_add_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:
     added: List[Optional[ObjectId]] = []

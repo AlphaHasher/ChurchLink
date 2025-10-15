@@ -237,6 +237,7 @@ async def get_event_registration_summary_route(event_id: str, request: Request):
                     person_name = await resolve_family_member_name(attendee_uid, person_id)
                 
                 display_name = await create_display_name(attendee_uid, person_id, user_name, person_name)
+                scope = attendee.get('scope', 'series')
                 
                 user_family_registrations.append({
                     "user_uid": attendee_uid,
@@ -245,7 +246,8 @@ async def get_event_registration_summary_route(event_id: str, request: Request):
                     "person_name": person_name,
                     "display_name": display_name,
                     "registered_on": attendee.get('addedOn', datetime.now()),
-                    "kind": attendee.get('kind', 'rsvp')
+                    "kind": attendee.get('kind', 'rsvp'),
+                    "scope": scope  # Include scope field
                 })
         
         return {

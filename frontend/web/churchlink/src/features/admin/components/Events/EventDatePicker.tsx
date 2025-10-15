@@ -32,29 +32,44 @@ export function EventDatePicker({
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
-                                className="w-[200px] justify-start text-left font-normal !bg-white !text-black border border-gray-300 shadow-sm hover:!bg-gray-100"
+                                className={cn(
+                                    "w-[200px] justify-start text-left font-normal",
+                                    "bg-white dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-600",
+                                    "shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                                )}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {date ? format(date, "PPP") : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-2 !bg-white !text-black rounded-md shadow-md border border-gray-200">
+                        <PopoverContent className={cn(
+                            "w-auto p-0",
+                            "bg-white dark:bg-gray-800 text-black dark:text-white",
+                            "border border-gray-200 dark:border-gray-600 rounded-md shadow-lg"
+                        )} align="start">
                             <Calendar
                                 mode="single"
                                 selected={date}
                                 onSelect={(d) => d && onDateChange(d)}
                                 initialFocus
-                                className="!bg-white !text-black"
+                                className="bg-white dark:bg-gray-800 text-black dark:text-white"
                                 classNames={{
-                                    nav_button: "!bg-transparent !text-black !shadow-none !p-0 hover:!text-gray-700",
-                                    head_cell: "w-10 text-center text-xs text-muted-foreground",
+                                    nav_button: cn(
+                                        "bg-transparent text-black dark:text-white shadow-none p-0",
+                                        "hover:text-gray-900 dark:hover:text-gray-300"
+                                    ),
+                                    head_cell: "w-10 text-center text-sm text-muted-foreground dark:text-muted-foreground/80",
                                     cell: "w-10 h-10 text-center align-middle p-0",
                                     day: cn(
                                         buttonVariants({ variant: "ghost" }),
-                                        "w-10 h-10 p-0 font-normal !bg-transparent",
-                                        "aria-selected:!bg-blue-400 aria-selected:!text-white aria-selected:!border-none"
+                                        "w-10 h-10 p-0 font-normal bg-transparent",
+                                        "text-black dark:text-white",
+                                        "hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100",
+                                        "aria-selected:bg-blue-500 aria-selected:text-white aria-selected:border-none aria-selected:dark:bg-blue-600",
+                                        "focus-visible:bg-transparent focus-visible:outline-none focus-visible:ring-0"
                                     ),
-                                    day_selected: "!bg-blue-400 text-white !border-none !ring-0 !outline-none"
+                                    day_selected: "bg-blue-500 text-white border-none dark:bg-blue-600 dark:text-white",
+                                    day_disabled: "text-gray-400 dark:text-gray-500"
                                 }}
                             />
                         </PopoverContent>
@@ -73,9 +88,16 @@ export function EventDatePicker({
                                 <RadioGroupItem
                                     value={val}
                                     id={val}
-                                    className="!bg-white !text-black border border-gray-300 data-[state=checked]:!bg-blue-500 data-[state=checked]:!text-white  data-[state=checked]:!border-transparent  focus-visible:!ring-0 focus:!outline-none"
+                                    className={cn(
+                                        "bg-white dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-600",
+                                        "data-[state=checked]:bg-blue-500 data-[state=checked]:text-white data-[state=checked]:border-transparent",
+                                        "focus-visible:ring-0 focus-visible:outline-none hover:bg-gray-50 dark:hover:bg-gray-700"
+                                    )}
                                 />
-                                <Label htmlFor={val} className="capitalize !text-black text-sm">
+                                <Label htmlFor={val} className={cn(
+                                    "capitalize text-sm",
+                                    "text-black dark:text-white"
+                                )}>
                                     {val}
                                 </Label>
                             </div>

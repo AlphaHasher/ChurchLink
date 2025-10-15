@@ -37,7 +37,7 @@ const createPermColumn = (
     header: () => (
       <Button
         variant="ghost"
-        className="!bg-white text-black border border-gray-300 shadow-sm pointer-events-none hover:!bg-white"
+        className="!bg-background text-foreground border border-border shadow-sm pointer-events-none hover:!bg-background"
         disabled
       >
         {label}

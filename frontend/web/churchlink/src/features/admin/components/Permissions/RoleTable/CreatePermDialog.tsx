@@ -96,8 +96,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         <>
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
-                variant="outline"
-                className="!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600"
+                variant="default"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {

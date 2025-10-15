@@ -22,6 +22,20 @@ def throttling_callback(event: Dict[str, Any]):
 BulkTranslator.set_throttling_callback(throttling_callback)
 
 
+@translator_router.get("/languages")
+async def get_supported_languages():
+    """Return the list of supported language codes and names.
+
+    Uses the LANGUAGES mapping from savedGoogleTrans constants.
+    """
+    try:
+        from BulkTranslator.savedGoogleTrans.constants import LANGUAGES
+        languages = [{"code": code, "name": name} for code, name in LANGUAGES.items()]
+        return {"languages": languages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load languages: {str(e)}")
+
+
 @translator_router.post("/translate-multi")
 async def translate_from_other_multi(
     items: List[str],
@@ -47,49 +61,78 @@ async def translate_from_other_multi(
 
         target_languages = dest_languages if dest_languages else None
 
+        # Preload cache for all items to minimize DB roundtrips in the hot path
+        cache_by_item: Dict[str, Dict[str, str]] = {}
         for item in items:
-            cached_translations = await get_cached_translations(item)
-            item_result = {}
+            cache_by_item[item] = await get_cached_translations(item)
 
-            if target_languages:
-                if cached_translations:
-                    for lang in target_languages:
-                        if lang in cached_translations:
-                            item_result[lang] = cached_translations[lang]
+        if target_languages:
+            # Build a single batch request for items that are missing any target languages
+            items_to_fetch = []
+            langs_to_fetch = set()
+
+            for item in items:
+                cached_translations = cache_by_item.get(item) or {}
+                # Seed result with any cached values for requested languages
+                result[item] = {lang: cached_translations[lang] for lang in target_languages if lang in cached_translations}
 
                 missing_languages = await get_missing_translations(item, target_languages)
-
                 if missing_languages:
-                    new_translations = BulkTranslator.translateFromOtherMulti([item], src, missing_languages)
+                    items_to_fetch.append(item)
+                    langs_to_fetch.update(missing_languages)
 
-                    for lang in missing_languages:
-                        if item in new_translations and lang in new_translations[item]:
-                            item_result[lang] = new_translations[item][lang]
+            new_translations = {}
+            if items_to_fetch and langs_to_fetch:
+                # One call for all items and union of missing languages
+                new_translations = BulkTranslator.translateFromOtherMulti(items_to_fetch, src, list(langs_to_fetch)) or {}
 
-                    if cached_translations:
-                        all_translations = {**cached_translations, **{lang: item_result[lang] for lang in missing_languages if lang in item_result}}
-                    else:
-                        all_translations = item_result.copy()
+            # Merge new translations into results and update cache per item
+            for item in items:
+                cached_translations = cache_by_item.get(item) or {}
+                updated = dict(result[item])  # start with already-seeded cached subset
+                if item in new_translations:
+                    # Filter only requested target languages
+                    for lang in target_languages:
+                        val = new_translations[item].get(lang)
+                        if val is not None:
+                            updated[lang] = val
 
-                    await update_translation_cache(item, all_translations)
-            else:
-                from BulkTranslator.savedGoogleTrans.constants import LANGUAGES
-                all_languages = [code for code in LANGUAGES.keys() if code != src]
+                # Persist merged cache if we added anything new
+                if updated and updated != (cached_translations or {}):
+                    merged = {**cached_translations, **updated}
+                    await update_translation_cache(item, merged)
 
-                if cached_translations:
-                    item_result = cached_translations.copy()
+                result[item] = updated
+        else:
+            # All languages path: compute which items are missing anything and batch once
+            from BulkTranslator.savedGoogleTrans.constants import LANGUAGES
+            all_languages = [code for code in LANGUAGES.keys() if code != src]
+
+            items_to_fetch = []
+            for item in items:
+                cached_translations = cache_by_item.get(item) or {}
+                # Seed with cached if present
+                result[item] = dict(cached_translations) if cached_translations else {}
 
                 missing_languages = await get_missing_translations(item, all_languages)
-
                 if missing_languages:
-                    new_translations = BulkTranslator.translateFromOtherMulti([item], src, [])
+                    items_to_fetch.append(item)
 
-                    if item in new_translations:
-                        item_result.update(new_translations[item])
+            new_translations = {}
+            if items_to_fetch:
+                # One call for all items; dest_languages=None means translate to all languages
+                new_translations = BulkTranslator.translateFromOtherMulti(items_to_fetch, src, []) or {}
 
-                    await update_translation_cache(item, item_result)
+            for item in items:
+                cached_translations = cache_by_item.get(item) or {}
+                updated = dict(result[item])
+                if item in new_translations:
+                    updated.update(new_translations[item])
 
-            result[item] = item_result
+                if updated and updated != (cached_translations or {}):
+                    await update_translation_cache(item, updated)
+
+                result[item] = updated
 
         recent_throttling = [event for event in throttling_events if time.time() - event['timestamp'] < 300]
 

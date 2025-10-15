@@ -1,16 +1,11 @@
-import { useState } from "react"
-import { Button } from "@/shared/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shared/components/ui/Dialog"
-import { Loader2 } from "lucide-react"
+import { useState, useEffect } from 'react';
+import { Button } from '@/shared/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/shared/components/ui/Dialog';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import { ChurchEvent } from "@/shared/types/ChurchEvent"
+import { GenderOption } from "./EventPersonType"
 import { EventTextInputs } from "./EventTextInputs"
 import { EventDatePicker } from "./EventDatePicker"
 import { EventPersonType } from "./EventPersonType"
@@ -28,7 +23,6 @@ interface CreateEventProps {
 }
 
 export function CreateEventDialog({ onSave }: CreateEventProps) {
-
     const initialEvent: ChurchEvent = {
         id: "",
         name: "",
@@ -40,13 +34,13 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
         price: 0,
         spots: 0,
         rsvp: false,
-        recurring: "never",
-        ministry: [],
+        recurring: "never" as const,
+        ministry: [] as string[],
         min_age: 0,
         max_age: 100,
-        gender: "all",
+        gender: "all" as const,
         image_url: "",
-        roles: [],
+        roles: [] as string[],
         published: true,
         // Payment processing fields
         payment_options: [],
@@ -54,9 +48,9 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
     }
 
     const requestOptions: MyPermsRequest = {
-        user_assignable_roles: false,
+        user_assignable_roles: true,
         event_editor_roles: true,
-        user_role_ids: false,
+        user_role_ids: true,
     }
 
     const [event, setEvent] = useState<ChurchEvent>(initialEvent)
@@ -64,6 +58,10 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
     const [saving, setSaving] = useState(false)
     const [checkingPerms, setCheckingPerms] = useState(false)
     const [roleList, setRoleList] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (isOpen) setEvent(initialEvent)
+    }, [isOpen])
 
     const handleDialogClose = () => {
         setEvent(initialEvent)
@@ -83,8 +81,9 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
             await handleEventCreation(event)
             await onSave()
             handleDialogClose()
-        } catch (err) {
-            console.error("❌ Failed to process event:", err)
+        } catch (err: any) {
+            console.error("Failed to create event:", err)
+            alert(err?.message || "Something went wrong.")
         }
         setSaving(false)
     }
@@ -96,8 +95,12 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
         setIsOpen(open)
     }
 
-    const handleTextInputChange = (field: keyof ChurchEvent, value: string) => {
+    const handleTextInputChange = <K extends keyof ChurchEvent>(field: K, value: ChurchEvent[K]) => {
         setEvent({ ...event, [field]: value })
+    }
+
+    const handleArrayChange = <K extends 'ministry' | 'roles'>(field: K, value: string[]) => {
+        setEvent({ ...event, [field]: value as ChurchEvent[K] })
     }
 
     return (
@@ -105,7 +108,10 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
                 variant="outline"
-                className="!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600"
+                className={cn(
+                    "!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600",
+                    "dark:!bg-blue-600 dark:border-blue-500 dark:text-white dark:hover:bg-blue-700"
+                )}
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {
@@ -113,21 +119,20 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
 
                         if (result?.success) {
                             if (result?.perms.admin || result?.perms.event_editing || result?.perms.event_management) {
-                                const available_roles = result?.event_editor_roles
+                                const available_roles = result?.user_assignable_roles
                                 setRoleList(available_roles)
-                                if (available_roles.length > 0) {
+                                if (result?.perms.admin || result?.perms.event_management) {
                                     setIsOpen(true)
-                                }
-                                else {
+                                } else if (available_roles.length > 0) {
+                                    setIsOpen(true)
+                                } else {
                                     alert("There are no permission roles with the Event Editor permission! Please create at least one such role to create events")
                                 }
 
-                            }
-                            else {
+                            } else {
                                 alert("You must be an Administrator, Event Editor, or Event Manager to create new events.")
                             }
-                        }
-                        else {
+                        } else {
                             alert(result?.msg || "You don't have permission to create new events.")
                         }
                     } catch (err) {
@@ -141,6 +146,7 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
                 {checkingPerms ? (
                     <>
                         <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                        Checking...
                     </>
                 ) : (
                     "Create New Event"
@@ -148,16 +154,23 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
             </Button>
 
             <Dialog open={isOpen} onOpenChange={handleDialogCloseChange}>
-                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
+                <DialogContent className={cn(
+                    "sm:max-w-[100vh] max-h-[80vh] overflow-y-auto",
+                    "bg-white dark:bg-gray-800 text-black dark:text-white",
+                    "border border-gray-200 dark:border-gray-600"
+                )}>
                     <DialogHeader>
-                        <DialogTitle>New Event</DialogTitle>
+                        <DialogTitle className="text-black dark:text-white">New Event</DialogTitle>
                         <div className="pt-6">
-                            <DialogDescription>
+                            <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
                                 Create your new event by filling out the information below
                             </DialogDescription>
                         </div>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
+                    <div className={cn(
+                        "grid gap-4 py-4",
+                        "bg-white dark:bg-gray-800"
+                    )}>
                         <EventTextInputs
                             name={event.name}
                             ru_name={event.ru_name}
@@ -168,15 +181,13 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
                         />
                         <EventImageSelector
                             value={event.image_url}
-                            onChange={(url) => setEvent({ ...event, image_url: url })}
+                            onChange={(url) => handleTextInputChange('image_url' as keyof ChurchEvent, url)}
                         />
                         <EventDatePicker
                             date={event.date}
                             recurring={event.recurring}
-                            onDateChange={(d) => setEvent({ ...event, date: d })}
-                            onRecurrenceChange={(val) =>
-                                setEvent({ ...event, recurring: val as "never" | "weekly" | "monthly" | "yearly" })
-                            }
+                            onDateChange={(d) => handleTextInputChange('date' as keyof ChurchEvent, d)}
+                            onRecurrenceChange={(val) => handleTextInputChange('recurring' as keyof ChurchEvent, val)}
                         />
                         <EventMinistryDropdown
                             selected={event.ministry}
@@ -184,32 +195,33 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
                                 "Youth", "Children", "Women", "Men", "Family",
                                 "Worship", "Outreach", "Bible Study", "Young Adults", "Seniors"
                             ]}
-                            onChange={(updated) =>
-                                setEvent((prev) => ({ ...prev, ministry: updated }))
-                            }
+                            onChange={(updated) => handleArrayChange('ministry', updated)}
                         />
                         <EventPersonType
                             min_age={event.min_age}
                             max_age={event.max_age}
-                            gender={event.gender as "all" | "male" | "female"}
-                            onChange={(field, value) =>
-                                setEvent({
-                                    ...event,
-                                    [field]: typeof value === "number" && isNaN(value) ? undefined : value,
-                                })
-                            }
+                            gender={event.gender}
+                            onChange={(field: "min_age" | "max_age" | "gender", value: number | GenderOption) => {
+                                if (field === 'gender') {
+                                    handleTextInputChange('gender' as keyof ChurchEvent, value)
+                                } else {
+                                    handleTextInputChange(field as keyof ChurchEvent, value as number)
+                                }
+                            }}
                         />
-
                         <EventRSVPSelection
                             rsvp={event.rsvp}
                             price={event.price}
                             spots={event.spots}
-                            onChange={(field, value) =>
-                                setEvent((prev) => ({
-                                    ...prev,
-                                    [field]: typeof value === "number" && isNaN(value) ? 0 : value,
-                                }))
-                            }
+                            onChange={(field: "rsvp" | "price" | "spots", value: boolean | number) => {
+                                if (field === 'rsvp') {
+                                    handleTextInputChange('rsvp' as keyof ChurchEvent, value as boolean)
+                                } else if (field === 'price') {
+                                    handleTextInputChange('price' as keyof ChurchEvent, value as number)
+                                } else {
+                                    handleTextInputChange('spots' as keyof ChurchEvent, value as number)
+                                }
+                            }}
                         />
 
                         <EventPaymentSettings
@@ -235,15 +247,12 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
                             rawRoles={roleList}
                             roleSwitchEnabled={true}
                         />
-
-
-
-
                     </div>
-
-                    <DialogFooter>
-                        <Button type="button" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
-                        <Button type="button" onClick={handleSaveChanges} disabled={saving}>
+                    <DialogFooter className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
+                        <Button type="button" onClick={handleDialogClose} variant="outline" disabled={saving} className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={handleSaveChanges} disabled={saving} className="dark:bg-blue-600 dark:border-blue-500 dark:text-white">
                             {saving ? (
                                 <>
                                     <Loader2 className="animate-spin mr-2 h-4 w-4" />

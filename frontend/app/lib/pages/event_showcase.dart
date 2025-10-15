@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
-import '../models/family_member.dart';
 import '../models/event_registration_summary.dart';
 import '../models/profile_info.dart';
 import '../caches/user_profile_cache.dart';
 import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
+import '../services/my_events_service.dart';
 import '../providers/tab_provider.dart';
 import '../widgets/bulk_event_registration_widget.dart';
 import 'user/family_members_page.dart';
+import '../helpers/asset_helper.dart'; 
 
 class EventShowcase extends StatefulWidget {
   final Event event;
@@ -22,14 +23,19 @@ class EventShowcase extends StatefulWidget {
 }
 
 class _EventShowcaseState extends State<EventShowcase> {
-  List<FamilyMember> _familyMembers = [];
-  final Set<String> _selectedRegistrants = {};
-  bool _isRegistering = false;
-  bool _isUserRegistered = false;
-  Map<String, bool> _familyMemberRegistrations = {};
   EventRegistrationSummary? _registrationSummary;
   ProfileInfo? _currentUserProfile;
   late Stream<User?> _authStateStream;
+  bool _isInMyEvents = false;
+  String? _myEventsScope;
+  bool _isLoadingMyEventsStatus = false;
+  bool _isRegistering = false;
+  
+  // Missing member variables
+  List<dynamic> _familyMembers = [];
+  Map<String, dynamic> _familyMemberRegistrations = {};
+  bool _isUserRegistered = false;
+  Set<String> _selectedRegistrants = {};
 
   @override
   void initState() {
@@ -46,6 +52,8 @@ class _EventShowcaseState extends State<EventShowcase> {
             _isUserRegistered = false;
             _currentUserProfile = null;
             _selectedRegistrants.clear();
+            _isInMyEvents = false;
+            _myEventsScope = null;
           });
         }
       }
@@ -67,6 +75,7 @@ class _EventShowcaseState extends State<EventShowcase> {
       _loadFamilyMembers(),
       _checkRegistrationStatus(),
       _loadRegistrationDetails(),
+      _checkMyEventsStatus(),
     ]);
   }
 
@@ -157,7 +166,7 @@ class _EventShowcaseState extends State<EventShowcase> {
 
     try {
       // Use new bulk endpoint for better performance
-      final familyMemberIds = _familyMembers.map((m) => m.id).toList();
+      final familyMemberIds = _familyMembers.map((m) => m.id.toString()).toList();
       final registrations =
           await EventRegistrationService.areFamilyMembersRegistered(
             eventId: widget.event.id,
@@ -231,6 +240,111 @@ class _EventShowcaseState extends State<EventShowcase> {
     // Show bulk registration dialog
     _showBulkRegistrationDialog(registrations);
   }
+  Future<void> _checkMyEventsStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _isInMyEvents = false;
+        _myEventsScope = null;
+      });
+      return;
+    }
+
+    setState(() => _isLoadingMyEventsStatus = true);
+
+    try {
+      final result = await MyEventsService.checkEventInMyEvents(
+        eventId: widget.event.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isInMyEvents = result['inMyEvents'] as bool;
+          _myEventsScope = result['scope'] as String?;
+          _isLoadingMyEventsStatus = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to check My Events status: $e');
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
+    }
+  }
+
+  Future<void> _addToMyEvents({required String scope}) async {
+    setState(() => _isLoadingMyEventsStatus = true);
+
+    try {
+      final success = await MyEventsService.addToMyEvents(
+        eventId: widget.event.id,
+        scope: scope,
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              scope == 'series'
+                  ? 'Added recurring event to My Events'
+                  : 'Added event to My Events',
+            ),
+          ),
+        );
+        await _checkMyEventsStatus();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to add to My Events'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
+    }
+  }
+
+  void _handleBulkRegistration() async {
+    if (_selectedRegistrants.isEmpty) return;
+
+    final List<Map<String, dynamic>> registrations = [];
+
+    for (final selectedId in _selectedRegistrants) {
+      if (selectedId == 'self') {
+        registrations.add({
+          'family_member_id': null,
+          'name': 'You',
+        });
+      } else {
+        final familyMember = _familyMembers.firstWhere(
+          (member) => member.id == selectedId,
+          orElse: () => null,
+        );
+        
+        if (familyMember != null) {
+          registrations.add({
+            'family_member_id': familyMember.id,
+            'name': familyMember.fullName,
+          });
+        }
+      }
+    }
+
+    // Show bulk registration dialog
+    _showBulkRegistrationDialog(registrations);
+  }
 
   void _showBulkRegistrationDialog(List<Map<String, dynamic>> registrations) {
     showDialog(
@@ -277,6 +391,90 @@ class _EventShowcaseState extends State<EventShowcase> {
       ),
     );
   }
+
+  Future<void> _removeFromMyEvents() async {
+    setState(() => _isLoadingMyEventsStatus = true);
+
+    try {
+      final success = await MyEventsService.removeFromMyEvents(
+        eventId: widget.event.id,
+        scope: _myEventsScope,
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Removed from My Events')),
+        );
+        await _checkMyEventsStatus();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to remove from My Events'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
+    }
+  }
+
+  Future<void> _switchMyEventsScope(String newScope) async {
+    setState(() => _isLoadingMyEventsStatus = true);
+
+    try {
+      final removeSuccess = await MyEventsService.removeFromMyEvents(
+        eventId: widget.event.id,
+        scope: _myEventsScope,
+      );
+
+      if (removeSuccess) {
+        final addSuccess = await MyEventsService.addToMyEvents(
+          eventId: widget.event.id,
+          scope: newScope,
+        );
+
+        if (addSuccess && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                newScope == 'series'
+                    ? 'Switched to recurring'
+                    : 'Switched to one-time',
+              ),
+            ),
+          );
+          await _checkMyEventsStatus();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error switching scope: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMyEventsStatus = false);
+      }
+    }
+  }
+
+
 
   Future<void> _handleUnregistration(
     String registrantId,
@@ -339,8 +537,6 @@ class _EventShowcaseState extends State<EventShowcase> {
         }
 
         // Refresh registration status
-        await _checkRegistrationStatus();
-        await _checkFamilyMemberRegistrations();
         await _loadRegistrationDetails();
       } else {
         if (mounted) {
@@ -653,20 +849,20 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildUserRegistrationTile(RegistrationEntry registration) {
+    final scopeLabel = registration.scope == 'series' ? 'Recurring' : 'One-time';
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: const Color.fromARGB(255, 142, 163, 168),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(
-            registration.personId == null
-                ? Icons.person
-                : Icons.family_restroom,
-            color: Colors.blue[700],
+          const Icon(
+            Icons.person,
+            color: Colors.white,
             size: 20,
           ),
           const SizedBox(width: 8),
@@ -674,16 +870,39 @@ class _EventShowcaseState extends State<EventShowcase> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  registration.displayName,
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      registration.displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        scopeLabel,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   'Registered ${_formatRegistrationDate(registration.registeredOn)}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -695,7 +914,10 @@ class _EventShowcaseState extends State<EventShowcase> {
                     registration.personId ?? 'self',
                     registration.displayName,
                   ),
-              child: const Text('Remove'),
+              child: const Text(
+                'Remove',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
         ],
       ),
@@ -721,13 +943,8 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
-  /// Check if a family member is eligible for the event based on age and gender requirements
-  bool _isEligibleForEvent(FamilyMember member) {
-    // Check age requirements
-    if (member.age < widget.event.minAge || member.age > widget.event.maxAge) {
-      return false;
-    }
-
+  /// Check if a family member is eligible for the event based on gender and age requirements
+  bool _isFamilyMemberEligibleForEvent(dynamic member) {
     // Check gender requirements
     // Event gender can be "all", "male", "female", "M", or "F"
     if (widget.event.gender.toLowerCase() != 'all') {
@@ -869,7 +1086,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     // Add family members who are not registered and meet event requirements
     for (final member in _familyMembers) {
       final isRegistered = _familyMemberRegistrations[member.id] ?? false;
-      if (!isRegistered && _isEligibleForEvent(member)) {
+      if (!isRegistered && _isFamilyMemberEligibleForEvent(member)) {
         availableRegistrants.add({'id': member.id, 'name': member.fullName});
       }
     }
@@ -1111,6 +1328,11 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildHeroImage() {
+    final cs = Theme.of(context).colorScheme;
+    final imageUrl = widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
+        ? AssetHelper.getAssetUrl(widget.event.imageUrl!)
+        : null;
+
     return SizedBox(
       height: 250,
       width: double.infinity,
@@ -1175,6 +1397,213 @@ class _EventShowcaseState extends State<EventShowcase> {
         ],
       ),
     );
+  }
+
+  Widget _buildActionButtons() {
+    final cs = Theme.of(context).colorScheme;
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return ElevatedButton.icon(
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please log in to register for events.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        },
+        icon: const Icon(Icons.login, size: 18),
+        label: const Text('Log In', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
+        ),
+      );
+    }
+
+    if (widget.event.rsvp) {
+      return _buildRSVPButtons(cs);
+    } else {
+      return _buildWatchButtons(cs);
+    }
+  }
+
+  Widget _buildRSVPButtons(ColorScheme cs) {
+    if (_registrationSummary == null ||
+        _registrationSummary!.userRegistrations.isEmpty) {
+      return ElevatedButton.icon(
+        onPressed:
+            (_registrationSummary?.availableSpots ?? 1) > 0
+                ? _showRegistrationDialog
+                : null,
+        icon: const Icon(Icons.person_add, size: 18),
+        label: Text(
+          (_registrationSummary?.availableSpots ?? 1) > 0
+              ? 'Register'
+              : 'Event Full',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
+        ),
+      );
+    } else {
+      return ElevatedButton.icon(
+        onPressed: _showRegistrationDialog,
+        icon: const Icon(Icons.edit, size: 18),
+        label: const Text(
+          'Change Registration',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
+        ),
+      );
+    }
+  }
+
+  Widget _buildWatchButtons(ColorScheme cs) {
+    if (_isLoadingMyEventsStatus) {
+      return const SizedBox(
+        width: 40,
+        height: 40,
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          valueColor: AlwaysStoppedAnimation<Color>(Color.fromARGB(255, 142, 163, 168)),
+        ),
+      );
+    }
+
+    if (widget.event.recurring != null) {
+      if (_isInMyEvents) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
+              onPressed:
+                  () => _switchMyEventsScope(
+                    _myEventsScope == 'occurrence' ? 'series' : 'occurrence',
+                  ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.secondary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: Text(
+                _myEventsScope == 'occurrence'
+                    ? 'Switch to Recurring'
+                    : 'Switch to One Time',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _removeFromMyEvents,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.error,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: const Text(
+                'Remove',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      } else {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
+              onPressed: () => _addToMyEvents(scope: 'occurrence'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: const Text(
+                'Add One Time',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => _addToMyEvents(scope: 'series'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 4,
+              ),
+              child: const Text(
+                'Add Recurring',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      }
+    } else {
+      if (_isInMyEvents) {
+        return ElevatedButton(
+          onPressed: _removeFromMyEvents,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: cs.error,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 4,
+          ),
+          child: const Text(
+            'Remove from My Events',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        );
+      } else {
+        return ElevatedButton(
+          onPressed: () => _addToMyEvents(scope: 'occurrence'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 4,
+          ),
+          child: const Text(
+            'Add to My Events',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildImagePlaceholder() {
@@ -1286,7 +1715,7 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildSvgInfoRow(String assetPath, String label, String value) {
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
+    final cs = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1294,7 +1723,7 @@ class _EventShowcaseState extends State<EventShowcase> {
           assetPath,
           width: 20,
           height: 20,
-          colorFilter: const ColorFilter.mode(ssbcGray, BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
         ),
         const SizedBox(width: 12),
         Expanded(

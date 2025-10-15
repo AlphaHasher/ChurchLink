@@ -9,6 +9,7 @@ import { Button } from "@/shared/components/ui/button"
 import { ChevronDown } from "lucide-react"
 import { Switch } from "@/shared/components/ui/switch"
 import { Label } from "@/shared/components/ui/label"
+import { cn } from "@/lib/utils"
 
 import { ChurchEvent } from "@/shared/types/ChurchEvent"
 import { AccountPermissions } from "@/shared/types/AccountPermissions"
@@ -54,27 +55,69 @@ export function EventManagementOptions({ event, setEvent, rawRoles, roleSwitchEn
         <div className="flex gap-8 items-end py-2">
             {/* Role Selection Dropdown */}
             <div className="flex flex-col gap-2">
-                <Label className="font-semibold">{roleSwitchEnabled ? `Assign Roles to Event` : `Assign Roles to Event (Not Admin/Event Manager)`}  :</Label>
+                <Label className={cn(
+                    "font-semibold",
+                    "text-black dark:text-white"
+                )}>
+                    {roleSwitchEnabled ? `Assign Roles to Event` : `Assign Roles to Event (Not Admin/Event Manager)`}  :
+                </Label>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        {roleSwitchEnabled ? <Button variant="outline" className="!bg-white flex items-center gap-2">
-                            {selectedRoleNames.length > 0
-                                ? `${selectedRoleNames.length} selected`
-                                : "Set Roles"} <ChevronDown />
-                        </Button> : <Button variant="outline" className="!bg-white flex items-center gap-2" disabled>
-                            {selectedRoleNames.length > 0
-                                ? `${selectedRoleNames.length} selected`
-                                : "Set Roles"} <ChevronDown />
-                        </Button>}
-
-
+                        {roleSwitchEnabled ? (
+                            <Button 
+                                variant="outline" 
+                                className={cn(
+                                    "!bg-white dark:!bg-gray-800 flex items-center gap-2",
+                                    "text-black dark:text-white border border-gray-300 dark:border-gray-600",
+                                    "shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                                )}
+                            >
+                                {selectedRoleNames.length > 0
+                                    ? `${selectedRoleNames.length} selected`
+                                    : "Set Roles"} 
+                                <ChevronDown className={cn(
+                                    "ml-2 h-4 w-4 shrink-0 opacity-50",
+                                    "text-black dark:text-white"
+                                )} />
+                            </Button>
+                        ) : (
+                            <Button 
+                                variant="outline" 
+                                className={cn(
+                                    "!bg-white dark:!bg-gray-800 flex items-center gap-2",
+                                    "text-black dark:text-white border border-gray-300 dark:border-gray-600",
+                                    "shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                                )} 
+                                disabled
+                            >
+                                {selectedRoleNames.length > 0
+                                    ? `${selectedRoleNames.length} selected`
+                                    : "Set Roles"} 
+                                <ChevronDown className={cn(
+                                    "ml-2 h-4 w-4 shrink-0 opacity-50",
+                                    "text-black dark:text-white"
+                                )} />
+                            </Button>
+                        )}
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
+                    <DropdownMenuContent 
+                        align="start"
+                        className={cn(
+                            "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600",
+                            "text-black dark:text-white"
+                        )}
+                    >
                         {rolePerms.map((perm) => (
                             <DropdownMenuCheckboxItem
                                 key={perm._id}
                                 checked={selectedRoleNames.includes(perm.name)}
                                 onClick={(e) => handleCheckboxClick(e, perm.name)}
+                                className={cn(
+                                    "text-black dark:text-white",
+                                    "data-[state=checked]:bg-blue-500 data-[state=checked]:text-white",
+                                    "focus:bg-gray-100 dark:focus:bg-gray-700",
+                                    "hover:bg-gray-50 dark:hover:bg-gray-700"
+                                )}
                             >
                                 {perm.name}
                             </DropdownMenuCheckboxItem>
@@ -85,15 +128,32 @@ export function EventManagementOptions({ event, setEvent, rawRoles, roleSwitchEn
 
             {/* Published Toggle */}
             <div className="flex flex-col gap-2">
-                <Label htmlFor="published" className="text-sm">Published</Label>
+                <Label 
+                    htmlFor="published" 
+                    className={cn(
+                        "text-sm",
+                        "text-black dark:text-white"
+                    )}
+                >
+                    Published
+                </Label>
                 <div className="flex items-center space-x-2">
                     <Switch
                         id="published"
                         checked={event.published}
                         onCheckedChange={handlePublishedToggle}
-                        className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
+                        className={cn(
+                            "bg-gray-300 dark:bg-gray-700 data-[state=checked]:bg-blue-500 dark:data-[state=checked]:bg-blue-500",
+                            "ring-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                            "data-[state=checked]:text-primary-foreground"
+                        )}
                     />
-                    <span className="text-sm">{event.published ? "Yes" : "No"}</span>
+                    <span className={cn(
+                        "text-sm",
+                        "text-black dark:text-white"
+                    )}>
+                        {event.published ? "Yes" : "No"}
+                    </span>
                 </div>
             </div>
         </div>

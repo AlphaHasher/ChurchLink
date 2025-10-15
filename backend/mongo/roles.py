@@ -11,7 +11,6 @@ class RoleHandler:
         "media_management":False,
         "sermon_editing": False,
         "finance": False,
-
         "bulletin_editing": False,
     }
 

@@ -84,21 +84,41 @@ async def get_registration_status_route(event_id: str, request: Request):
 # Private Route
 # Add user to event (RSVP/register)
 @event_person_registration_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register_user_for_event(event_id: str, request: Request):
-    return await event_person_helper.register_user_for_event(
-        event_id=event_id,
-        user_uid=request.state.uid
-    )
+async def register_user_for_event(
+    event_id: str, 
+    request: Request,
+    scope: str = Query("series", regex="^(series|occurrence)$", description="Scope: 'series' for recurring, 'occurrence' for one-time")
+):
+    try:
+        from controllers.event_functions import register_rsvp
+
+        result = await register_rsvp(event_id, request.state.uid, None, None, scope)
+        if not result:
+            raise HTTPException(status_code=400, detail="Registration failed")
+        return {"success": True, "registration": True, "scope": scope}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error registering for event: {str(e)}")
 
 
 # Private Router
 # Remove user from event (cancel RSVP)
 @event_person_registration_router.delete("/unregister/{event_id}", response_model=dict)
-async def unregister_user_from_event(event_id: str, request: Request):
-    return await event_person_helper.unregister_user_from_event(
-        event_id=event_id,
-        user_uid=request.state.uid
-    )
+async def unregister_user_from_event(
+    event_id: str, 
+    request: Request,
+    scope: Optional[str] = Query(None, regex="^(series|occurrence)$", description="Optional scope to remove specific registration")
+):
+    try:
+        from controllers.event_functions import cancel_rsvp
+
+        result = await cancel_rsvp(event_id, request.state.uid, None, scope)
+        if not result:
+            raise HTTPException(status_code=400, detail="Unregistration failed")
+        return {"success": True, "message": "Unregistered successfully"}
+    except HTTPException:
+        raise
 
 
 # Private Router
@@ -278,13 +298,29 @@ async def get_my_events(request: Request, include_family: bool = True, expand: b
 # Private Route
 # Register a family member for an event
 @event_person_registration_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
-    return await event_person_helper.register_family_member_for_event(
-        event_id=event_id,
-        family_member_id=family_member_id,
-        user_uid=request.state.uid
-    )
+async def register_family_member_for_event(
+    event_id: str, 
+    family_member_id: str, 
+    request: Request,
+    scope: str = Query("series", regex="^(series|occurrence)$", description="Scope: 'series' for recurring, 'occurrence' for one-time")
+):
+    try:
+        from controllers.event_functions import register_rsvp
 
+        # Validate family member ownership
+        member = await get_family_member_by_id(request.state.uid, family_member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Family member not found")
+
+        result = await register_rsvp(event_id, request.state.uid, family_member_id, None, scope)
+        if not result:
+            raise HTTPException(status_code=400, detail="Registration failed")
+
+        return {"success": True, "registration": True, "scope": scope}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error registering family member for event: {str(e)}")
 
 # Redundant donation endpoint removed - now using bulk payment system for all event donations
 # Free events with donations should use: /events/{id}/payment/create-bulk-order
@@ -292,13 +328,29 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
 # Private Route
 # Unregister a family member from an event
 @event_person_registration_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
-async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
-    print(f"DEBUG: Unregister family member route called - event_id: {event_id}, family_member_id: {family_member_id}")
-    return await event_person_helper.unregister_family_member_from_event(
-        event_id=event_id,
-        family_member_id=family_member_id,
-        user_uid=request.state.uid
-    )
+async def unregister_family_member_from_event(
+    event_id: str, 
+    family_member_id: str, 
+    request: Request,
+    scope: Optional[str] = Query(None, regex="^(series|occurrence)$", description="Optional scope to remove specific registration")
+):
+    try:
+        from controllers.event_functions import cancel_rsvp
+
+        # Validate family member ownership
+        member = await get_family_member_by_id(request.state.uid, family_member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Family member not found")
+
+        result = await cancel_rsvp(event_id, request.state.uid, family_member_id, scope)
+        if not result:
+            raise HTTPException(status_code=400, detail="Unregistration failed")
+
+        return {"success": True, "message": "Family member unregistered successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error unregistering family member from event: {str(e)}")
 
 
 # Private Route

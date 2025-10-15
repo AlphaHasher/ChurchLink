@@ -35,6 +35,7 @@ function Login() {
   useEffect(() => {
     if (user) {
       navigate(getRedirectTo(), { replace: true });
+      navigate(getRedirectTo(), { replace: true });
     }
   }, [user]);
 
