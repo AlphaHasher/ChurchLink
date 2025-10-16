@@ -3,13 +3,13 @@
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-import '../domain/highlight.dart';
-import 'reader_logic.dart';
-import '../presentation/sheets/verse_actions_sheet.dart'; // ActionResult
-import '../data/notes_api.dart' as api;
+import 'package:app/models/bible_reader/highlight.dart';
+import 'package:app/pages/bible_reader/reader_logic.dart';
+import 'package:app/widgets/bible_reader/verse_actions_sheet.dart'; // ActionResult
+import 'package:app/pages/bible_reader/notes_api.dart' as api;
 import 'package:app/helpers/bible_notes_helper.dart' as bh;
-import '../data/verse_matching.dart' show VerseKey;
-import '../data/bible_repo_elisha.dart'; // for VerseRef
+import 'package:app/pages/bible_reader/verse_matching.dart' show VerseKey;
+import 'package:app/pages/bible_reader/bible_repo_elisha.dart'; // for VerseRef
 
 // ctx: bundle with the reader's current state 
 // notesAPI: used for communicating with the backend

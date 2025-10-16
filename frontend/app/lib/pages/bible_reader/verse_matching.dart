@@ -25,7 +25,7 @@
 
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
-import 'books.dart';
+import 'package:app/models/bible_reader/books.dart';
 
 /// Keys for locating a verse
 typedef VerseKey = ({String book, int chapter, int verse});

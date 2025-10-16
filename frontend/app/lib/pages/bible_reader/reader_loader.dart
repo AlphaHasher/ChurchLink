@@ -1,8 +1,8 @@
 // Fetches chapter text and formatting information
 // Packes this and returns it to bible_reader_body.dart
 
-import '../data/bible_repo_elisha.dart'; // ElishaBibleRepo, VerseRef
-import '../data/elisha_json_source.dart';
+import 'package:app/pages/bible_reader/bible_repo_elisha.dart'; // ElishaBibleRepo, VerseRef
+import 'package:app/pages/bible_reader/elisha_json_source.dart';
 
 class ReaderLoadResult {
   ReaderLoadResult({

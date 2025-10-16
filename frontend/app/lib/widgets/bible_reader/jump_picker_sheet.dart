@@ -68,7 +68,7 @@ Future<(String, int)?> showJumpPicker({
                                         child: Container(
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
-                                            color: selected ? cs.primary : cs.surfaceVariant,
+                                            color: selected ? cs.primary : cs.surfaceContainerHighest,
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Text(

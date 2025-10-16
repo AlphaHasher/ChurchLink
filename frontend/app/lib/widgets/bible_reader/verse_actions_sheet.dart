@@ -2,7 +2,7 @@
 // Features highlighting, notetaking, and clearing all
 
 import 'package:flutter/material.dart';
-import 'package:app/features/bible/domain/highlight.dart' show HighlightColor;
+import 'package:app/models/bible_reader/highlight.dart' show HighlightColor;
 
 class ActionResult {
   final HighlightColor? highlight;

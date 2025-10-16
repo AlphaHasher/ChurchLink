@@ -5,7 +5,7 @@
 
 // lib/features/bible/data/bible_repo_elisha.dart
 // Uses this to standardize and clean up the formatting from a .JSON Bible file.
-import 'elisha_json_source.dart';
+import 'package:app/pages/bible_reader/elisha_json_source.dart';
 
 /// Create an object for every single verse
 /// Stores book, chapter, verse as properties
