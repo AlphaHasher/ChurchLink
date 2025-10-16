@@ -3,10 +3,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
 import '../models/event_registration_summary.dart';
+import '../models/profile_info.dart';
+import '../caches/user_profile_cache.dart';
+import '../services/family_member_service.dart';
 import '../services/event_registration_service.dart';
 import '../services/my_events_service.dart';
 import '../providers/tab_provider.dart';
-import 'event_registration_page.dart';
+import '../widgets/bulk_event_registration_widget.dart';
+import '../pages/payment_success_page.dart';
+import 'user/family_members_page.dart';
 import '../helpers/asset_helper.dart'; 
 
 class EventShowcase extends StatefulWidget {
@@ -20,11 +25,18 @@ class EventShowcase extends StatefulWidget {
 
 class _EventShowcaseState extends State<EventShowcase> {
   EventRegistrationSummary? _registrationSummary;
+  ProfileInfo? _currentUserProfile;
   late Stream<User?> _authStateStream;
   bool _isInMyEvents = false;
   String? _myEventsScope;
   bool _isLoadingMyEventsStatus = false;
   bool _isRegistering = false;
+  
+  // Missing member variables
+  List<dynamic> _familyMembers = [];
+  Map<String, dynamic> _familyMemberRegistrations = {};
+  bool _isUserRegistered = false;
+  Set<String> _selectedRegistrants = {};
 
   @override
   void initState() {
@@ -36,6 +48,11 @@ class _EventShowcaseState extends State<EventShowcase> {
         // User logged out, clear all family data
         if (mounted) {
           setState(() {
+            _familyMembers = [];
+            _familyMemberRegistrations = {};
+            _isUserRegistered = false;
+            _currentUserProfile = null;
+            _selectedRegistrants.clear();
             _isInMyEvents = false;
             _myEventsScope = null;
           });
@@ -55,9 +72,133 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
 
     await Future.wait([
+      _loadCurrentUserProfile(),
+      _loadFamilyMembers(),
+      _checkRegistrationStatus(),
       _loadRegistrationDetails(),
       _checkMyEventsStatus(),
     ]);
+  }
+
+  Future<void> _loadCurrentUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _currentUserProfile = null);
+      return;
+    }
+
+    try {
+      final profile = await UserProfileCache.read(user.uid);
+      debugPrint('🔍 [EventShowcase] Loaded user profile: ${profile?.toJson()}');
+      if (mounted) {
+        setState(() => _currentUserProfile = profile);
+      }
+    } catch (e) {
+      debugPrint('❌ [EventShowcase] Failed to load user profile: $e');
+      if (mounted) {
+        setState(() => _currentUserProfile = null);
+      }
+    }
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    // Check authentication before loading family members
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Clear any existing family member data when user is not authenticated
+      setState(() {
+        _familyMembers = [];
+        _familyMemberRegistrations = {};
+      });
+      return;
+    }
+
+    try {
+      final members = await FamilyMemberService.getFamilyMembers();
+      if (mounted) {
+        setState(() {
+          _familyMembers = members;
+        });
+
+        // Check registration status for each family member
+        await _checkFamilyMemberRegistrations();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load family members: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _checkRegistrationStatus() async {
+    // Check authentication before checking registration status
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _isUserRegistered = false);
+      return;
+    }
+
+    try {
+      final isRegistered = await EventRegistrationService.isUserRegistered(
+        widget.event.id,
+      );
+      if (mounted) {
+        setState(() => _isUserRegistered = isRegistered);
+      }
+    } catch (e) {
+      debugPrint('Failed to check user registration status: $e');
+    }
+  }
+
+  Future<void> _checkFamilyMemberRegistrations() async {
+    // Check authentication before checking family member registrations
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _familyMemberRegistrations = {});
+      return;
+    }
+
+    if (_familyMembers.isEmpty) {
+      setState(() => _familyMemberRegistrations = {});
+      return;
+    }
+
+    try {
+      // Use new bulk endpoint for better performance
+      final familyMemberIds = _familyMembers.map((m) => m.id.toString()).toList();
+      final registrations =
+          await EventRegistrationService.areFamilyMembersRegistered(
+            eventId: widget.event.id,
+            familyMemberIds: familyMemberIds,
+          );
+
+      if (mounted) {
+        setState(() => _familyMemberRegistrations = registrations);
+      }
+    } catch (e) {
+      debugPrint('Bulk check failed, falling back to individual checks: $e');
+
+      // Fallback to individual checks if bulk endpoint fails
+      final Map<String, bool> registrations = {};
+      for (final member in _familyMembers) {
+        try {
+          final isRegistered =
+              await EventRegistrationService.isFamilyMemberRegistered(
+                eventId: widget.event.id,
+                familyMemberId: member.id,
+              );
+          registrations[member.id] = isRegistered;
+        } catch (e) {
+          debugPrint('Failed to check registration for ${member.fullName}: $e');
+          registrations[member.id] = false;
+        }
+      }
+      if (mounted) {
+        setState(() => _familyMemberRegistrations = registrations);
+      }
+    }
   }
 
   Future<void> _loadRegistrationDetails() async {
@@ -72,6 +213,34 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
+  Future<void> _handleRegistration() async {
+    if (_selectedRegistrants.isEmpty) return;
+
+    // Prepare registration data for bulk registration
+    final registrations = <Map<String, dynamic>>[];
+    
+    for (final selectedId in _selectedRegistrants) {
+      if (selectedId == 'self') {
+        // Current user registration
+        registrations.add({
+          'family_member_id': null, // null indicates current user
+          'name': 'You', // Will be replaced by backend with actual user name
+        });
+      } else {
+        // Family member registration
+        final familyMember = _familyMembers.firstWhere(
+          (member) => member.id == selectedId,
+        );
+        registrations.add({
+          'family_member_id': familyMember.id,
+          'name': familyMember.fullName,
+        });
+      }
+    }
+
+    // Show bulk registration dialog
+    _showBulkRegistrationDialog(registrations);
+  }
   Future<void> _checkMyEventsStatus() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -146,6 +315,118 @@ class _EventShowcaseState extends State<EventShowcase> {
         setState(() => _isLoadingMyEventsStatus = false);
       }
     }
+  }
+
+  void _handleBulkRegistration() async {
+    if (_selectedRegistrants.isEmpty) return;
+
+    final List<Map<String, dynamic>> registrations = [];
+
+    for (final selectedId in _selectedRegistrants) {
+      if (selectedId == 'self') {
+        registrations.add({
+          'family_member_id': null,
+          'name': 'You',
+        });
+      } else {
+        final familyMember = _familyMembers.firstWhere(
+          (member) => member.id == selectedId,
+          orElse: () => null,
+        );
+        
+        if (familyMember != null) {
+          registrations.add({
+            'family_member_id': familyMember.id,
+            'name': familyMember.fullName,
+          });
+        }
+      }
+    }
+
+    // Show bulk registration dialog
+    _showBulkRegistrationDialog(registrations);
+  }
+
+  void _showBulkRegistrationDialog(List<Map<String, dynamic>> registrations) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Register for ${widget.event.name}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: BulkEventRegistrationWidget(
+            event: widget.event,
+            registrations: registrations,
+            navigateOnPayAtDoor: true, // Enable direct navigation for pay-at-door
+            onSuccess: (String paymentType) async {
+              print('[EventShowcase] Success callback called with paymentType: $paymentType');
+              
+              // For pay-at-door, navigation is handled directly by the widget
+              // For other payment types, close dialog and show snackbar
+              if (paymentType != 'door') {
+                // For other payment types, close dialog first then show snackbar
+                if (Navigator.of(dialogContext).canPop()) {
+                  Navigator.of(dialogContext).pop();
+                }
+                
+                if (mounted) {
+                  final names = registrations.map((r) => r['name']).join(', ');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$names registered successfully!'),
+                      backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+                      duration: const Duration(seconds: 4),
+                    ),
+                  );
+                }
+              }
+
+              // Refresh data in background for all payment types
+              print('[EventShowcase] Refreshing registration data in background');
+              _refreshRegistrationData();
+            },
+            onPaymentSuccess: (String paymentId, String payerId) async {
+              // For PayPal payments, handle success here and refresh data
+              // Navigate to payment success page
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PaymentSuccessPage(
+                    paymentId: paymentId,
+                    payerId: payerId,
+                    eventId: widget.event.id,
+                    eventName: widget.event.name,
+                  ),
+                ),
+              );
+              
+              // Also refresh registration status after payment success
+              // Use a delay to let the payment complete
+              Future.delayed(Duration(seconds: 2), () async {
+                if (mounted) {
+                  await _checkRegistrationStatus();
+                  await _checkFamilyMemberRegistrations();
+                  await _loadRegistrationDetails();
+                  if (mounted) {
+                    setState(() => _selectedRegistrants.clear());
+                  }
+                }
+              });
+            },
+            onCancel: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _removeFromMyEvents() async {
@@ -237,7 +518,6 @@ class _EventShowcaseState extends State<EventShowcase> {
     String registrantName,
   ) async {
     // Show confirmation dialog
-    final cs = Theme.of(context).colorScheme;
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
@@ -249,7 +529,7 @@ class _EventShowcaseState extends State<EventShowcase> {
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: cs.error),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 child: const Text(
                   'Unregister',
                   style: TextStyle(color: Colors.white),
@@ -293,8 +573,10 @@ class _EventShowcaseState extends State<EventShowcase> {
           );
         }
 
-        // Refresh registration status
+        // Refresh registration status and reload family members to update availability
         await _loadRegistrationDetails();
+        await _checkRegistrationStatus();
+        await _checkFamilyMemberRegistrations();
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -319,7 +601,25 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
+  void _showFallbackSuccessMessage(String names) {
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$names registered successfully! Remember to pay at the door.'),
+            backgroundColor: const Color.fromARGB(255, 255, 193, 7),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        print('[EventShowcase] Fallback success message shown');
+      }
+    } catch (e) {
+      print('[EventShowcase] Even fallback message failed: $e');
+    }
+  }
+
   void _showRegistrationDialog() {
+    // Check authentication before showing registration dialog
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -331,19 +631,197 @@ class _EventShowcaseState extends State<EventShowcase> {
       return;
     }
 
-    Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EventRegistrationPage(
-          event: widget.event,
-          isUpdate: _registrationSummary!.userRegistrations.isNotEmpty,
-          existingRegistrations: _registrationSummary?.userRegistrations,
-        ),
-      ),
-    ).then((result) {
-      if (result == true) {
-        _loadInitialData();
-      }
+    // Reload family list before showing dialog to ensure it's up to date
+    _loadFamilyMembers().then((_) {      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setDialogState) {
+                return ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 400,
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                ),
+                child: IntrinsicHeight(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Dialog Header
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: const BoxDecoration(
+                          color: Color.fromARGB(255, 142, 163, 168),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.person_add,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Event Registration',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Dialog Content
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Event Full Warning
+                              if (!widget.event.hasSpots &&
+                                  widget.event.spots != null &&
+                                  widget.event.spots! > 0) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[50],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.red[200]!),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.event_busy,
+                                        color: Colors.red,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Event Full',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                            Text(
+                                              'This event has reached its capacity of ${widget.event.spots} attendees.',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+
+                              // Registration Form
+                              if (widget.event.hasSpots ||
+                                  widget.event.spots == null) ...[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        'Select People',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.of(
+                                          context,
+                                        ).pop(); // Close dialog
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) =>
+                                                    const FamilyMembersPage(),
+                                          ),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color.fromARGB(
+                                          255,
+                                          142,
+                                          163,
+                                          168,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                      label: const Text(
+                                        'Edit My Family',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                _buildPersonSelectionStep(setDialogState),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
     });
   }
 
@@ -354,6 +832,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
 
     return Card(
+      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -364,6 +843,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 16),
@@ -382,8 +862,6 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildCapacityInfo() {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
     if (_registrationSummary == null) {
       return const CircularProgressIndicator();
     }
@@ -391,7 +869,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cs.primary,
+        color: Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -399,8 +877,8 @@ class _EventShowcaseState extends State<EventShowcase> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total Registered:', style: tt.labelLarge?.copyWith(color: cs.onPrimary)),
-              Text('${_registrationSummary!.totalRegistrations}', style: tt.labelLarge?.copyWith(color: cs.onPrimary)),
+              Text('Total Registered:'),
+              Text('${_registrationSummary!.totalRegistrations}'),
             ],
           ),
         ],
@@ -490,10 +968,6 @@ class _EventShowcaseState extends State<EventShowcase> {
           ),
           if (!_isRegistering)
             TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              ),
               onPressed:
                   () => _handleUnregistration(
                     registration.personId ?? 'self',
@@ -528,17 +1002,364 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
+  /// Check if a family member is eligible for the event based on gender and age requirements
+  bool _isFamilyMemberEligibleForEvent(dynamic member) {
+    // Check gender requirements
+    // Event gender can be "all", "male", "female", "M", or "F"
+    if (widget.event.gender.toLowerCase() != 'all') {
+      final eventGender = widget.event.gender.toLowerCase();
+      final memberGender = member.gender.toLowerCase();
 
+      // Handle different gender formats
+      if (eventGender == 'male' || eventGender == 'm') {
+        if (memberGender != 'm' && memberGender != 'male') {
+          return false;
+        }
+      } else if (eventGender == 'female' || eventGender == 'f') {
+        if (memberGender != 'f' && memberGender != 'female') {
+          return false;
+        }
+      }
+    }
+
+    // Ministry requirements are not checked here since family members don't have ministry data
+    // If needed in the future, add ministry field to FamilyMember model
+
+    return true;
+  }
+
+  /// Check if the current user is eligible for the event based on gender and age requirements
+  bool _isCurrentUserEligibleForEvent() {
+    debugPrint('🔍 [EventShowcase] Checking user eligibility for event: ${widget.event.name}');
+    debugPrint('🔍 [EventShowcase] Event gender requirement: "${widget.event.gender}"');
+    debugPrint('🔍 [EventShowcase] Event age requirement: ${widget.event.minAge}-${widget.event.maxAge}');
+    debugPrint('🔍 [EventShowcase] User profile loaded: ${_currentUserProfile != null}');
+    
+    // Check gender requirements first
+    // Event gender can be "all", "male", "female", "M", or "F"
+    final eventGender = widget.event.gender.toLowerCase();
+    
+    // If event is open to all genders, we still need to check age if profile exists
+    if (eventGender != 'all') {
+      // For gender-restricted events, we need profile data
+      if (_currentUserProfile == null) {
+        debugPrint('❌ [EventShowcase] Gender-restricted event but no user profile - blocking registration');
+        return false;
+      }
+
+      debugPrint('🔍 [EventShowcase] User gender: "${_currentUserProfile!.gender}"');
+      
+      final userGender = _currentUserProfile!.gender?.toLowerCase();
+
+      debugPrint('🔍 [EventShowcase] Comparing - Event: "$eventGender" vs User: "$userGender"');
+
+      // If user has no gender set in their profile, block registration for gender-restricted events
+      if (userGender == null) {
+        debugPrint('❌ [EventShowcase] Gender-restricted event but user has no gender set - blocking registration');
+        return false;
+      }
+
+      // Handle different gender formats
+      if (eventGender == 'male' || eventGender == 'm') {
+        if (userGender != 'm' && userGender != 'male') {
+          debugPrint('❌ [EventShowcase] User gender mismatch - event requires male, user is $userGender');
+          return false;
+        }
+      } else if (eventGender == 'female' || eventGender == 'f') {
+        if (userGender != 'f' && userGender != 'female') {
+          debugPrint('❌ [EventShowcase] User gender mismatch - event requires female, user is $userGender');
+          return false;
+        }
+      }
+    }
+    
+    // Check age requirements if profile is available
+    if (_currentUserProfile?.birthday != null) {
+      final userAge = _calculateAge(_currentUserProfile!.birthday!);
+      debugPrint('🔍 [EventShowcase] User age: $userAge');
+      
+      if (userAge < widget.event.minAge || userAge > widget.event.maxAge) {
+        debugPrint('❌ [EventShowcase] User age mismatch - event requires ${widget.event.minAge}-${widget.event.maxAge}, user is $userAge');
+        return false;
+      }
+    } else if (_currentUserProfile != null) {
+      // Profile exists but no birthday - for age-restricted events, this could be an issue
+      debugPrint('⚠️ [EventShowcase] User profile exists but no birthday set - cannot validate age');
+      // For now, we'll allow registration, but this could be made stricter if needed
+    } else {
+      // No profile at all
+      if (eventGender != 'all') {
+        // Already handled above
+      } else {
+        debugPrint('⚠️ [EventShowcase] No user profile but event is open to all genders - allowing registration');
+      }
+    }
+
+    debugPrint('✅ [EventShowcase] User is eligible for this event');
+    return true;
+  }
+
+  /// Calculate age from birthday (same logic as FamilyMember.age)
+  int _calculateAge(DateTime birthday) {
+    final now = DateTime.now();
+    int age = now.year - birthday.year;
+    if (now.month < birthday.month ||
+        (now.month == birthday.month && now.day < birthday.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  Widget _buildPersonSelectionStep(StateSetter setDialogState) {
+    // Check authentication before building registration form
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Column(
+        children: [
+          Icon(Icons.person_off, size: 48, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Please log in to register for events.',
+            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
+
+    final availableRegistrants = <Map<String, String>>[];
+
+    debugPrint('🔍 [EventShowcase] Building registration form...');
+    debugPrint('🔍 [EventShowcase] User registered: $_isUserRegistered');
+    
+    // Add self if not registered AND meets event requirements (gender filtering)
+    if (!_isUserRegistered && _isCurrentUserEligibleForEvent()) {
+      debugPrint('✅ [EventShowcase] Adding "Myself" option - user is eligible');
+      availableRegistrants.add({'id': 'self', 'name': 'Myself'});
+    } else if (!_isUserRegistered) {
+      debugPrint('❌ [EventShowcase] NOT adding "Myself" option - user not eligible');
+    } else {
+      debugPrint('ℹ️ [EventShowcase] NOT adding "Myself" option - user already registered');
+    }
+
+    // Add family members who are not registered and meet event requirements
+    for (final member in _familyMembers) {
+      final isRegistered = _familyMemberRegistrations[member.id] ?? false;
+      if (!isRegistered && _isFamilyMemberEligibleForEvent(member)) {
+        availableRegistrants.add({'id': member.id, 'name': member.fullName});
+      }
+    }
+
+    if (availableRegistrants.isEmpty) {
+      // Check why no registrants are available
+      final isGenderRestricted = widget.event.gender.toLowerCase() != 'all';
+      final isAgeRestricted = widget.event.minAge > 0 || widget.event.maxAge < 150;
+      final userNeedsProfile = !_isUserRegistered && _currentUserProfile == null && (isGenderRestricted || isAgeRestricted);
+      
+      if (userNeedsProfile) {
+        String requirements = '';
+        if (isGenderRestricted && isAgeRestricted) {
+          requirements = 'gender and age information';
+        } else if (isGenderRestricted) {
+          requirements = 'gender information';
+        } else {
+          requirements = 'age information';
+        }
+        
+        return Column(
+          children: [
+            Icon(Icons.person_off, size: 48, color: Colors.orange),
+            const SizedBox(height: 16),
+            Text(
+              'Complete your profile to register for this event.',
+              style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This event requires $requirements. Go to Profile → Edit Profile to complete your profile.',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            if (isAgeRestricted) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Age requirement: ${widget.event.minAge}-${widget.event.maxAge} years',
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        );
+      }
+      
+      return const Text(
+        'All family members are already registered for this event.',
+        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Selection header with Select All/Deselect All
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      _selectedRegistrants.clear();
+                    });
+                  },
+                  child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      _selectedRegistrants.clear();
+                      _selectedRegistrants.addAll(
+                        availableRegistrants.map((r) => r['id']!),
+                      );
+                    });
+                  },
+                  child: const Text(
+                    'Select All',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Checkbox list
+        Container(
+          constraints: const BoxConstraints(maxHeight: 180, minHeight: 60),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Scrollbar(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children:
+                    availableRegistrants
+                        .map(
+                          (registrant) =>
+                              _buildCheckboxTile(registrant, setDialogState),
+                        )
+                        .toList(),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Register button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed:
+                _selectedRegistrants.isNotEmpty && !_isRegistering
+                    ? () {
+                      Navigator.of(context).pop(); // Close dialog
+                      _handleRegistration();
+                    }
+                    : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 142, 163, 168),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child:
+                _isRegistering
+                    ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                    : Text(
+                      _selectedRegistrants.length <= 1
+                          ? 'Register'
+                          : 'Register ${_selectedRegistrants.length} People',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCheckboxTile(
+    Map<String, String> registrant,
+    StateSetter setDialogState,
+  ) {
+    final isSelected = _selectedRegistrants.contains(registrant['id']);
+    return CheckboxListTile(
+      title: Text(registrant['name']!, style: const TextStyle(fontSize: 16)),
+      value: isSelected,
+      onChanged: (value) {
+        setDialogState(() {
+          if (value == true) {
+            _selectedRegistrants.add(registrant['id']!);
+          } else {
+            _selectedRegistrants.remove(registrant['id']!);
+          }
+        });
+      },
+      activeColor: const Color.fromARGB(255, 142, 163, 168),
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+    );
+  }
+
+  // Helper method to refresh registration data in background
+  void _refreshRegistrationData() {
+    // Run data refresh in background without blocking UI
+    Future.delayed(Duration(milliseconds: 500), () async {
+      try {
+        if (mounted) {
+          await _checkRegistrationStatus();
+          await _checkFamilyMemberRegistrations();
+          await _loadRegistrationDetails();
+          
+          if (mounted) {
+            setState(() => _selectedRegistrants.clear());
+            print('[EventShowcase] Background data refresh completed');
+          }
+        }
+      } catch (e) {
+        print('[EventShowcase] Error during background data refresh: $e');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Scaffold(
-      key: const ValueKey('screen-showcase'),
       appBar: AppBar(
-        //backgroundColor: cs.surface,
-        //foregroundColor: cs.onSurface,
+        backgroundColor: ssbcGray,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           widget.event.name,
+          style: const TextStyle(color: Colors.white),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -552,13 +1373,12 @@ class _EventShowcaseState extends State<EventShowcase> {
             } else {
               // Fallback: navigate to Events tab and then to home
               TabProvider.instance?.setTabByName('events');
-              Navigator.of(
-                context,
-              ).pushNamedAndRemoveUntil('/', (route) => false);
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
             }
           },
         ),
       ),
+      backgroundColor: const Color.fromARGB(255, 240, 240, 240),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,12 +1420,59 @@ class _EventShowcaseState extends State<EventShowcase> {
         children: [
           // Load image from uploads API endpoint
           // For now, always show placeholder until backend image serving is implemented
-          _buildEventThumb(),
-          // Action buttons positioned in bottom right
+          _buildImagePlaceholder(),
+          // Registration button positioned in bottom right
           Positioned(
             bottom: 16,
             right: 16,
-            child: _buildActionButtons(),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Check authentication and available spots before showing dialog
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please log in to register for events.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                if ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                    (_registrationSummary?.availableSpots ?? 1) == -1) {  // Allow unlimited spots
+                  _showRegistrationDialog();
+                }
+              },
+              icon: const Icon(Icons.person_add, size: 18),
+              label: Text(
+                ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                 (_registrationSummary?.availableSpots ?? 1) == -1)
+                    ? 'Register'
+                    : 'Event Full',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                     (_registrationSummary?.availableSpots ?? 1) == -1)
+                        ? const Color.fromARGB(255, 142, 163, 168)
+                        : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation:
+                    ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+                     (_registrationSummary?.availableSpots ?? 1) == -1) ? 4 : 0,
+              ),
+            ),
           ),
         ],
       ),
@@ -650,12 +1517,14 @@ class _EventShowcaseState extends State<EventShowcase> {
         _registrationSummary!.userRegistrations.isEmpty) {
       return ElevatedButton.icon(
         onPressed:
-            (_registrationSummary?.availableSpots ?? 1) > 0
+            ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+             (_registrationSummary?.availableSpots ?? 1) == -1)
                 ? _showRegistrationDialog
                 : null,
         icon: const Icon(Icons.person_add, size: 18),
         label: Text(
-          (_registrationSummary?.availableSpots ?? 1) > 0
+          ((_registrationSummary?.availableSpots ?? 1) > 0 || 
+           (_registrationSummary?.availableSpots ?? 1) == -1)
               ? 'Register'
               : 'Event Full',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -830,32 +1699,6 @@ class _EventShowcaseState extends State<EventShowcase> {
     );
   }
 
-  Widget _buildEventThumb() {
-    final imageUrl = widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
-        ? AssetHelper.getAssetUrl(widget.event.imageUrl!)
-        : null;
-
-    if (imageUrl == null) {
-      return _buildImagePlaceholder();
-    } else {
-      return SizedBox.expand(
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          // While loading, show the placeholder (keeps the card pretty)
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return _buildImagePlaceholder();
-          },
-          // On error (404, invalid URL, etc.), show the placeholder
-          errorBuilder: (context, error, stackTrace) {
-            return _buildImagePlaceholder();
-          },
-        ),
-      );
-    }
-  }
-
   Widget _buildEventHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -865,6 +1708,7 @@ class _EventShowcaseState extends State<EventShowcase> {
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         if (widget.event.ruName != null && widget.event.ruName!.isNotEmpty) ...[
@@ -885,6 +1729,7 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildEventInfo() {
     return Card(
+      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -921,11 +1766,11 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
-    final cs = Theme.of(context).colorScheme;
+    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 20, color: cs.primary),
+        Icon(icon, size: 20, color: ssbcGray),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -936,13 +1781,13 @@ class _EventShowcaseState extends State<EventShowcase> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  //color: Colors.grey,
+                  color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
               ),
             ],
           ),
@@ -960,7 +1805,7 @@ class _EventShowcaseState extends State<EventShowcase> {
           assetPath,
           width: 20,
           height: 20,
-          colorFilter: ColorFilter.mode(cs.primary, BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -972,13 +1817,13 @@ class _EventShowcaseState extends State<EventShowcase> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  //color: Colors.grey,
+                  color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
               ),
             ],
           ),
@@ -989,6 +1834,7 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildDescription() {
     return Card(
+      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -999,6 +1845,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 8),
@@ -1006,6 +1853,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               widget.event.description,
               style: const TextStyle(
                 fontSize: 16,
+                color: Colors.black87,
                 height: 1.4,
               ),
             ),
@@ -1018,6 +1866,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                 widget.event.ruDescription!,
                 style: const TextStyle(
                   fontSize: 16,
+                  color: Colors.grey,
                   height: 1.4,
                   fontStyle: FontStyle.italic,
                 ),
@@ -1031,7 +1880,6 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildEventSpecs() {
     final specs = <String>[];
-    final cs = Theme.of(context).colorScheme;
 
     if (widget.event.minAge > 0 || widget.event.maxAge < 100) {
       specs.add('Ages: ${widget.event.minAge}-${widget.event.maxAge}');
@@ -1054,6 +1902,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     if (specs.isEmpty) return const SizedBox.shrink();
 
     return Card(
+      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1064,6 +1913,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 8),
@@ -1072,16 +1922,17 @@ class _EventShowcaseState extends State<EventShowcase> {
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.check_circle,
                       size: 16,
-                      color: cs.primary,
+                      color: Color.fromARGB(255, 142, 163, 168),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       spec,
                       style: const TextStyle(
                         fontSize: 16,
+                        color: Colors.black87,
                       ),
                     ),
                   ],

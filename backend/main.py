@@ -61,6 +61,7 @@ from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_r
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
+from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router
 from fastapi.staticfiles import StaticFiles
@@ -251,6 +252,7 @@ public_router.include_router(strapi_router)
 public_router.include_router(public_notification_router)
 public_router.include_router(app_config_public_router)
 public_router.include_router(paypal_public_router)
+public_router.include_router(form_payment_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
@@ -281,7 +283,8 @@ public_router.include_router(public_forms_router)
 #####################################################
 mod_router = ModProtectedRouter(prefix="/api/v1")
 
-mod_router.include_router(mod_bible_plan_router)
+# Temporarily commented out due to Pydantic version issues
+# mod_router.include_router(mod_bible_plan_router)
 mod_router.include_router(mod_forms_router)
 mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)
@@ -326,6 +329,15 @@ layout_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=
 layout_management_protected_router.include_router(mod_header_router)
 layout_management_protected_router.include_router(mod_footer_router)
 
+# FINANCE MANAGEMENT CORE
+from routes.finance_routes.finance_routes import finance_router
+finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Finance Management"], required_perms=["finance"])
+finance_management_protected_router.include_router(finance_router)
+
+# EVENT PAYMENT ROUTES
+from routes.event_payment_routes.event_payment_routes import event_payment_router
+app.include_router(event_payment_router, prefix="/api/v1")
+
 
 
 
@@ -344,6 +356,7 @@ app.include_router(bulletin_editing_protected_router)
 app.include_router(service_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
+app.include_router(finance_management_protected_router)
 app.include_router(media_management_protected_router)
 
 

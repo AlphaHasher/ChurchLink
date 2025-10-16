@@ -195,7 +195,7 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
             ))}
           </Breadcrumb>
         </div>
-        <div className="space-x-2">
+        <div className="flex space-x-2">
           {!selectionMode && (
             <>
               <Button onClick={() => fileInputRef.current?.click()}>Upload</Button>
@@ -308,7 +308,7 @@ const MediaLibrary: React.FC<{ onSelect?: (asset: Asset) => void; selectionMode?
           <Upload className="h-16 w-16 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No images yet</h3>
           <p className="text-muted-foreground mb-4">Drag files here to upload or click the Upload button</p>
-          {!selectionMode && (
+          {!selectionMode && !onSelect && (
             <Button onClick={() => fileInputRef.current?.click()}>
               Upload Files
             </Button>

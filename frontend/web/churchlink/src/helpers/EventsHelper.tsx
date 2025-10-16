@@ -22,7 +22,7 @@ export const verifyValidEvent = (event: ChurchEvent) => {
     if (!event.description.trim()) missingFields.push("English Description")
     if (!event.ru_description.trim()) missingFields.push("Russian Description")
     if (!event.location.trim()) missingFields.push("Location")
-    if (!event.image_url.trim()) missingFields.push("Event Image")
+    // Image is now optional - removed validation for image_url
     if (event.roles.length === 0) missingFields.push("Assigned Roles")
 
 
@@ -38,9 +38,12 @@ export const verifyValidEvent = (event: ChurchEvent) => {
 export const handleEventCreation = async (event: ChurchEvent) => {
     verifyValidEvent(event)
 
-    // Strip image_url to just the filename after the last slash
-    const parts = event.image_url.split("/")
-    event.image_url = parts[parts.length - 1]
+    // Strip image_url to just the filename after the last slash (only if image_url exists)
+    let processedImageUrl = ""
+    if (event.image_url && event.image_url.trim()) {
+        const parts = event.image_url.split("/")
+        processedImageUrl = parts[parts.length - 1]
+    }
 
     try {
         const payload = {
@@ -58,9 +61,12 @@ export const handleEventCreation = async (event: ChurchEvent) => {
             min_age: event.min_age,
             max_age: event.max_age,
             gender: event.gender,
-            image_url: event.image_url,
+            image_url: processedImageUrl,
             roles: event.roles,
             published: event.published,
+            // Payment processing fields
+            payment_options: event.payment_options ?? [],
+            refund_policy: event.refund_policy ?? "",
         }
 
         await api.post("/v1/events/", payload)
@@ -73,9 +79,12 @@ export const handleEventCreation = async (event: ChurchEvent) => {
 export const handleEventEdit = async (event: ChurchEvent) => {
     verifyValidEvent(event)
 
-    // Strip image_url to just the filename after the last slash
-    const parts = event.image_url.split("/")
-    event.image_url = parts[parts.length - 1]
+    // Strip image_url to just the filename after the last slash (only if image_url exists)
+    let processedImageUrl = ""
+    if (event.image_url && event.image_url.trim()) {
+        const parts = event.image_url.split("/")
+        processedImageUrl = parts[parts.length - 1]
+    }
 
     try {
         const payload = {
@@ -93,11 +102,18 @@ export const handleEventEdit = async (event: ChurchEvent) => {
             min_age: event.min_age,
             max_age: event.max_age,
             gender: event.gender,
-            image_url: event.image_url,
+            image_url: processedImageUrl,
             roles: event.roles,
             published: event.published,
+            // Payment processing fields
+            payment_options: event.payment_options ?? [],
+            refund_policy: event.refund_policy ?? "",
         }
 
+        console.log('Edit event payload:', payload)
+        console.log('Event ID:', event.id)
+        console.log('API URL:', `/v1/events/${event.id}`)
+        
         await api.put(`/v1/events/${event.id}`, payload)
     } catch (err) {
         console.error("❌ Failed to edit event:", err)

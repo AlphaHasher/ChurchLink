@@ -345,7 +345,7 @@ class MyEventCard extends StatelessWidget {
     final e = event!;
 
     // If event is full (no available spots) show FULL badge
-    if (e.spots != null && e.spots! - e.seatsTaken <= 0) {
+    if (e.spots != null && e.spots! > 0 && e.spots! - e.seatsTaken <= 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(

@@ -4,15 +4,14 @@ from bson import ObjectId
 class RoleHandler:
     permission_template = {
         "admin":False,
-        "finance": False,
         "permissions_management": False,
         "layout_management": False,
         "event_editing":False,
         "event_management":False,
         "media_management":False,
-    "sermon_editing": False,
-    "bulletin_editing": False,
-
+        "sermon_editing": False,
+        "bulletin_editing": False,
+        "finance": False,
     }
 
     @staticmethod

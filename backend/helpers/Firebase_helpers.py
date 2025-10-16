@@ -113,4 +113,17 @@ def role_based_access(required_roles: List[str]) -> Callable:
             )
     return check_role
 
+async def get_uid_by_email(email: str) -> str:
+    """
+    Get Firebase UID by email address.
+    """
+    try:
+        user = auth.get_user_by_email(email)
+        return user.uid
+    except auth.UserNotFoundError:
+        return None
+    except Exception as e:
+        print(f"Error getting UID for email {email}: {e}")
+        return None
+
 

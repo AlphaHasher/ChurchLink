@@ -25,6 +25,8 @@ export const useMyEvents = (params?: {
       const result = expanded 
         ? await myEventsApi.getMyEventsExpanded(apiParams)
         : await myEventsApi.getMyEvents(apiParams);
+      console.log('[useMyEvents] API result:', result);
+      console.log('[useMyEvents] Events count:', result?.events?.length || 0);
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load events');

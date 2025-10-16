@@ -1,482 +1,873 @@
 import React, { useEffect, useState } from "react";
-import {
-  Card,
-  Table,
-  Badge,
-  Button,
-  Modal,
-  Input,
-  Select,
-  DatePicker,
-  Row,
-  Col,
-  Tabs,
-} from "antd";
-import { DownloadOutlined, BarChartOutlined, SettingOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
-import dayjs from "dayjs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Badge } from "@/shared/components/ui/badge";
+import { Input } from "@/shared/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
+import { Alert, AlertDescription } from "@/shared/components/ui/alert";
+import { Separator } from "@/shared/components/ui/separator";
+import { 
+  DollarSign, 
+  TrendingUp, 
+  TrendingDown, 
+  Calendar, 
+  Users, 
+  Download, 
+  Eye,
+  BarChart3,
+  Settings,
+  RefreshCw,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react";
 import api from "@/api/api";
-import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import PayPalSettingsComponent from "../components/Finance/PayPalSettings";
-Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-// Types
+// Types for the enhanced finance system
 interface Transaction {
-  id: string;
+  transaction_id: string;
   user_email: string;
-  name?: string; // Donor name
+  user_name?: string;
   amount: number;
-  date: string;
-  type: string;
+  currency: string;
   status: string;
   payment_method: string;
-  subscription_id?: string;
-  order_id?: string;
-  transaction_id?: string;
-  plan_id?: string;
-  next_billing_time?: string;
-  currency?: string;
-  event_type?: string;
-  note?: string;
-  metadata?: {
-    shipping_address?: any;
-    shipping_line_1?: string;
-    shipping_line_2?: string;
-    shipping_city?: string;
-    shipping_state?: string;
-    shipping_postal_code?: string;
-    shipping_country_code?: string;
-    [key: string]: any;
+  payment_type: "donation" | "event_registration" | "form_submission";
+  created_on: string;
+  event_id?: string;
+  event_name?: string;
+  form_id?: string;
+  form_name?: string;
+  payer_info?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
   };
+  metadata?: Record<string, any>;
 }
 
-// Add this interface for subscriptions
-export interface DonationSubscription {
-  id?: string;
-  user_email: string;
-  name?: string; // Donor name
-  amount: number;
-  status: string;
-  time?: string;
-  date?: string; // Added date property to match Transaction interface
-  payment_method?: string;
-  type?: string;
-  subscription_id: string;
-  plan_id?: string;
-  start_time?: string;
-  next_billing_time?: string;
-  note?: string;
-  currency?: string;
-  event_type?: string;
-  created_on?: string;
-  recurrence?: string;
-  cycles?: number;
-  start_date?: string;
+interface FinancialSummary {
+  total_revenue: number;
+  total_transactions: number;
+  revenue_by_type: {
+    donations: number;
+    event_registrations: number;
+    form_submissions: number;
+  };
+  revenue_by_status: {
+    completed: number;
+    pending: number;
+    failed: number;
+    refunded: number;
+  };
+  period_comparison: {
+    current_period: number;
+    previous_period: number;
+    percentage_change: number;
+  };
+  trending_data: Array<{
+    date: string;
+    revenue: number;
+    transaction_count: number;
+  }>;
 }
 
-const statusColors: Record<string, string> = {
-  completed: "green",
-  refunded: "red",
-  pending: "orange",
-  cancelled: "gray",
-};
+interface EventAnalytics {
+  total_events: number;
+  total_revenue: number;
+  average_ticket_price: number;
+  top_events: Array<{
+    event_id: string;
+    event_name: string;
+    revenue: number;
+    registrations: number;
+  }>;
+}
+
+interface FormAnalytics {
+  total_forms: number;
+  total_revenue: number;
+  average_submission_value: number;
+  top_forms: Array<{
+    form_id: string;
+    form_name: string;
+    revenue: number;
+    submissions: number;
+  }>;
+}
 
 const FinancePage: React.FC = () => {
+  // State management
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [filtered, setFiltered] = useState<Transaction[]>([]);
-  const [selected, setSelected] = useState<Transaction | null>(null);
-  const [filter, setFilter] = useState({
-    type: "",
-    status: "",
-    donor: "",
-    dateRange: [null, null] as [string | null, string | null],
+  const [summary, setSummary] = useState<FinancialSummary | null>(null);
+  const [eventAnalytics, setEventAnalytics] = useState<EventAnalytics | null>(null);
+  const [formAnalytics, setFormAnalytics] = useState<FormAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Filter and pagination state
+  const [filters, setFilters] = useState({
+    payment_type: "all",
+    status: "all",
+    user_email: "",
+    start_date: "",
+    end_date: "",
+    event_id: "",
+    form_id: ""
   });
-  const [showModal, setShowModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("transactions");
-  // Use DonationSubscription type for subscriptions state
-  const [subscriptions, setSubscriptions] = useState<DonationSubscription[]>([]);
+  const [pagination, setPagination] = useState({
+    skip: 0,
+    limit: 20,
+    total: 0
+  });
 
-  useEffect(() => {
-    const fetchDonations = async () => {
-      try {
-        const response = await api.get("/v1/paypal_admin/admin/transactions");
-        let txs = response.data.transactions || [];
-        // Map created_on to date for frontend display
-        txs = txs.map((t: any) => ({ ...t, date: t.date || t.created_on || t.time || "" }));
-        setTransactions(txs);
-        setFiltered(txs);
-      } catch (err: any) {
-        console.error("Fetch error:", err);
-      }
-    };
-    fetchDonations();
-  }, []);
-
-  useEffect(() => {
-    const fetchSubscriptions = async () => {
-      try {
-        const response = await api.get("/v1/paypal_admin/admin/subscriptions");
-        let subs: DonationSubscription[] = response.data.subscriptions || [];
-        subs = subs.map((s: any) => ({ ...s, date: s.date || s.created_on || s.start_date || "" }));
-        setSubscriptions(subs);
-      } catch (err: any) {
-        console.error("Fetch subscriptions error:", err);
-      }
-    };
-    fetchSubscriptions();
-  }, []);
-
-  useEffect(() => {
-    let data = [...transactions];
-    if (filter.type) data = data.filter((t) => t.type === filter.type);
-    if (filter.status) data = data.filter((t) => t.status === filter.status);
-    if (filter.donor) {
-      const search = filter.donor.toLowerCase();
-      data = data.filter((t) => {
-        return Object.values(t).some(v => {
-          if (v == null) return false;
-          if (typeof v === "string") return v.toLowerCase().includes(search);
-          if (typeof v === "number" || typeof v === "boolean") return v.toString().toLowerCase().includes(search);
-          return false;
+  // Fetch financial summary
+  const fetchSummary = async () => {
+    try {
+      const response = await api.get("/v1/finance/analytics/summary");
+      
+      // Transform backend response to match frontend expectations
+      const backendData = response.data;
+      
+      // Calculate revenue by type from payment type data
+      const revenueByType = {
+        donations: 0,
+        event_registrations: 0,
+        form_submissions: 0
+      };
+      
+      // Calculate revenue by status from status data
+      const revenueByStatus = {
+        completed: 0,
+        pending: 0,
+        failed: 0,
+        refunded: 0
+      };
+      
+      // Process payment type data
+      if (backendData.summary?.by_payment_type) {
+        backendData.summary.by_payment_type.forEach((item: any) => {
+          const paymentType = item.payment_type || 'unknown';
+          if (paymentType === 'donation') {
+            revenueByType.donations += item.total_amount || 0;
+          } else if (paymentType === 'event_registration') {
+            revenueByType.event_registrations += item.total_amount || 0;
+          } else if (paymentType === 'form_submission') {
+            revenueByType.form_submissions += item.total_amount || 0;
+          }
         });
+      }
+      
+      // Process status data
+      if (backendData.summary?.by_status) {
+        backendData.summary.by_status.forEach((item: any) => {
+          const status = item.status || 'unknown';
+          if (status in revenueByStatus) {
+            revenueByStatus[status as keyof typeof revenueByStatus] = item.total_amount || 0;
+          }
+        });
+      }
+      
+      // Transform time series data
+      const trendingData = (backendData.summary?.time_series || []).map((item: any) => ({
+        date: item.period || '',
+        revenue: item.total_amount || 0,
+        transaction_count: item.transaction_count || 0
+      }));
+      
+      // Create transformed summary matching FinancialSummary interface
+      const transformedSummary: FinancialSummary = {
+        total_revenue: backendData.summary?.overall?.total_revenue || 0,
+        total_transactions: backendData.summary?.overall?.total_transactions || 0,
+        revenue_by_type: revenueByType,
+        revenue_by_status: revenueByStatus,
+        period_comparison: {
+          current_period: backendData.summary?.overall?.total_revenue || 0,
+          previous_period: 0, // Not available from backend yet
+          percentage_change: 0 // Not available from backend yet
+        },
+        trending_data: trendingData
+      };
+      
+      setSummary(transformedSummary);
+    } catch (err: any) {
+      console.error("Failed to fetch financial summary:", err);
+      setError("Failed to load financial summary");
+    }
+  };
+
+  // Fetch transactions with filters and pagination
+  const fetchTransactions = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append("skip", pagination.skip.toString());
+      params.append("limit", pagination.limit.toString());
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") params.append(key, value);
       });
-    }
-    if (filter.dateRange[0] && filter.dateRange[1]) {
-      data = data.filter(
-        (t) =>
-          dayjs(t.date).isAfter(dayjs(filter.dateRange[0])) &&
-          dayjs(t.date).isBefore(dayjs(filter.dateRange[1]))
-      );
-    }
-    setFiltered(data);
-  }, [transactions, filter]);
 
-  // Summary stats
-  const totalDonations = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const totalSubscriptions = transactions.filter((t) => t.type === "subscription").reduce((sum, t) => sum + t.amount, 0);
-  const totalRefunds = transactions.filter((t) => t.status === "refunded").reduce((sum, t) => sum + t.amount, 0);
-  const netIncome = totalDonations - totalRefunds;
-
-  // Table columns
-  const columns: ColumnsType<Transaction> = [
-    { 
-      title: "Donor", 
-      dataIndex: "name", 
-      key: "donor", 
-      sorter: (a, b) => ((a.name || a.user_email) || "").localeCompare((b.name || b.user_email) || ""),
-      render: (name, record) => name || record.user_email || "Anonymous"
-    },
-    { title: "Amount", dataIndex: "amount", key: "amount", sorter: (a, b) => a.amount - b.amount, render: (v, r) => `${r.currency || "USD"} ${v}` },
-    { title: "Date", dataIndex: "date", key: "date", sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix() },
-    { 
-      title: "Type", 
-      dataIndex: "type", 
-      key: "type", 
-      filters: [
-        { text: "One-time", value: "one-time" },
-        { text: "Subscription", value: "subscription" }
-      ],
-      onFilter: (value, record) => record.type === value,
-    },
-    { 
-      title: "Status", 
-      dataIndex: "status", 
-      key: "status", 
-      render: (text) => <Badge color={statusColors[text] || "blue"} text={text} />,
-      filters: [
-        { text: "Completed", value: "completed" },
-        { text: "Pending", value: "pending" },
-        { text: "Refunded", value: "refunded" },
-        { text: "Cancelled", value: "cancelled" },
-      ],
-      onFilter: (value, record) => record.status === value,
-    },
-    { 
-      title: "Actions", 
-      key: "actions",
-      render: (_, record) => (
-        <Button type="link" onClick={() => {setSelected(record); setShowModal(true);}}>
-          View
-        </Button>
-      )
+      const response = await api.get(`/v1/finance/transactions?${params}`);
+      setTransactions(response.data.transactions || []);
+      setPagination(prev => ({
+        ...prev,
+        total: response.data.total || 0
+      }));
+    } catch (err: any) {
+      console.error("Failed to fetch transactions:", err);
+      setError("Failed to load transactions");
     }
-  ];
+  };
 
-  // Subscription columns
-  const subscriptionColumns: ColumnsType<DonationSubscription> = [
-    { 
-      title: "Donor", 
-      dataIndex: "name", 
-      key: "donor", 
-      render: (name, record) => name || record.user_email || "Anonymous"
-    },
-    { title: "Amount", dataIndex: "amount", key: "amount", render: (v, r) => `${r.currency || "USD"} ${v}` },
-    { title: "Status", dataIndex: "status", key: "status", render: (text) => <Badge color={statusColors[text] || "blue"} text={text} /> },
-    { title: "Start Date", dataIndex: "date", key: "date" },
-    { title: "Frequency", dataIndex: "recurrence", key: "recurrence" },
-    { title: "Next Billing", dataIndex: "next_billing_time", key: "next_billing_time" },
-    { 
-      title: "Actions", 
-      key: "actions",
-      render: (_, record) => (
-        <Button 
-          type="link" 
-          onClick={() => {
-            // Convert subscription to Transaction type for display
-            const transactionLike: Transaction = {
-              id: record.id || record.subscription_id,
-              user_email: record.user_email,
-              name: record.name, // Include name field
-              amount: record.amount,
-              date: record.date || record.start_date || record.created_on || "",
-              type: "subscription",
-              status: record.status,
-              payment_method: record.payment_method || "PayPal",
-              subscription_id: record.subscription_id,
-              plan_id: record.plan_id,
-              next_billing_time: record.next_billing_time,
-              currency: record.currency,
-              event_type: record.event_type,
-              note: record.note,
-            };
-            setSelected(transactionLike);
-            setShowModal(true);
-          }}
-        >
-          View
-        </Button>
-      )
+  // Fetch event analytics
+  const fetchEventAnalytics = async () => {
+    try {
+      const response = await api.get("/v1/finance/analytics/events");
+      setEventAnalytics(response.data);
+    } catch (err: any) {
+      console.error("Failed to fetch event analytics:", err);
     }
-  ];
+  };
+
+  // Fetch form analytics
+  const fetchFormAnalytics = async () => {
+    try {
+      const response = await api.get("/v1/finance/analytics/forms");
+      setFormAnalytics(response.data);
+    } catch (err: any) {
+      console.error("Failed to fetch form analytics:", err);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        await Promise.all([
+          fetchSummary(),
+          fetchTransactions(),
+          fetchEventAnalytics(),
+          fetchFormAnalytics()
+        ]);
+      } catch (err) {
+        setError("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Refetch transactions when filters or pagination change
+  useEffect(() => {
+    if (!loading) {
+      fetchTransactions();
+    }
+  }, [filters, pagination.skip]);
+
+  // Format currency
+  const formatCurrency = (amount: number, currency: string = "USD") => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency
+    }).format(amount);
+  };
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Get status badge variant
+  const getStatusBadge = (status: string) => {
+    const variants = {
+      completed: "default",
+      pending: "secondary",
+      failed: "destructive",
+      refunded: "outline"
+    };
+    return variants[status as keyof typeof variants] || "outline";
+  };
+
+  // Get payment type badge variant
+  const getPaymentTypeBadge = (type: string) => {
+    const variants = {
+      donation: "default",
+      event_registration: "secondary", 
+      form_submission: "outline"
+    };
+    return variants[type as keyof typeof variants] || "outline";
+  };
+
+  // Calculate percentage change indicator
+  const getChangeIndicator = (change: number) => {
+    if (change > 0) {
+      return <TrendingUp className="h-4 w-4 text-green-600" />;
+    } else if (change < 0) {
+      return <TrendingDown className="h-4 w-4 text-red-600" />;
+    }
+    return null;
+  };
+
+  // Handle transaction detail view
+  const viewTransactionDetail = async (transaction: Transaction) => {
+    try {
+      const response = await api.get(`/v1/finance/transactions/${transaction.transaction_id}`);
+      setSelectedTransaction(response.data);
+      setShowTransactionModal(true);
+    } catch (err) {
+      console.error("Failed to fetch transaction detail:", err);
+      setSelectedTransaction(transaction);
+      setShowTransactionModal(true);
+    }
+  };
+
+  // Export transactions to CSV
+  const exportTransactions = () => {
+    const csvData = [
+      ['Transaction ID', 'User Email', 'Name', 'Amount', 'Currency', 'Status', 'Payment Type', 'Date', 'Event/Form'],
+      ...transactions.map(t => [
+        t.transaction_id,
+        t.user_email,
+        t.user_name || t.payer_info?.first_name + ' ' + t.payer_info?.last_name || '',
+        t.amount.toString(),
+        t.currency,
+        t.status,
+        t.payment_type,
+        formatDate(t.created_on),
+        t.event_name || t.form_name || ''
+      ])
+    ];
+
+    const csvContent = csvData.map(row => 
+      row.map(field => `"${field}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Handle filter changes
+  const updateFilter = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, skip: 0 })); // Reset to first page
+  };
+
+  // Handle pagination
+  const goToPage = (direction: 'next' | 'prev') => {
+    setPagination(prev => ({
+      ...prev,
+      skip: direction === 'next' 
+        ? Math.min(prev.skip + prev.limit, prev.total - prev.limit)
+        : Math.max(prev.skip - prev.limit, 0)
+    }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading financial data...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
-    <div>
-      <Row gutter={[16, 16]}>
-        <Col span={6}>
-          <Card>
-            <h3>Total Donations</h3>
-            <h2>${totalDonations.toFixed(2)}</h2>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <h3>Recurring Subscriptions</h3>
-            <h2>${totalSubscriptions.toFixed(2)}</h2>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <h3>Refunds</h3>
-            <h2>${totalRefunds.toFixed(2)}</h2>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <h3>Net Income</h3>
-            <h2>${netIncome.toFixed(2)}</h2>
-          </Card>
-        </Col>
-      </Row>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Finance Dashboard</h1>
+          <p className="text-gray-600">Comprehensive financial analytics and transaction management</p>
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={() => window.location.reload()} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={exportTransactions}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Data
+          </Button>
+        </div>
+      </div>
 
-      <Tabs 
-        defaultActiveKey="transactions" 
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        style={{ marginBottom: '20px' }}
-        items={[
-          {
-            key: 'transactions',
-            label: 'Transactions',
-            children: (
-              <Card title="Transaction List">
-                <div style={{ marginBottom: "16px" }}>
-                  <Row gutter={16}>
-                    <Col span={6}>
-                      <Input
-                        placeholder="Search donor..."
-                        value={filter.donor}
-                        onChange={(e) => setFilter({ ...filter, donor: e.target.value })}
-                      />
-                    </Col>
-                    <Col span={6}>
-                      <Select
-                        placeholder="Filter by type"
-                        style={{ width: "100%" }}
-                        value={filter.type}
-                        onChange={(value) => setFilter({ ...filter, type: value })}
-                        allowClear
-                      >
-                        <Select.Option value="">All</Select.Option>
-                        <Select.Option value="one-time">One-time</Select.Option>
-                        <Select.Option value="subscription">Subscription</Select.Option>
-                      </Select>
-                    </Col>
-                    <Col span={6}>
-                      <Select
-                        placeholder="Filter by status"
-                        style={{ width: "100%" }}
-                        value={filter.status}
-                        onChange={(value) => setFilter({ ...filter, status: value })}
-                        allowClear
-                      >
-                        <Select.Option value="">All</Select.Option>
-                        <Select.Option value="completed">Completed</Select.Option>
-                        <Select.Option value="pending">Pending</Select.Option>
-                        <Select.Option value="refunded">Refunded</Select.Option>
-                        <Select.Option value="cancelled">Cancelled</Select.Option>
-                      </Select>
-                    </Col>
-                    <Col span={6}>
-                      <DatePicker.RangePicker
-                        style={{ width: "100%" }}
-                        onChange={(values) => {
-                          if (values) {
-                            setFilter({
-                              ...filter,
-                              dateRange: [values[0]?.toISOString() || null, values[1]?.toISOString() || null],
-                            });
-                          } else {
-                            setFilter({ ...filter, dateRange: [null, null] });
-                          }
-                        }}
-                      />
-                    </Col>
-                  </Row>
-                  <div style={{ marginTop: "16px", display: "flex", justifyContent: "flex-end" }}>
-                    <Button
-                      icon={<DownloadOutlined />}
-                      style={{ marginRight: "8px" }}
-                    >
-                      Export to CSV
-                    </Button>
-                    <Button icon={<BarChartOutlined />}>View Reports</Button>
-                  </div>
-                </div>
-                <Table<Transaction> 
-                  columns={columns} 
-                  dataSource={filtered.map(item => ({ ...item, key: item.id }))} 
-                  pagination={{ pageSize: 10 }} 
-                />
-              </Card>
-            )
-          },
-          {
-            key: 'subscriptions',
-            label: 'Subscriptions',
-            children: (
-              <Card title="Subscription List">
-                <div style={{ marginBottom: "16px" }}>
-                  <Row gutter={16}>
-                    <Col span={6}>
-                      <Input
-                        placeholder="Search donor..."
-                        value={filter.donor}
-                        onChange={(e) => setFilter({ ...filter, donor: e.target.value })}
-                      />
-                    </Col>
-                    <Col span={6}>
-                      <Select
-                        placeholder="Filter by status"
-                        style={{ width: "100%" }}
-                        value={filter.status}
-                        onChange={(value) => setFilter({ ...filter, status: value })}
-                        allowClear
-                      >
-                        <Select.Option value="">All</Select.Option>
-                        <Select.Option value="active">Active</Select.Option>
-                        <Select.Option value="cancelled">Cancelled</Select.Option>
-                        <Select.Option value="suspended">Suspended</Select.Option>
-                      </Select>
-                    </Col>
-                    <Col span={6}>
-                      <DatePicker.RangePicker
-                        style={{ width: "100%" }}
-                        onChange={(values) => {
-                          if (values) {
-                            setFilter({
-                              ...filter,
-                              dateRange: [values[0]?.toISOString() || null, values[1]?.toISOString() || null],
-                            });
-                          } else {
-                            setFilter({ ...filter, dateRange: [null, null] });
-                          }
-                        }}
-                      />
-                    </Col>
-                    <Col span={6}>
-                      <Button icon={<DownloadOutlined />} style={{ marginRight: "8px" }}>
-                        Export to CSV
-                      </Button>
-                    </Col>
-                  </Row>
-                </div>
-                <Table<DonationSubscription>
-                  columns={subscriptionColumns}
-                  dataSource={subscriptions.map(item => ({ 
-                    ...item, 
-                    key: item.id || item.subscription_id
-                  }))}
-                  pagination={{ pageSize: 10 }}
-                />
-              </Card>
-            )
-          },
-          {
-            key: 'settings',
-            label: (
-              <span>
-                <SettingOutlined /> Settings
-              </span>
-            ),
-            children: <PayPalSettingsComponent />
-          }
-        ]}
-      />
-      
-      <Modal
-        open={showModal}
-        title={selected?.type === "subscription" ? "Subscription Details" : "Transaction Details"}
-        onCancel={() => setShowModal(false)}
-        footer={null}
-      >
-        {selected && (
-          <div>
-            {selected.name && <p><b>Donor Name:</b> {selected.name}</p>}
-            <p><b>User Email:</b> {selected.user_email}</p>
-            <p><b>Amount:</b> {selected.amount}</p>
-            <p><b>Date:</b> {selected.date}</p>
-            <p><b>Type:</b> {selected.type}</p>
-            <p><b>Status:</b> <Badge color={statusColors[selected.status] || "blue"} text={selected.status} /></p>
-            <p><b>Payment Method:</b> {selected.payment_method}</p>
-            {selected.order_id && <p><b>Order ID:</b> {selected.order_id}</p>}
-            {selected.subscription_id && <p><b>Subscription ID:</b> {selected.subscription_id}</p>}
-            {selected.transaction_id && <p><b>Transaction ID:</b> {selected.transaction_id}</p>}
-            {selected.plan_id && <p><b>Plan ID:</b> {selected.plan_id}</p>}
-            {selected.next_billing_time && <p><b>Next Billing Time:</b> {selected.next_billing_time}</p>}
-            {selected.event_type && <p><b>Event Type:</b> {selected.event_type}</p>}
-            {selected.note && <p><b>Note:</b> {selected.note}</p>}
-            
-            {/* Display address information if available */}
-            {selected.metadata && (
-              <>
-                {(selected.metadata.shipping_line_1 || selected.metadata.shipping_city || selected.metadata.shipping_state) && (
-                  <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-                    <p><b>Shipping Address:</b></p>
-                    {selected.metadata.shipping_line_1 && <p>{selected.metadata.shipping_line_1}</p>}
-                    {selected.metadata.shipping_line_2 && <p>{selected.metadata.shipping_line_2}</p>}
-                    {(selected.metadata.shipping_city || selected.metadata.shipping_state || selected.metadata.shipping_postal_code) && (
-                      <p>
-                        {selected.metadata.shipping_city}{selected.metadata.shipping_city && selected.metadata.shipping_state ? ', ' : ''}{selected.metadata.shipping_state} {selected.metadata.shipping_postal_code}
-                      </p>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Summary Cards */}
+          {summary && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(summary.total_revenue)}</div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    {summary.period_comparison && typeof summary.period_comparison.percentage_change === 'number' ? (
+                      <>
+                        {getChangeIndicator(summary.period_comparison.percentage_change)}
+                        <span className="ml-1">
+                          {summary.period_comparison.percentage_change > 0 ? '+' : ''}
+                          {summary.period_comparison.percentage_change.toFixed(1)}% from last period
+                        </span>
+                      </>
+                    ) : (
+                      <span className="ml-1">No comparison data available</span>
                     )}
-                    {selected.metadata.shipping_country_code && <p>{selected.metadata.shipping_country_code}</p>}
                   </div>
-                )}
-              </>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{summary.total_transactions}</div>
+                  <p className="text-xs text-muted-foreground">Across all payment types</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Event Revenue</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(summary.revenue_by_type.event_registrations)}</div>
+                  <p className="text-xs text-muted-foreground">From event registrations</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Donations</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(summary.revenue_by_type.donations)}</div>
+                  <p className="text-xs text-muted-foreground">Direct donations</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Revenue Breakdown */}
+          {summary && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Revenue by Payment Type</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span>Donations</span>
+                    <span className="font-medium">{formatCurrency(summary.revenue_by_type.donations)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Event Registrations</span>
+                    <span className="font-medium">{formatCurrency(summary.revenue_by_type.event_registrations)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Form Submissions</span>
+                    <span className="font-medium">{formatCurrency(summary.revenue_by_type.form_submissions)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Revenue by Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center">
+                      <Badge variant="default" className="mr-2">Completed</Badge>
+                    </span>
+                    <span className="font-medium">{formatCurrency(summary.revenue_by_status.completed)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center">
+                      <Badge variant="secondary" className="mr-2">Pending</Badge>
+                    </span>
+                    <span className="font-medium">{formatCurrency(summary.revenue_by_status.pending)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center">
+                      <Badge variant="destructive" className="mr-2">Failed</Badge>
+                    </span>
+                    <span className="font-medium">{formatCurrency(summary.revenue_by_status.failed)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center">
+                      <Badge variant="outline" className="mr-2">Refunded</Badge>
+                    </span>
+                    <span className="font-medium">{formatCurrency(summary.revenue_by_status.refunded)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Transactions Tab */}
+        <TabsContent value="transactions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction Management</CardTitle>
+              <CardDescription>View and manage all payment transactions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by email..."
+                    value={filters.user_email}
+                    onChange={(e) => updateFilter('user_email', e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                
+                <Select value={filters.payment_type} onValueChange={(value) => updateFilter('payment_type', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Payment Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="donation">Donations</SelectItem>
+                    <SelectItem value="event_registration">Event Registrations</SelectItem>
+                    <SelectItem value="form_submission">Form Submissions</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filters.status} onValueChange={(value) => updateFilter('status', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="refunded">Refunded</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button variant="outline" onClick={() => setFilters({
+                  payment_type: "all",
+                  status: "all",
+                  user_email: "",
+                  start_date: "",
+                  end_date: "",
+                  event_id: "",
+                  form_id: ""
+                })}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Clear Filters
+                </Button>
+              </div>
+
+              {/* Transactions Table */}
+              <div className="border rounded-lg">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b">
+                      <tr>
+                        <th className="text-left p-4 font-medium">Transaction ID</th>
+                        <th className="text-left p-4 font-medium">User</th>
+                        <th className="text-left p-4 font-medium">Amount</th>
+                        <th className="text-left p-4 font-medium">Type</th>
+                        <th className="text-left p-4 font-medium">Status</th>
+                        <th className="text-left p-4 font-medium">Date</th>
+                        <th className="text-left p-4 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map((transaction) => (
+                        <tr key={transaction.transaction_id} className="border-b hover:bg-muted/50">
+                          <td className="p-4 font-mono text-sm">{transaction.transaction_id}</td>
+                          <td className="p-4">
+                            <div>
+                              <p className="font-medium">{transaction.user_name || 'Unknown'}</p>
+                              <p className="text-sm text-muted-foreground">{transaction.user_email}</p>
+                            </div>
+                          </td>
+                          <td className="p-4 font-semibold">{formatCurrency(transaction.amount, transaction.currency)}</td>
+                          <td className="p-4">
+                            <Badge variant={getPaymentTypeBadge(transaction.payment_type)}>
+                              {transaction.payment_type.replace('_', ' ')}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={getStatusBadge(transaction.status)}>
+                              {transaction.status}
+                            </Badge>
+                          </td>
+                          <td className="p-4 text-sm">{formatDate(transaction.created_on)}</td>
+                          <td className="p-4">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => viewTransactionDetail(transaction)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between p-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {pagination.skip + 1} to {Math.min(pagination.skip + pagination.limit, pagination.total)} of {pagination.total} transactions
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => goToPage('prev')}
+                      disabled={pagination.skip === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => goToPage('next')}
+                      disabled={pagination.skip + pagination.limit >= pagination.total}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Event Analytics */}
+            {eventAnalytics && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Event Revenue Analytics</CardTitle>
+                  <CardDescription>Performance metrics for event registrations</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Events</p>
+                      <p className="text-2xl font-bold">{eventAnalytics.total_events}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                      <p className="text-2xl font-bold">{formatCurrency(eventAnalytics.total_revenue)}</p>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div>
+                    <p className="text-sm font-medium mb-2">Top Events by Revenue</p>
+                    <div className="space-y-2">
+                      {eventAnalytics.top_events && eventAnalytics.top_events.length > 0 ? (
+                        eventAnalytics.top_events.slice(0, 5).map((event) => (
+                          <div key={event.event_id} className="flex justify-between items-center">
+                            <span className="text-sm">{event.event_name}</span>
+                            <span className="font-medium">{formatCurrency(event.revenue)}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No event data available</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Form Analytics */}
+            {formAnalytics && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Form Revenue Analytics</CardTitle>
+                  <CardDescription>Performance metrics for form submissions</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Forms</p>
+                      <p className="text-2xl font-bold">{formAnalytics.total_forms}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                      <p className="text-2xl font-bold">{formatCurrency(formAnalytics.total_revenue)}</p>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div>
+                    <p className="text-sm font-medium mb-2">Top Forms by Revenue</p>
+                    <div className="space-y-2">
+                      {formAnalytics.top_forms && formAnalytics.top_forms.length > 0 ? (
+                        formAnalytics.top_forms.slice(0, 5).map((form) => (
+                          <div key={form.form_id} className="flex justify-between items-center">
+                            <span className="text-sm">{form.form_name}</span>
+                            <span className="font-medium">{formatCurrency(form.revenue)}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No form data available</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
-        )}
-      </Modal>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings">
+          <PayPalSettingsComponent />
+        </TabsContent>
+      </Tabs>
+
+      {/* Transaction Detail Modal */}
+      <Dialog open={showTransactionModal} onOpenChange={setShowTransactionModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Transaction Details</DialogTitle>
+            <DialogDescription>
+              Complete information for transaction {selectedTransaction?.transaction_id}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTransaction && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Transaction ID</p>
+                  <p className="font-mono">{selectedTransaction.transaction_id}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Amount</p>
+                  <p className="font-semibold">{formatCurrency(selectedTransaction.amount, selectedTransaction.currency)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">User Email</p>
+                  <p>{selectedTransaction.user_email}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">User Name</p>
+                  <p>{selectedTransaction.user_name || 'Not provided'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Payment Type</p>
+                  <Badge variant={getPaymentTypeBadge(selectedTransaction.payment_type)}>
+                    {selectedTransaction.payment_type.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant={getStatusBadge(selectedTransaction.status)}>
+                    {selectedTransaction.status}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Payment Method</p>
+                  <p>{selectedTransaction.payment_method}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Date</p>
+                  <p>{formatDate(selectedTransaction.created_on)}</p>
+                </div>
+              </div>
+
+              {(selectedTransaction.event_name || selectedTransaction.form_name) && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Related To</p>
+                  <p>{selectedTransaction.event_name || selectedTransaction.form_name}</p>
+                </div>
+              )}
+
+              {selectedTransaction.metadata && Object.keys(selectedTransaction.metadata).length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Additional Information</p>
+                  <div className="bg-muted/50 p-3 rounded text-sm">
+                    <pre>{JSON.stringify(selectedTransaction.metadata, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

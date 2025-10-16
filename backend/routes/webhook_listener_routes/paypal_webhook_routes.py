@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 from models.transaction import Transaction
+import logging
 
 paypal_webhook_router = APIRouter(prefix="/paypal", tags=["paypal_webhook"])
 
@@ -30,6 +31,10 @@ async def paypal_webhook(request: Request):
             if getattr(transaction, query_field, None) == query_value:
                 transaction_id = transaction.transaction_id
                 await Transaction.update_transaction_status(transaction_id, status)
+                
+                # Log the status update with additional context
+                logging.info(f"Webhook updated transaction {transaction_id} status to {status} for {query_field}={query_value}")
+                
                 return {"success": True, "transaction_id": transaction_id, "status": status}
 
     return {"success": False, "message": "Event not handled"}

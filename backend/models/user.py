@@ -330,6 +330,9 @@ async def get_family_members(user_uid: str) -> List[PersonOut]:
         result = []
         for person in people:
             person['id'] = str(person.pop('_id'))
+            # Add createdOn if missing (for backwards compatibility with older data)
+            if 'createdOn' not in person:
+                person['createdOn'] = datetime.now()
             result.append(PersonOut(**person))
         return result
     except Exception as e:
@@ -345,6 +348,9 @@ async def get_family_member_by_id(user_uid: str, person_id: str) -> Optional[Per
         person = await UserHandler.get_person(user_uid, ObjectId(person_id))
         if person:
             person['id'] = str(person.pop('_id'))
+            # Add createdOn if missing (for backwards compatibility with older data)
+            if 'createdOn' not in person:
+                person['createdOn'] = datetime.now()
             return PersonOut(**person)
         return None
     except Exception as e:

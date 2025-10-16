@@ -97,7 +97,7 @@ export const parsePayPalReturn = (search: string) => {
 
 export const getPayPalSettings = async (): Promise<string[]> => {
     try {
-        const res = await api.get<PaypalSettingsResponse>("/v1/paypal/settings");
+        const res = await api.get<PaypalSettingsResponse>("/v1/finance/paypal/settings");
         return res.data?.settings?.ALLOWED_FUNDS ?? ["General", "Building", "Missions", "Youth", "Other"];
     } catch (err) {
         console.warn("Failed to fetch PayPal settings, using defaults:", err);
