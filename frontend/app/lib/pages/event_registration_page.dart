@@ -645,7 +645,7 @@ class _EventRegistrationPageState extends State<EventRegistrationPage> {
         widget.event.imageUrl!.trim().isEmpty) {
       return _buildImagePlaceholder();
     } else {
-      final url = StrapiHelper.getTrueImageURL(widget.event.imageUrl!);
+      final url = AssetHelper.getPublicUrl(widget.event.imageUrl!);
 
       return Image.network(
         url,
