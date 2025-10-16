@@ -1,5 +1,5 @@
 import os
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
@@ -7,30 +7,18 @@ from bson import ObjectId
 
 from mongo.database import DB
 
-# =========================
-# Collection wiring
-# =========================
-
 COLLECTION_NAME = "image_data"
-
 _indexes_ensured = False
 
 async def _get_collection():
-    """
-    Return the Motor collection handle from your shared DB wrapper.
-    Assumes DB.init_db() has been called by the app on startup.
-    """
     global _indexes_ensured
     coll = DB.db[COLLECTION_NAME]
     if not _indexes_ensured:
         await coll.create_index("path")
         await coll.create_index("created_at")
+        await coll.create_index("name")
         _indexes_ensured = True
     return coll
-
-# =========================
-# Core Image Models
-# =========================
 
 class ImageData(BaseModel):
     name: str
@@ -38,25 +26,18 @@ class ImageData(BaseModel):
     extension: str
     path: str
 
-
 class ImageDataInDB(ImageData):
     id: str = Field(..., alias="_id")
     created_at: datetime
     updated_at: datetime
-
     class Config:
         allow_population_by_field_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
-# =========================
-# Request / Response Models
-# =========================
-
 class UploadImageRequest(BaseModel):
     folder: Optional[str] = None
     description: Optional[str] = None
-
     @field_validator("folder")
     @classmethod
     def _clean_folder(cls, v):
@@ -64,7 +45,6 @@ class UploadImageRequest(BaseModel):
             return None
         v = v.strip().strip("/")
         return v or ""
-
 
 class ImageResponse(BaseModel):
     id: str
@@ -76,12 +56,10 @@ class ImageResponse(BaseModel):
     public_url: str
     thumb_url: str
 
-
 class ImageUpdateRequest(BaseModel):
     new_name: Optional[str] = None
     new_description: Optional[str] = None
     move_to_folder: Optional[str] = None
-
     @field_validator("move_to_folder")
     @classmethod
     def _clean_move_to(cls, v: Optional[str]) -> Optional[str]:
@@ -90,10 +68,8 @@ class ImageUpdateRequest(BaseModel):
         v = v.strip().strip("/")
         return v
 
-
 class FolderCreateRequest(BaseModel):
     path: str
-
     @field_validator("path")
     @classmethod
     def _clean_path(cls, v):
@@ -102,11 +78,9 @@ class FolderCreateRequest(BaseModel):
             raise ValueError("path must not be empty or root")
         return v
 
-
 class FolderRenameRequest(BaseModel):
     path: str
     new_name: str
-
     @field_validator("path", "new_name")
     @classmethod
     def _no_blank(cls, v):
@@ -115,11 +89,9 @@ class FolderRenameRequest(BaseModel):
             raise ValueError("value must not be empty")
         return v
 
-
 class FolderMoveRequest(BaseModel):
     path: str
     new_parent: Optional[str] = ""
-
     @field_validator("path")
     @classmethod
     def _clean_and_require_path(cls, v):
@@ -127,7 +99,6 @@ class FolderMoveRequest(BaseModel):
         if not v:
             raise ValueError("value must not be empty or root")
         return v
-
     @field_validator("new_parent")
     @classmethod
     def _clean_parent(cls, v):
@@ -135,11 +106,9 @@ class FolderMoveRequest(BaseModel):
             return ""
         return v.strip().strip("/")
 
-
 class FolderDeleteRequest(BaseModel):
     path: str
     delete_within: bool
-
     @field_validator("path")
     @classmethod
     def _clean_del_path(cls, v):
@@ -148,15 +117,10 @@ class FolderDeleteRequest(BaseModel):
             raise ValueError("path must not be empty or root")
         return v
 
-
 class FolderResponse(BaseModel):
     path: str
     action: str
     details: Optional[Dict[str, Any]] = None
-
-# =================================
-# CRUD for single images in MongoDB
-# =================================
 
 async def create_image_data_with_id(_id: ObjectId, payload: ImageData) -> str:
     col = await _get_collection()
@@ -184,20 +148,36 @@ async def get_image_data(id_str: str) -> Optional[Dict[str, Any]]:
     doc["_id"] = str(doc["_id"])
     return doc
 
-async def list_image_data(limit: Optional[int] = None, folder: Optional[str] = None) -> List[Dict[str, Any]]:
+# *** New: advanced listing with filtering + pagination ***
+async def list_image_data_advanced(
+    *,
+    folder_prefix: Optional[str],  # '' for root; None for no folder filtering
+    name_q: Optional[str],
+    page: int,
+    page_size: int,
+    order: int = -1,  # newest first
+) -> Tuple[List[Dict[str, Any]], int]:
     col = await _get_collection()
     query: Dict[str, Any] = {}
-    if folder is not None:
-        prefix = "data/assets/" if folder == "" else f"data/assets/{folder.strip('/')}/"
+
+    if folder_prefix is not None:
+        prefix = "data/assets/" if folder_prefix == "" else f"data/assets/{folder_prefix.strip('/')}/"
         query["path"] = {"$regex": f"^{prefix}"}
-    cursor = col.find(query).sort("created_at", -1)
-    if limit:
-        cursor = cursor.limit(limit)
-    results = []
+
+    if name_q:
+        # name substring match (case-insensitive)
+        query["name"] = {"$regex": name_q, "$options": "i"}
+
+    total = await col.count_documents(query)
+    skip = max(0, (page - 1) * page_size)
+    cursor = col.find(query).sort("created_at", order).skip(skip).limit(page_size)
+
+    results: List[Dict[str, Any]] = []
     async for d in cursor:
         d["_id"] = str(d["_id"])
         results.append(d)
-    return results
+
+    return results, total
 
 async def update_image_data(id_str: str, updates: Dict[str, Any]) -> bool:
     col = await _get_collection()
@@ -220,10 +200,6 @@ async def delete_image_data(id_str: str) -> bool:
         return False
     res = await col.delete_one({"_id": _id})
     return res.deleted_count > 0
-
-# ==================================
-# Bulk path edits for folder changes
-# ==================================
 
 async def bulk_repath_prefix(old_prefix: str, new_prefix: str) -> int:
     col = await _get_collection()

@@ -1,59 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
+import * as React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/button';
+import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/label';
-import { Input } from '@/shared/components/ui/input';
+import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 
-export const DeleteFolderDialog: React.FC<{
+type Props = {
     open: boolean;
     folderName: string;
+    canManage?: boolean;
     onOpenChange: (open: boolean) => void;
     onCancel: () => void;
     onConfirm: (opts: { delete_within: boolean }) => void;
-}> = ({ open, folderName, onOpenChange, onCancel, onConfirm }) => {
-    const [deleteWithin, setDeleteWithin] = useState(true);
-    const [confirmText, setConfirmText] = useState('');
+};
 
-    useEffect(() => {
-        if (open) {
-            setDeleteWithin(true);
-            setConfirmText('');
-        }
-    }, [open]);
+export const DeleteFolderDialog: React.FC<Props> = ({
+    open, folderName, canManage = false, onOpenChange, onCancel, onConfirm
+}) => {
+    const [deleteWithin, setDeleteWithin] = React.useState(false);
 
-    const canDelete = confirmText.trim().toLowerCase() === 'delete';
+    React.useEffect(() => setDeleteWithin(false), [open]);
 
     return (
-        <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Delete Folder</DialogTitle>
+                    <DialogTitle>Delete “{folderName}”</DialogTitle>
+                    <DialogDescription>
+                        You can move its contents up one level or delete everything inside it.
+                    </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-3 text-sm">
-                    <p>
-                        You’re deleting <span className="font-semibold">{folderName}</span>.
-                    </p>
-                    <label className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            className="h-4 w-4"
-                            checked={deleteWithin}
-                            onChange={(e) => setDeleteWithin(e.target.checked)}
-                        />
-                        <span>Also delete everything inside</span>
-                    </label>
-                    <div className="space-y-1">
-                        <Label htmlFor="confirm">Type <span className="font-semibold">delete</span> to confirm</Label>
-                        <Input id="confirm" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} />
-                    </div>
+                {!canManage && (
+                    <Alert className="mb-2" variant="destructive">
+                        <AlertDescription>You don't have permission to delete folders.</AlertDescription>
+                    </Alert>
+                )}
+                <div className="flex items-center gap-2">
+                    <Switch id="deleteWithin" checked={deleteWithin} onCheckedChange={setDeleteWithin} />
+                    <Label htmlFor="deleteWithin">Delete everything inside this folder</Label>
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={onCancel}>Cancel</Button>
-                    <Button
-                        variant="destructive"
-                        disabled={!canDelete}
-                        onClick={() => onConfirm({ delete_within: deleteWithin })}
-                    >
+                    <Button variant="outline" onClick={onCancel}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => onConfirm({ delete_within: deleteWithin })} disabled={!canManage}>
                         Delete
                     </Button>
                 </DialogFooter>

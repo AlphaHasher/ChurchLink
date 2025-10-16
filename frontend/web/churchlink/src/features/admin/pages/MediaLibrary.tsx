@@ -18,6 +18,16 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { ChevronLeft, Loader2, Upload } from 'lucide-react';
 
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/shared/components/ui/select';
+
+import { getMyPermissions } from '@/helpers/UserHelper';
+
 import { DeleteImageDialog } from '../components/Media/DeleteImageDialog';
 import FolderTile from '../components/Media/FolderTile';
 import { ImagePreviewDialog } from '../components/Media/ImagePreviewDialog';
@@ -33,6 +43,7 @@ type DragItem =
 type CtxState =
   | { open: false }
   | { open: true; kind: 'folder'; folderName: string; x: number; y: number }
+  | { open: true; kind: 'image'; asset: ImageResponse; x: number; y: number }
   | { open: true; kind: 'canvas'; x: number; y: number };
 
 const MediaLibrary: React.FC<{
@@ -44,15 +55,26 @@ const MediaLibrary: React.FC<{
   const [subfolders, setSubfolders] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // dialogs
+  const [canManage, setCanManage] = useState<boolean>(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const result = await getMyPermissions();
+        setCanManage(!!(result?.success && result?.perms?.media_management));
+      } catch {
+        setCanManage(false);
+      }
+    })();
+  }, []);
+
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [folderName, setFolderName] = useState('');
   const [folderError, setFolderError] = useState<string | null>(null);
 
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameTarget, setRenameTarget] = useState<string>(''); // leaf name
+  const [renameTarget, setRenameTarget] = useState<string>('');
   const [deleteFolderOpen, setDeleteFolderOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string>(''); // leaf name
+  const [deleteTarget, setDeleteTarget] = useState<string>('');
 
   const [erroredImages, setErroredImages] = useState<Set<string>>(new Set());
   const [selectedImage, setSelectedImage] = useState<ImageResponse | null>(null);
@@ -64,13 +86,18 @@ const MediaLibrary: React.FC<{
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
 
-  // context menu state
   const [ctx, setCtx] = useState<CtxState>({ open: false });
 
   const [query, setQuery] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+  const [scope, setScope] = useState<'current' | 'all'>('current');
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(60);
+  const [total, setTotal] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Close context menus when clicking anywhere else or pressing ESC.
   useEffect(() => {
     if (!ctx.open) return;
     const onDown = () => setCtx({ open: false });
@@ -83,30 +110,48 @@ const MediaLibrary: React.FC<{
     };
   }, [ctx]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [query]);
+
   const fetchCurrentData = async () => {
     try {
       setLoading(true);
       setError(null);
       setErroredImages(new Set());
-      const [images, folders] = await Promise.all([
-        listImages({ folder: currentFolder, q: query || undefined }),
-        listFoldersHelper(currentFolder),
-      ]);
-      setAssets(images || []);
+
+      const resp = await listImages({
+        folder: currentFolder,
+        q: debouncedQ || undefined,
+        page,
+        page_size: pageSize,
+        scope,
+      });
+
+      setAssets(resp.files || []);
+      setTotal(resp.total || 0);
+
+      const folders = debouncedQ ? [] : await listFoldersHelper(currentFolder);
       setSubfolders(folders || []);
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to fetch media');
       setAssets([]);
       setSubfolders([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    setPage(1);
+  }, [debouncedQ, currentFolder, scope, pageSize]);
+
+  useEffect(() => {
     fetchCurrentData();
-  }, [currentFolder, query]);
+  }, [currentFolder, debouncedQ, scope, page, pageSize]);
 
   const breadcrumbItems = useMemo(
     () => (currentFolder ? ['Home', ...currentFolder.split('/')] : ['Home']),
@@ -114,7 +159,7 @@ const MediaLibrary: React.FC<{
   );
 
   const pathFromCrumbIndex = (idx: number) => {
-    if (idx === 0) return ''; // root
+    if (idx === 0) return '';
     const parts = breadcrumbItems.slice(1, idx + 1);
     return parts.join('/');
   };
@@ -134,7 +179,16 @@ const MediaLibrary: React.FC<{
     setCurrentFolder(newPath);
   };
 
+  const requireManage = (what: string): boolean => {
+    if (!canManage) {
+      window.alert(`You do not have permission to ${what}.`);
+      return false;
+    }
+    return true;
+  };
+
   const handleCreateFolder = async () => {
+    if (!requireManage('create folders')) return;
     if (!folderName.trim()) {
       setFolderError('Folder name is required');
       return;
@@ -143,7 +197,11 @@ const MediaLibrary: React.FC<{
       setFolderError(null);
       setError(null);
       const path = currentFolder ? `${currentFolder}/${folderName.trim()}` : folderName.trim();
-      await createFolderHelper(path);
+      const res = await createFolderHelper(path);
+      if (res?.details?.created === false && res?.details?.reason === 'duplicate') {
+        setFolderError('A folder with that name already exists here.');
+        return;
+      }
       setNewFolderOpen(false);
       setFolderName('');
       fetchCurrentData();
@@ -154,6 +212,7 @@ const MediaLibrary: React.FC<{
   };
 
   const handleUpload = async (files: FileList | null) => {
+    if (!requireManage('upload images')) return;
     if (!files || files.length === 0) return;
     try {
       setError(null);
@@ -170,6 +229,7 @@ const MediaLibrary: React.FC<{
     setIsDraggingFiles(false);
     const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
     if (files.length > 0) {
+      if (!requireManage('upload images')) return;
       try {
         await uploadImages(files, { folder: currentFolder });
         fetchCurrentData();
@@ -183,9 +243,10 @@ const MediaLibrary: React.FC<{
   const normalizeTarget = (targetPath: string) => (targetPath?.trim() ?? '');
 
   const moveImageToAbsolute = async (imageId: string, targetPathRaw: string) => {
+    if (!requireManage('move images')) return;
     const targetPath = normalizeTarget(targetPathRaw);
     try {
-      await updateImage(imageId, { move_to_folder: targetPath }); // '' = root
+      await updateImage(imageId, { move_to_folder: targetPath });
       fetchCurrentData();
     } catch {
       setError('Failed to move image');
@@ -193,7 +254,8 @@ const MediaLibrary: React.FC<{
   };
 
   const moveFolderToParent = async (folderLeaf: string, newParentPathRaw: string) => {
-    const newParentPath = normalizeTarget(newParentPathRaw); // '' allowed
+    if (!requireManage('move folders')) return;
+    const newParentPath = normalizeTarget(newParentPathRaw);
     const sourcePath = currentFolder ? `${currentFolder}/${folderLeaf}` : folderLeaf;
     if (newParentPath.startsWith(`${sourcePath}/`) || sourcePath === newParentPath) return;
     try {
@@ -216,6 +278,9 @@ const MediaLibrary: React.FC<{
   };
   // ---------------------------------------------------------------------------
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const visibleCount = debouncedQ ? assets.length : assets.length + subfolders.length;
+
   return (
     <div className="p-6">
       <div
@@ -236,13 +301,51 @@ const MediaLibrary: React.FC<{
             <div className="text-sm font-semibold">Media Library</div>
           </div>
           <div className="flex gap-3 items-center">
-            <div className="w-64">
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name…" />
+            {/* Search bar + scope */}
+            <div className="flex items-center gap-2">
+              <div className="w-64">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search for image by name"
+                />
+              </div>
+              <Select value={scope} onValueChange={(v) => setScope(v as 'current' | 'all')}>
+                <SelectTrigger className="h-9 w-[160px]">
+                  <SelectValue placeholder="Search scope" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">This folder</SelectItem>
+                  <SelectItem value="all">All folders</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* Page size */}
+            <div className="flex items-center gap-1 text-sm">
+              <span className="text-muted-foreground">Per page</span>
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v, 10))}>
+                <SelectTrigger className="h-9 w-[88px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[24, 48, 60, 96, 120].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {!selectionMode && (
               <>
-                <Button onClick={() => fileInputRef.current?.click()}>Upload</Button>
-                <Button onClick={() => setNewFolderOpen(true)}>New Folder</Button>
+                <Button onClick={() => {
+                  if (!canManage) { window.alert('You do not have permission to upload images.'); return; }
+                  fileInputRef.current?.click();
+                }}>Upload</Button>
+                <Button onClick={() => {
+                  if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
+                  setNewFolderOpen(true);
+                }}>New Folder</Button>
               </>
             )}
             <input
@@ -256,7 +359,7 @@ const MediaLibrary: React.FC<{
           </div>
         </div>
 
-        {/* Breadcrumb (drag targets; Home correctly maps to root) */}
+        {/* Breadcrumb */}
         <div className="px-4 py-2 border-b bg-muted/20 text-sm">
           {breadcrumbItems.map((item, index) => {
             const targetPath = pathFromCrumbIndex(index);
@@ -284,9 +387,10 @@ const MediaLibrary: React.FC<{
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
-                      handleDropToPath(targetPath);
+                      const parentPath = targetPath;
+                      handleDropToPath(parentPath);
                     }}
-                    title={`Drop to move into ${item === 'Home' ? 'root' : targetPath}`}
+                    title={`Drop to move into ${item === 'Home' ? 'Home' : targetPath}`}
                   >
                     {item}
                   </button>
@@ -315,7 +419,7 @@ const MediaLibrary: React.FC<{
           }}
           onDrop={handleDropUpload}
         >
-          {/*“move up” dropzone*/}
+          {/* “move up” dropzone */}
           <div
             className={[
               'mb-3 h-10 rounded-md border border-dashed flex items-center justify-center text-xs transition-colors',
@@ -330,12 +434,12 @@ const MediaLibrary: React.FC<{
             onDrop={(e) => {
               if (!currentFolder) return;
               e.preventDefault();
-              const parentPath = currentFolder.split('/').slice(0, -1).join('');
+              const parentPath = currentFolder.split('/').slice(0, -1).join('/');
               handleDropToPath(parentPath);
             }}
-            title={currentFolder ? 'Drop here to move up one level' : 'You are at the root'}
+            title={currentFolder ? 'Drop here to move up one level' : 'You are at Home'}
           >
-            {currentFolder ? 'Drop here to move up a level' : 'Root (no parent)'}
+            {currentFolder ? 'Drop here to move up a level' : 'Home (no parent)'}
           </div>
 
           {error && (
@@ -375,15 +479,18 @@ const MediaLibrary: React.FC<{
                 errored={erroredImages.has(asset.id)}
                 onErrorImage={() => setErroredImages((prev) => new Set(prev).add(asset.id))}
                 onDragStartTile={(ev) => {
+                  if (!canManage) { ev.preventDefault(); return; }
                   setDragItem({ kind: 'image', id: asset.id, fromFolder: asset.folder });
-                  ev.dataTransfer.effectAllowed = 'move'; // no custom ghost -> no jitter
+                  ev.dataTransfer.effectAllowed = 'move';
                 }}
                 onDragEndTile={() => setDragItem(null)}
                 onSelect={() => (onSelect ? onSelect(asset) : setSelectedImage(asset))}
                 onRequestDelete={() => {
+                  if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
                   setDeletingImage(asset);
                   setDeleteConfirmOpen(true);
                 }}
+                onContextMenu={(pos) => setCtx({ open: true, kind: 'image', asset, x: pos.x, y: pos.y })}
               />
             ))}
           </div>
@@ -394,11 +501,14 @@ const MediaLibrary: React.FC<{
               <Upload className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-base font-medium text-gray-900 mb-1">No items</h3>
               <p className="text-xs text-muted-foreground mb-4">Right-click to create a folder or drag files here to upload.</p>
-              {!selectionMode && <Button onClick={() => fileInputRef.current?.click()}>Upload Files</Button>}
+              {!selectionMode && <Button onClick={() => {
+                if (!canManage) { window.alert('You do not have permission to upload images.'); return; }
+                fileInputRef.current?.click();
+              }}>Upload Files</Button>}
             </div>
           )}
 
-          {/* Loading overlay (chrome remains visible) */}
+          {/* Loading overlay */}
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
               <div className="flex items-center gap-3 text-sm text-muted-foreground px-4 py-3 rounded-md border bg-background shadow-sm">
@@ -408,6 +518,21 @@ const MediaLibrary: React.FC<{
             </div>
           )}
         </div>
+
+        {/* Footer / pagination */}
+        <div className="flex items-center justify-between px-4 py-2 border-t bg-muted/30 text-sm">
+          <div>
+            {visibleCount} item{visibleCount === 1 ? '' : 's'} • Page {page} / {totalPages}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Prev
+            </Button>
+            <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+              Next
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* New Folder */}
@@ -415,6 +540,7 @@ const MediaLibrary: React.FC<{
         open={newFolderOpen}
         folderName={folderName}
         error={folderError}
+        canManage={canManage}
         onOpenChange={setNewFolderOpen}
         onChangeName={setFolderName}
         onCancel={() => { setNewFolderOpen(false); setFolderError(null); setFolderName(''); }}
@@ -425,14 +551,20 @@ const MediaLibrary: React.FC<{
       <RenameFolderDialog
         open={renameOpen}
         currentName={renameTarget}
+        canManage={canManage}
         onOpenChange={setRenameOpen}
         onCancel={() => setRenameOpen(false)}
         onConfirm={async (newName) => {
+          if (!requireManage('rename folders')) return;
           const v = newName.trim();
           if (!v) return;
           try {
             const path = currentFolder ? `${currentFolder}/${renameTarget}` : renameTarget;
-            await renameFolder(path, v);
+            const res = await renameFolder(path, v);
+            if (res?.details?.renamed === false) {
+              setError('A sibling folder with that name already exists.');
+              return;
+            }
             setRenameOpen(false);
             fetchCurrentData();
           } catch {
@@ -445,9 +577,11 @@ const MediaLibrary: React.FC<{
       <DeleteFolderDialog
         open={deleteFolderOpen}
         folderName={deleteTarget}
+        canManage={canManage}
         onOpenChange={setDeleteFolderOpen}
         onCancel={() => setDeleteFolderOpen(false)}
         onConfirm={async ({ delete_within }) => {
+          if (!requireManage('delete folders')) return;
           try {
             const path = currentFolder ? `${currentFolder}/${deleteTarget}` : deleteTarget;
             await deleteFolder(path, delete_within);
@@ -464,8 +598,10 @@ const MediaLibrary: React.FC<{
         <ImagePreviewDialog
           open={!!selectedImage}
           image={selectedImage}
+          canManage={canManage}
           onOpenChange={() => setSelectedImage(null)}
           onSave={async (id, data) => {
+            if (!requireManage('save image updates')) return;
             try {
               await updateImage(id, {
                 new_name: data.new_name,
@@ -485,8 +621,10 @@ const MediaLibrary: React.FC<{
         <DeleteImageDialog
           open={deleteConfirmOpen}
           assetName={deletingImage?.name || deletingImage?.id || ''}
+          canManage={canManage}
           onCancel={() => setDeleteConfirmOpen(false)}
           onConfirm={async () => {
+            if (!requireManage('delete images')) return;
             if (!deletingImage) return;
             try {
               setError(null);
@@ -504,7 +642,7 @@ const MediaLibrary: React.FC<{
       {/* CONTEXT MENUS */}
       {ctx.open && ctx.kind === 'folder' && (
         <div
-          className="fixed z-50 min-w-[160px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+          className="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
           style={{ left: ctx.x, top: ctx.y }}
           onPointerDown={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
@@ -513,6 +651,7 @@ const MediaLibrary: React.FC<{
             className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
             onClick={() => {
               setCtx({ open: false });
+              if (!canManage) { window.alert('You do not have permission to rename folders.'); return; }
               setRenameTarget(ctx.folderName);
               setRenameOpen(true);
             }}
@@ -523,11 +662,57 @@ const MediaLibrary: React.FC<{
             className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-red-600"
             onClick={() => {
               setCtx({ open: false });
+              if (!canManage) { window.alert('You do not have permission to delete folders.'); return; }
               setDeleteTarget(ctx.folderName);
               setDeleteFolderOpen(true);
             }}
           >
             Delete…
+          </button>
+        </div>
+      )}
+
+      {ctx.open && ctx.kind === 'image' && (
+        <div
+          className="fixed z-50 min-w-[220px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+          style={{ left: ctx.x, top: ctx.y }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <a
+            href={`${getPublicUrl(ctx.asset.id)}?download=0`}
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+          >
+            Open Image in new tab
+          </a>
+          <button
+            className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+            onClick={() => {
+              setCtx({ open: false });
+              setSelectedImage(ctx.asset);
+            }}
+          >
+            Open Image Information
+          </button>
+          <a
+            href={`${getPublicUrl(ctx.asset.id)}?download=1`}
+            download={`${(ctx.asset.name || ctx.asset.id)}.${ctx.asset.extension || 'bin'}`}
+            className="block w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+          >
+            Download Image
+          </a>
+          <button
+            className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-red-600"
+            onClick={() => {
+              setCtx({ open: false });
+              if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
+              setDeletingImage(ctx.asset);
+              setDeleteConfirmOpen(true);
+            }}
+          >
+            Delete Image
           </button>
         </div>
       )}
@@ -543,6 +728,7 @@ const MediaLibrary: React.FC<{
             className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
             onClick={() => {
               setCtx({ open: false });
+              if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
               setFolderName('');
               setNewFolderOpen(true);
             }}

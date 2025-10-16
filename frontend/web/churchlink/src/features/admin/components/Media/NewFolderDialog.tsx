@@ -1,41 +1,49 @@
-import React from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
-import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
-import { Alert, AlertDescription } from '@/shared/components/ui/alert';
+import * as React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 
-export const NewFolderDialog: React.FC<{
+type Props = {
     open: boolean;
     folderName: string;
-    error: string | null;
+    error?: string | null;
+    canManage?: boolean;
     onOpenChange: (open: boolean) => void;
-    onChangeName: (name: string) => void;
+    onChangeName: (val: string) => void;
     onCancel: () => void;
     onCreate: () => void;
-}> = ({ open, folderName, error, onOpenChange, onChangeName, onCancel, onCreate }) => (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Create New Folder</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-                <div>
-                    <Label htmlFor="folderName">Folder Name</Label>
-                    <Input id="folderName" value={folderName} onChange={(e) => onChangeName(e.target.value)} placeholder="Enter folder name" />
-                </div>
+};
+
+export const NewFolderDialog: React.FC<Props> = ({
+    open, folderName, error, canManage = false, onOpenChange, onChangeName, onCancel, onCreate
+}) => {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Create a new folder</DialogTitle>
+                    <DialogDescription>Folders help you organize media. Names must be unique within the same location.</DialogDescription>
+                </DialogHeader>
                 {error && (
-                    <Alert className="text-destructive">
-                        <AlertDescription>{error}</AlertDescription>
+                    <Alert className="mb-2"><AlertDescription>{error}</AlertDescription></Alert>
+                )}
+                {!canManage && (
+                    <Alert className="mb-2" variant="destructive">
+                        <AlertDescription>You don't have permission to create folders.</AlertDescription>
                     </Alert>
                 )}
-            </div>
-            <DialogFooter>
-                <Button variant="ghost" onClick={onCancel}>
-                    Cancel
-                </Button>
-                <Button onClick={onCreate}>Create</Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
-);
+                <Input
+                    autoFocus
+                    placeholder="Folder name"
+                    value={folderName}
+                    onChange={(e) => onChangeName(e.target.value)}
+                />
+                <DialogFooter>
+                    <Button variant="outline" onClick={onCancel}>Cancel</Button>
+                    <Button onClick={onCreate} disabled={!canManage}>Create</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};

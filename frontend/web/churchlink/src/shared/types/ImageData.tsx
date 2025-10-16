@@ -10,11 +10,15 @@ export interface ImageResponse {
 }
 
 export interface ListImagesResponse {
-    items: ImageResponse[];
+    files: ImageResponse[];
+    folders: string[];
+    total: number;
+    page: number;
+    page_size: number;
 }
 
 export interface FolderResponse {
     path: string;
-    action: "create" | "rename" | "move" | "delete" | "lift_children_and_remove";
+    action: "create" | "rename" | "move" | "delete" | "delete_move_up";
     details?: Record<string, unknown>;
 }

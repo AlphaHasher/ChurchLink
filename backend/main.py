@@ -56,7 +56,7 @@ from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
 from routes.translator_routes import translator_router
-from routes.assets_routes import protected_assets_router, public_assets_router
+from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -242,6 +242,7 @@ mod_router.include_router(private_notification_router)
 mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
 mod_router.include_router(member_mod_router)
+mod_router.include_router(mod_assets_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
