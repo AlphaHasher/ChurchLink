@@ -49,7 +49,7 @@ const ImageTile: React.FC<Props> = ({
                 if (!onContextMenu) return;
                 e.preventDefault();
                 e.stopPropagation();
-                onContextMenu({ x: e.clientX, y: e.clientY });
+                onContextMenu({ x: e.pageX, y: e.pageY });
             }}
             title={asset.name}
         >

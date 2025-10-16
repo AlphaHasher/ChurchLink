@@ -78,7 +78,6 @@ class UserHandler:
     def create_person_schema(first_name: str, last_name: str, gender: str, date_of_birth):
         """
         date_of_birth: a datetime (or date) object you pass in.
-        gender: consider normalizing/validating to an allowed set, e.g. {"male","female","nonbinary","unspecified"}.
         """
         return {
             "_id": ObjectId(),       # local id for this embedded person
@@ -453,7 +452,7 @@ class UserHandler:
     async def update_person(uid: str, person_id: ObjectId, updates: dict):
         """
         Updates specific fields on an embedded Person by _id.
-        Example 'updates': {"first_name": "New", "gender": "nonbinary"}
+        Example 'updates': {"first_name": "New", "gender": "M"}
         """
         # Build a $set mapping like {"people.$[p].first_name": "New", ...}
         set_fields = {f"people.$[p].{k}": v for k, v in updates.items()}

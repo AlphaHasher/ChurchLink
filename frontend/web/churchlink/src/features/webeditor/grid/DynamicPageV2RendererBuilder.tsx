@@ -12,6 +12,7 @@ import MapSection from '@sections/MapSection';
 import PaypalSection from '@sections/PaypalSection';
 // import ScopedStyle from '@/shared/components/ScopedStyle';
 import { ActivePaddingOverlay, BuilderState } from '@/features/webeditor/state/BuilderState';
+import { getPublicUrl } from '@/helpers/MediaInteraction';
 
 const PADDING_COLORS = {
   top: 'rgba(239,68,68,0.28)',
@@ -148,11 +149,11 @@ const renderNode = (
   // const customCss = (node as any).style?.customCss as string | undefined; // disabled
   const isHovered = hoveredNodeId === node.id;
   const isSelected = selectedNodeId === node.id;
-  
+
   // Determine cursor style
   const cursorClass = isSelected && isHovered ? 'cursor-move' : 'cursor-pointer';
   const interactiveClass = `${cursorClass} transition-all`;
-  
+
   // No black outline; selection visuals handled in DraggableNode
   const outlineClass = '';
 
@@ -182,7 +183,7 @@ const renderNode = (
     if (!closest || closest !== self) return;
     if (sectionId) onNodeDoubleClick?.(sectionId, node.id);
   };
-  
+
   switch (node.type) {
     case 'text': {
       const html = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale) ?? (node as any).props?.text ?? '';
@@ -211,7 +212,7 @@ const renderNode = (
       // Build text style classes
       const isItalic = textStyles.includes('italic');
       const isUnderline = textStyles.includes('underline');
-      
+
       // Build inline styles
 
       const paddingStyles: React.CSSProperties = {
@@ -242,36 +243,36 @@ const renderNode = (
 
       return (
         <>
-        <div
-          data-node-id={node.id}
-          data-node-type={node.type}
-          className={cn(
-            'inline-block max-w-full w-fit align-top break-words',
-            interactiveClass,
-            outlineClass,
-            nodeClassName,
-            !elementFontFamily && nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
-          )}
-          // data-node-id used by ScopedStyle; disabled
-          style={wrapperStyle}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-        >
-          <Tag
+          <div
+            data-node-id={node.id}
+            data-node-type={node.type}
             className={cn(
-              align === 'center' && 'text-center',
-              align === 'right' && 'text-right',
-              isItalic && 'italic',
-              isUnderline && 'underline',
-              nodeClassName
+              'inline-block max-w-full w-fit align-top break-words',
+              interactiveClass,
+              outlineClass,
+              nodeClassName,
+              !elementFontFamily && nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
             )}
-            style={innerStyle}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        </div>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+            // data-node-id used by ScopedStyle; disabled
+            style={wrapperStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+          >
+            <Tag
+              className={cn(
+                align === 'center' && 'text-center',
+                align === 'right' && 'text-right',
+                isItalic && 'italic',
+                isUnderline && 'underline',
+                nodeClassName
+              )}
+              style={innerStyle}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -291,29 +292,29 @@ const renderNode = (
 
       return (
         <>
-        <div
-          data-node-id={node.id}
-          data-node-type={node.type}
-          className={cn(
-            interactiveClass,
-            outlineClass
-          )}
-          style={inlineStyle}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={alt}
-            draggable={false}
-            style={{ width: '100%', height: '100%', objectFit }}
-            onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          />
-        </div>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <div
+            data-node-id={node.id}
+            data-node-type={node.type}
+            className={cn(
+              interactiveClass,
+              outlineClass
+            )}
+            style={inlineStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={getPublicUrl(src)}
+              alt={alt}
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit }}
+              onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            />
+          </div>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -336,46 +337,46 @@ const renderNode = (
       if (href) {
         return (
           <>
-          <a 
-            href={href} 
-            className={className} 
-            style={inlineStyle}
-            // data-node-id used by ScopedStyle; disabled
-            draggable={false}
-            onDragStart={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              // Prevent navigation while editing in builder
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            {label}
-          </a>
-          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+            <a
+              href={href}
+              className={className}
+              style={inlineStyle}
+              // data-node-id used by ScopedStyle; disabled
+              draggable={false}
+              onDragStart={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                // Prevent navigation while editing in builder
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              {label}
+            </a>
+            {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
           </>
         );
       }
       return (
         <>
-        <button 
-          data-node-id={node.id}
-          data-node-type={node.type}
-          className={className} 
-          style={inlineStyle}
-          // data-node-id used by ScopedStyle; disabled
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-        >
-          {label}
-        </button>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <button
+            data-node-id={node.id}
+            data-node-type={node.type}
+            className={className}
+            style={inlineStyle}
+            // data-node-id used by ScopedStyle; disabled
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+          >
+            {label}
+          </button>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -389,30 +390,30 @@ const renderNode = (
       };
       return (
         <>
-        <div
-          data-node-id={node.id}
-          data-node-type={node.type}
-          className={cn(
-            nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
-            interactiveClass,
-            outlineClass
-          )}
-          style={inlineStyle}
-          // data-node-id used by ScopedStyle; disabled
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-        >
-          <EventSection
-            showFilters={(node as any).props?.showFilters !== false}
-            eventName={(node as any).props?.eventName}
-            lockedFilters={(node as any).props?.lockedFilters}
-            title={(node as any).props?.title}
-            showTitle={(node as any).props?.showTitle !== false}
-          />
-        </div>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <div
+            data-node-id={node.id}
+            data-node-type={node.type}
+            className={cn(
+              nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
+              interactiveClass,
+              outlineClass
+            )}
+            style={inlineStyle}
+            // data-node-id used by ScopedStyle; disabled
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+          >
+            <EventSection
+              showFilters={(node as any).props?.showFilters !== false}
+              eventName={(node as any).props?.eventName}
+              lockedFilters={(node as any).props?.lockedFilters}
+              title={(node as any).props?.title}
+              showTitle={(node as any).props?.showTitle !== false}
+            />
+          </div>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -463,14 +464,14 @@ const renderNode = (
         maxWidth === 'full'
           ? 'w-full'
           : maxWidth === '2xl'
-          ? 'max-w-7xl'
-          : maxWidth === 'xl'
-          ? 'max-w-6xl'
-          : maxWidth === 'lg'
-          ? 'max-w-5xl'
-          : maxWidth === 'md'
-          ? 'max-w-3xl'
-          : 'max-w-xl';
+            ? 'max-w-7xl'
+            : maxWidth === 'xl'
+              ? 'max-w-6xl'
+              : maxWidth === 'lg'
+                ? 'max-w-5xl'
+                : maxWidth === 'md'
+                  ? 'max-w-3xl'
+                  : 'max-w-xl';
       const pxClass =
         px === 0 ? 'px-0' : px === 2 ? 'px-2' : px === 4 ? 'px-4' : px === 6 ? 'px-6' : 'px-4';
       const pyClass =
@@ -515,35 +516,35 @@ const renderNode = (
       });
       return (
         <>
-        <div
-          data-node-id={node.id}
-          data-node-type={node.type}
-          id={node.id}
-          data-draggable="true"
-          className={cn(
-            'mx-auto relative',
-            mwClass,
-            pxClass,
-            pyClass,
-            nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
-            interactiveClass,
-            outlineClass
-          )}
-          style={{
-            ...nodeStyle,
-            ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
-            ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
-            ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
-          }}
-          // data-node-id used by ScopedStyle; disabled
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-        >
-          {containerContent}
-        </div>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <div
+            data-node-id={node.id}
+            data-node-type={node.type}
+            id={node.id}
+            data-draggable="true"
+            className={cn(
+              'mx-auto relative',
+              mwClass,
+              pxClass,
+              pyClass,
+              nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
+              interactiveClass,
+              outlineClass
+            )}
+            style={{
+              ...nodeStyle,
+              ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+              ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+              ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+            }}
+            // data-node-id used by ScopedStyle; disabled
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+          >
+            {containerContent}
+          </div>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -632,7 +633,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                 <GridOverlay gridSize={gridSize} active={shouldShowGrid} />
               </div>
             )}
-            
+
             {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
             <div
               className={cn(gridClasses, 'relative h-full min-h-full')}
@@ -645,35 +646,35 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                 let rendered: React.ReactNode;
                 if (hasLayout && !locked) {
                   const cachedPx = BuilderState.getNodePixelLayout(node.id);
-        const hasCustomPx = cachedPx && cachedPx.sectionId === section.id;
+                  const hasCustomPx = cachedPx && cachedPx.sectionId === section.id;
                   const x = hasCustomPx ? cachedPx!.x : unitsToPx(node.layout!.units.xu, gridSize);
                   const y = hasCustomPx ? cachedPx!.y : unitsToPx(node.layout!.units.yu, gridSize);
                   const w = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (node.layout?.units.wu ? unitsToPx(node.layout!.units.wu!, gridSize) : undefined);
                   const h = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (node.layout?.units.hu ? unitsToPx(node.layout!.units.hu!, gridSize) : undefined);
-        rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, false, activeLocale, defaultLocale);
+                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, false, activeLocale, defaultLocale);
 
-        const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
-          if (node.type !== 'container') {
-            onUpdateNodeLayout(section.id, nodeId, units as any);
-            return;
-          }
+                  const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
+                    if (node.type !== 'container') {
+                      onUpdateNodeLayout(section.id, nodeId, units as any);
+                      return;
+                    }
 
-          // Removed unused prevPx to satisfy linter after child delta removal
-          const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
+                    // Removed unused prevPx to satisfy linter after child delta removal
+                    const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
 
-          const nextUnits = {
-            xu: units.xu ?? prevUnits.xu ?? 0,
-            yu: units.yu ?? prevUnits.yu ?? 0,
-            wu: units.wu ?? prevUnits.wu,
-            hu: units.hu ?? prevUnits.hu,
-          };
+                    const nextUnits = {
+                      xu: units.xu ?? prevUnits.xu ?? 0,
+                      yu: units.yu ?? prevUnits.yu ?? 0,
+                      wu: units.wu ?? prevUnits.wu,
+                      hu: units.hu ?? prevUnits.hu,
+                    };
 
-          onUpdateNodeLayout(section.id, nodeId, nextUnits);
-        };
+                    onUpdateNodeLayout(section.id, nodeId, nextUnits);
+                  };
 
                   return (
                     <DraggableNode
-              key={node.id}
+                      key={node.id}
                       sectionId={section.id}
                       node={{
                         ...node,
@@ -682,7 +683,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                       gridSize={gridSize}
                       defaultSize={{ w, h }}
                       selected={node.id === selectedNodeId}
-            onCommitLayout={handleCommitLayout}
+                      onCommitLayout={handleCommitLayout}
                       onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
                       onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
                       render={() => rendered}
@@ -699,7 +700,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                 }
               })}
 
-            {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && (
+              {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && (
                 <PaddingOverlay layer={activePaddingOverlay} />
               )}
             </div>

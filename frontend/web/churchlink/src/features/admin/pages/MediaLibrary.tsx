@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   listImages,
   listFolders as listFoldersHelper,
@@ -639,104 +640,119 @@ const MediaLibrary: React.FC<{
         />
       )}
 
-      {/* CONTEXT MENUS */}
-      {ctx.open && ctx.kind === 'folder' && (
-        <div
-          className="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-          style={{ left: ctx.x, top: ctx.y }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <button
-            className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
-            onClick={() => {
-              setCtx({ open: false });
-              if (!canManage) { window.alert('You do not have permission to rename folders.'); return; }
-              setRenameTarget(ctx.folderName);
-              setRenameOpen(true);
-            }}
-          >
-            Rename
-          </button>
-          <button
-            className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-red-600"
-            onClick={() => {
-              setCtx({ open: false });
-              if (!canManage) { window.alert('You do not have permission to delete folders.'); return; }
-              setDeleteTarget(ctx.folderName);
-              setDeleteFolderOpen(true);
-            }}
-          >
-            Delete…
-          </button>
-        </div>
-      )}
+      {/* CONTEXT MENUS (now portaled to <body>) */}
+      {ctx.open && ctx.kind === 'folder' &&
+        createPortal(
+          (
+            <div
+              className="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              style={{ left: ctx.x, top: ctx.y }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <button
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+                onClick={() => {
+                  setCtx({ open: false });
+                  if (!canManage) { window.alert('You do not have permission to rename folders.'); return; }
+                  setRenameTarget(ctx.folderName);
+                  setRenameOpen(true);
+                }}
+              >
+                Rename
+              </button>
+              <button
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-red-600"
+                onClick={() => {
+                  setCtx({ open: false });
+                  if (!canManage) { window.alert('You do not have permission to delete folders.'); return; }
+                  setDeleteTarget(ctx.folderName);
+                  setDeleteFolderOpen(true);
+                }}
+              >
+                Delete…
+              </button>
+            </div>
+          ),
+          document.body
+        )
+      }
 
-      {ctx.open && ctx.kind === 'image' && (
-        <div
-          className="fixed z-50 min-w-[220px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-          style={{ left: ctx.x, top: ctx.y }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <a
-            href={`${getPublicUrl(ctx.asset.id)}?download=0`}
-            target="_blank"
-            rel="noreferrer"
-            className="block w-full text-left px-2 py-1.5 rounded hover:bg-accent"
-          >
-            Open Image in new tab
-          </a>
-          <button
-            className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
-            onClick={() => {
-              setCtx({ open: false });
-              setSelectedImage(ctx.asset);
-            }}
-          >
-            Open Image Information
-          </button>
-          <a
-            href={`${getPublicUrl(ctx.asset.id)}?download=1`}
-            download={`${(ctx.asset.name || ctx.asset.id)}.${ctx.asset.extension || 'bin'}`}
-            className="block w-full text-left px-2 py-1.5 rounded hover:bg-accent"
-          >
-            Download Image
-          </a>
-          <button
-            className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-red-600"
-            onClick={() => {
-              setCtx({ open: false });
-              if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
-              setDeletingImage(ctx.asset);
-              setDeleteConfirmOpen(true);
-            }}
-          >
-            Delete Image
-          </button>
-        </div>
-      )}
+      {ctx.open && ctx.kind === 'image' &&
+        createPortal(
+          (
+            <div
+              className="fixed z-50 min-w-[220px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              style={{ left: ctx.x, top: ctx.y }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <a
+                href={`${getPublicUrl(ctx.asset.id)}?download=0`}
+                target="_blank"
+                rel="noreferrer"
+                className="block w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+              >
+                Open Image in new tab
+              </a>
+              <button
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+                onClick={() => {
+                  setCtx({ open: false });
+                  setSelectedImage(ctx.asset);
+                }}
+              >
+                Open Image Information
+              </button>
+              <a
+                href={`${getPublicUrl(ctx.asset.id)}?download=1`}
+                download={`${(ctx.asset.name || ctx.asset.id)}.${ctx.asset.extension || 'bin'}`}
+                className="block w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+              >
+                Download Image
+              </a>
+              <button
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-red-600"
+                onClick={() => {
+                  setCtx({ open: false });
+                  if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
+                  setDeletingImage(ctx.asset);
+                  setDeleteConfirmOpen(true);
+                }}
+              >
+                Delete Image
+              </button>
+            </div>
+          ),
+          document.body
+        )
+      }
 
-      {ctx.open && ctx.kind === 'canvas' && (
-        <div
-          className="fixed z-50 min-w-[160px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-          style={{ left: ctx.x, top: ctx.y }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <button
-            className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
-            onClick={() => {
-              setCtx({ open: false });
-              if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
-              setFolderName('');
-              setNewFolderOpen(true);
-            }}
-          >
-            Create folder…
-          </button>
-        </div>
-      )}
+      {ctx.open && ctx.kind === 'canvas' &&
+        createPortal(
+          (
+            <div
+              className="fixed z-50 min-w-[160px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              style={{ left: ctx.x, top: ctx.y }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <button
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
+                onClick={() => {
+                  setCtx({ open: false });
+                  if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
+                  setFolderName('');
+                  setNewFolderOpen(true);
+                }}
+              >
+                Create folder…
+              </button>
+            </div>
+          ),
+          document.body
+        )
+      }
     </div>
   );
 };

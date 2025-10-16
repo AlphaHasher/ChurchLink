@@ -32,6 +32,11 @@ export const getPublicUrl = (id: string) => {
   return `${base}/v1/assets/public/id/${encodeURIComponent(id)}`;
 };
 
+export const getThumbnailUrl = (id: string) => {
+  const base = (publicApi.defaults.baseURL || "").replace(/\/+$/, "");
+  return `${base}/v1/assets/public/id/${encodeURIComponent(id)}/?thumbnail=true`;
+};
+
 export const uploadImages = async (
   files: File[],
   opts: { folder?: string; description?: string }
@@ -98,9 +103,4 @@ export const moveFolder = async (path: string, newParent: string) => {
 export const deleteFolder = async (path: string, deleteWithin: boolean) => {
   const res = await api.patch(`/v1/assets/folders/delete`, { path, delete_within: deleteWithin });
   return res.data;
-};
-
-export const getAssetUrl = (id: string, opts?: { thumbnail?: boolean }): string => {
-  const query = opts?.thumbnail ? "?thumbnail=true" : "";
-  return `/v1/assets/public/${encodeURIComponent(id)}${query}`;
 };

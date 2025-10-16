@@ -1,78 +1,98 @@
-import { useState } from "react"
-import { Label } from "@/shared/components/ui/label"
-import MediaLibrary from "@/features/admin/pages/MediaLibrary"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog"
-import { Button } from "@/shared/components/ui/button"
-import { getAssetUrl } from "@/helpers/MediaInteraction"
-
-interface AssetFile {
-    filename: string
-    url: string
-    folder: string
-}
+import { useMemo, useState } from "react";
+import { Label } from "@/shared/components/ui/label";
+import { Button } from "@/shared/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
+import MediaLibrary from "@/features/admin/pages/MediaLibrary";
+import { getPublicUrl, getThumbnailUrl } from "@/helpers/MediaInteraction";
+import type { ImageResponse } from "@/shared/types/ImageData";
 
 interface EventImageSelectorProps {
-    value?: string
-    onChange: (url: string) => void
+    /** Image ID stored on the event (previously a URL). */
+    value?: string;
+    /** Called with the selected image ID (string) or empty string when clearing. */
+    onChange: (imageId: string) => void;
+    /** Optional label override */
+    label?: string;
+    /** Optional helper text override */
+    helperText?: string;
 }
 
-export function EventImageSelector({ value, onChange }: EventImageSelectorProps) {
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    const [imageError, setImageError] = useState(false)
+export function EventImageSelector({
+    value,
+    onChange,
+    label = "Event Image",
+    helperText = "Choose an image from the media library. The image’s ID will be stored on the event."
+}: EventImageSelectorProps) {
+    const [isOpen, setIsOpen] = useState(false);
 
-    const imageUrl = value ? getAssetUrl(value) : null
+    // Build preview URLs only when we have an image ID
+    const thumbUrl = useMemo(() => (value ? getThumbnailUrl(value) : ""), [value]);
+    const fullUrl = useMemo(() => (value ? getPublicUrl(value) : ""), [value]);
 
-    const handleSelectImage = (asset: AssetFile) => {
-        onChange(asset.filename)
-        setIsModalOpen(false)
-        setImageError(false)
-    }
+    const handlePick = (asset: ImageResponse) => {
+        // Save the image ID on the event
+        onChange(asset.id);
+        setIsOpen(false);
+    };
+
+    const clearSelection = () => onChange("");
 
     return (
-        <div className="flex flex-col gap-4">
-            <Label className="text-sm font-medium">Event Image</Label>
+        <div className="space-y-2">
+            <Label htmlFor="event-image">{label}</Label>
+            <small className="text-gray-500 text-xs block mb-1">{helperText}</small>
 
-            <Button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                className="w-full justify-start"
-            >
-                {imageUrl ? "Change Image" : "Select Image from Library"}
-            </Button>
-
-            <div className="mt-4">
-                <Label className="text-sm">Selected Image Preview:</Label>
-                {imageUrl ? (
-                    <div className="relative mt-2">
+            <div className="flex items-center gap-3">
+                {value ? (
+                    <a
+                        href={fullUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block w-[96px] h-[72px] shrink-0 overflow-hidden rounded border border-gray-200 bg-gray-50"
+                        title="Open full image"
+                    >
+                        {/* Using plain img for predictability in admin */}
                         <img
-                            src={`${imageUrl}?thumbnail=true`}
-                            alt="Selected event image"
-                            className="rounded border w-48 h-32 object-cover"
-                            onError={() => setImageError(true)}
+                            src={thumbUrl}
+                            alt="Event image preview"
+                            className="w-full h-full object-cover"
                         />
-                        {imageError && (
-                            <div className="flex items-center justify-center w-48 h-32 rounded border bg-muted text-muted-foreground text-sm">
-                                Image not found or failed to load
-                            </div>
-                        )}
-                    </div>
+                    </a>
                 ) : (
-                    <div className="flex items-center justify-center w-48 h-32 rounded border bg-muted text-muted-foreground text-sm">
-                        No image selected
+                    <div className="w-[96px] h-[72px] shrink-0 rounded border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400">
+                        No image
                     </div>
                 )}
+
+                <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsOpen(true)}>
+                        {value ? "Change image…" : "Select image…"}
+                    </Button>
+                    {value && (
+                        <Button type="button" variant="ghost" onClick={clearSelection}>
+                            Remove
+                        </Button>
+                    )}
+                </div>
             </div>
 
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="max-w-6xl max-h-[90vh] p-0">
                     <DialogHeader className="p-4 border-b">
                         <DialogTitle>Select Event Image</DialogTitle>
                     </DialogHeader>
-                    <div className="p-4 overflow-auto max-h-[70vh]">
-                        <MediaLibrary onSelect={handleSelectImage} selectionMode={true} />
+
+                    <div className="p-4 overflow-auto max-h-[75vh]">
+                        {/* selectionMode makes the library read-only and emits the chosen asset */}
+                        <MediaLibrary
+                            selectionMode
+                            onSelect={handlePick}
+                        />
                     </div>
                 </DialogContent>
             </Dialog>
         </div>
-    )
+    );
 }
+
+export default EventImageSelector;
