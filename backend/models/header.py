@@ -199,17 +199,17 @@ async def add_dropdown(item: dict) -> bool:
         processed_items = []
         for subitem in item["items"]:
             processed_item = {
-                "title": subitem.title,
-                "russian_title": subitem.russian_title,
-                "visible": getattr(subitem, 'visible', True)
+                "title": subitem.get("title"),
+                "russian_title": subitem.get("russian_title"),
+                "visible": bool(subitem.get("visible", True))
             }
 
             # Handle slug vs hardcoded URL for dropdown items
-            if getattr(subitem, 'is_hardcoded_url', False):
-                processed_item["url"] = getattr(subitem, 'url', "")
+            if bool(subitem.get("is_hardcoded_url", False)):
+                processed_item["url"] = subitem.get("url", "")
                 processed_item["is_hardcoded_url"] = True
             else:
-                processed_item["slug"] = getattr(subitem, 'slug', "")
+                processed_item["slug"] = subitem.get("slug", "")
                 processed_item["is_hardcoded_url"] = False
 
             processed_items.append(processed_item)
