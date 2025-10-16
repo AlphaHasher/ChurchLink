@@ -13,6 +13,9 @@ from scalar_fastapi import get_scalar_api_reference
 import firebase_admin
 from firebase_admin import credentials
 
+from get_bearer_token import generate_test_token
+from add_roles import add_user_role, RoleUpdate
+
 from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
@@ -29,7 +32,7 @@ from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
 
 from routes.bible_routes.bible_note_routes import bible_note_router
-from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, public_bible_plan_router
+from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, private_bible_plan_router, public_bible_plan_router
 from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
 from routes.bible_routes.bible_plan_notification_routes import bible_notification_router
 
@@ -218,6 +221,7 @@ private_router = AuthProtectedRouter(prefix="/api/v1")
 
 private_router.include_router(bible_note_router)
 private_router.include_router(auth_bible_plan_router)
+private_router.include_router(private_bible_plan_router)
 private_router.include_router(bible_notification_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
