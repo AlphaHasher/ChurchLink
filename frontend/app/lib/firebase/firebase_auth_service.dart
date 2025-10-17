@@ -4,43 +4,86 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../services/fcm_token_service.dart';
 
 class FirebaseAuthService {
+  static final FirebaseAuthService _instance = FirebaseAuthService._internal();
+  
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-  // final String backendUrl = "http://10.0.2.2:8000"; // FastAPI backend URL
+  
+  bool _initialized = false;
 
-  // // ✅ Initialize Firebase Auth
-  // Future<void> initializeFirebase() async {
-  //   await FirebaseAuth.instance.useAuthEmulator('localhost', 9099); // Use emulator if needed
-  // }
+  FirebaseAuthService._internal();
 
-  // ✅ Google Sign-In (Fixed)
+  factory FirebaseAuthService() {
+    return _instance;
+  }
+
+  Future<void> initializeGoogleSignIn({
+    String? clientId,
+    String? serverClientId,
+  }) async {
+    if (_initialized) return;
+    
+    try {
+      await GoogleSignIn.instance.initialize(
+        serverClientId: serverClientId, // Optionally: override if needed
+      );
+      _initialized = true;
+      debugPrint("✅ GoogleSignIn initialized successfully");
+    } catch (e) {
+      debugPrint("❌ Error in GoogleSignIn initialization: $e");
+      rethrow;
+    }
+  }
+
   Future<String?> signInWithGoogle() async {
     try {
-  final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        debugPrint("Google Sign-In Canceled");
-        return null; // User canceled sign-in
+      if (!_initialized) {
+        debugPrint("⚠️  GoogleSignIn not initialized. Call initializeGoogleSignIn() first.");
+        return null;
       }
 
-  final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      debugPrint("🔐 Attempting Google Sign-In...");
+      
+      final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+      
+      debugPrint("✅ Google authentication successful for: ${googleUser.email}");
 
+      // Get authentication tokens
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+      if (googleAuth.idToken == null) {
+        debugPrint("❌ Failed to get ID token from Google authentication");
+        return null;
+      }
+
+      // Create Firebase credential using the Google ID token
       final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
+      // Sign in to Firebase using the Google credential
       final UserCredential userCredential =
-      await FirebaseAuth.instance.signInWithCredential(credential);
+          await _firebaseAuth.signInWithCredential(credential);
 
-      final String? idToken = await userCredential.user?.getIdToken(true);
+      final User? user = userCredential.user;
+      if (user == null) {
+        throw Exception("❌ No user found after Firebase authentication.");
+      }
+
+      debugPrint("✅ Firebase authentication successful for user: ${user.email}");
+
+      // Get Firebase ID Token for backend authentication
+      final String? idToken = await user.getIdToken(true);
       if (idToken == null) {
         throw Exception("❌ Failed to retrieve Firebase ID Token.");
       }
 
-      debugPrint("🔥 Firebase ID Token: $idToken");
+      debugPrint("🔥 Firebase ID Token acquired (length: ${idToken.length})");
       return idToken;
+    } on FirebaseAuthException catch (e) {
+      debugPrint("❌ Firebase Auth Error: ${e.code} - ${e.message}");
+      return null;
     } catch (e) {
-      debugPrint("❌ Error during Google Sign-In: $e");
+      debugPrint("❌ Unexpected error during Google Sign-In: $e");
       return null;
     }
   }
@@ -114,8 +157,18 @@ class FirebaseAuthService {
 
   // ✅ Logout User
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
-    await _firebaseAuth.signOut();
+    try {
+      // Sign out from Firebase
+      await _firebaseAuth.signOut();
+      
+      // Sign out from Google Sign-In
+      await GoogleSignIn.instance.signOut();
+      
+      debugPrint("✅ User signed out successfully");
+    } catch (e) {
+      debugPrint("❌ Error signing out: $e");
+    }
+    
     // Reset FCM token flag when user logs out
     FCMTokenService.reset();
   }
