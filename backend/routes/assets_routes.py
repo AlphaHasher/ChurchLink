@@ -1,198 +1,152 @@
-import os
-import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException, Path, Form, Query
-from fastapi.responses import FileResponse, Response
-from PIL import Image
-import io
-import logging
-from typing import Optional
+from typing import Optional, List, Tuple, Any
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Query, Path, Body
+from fastapi.responses import Response
 
-Image.MAX_IMAGE_PIXELS = None
-Image.LOAD_TRUNCATED_IMAGES = True
+from controllers.assets_controller import (
+    upload_images,
+    list_images_and_folders,
+    update_image_by_id,
+    delete_image_by_id,
+    get_image_by_id,
+    load_image_bytes_by_id,
+    create_folder,
+    rename_folder,
+    move_folder_ctrl,
+    delete_folder_ctrl,
+    list_subfolders,
+)
 
-ASSETS_DIR = "data/assets"
-THUMBNAILS_DIR = "data/thumbnails"
-os.makedirs(ASSETS_DIR, exist_ok=True)
-os.makedirs(THUMBNAILS_DIR, exist_ok=True)
+from models.image_data import (
+    UploadImageRequest,
+    ImageResponse,
+    ImageUpdateRequest,
+    FolderCreateRequest,
+    FolderRenameRequest,
+    FolderMoveRequest,
+    FolderDeleteRequest,
+    FolderResponse,
+)
 
-public_assets_router = APIRouter(prefix="/assets", tags=["assets"])
+public_assets_router = APIRouter(prefix="/assets", tags=["assets:public"])
+mod_assets_router = APIRouter(prefix="/assets", tags=["assets"])
 protected_assets_router = APIRouter(prefix="/assets", tags=["assets"])
 
-@protected_assets_router.post("/upload")
+@protected_assets_router.post("/upload", response_model=List[ImageResponse])
 async def upload_asset(
-    file: UploadFile = File(...),
-    folder: str = Form(None),
+    files: Optional[List[UploadFile]] = File(default=None, description="One or more image files (key: files)"),
+    file: Optional[UploadFile] = File(default=None, description="Single image file (key: file)"),
+    folder: Optional[str] = Form(default=None),
+    description: Optional[str] = Form(default=None),
 ):
-    if not file or not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image files allowed")
-    
-    content = await file.read()
-    
-    try:
-        img = Image.open(io.BytesIO(content))
-        if max(img.size) > 3840:
-            img.thumbnail((3840, 3840), Image.Resampling.LANCZOS)
-        output = io.BytesIO()
-        img.save(output, format=img.format or 'JPEG', quality=95)
-        content = output.getvalue()
-    except Exception as e:
-        logger.warning(f"Image resizing failed: {e}")
-    
-    file_extension = os.path.splitext(file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_extension}"
-    
-    if folder:
-        folder_path = os.path.join(ASSETS_DIR, folder)
-        os.makedirs(folder_path, exist_ok=True)
-        full_path = os.path.join(folder_path, unique_filename)
-        asset_url = f"/assets/{folder}/{unique_filename}"
-    else:
-        full_path = os.path.join(ASSETS_DIR, unique_filename)
-        asset_url = f"/assets/{unique_filename}"
-    
-    try:
-        with open(full_path, "wb") as buffer:
-            buffer.write(content)
-        
-        thumb_filename = unique_filename.rsplit('.', 1)[0] + '_thumb.jpg'
-        thumb_folder_path = folder if folder else ''
-        thumb_dir = os.path.join(THUMBNAILS_DIR, thumb_folder_path)
-        os.makedirs(thumb_dir, exist_ok=True)
-        thumb_path = os.path.join(thumb_dir, thumb_filename)
-        
-        try:
-            thumb_img = Image.open(full_path)
-            thumb_img.thumbnail((250, 250), Image.Resampling.LANCZOS)
-            if thumb_img.mode in ("RGBA", "P"):
-                thumb_img = thumb_img.convert("RGB")
-            thumb_output = io.BytesIO()
-            thumb_img.save(thumb_output, format="JPEG", quality=80, optimize=True)
-            with open(thumb_path, "wb") as thumb_buffer:
-                thumb_buffer.write(thumb_output.getvalue())
-        except Exception as thumb_e:
-            logger.error(f"Thumbnail generation failed: {thumb_e}")
-        
-        return {"url": asset_url, "filename": unique_filename, "folder": folder or "root"}
-    
-    except Exception as e:
-        logger.error(f"Upload failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Upload failed")
+    file_list: List[UploadFile] = []
+    if files:
+        file_list = files
+    elif file is not None:
+        file_list = [file]
 
-@protected_assets_router.post("/folder")
-async def create_folder(
-    name: str = Form(...),
-    parent: str = Form(None),
-):
-    if not name or '/' in name:
-        raise HTTPException(status_code=400, detail="Invalid folder name")
-    
-    full_path = os.path.join(parent, name) if parent else name
-    target_path = os.path.join(ASSETS_DIR, full_path)
-    
-    try:
-        os.makedirs(target_path, exist_ok=True)
-        return {"message": "Folder created", "folder": full_path}
-    except Exception as e:
-        logger.error(f"Folder creation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to create folder")
+    if not file_list:
+        raise HTTPException(status_code=400, detail="No files provided. Use field 'files' or 'file'.")
 
-@protected_assets_router.get("/")
+    meta = UploadImageRequest(folder=folder, description=description)
+    images = await upload_images(meta, file_list)
+    return images
+
+@mod_assets_router.get("/", response_model=dict)
 async def list_contents(
-    limit: Optional[int] = Query(None),
-    folder: str = Query(None),
+    folder: Optional[str] = Query(default=None, description="Relative folder path under assets ('' = Home)"),
+    q: Optional[str] = Query(default=None, description="Search by image name (substring, case-insensitive)"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=60, ge=1, le=500),
+    scope: str = Query(default="current", pattern="^(current|all)$"),
+    limit: Optional[int] = Query(default=None, ge=1, le=500),
 ):
-    files = []
-    folders_list = []
-    
-    try:
-        target_dir = os.path.join(ASSETS_DIR, folder) if folder else ASSETS_DIR
-        if not os.path.exists(target_dir):
-            return {"files": files, "folders": folders_list}
-        
-        all_items = os.listdir(target_dir)
-        if limit is not None:
-            all_items = all_items[:limit]
-        
-        for item in all_items:
-            item_path = os.path.join(target_dir, item)
-            if os.path.isdir(item_path):
-                folders_list.append(item)
-            elif (os.path.isfile(item_path) and 
-                  item.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")) and
-                  not item.endswith('_thumb.jpg')):
-                full_url = f"/api/v1/assets/public/{folder}/{item}" if folder else f"/api/v1/assets/public/{item}"
-                files.append({"filename": item, "url": full_url, "folder": folder or "root"})
-        
-    except OSError as e:
-        logger.error(f"Directory listing error: {e}")
-    
-    return {"files": files, "folders": folders_list}
+    data = await list_images_and_folders(folder, q, limit, page=page, page_size=page_size, scope=scope)
+    return data
 
-
-
-@protected_assets_router.delete("/{path:path}")
-async def delete_asset(path: str = Path(...)):
-    file_path = os.path.join(ASSETS_DIR, path)
-    if not os.path.exists(file_path):
+@protected_assets_router.patch("/{id}", response_model=ImageResponse)
+async def api_update_image(
+    id: str = Path(..., description="ObjectId string"),
+    payload: ImageUpdateRequest = Body(..., description="Optional fields to update"),
+):
+    resp = await update_image_by_id(id, payload)
+    if resp is None:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
-    os.remove(file_path)
-    
-    folder_part = os.path.dirname(path) if '/' in path else ''
-    basename = os.path.basename(path)
-    name_without_ext = basename.rsplit('.', 1)[0] if '.' in basename else basename
-    thumb_path = os.path.join(THUMBNAILS_DIR, folder_part, f"{name_without_ext}_thumb.jpg")
-    
-    if os.path.exists(thumb_path):
-        os.remove(thumb_path)
-    
+    return resp
+
+@protected_assets_router.delete("/{id}", response_model=dict)
+async def api_delete_asset(id: str = Path(..., description="ObjectId string")):
+    ok = await delete_image_by_id(id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Asset not found")
     return {"message": "Asset deleted successfully"}
 
-
-
-@public_assets_router.get("/public/{path:path}")
+@public_assets_router.get("/public/id/{id}")
 async def serve_asset(
-    path: str,
+    id: str = Path(..., description="ObjectId string"),
     thumbnail: bool = Query(False),
+    download: bool = Query(False),
 ):
-    full_path = os.path.join(ASSETS_DIR, path)
-    if not os.path.exists(full_path) or not os.path.isfile(full_path):
-        raise HTTPException(status_code=404, detail="Asset not found")
-    
-    if not thumbnail:
-        return FileResponse(full_path)
-    
-    basename = os.path.basename(path)
-    name_without_ext = basename.rsplit('.', 1)[0]
-    folder_part = path.rsplit('/', 1)[0] if '/' in path else ''
-    thumb_path = os.path.join(THUMBNAILS_DIR, folder_part, f"{name_without_ext}_thumb.jpg")
-    
-    if os.path.exists(thumb_path):
-        return FileResponse(thumb_path)
-    
+    """
+    Returns the file bytes. Works with controller functions that return either:
+      - (bytes, media_type)
+      - (bytes, media_type, suggested_filename)
+    When ?download=1 is used, we set Content-Disposition with a friendly filename.
+    """
     try:
-        img = Image.open(full_path)
-        img.thumbnail((300, 300), Image.Resampling.LANCZOS)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        
-        output = io.BytesIO()
-        img.save(output, format="JPEG", quality=80, optimize=True)
-        
-        try:
-            os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
-            with open(thumb_path, "wb") as cached_thumb:
-                cached_thumb.write(output.getvalue())
-        except Exception as cache_e:
-            logger.warning(f"Failed to cache thumbnail: {cache_e}")
-        
-        return Response(content=output.getvalue(), media_type="image/jpeg")
-    except Exception as e:
-        logger.error(f"Thumbnail generation failed: {e}")
-        return FileResponse(full_path)
+        result: Any = await load_image_bytes_by_id(id, thumbnail=thumbnail)
+    except Exception:
+        # Preserve 404 vs 500 clarity: if the controller itself raises, surface 404 where applicable
+        raise
 
+    # Normalize to 3-tuple
+    data: Optional[bytes]
+    media_type: str
+    suggested_name: Optional[str] = None
 
+    if isinstance(result, tuple):
+        if len(result) == 3:
+            data, media_type, suggested_name = result  # type: ignore[assignment]
+        elif len(result) == 2:
+            data, media_type = result  # type: ignore[misc]
+        else:
+            raise HTTPException(status_code=500, detail="Invalid controller response")
+    else:
+        raise HTTPException(status_code=500, detail="Invalid controller response")
 
+    if data is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    # If download is requested and we don't already have a suggested filename, derive it.
+    headers = {}
+    if download:
+        if not suggested_name:
+            # Pull from DB metadata
+            meta = await get_image_by_id(id)
+            base = (meta.name if meta and meta.name else id)
+            ext = (meta.extension if meta and meta.extension else "bin")
+            suggested_name = f"{base}.{ext}"
+        headers["Content-Disposition"] = f'attachment; filename="{suggested_name}"'
+
+    return Response(content=data, media_type=media_type, headers=headers)
+
+@mod_assets_router.get("/folders", response_model=dict)
+async def api_list_folders(folder: Optional[str] = Query(default=None, description="Relative folder under assets ('' = Home)")):
+    subs: List[str] = await list_subfolders(folder)
+    return {"folders": subs}
+
+@protected_assets_router.post("/folders/create", response_model=FolderResponse)
+async def api_folder_create(payload: FolderCreateRequest = Body(...)):
+    return await create_folder(payload)
+
+@protected_assets_router.patch("/folders/rename", response_model=FolderResponse)
+async def api_folder_rename(payload: FolderRenameRequest = Body(...)):
+    return await rename_folder(payload)
+
+@protected_assets_router.patch("/folders/move", response_model=FolderResponse)
+async def api_folder_move(payload: FolderMoveRequest = Body(...)):
+    return await move_folder_ctrl(payload)
+
+@protected_assets_router.patch("/folders/delete", response_model=FolderResponse)
+async def api_folder_delete(payload: FolderDeleteRequest = Body(...)):
+    return await delete_folder_ctrl(payload)

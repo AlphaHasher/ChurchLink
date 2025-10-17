@@ -169,8 +169,8 @@ async def get_header_items_route():
 # layout_management perms necessary below
 
 @mod_header_router.post("/items/links", response_model=OpResult)
-async def add_header_link_route(item: HeaderLink = Body(...)):
-    ok, cleaned, msg = validate_header_link(dict(item))
+async def add_header_link_route(item: dict = Body(...)):
+    ok, cleaned, msg = validate_header_link(item)
     if not ok:
         return OpResult(success=False, msg=msg)
 
@@ -182,8 +182,8 @@ async def add_header_link_route(item: HeaderLink = Body(...)):
 
 
 @mod_header_router.post("/items/dropdowns", response_model=OpResult)
-async def add_header_dropdown_route(item: HeaderDropdown = Body(...)):
-    ok, cleaned, msg = validate_header_dropdown(dict(item))
+async def add_header_dropdown_route(item: dict = Body(...)):
+    ok, cleaned, msg = validate_header_dropdown(item)
     if not ok:
         return OpResult(success=False, msg=msg)
 

@@ -32,9 +32,3 @@ client = pymongo.MongoClient(os.getenv('MONGODB_URL', 'mongodb://localhost:27017
 db_name = os.getenv('DB_NAME', 'SSBC_DB'); \
 client.drop_database(db_name); \
 print(f'Database {db_name} dropped')"
-
-
-
-run_strapi:
-	cd strapi && npm run dev
-
