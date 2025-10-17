@@ -6,7 +6,7 @@ import {
 } from "@radix-ui/react-dropdown-menu";
 import { Button } from "@/shared/components/ui/button";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
-import { LogOut, User, Settings } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import { Link } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
@@ -57,15 +57,6 @@ function ProfileDropDown({ className }: ProfileDropDownProps) {
           >
             <User className="h-4 w-4" />
             <span>Profile</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link
-            to="/settings"
-            className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
-          >
-            <Settings className="h-4 w-4" />
-            <span>Settings</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem
