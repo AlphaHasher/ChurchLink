@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 from mongo.database import DB as DatabaseManager
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
-from helpers.StrapiHelper import StrapiHelper
 
 
 class AdminManager:
@@ -156,7 +155,7 @@ class AdminManager:
                 new_roles.append(admin_role_id_str)
 
             # Update user roles in MongoDB
-            result = await UserHandler.update_roles(uid, new_roles, StrapiHelper.sync_strapi_roles)
+            result = await UserHandler.update_roles(uid, new_roles)
             if not result:
                 logger.error(f"Failed to update MongoDB roles for user {email}")
                 return False
@@ -221,7 +220,7 @@ class AdminManager:
             new_roles = [str(role) for role in user_roles if str(role) != admin_role_id_str]
 
             # Update user roles in MongoDB
-            result = await UserHandler.update_roles(uid, new_roles, StrapiHelper.sync_strapi_roles)
+            result = await UserHandler.update_roles(uid, new_roles)
             if not result:
                 logger.error(f"Failed to update MongoDB roles for user {email}")
                 return False

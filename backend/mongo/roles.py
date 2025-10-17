@@ -4,6 +4,7 @@ from bson import ObjectId
 class RoleHandler:
     permission_template = {
         "admin":False,
+        "finance": False,
         "permissions_management": False,
         "layout_management": False,
         "event_editing":False,

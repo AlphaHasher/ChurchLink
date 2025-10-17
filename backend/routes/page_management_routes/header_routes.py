@@ -2,6 +2,8 @@ from typing import Dict, Tuple, Any
 from fastapi import APIRouter, HTTPException, Body, Path
 from pydantic import BaseModel
 from models.header import *
+import re
+from urllib.parse import urlparse
 
 public_header_router = APIRouter(prefix="/header", tags=["public header"])
 mod_header_router = APIRouter(prefix="/header", tags=["mod header"])
@@ -21,6 +23,49 @@ def _nonempty(field: str, value: Any) -> Tuple[bool, str]:
         return True, ""
     return False, f"{field} is required."
 
+
+def _is_valid_url(url: str) -> Tuple[bool, str]:
+    """Validate URL format and auto-add https:// if missing"""
+    try:
+        # Clean the URL
+        url = _clean(url)
+        if not url:
+            return False, "URL cannot be empty"
+        
+        # Auto-add https:// if no protocol is present
+        if not url.startswith(('http://', 'https://')):
+            # Check if it looks like a domain (contains a dot or is localhost)
+            if '.' in url or url.startswith('localhost'):
+                url = f"https://{url}"
+            else:
+                return False, "Invalid URL format - must be a valid domain or include protocol"
+        
+        # Parse the URL
+        parsed = urlparse(url)
+        
+        # Check if scheme is valid
+        if parsed.scheme not in ['http', 'https']:
+            return False, "URL must use http:// or https:// protocol"
+        
+        # Check if domain is present
+        if not parsed.netloc:
+            return False, "URL must include a valid domain"
+        
+        # Basic domain validation (contains at least one dot or is localhost)
+        if '.' not in parsed.netloc and parsed.netloc != 'localhost':
+            return False, "URL must include a valid domain"
+        
+        return True, url  # Return the corrected URL
+        
+    except Exception:
+        return False, "Invalid URL format"
+
+
+def _nonempty(field: str, value: Any) -> Tuple[bool, str]:
+    if _clean(value):
+        return True, ""
+    return False, f"{field} is required."
+
 def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], str]:
     ok, msg = _nonempty("title", link.get("title"))
     if not ok:
@@ -28,17 +73,42 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
     ok, msg = _nonempty("russian_title", link.get("russian_title"))
     if not ok:
         return False, {}, msg
-    ok, msg = _nonempty("url", link.get("url"))
-    if not ok:
-        return False, {}, msg
-
-    cleaned = {
-        "title": _clean(link["title"]),
-        "russian_title": _clean(link["russian_title"]),
-        "url": _clean(link["url"]),
-        "visible": bool(link.get("visible", True)),
-        "type": "link",
-    }
+    
+    # Check if this is a hardcoded URL or slug-based URL
+    is_hardcoded = link.get("is_hardcoded_url", False)
+    
+    if is_hardcoded:
+        ok, msg = _nonempty("url", link.get("url"))
+        if not ok:
+            return False, {}, msg
+        
+        # Validate URL format and get corrected URL
+        ok, corrected_url = _is_valid_url(link.get("url"))
+        if not ok:
+            return False, {}, corrected_url  # corrected_url contains error message when ok=False
+        
+        cleaned = {
+            "title": _clean(link["title"]),
+            "russian_title": _clean(link["russian_title"]),
+            "url": corrected_url,  # Use the corrected URL with https:// added if needed
+            "is_hardcoded_url": True,
+            "visible": bool(link.get("visible", True)),
+            "type": "link",
+        }
+    else:
+        ok, msg = _nonempty("slug", link.get("slug"))
+        if not ok:
+            return False, {}, msg
+        
+        cleaned = {
+            "title": _clean(link["title"]),
+            "russian_title": _clean(link["russian_title"]),
+            "slug": _clean(link["slug"]),
+            "is_hardcoded_url": False,
+            "visible": bool(link.get("visible", True)),
+            "type": "link",
+        }
+    
     return True, cleaned, ""
 
 
@@ -99,8 +169,8 @@ async def get_header_items_route():
 # layout_management perms necessary below
 
 @mod_header_router.post("/items/links", response_model=OpResult)
-async def add_header_link_route(item: HeaderLink = Body(...)):
-    ok, cleaned, msg = validate_header_link(dict(item))
+async def add_header_link_route(item: dict = Body(...)):
+    ok, cleaned, msg = validate_header_link(item)
     if not ok:
         return OpResult(success=False, msg=msg)
 
@@ -112,8 +182,8 @@ async def add_header_link_route(item: HeaderLink = Body(...)):
 
 
 @mod_header_router.post("/items/dropdowns", response_model=OpResult)
-async def add_header_dropdown_route(item: HeaderDropdown = Body(...)):
-    ok, cleaned, msg = validate_header_dropdown(dict(item))
+async def add_header_dropdown_route(item: dict = Body(...)):
+    ok, cleaned, msg = validate_header_dropdown(item)
     if not ok:
         return OpResult(success=False, msg=msg)
 

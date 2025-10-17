@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -21,7 +21,6 @@ from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
 from mongo.scheduled_notifications import scheduled_notification_loop
 
-from helpers.Firebase_helpers import role_based_access
 from helpers.youtubeHelper import YoutubeHelper
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
 import asyncio
@@ -33,7 +32,7 @@ from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
 
 from routes.bible_routes.bible_note_routes import bible_note_router
-from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, public_bible_plan_router
+from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, private_bible_plan_router, public_bible_plan_router
 from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
 from routes.bible_routes.bible_plan_notification_routes import bible_notification_router
 
@@ -56,13 +55,11 @@ from routes.paypal_routes.paypal_routes import paypal_public_router
 
 from routes.permissions_routes.permissions_routes import permissions_protected_router, permissions_view_router
 
-from routes.strapi_routes.strapi_routes import strapi_protected_router, strapi_router
-
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
 from routes.translator_routes import translator_router
-from routes.assets_routes import protected_assets_router, public_assets_router
+from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -194,46 +191,6 @@ class LoginCredentials(BaseModel):
 
 
 #####################################################
-# Dev Router Configuration
-#####################################################
-router_dev = APIRouter(prefix="/api/v1/dev", tags=["dev"])
-# Add Firebase authentication dependency to dev router, needs developer role
-router_dev.dependencies.append(Depends(role_based_access(["developer"])))
-
-
-##for development purposes
-@router_dev.post("/auth/token")
-async def get_auth_token(credentials: LoginCredentials):
-    """Get a Firebase authentication token using email and password"""
-    try:
-        token = generate_test_token(
-            email=credentials.email, password=credentials.password
-        )
-        if token:
-            return {"access_token": token, "token_type": "Bearer"}
-        return {"error": "Failed to generate token"}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@router_dev.post("/roles", summary="Update user roles")
-async def update_user_roles(role_update: RoleUpdate):
-    """
-    Add or remove roles for a specified user.
-
-    - **uid**: The user ID to modify
-    - **roles**: List of roles to add/remove
-    - **remove**: If true, removes the specified roles. If false, adds them.
-
-    Returns:
-        dict: Contains status, message, and current roles
-    """
-    return add_user_role(
-        uid=role_update.uid, roles=role_update.roles, remove=role_update.remove
-    )
-
-
-#####################################################
 # Public Routers - No Auth
 #####################################################
 public_router = APIRouter(prefix="/api/v1")
@@ -247,7 +204,6 @@ public_router.include_router(public_footer_router)
 public_router.include_router(public_header_router)
 public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
-public_router.include_router(strapi_router)
 public_router.include_router(public_notification_router)
 public_router.include_router(app_config_public_router)
 public_router.include_router(paypal_public_router)
@@ -265,6 +221,7 @@ private_router = AuthProtectedRouter(prefix="/api/v1")
 
 private_router.include_router(bible_note_router)
 private_router.include_router(auth_bible_plan_router)
+private_router.include_router(private_bible_plan_router)
 private_router.include_router(bible_notification_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
@@ -286,10 +243,10 @@ mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)
 mod_router.include_router(permissions_view_router)
 mod_router.include_router(private_notification_router)
-mod_router.include_router(strapi_protected_router)
 mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
 mod_router.include_router(member_mod_router)
+mod_router.include_router(mod_assets_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions

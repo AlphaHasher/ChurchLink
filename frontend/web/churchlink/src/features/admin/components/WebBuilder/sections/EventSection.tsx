@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat } from "lucide-react";
 import api from "@/api/api";
-import { getAssetUrl } from "@/helpers/MediaInteraction";
+import { getPublicUrl, getThumbnailUrl } from "@/helpers/MediaInteraction";
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -89,11 +89,11 @@ function EventRegistrationForm({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [me, setMe] = useState<{ first: string; last: string } | null>(null);
-  
+
   // Per-person scope selection (series = recurring, occurrence = one-time)
   const [personScopes, setPersonScopes] = useState<Record<string, "series" | "occurrence">>({});
   const [selfScope, setSelfScope] = useState<"series" | "occurrence">("series");
-  
+
   // Check if event is recurring
   const isRecurring = event.recurring && event.recurring !== "never";
 
@@ -140,7 +140,7 @@ function EventRegistrationForm({
         let selfIsRegistered = false;
         const scopes: Record<string, "series" | "occurrence"> = {};
         let selfScopeValue: "series" | "occurrence" = "series";
-        
+
         (regRes.data?.user_registrations ?? []).forEach((r: any) => {
           if (r.person_id) {
             current.add(r.person_id);
@@ -150,7 +150,7 @@ function EventRegistrationForm({
             selfScopeValue = r.scope || "series";
           }
         });
-        
+
         setSelectedIds(current);
         setSelfSelected(selfIsRegistered);
         setPersonScopes(scopes);
@@ -221,7 +221,7 @@ function EventRegistrationForm({
       return next;
     });
   };
-  
+
   const togglePersonScope = (id: string) => {
     setPersonScopes((prev) => ({
       ...prev,
@@ -241,7 +241,7 @@ function EventRegistrationForm({
       const toAdd: string[] = [];
       const toRemove: string[] = [];
       const toUpdateScope: string[] = [];
-      
+
       // Check for new registrations and scope changes
       want.forEach((id) => {
         if (!have.has(id)) {
@@ -296,13 +296,13 @@ function EventRegistrationForm({
         const scope = personScopes[id] || "series";
         await api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${scope}`);
       }
-      
+
       // Remove registrations
       for (const id of toRemove) {
         // Remove all scopes for this person
         await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}`);
       }
-      
+
       // Update scope for existing registrations (remove old scope, add new scope)
       for (const id of toUpdateScope) {
         const oldScope = summary?.user_registrations?.find(r => r.person_id === id)?.scope || "series";
@@ -575,11 +575,10 @@ const EventSection: React.FC<EventSectionProps> = ({
   const RecurrenceBadge = ({ ev }: { ev: Event }) => {
     const recurring = ev.recurring && ev.recurring !== "never";
     return (
-      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
-        recurring 
-          ? "bg-indigo-600 text-white" 
-          : "bg-white/90 text-slate-700 backdrop-blur-sm border border-slate-200"
-      }`}>
+      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${recurring
+        ? "bg-indigo-600 text-white"
+        : "bg-white/90 text-slate-700 backdrop-blur-sm border border-slate-200"
+        }`}>
         {recurring && <FiRepeat className="w-3 h-3" />}
         {recurrenceLabel(ev)}
       </span>
@@ -846,7 +845,7 @@ const EventSection: React.FC<EventSectionProps> = ({
         ) : (
           <div className="flex flex-wrap gap-8 justify-center max-w-7xl mx-auto">
             {events.slice(0, visibleCount).map((ev) => {
-              const primary = ev.image_url ? getAssetUrl(ev.image_url) : null;
+              const primary = ev.image_url ? getPublicUrl(ev.image_url) : null;
               const bg = primary
                 ? `url("${primary}"), url("/assets/default-thumbnail.jpg")`
                 : `url("/assets/default-thumbnail.jpg")`;
@@ -872,7 +871,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                       <h3 className="text-2xl font-bold mb-3 text-slate-900 leading-tight line-clamp-2">
                         {ev.name}
                       </h3>
-                      
+
                       {/* Date & Location */}
                       <div className="space-y-2 mb-4">
                         <div className="flex items-start gap-2 text-slate-700">
@@ -959,7 +958,7 @@ const EventSection: React.FC<EventSectionProps> = ({
               {/* Image */}
               {selectedEvent.image_url && (
                 <img
-                  src={getAssetUrl(selectedEvent.image_url)}
+                  src={getPublicUrl(selectedEvent.image_url)}
                   alt={selectedEvent.name}
                   className="w-full object-cover rounded-lg mb-6"
                   onError={(e) => {

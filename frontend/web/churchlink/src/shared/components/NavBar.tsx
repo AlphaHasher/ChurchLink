@@ -143,13 +143,13 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
 
                                     {activeDropdown === item.title && (
                                         <div
-                                            className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 p-2 rounded-lg min-w-[180px] shadow-lg z-[90]"
+                                            className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-[90]"
                                         >
                                             {'items' in item && item.items.filter((subItem: HeaderLink) => subItem.visible !== false).map((subItem: HeaderLink) => (
                                                 <button
                                                     key={`${item.title}-${subItem.title}`}
                                                     onClick={() => handleNavigation(subItem)}
-                                                    className="block py-2 px-4 rounded-md transition-colors duration-150 hover:bg-slate-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left w-full"
+                                                    className="block w-full py-2 px-4 transition-colors duration-150 hover:bg-slate-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left whitespace-nowrap"
                                                 >
                                                     {is_russian ? subItem.russian_title : subItem.title}
                                                 </button>

@@ -12,10 +12,6 @@ cleanup() {
         echo "Stopping backend (PID: $BACKEND_PID)..."
         kill $BACKEND_PID 2>/dev/null || true
     fi
-    if [ ! -z "$STRAPI_PID" ] && kill -0 $STRAPI_PID 2>/dev/null; then
-        echo "Stopping Strapi (PID: $STRAPI_PID)..."
-        kill $STRAPI_PID 2>/dev/null || true
-    fi
     echo "All services stopped."
     exit 0
 }
@@ -33,18 +29,13 @@ echo "Starting backend Python server..."
 cd ../../../backend && uv run main.py &
 BACKEND_PID=$!
 
-# Start Strapi development server
-echo "Starting Strapi development server..."
-cd backend/strapi/churchlink && npm run dev &
-STRAPI_PID=$!
 
 echo ""
 echo "All services started successfully!"
 echo "Frontend: http://localhost:5173 (PID: $FRONTEND_PID)"
 echo "Backend: http://localhost:8000 (PID: $BACKEND_PID)"
-echo "Strapi: http://localhost:1337 (PID: $STRAPI_PID)"
 echo ""
 echo "Press Ctrl+C to stop all services..."
 
 # Wait for all background processes
-wait $FRONTEND_PID $BACKEND_PID $STRAPI_PID
+wait $FRONTEND_PID $BACKEND_PID
