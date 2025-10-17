@@ -6,6 +6,7 @@ from models.user import ( PersonCreate, PersonUpdateRequest,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member, get_user_by_uid, get_user_by_id
 )
 from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id, delete_user_account
+from mongo.database import DB
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
 user_mod_router = APIRouter(prefix="/users", tags=["Users"])
@@ -252,3 +253,38 @@ async def delete_account_route(request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting account: {str(e)}")
+
+# Mod Router - Admin can delete any user account (with safeguards)
+@user_mod_router.delete("/delete-user/{target_uid}", response_model=dict)
+async def delete_user_by_admin_route(request: Request, target_uid: str):
+    """Delete any user account (admin only) - with safeguard against deleting only admin"""
+    try:
+        users_collection = DB.db["users"]
+        roles_collection = DB.db["roles"]
+        
+        # Get target user to check if they're an admin
+        target_user = await users_collection.find_one({"uid": target_uid})
+        if not target_user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        
+        # Check if target user has Administrator role and if they're the only one
+        admin_role = await roles_collection.find_one({"name": "Administrator"})
+        if admin_role and target_user.get("roles"):
+            if str(admin_role["_id"]) in [str(r) for r in target_user.get("roles", [])]:
+                admin_count = await users_collection.count_documents({"roles": admin_role["_id"]})
+                if admin_count <= 1:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Cannot delete the only administrator account"
+                    )
+        
+        result = await delete_user_account(target_uid)
+        
+        if not result["success"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["message"])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting user: {str(e)}")

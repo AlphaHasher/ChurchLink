@@ -13,6 +13,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 import { AccountPermissions } from "@/shared/types/AccountPermissions";
 import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo";
 import { AssignRolesDialog } from "./AssignRolesDialog";
+import { DeleteUserDialog } from "./DeleteUserDialog";
 import { recoverRoleArray } from "@/helpers/DataFunctions";
 import DetailedUserDialog from "./DetailedUserDialog";
 
@@ -22,6 +23,7 @@ interface UsersTableProps {
   permData: AccountPermissions[];
   onSave: () => Promise<void>;
   loading?: boolean;
+  adminCount?: number;
 
   page: number;
   pageSize: number;
@@ -35,10 +37,14 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
   const { data, context } = props;
   if (!data) return null;
 
-  const { permData, onSave } = context as {
+  const { permData, onSave, adminCount } = context as {
     permData: AccountPermissions[];
     onSave: () => Promise<void>;
+    adminCount: number;
   };
+
+  // Check if this user is the only admin
+  const isOnlyAdmin = adminCount === 1 && (data.permissions?.includes("Administrator") || false);
 
   return (
     <div className="flex items-center gap-2">
@@ -48,6 +54,13 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
         initialRoles={recoverRoleArray(data)}
         permData={permData}
         onSave={onSave}
+      />
+      <DeleteUserDialog
+        userId={data.uid}
+        userEmail={data.email}
+        userName={data.name}
+        isOnlyAdmin={isOnlyAdmin}
+        onDeleted={onSave}
       />
     </div>
   );
@@ -59,6 +72,7 @@ export function UsersTable({
   permData,
   onSave,
   loading,
+  adminCount = 0,
   page,
   pageSize,
   onPageChange,
@@ -75,7 +89,7 @@ export function UsersTable({
       { field: "membership", headerName: UserLabels.membership, sortable: true, filter: true, flex: 2, width: 50 },
       { field: "permissions", headerName: UserLabels.permissions, sortable: true, filter: false, flex: 2, minWidth: 150 },
       { field: "uid", headerName: UserLabels.uid, sortable: true, filter: false, flex: 2, minWidth: 200 },
-      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 130 },
+      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 180 },
     ],
     []
   );
@@ -121,7 +135,7 @@ export function UsersTable({
           rowData={data}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          context={{ permData, onSave }}
+          context={{ permData, onSave, adminCount }}
           suppressPaginationPanel={true}
           animateRows={true}
           enableCellTextSelection={true}
