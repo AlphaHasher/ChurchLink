@@ -449,7 +449,7 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                     onChange={(e) => setNewSectionRussianTitle(e.target.value)}
                                     required
                                 />
-                                <div className="border rounded p-4 bg-gray-50">
+                                <div className="border rounded p-4">
                                     <h4 className="font-medium mb-2">Section Items</h4>
 
                                     {sectionItems.length > 0 ? (
@@ -556,7 +556,7 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                     required
                                 />
 
-                                <div className="border rounded p-4 bg-gray-50">
+                                <div className="border rounded p-4">
                                     <h4 className="font-medium mb-2">Section Items</h4>
 
                                     {editSectionItems.length > 0 ? (
@@ -575,7 +575,7 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                                             key={`${link.title}-${link.url}`}
                                                             id={`${link.title}-${link.url}`}
                                                         >
-                                                            <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                            <li className="flex justify-between items-center p-2 border rounded">
                                                                 <div>
                                                                     <div className="font-medium">{link.title}</div>
                                                                     <div className="text-sm text-blue-600">{link.url}</div>
