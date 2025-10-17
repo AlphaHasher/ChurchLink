@@ -5,9 +5,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/auth-context";
-import { Link } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
 import AvatarImg from "./AvatarImg";
 import { useSidebar } from "@/shared/components/ui/sidebar";
