@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Body, Request
 from models.user import ( PersonCreate, PersonUpdateRequest,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member, get_user_by_uid, get_user_by_id
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id, delete_user_account
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
 user_mod_router = APIRouter(prefix="/users", tags=["Users"])
@@ -235,3 +235,20 @@ async def add_person_alias(request: Request, family_member_data: PersonCreate = 
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding person: {str(e)}")
+
+# Private Router
+@user_private_router.delete("/delete-account", response_model=dict)
+async def delete_account_route(request: Request):
+    """Delete user account from both MongoDB and Firebase"""
+    try:
+        uid = request.state.uid
+        result = await delete_user_account(uid)
+        
+        if not result["success"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["message"])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting account: {str(e)}")

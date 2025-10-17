@@ -1,6 +1,7 @@
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
+from mongo.database import DB
 from pydantic import BaseModel
 from fastapi import Request
 from typing import Optional, List, Dict, Literal
@@ -525,3 +526,28 @@ async def resolve_registration_display_names(attendees: List[Dict]) -> List[Dict
         enhanced_attendees.append(enhanced_attendee)
     
     return enhanced_attendees
+
+async def delete_user_account(uid: str):
+    """
+    Delete user account from both MongoDB and Firebase.
+    
+    Args:
+        uid: Firebase user ID
+        
+    Returns:
+        dict: Success status and message
+    """
+    try:
+        # Delete from MongoDB
+        users_collection = DB.db["users"]
+        result = await users_collection.delete_one({"uid": uid})
+        
+        if result.deleted_count == 0:
+            return {"success": False, "message": "User not found in database"}
+        
+        # Delete from Firebase
+        auth.delete_user(uid)
+        
+        return {"success": True, "message": "User account deleted successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Error deleting account: {str(e)}"}
