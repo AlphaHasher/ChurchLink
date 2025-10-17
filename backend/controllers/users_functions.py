@@ -529,7 +529,7 @@ async def resolve_registration_display_names(attendees: List[Dict]) -> List[Dict
 
 async def delete_user_account(uid: str):
     """
-    Delete user account from both MongoDB and Firebase.
+    Delete user account from both MongoDB and Firebase, including all related user data.
     
     Args:
         uid: Firebase user ID
@@ -538,16 +538,28 @@ async def delete_user_account(uid: str):
         dict: Success status and message
     """
     try:
-        # Delete from MongoDB
+        # Delete user record from MongoDB
         users_collection = DB.db["users"]
-        result = await users_collection.delete_one({"uid": uid})
+        user_result = await users_collection.delete_one({"uid": uid})
         
-        if result.deleted_count == 0:
+        if user_result.deleted_count == 0:
             return {"success": False, "message": "User not found in database"}
+        
+        # Delete all related user data from other collections
+        collections_to_clean = [
+            ("bible_notes", ["user_id"]),
+            ("bible_plan_tracker", ["uid"]),
+            ("deviceTokens", ["userId"]),
+        ]
+        
+        for collection_name, uid_fields in collections_to_clean:
+            collection = DB.db[collection_name]
+            for field in uid_fields:
+                await collection.delete_many({field: uid})
         
         # Delete from Firebase
         auth.delete_user(uid)
         
-        return {"success": True, "message": "User account deleted successfully"}
+        return {"success": True, "message": "User account and all related data deleted successfully"}
     except Exception as e:
         return {"success": False, "message": f"Error deleting account: {str(e)}"}
