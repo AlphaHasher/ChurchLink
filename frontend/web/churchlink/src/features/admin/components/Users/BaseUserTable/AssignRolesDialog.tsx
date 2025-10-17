@@ -162,7 +162,7 @@ export function AssignRolesDialog({
                                             No Selectable Roles
                                         </Button>
                                     ) : (
-                                        <Button variant="outline" className="flex items-center gap-2">
+                                        <Button variant="secondary" className="flex items-center gap-2">
                                             Select Roles <ChevronDown className="h-4 w-4" />
                                         </Button>
                                     )}
