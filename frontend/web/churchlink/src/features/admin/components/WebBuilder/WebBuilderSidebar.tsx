@@ -9,7 +9,6 @@ const WebBuilderSidebar: React.FC = () => {
       { name: "Header", to: "/admin/webbuilder/header" },
       { name: "Footer", to: "/admin/webbuilder/footer" },
       { name: "Media", to: "/admin/webbuilder/media" },
-      { name: "Settings", to: "/admin/webbuilder/settings" },
   ];
 
   return (

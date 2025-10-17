@@ -72,15 +72,6 @@ export const ProfilePill = ({ className }: ProfilePillProps) => {
         align={isCollapsed ? "center" : "start"}
         side="top"
       >
-        <DropdownMenuItem asChild>
-          <Link
-            to="/admin/settings"
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Settings className="h-4 w-4" />
-            <span>Settings</span>
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => signOut(auth)}
           className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
@@ -89,8 +80,8 @@ export const ProfilePill = ({ className }: ProfilePillProps) => {
           <span>Logout</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
+        </DropdownMenu>
+      );
+    };
 
 export default ProfilePill;
