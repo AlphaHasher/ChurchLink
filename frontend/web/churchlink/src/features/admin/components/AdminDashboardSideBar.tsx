@@ -56,7 +56,6 @@ const AdminDashboardSideBar = () => {
       { title: "Pages", url: "/admin/webbuilder" },
       { title: "Header", url: "/admin/webbuilder/header" },
       { title: "Footer", url: "/admin/webbuilder/footer" },
-      { title: "Settings", url: "/admin/webbuilder/settings" },
     ],
     []
   );

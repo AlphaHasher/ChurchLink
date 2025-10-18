@@ -64,11 +64,12 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
   pageData: initialPageData,
   onHeaderDataChange,
   onFooterDataChange,
+  onPageDataChange,
 }) => {
   const [activeTab, setActiveTab] = useState("edit");
   const [currentHeaderData, setCurrentHeaderData] = useState<HeaderItem[] | undefined>(initialHeaderData);
   const [currentFooterData, setCurrentFooterData] = useState<FooterSection[] | undefined>(initialFooterData);
-  const [currentPageData] = useState<{ slug: string; sections: PageSection[] } | undefined>(initialPageData);
+  const [currentPageData, setCurrentPageData] = useState<{ slug: string; sections: PageSection[] } | undefined>(initialPageData);
   const [useStagingPreview, setUseStagingPreview] = useState<boolean>(true);
 
   const handleHeaderDataChange = (data: HeaderItem[]) => {
@@ -82,7 +83,7 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
   };
 
   const handlePageDataChange = (data: { sections: PageSection[] }) => {
-    setCurrentPageData((prev) => {
+    setCurrentPageData((prev: { slug: string; sections: PageSection[] } | undefined) => {
       const base = prev ?? { slug: initialPageData?.slug ?? "", sections: [] };
       const updatedPageData = { ...base, ...data };
       return updatedPageData;
