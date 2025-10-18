@@ -12,6 +12,7 @@ from mongo.database import DB
 from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
 from helpers.MongoHelper import serialize_objectid_deep
+from models.ministry import list_ministries
 
 class Event(BaseModel):
     id: str
@@ -171,7 +172,7 @@ async def search_events(
     # Apply filters
     if ministry:
         query["ministry"] = {"$in": [ministry]}
-    
+
     age_filter = {}
     if age is not None:
         query["min_age"] = {"$lte": age}
@@ -306,23 +307,14 @@ async def get_event_amount() -> int:
 
 
 async def get_all_ministries():
-    if DB.db is None:
-        raise HTTPException(status_code=500, detail="Database not initialized.")
     try:
-        ministries_cursor = DB.db["events"].aggregate([
-            {"$unwind": {"path": "$ministry", "preserveNullAndEmptyArrays": False}},
-            {"$group": {"_id": "$ministry"}},
-            {"$sort": {"_id": 1}}
-        ])
-        ministries = await ministries_cursor.to_list(length=100)
-        return [m["_id"] for m in ministries]
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+        ministries = await list_ministries()
+        return [m.name for m in ministries]
+    except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail={"error": "Failed to fetch ministries", "reason": str(e)}
-        )
+            detail={"error": "Failed to fetch ministries", "reason": str(exc)},
+        ) from exc
 
 def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp", scope: str = "series") -> str:
     # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
@@ -387,11 +379,11 @@ async def rsvp_remove_person(
     If scope is specified, only removes that specific scope registration.
     """
     ev_oid = ObjectId(event_id)
-    
+
     if scope is not None:
         # Remove specific scope registration
         key = _attendee_key(uid, person_id, kind, scope)
-        
+
         try:
             result = await DB.db["events"].find_one_and_update(
                 {"_id": ev_oid, "attendee_keys": key},
@@ -404,12 +396,12 @@ async def rsvp_remove_person(
                 },
                 return_document=False,
             )
-            
+
             if result is None:
                 # FALLBACK: Try the opposite scope if the requested one doesn't exist
                 opposite_scope = 'occurrence' if scope == 'series' else 'series'
                 fallback_key = _attendee_key(uid, person_id, kind, opposite_scope)
-                
+
                 result = await DB.db["events"].find_one_and_update(
                     {"_id": ev_oid, "attendee_keys": fallback_key},
                     {
@@ -421,7 +413,7 @@ async def rsvp_remove_person(
                     },
                     return_document=False,
                 )
-            
+
             return result is not None
         except Exception as e:
             print(f"Error in rsvp_remove_person: {e}")
@@ -433,15 +425,15 @@ async def rsvp_remove_person(
             event = await DB.db["events"].find_one({"_id": ev_oid})
             if not event:
                 return False
-                
+
             # Count matching attendees
             user_key_prefix = f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|"
             matching_keys = [k for k in event.get("attendee_keys", []) if k.startswith(user_key_prefix)]
             count_to_remove = len(matching_keys)
-            
+
             if count_to_remove == 0:
                 return False
-                
+
             # Remove all matching registrations
             result = await DB.db["events"].update_one(
                 {"_id": ev_oid},
@@ -453,7 +445,7 @@ async def rsvp_remove_person(
                     },
                 },
             )
-            
+
             return result.modified_count > 0
         except Exception as e:
             print(f"Error in rsvp_remove_person: {e}")

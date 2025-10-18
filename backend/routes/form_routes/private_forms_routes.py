@@ -5,7 +5,6 @@ from models.form import (
 	FormOut,
 	get_form_by_id_unrestricted,
 	list_all_forms,
-	list_visible_folders,
 	search_all_forms,
 )
 
@@ -22,16 +21,11 @@ async def list_user_forms(request: Request, skip: int = 0, limit: int = Query(10
 async def search_user_forms(
 	request: Request,
 	name: str | None = None,
-	folder: str | None = None,
+	ministry: str | None = None,
 	skip: int = 0,
 	limit: int = Query(100, le=500),
 ) -> List[FormOut]:
-	return await search_all_forms(name=name, folder=folder, skip=skip, limit=limit)
-
-
-@private_forms_router.get("/folders", response_model=List[dict])
-async def list_user_folders(request: Request):
-	return await list_visible_folders()
+	return await search_all_forms(name=name, ministry=ministry, skip=skip, limit=limit)
 
 
 @private_forms_router.get("/{form_id}", response_model=FormOut)

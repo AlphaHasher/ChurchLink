@@ -524,6 +524,20 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
+  String _formatMinistries(List<String> ministries) {
+    if (ministries.isEmpty) {
+      return '';
+    }
+    
+    // If only one ministry, use the current format with "'s Ministry"
+    if (ministries.length == 1) {
+      return "${ministries.first}'s Ministry";
+    }
+    
+    // If multiple ministries, format as comma-separated list with "'s Ministry" added to each
+    return ministries.map((m) => "$m's Ministry").join(', ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -924,7 +938,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               _buildSvgInfoRow(
                 'assets/nav_icons/Home.svg',
                 'Ministry',
-                "${widget.event.ministry.first}'s Ministry",
+                _formatMinistries(widget.event.ministry),
               ),
             ],
           ],

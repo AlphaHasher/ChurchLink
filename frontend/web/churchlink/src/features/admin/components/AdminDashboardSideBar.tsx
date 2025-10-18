@@ -56,7 +56,6 @@ const AdminDashboardSideBar = () => {
       { title: "Pages", url: "/admin/webbuilder" },
       { title: "Header", url: "/admin/webbuilder/header" },
       { title: "Footer", url: "/admin/webbuilder/footer" },
-      { title: "Settings", url: "/admin/webbuilder/settings" },
     ],
     []
   );
@@ -71,6 +70,7 @@ const AdminDashboardSideBar = () => {
     },
 
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
+    { title: "Ministries", url: "/admin/ministries", icon: Lectern },
     { title: "Web Builder", icon: FileText, children: webBuilderChildren },
     { title: "Media Library", url: "/admin/media-library", icon: Image },
     { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Smartphone },

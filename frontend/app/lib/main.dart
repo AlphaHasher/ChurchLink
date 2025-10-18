@@ -7,8 +7,6 @@ import 'package:app/pages/user/user_settings.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/weeklybulletin.dart';
 import 'package:app/pages/giving.dart';
-import 'package:app/pages/ministries.dart';
-import 'package:app/pages/contact.dart';
 import 'package:app/services/connectivity_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -139,8 +137,6 @@ class MyApp extends StatelessWidget {
             '/live': (context) => const JoinLive(),
             '/bulletin': (context) => const WeeklyBulletin(),
             '/giving': (context) => const Giving(),
-            '/ministries': (context) => const Ministries(),
-            '/contact': (context) => const Contact(),
           },
         );
       },
@@ -223,10 +219,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return const WeeklyBulletin();
       case 'giving':
         return const Giving();
-      case 'ministries':
-        return const Ministries();
-      case 'contact':
-        return const Contact();
       default:
         return const DashboardPage(); // Fallback
     }
@@ -356,7 +348,6 @@ class _MyHomePageState extends State<MyHomePage> {
           Icons.volunteer_activism,
         );
       case 'groups':
-      case 'ministries':
         return Icon(
           Icons.groups,
         );
@@ -406,10 +397,6 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'giving':
         return Icon(
           Icons.volunteer_activism,
-        );
-      case 'ministries':
-        return Icon(
-          Icons.groups,
         );
       case 'contact':
         return Icon(

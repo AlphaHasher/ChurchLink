@@ -5,9 +5,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/auth-context";
-import { Link } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
 import AvatarImg from "./AvatarImg";
 import { useSidebar } from "@/shared/components/ui/sidebar";
@@ -72,15 +71,6 @@ export const ProfilePill = ({ className }: ProfilePillProps) => {
         align={isCollapsed ? "center" : "start"}
         side="top"
       >
-        <DropdownMenuItem asChild>
-          <Link
-            to="/admin/settings"
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Settings className="h-4 w-4" />
-            <span>Settings</span>
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => signOut(auth)}
           className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
@@ -89,8 +79,8 @@ export const ProfilePill = ({ className }: ProfilePillProps) => {
           <span>Logout</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
+        </DropdownMenu>
+      );
+    };
 
 export default ProfilePill;

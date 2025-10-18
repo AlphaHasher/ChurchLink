@@ -27,43 +27,48 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Switch } from '@/shared/components/ui/switch';
-import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, MoveRight, RefreshCcw, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, RefreshCcw, AlertTriangle } from 'lucide-react';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
-// Cell renderer for folder column
-const FolderCellRenderer = (props: ICellRendererParams) => {
-  const { data } = props;
+type MinistryOption = {
+  id: string;
+  name: string;
+};
+
+// Cell renderer for ministry column
+const MinistriesCellRenderer = (props: ICellRendererParams) => {
+  const { data, context } = props;
   if (!data) return null;
 
-  const folders = props.context.folders as { _id: string; name: string }[];
-  const { openFolderAssignment } = props.context;
+  const ministries: string[] = Array.isArray(data.ministries) ? data.ministries : [];
+  const { openMinistryAssignment } = context;
 
-  const folderName = (id?: string) => folders.find((f) => f._id === id)?.name || '';
-
-  // If form has no folder, show warning with dropdown to assign one
-  if (!data.folder) {
+  if (!ministries.length) {
     return (
-      <div className="flex h-full w-full items-center gap-1" title="No folder assigned">
+      <div className="flex h-full w-full items-center gap-1" title="No ministries assigned">
         <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 self-center" />
-        <Button 
-          size="sm" 
-          variant="ghost" 
-          onClick={() => openFolderAssignment(data.id)}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => openMinistryAssignment([data.id], ministries)}
           className="text-xs text-muted-foreground h-6 px-2"
         >
-          Assign folder
+          Assign ministries
         </Button>
       </div>
     );
   }
 
-  return folderName(data.folder) ? (
-    <span className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
-      {folderName(data.folder)}
-    </span>
-  ) : (
-    <span className="text-muted-foreground">—</span>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {ministries.map((name: string) => (
+        <span key={name} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
+          {name}
+        </span>
+      ))}
+    </div>
   );
 };
 
@@ -125,8 +130,8 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
     handleExport,
     handleExportCsv,
     setRenameTarget,
-    setMoveTargetIds,
-    setConfirmDeleteIds
+    setConfirmDeleteIds,
+    setAssignmentTarget
   } = context;
 
   return (
@@ -143,7 +148,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
           <DropdownMenuItem onClick={() => handleExport(data.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Download Responses</DropdownMenuItem>
           <DropdownMenuItem onClick={() => setRenameTarget({ id: data.id, title: data.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setMoveTargetIds([data.id]); context.setMoveToFolderId(); }}><MoveRight className="h-4 w-4 mr-2" /> Move to...</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setAssignmentTarget({ formIds: [data.id], selected: new Set(data.ministries || []) })}><FileEdit className="h-4 w-4 mr-2" /> Assign ministries</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-red-600" onClick={() => setConfirmDeleteIds([data.id])}><Trash className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
         </DropdownMenuContent>
@@ -175,16 +180,15 @@ const ManageForms = () => {
   const navigate = useNavigate();
   const gridRef = useRef<AgGridReact>(null);
   const [allForms, setAllForms] = useState<any[]>([]);
-  const [folders, setFolders] = useState<{ _id: string; name: string }[]>([]);
+  const [availableMinistries, setAvailableMinistries] = useState<MinistryOption[]>([]);
   const [searchName, setSearchName] = useState('');
-  const [searchFolder, setSearchFolder] = useState<string>('all');
+  const [searchMinistry, setSearchMinistry] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
-  const [moveTargetIds, setMoveTargetIds] = useState<string[] | null>(null);
-  const [moveToFolderId, setMoveToFolderId] = useState<string>('');
+  const [assignmentTarget, setAssignmentTarget] = useState<{ formIds: string[]; selected: Set<string> } | null>(null);
   const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
   const [duplicateNameDialog, setDuplicateNameDialog] = useState<{
@@ -193,9 +197,6 @@ const ManageForms = () => {
     existingId: string;
   } | null>(null);
   const [viewDescription, setViewDescription] = useState<string | null>(null);
-  const [folderToDelete, setFolderToDelete] = useState<{ _id: string; name: string } | null>(null);
-  const [folderAssignmentTarget, setFolderAssignmentTarget] = useState<string | null>(null);
-  const [assignToFolderId, setAssignToFolderId] = useState<string>('');
 
   // Grid options
   const gridOptions = {};
@@ -231,12 +232,12 @@ const ManageForms = () => {
       },
     },
     {
-      headerName: 'Folder',
-      field: 'folder',
+      headerName: 'Ministries',
+      field: 'ministries',
       flex: 1,
-      minWidth: 120,
-      cellRenderer: FolderCellRenderer,
-  cellStyle: { display: 'flex', alignItems: 'center', height: '100%' },
+      minWidth: 160,
+      cellRenderer: MinistriesCellRenderer,
+      cellStyle: { display: 'flex', alignItems: 'center', height: '100%' },
     },
     {
       headerName: 'Links',
@@ -288,20 +289,22 @@ const ManageForms = () => {
       );
     }
 
-    // Filter by folder
-    if (searchFolder && searchFolder !== 'all') {
-      filtered = filtered.filter(form => form.folder === searchFolder);
+    // Filter by ministry
+    if (searchMinistry && searchMinistry !== 'all') {
+      filtered = filtered.filter(form =>
+        Array.isArray(form.ministries) && form.ministries.includes(searchMinistry)
+      );
     }
 
     return filtered;
-  }, [allForms, searchName, searchFolder]);
+  }, [allForms, searchName, searchMinistry]);
 
   const fetchFolders = useCallback(async () => {
     try {
-      const resp = await api.get('/v1/forms/folders');
-      setFolders(resp.data || []);
+      const resp = await api.get('/v1/ministries');
+      setAvailableMinistries(resp.data || []);
     } catch (e) {
-      console.error('Failed to fetch folders', e);
+      console.error('Failed to fetch ministries', e);
     }
   }, []);
 
@@ -312,14 +315,14 @@ const ManageForms = () => {
         setLoading(true);
       }
       try {
-        const [formsResp, foldersResp] = await Promise.all([
+        const [formsResp, ministriesResp] = await Promise.all([
           api.get('/v1/forms/'),
-          api.get('/v1/forms/folders'),
+          api.get('/v1/ministries'),
         ]);
         setAllForms(formsResp.data || []);
-        setFolders(foldersResp.data || []);
+        setAvailableMinistries(ministriesResp.data || []);
       } catch (e) {
-        console.error('Failed to refresh forms/folders', e);
+        console.error('Failed to refresh forms/ministries', e);
       } finally {
         if (showSpinner) {
           setLoading(false);
@@ -426,21 +429,21 @@ const ManageForms = () => {
 
   const handleToggleVisible = async (id: string, visible: boolean) => {
     try {
-      // If trying to enable visibility, ensure the form has a slug AND folder first
+      // If trying to enable visibility, ensure the form has a slug AND ministries first
       if (visible) {
         const form = allForms.find((f) => f.id === id);
         const hasSlug = !!(form && (form.slug || form.slug === 0));
-        const hasFolder = !!(form && form.folder);
-        
+        const hasMinistries = !!(form && Array.isArray(form.ministries) && form.ministries.length > 0);
+
         if (!hasSlug) {
           setStatus('Please create a link/slug before making the form visible');
           openCreateSlug(id, slugify((form && form.title) || ''), false);
           return;
         }
-        
-        if (!hasFolder) {
-          setStatus('Please assign a folder before making the form visible');
-          setFolderAssignmentTarget(id);
+
+        if (!hasMinistries) {
+          setStatus('Please assign ministries before making the form visible');
+          setAssignmentTarget({ formIds: [id], selected: new Set() });
           return;
         }
       }
@@ -528,7 +531,7 @@ const ManageForms = () => {
     try {
       setStatus('Overriding form...');
       await api.delete(`/v1/forms/${duplicateNameDialog.formId}`);
-      await api.put(`/v1/forms/${duplicateNameDialog.existingId}`, { 
+      await api.put(`/v1/forms/${duplicateNameDialog.existingId}`, {
         title: duplicateNameDialog.newTitle
       });
       setAllForms((prev) => prev.filter((f) => f.id !== duplicateNameDialog.formId));
@@ -536,11 +539,11 @@ const ManageForms = () => {
         f.id === duplicateNameDialog.existingId ? { ...f, title: duplicateNameDialog.newTitle } : f
       ));
       await refreshFormsAndFolders();
-      
+
       setDuplicateNameDialog(null);
       setRenameTarget(null);
       setStatus('Form overridden successfully');
-      
+
       setTimeout(() => setStatus(null), 3000);
     } catch (e) {
       console.error('Override failed', e);
@@ -548,94 +551,46 @@ const ManageForms = () => {
     }
   };
 
-  const handleMove = async () => {
-    if (!moveTargetIds || !moveToFolderId) return;
+  const handleAssignMinistries = async () => {
+    if (!assignmentTarget || assignmentTarget.selected.size === 0) return;
     try {
-  await Promise.all(moveTargetIds.map((id) => api.put(`/v1/forms/${id}`, { folder: moveToFolderId })));
-  setAllForms((prev) => prev.map((f) => (moveTargetIds.includes(f.id) ? { ...f, folder: moveToFolderId } : f)));
-  await refreshFormsAndFolders();
-      setMoveTargetIds(null);
-      setMoveToFolderId('');
-    } catch (e) {
-      console.error('Move failed', e);
-      setStatus('Move failed');
-    }
-  };
-
-  const handleDeleteFolder = async (folder: { _id: string; name: string }, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setFolderToDelete(folder);
-  };
-
-  const confirmDeleteFolder = async () => {
-    if (!folderToDelete) return;
-
-    try {
-      // Delete the folder
-      await api.delete(`/v1/forms/folders/${folderToDelete._id}`);
-
-      // Update forms that had this folder: make them invisible and remove folder assignment
-      const affectedFormIds = allForms
-        .filter((f) => f.folder === folderToDelete._id)
-        .map((f) => f.id);
-
-      if (affectedFormIds.length > 0) {
-        await Promise.all(
-          affectedFormIds.map((id) =>
-            api.put(`/v1/forms/${id}`, { folder: null, visible: false })
-          )
-        );
-      }
-
-      // Update local state
-      setAllForms((prev) =>
-        prev.map((f) =>
-          f.folder === folderToDelete._id ? { ...f, folder: null, visible: false } : f
+      const selectedArray = Array.from(assignmentTarget.selected);
+      await Promise.all(
+        assignmentTarget.formIds.map((id) =>
+          api.put(`/v1/forms/${id}`, { ministries: selectedArray })
         )
       );
-
-      // Reset search folder if it was the deleted one
-      if (searchFolder === folderToDelete._id) {
-        setSearchFolder('all');
-      }
-
-  // Refresh forms and folders BEFORE closing dialog
-  await refreshFormsAndFolders();
-
-      setStatus(`Folder "${folderToDelete.name}" deleted. ${affectedFormIds.length} form(s) made invisible.`);
-      setTimeout(() => setStatus(null), 5000);
-    } catch (error) {
-      console.error('Failed to delete folder:', error);
-      setStatus('Failed to delete folder');
-    } finally {
-      setFolderToDelete(null);
-    }
-  };
-
-  const openFolderAssignment = async (formId: string) => {
-    setFolderAssignmentTarget(formId);
-    setAssignToFolderId('');
-    // Refresh folders list to ensure we show the latest
-    await fetchFolders();
-  };
-
-  const handleAssignFolder = async () => {
-    if (!folderAssignmentTarget || !assignToFolderId) return;
-
-    try {
-      await api.put(`/v1/forms/${folderAssignmentTarget}`, { folder: assignToFolderId });
       setAllForms((prev) =>
-        prev.map((f) => (f.id === folderAssignmentTarget ? { ...f, folder: assignToFolderId } : f))
+        prev.map((f) =>
+          assignmentTarget.formIds.includes(f.id) ? { ...f, ministries: selectedArray } : f
+        )
       );
       await refreshFormsAndFolders();
-      setFolderAssignmentTarget(null);
-      setAssignToFolderId('');
-      setStatus('Folder assigned successfully');
+      setAssignmentTarget(null);
+      setStatus('Ministries assigned successfully');
       setTimeout(() => setStatus(null), 3000);
     } catch (e) {
-      console.error('Failed to assign folder', e);
-      setStatus('Failed to assign folder');
+      console.error('Failed to assign ministries', e);
+      setStatus('Failed to assign ministries');
     }
+  };
+
+  const openMinistryAssignment = (formIds: string[], currentMinistries: string[] = []) => {
+    setAssignmentTarget({
+      formIds,
+      selected: new Set(currentMinistries),
+    });
+  };
+
+  const toggleMinistry = (ministryId: string) => {
+    if (!assignmentTarget) return;
+    const newSelected = new Set(assignmentTarget.selected);
+    if (newSelected.has(ministryId)) {
+      newSelected.delete(ministryId);
+    } else {
+      newSelected.add(ministryId);
+    }
+    setAssignmentTarget({ ...assignmentTarget, selected: newSelected });
   };
 
   return (
@@ -661,53 +616,25 @@ const ManageForms = () => {
             onChange={(e) => setSearchName(e.target.value)}
             className="w-64 h-9 bg-background"
           />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-56 h-9 bg-background justify-between">
-                <span className="truncate">
-                  {searchFolder === 'all' 
-                    ? 'All folders' 
-                    : folders.find(f => f._id === searchFolder)?.name || 'Filter by folder'}
-                </span>
-                <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem
-                onClick={() => setSearchFolder('all')}
-                className={searchFolder === 'all' ? 'bg-accent' : ''}
-              >
-                All folders
-              </DropdownMenuItem>
-              {folders.length > 0 && <DropdownMenuSeparator />}
-              {folders.map((f) => (
-                <DropdownMenuItem
-                  key={f._id}
-                  onClick={() => setSearchFolder(f._id)}
-                  className={`flex justify-between items-center p-2 ${searchFolder === f._id ? 'bg-accent' : ''}`}
-                >
-                  <span className="flex-1 truncate">{f.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => handleDeleteFolder(f, e)}
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 ml-2 flex-shrink-0"
-                    title={`Delete folder "${f.name}"`}
-                  >
-                    <Trash className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuItem>
+          <Select value={searchMinistry} onValueChange={(v) => setSearchMinistry(v)}>
+            <SelectTrigger className="w-56 h-9 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All ministries</SelectItem>
+              {availableMinistries.length > 0 && availableMinistries.map((m: any) => (
+                <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
               ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             className="h-9"
-            onClick={() => { setSearchName(''); setSearchFolder('all'); refreshFormsAndFolders(); }}
+            onClick={() => { setSearchName(''); setSearchMinistry('all'); refreshFormsAndFolders(); }}
           >
             Clear
           </Button>
-          {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}    
+          {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}
         </div>
         {/* Bulk actions */}
         {selectedRows.length > 0 && (
@@ -715,7 +642,7 @@ const ManageForms = () => {
             <div className="text-sm">{selectedRows.length} selected</div>
             <div className="flex items-center gap-2">
               <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteIds(selectedRows.map(row => row.id))}><Trash className="h-4 w-4 mr-1" /> Delete</Button>
-              <Button size="sm" variant="outline" onClick={() => setMoveTargetIds(selectedRows.map(row => row.id))}><MoveRight className="h-4 w-4 mr-1" /> Move to...</Button>
+              <Button size="sm" variant="outline" onClick={() => setAssignmentTarget({ formIds: selectedRows.map(row => row.id), selected: new Set() })}><FileEdit className="h-4 w-4 mr-1" /> Assign ministries</Button>
               <Button size="sm" variant="outline" onClick={async () => { for (const row of selectedRows) await handleExport(row.id); }}><Download className="h-4 w-4 mr-1" /> Export</Button>
             </div>
           </div>
@@ -750,7 +677,6 @@ const ManageForms = () => {
                 setSelectedRows(selectedNodes.map(node => node.data));
               }}
               context={{
-                folders,
                 openCreateSlug,
                 handleRemoveSlug,
                 navigate,
@@ -758,12 +684,11 @@ const ManageForms = () => {
                 handleExport,
                 handleExportCsv,
                 setRenameTarget,
-                setMoveTargetIds,
-                setMoveToFolderId: () => setMoveToFolderId(''),
                 setConfirmDeleteIds,
                 handleToggleVisible,
                 slugify,
-                openFolderAssignment,
+                setAssignmentTarget,
+                openMinistryAssignment,
               }}
               pagination={true}
               paginationPageSizeSelector={[10, 20, 50]}
@@ -847,86 +772,32 @@ const ManageForms = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Move dialog */}
-      <Dialog open={!!moveTargetIds} onOpenChange={(open) => { if (!open) { setMoveTargetIds(null); setMoveToFolderId(''); } }}>
+      {/* Ministry assignment dialog */}
+      <Dialog open={!!assignmentTarget} onOpenChange={(open) => { if (!open) setAssignmentTarget(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Move {moveTargetIds && moveTargetIds.length > 1 ? `${moveTargetIds.length} forms` : 'form'} to folder</DialogTitle>
+            <DialogTitle>Assign ministries to {assignmentTarget?.formIds.length === 1 ? 'form' : `${assignmentTarget?.formIds.length} forms`}</DialogTitle>
           </DialogHeader>
-          {folders.length > 0 ? (
-            <Select value={moveToFolderId} onValueChange={(v) => setMoveToFolderId(v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose folder" />
-              </SelectTrigger>
-              <SelectContent>
-                {folders.map((f) => (
-                  <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-sm text-muted-foreground">No folders created</div>
-          )}
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {availableMinistries.length > 0 ? (
+              availableMinistries.map((m: any) => (
+                <div key={m.id} className="flex items-center gap-2">
+                  <Checkbox
+                    checked={assignmentTarget?.selected.has(m.name) ?? false}
+                    onCheckedChange={() => toggleMinistry(m.name)}
+                  />
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    {m.name}
+                  </label>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">No ministries available. Create one from Admin &gt; Ministries first.</div>
+            )}
+          </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setMoveTargetIds(null); setMoveToFolderId(''); }}>Cancel</Button>
-            <Button disabled={!moveToFolderId} onClick={handleMove}>Move</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Folder deletion confirmation dialog */}
-      <AlertDialog open={!!folderToDelete} onOpenChange={(open) => { if (!open) setFolderToDelete(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete folder "{folderToDelete?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <div className="space-y-2">
-                <p>This action cannot be undone. This will:</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li>Permanently delete the folder</li>
-                  <li>Make all forms in this folder <strong>invisible</strong></li>
-                  <li>Remove folder assignment from affected forms</li>
-                </ul>
-                <p className="text-amber-600 dark:text-amber-500 font-medium mt-2">
-                  Forms will need to be reassigned to a folder before they can be made visible again.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setFolderToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteFolder} className="bg-red-600 hover:bg-red-700">
-              Delete Folder
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Folder assignment dialog */}
-      <Dialog open={!!folderAssignmentTarget} onOpenChange={(open) => { if (!open) { setFolderAssignmentTarget(null); setAssignToFolderId(''); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign folder to form</DialogTitle>
-          </DialogHeader>
-          {folders.length > 0 ? (
-            <Select value={assignToFolderId} onValueChange={(v) => setAssignToFolderId(v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose folder" />
-              </SelectTrigger>
-              <SelectContent>
-                {folders.map((f) => (
-                  <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              No folders available. Create a folder first from the Folders tab.
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => { setFolderAssignmentTarget(null); setAssignToFolderId(''); }}>Cancel</Button>
-            <Button disabled={!assignToFolderId} onClick={handleAssignFolder}>Assign</Button>
+            <Button variant="ghost" onClick={() => setAssignmentTarget(null)}>Cancel</Button>
+            <Button disabled={!assignmentTarget || assignmentTarget.selected.size === 0} onClick={handleAssignMinistries}>Assign</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

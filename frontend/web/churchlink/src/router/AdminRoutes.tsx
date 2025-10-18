@@ -3,8 +3,6 @@ import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
 import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
-import Settings from "../features/admin/pages/Settings";
-
 
 // Lazy load admin components
 const AdminDashboard = lazy(() => import("../features/admin/pages/AdminDashboard"));
@@ -26,6 +24,7 @@ const ManageBiblePlans = lazy(() => import("../features/admin/pages/ManageBibleP
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
+const Ministries = lazy(() => import("../features/admin/pages/Ministries"));
 
 const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
 const MediaLibrary = lazy(() => import("../features/admin/pages/MediaLibrary"));
@@ -40,13 +39,13 @@ export const AdminRoutes = () => {
         <Route path="/users/membership-requests" element={<MembershipRequests />} />
         <Route path="/permissions" element={<Permissions />} />
         <Route path="/notifications" element={<Notification />} />
+        <Route path="/ministries" element={<Ministries />} />
         <Route path="/events" element={<Events />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/sermons" element={<Sermons />} />
         <Route path="/bible-plans/manage-plans" element={<ManageBiblePlans />} />
         <Route path="/bible-plans/plan-builder" element={<BiblePlanBuilder />} />
         <Route path="/bulletins" element={<Bulletins />} />
-        <Route path="/settings" element={<Settings />} />
         <Route path="/mobile-ui-tab" element={<MobileUITab />} />
         <Route path="forms/form-builder" element={<FormBuilder />} />
         <Route path="forms/manage-forms" element={<ManageForms />} />

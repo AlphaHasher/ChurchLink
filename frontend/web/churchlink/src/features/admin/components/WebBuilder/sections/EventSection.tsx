@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat } from "lucide-react";
 import api from "@/api/api";
-import { getPublicUrl, getThumbnailUrl } from "@/helpers/MediaInteraction";
+// import { getPublicUrl, getThumbnailUrl } from "@/helpers/MediaInteraction";
+import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
