@@ -74,10 +74,11 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
     if (slug) {
       try {
         setSubmitState('submitting');
+        setSubmitMessage('Submitting...');
         await api.post(`/v1/forms/slug/${slug}/responses`, data);
         setSubmitState('success');
-        setSubmitMessage('Thank you for your submission!');
-        navigate('/forms/thank-you');
+        setSubmitMessage('Thanks for your response! We have received it.');
+        form.reset();
       } catch (err: any) {
         console.error('Submit failed', err);
         const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Submit failed';
