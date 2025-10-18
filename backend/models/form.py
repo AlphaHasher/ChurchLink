@@ -9,6 +9,11 @@ from bson import ObjectId
 
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
+from models.ministry import (
+    canonicalize_ministry_names,
+    MinistryNotFoundError,
+    resolve_ministry_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +66,7 @@ def _validate_form_width(v: Optional[str]) -> Optional[str]:
 
 class FormBase(BaseModel):
     title: str = Field(...)
-    folder: Optional[str] = Field(None)
+    ministries: List[str] = Field(default_factory=list)
     description: Optional[str] = Field(None)
     visible: bool = Field(True)
     slug: Optional[str] = Field(None)
@@ -71,6 +76,23 @@ class FormBase(BaseModel):
     @field_validator("form_width", mode="before")
     def validate_form_width(cls, v):
         return _validate_form_width(v)
+
+    @field_validator("ministries", mode="before")
+    def validate_ministries(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            value = [value]
+        if isinstance(value, (list, tuple, set)):
+            cleaned: List[str] = []
+            for item in value:
+                if item is None:
+                    continue
+                cleaned_value = " ".join(str(item).split()).strip()
+                if cleaned_value:
+                    cleaned.append(cleaned_value)
+            return cleaned
+        raise ValueError("Ministries must be provided as a list of names")
 
 
 class FormCreate(FormBase):
@@ -87,7 +109,7 @@ class FormCreate(FormBase):
 
 class FormUpdate(BaseModel):
     title: Optional[str] = None
-    folder: Optional[str] = None
+    ministries: Optional[List[str]] = None
     description: Optional[str] = None
     visible: Optional[bool] = None
     slug: Optional[str] = None
@@ -107,6 +129,23 @@ class FormUpdate(BaseModel):
     def validate_form_width_update(cls, v):
         return _validate_form_width(v)
 
+    @field_validator("ministries", mode="before")
+    def validate_update_ministries(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = [value]
+        if isinstance(value, (list, tuple, set)):
+            cleaned: List[str] = []
+            for item in value:
+                if item is None:
+                    continue
+                cleaned_value = " ".join(str(item).split()).strip()
+                if cleaned_value:
+                    cleaned.append(cleaned_value)
+            return cleaned
+        raise ValueError("Ministries must be provided as a list of names")
+
 
 class Form(MongoBaseModel, FormBase):
     user_id: str
@@ -119,8 +158,7 @@ class Form(MongoBaseModel, FormBase):
 class FormOut(BaseModel):
     id: str
     title: str
-    folder: Optional[str]
-    folder_name: Optional[str] = None
+    ministries: List[str]
     description: Optional[str]
     user_id: str
     visible: bool
@@ -137,14 +175,24 @@ def _doc_to_out(doc: dict) -> FormOut:
         normalized_width = _normalize_form_width_value(doc.get("form_width"))
     except ValueError:
         normalized_width = None
-    folder_value = doc.get("folder")
-    if isinstance(folder_value, ObjectId):
-        folder_value = str(folder_value)
+    raw_ministries = doc.get("ministries") or []
+    if isinstance(raw_ministries, ObjectId):
+        ministries = [str(raw_ministries)]
+    elif isinstance(raw_ministries, str):
+        ministries = [raw_ministries]
+    elif isinstance(raw_ministries, list):
+        ministries = []
+        for item in raw_ministries:
+            if isinstance(item, ObjectId):
+                ministries.append(str(item))
+            elif item is not None:
+                ministries.append(str(item))
+    else:
+        ministries = []
     return FormOut(
         id=str(doc.get("_id")),
         title=doc.get("title"),
-        folder=folder_value,
-        folder_name=doc.get("folder_name"),
+        ministries=ministries,
         description=doc.get("description"),
         slug=doc.get("slug"),
         user_id=doc.get("user_id"),
@@ -155,53 +203,6 @@ def _doc_to_out(doc: dict) -> FormOut:
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
     )
-
-
-def _normalize_folder_value(raw: Any) -> Optional[str]:
-    if raw is None:
-        return None
-    if isinstance(raw, ObjectId):
-        return str(raw)
-    if isinstance(raw, str):
-        cleaned = raw.strip()
-        return cleaned or None
-    return str(raw)
-
-
-async def _attach_folder_metadata(documents: List[dict]) -> List[dict]:
-    if not documents:
-        return documents
-
-    folder_ids: set[str] = set()
-    for doc in documents:
-        folder_value = _normalize_folder_value(doc.get("folder"))
-        doc["folder"] = folder_value
-        if folder_value:
-            folder_ids.add(folder_value)
-
-    object_ids: List[ObjectId] = []
-    for fid in folder_ids:
-        try:
-            object_ids.append(ObjectId(fid))
-        except Exception:
-            continue
-
-    folder_name_map: Dict[str, Optional[str]] = {}
-    if object_ids:
-        cursor = DB.db.form_folders.find({"_id": {"$in": object_ids}})
-        folder_docs = await cursor.to_list(length=None)
-        for folder_doc in folder_docs:
-            folder_name_map[str(folder_doc.get("_id"))] = folder_doc.get("name")
-
-    for doc in documents:
-        folder_value = doc.get("folder")
-        if folder_value:
-            folder_name = folder_name_map.get(folder_value) or folder_value
-        else:
-            folder_name = None
-        doc["folder_name"] = folder_name
-
-    return documents
 
 
 ############################
@@ -221,9 +222,15 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
                 # fallback to the original value
                 expires_val = getattr(form, 'expires_at', None)
 
+        try:
+            ministries_list = await canonicalize_ministry_names(getattr(form, "ministries", []))
+        except MinistryNotFoundError as exc:
+            logger.warning("Form creation failed: %s", exc)
+            return None
+
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
-            "folder": form.folder,
+            "ministries": ministries_list,
             "description": form.description,
             "slug": form.slug,
             "user_id": user_id,
@@ -249,7 +256,6 @@ async def list_forms(user_id: str, skip: int = 0, limit: int = 100) -> List[Form
     try:
         cursor = DB.db.forms.find({"user_id": user_id}).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
-        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error listing forms: {e}")
@@ -260,52 +266,45 @@ async def list_all_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
         cursor = DB.db.forms.find({}).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
-        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error listing all forms: {e}")
         return []
 
 
-async def search_forms(user_id: str, name: Optional[str] = None, folder: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
+async def search_forms(user_id: str, name: Optional[str] = None, ministry: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
         query: dict = {"user_id": user_id}
         if name:
             # case-insensitive partial match on title
             query["title"] = {"$regex": name, "$options": "i"}
-        if folder:
-            folder_values = [folder]
-            try:
-                folder_values.append(ObjectId(folder))
-            except Exception:
-                pass
-            query["folder"] = {"$in": folder_values}
+        if ministry:
+            resolved = await resolve_ministry_name(ministry)
+            if resolved is None:
+                return []
+            query["ministries"] = resolved
 
         cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
-        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error searching forms: {e}")
         return []
 
 
-async def search_all_forms(name: Optional[str] = None, folder: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
+async def search_all_forms(name: Optional[str] = None, ministry: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
         query: dict = {}
         if name:
             query["title"] = {"$regex": name, "$options": "i"}
-        if folder:
-            folder_values = [folder]
-            try:
-                folder_values.append(ObjectId(folder))
-            except Exception:
-                pass
-            query["folder"] = {"$in": folder_values}
+        if ministry:
+            resolved = await resolve_ministry_name(ministry)
+            if resolved is None:
+                return []
+            query["ministries"] = resolved
 
         cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
         docs = await cursor.to_list(length=limit)
-        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error searching all forms: {e}")
@@ -322,7 +321,6 @@ async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
             .sort([("created_at", -1)])
         )
         docs = await cursor.to_list(length=limit)
-        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error listing visible forms: {e}")
@@ -331,7 +329,7 @@ async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
 
 async def search_visible_forms(
     name: Optional[str] = None,
-    folder: Optional[str] = None,
+    ministry: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
 ) -> List[FormOut]:
@@ -340,13 +338,11 @@ async def search_visible_forms(
         query: dict = {"visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]}
         if name:
             query["title"] = {"$regex": name, "$options": "i"}
-        if folder:
-            folder_values = [folder]
-            try:
-                folder_values.append(ObjectId(folder))
-            except Exception:
-                pass
-            query["folder"] = {"$in": folder_values}
+        if ministry:
+            resolved = await resolve_ministry_name(ministry)
+            if resolved is None:
+                return []
+            query["ministries"] = resolved
 
         cursor = (
             DB.db.forms.find(query)
@@ -355,63 +351,10 @@ async def search_visible_forms(
             .sort([("created_at", -1)])
         )
         docs = await cursor.to_list(length=limit)
-        docs = await _attach_folder_metadata(docs)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
         logger.error(f"Error searching visible forms: {e}")
         return []
-
-
-###########################
-# Folder management
-###########################
-
-
-async def create_folder(user_id: str, name: str) -> Optional[dict]:
-    try:
-        # Prevent duplicate folder names for the same user (case-insensitive)
-        existing = await DB.db.form_folders.find_one({"user_id": user_id, "name": {"$regex": f"^{name}$", "$options": "i"}})
-        if existing:
-            return None
-
-        doc = {"user_id": user_id, "name": name, "created_at": datetime.now()}
-        result = await DB.db.form_folders.insert_one(doc)
-        if result.inserted_id:
-            created = await DB.db.form_folders.find_one({"_id": result.inserted_id})
-            if created:
-                return {"_id": str(created.get("_id")), "name": created.get("name"), "created_at": created.get("created_at")}
-        return None
-    except Exception as e:
-        logger.error(f"Error creating folder: {e}")
-        return None
-
-
-async def list_folders(user_id: str) -> List[dict]:
-    try:
-        cursor = DB.db.form_folders.find({"user_id": user_id}).sort([("created_at", -1)])
-        docs = await cursor.to_list(length=None)
-        # Convert ObjectId to string for JSON serialization
-        out = []
-        for d in docs:
-            out.append({"_id": str(d.get("_id")), "name": d.get("name"), "created_at": d.get("created_at")})
-        return out
-    except Exception as e:
-        logger.error(f"Error listing folders: {e}")
-        return []
-
-
-async def delete_folder(user_id: str, folder_id: str) -> bool:
-    try:
-        try:
-            folder_obj_id = ObjectId(folder_id)
-        except Exception:
-            return False
-
-        result = await DB.db.form_folders.delete_one({"_id": folder_obj_id, "user_id": user_id})
-        return result.deleted_count > 0
-    except Exception as e:
-        logger.error(f"Error deleting folder: {e}")
-        return False
 
 
 async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
@@ -419,8 +362,7 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "user_id": user_id})
         if not doc:
             return None
-        annotated = await _attach_folder_metadata([doc])
-        return _doc_to_out(annotated[0])
+        return _doc_to_out(doc)
     except Exception as e:
         logger.error(f"Error fetching form: {e}")
         return None
@@ -432,8 +374,7 @@ async def get_form_by_slug(slug: str) -> Optional[FormOut]:
         doc = await DB.db.forms.find_one({"slug": slug, "visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
         if not doc:
             return None
-        annotated = await _attach_folder_metadata([doc])
-        return _doc_to_out(annotated[0])
+        return _doc_to_out(doc)
     except Exception as e:
         logger.error(f"Error fetching form by slug: {e}")
         return None
@@ -480,8 +421,7 @@ async def get_form_by_id_unrestricted(form_id: str) -> Optional[FormOut]:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id)})
         if not doc:
             return None
-        annotated = await _attach_folder_metadata([doc])
-        return _doc_to_out(annotated[0])
+        return _doc_to_out(doc)
     except Exception as e:
         logger.error(f"Error fetching form by id: {e}")
         return None
@@ -493,46 +433,10 @@ async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
         doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
         if not doc:
             return None
-        annotated = await _attach_folder_metadata([doc])
-        return _doc_to_out(annotated[0])
+        return _doc_to_out(doc)
     except Exception as e:
         logger.error(f"Error fetching visible form by id: {e}")
         return None
-
-
-async def list_visible_folders() -> List[dict]:
-    try:
-        cursor = DB.db.form_folders.find({}).sort([("name", 1)])
-        docs = await cursor.to_list(length=None)
-        output: List[dict] = []
-        seen_ids: set[str] = set()
-
-        for doc in docs:
-            folder_id = str(doc.get("_id")) if doc.get("_id") else None
-            name = doc.get("name")
-            output.append({
-                "_id": folder_id,
-                "name": name,
-                "created_at": doc.get("created_at"),
-            })
-            if folder_id:
-                seen_ids.add(folder_id)
-
-        distinct_folders = await DB.db.forms.distinct(
-            "folder", {"folder": {"$exists": True, "$ne": None, "$ne": ""}}
-        )
-        for value in distinct_folders:
-            normalized = _normalize_folder_value(value)
-            if not normalized or normalized in seen_ids:
-                continue
-            output.append({"_id": normalized, "name": normalized, "created_at": None})
-            seen_ids.add(normalized)
-
-        output.sort(key=lambda item: (item.get("name") or "").lower())
-        return output
-    except Exception as e:
-        logger.error(f"Error listing visible folders: {e}")
-        return []
 
 
 def _get_schema_fields(schema_data: Any) -> List[dict]:
@@ -792,13 +696,21 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
                 except Exception:
                     pass
             update_doc["expires_at"] = expires_val
-        
+
         try:
             provided = update.model_dump(exclude_unset=True)
         except Exception:
             provided = {k: getattr(update, k) for k in update.__dict__.keys()}
-        if "folder" in provided:
-            update_doc["folder"] = provided.get("folder")
+        if "ministries" in provided:
+            ministries_value = provided.get("ministries")
+            if ministries_value is None:
+                update_doc["ministries"] = []
+            else:
+                try:
+                    update_doc["ministries"] = await canonicalize_ministry_names(ministries_value)
+                except MinistryNotFoundError as exc:
+                    logger.warning("Form update aborted: %s", exc)
+                    return None
         if "slug" in provided:
             update_doc["slug"] = provided.get("slug")
         if "form_width" in provided:

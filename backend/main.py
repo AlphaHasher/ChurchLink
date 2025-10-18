@@ -38,6 +38,7 @@ from routes.bible_routes.bible_plan_notification_routes import bible_notificatio
 
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
+from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
 from routes.common_routes.bulletin_routes import public_bulletin_router,bulletin_editing_router,public_service_router,service_bulletin_editing_router
 from routes.common_routes.notification_routes import private_notification_router, public_notification_router
@@ -45,6 +46,7 @@ from routes.common_routes.user_routes import user_mod_router, user_private_route
 from routes.common_routes.membership_routes import member_private_router, member_mod_router
 from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
+from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
@@ -199,6 +201,7 @@ public_router.include_router(public_event_router)
 public_router.include_router(public_sermon_router)
 public_router.include_router(public_bulletin_router)
 public_router.include_router(public_service_router)
+public_router.include_router(public_ministry_router)
 public_router.include_router(public_youtube_router)
 public_router.include_router(public_footer_router)
 public_router.include_router(public_header_router)
@@ -212,6 +215,7 @@ public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
+public_router.include_router(public_ministry_router)
 
 
 #####################################################
@@ -239,6 +243,7 @@ mod_router = ModProtectedRouter(prefix="/api/v1")
 
 mod_router.include_router(mod_bible_plan_router)
 mod_router.include_router(mod_forms_router)
+mod_router.include_router(mod_ministry_router)
 mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)
 mod_router.include_router(permissions_view_router)
@@ -247,6 +252,7 @@ mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
+mod_router.include_router(mod_ministry_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions

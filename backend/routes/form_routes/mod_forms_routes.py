@@ -7,9 +7,7 @@ from models.form import (
 	FormCreate,
 	FormOut,
 	FormUpdate,
-	create_folder,
 	create_form,
-	delete_folder,
 	delete_form,
 	delete_form_responses,
 	get_form_responses,
@@ -48,31 +46,6 @@ async def create_new_form(form: FormCreate, request: Request) -> FormOut:
 	if not created:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create form")
 	return created
-
-
-@mod_forms_router.post("/folders", status_code=status.HTTP_201_CREATED)
-async def create_new_folder(request: Request, name: str):
-	uid = request.state.uid
-	# Check for duplicate folder name (case-insensitive)
-	existing = await DB.db.form_folders.find_one(
-		{"user_id": uid, "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}}
-	)
-	if existing:
-		raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Folder already exists")
-
-	created = await create_folder(uid, name)
-	if not created:
-		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create folder")
-	return created
-
-
-@mod_forms_router.delete("/folders/{folder_id}")
-async def delete_user_folder(folder_id: str, request: Request):
-	uid = request.state.uid
-	ok = await delete_folder(uid, folder_id)
-	if not ok:
-		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
-	return {"message": "Folder deleted"}
 
 
 @mod_forms_router.put("/{form_id}", response_model=FormOut)

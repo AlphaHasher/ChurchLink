@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import {
     Dialog,
@@ -23,6 +23,7 @@ import { updateSermon, deleteSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { fetchMinistries } from "@/helpers/EventsHelper";
 
 interface EditSermonProps {
     sermon: ChurchSermon;
@@ -31,12 +32,19 @@ interface EditSermonProps {
 
 export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonProps) {
     const [sermon, setSermon] = useState<ChurchSermon>(initialSermon);
-    
+
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [ministries, setMinistries] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchMinistries().then(setMinistries)
+        }
+    }, [isOpen])
 
     const handleDialogClose = () => {
         setSermon(initialSermon);
@@ -142,16 +150,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
                             <EventMinistryDropdown
                                 selected={sermon.ministry ?? []}
                                 onChange={(next: string[]) => setSermon({ ...sermon, ministry: next })}
-                                ministries={[
-                                    "Youth",
-                                    "Children",
-                                    "Women",
-                                    "Men",
-                                    "Family",
-                                    "Worship",
-                                    "Outreach",
-                                    "Bible Study",
-                                ]}
+                                ministries={ministries}
                             />
                         </label>
 
