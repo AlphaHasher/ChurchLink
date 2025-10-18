@@ -206,12 +206,14 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
           <DropdownMenuContent align="end">
             <Button
               variant="secondary"
-              onClick={handleHideAllPermissions}
+              className="hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-border"
+              onClick={handleShowAllPermissions}  
             >
               Hide All Permissions
             </Button>
             <Button
               variant="secondary"
+              className="hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-border"
               onClick={handleShowAllPermissions}
             >
               Show All Permissions
