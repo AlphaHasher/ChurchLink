@@ -73,10 +73,14 @@ def _guard_folder_target(path_rel: str) -> str:
     return rel
 
 def _public_url_for(id_str: str) -> str:
-    return f"/api/v1/assets/public/id/{id_str}"
+    base = os.getenv("BACKEND_URL", "").rstrip('/')
+    path = f"/api/v1/assets/public/id/{id_str}"
+    return f"{base}{path}" if base else path
 
 def _thumb_url_for(id_str: str) -> str:
-    return f"/api/v1/assets/public/id/{id_str}?thumbnail=true"
+    base = os.getenv("BACKEND_URL", "").rstrip('/')
+    path = f"/api/v1/assets/public/id/{id_str}?thumbnail=true"
+    return f"{base}{path}" if base else path
 
 def _serialize_doc(doc: Dict[str, Any]) -> ImageResponse:
     _id = str(doc["_id"])
