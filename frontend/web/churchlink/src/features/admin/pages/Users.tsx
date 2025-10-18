@@ -154,6 +154,12 @@ const Users = () => {
     [logicalUsers, perms]
   );
 
+  // Count admin users
+  const adminCount = useMemo(
+    () => users.filter((u) => u.permissions?.includes("Administrator")).length,
+    [users]
+  );
+
   // ------- handlers -------
   const handleBaseSortChange = (field: string, dir: SortDir) => {
     const map: Record<string, SortBy> = { name: "name", email: "email", uid: "uid" };
@@ -216,6 +222,7 @@ const Users = () => {
         total={totalUsers}
         permData={perms}
         loading={usersLoading || permsLoading}
+        adminCount={adminCount}
         page={page}
         pageSize={pageSize}
         onPageChange={(p) => setPage(p)}
