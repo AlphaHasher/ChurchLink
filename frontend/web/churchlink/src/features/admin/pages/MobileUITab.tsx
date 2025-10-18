@@ -461,9 +461,9 @@ const MobileUITab = () => {
         )}
       </div>
       {/* Future Settings Sections */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-card text-card-foreground border border-border rounded-lg shadow-sm p-6">
         <h2 className="text-xl font-semibold mb-4">Other Settings</h2>
-        <p className="text-gray-600">Additional settings can be added here in the future.</p>
+        <p className="text-muted-foreground">Additional settings can be added here in the future.</p>
       </div>
     </div>
   );
