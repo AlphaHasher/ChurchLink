@@ -199,19 +199,19 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-4">
+            <Button variant="secondary" className="ml-4">
               Permission Focus <ChevronDown />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={handleHideAllPermissions}
             >
               Hide All Permissions
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={handleShowAllPermissions}
             >
               Show All Permissions
