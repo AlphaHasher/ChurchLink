@@ -78,7 +78,6 @@ class UserHandler:
     def create_person_schema(first_name: str, last_name: str, gender: str, date_of_birth):
         """
         date_of_birth: a datetime (or date) object you pass in.
-        gender: consider normalizing/validating to an allowed set, e.g. {"male","female","nonbinary","unspecified"}.
         """
         return {
             "_id": ObjectId(),       # local id for this embedded person
@@ -436,7 +435,7 @@ class UserHandler:
         return await DB.update_document("users", filterQuery, updateData)
 
     @staticmethod
-    async def update_roles(uid, roles, strapiSyncFunction):
+    async def update_roles(uid, roles):
         if not await UserHandler.is_user(uid):
             print(f"User with this uid does not exist: {uid}")
             return False
@@ -445,7 +444,6 @@ class UserHandler:
             await DB.update_document("users", {"uid": uid}, {
                     "roles": roles
             })
-            return await strapiSyncFunction(uid)
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False
@@ -454,7 +452,7 @@ class UserHandler:
     async def update_person(uid: str, person_id: ObjectId, updates: dict):
         """
         Updates specific fields on an embedded Person by _id.
-        Example 'updates': {"first_name": "New", "gender": "nonbinary"}
+        Example 'updates': {"first_name": "New", "gender": "M"}
         """
         # Build a $set mapping like {"people.$[p].first_name": "New", ...}
         set_fields = {f"people.$[p].{k}": v for k, v in updates.items()}

@@ -29,7 +29,7 @@ const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
 
 const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
-const MediaLibrary = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/MediaLibrary"));
+const MediaLibrary = lazy(() => import("../features/admin/pages/MediaLibrary"));
 
 export const AdminRoutes = () => {
   return (
@@ -57,7 +57,7 @@ export const AdminRoutes = () => {
         <Route path="webbuilder/preview/:slug" element={<AdminPagePreview />} />
         <Route path="webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
         <Route path="webbuilder/footer" element={<WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>} />
-        <Route path="webbuilder/media" element={<MediaLibrary />} />
+        <Route path="/media-library" element={<MediaLibrary />} />
       </Route>
     </Routes>
   );

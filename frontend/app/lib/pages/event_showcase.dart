@@ -13,6 +13,8 @@ import '../widgets/bulk_event_registration_widget.dart';
 import '../pages/payment_success_page.dart';
 import 'user/family_members_page.dart';
 import '../helpers/asset_helper.dart'; 
+import 'event_registration_page.dart';
+import '../helpers/asset_helper.dart';
 
 class EventShowcase extends StatefulWidget {
   final Event event;
@@ -439,9 +441,9 @@ class _EventShowcaseState extends State<EventShowcase> {
       );
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Removed from My Events')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Removed from My Events')));
         await _checkMyEventsStatus();
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -510,8 +512,6 @@ class _EventShowcaseState extends State<EventShowcase> {
       }
     }
   }
-
-
 
   Future<void> _handleUnregistration(
     String registrantId,
@@ -822,6 +822,22 @@ class _EventShowcaseState extends State<EventShowcase> {
         );
       },
     );
+      });
+  
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => EventRegistrationPage(
+              event: widget.event,
+              isUpdate: _registrationSummary!.userRegistrations.isNotEmpty,
+              existingRegistrations: _registrationSummary?.userRegistrations,
+            ),
+      ),
+    ).then((result) {
+      if (result == true) {
+        _loadInitialData();
+      }
     });
   }
 
@@ -840,11 +856,7 @@ class _EventShowcaseState extends State<EventShowcase> {
           children: [
             const Text(
               'Registration Status',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
@@ -877,8 +889,14 @@ class _EventShowcaseState extends State<EventShowcase> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total Registered:'),
-              Text('${_registrationSummary!.totalRegistrations}'),
+              Text(
+                'Total Registered:',
+                style: tt.labelLarge?.copyWith(color: cs.onPrimary),
+              ),
+              Text(
+                '${_registrationSummary!.totalRegistrations}',
+                style: tt.labelLarge?.copyWith(color: cs.onPrimary),
+              ),
             ],
           ),
         ],
@@ -908,7 +926,8 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildUserRegistrationTile(RegistrationEntry registration) {
-    final scopeLabel = registration.scope == 'series' ? 'Recurring' : 'One-time';
+    final scopeLabel =
+        registration.scope == 'series' ? 'Recurring' : 'One-time';
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
@@ -919,11 +938,7 @@ class _EventShowcaseState extends State<EventShowcase> {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.person,
-            color: Colors.white,
-            size: 20,
-          ),
+          const Icon(Icons.person, color: Colors.white, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -940,7 +955,10 @@ class _EventShowcaseState extends State<EventShowcase> {
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.25),
                         borderRadius: BorderRadius.circular(4),
@@ -958,10 +976,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                 ),
                 Text(
                   'Registered ${_formatRegistrationDate(registration.registeredOn)}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.white,
-                  ),
+                  style: const TextStyle(fontSize: 11, color: Colors.white),
                 ),
               ],
             ),
@@ -1409,9 +1424,10 @@ class _EventShowcaseState extends State<EventShowcase> {
 
   Widget _buildHeroImage() {
     final cs = Theme.of(context).colorScheme;
-    final imageUrl = widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
-        ? AssetHelper.getAssetUrl(widget.event.imageUrl!)
-        : null;
+    final imageUrl =
+        widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
+            ? AssetHelper.getPublicUrl(widget.event.imageUrl!)
+            : null;
 
     return SizedBox(
       height: 250,
@@ -1474,6 +1490,9 @@ class _EventShowcaseState extends State<EventShowcase> {
               ),
             ),
           ),
+          _buildEventThumb(),
+          // Action buttons positioned in bottom right
+          Positioned(bottom: 16, right: 16, child: _buildActionButtons()),
         ],
       ),
     );
@@ -1494,7 +1513,10 @@ class _EventShowcaseState extends State<EventShowcase> {
           );
         },
         icon: const Icon(Icons.login, size: 18),
-        label: const Text('Log In', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Log In',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color.fromARGB(255, 142, 163, 168),
           foregroundColor: Colors.white,
@@ -1563,7 +1585,9 @@ class _EventShowcaseState extends State<EventShowcase> {
         height: 40,
         child: CircularProgressIndicator(
           strokeWidth: 3,
-          valueColor: AlwaysStoppedAnimation<Color>(Color.fromARGB(255, 142, 163, 168)),
+          valueColor: AlwaysStoppedAnimation<Color>(
+            Color.fromARGB(255, 142, 163, 168),
+          ),
         ),
       );
     }
@@ -1581,7 +1605,10 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: cs.secondary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1591,7 +1618,10 @@ class _EventShowcaseState extends State<EventShowcase> {
                 _myEventsScope == 'occurrence'
                     ? 'Switch to Recurring'
                     : 'Switch to One Time',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1600,7 +1630,10 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: cs.error,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1622,7 +1655,10 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 142, 163, 168),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1639,7 +1675,10 @@ class _EventShowcaseState extends State<EventShowcase> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 142, 163, 168),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1661,7 +1700,9 @@ class _EventShowcaseState extends State<EventShowcase> {
             backgroundColor: cs.error,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             elevation: 4,
           ),
           child: const Text(
@@ -1676,7 +1717,9 @@ class _EventShowcaseState extends State<EventShowcase> {
             backgroundColor: const Color.fromARGB(255, 142, 163, 168),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             elevation: 4,
           ),
           child: const Text(
@@ -1699,17 +1742,40 @@ class _EventShowcaseState extends State<EventShowcase> {
     );
   }
 
+  Widget _buildEventThumb() {
+    final imageUrl =
+        widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
+            ? AssetHelper.getPublicUrl(widget.event.imageUrl!)
+            : null;
+
+    if (imageUrl == null) {
+      return _buildImagePlaceholder();
+    } else {
+      return SizedBox.expand(
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          // While loading, show the placeholder (keeps the card pretty)
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildImagePlaceholder();
+          },
+          // On error (404, invalid URL, etc.), show the placeholder
+          errorBuilder: (context, error, stackTrace) {
+            return _buildImagePlaceholder();
+          },
+        ),
+      );
+    }
+  }
+
   Widget _buildEventHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.event.name,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         if (widget.event.ruName != null && widget.event.ruName!.isNotEmpty) ...[
           const SizedBox(height: 4),
@@ -1785,10 +1851,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(fontSize: 16, color: Colors.black87),
-              ),
+              Text(value, style: const TextStyle(fontSize: 16)),
             ],
           ),
         ),
@@ -1821,10 +1884,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(fontSize: 16, color: Colors.black87),
-              ),
+              Text(value, style: const TextStyle(fontSize: 16)),
             ],
           ),
         ),
@@ -1842,20 +1902,12 @@ class _EventShowcaseState extends State<EventShowcase> {
           children: [
             const Text(
               'Description',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               widget.event.description,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black87,
-                height: 1.4,
-              ),
+              style: const TextStyle(fontSize: 16, height: 1.4),
             ),
             if (widget.event.ruDescription != null &&
                 widget.event.ruDescription!.isNotEmpty) ...[
@@ -1910,11 +1962,7 @@ class _EventShowcaseState extends State<EventShowcase> {
           children: [
             const Text(
               'Event Requirements',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             ...specs.map(
@@ -1922,19 +1970,9 @@ class _EventShowcaseState extends State<EventShowcase> {
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.check_circle,
-                      size: 16,
-                      color: Color.fromARGB(255, 142, 163, 168),
-                    ),
+                    Icon(Icons.check_circle, size: 16, color: cs.primary),
                     const SizedBox(width: 8),
-                    Text(
-                      spec,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.black87,
-                      ),
-                    ),
+                    Text(spec, style: const TextStyle(fontSize: 16)),
                   ],
                 ),
               ),

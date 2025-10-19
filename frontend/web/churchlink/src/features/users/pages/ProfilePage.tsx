@@ -137,7 +137,7 @@ const ProfilePage: React.FC = () => {
                         </motion.div>
                     </div>
 
-                    <TabsContent value="profile">
+                    <TabsContent value="profile" className="min-h-[60vh]">
                         <motion.div
                             className="flex flex-col items-center gap-6 lg:flex-row lg:items-start"
                             initial={{ opacity: 0 }}
@@ -170,7 +170,7 @@ const ProfilePage: React.FC = () => {
                         </motion.div>
                     </TabsContent>
 
-                    <TabsContent value="membership">
+                    <TabsContent value="membership" className="min-h-[60vh]">
                         <motion.div
                             className="flex justify-center"
                             initial={{ opacity: 0 }}
@@ -188,8 +188,8 @@ const ProfilePage: React.FC = () => {
                         </motion.div>
                     </TabsContent>
 
-                    <TabsContent value="events">
-                      <Outlet />
+                    <TabsContent value="events" className="min-h-[60vh]">
+                        <MyEventsSection />
                     </TabsContent>
                 </Tabs>
             </div>

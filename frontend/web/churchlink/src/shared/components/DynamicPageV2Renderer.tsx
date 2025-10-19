@@ -8,6 +8,7 @@ import PaypalSection from "@sections/PaypalSection";
 // ScopedStyle temporarily disabled due to drag measurement regressions
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
 import { defaultGridSize, unitsToPx } from "@/features/webeditor/grid/gridMath";
+import { getPublicUrl } from "@/helpers/MediaInteraction";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
@@ -197,23 +198,23 @@ const renderNode = (
 
       return (
         <>
-        <Tag
-          className={cn(
-            align === "center" && "text-center",
-            align === "right" && "text-right",
-            isBold && "font-bold",
-            isItalic && "italic",
-            isUnderline && "underline",
-            (node as any).style?.className,
-            !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
-            "inline-block max-w-full w-fit align-top break-words",
-            highlightClass(node, highlightNodeId)
-          )}
-          // data-node-id used by ScopedStyle; disabled
-          style={inlineStyles}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <Tag
+            className={cn(
+              align === "center" && "text-center",
+              align === "right" && "text-right",
+              isBold && "font-bold",
+              isItalic && "italic",
+              isUnderline && "underline",
+              (node as any).style?.className,
+              !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+              "inline-block max-w-full w-fit align-top break-words",
+              highlightClass(node, highlightNodeId)
+            )}
+            // data-node-id used by ScopedStyle; disabled
+            style={inlineStyles}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -242,19 +243,19 @@ const renderNode = (
       if (href) {
         return (
           <>
-          <a href={href} className={className} style={inlineStyle}>
-            {label}
-          </a>
-          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+            <a href={href} className={className} style={inlineStyle}>
+              {label}
+            </a>
+            {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
           </>
         );
       }
       return (
         <>
-        <button className={className} style={inlineStyle}>
-          {label}
-        </button>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <button className={className} style={inlineStyle}>
+            {label}
+          </button>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -275,22 +276,22 @@ const renderNode = (
       };
       return (
         <>
-        <div
-          className={cn(
-            nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
-            highlightClass(node, highlightNodeId)
-          )}
-          style={inlineStyle}
-        >
-          <EventSection
-            showFilters={(node as any).props?.showFilters !== false}
-            eventName={(node as any).props?.eventName}
-            lockedFilters={(node as any).props?.lockedFilters}
-            title={(node as any).props?.title}
-            showTitle={(node as any).props?.showTitle !== false}
-          />
-        </div>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <div
+            className={cn(
+              nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+              highlightClass(node, highlightNodeId)
+            )}
+            style={inlineStyle}
+          >
+            <EventSection
+              showFilters={(node as any).props?.showFilters !== false}
+              eventName={(node as any).props?.eventName}
+              lockedFilters={(node as any).props?.lockedFilters}
+              title={(node as any).props?.title}
+              showTitle={(node as any).props?.showTitle !== false}
+            />
+          </div>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
@@ -331,14 +332,14 @@ const renderNode = (
         maxWidth === "full"
           ? "w-full"
           : maxWidth === "2xl"
-          ? "max-w-7xl"
-          : maxWidth === "xl"
-          ? "max-w-6xl"
-          : maxWidth === "lg"
-          ? "max-w-5xl"
-          : maxWidth === "md"
-          ? "max-w-3xl"
-          : "max-w-xl";
+            ? "max-w-7xl"
+            : maxWidth === "xl"
+              ? "max-w-6xl"
+              : maxWidth === "lg"
+                ? "max-w-5xl"
+                : maxWidth === "md"
+                  ? "max-w-3xl"
+                  : "max-w-xl";
       const pxClass =
         px === 0 ? "px-0" : px === 2 ? "px-2" : px === 4 ? "px-4" : px === 6 ? "px-6" : "px-4";
       const pyClass =
@@ -394,27 +395,27 @@ const renderNode = (
       };
       return (
         <>
-        <div
-          id={node.id}
-          className={cn(
-            "mx-auto relative",
-            mwClass,
-            pxClass,
-            pyClass,
-            (node as any).style?.className,
-            nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
-            highlightClass(node, highlightNodeId)
-          )}
-          style={containerInlineStyle}
-        >
-          {containerContent}
-        </div>
-        {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
+          <div
+            id={node.id}
+            className={cn(
+              "mx-auto relative",
+              mwClass,
+              pxClass,
+              pyClass,
+              (node as any).style?.className,
+              nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+              highlightClass(node, highlightNodeId)
+            )}
+            style={containerInlineStyle}
+          >
+            {containerContent}
+          </div>
+          {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
     case "image": {
-      const src = (node as any).props?.src || "";
+      const src = getPublicUrl((node as any).props?.src) || "";
       const alt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale) || "";
       const objectFit = (node as any).props?.objectFit || "cover";
       const inlineStyles: React.CSSProperties = {
@@ -424,13 +425,13 @@ const renderNode = (
       };
       return (
         <>
-        <div
-          className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))}
-          style={inlineStyles}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit }} />
-        </div>
+          <div
+            className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))}
+            style={inlineStyles}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit }} />
+          </div>
         </>
       );
     }
@@ -485,7 +486,7 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
               {section.children.map((node) => {
                 const hasLayout = !!node.layout?.units;
                 const forceFlow = section.lockLayout === true;
-              const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale));
+                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale));
 
                 if (hasLayout && !forceFlow) {
                   const { xu, yu, wu, hu } = node.layout!.units;

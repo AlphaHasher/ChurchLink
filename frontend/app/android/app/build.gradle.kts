@@ -31,6 +31,10 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
+    tasks.withType<JavaCompile>().configureEach {
+        options.compilerArgs.add("-Xlint:-options")
+    }
+
     defaultConfig {
         applicationId = "com.example.app"
         minSdk = flutter.minSdkVersion

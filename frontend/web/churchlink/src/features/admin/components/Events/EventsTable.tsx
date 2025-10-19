@@ -19,7 +19,6 @@ import "ag-grid-community/styles/ag-theme-quartz.css";
 
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { cn } from "@/lib/utils";
 import { ChurchEvent, eventLabels } from "@/shared/types/ChurchEvent";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { DeleteEventDialog } from "./DeleteEventDialog";

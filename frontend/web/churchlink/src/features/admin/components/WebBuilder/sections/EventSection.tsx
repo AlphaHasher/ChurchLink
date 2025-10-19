@@ -3,8 +3,7 @@ import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign,
 import api from "@/api/api";
 import { EventPayPalButton } from "@/features/events/components/EventPayPalButton";
 import { useUserProfile } from "@/helpers/useUserProfile";
-import { getAssetUrl } from "@/helpers/MediaInteraction";
-import { Skeleton } from '@/shared/components/ui/skeleton';
+import { getPublicUrl } from "@/helpers/MediaInteraction";
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
 type MyEventScope = "series" | "occurrence";
@@ -119,11 +118,11 @@ function EventRegistrationForm({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [me, setMe] = useState<{ first: string; last: string } | null>(null);
-  
+
   // Per-person scope selection (series = recurring, occurrence = one-time)
   const [personScopes, setPersonScopes] = useState<Record<string, "series" | "occurrence">>({});
   const [selfScope, setSelfScope] = useState<"series" | "occurrence">("series");
-  
+
   // Check if event is recurring
   const isRecurring = event.recurring && event.recurring !== "never";
 
@@ -176,7 +175,7 @@ function EventRegistrationForm({
         let selfIsRegistered = false;
         const scopes: Record<string, "series" | "occurrence"> = {};
         let selfScopeValue: "series" | "occurrence" = "series";
-        
+
         (regRes.data?.user_registrations ?? []).forEach((r: any) => {
           if (r.person_id) {
             current.add(r.person_id);
@@ -186,7 +185,7 @@ function EventRegistrationForm({
             selfScopeValue = r.scope || "series";
           }
         });
-        
+
         setSelectedIds(current);
         setSelfSelected(false);
         setPersonScopes(scopes);
@@ -346,7 +345,7 @@ function EventRegistrationForm({
       const toAdd: string[] = [];
       const toRemove: string[] = [];
       const toUpdateScope: string[] = [];
-      
+
       // Check for new registrations and scope changes
       want.forEach((id) => {
         if (!have.has(id)) {
@@ -533,13 +532,13 @@ function EventRegistrationForm({
         const scope = personScopes[id] || "series";
         await api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${scope}`);
       }
-      
+
       // Remove registrations
       for (const id of toRemove) {
         console.log(`❌ [EVENT SECTION] Unregistering family member: ${id}`);
         await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${id}`);
       }
-      
+
       // Update scope for existing registrations (remove old scope, add new scope)
       for (const id of toUpdateScope) {
         const oldScope = summary?.user_registrations?.find(r => r.person_id === id)?.scope || "series";
@@ -1048,11 +1047,10 @@ const EventSection: React.FC<EventSectionProps> = ({
   const RecurrenceBadge = ({ ev }: { ev: Event }) => {
     const recurring = ev.recurring && ev.recurring !== "never";
     return (
-      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
-        recurring 
-          ? "bg-indigo-600 text-white" 
-          : "bg-white/90 text-slate-700 backdrop-blur-sm border border-slate-200"
-      }`}>
+      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${recurring
+        ? "bg-indigo-600 text-white"
+        : "bg-white/90 text-slate-700 backdrop-blur-sm border border-slate-200"
+        }`}>
         {recurring && <FiRepeat className="w-3 h-3" />}
         {recurrenceLabel(ev)}
       </span>
@@ -1354,34 +1352,74 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
             <h3 style={{ fontSize: "1.5rem", fontWeight: 600 }}>There are no upcoming events.</h3>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-            {upcomingEvents.slice(0, visibleCount).map((ev) => (
-              <div key={ev.id} className="rounded-2xl shadow-md overflow-hidden bg-white flex flex-col h-full">
-                <div
-                  className="h-40 w-full bg-cover bg-center"
-                  style={{
-                    backgroundImage: `url(${
-                      ev.thumbnail_url
-                        ? ev.thumbnail_url.startsWith("http")
-                          ? ev.thumbnail_url
-                          : "/assets/" + ev.thumbnail_url
-                        : "/assets/default-thumbnail.jpg"
-                    })`,
-                  }}
-                />
-                <div className="flex flex-col h-full">
-                  <div className="flex flex-col justify-between flex-grow p-4">
-                    <div>
-                      <h2 className="text-xl font-semibold mb-2">{ev.name}</h2>
-                      <div className="mb-2"><RecurrenceBadge ev={ev} /></div>
-                      <p className="text-sm text-gray-600 mb-2">{ev.description}</p>
-                      <p className="text-sm text-gray-800 font-medium">{new Date(ev.date).toLocaleDateString()}</p>
-                      <p className="text-sm text-gray-800 mb-1">{ev.location}</p>
-                      <p className="text-sm text-gray-800">
-                        {ev.rsvp ? "Registration required" : "No registration required"}
-                        {requiresPayment(ev) && ` • $${ev.price} payment required`}
-                        {ev.recurring && ev.recurring !== "never" ? " • Recurring" : ""}
-                      </p>
+          <div className="flex flex-wrap gap-8 justify-center max-w-7xl mx-auto">
+            {events.slice(0, visibleCount).map((ev) => {
+              const primary = ev.image_url ? getPublicUrl(ev.image_url) : null;
+              const bg = primary
+                ? `url("${primary}"), url("/assets/default-thumbnail.jpg")`
+                : `url("/assets/default-thumbnail.jpg")`;
+
+              return (
+                <div key={ev.id} className="group rounded-3xl overflow-hidden bg-white flex flex-col shadow-lg hover:shadow-2xl transition-all duration-300 w-full sm:w-[calc(50%-1rem)] lg:w-[380px] border border-slate-100">
+                  {/* Image Header */}
+                  <div className="relative overflow-hidden">
+                    <div
+                      className="w-full bg-cover bg-center aspect-[16/9] group-hover:scale-105 transition-transform duration-300"
+                      style={{
+                        backgroundImage: bg,
+                      }}
+                    />
+                    <div className="absolute top-3 right-3">
+                      <RecurrenceBadge ev={ev} />
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="flex flex-col flex-grow p-6">
+                    <div className="flex-grow">
+                      <h3 className="text-2xl font-bold mb-3 text-slate-900 leading-tight line-clamp-2">
+                        {ev.name}
+                      </h3>
+
+                      {/* Date & Location */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-start gap-2 text-slate-700">
+                          <FiCalendar className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm font-medium">
+                            {new Date(ev.date).toLocaleDateString(undefined, {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        {ev.location && (
+                          <div className="flex items-start gap-2 text-slate-700">
+                            <FiMapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <span className="text-sm line-clamp-1">{ev.location}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {ev.description && (
+                        <p className="text-sm text-slate-600 leading-relaxed line-clamp-3 mb-4">
+                          {ev.description}
+                        </p>
+                      )}
+
+                      {/* Registration Badge */}
+                      <div className="flex items-center gap-2 mb-4">
+                        {ev.rsvp ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            Registration required
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            No registration required
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-4 space-y-2">
@@ -1398,8 +1436,8 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                     
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -1427,23 +1465,19 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
         ×
       </button>
 
-      {/* Image */}
-      {selectedEvent.image_url && (
-        <img
-          src={
-            selectedEvent.image_url.startsWith("http")
-              ? selectedEvent.image_url
-              : "/assets/" + selectedEvent.image_url
-          }
-          alt={selectedEvent.name}
-          className="w-full max-h-80 object-cover rounded-lg mb-6"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.onerror = null;
-            target.src = "/assets/default-thumbnail.jpg";
-          }}
-        />
-      )}
+              {/* Image */}
+              {selectedEvent.image_url && (
+                <img
+                  src={getPublicUrl(selectedEvent.image_url)}
+                  alt={selectedEvent.name}
+                  className="w-full object-cover rounded-lg mb-6"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = "/assets/default-thumbnail.jpg";
+                  }}
+                />
+              )}
 
       {/* Title + badges */}
       <div className="flex items-start justify-between gap-3">

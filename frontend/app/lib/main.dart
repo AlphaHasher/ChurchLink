@@ -48,6 +48,14 @@ Future<void> main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
+  final authService = FirebaseAuthService();
+  try {
+    await authService.initializeGoogleSignIn();
+    debugPrint('✅ GoogleSignIn initialized successfully');
+  } catch (e) {
+    debugPrint('⚠️  GoogleSignIn initialization warning: $e');
+  }
+
   // Load saved theme mode BEFORE runApp
   await ThemeController.instance.load();
 

@@ -96,7 +96,7 @@ const TextSectionRenderer: React.FC<TextSectionRendererProps> = ({ data, classNa
 
       // Wrap each block with the same structure the editor uses
       const wrapped = blocksInner
-        .map((inner: string) => `<div class=\"ce-block\"><div class=\"ce-block__content\">${inner}</div></div>`) 
+        .map((inner: string) => `<div class=\"ce-block\"><div class=\"ce-block__content\">${inner}</div></div>`)
         .join("");
 
       return wrapped;
