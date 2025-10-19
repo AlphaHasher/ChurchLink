@@ -11,13 +11,17 @@ import { useAuth } from "@/features/auth/hooks/auth-context";
 import { Link } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
 import AvatarImg from "./AvatarImg";
+import { Shield } from "lucide-react";
 
 interface ProfileDropDownProps {
   className?: string;
+  isMod?: boolean;
 }
 
-function ProfileDropDown({ className }: ProfileDropDownProps) {
+function ProfileDropDown({ className, isMod }: ProfileDropDownProps) {
   const { user } = useAuth();
+
+  const displayAdminDash: boolean = isMod ?? false;
 
   return (
     <DropdownMenu>
@@ -59,6 +63,20 @@ function ProfileDropDown({ className }: ProfileDropDownProps) {
             <span>Profile</span>
           </Link>
         </DropdownMenuItem>
+        {displayAdminDash ? (
+          <DropdownMenuItem asChild>
+            <Link
+              to="/admin"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
+              aria-label="Admin Panel"
+              title="Admin Panel"
+            >
+              <Shield className="h-4 w-4" />
+              <span>Admin Panel</span>
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
+
         <DropdownMenuItem
           onClick={() => {
             signOut(auth);
