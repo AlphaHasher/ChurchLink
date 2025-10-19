@@ -527,6 +527,36 @@ async def resolve_registration_display_names(attendees: List[Dict]) -> List[Dict
     
     return enhanced_attendees
 
+async def check_if_user_is_admin(uid: str) -> bool:
+    """
+    Check if a user has the Administrator role.
+    
+    Args:
+        uid: Firebase user ID
+        
+    Returns:
+        bool: True if user is an admin, False otherwise
+    """
+    try:
+        users_collection = DB.db["users"]
+        roles_collection = DB.db["roles"]
+        
+        user = await users_collection.find_one({"uid": uid})
+        if not user:
+            return False
+        
+        admin_role = await roles_collection.find_one({"name": "Administrator"})
+        if not admin_role:
+            return False
+        
+        user_roles = user.get("roles", [])
+        admin_role_id_str = str(admin_role["_id"])
+        
+        return admin_role_id_str in [str(r) for r in user_roles]
+    except Exception:
+        return False
+
+
 async def delete_user_account(uid: str):
     """
     Delete user account from both MongoDB and Firebase, including all related user data.
@@ -538,6 +568,15 @@ async def delete_user_account(uid: str):
         dict: Success status and message
     """
     try:
+        # Check if user is an admin - admins cannot delete their own accounts
+        is_admin = await check_if_user_is_admin(uid)
+        if is_admin:
+            return {
+                "success": False, 
+                "message": "Administrator accounts cannot be deleted. To delete your account, you must first have another administrator remove your administrator privileges.",
+                "is_admin": True
+            }
+        
         # Delete user record from MongoDB
         users_collection = DB.db["users"]
         user_result = await users_collection.delete_one({"uid": uid})

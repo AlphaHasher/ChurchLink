@@ -45,12 +45,22 @@ export const DeleteAccountCard: React.FC = () => {
             // Redirect to home
             navigate("/");
         } catch (err: any) {
-            const message =
-                err?.response?.data?.detail ||
-                err?.response?.data?.message ||
-                err?.message ||
-                "Failed to delete account";
-            setError(message);
+            // Check if the error is specifically about admin accounts
+            const errorDetail = err?.response?.data?.detail || "";
+            const errorMessage = err?.response?.data?.message || "";
+            
+            if (errorDetail.includes("Administrator") || errorMessage.includes("Administrator")) {
+                setError(
+                    "Administrator accounts cannot be deleted. To delete your account, you must first have another administrator remove your administrator privileges."
+                );
+            } else {
+                const message =
+                    errorDetail ||
+                    errorMessage ||
+                    err?.message ||
+                    "Failed to delete account";
+                setError(message);
+            }
             setLoading(false);
         }
     };

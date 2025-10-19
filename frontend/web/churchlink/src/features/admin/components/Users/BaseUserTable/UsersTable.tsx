@@ -23,7 +23,6 @@ interface UsersTableProps {
   permData: AccountPermissions[];
   onSave: () => Promise<void>;
   loading?: boolean;
-  adminCount?: number;
 
   page: number;
   pageSize: number;
@@ -37,14 +36,13 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
   const { data, context } = props;
   if (!data) return null;
 
-  const { permData, onSave, adminCount } = context as {
+  const { permData, onSave } = context as {
     permData: AccountPermissions[];
     onSave: () => Promise<void>;
-    adminCount: number;
   };
 
-  // Check if this user is the only admin
-  const isOnlyAdmin = adminCount === 1 && (data.permissions?.includes("Administrator") || false);
+  // Check if this user is an admin
+  const isAdmin = data.permissions?.includes("Administrator") || false;
 
   return (
     <div className="flex items-center gap-2">
@@ -59,7 +57,7 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
         userId={data.uid}
         userEmail={data.email}
         userName={data.name}
-        isOnlyAdmin={isOnlyAdmin}
+        isAdmin={isAdmin}
         onDeleted={onSave}
       />
     </div>
@@ -72,7 +70,6 @@ export function UsersTable({
   permData,
   onSave,
   loading,
-  adminCount = 0,
   page,
   pageSize,
   onPageChange,
@@ -135,7 +132,7 @@ export function UsersTable({
           rowData={data}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          context={{ permData, onSave, adminCount }}
+          context={{ permData, onSave }}
           suppressPaginationPanel={true}
           animateRows={true}
           enableCellTextSelection={true}
