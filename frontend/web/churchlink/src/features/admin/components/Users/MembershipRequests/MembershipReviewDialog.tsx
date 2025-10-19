@@ -179,24 +179,28 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <button
-                                    className={`px-3 py-1 text-sm rounded-md border ${decision === "approve"
-                                        ? "bg-green-600 text-white"
-                                        : "bg-background text-foreground hover:bg-accent"
-                                        }`}
+                                <Button
+                                    type="button"
+                                    variant={decision === "approve" ? "default" : "outline"}
+                                    className={decision === "approve"
+                                        ? "!bg-primary !text-primary-foreground"
+                                        : "hover:bg-accent hover:text-green-600"
+                                        }
                                     onClick={() => setDecision("approve")}
                                 >
                                     Approve
-                                </button>
-                                <button
-                                    className={`px-3 py-1 text-sm rounded-md border ${decision === "deny"
-                                        ? "bg-red-600 text-white"
-                                        : "bg-background text-foreground hover:bg-accent"
-                                        }`}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={decision === "deny" ? "destructive" : "outline"}
+                                    className={decision === "deny"
+                                        ? "!bg-destructive !text-destructive-foreground"
+                                        : "bg-background text-foreground hover:bg-accent hover:text-red-600"
+                                        }
                                     onClick={() => setDecision("deny")}
                                 >
                                     Deny
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
