@@ -93,6 +93,7 @@ class EnhancedEventCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 60), // restrict event name display length
                   ],
                 ),
 

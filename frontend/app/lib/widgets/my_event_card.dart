@@ -321,6 +321,7 @@ class MyEventCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 60), // restrict event name display length
                     ],
                   ),
                   // Ministry removed from My Events cards (kept on Events page)
