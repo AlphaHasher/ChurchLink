@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'donation_success_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
 import '../models/event_registration_summary.dart';
@@ -10,10 +11,9 @@ import '../services/event_registration_service.dart';
 import '../services/my_events_service.dart';
 import '../providers/tab_provider.dart';
 import '../widgets/bulk_event_registration_widget.dart';
+import '../widgets/event_paypal_button.dart';
 import '../pages/payment_success_page.dart';
 import 'user/family_members_page.dart';
-import '../helpers/asset_helper.dart'; 
-import 'event_registration_page.dart';
 import '../helpers/asset_helper.dart';
 
 class EventShowcase extends StatefulWidget {
@@ -319,35 +319,6 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
-  void _handleBulkRegistration() async {
-    if (_selectedRegistrants.isEmpty) return;
-
-    final List<Map<String, dynamic>> registrations = [];
-
-    for (final selectedId in _selectedRegistrants) {
-      if (selectedId == 'self') {
-        registrations.add({
-          'family_member_id': null,
-          'name': 'You',
-        });
-      } else {
-        final familyMember = _familyMembers.firstWhere(
-          (member) => member.id == selectedId,
-          orElse: () => null,
-        );
-        
-        if (familyMember != null) {
-          registrations.add({
-            'family_member_id': familyMember.id,
-            'name': familyMember.fullName,
-          });
-        }
-      }
-    }
-
-    // Show bulk registration dialog
-    _showBulkRegistrationDialog(registrations);
-  }
 
   void _showBulkRegistrationDialog(List<Map<String, dynamic>> registrations) {
     showDialog(
@@ -357,73 +328,78 @@ class _EventShowcaseState extends State<EventShowcase> {
         title: Text('Register for ${widget.event.name}'),
         content: SizedBox(
           width: double.maxFinite,
-          child: BulkEventRegistrationWidget(
-            event: widget.event,
-            registrations: registrations,
-            navigateOnPayAtDoor: true, // Enable direct navigation for pay-at-door
-            onSuccess: (String paymentType) async {
-              print('[EventShowcase] Success callback called with paymentType: $paymentType');
-              
-              // For pay-at-door, navigation is handled directly by the widget
-              // For other payment types, close dialog and show snackbar
-              if (paymentType != 'door') {
-                // For other payment types, close dialog first then show snackbar
-                if (Navigator.of(dialogContext).canPop()) {
-                  Navigator.of(dialogContext).pop();
-                }
-                
-                if (mounted) {
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              // Make dialog at most 80% of screen height to avoid overflow
+              maxHeight: MediaQuery.of(dialogContext).size.height * 0.8,
+            ),
+            child: BulkEventRegistrationWidget(
+              event: widget.event,
+              registrations: registrations,
+              navigateOnPayAtDoor: true, // Enable direct navigation for pay-at-door
+              onSuccess: (String paymentType) async {
+                print('[EventShowcase] Success callback called with paymentType: $paymentType');
+
+                // For pay-at-door, navigation is handled directly by the widget
+                // For other payment types, show snackbar (using dialogContext) and close dialog
+                if (paymentType != 'door') {
                   final names = registrations.map((r) => r['name']).join(', ');
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
                     SnackBar(
                       content: Text('$names registered successfully!'),
                       backgroundColor: const Color.fromARGB(255, 142, 163, 168),
                       duration: const Duration(seconds: 4),
                     ),
                   );
-                }
-              }
 
-              // Refresh data in background for all payment types
-              print('[EventShowcase] Refreshing registration data in background');
-              _refreshRegistrationData();
-            },
-            onPaymentSuccess: (String paymentId, String payerId) async {
-              // For PayPal payments, handle success here and refresh data
-              // Navigate to payment success page
-              Navigator.push(
-                context,
-                MaterialPageRoute(
+                  if (Navigator.of(dialogContext).canPop()) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                }
+
+                // Refresh data in background for all payment types
+                print('[EventShowcase] Refreshing registration data in background');
+                _refreshRegistrationData();
+              },
+              onPaymentSuccess: (String paymentId, String payerId) async {
+                // For PayPal payments, navigate to payment success page using dialogContext
+                Navigator.of(dialogContext).push(MaterialPageRoute(
                   builder: (context) => PaymentSuccessPage(
                     paymentId: paymentId,
                     payerId: payerId,
                     eventId: widget.event.id,
                     eventName: widget.event.name,
                   ),
-                ),
-              );
-              
-              // Also refresh registration status after payment success
-              // Use a delay to let the payment complete
-              Future.delayed(Duration(seconds: 2), () async {
-                if (mounted) {
-                  await _checkRegistrationStatus();
-                  await _checkFamilyMemberRegistrations();
-                  await _loadRegistrationDetails();
+                ));
+
+                // Also refresh registration status after payment success
+                // Use a delay to let the payment complete
+                Future.delayed(const Duration(seconds: 2), () async {
                   if (mounted) {
-                    setState(() => _selectedRegistrants.clear());
+                    await _checkRegistrationStatus();
+                    await _checkFamilyMemberRegistrations();
+                    await _loadRegistrationDetails();
+                    if (mounted) {
+                      setState(() => _selectedRegistrants.clear());
+                    }
                   }
+                });
+              },
+              onCancel: () {
+                if (Navigator.of(dialogContext).canPop()) {
+                  Navigator.of(dialogContext).pop();
                 }
-              });
-            },
-            onCancel: () {
-              Navigator.of(context).pop();
-            },
+              },
+            ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              if (Navigator.of(dialogContext).canPop()) {
+                Navigator.of(dialogContext).pop();
+              }
+            },
             child: const Text('Cancel'),
           ),
         ],
@@ -601,22 +577,7 @@ class _EventShowcaseState extends State<EventShowcase> {
     }
   }
 
-  void _showFallbackSuccessMessage(String names) {
-    try {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$names registered successfully! Remember to pay at the door.'),
-            backgroundColor: const Color.fromARGB(255, 255, 193, 7),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        print('[EventShowcase] Fallback success message shown');
-      }
-    } catch (e) {
-      print('[EventShowcase] Even fallback message failed: $e');
-    }
-  }
+  // helper methods removed: _handleBulkRegistration and _showFallbackSuccessMessage
 
   void _showRegistrationDialog() {
     // Check authentication before showing registration dialog
@@ -823,22 +784,6 @@ class _EventShowcaseState extends State<EventShowcase> {
       },
     );
       });
-  
-    Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) => EventRegistrationPage(
-              event: widget.event,
-              isUpdate: _registrationSummary!.userRegistrations.isNotEmpty,
-              existingRegistrations: _registrationSummary?.userRegistrations,
-            ),
-      ),
-    ).then((result) {
-      if (result == true) {
-        _loadInitialData();
-      }
-    });
   }
 
   Widget _buildCurrentRegistrations() {
@@ -846,6 +791,66 @@ class _EventShowcaseState extends State<EventShowcase> {
     if (_registrationSummary == null) {
       return const SizedBox.shrink();
     }
+  // If RSVP is not required AND the event is free, show a compact message
+  // and then render different watch controls depending on recurring vs
+  // non-recurring. Also show Donate when allowed.
+  if (!widget.event.rsvp && widget.event.isFree) {
+    return Card(
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'No RSVP Required',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This event does not require RSVP.',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+
+
+            // If the event is free but accepts donations, offer a Donate button
+            if (widget.event.allowsDonations) ...[
+              const Text(
+              'You can Support this Event with a Donation:',
+              style: TextStyle(color: Colors.grey),
+            ),
+              const SizedBox(height: 12),
+              EventPayPalButton(
+                event: widget.event,
+                onPaymentSuccess: () async {
+                  // Refresh registration and family data
+                  await _loadRegistrationDetails();
+                  await _checkRegistrationStatus();
+                  await _checkFamilyMemberRegistrations();
+                  if (mounted) setState(() {});
+
+                  // Navigate to a Thank You / Donation Success page for donations on no-RSVP events
+                  if (mounted) {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => DonationSuccessPage(eventName: widget.event.name),
+                    ));
+                  }
+                },
+                onPaymentError: (err) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Donation failed: $err')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
     return Card(
       color: Colors.white,
@@ -877,6 +882,10 @@ class _EventShowcaseState extends State<EventShowcase> {
     if (_registrationSummary == null) {
       return const CircularProgressIndicator();
     }
+
+    // Local references to theme text styles and color scheme
+    final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1423,11 +1432,7 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildHeroImage() {
-    final cs = Theme.of(context).colorScheme;
-    final imageUrl =
-        widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
-            ? AssetHelper.getPublicUrl(widget.event.imageUrl!)
-            : null;
+    // Hero image currently uses placeholder; no local theme vars required here
 
     return SizedBox(
       height: 250,
@@ -1592,7 +1597,11 @@ class _EventShowcaseState extends State<EventShowcase> {
       );
     }
 
-    if (widget.event.recurring != null) {
+  // The Event model uses a nullable String for `recurring`. Consider an
+  // event recurring when the field is present and != 'never'.
+  if (widget.event.recurring != null &&
+    widget.event.recurring != 'never' &&
+    widget.event.recurring!.isNotEmpty) {
       if (_isInMyEvents) {
         return Row(
           mainAxisSize: MainAxisSize.min,
@@ -1692,7 +1701,7 @@ class _EventShowcaseState extends State<EventShowcase> {
           ],
         );
       }
-    } else {
+  } else {
       if (_isInMyEvents) {
         return ElevatedButton(
           onPressed: _removeFromMyEvents,
@@ -1860,7 +1869,6 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildSvgInfoRow(String assetPath, String label, String value) {
-    final cs = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1931,6 +1939,7 @@ class _EventShowcaseState extends State<EventShowcase> {
   }
 
   Widget _buildEventSpecs() {
+    final cs = Theme.of(context).colorScheme;
     final specs = <String>[];
 
     if (widget.event.minAge > 0 || widget.event.maxAge < 100) {
@@ -1947,7 +1956,9 @@ class _EventShowcaseState extends State<EventShowcase> {
       specs.add('RSVP Required');
     }
 
-    if (widget.event.recurring != null) {
+    if (widget.event.recurring != null &&
+        widget.event.recurring != 'never' &&
+        widget.event.recurring!.isNotEmpty) {
       specs.add('Recurring: ${widget.event.recurring}');
     }
 

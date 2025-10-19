@@ -10,10 +10,12 @@ from fastapi import HTTPException
 from mongo.database import DB
 from models.form import get_form_by_slug, get_form_by_id, add_response_by_slug
 from models.transaction import Transaction
-from config.settings import settings
+
 from helpers.audit_logger import payment_audit_logger
 from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
 
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 class FormPaymentHelper:
     """Helper class for form payment operations"""
@@ -427,8 +429,8 @@ class FormPaymentHelper:
                     "description": f"Form submission payment for {form.title}"
                 }],
                 "application_context": {
-                    "return_url": payment_data.get("return_url", f"{settings.FRONTEND_URL}/forms/{form.slug}/payment/success"),
-                    "cancel_url": payment_data.get("cancel_url", f"{settings.FRONTEND_URL}/forms/{form.slug}/payment/cancel"),
+                    "return_url": payment_data.get("return_url", f"{FRONTEND_URL}/forms/{form.slug}/payment/success"),
+                    "cancel_url": payment_data.get("cancel_url", f"{FRONTEND_URL}/forms/{form.slug}/payment/cancel"),
                     "brand_name": "Church Form Payment",
                     "locale": "en-US",
                     "landing_page": "BILLING",

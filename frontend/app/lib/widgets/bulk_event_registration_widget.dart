@@ -320,10 +320,7 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'This is a free event. You can optionally make a donation to support our ministry.',
-              style: TextStyle(fontSize: 14, color: Colors.blue.shade700),
-            ),
+            
             const SizedBox(height: 12),
             RadioListTile<String>(
               title: const Text('Register'),
@@ -340,14 +337,14 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
             ),
             RadioListTile<String>(
               title: const Text('Register + Donate'),
-              subtitle: const Text('Make an optional donation via PayPal'),
+              subtitle: const Text('Support this Event via PayPal'),
               value: 'paypal',
               groupValue: _selectedPaymentOption,
               onChanged: (value) {
                 setState(() {
                   _selectedPaymentOption = value!;
                   if (_donationAmount <= 0) {
-                    _donationAmount = 10.0; // Default donation amount
+                    _donationAmount = 0.0; // Default donation amount
                   }
                 });
               },

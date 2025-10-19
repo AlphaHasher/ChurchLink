@@ -5,7 +5,6 @@ import requests
 from models.donation_subscription import DonationSubscription
 from models.transaction import Transaction
 from mongo.database import DB
-from config.settings import settings
 from fastapi.responses import JSONResponse
 from fastapi import Query, Request, HTTPException
 import re
@@ -19,6 +18,7 @@ from mongo.churchuser import UserHandler
 PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 def get_paypal_base_url():
     """Get PayPal base URL based on mode"""
@@ -78,8 +78,8 @@ async def validate_and_extract_donation(donation):
     interval_unit = donation.get("interval_unit")
     interval_count = donation.get("interval_count")
     cycles = donation.get("cycles")
-    cancel_url = donation.get("cancel_url", f"{settings.FRONTEND_URL}/donation/cancel")
-    return_url = donation.get("return_url", f"{settings.FRONTEND_URL}/donation/success")
+    cancel_url = donation.get("cancel_url", f"{FRONTEND_URL}/donation/cancel")
+    return_url = donation.get("return_url", f"{FRONTEND_URL}/donation/success")
     start_date = donation.get("start_date")
     first_name = donation.get("first_name", "").strip()
     last_name = donation.get("last_name", "").strip()
@@ -192,8 +192,8 @@ async def create_order_from_data(order_data: dict):
         
         # Get redirect URLs from application_context
         app_context = order_data.get("application_context", {})
-        return_url = app_context.get("return_url", f"{settings.FRONTEND_URL}/payment/success")
-        cancel_url = app_context.get("cancel_url", f"{settings.FRONTEND_URL}/payment/cancel")
+        return_url = app_context.get("return_url", f"{FRONTEND_URL}/payment/success")
+        cancel_url = app_context.get("cancel_url", f"{FRONTEND_URL}/payment/cancel")
         
         # Create v1 Payment object
         payment = paypalrestsdk.Payment({

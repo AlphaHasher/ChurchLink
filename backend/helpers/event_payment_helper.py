@@ -15,8 +15,8 @@ from mongo.database import DB
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 from helpers.audit_logger import payment_audit_logger, AuditEventType
-from config.settings import settings
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 class EventPaymentHelper:
     """Helper class for event payment and bulk registration operations"""
@@ -229,21 +229,26 @@ class EventPaymentHelper:
                     ObjectId(person_id)
                 except:
                     return False, "Invalid person_id/family_member_id format"
-                
+
                 # Validate family member access
                 access_valid, access_message = await self.validate_family_member_access(user_uid, person_id)
                 if not access_valid:
                     return False, access_message
-                
-                # Check if family member is already registered
-                duplicate_check_valid, duplicate_message = await self.check_duplicate_registration(event.id, user_uid, person_id)
-                if not duplicate_check_valid:
-                    return False, duplicate_message
+
+                # Only enforce duplicate-registration check when a payment amount is expected
+                # (i.e., this registration includes a payment_amount_per_person > 0).
+                # For donation-only entries (payment_amount_per_person == 0) we allow the donation
+                # even if the user/family member is already registered.
+                if payment_amount_per_person > 0:
+                    duplicate_check_valid, duplicate_message = await self.check_duplicate_registration(event.id, user_uid, person_id)
+                    if not duplicate_check_valid:
+                        return False, duplicate_message
             else:
-                # Check if user (self) is already registered  
-                duplicate_check_valid, duplicate_message = await self.check_duplicate_registration(event.id, user_uid, None)
-                if not duplicate_check_valid:
-                    return False, duplicate_message
+                # For self registrations, only check for duplicates if there's an event fee to pay.
+                if payment_amount_per_person > 0:
+                    duplicate_check_valid, duplicate_message = await self.check_duplicate_registration(event.id, user_uid, None)
+                    if not duplicate_check_valid:
+                        return False, duplicate_message
             
             return True, "Valid"
             
@@ -270,6 +275,15 @@ class EventPaymentHelper:
             message = bulk_data.get("message", "")
             return_url = bulk_data.get("return_url", "")
             cancel_url = bulk_data.get("cancel_url", "")
+            # Support donation-only flows where donation amount is provided at top-level
+            # If registrations don't include donation_amount but bulk_data has donation_amount
+            # and there's a single registration, assign the top-level donation to that registration.
+            top_level_donation = float(bulk_data.get("donation_amount", 0) or 0)
+            if top_level_donation > 0 and len(registrations) == 1:
+                reg = registrations[0]
+                # Only set if not already provided
+                if not reg.get("donation_amount"):
+                    reg["donation_amount"] = top_level_donation
             
             # Debug: Log the received URLs
             self.logger.info(f"DEBUG: Received return_url: '{return_url}'")
@@ -990,8 +1004,8 @@ class EventPaymentHelper:
                     "description": f"Event registration for {event.name} - {len(validated_registrations)} people - Event ID: {event_id} - User: {user_uid}"
                 }],
                 "application_context": {
-                    "return_url": return_url or f"{settings.FRONTEND_URL}/events/{event.id}/payment/success",
-                    "cancel_url": cancel_url or f"{settings.FRONTEND_URL}/events/{event.id}/payment/cancel",
+                    "return_url": return_url or f"{FRONTEND_URL}/events/{event.id}/payment/success",
+                    "cancel_url": cancel_url or f"{FRONTEND_URL}/events/{event.id}/payment/cancel",
                     "brand_name": "Church Event Registration",
                     "locale": "en-US",
                     "landing_page": "BILLING",
@@ -1000,8 +1014,8 @@ class EventPaymentHelper:
             }
             
             # Debug: Log the final URLs being sent to PayPal
-            final_return_url = return_url or f"{settings.FRONTEND_URL}/events/{event.id}/payment/success"
-            final_cancel_url = cancel_url or f"{settings.FRONTEND_URL}/events/{event.id}/payment/cancel"
+            final_return_url = return_url or f"{FRONTEND_URL}/events/{event.id}/payment/success"
+            final_cancel_url = cancel_url or f"{FRONTEND_URL}/events/{event.id}/payment/cancel"
             self.logger.info(f"DEBUG: Final return_url sent to PayPal: '{final_return_url}'")
             self.logger.info(f"DEBUG: Final cancel_url sent to PayPal: '{final_cancel_url}'")
             
@@ -1287,7 +1301,7 @@ class EventPaymentHelper:
                 "total_amount": capture_result.get("amount", 0),
                 "total_event_fee": capture_result.get("amount", 0),  # For individual flow, all amount is event fee
                 "total_donation": 0,  # Individual flow doesn't handle donations separately
-                "redirect_url": f"{settings.FRONTEND_URL}/events/{event_id}/payment/success-confirmation",
+                "redirect_url": f"{FRONTEND_URL}/events/{event_id}/payment/success-confirmation",
                 "capture_details": capture_result
             }
             
@@ -1354,7 +1368,7 @@ class EventPaymentHelper:
                 "success": True,
                 "message": "Payment cancelled successfully",
                 "payment_id": payment_id,
-                "redirect_url": f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
+                "redirect_url": f"{FRONTEND_URL}/events/{event_id}/payment/cancel"
             }
             
         except Exception as e:

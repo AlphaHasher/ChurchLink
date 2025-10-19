@@ -172,24 +172,23 @@ function EventRegistrationForm({
         setSummary(regRes.data);
 
         const current = new Set<string>();
-        let selfIsRegistered = false;
-        const scopes: Record<string, "series" | "occurrence"> = {};
-        let selfScopeValue: "series" | "occurrence" = "series";
+  const scopes: Record<string, "series" | "occurrence"> = {};
+  let selfScopeValue: "series" | "occurrence" = "series";
 
         (regRes.data?.user_registrations ?? []).forEach((r: any) => {
           if (r.person_id) {
             current.add(r.person_id);
             scopes[r.person_id] = r.scope || "series";
           } else {
-            selfIsRegistered = true;
             selfScopeValue = r.scope || "series";
           }
         });
 
-        setSelectedIds(current);
-        setSelfSelected(false);
-        setPersonScopes(scopes);
-        setSelfScope(selfScopeValue);
+  setSelectedIds(current);
+  setSelfSelected(false);
+  setPersonScopes(scopes);
+  setSelfScope(selfScopeValue);
+  // local flag -> keep in state by setting selection if needed (no-op here)
       } catch (e) {
         console.error("Failed to load registration form data:", e);
       } finally {
@@ -1035,6 +1034,7 @@ const EventSection: React.FC<EventSectionProps> = ({
   const [showPaymentRequired, setShowPaymentRequired] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [donationAmount, setDonationAmount] = useState<number>(0);
+  const [donateEvent, setDonateEvent] = useState<Event | null>(null);
     const now = new Date();
     const upcomingEvents = events.filter(ev => new Date(ev.date) >= now);
 
@@ -1425,6 +1425,16 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                     <div className="mt-4 space-y-2">
                       {ev.rsvp ? <RegisterButtons ev={ev} /> : <WatchButtons ev={ev} />}
 
+                      {/* Donate button for free events that accept PayPal donations and do not require RSVP */}
+                      {(!ev.rsvp && (ev.price === 0 || ev.price == null) && (ev.payment_options?.includes('PayPal') || ev.payment_options?.includes('paypal'))) && (
+                        <button
+                          onClick={() => { setDonateEvent(ev); setDonationAmount(0); }}
+                          className="w-full px-4 py-2 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition duration-200"
+                        >
+                          Donate
+                        </button>
+                      )}
+
                       <button
                         className="w-full px-4 py-2 bg-white text-blue-600 font-semibold border border-blue-600 rounded-xl hover:bg-blue-50 transition duration-200"
                         onClick={() => setSelectedEvent(ev)}
@@ -1689,6 +1699,73 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
           })()}
         </div>
       )}
+    </div>
+  </div>
+)}
+
+        {/* Donate modal for quick donations from event card */}
+        {donateEvent && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+    <div className="bg-white rounded-2xl p-8 max-w-xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
+      <button
+        onClick={() => setDonateEvent(null)}
+        className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
+        aria-label="Close"
+      >
+        ×
+      </button>
+
+      <h2 className="text-2xl font-bold mb-2">Donate to {donateEvent.name}</h2>
+      <p className="text-sm text-gray-600 mb-4">Optional donation to support this event.</p>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <label htmlFor="donationQuickInput" className="block text-sm font-medium text-gray-700 mb-2">
+          Donation Amount (USD)
+        </label>
+        <div className="flex items-center">
+          <input
+            id="donationQuickInput"
+            type="number"
+            min="0"
+            step="0.01"
+            className="border rounded px-3 py-2 w-40"
+            placeholder="0.00"
+            value={donationAmount || ''}
+            onChange={(e) => setDonationAmount(parseFloat(e.target.value) || 0)}
+          />
+        </div>
+      </div>
+
+      <EventPayPalButton
+        eventId={donateEvent.id}
+        event={{
+          name: donateEvent.name,
+          price: donateEvent.price || 0,
+          requires_payment: (donateEvent.price && donateEvent.price > 0) || false,
+          is_free_event: !donateEvent.price || donateEvent.price === 0,
+          payment_options: donateEvent.payment_options
+        }}
+        donationAmount={donationAmount}
+        onPaymentSuccess={() => {
+          setDonateEvent(null);
+          setDonationAmount(0);
+          alert('Thank you for your donation!');
+        }}
+        onPaymentError={(error) => {
+          console.error('Donation failed:', error);
+          alert('Donation failed: ' + error);
+        }}
+        className="w-full"
+      />
+
+      <div className="mt-4">
+        <button
+          onClick={() => setDonateEvent(null)}
+          className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   </div>
 )}

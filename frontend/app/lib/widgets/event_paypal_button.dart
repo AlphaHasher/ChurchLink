@@ -63,6 +63,14 @@ class EventPayPalButton extends StatefulWidget {
 
 class _EventPayPalButtonState extends State<EventPayPalButton> {
   bool _isLoading = false;
+  late double _donationAmount;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize donation amount from widget prop (if provided) or sensible default
+    _donationAmount = widget.donationAmount ?? (widget.event.requiresPayment ? widget.event.price : 10.0);
+  }
 
   Future<void> _initiatePayment() async {
     setState(() {
@@ -77,8 +85,11 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
         // Paid event - use event price
         amount = widget.event.price;
       } else {
-        // Free event with donations - use provided amount or default
-        amount = widget.donationAmount ?? 10.0;
+        // Free event with donations - use selected donation amount
+        amount = _donationAmount;
+        if (amount <= 0) {
+          throw Exception('Donation amount must be greater than zero');
+        }
       }
 
       // Create payment order
@@ -222,9 +233,9 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine button appearance based on event type
-    final isPaidEvent = widget.event.requiresPayment;
-    final amount = isPaidEvent ? widget.event.price : (widget.donationAmount ?? 10.0);
+  // Determine button appearance based on event type
+  final isPaidEvent = widget.event.requiresPayment;
+  final amount = isPaidEvent ? widget.event.price : _donationAmount;
     
     String buttonText;
     Color buttonColor;
@@ -240,11 +251,23 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
       buttonIcon = Icons.volunteer_activism;
     }
 
-    return Container(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton.icon(
-        onPressed: _isLoading ? null : _initiatePayment,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+  // If this is a free event and donations are allowed, show the amount selector
+  if (!isPaidEvent && widget.event.allowsDonations) ...[
+          DonationAmountSelector(
+            initialAmount: _donationAmount,
+            onAmountChanged: (amt) => setState(() => _donationAmount = amt),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        Container(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton.icon(
+        onPressed: (_isLoading || (!isPaidEvent && _donationAmount <= 0)) ? null : _initiatePayment,
         icon: _isLoading
             ? const SizedBox(
                 width: 20,
@@ -271,7 +294,9 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
             borderRadius: BorderRadius.circular(8),
           ),
         ),
+        ),
       ),
+      ],
     );
   }
 }

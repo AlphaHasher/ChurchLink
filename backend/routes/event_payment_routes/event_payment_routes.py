@@ -7,7 +7,6 @@ from bson import ObjectId
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from helpers.event_payment_helper import event_payment_helper
 from helpers.audit_logger import get_client_ip, get_user_agent
-from config.settings import settings
 import json
 import os
 import traceback
@@ -18,6 +17,7 @@ router = APIRouter()
 
 event_payment_router = AuthProtectedRouter(prefix="/events", tags=["Event Payments"])
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 @event_payment_router.post("/{event_id}/payment/create-bulk-order")
 async def create_bulk_event_payment_order(
@@ -145,7 +145,7 @@ async def handle_paypal_cancel(
         )
         
         # Redirect to the frontend cancel page with query parameters
-        cancel_url = f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel"
+        cancel_url = f"{FRONTEND_URL}/events/{event_id}/payment/cancel"
         if token:
             cancel_url += f"?token={token}"
             
@@ -153,5 +153,5 @@ async def handle_paypal_cancel(
         
     except Exception as e:
         # If there's an error, still redirect to cancel page but with error info
-        cancel_url = f"{settings.FRONTEND_URL}/events/{event_id}/payment/cancel?error=true"
+        cancel_url = f"{FRONTEND_URL}/events/{event_id}/payment/cancel?error=true"
         return RedirectResponse(url=cancel_url, status_code=302)
