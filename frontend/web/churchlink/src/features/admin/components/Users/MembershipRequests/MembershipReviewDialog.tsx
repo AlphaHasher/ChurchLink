@@ -32,7 +32,7 @@ function HistoryRow({ h }: { h: MembershipRequestHistoryItem }) {
     }, [h]);
 
     return (
-        <div className="rounded-md border p-3 bg-white">
+        <div className="rounded-md border p-3 bg-card">
             <div className="text-sm">
                 <div>
                     <span className="font-medium">Submitted:</span> {fmt(h.created_on)}
@@ -97,7 +97,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
         <>
             <Button
                 variant="outline"
-                className="!bg-white text-black border shadow-sm hover:bg-blue-600"
+                className="border shadow-sm hover:bg-accent hover:text-accent-foreground"
                 onClick={open}
                 aria-label="Review membership request"
                 title="Review membership request"
@@ -112,7 +112,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                     </DialogHeader>
 
                     <div className="grid gap-4">
-                        <div className="rounded-md border p-3 bg-white">
+                        <div className="rounded-md border p-3 bg-card">
                             <div className="grid gap-2 md:grid-cols-2">
                                 <div>
                                     <Label>UID</Label>
@@ -157,7 +157,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                         </div>
 
                         {!!request.history?.length && (
-                            <details className="rounded-md border bg-white">
+                            <details className="rounded-md border bg-card">
                                 <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium">
                                     History ({request.history.length})
                                 </summary>
@@ -172,7 +172,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                             </details>
                         )}
 
-                        <div className="rounded-md border p-3 bg-white">
+                        <div className="rounded-md border p-3 bg-card">
                             <div className="font-medium mb-1">Decision</div>
                             <div className="text-sm text-muted-foreground mb-2">
                                 Choose to approve or deny this membership request.
@@ -182,7 +182,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                                 <button
                                     className={`px-3 py-1 text-sm rounded-md border ${decision === "approve"
                                         ? "bg-green-600 text-white"
-                                        : "bg-white text-gray-700 hover:bg-gray-100"
+                                        : "bg-background text-foreground hover:bg-accent"
                                         }`}
                                     onClick={() => setDecision("approve")}
                                 >
@@ -191,7 +191,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                                 <button
                                     className={`px-3 py-1 text-sm rounded-md border ${decision === "deny"
                                         ? "bg-red-600 text-white"
-                                        : "bg-white text-gray-700 hover:bg-gray-100"
+                                        : "bg-background text-foreground hover:bg-accent"
                                         }`}
                                     onClick={() => setDecision("deny")}
                                 >
@@ -200,7 +200,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                             </div>
                         </div>
 
-                        <div className="rounded-md border p-3 bg-white">
+                        <div className="rounded-md border p-3 bg-card">
                             <div className="font-medium mb-1">Reason for Approval/Denial (optional)</div>
                             <div className="text-sm text-muted-foreground mb-2">
                                 Add a short note explaining your decision (visible in the request history).
@@ -214,7 +214,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                             />
                         </div>
 
-                        <div className="rounded-md border p-3 bg-white">
+                        <div className="rounded-md border p-3 bg-card">
                             <div className="font-medium mb-1">Mute (optional)</div>
                             <div className="text-sm text-muted-foreground mb-2">
                                 Muting prevents this user from submitting additional membership requests (useful if
