@@ -17,7 +17,7 @@ interface DeleteUserDialogProps {
     userId: string;
     userEmail: string;
     userName: string;
-    isOnlyAdmin?: boolean;
+    isAdmin?: boolean;
     onDeleted: () => Promise<void>;
 }
 
@@ -25,7 +25,7 @@ export const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
     userId,
     userEmail,
     userName,
-    isOnlyAdmin = false,
+    isAdmin = false,
     onDeleted,
 }) => {
     const [open, setOpen] = useState(false);
@@ -70,8 +70,8 @@ export const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
                 variant="ghost"
                 size="sm"
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                disabled={isOnlyAdmin}
-                title={isOnlyAdmin ? "Cannot delete the only admin user" : "Delete user account"}
+                disabled={isAdmin}
+                title={isAdmin ? "Administrator accounts cannot be deleted" : "Delete user account"}
             >
                 <Trash2 className="h-4 w-4" />
             </Button>
