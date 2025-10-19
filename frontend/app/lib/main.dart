@@ -267,7 +267,17 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: tabProvider.currentIndex,
-        onTap: (value) => tabProvider.setTab(value),
+        onTap: (value) {
+          // If selecting the current tab, pop to the base page
+          if (value == tabProvider.currentIndex) {
+            final name = (tabProvider.tabs[value]['name'] as String).toLowerCase();
+            final key = _navKeyForTab[name];
+            key?.currentState?.popUntil((route) => route.isFirst);
+          } else {
+            // Switch normally if a different tab is selected
+            tabProvider.setTab(value);
+          }
+        },
         showSelectedLabels: true,
         showUnselectedLabels: true,
         selectedFontSize: 11,
