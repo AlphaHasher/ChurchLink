@@ -299,16 +299,7 @@ const ManageForms = () => {
     return filtered;
   }, [allForms, searchName, searchMinistry]);
 
-  const fetchFolders = useCallback(async () => {
-    try {
-      const resp = await api.get('/v1/ministries');
-      setAvailableMinistries(resp.data || []);
-    } catch (e) {
-      console.error('Failed to fetch ministries', e);
-    }
-  }, []);
-
-  const refreshFormsAndFolders = useCallback(
+  const refreshFormsAndMinistries = useCallback(
     async (options?: { showSpinner?: boolean }) => {
       const showSpinner = options?.showSpinner ?? false;
       if (showSpinner) {
@@ -332,7 +323,7 @@ const ManageForms = () => {
     []
   );
 
-  useEffect(() => { void refreshFormsAndFolders({ showSpinner: true }); }, [refreshFormsAndFolders]);
+  useEffect(() => { void refreshFormsAndMinistries({ showSpinner: true }); }, [refreshFormsAndMinistries]);
 
   // Client-side filtering is handled by the filteredForms useMemo, no API calls needed
 
@@ -343,7 +334,7 @@ const ManageForms = () => {
   await Promise.all(ids.map((id) => api.delete(`/v1/forms/${id}`)));
   setAllForms((prev) => prev.filter((f) => !ids.includes(f.id)));
   setSelectedRows((prev) => prev.filter((row) => !ids.includes(row.id)));
-  await refreshFormsAndFolders();
+  await refreshFormsAndMinistries();
       setStatus('Deleted');
     } catch (e) {
       console.error('Delete failed', e);
@@ -381,7 +372,7 @@ const ManageForms = () => {
       const exportObj = {
         title: form.title || 'Untitled Form',
         description: form.description || '',
-        folder: form.folder || null,
+        ministries: form.ministries || [],
         data: form.data?.data || form.data || [],
       };
       downloadJson(exportObj, `${exportObj.title || 'form'}.json`);
@@ -404,11 +395,11 @@ const ManageForms = () => {
           await api.post('/v1/forms/', {
             title: newTitle,
             description: form.description || '',
-            folder: form.folder || null,
+            ministries: form.ministries || [],
             visible: !!form.visible,
             data: form.data?.data || form.data || [],
           });
-          await refreshFormsAndFolders();
+          await refreshFormsAndMinistries();
           setStatus('Duplicated');
           return;
         } catch (err: any) {
@@ -450,7 +441,7 @@ const ManageForms = () => {
 
   await api.put(`/v1/forms/${id}`, { visible });
   setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
-  await refreshFormsAndFolders();
+  await refreshFormsAndMinistries();
     } catch (e) {
       console.error('Visibility update failed', e);
       setStatus('Visibility update failed');
@@ -479,7 +470,7 @@ const ManageForms = () => {
     try {
   await api.put(`/v1/forms/${id}`, { slug: cleaned });
   setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
-  await refreshFormsAndFolders();
+  await refreshFormsAndMinistries();
       setSlugDialog(null);
     } catch (err: any) {
       if (err?.response?.status === 409) {
@@ -494,7 +485,7 @@ const ManageForms = () => {
     try {
   await api.put(`/v1/forms/${id}`, { slug: null });
   setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
-  await refreshFormsAndFolders();
+  await refreshFormsAndMinistries();
     } catch (err) {
       setStatus('Failed to remove slug');
     }
@@ -505,7 +496,7 @@ const ManageForms = () => {
     try {
   await api.put(`/v1/forms/${renameTarget.id}`, { title: renameTarget.title });
   setAllForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
-  await refreshFormsAndFolders();
+  await refreshFormsAndMinistries();
       setRenameTarget(null);
     } catch (e: any) {
       console.error('Rename failed', e);
@@ -538,7 +529,7 @@ const ManageForms = () => {
       setAllForms((prev) => prev.map((f) =>
         f.id === duplicateNameDialog.existingId ? { ...f, title: duplicateNameDialog.newTitle } : f
       ));
-      await refreshFormsAndFolders();
+      await refreshFormsAndMinistries();
 
       setDuplicateNameDialog(null);
       setRenameTarget(null);
@@ -565,7 +556,7 @@ const ManageForms = () => {
           assignmentTarget.formIds.includes(f.id) ? { ...f, ministries: selectedArray } : f
         )
       );
-      await refreshFormsAndFolders();
+      await refreshFormsAndMinistries();
       setAssignmentTarget(null);
       setStatus('Ministries assigned successfully');
       setTimeout(() => setStatus(null), 3000);
@@ -598,7 +589,7 @@ const ManageForms = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold mb-4">Forms</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refreshFormsAndFolders({ showSpinner: true })} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" onClick={() => refreshFormsAndMinistries({ showSpinner: true })} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
           <Button onClick={() => navigate('/admin/forms/form-builder?new=1')}>
             <Pencil className="h-4 w-4 mr-2" /> New Form
           </Button>
@@ -630,7 +621,7 @@ const ManageForms = () => {
           <Button
             variant="outline"
             className="h-9"
-            onClick={() => { setSearchName(''); setSearchMinistry('all'); refreshFormsAndFolders(); }}
+            onClick={() => { setSearchName(''); setSearchMinistry('all'); refreshFormsAndMinistries(); }}
           >
             Clear
           </Button>
