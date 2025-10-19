@@ -171,20 +171,18 @@ function EventRegistrationForm({
         
         setSummary(regRes.data);
 
-        const current = new Set<string>();
   const scopes: Record<string, "series" | "occurrence"> = {};
   let selfScopeValue: "series" | "occurrence" = "series";
 
         (regRes.data?.user_registrations ?? []).forEach((r: any) => {
           if (r.person_id) {
-            current.add(r.person_id);
             scopes[r.person_id] = r.scope || "series";
           } else {
             selfScopeValue = r.scope || "series";
           }
         });
 
-  setSelectedIds(current);
+  setSelectedIds(new Set());
   setSelfSelected(false);
   setPersonScopes(scopes);
   setSelfScope(selfScopeValue);

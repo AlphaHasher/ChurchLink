@@ -443,7 +443,8 @@ async def rsvp_add_person(
     
     # Check specific failure conditions
     if key_exists:
-        return False, "already_registered"
+        print(f"[RSVP_ADD] Key already present, treating as idempotent success: {key}")
+        return True, "already_registered"
     
     if total_spots > 0 and seats_taken >= total_spots:
         return False, "event_full"
@@ -496,7 +497,10 @@ async def rsvp_add_person(
         )
         if key_check:
             print(f"[RSVP_ADD] Key already exists in attendee_keys: {key}")
-            return False, "already_registered"
+            # If another concurrent request added the key between our
+            # find_one_and_update attempt and this check, treat this as a
+            # successful (idempotent) registration.
+            return True, "already_registered"
         else:
             print(f"[RSVP_ADD] Key does not exist in attendee_keys")
         
