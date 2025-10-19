@@ -288,11 +288,14 @@ class _MyHomePageState extends State<MyHomePage> {
           onTap: (value) {
             // If selecting the current tab, pop to the base page
             if (value == tabProvider.currentIndex) {
-              final name = (tabProvider.tabs[value]['name'] as String).toLowerCase();
+              final name = (tabs[value]['name'] as String).toLowerCase();
               final key = _navKeyForTab[name];
               key?.currentState?.popUntil((route) => route.isFirst);
             } else {
-              // Switch normally if a different tab is selected
+              // Switch tabs and pop to the base of the new tab
+              final targetName = (tabs[value]['name'] as String).toLowerCase();
+              final targetKey = _navKeyForTab[targetName];
+              targetKey?.currentState?.popUntil((route) => route.isFirst);
               tabProvider.setTab(value);
             }
           },
@@ -306,7 +309,7 @@ class _MyHomePageState extends State<MyHomePage> {
           backgroundColor: theme.colorScheme.surface,
           selectedItemColor: theme.colorScheme.primary,
           unselectedItemColor: theme.colorScheme.onSurfaceVariant,
-          items: _buildNavItems(tabProvider.tabs),
+          items: _buildNavItems(tabs),
         ),
       ),
     );
