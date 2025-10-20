@@ -83,7 +83,7 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
   };
 
   const handlePageDataChange = (data: { sections: PageSection[] }) => {
-    setCurrentPageData((prev: { slug: string; sections: PageSection[] } | undefined) => {
+    setCurrentPageData((prev) => {
       const base = prev ?? { slug: initialPageData?.slug ?? "", sections: [] };
       const updatedPageData = { ...base, ...data };
       return updatedPageData;
