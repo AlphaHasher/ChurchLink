@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { UserCog, CalendarDays, IdCard } from "lucide-react";
 import { ProfileCard } from "@/features/users/components/Profile/ProfileCard";
 import { PersonRail } from "@/features/users/components/Profile/PersonRail";
+import { DeleteAccountCard } from "@/features/users/components/Profile/DeleteAccountCard";
 import { PersonDetails } from "@/shared/types/Person";
 import { ProfileEditDialog } from "@/features/users/components/Profile/ProfileEditDialog";
 import { MyEventsSection } from "@/features/events/components/MyEventsSection";
@@ -177,6 +178,14 @@ const ProfilePage: React.FC = () => {
                                 footer={<EditContactDialog initialContact={contact!} onUpdated={(c) => setContact(c)} />}
                             />
                             <PersonRail className="lg:ml-6" people={members} />
+                        </motion.div>
+                        <motion.div
+                            className="mt-6 w-full"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, ease: "easeOut", delay: 0.2 }}
+                        >
+                            <DeleteAccountCard />
                         </motion.div>
                     </TabsContent>
 

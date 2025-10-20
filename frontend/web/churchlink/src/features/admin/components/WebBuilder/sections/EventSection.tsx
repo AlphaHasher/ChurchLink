@@ -4,6 +4,9 @@ import api from "@/api/api";
 import { EventPayPalButton } from "@/features/events/components/EventPayPalButton";
 import { useUserProfile } from "@/helpers/useUserProfile";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
+// import { getPublicUrl, getThumbnailUrl } from "@/helpers/MediaInteraction";
+
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 type Recurring = "daily" | "weekly" | "monthly" | "yearly" | "never";
 type MyEventScope = "series" | "occurrence";
