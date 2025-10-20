@@ -239,8 +239,7 @@ public_router.include_router(public_forms_router)
 #####################################################
 mod_router = ModProtectedRouter(prefix="/api/v1")
 
-# Temporarily commented out due to Pydantic version issues
-# mod_router.include_router(mod_bible_plan_router)
+mod_router.include_router(mod_bible_plan_router)
 mod_router.include_router(mod_forms_router)
 mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)
