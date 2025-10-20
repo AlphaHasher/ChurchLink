@@ -1,3 +1,4 @@
+import asyncio
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
@@ -541,12 +542,12 @@ async def check_if_user_is_admin(uid: str) -> bool:
         users_collection = DB.db["users"]
         roles_collection = DB.db["roles"]
         
-        user = await users_collection.find_one({"uid": uid})
-        if not user:
-            return False
+        user, admin_role = await asyncio.gather(
+            users_collection.find_one({"uid": uid}),
+            roles_collection.find_one({"name": "Administrator"})
+        )
         
-        admin_role = await roles_collection.find_one({"name": "Administrator"})
-        if not admin_role:
+        if not user or not admin_role:
             return False
         
         user_roles = user.get("roles", [])

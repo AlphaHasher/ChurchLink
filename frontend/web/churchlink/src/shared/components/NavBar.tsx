@@ -111,6 +111,24 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
 
     }, [headerData]);
 
+    useEffect(() => {
+        const checkIfMod = async () => {
+            if (user) {
+                try {
+                    const res = await api.get("/v1/users/check-mod");
+                    setIsMod(res.data['success']);
+                } catch (error) {
+                    console.error("Error checking if user is mod:", error);
+                    setIsMod(false);
+                }
+            } else {
+                setIsMod(false);
+            }
+        };
+
+        checkIfMod();
+    }, [user]);
+
     return (
         <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80]">
             <div className="h-30 w-full lg:h-24 flex flex-row justify-between align-center">
