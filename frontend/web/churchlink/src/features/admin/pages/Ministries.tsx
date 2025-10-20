@@ -265,8 +265,8 @@ const Ministries = () => {
                     defaultColDef={defaultColDef}
                     quickFilterText={searchValue}
                     animateRows
-                    suppressRowClickSelection
-                    overlayNoRowsTemplate={loading ? 'Loading ministries...' : 'No ministries found.'}
+                    loading={loading}
+                    overlayNoRowsTemplate={loading ? '<span>Loading ministries...</span>' : '<span>No ministries found.</span>'}
                     context={context}
                 />
             </div>
