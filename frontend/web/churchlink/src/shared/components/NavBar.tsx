@@ -43,6 +43,7 @@ interface NavBarProps {
 export default function NavBar({ headerData }: NavBarProps = {}) {
     const [headerItems, setHeaderItems] = useState<HeaderItem[]>(headerData || []);
     const [loading, setLoading] = useState(!headerData);
+    const [isMod, setIsMod] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -95,6 +96,24 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
 
         fetchHeaderItems();
     }, [headerData]);
+
+    useEffect(() => {
+        const checkIfMod = async () => {
+            if (user) {
+                try {
+                    const res = await api.get("/v1/users/check-mod");
+                    setIsMod(res.data['success']);
+                } catch (error) {
+                    console.error("Error checking if user is mod:", error);
+                    setIsMod(false);
+                }
+            } else {
+                setIsMod(false);
+            }
+        };
+
+        checkIfMod();
+    }, [user]);
 
     return (
         <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80]">
@@ -165,7 +184,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                     {user ? (
                         // Authenticated user - show profile dropdown
                         <div className="hidden lg:flex items-center justify-center h-full w-9">
-                            <ProfileDropDown className="hover:bg-white/10 hover:text-gray-300 transition-colors duration-200 p-0! rounded-full!" />
+                            <ProfileDropDown className="hover:bg-white/10 hover:text-gray-300 transition-colors duration-200 p-0! rounded-full!" isMod={isMod} />
                         </div>
                     ) : (
                         // Unauthenticated user - show login button

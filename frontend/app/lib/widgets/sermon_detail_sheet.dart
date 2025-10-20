@@ -14,8 +14,6 @@ class SermonDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxHeight = constraints.maxHeight * 0.95;
-
         return Consumer<SermonsProvider>(
           builder: (context, provider, _) {
             Sermon? sermon;
@@ -33,39 +31,34 @@ class SermonDetailSheet extends StatelessWidget {
             final mediaQuery = MediaQuery.of(context);
             final bottomPadding = 24.0 + mediaQuery.padding.bottom;
 
-            return Align(
-              alignment: Alignment.bottomCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: maxHeight,
-                  maxWidth: constraints.maxWidth,
-                ),
-                child: Container(
-                  width: double.infinity,
+            return DraggableScrollableSheet(
+              initialChildSize: 0.9,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              builder: (BuildContext context, ScrollController scrollController) {
+                return Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(24),
                     ),
                   ),
-                  child: SafeArea(
-                    top: false,
-                    bottom: false,
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPadding),
-                      physics: const BouncingScrollPhysics(),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Align(
-                            child: Container(
-                              width: 60,
-                              height: 6,
-                              margin: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(3),
+                  child: ListView(
+                    controller: scrollController,
+                    padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPadding),
+                    children: [
+                          // Drag handle - visible affordance for closing
+                          Center(
+                            child: GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: Container(
+                                width: 60,
+                                height: 6,
+                                margin: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
                               ),
                             ),
                           ),
@@ -81,10 +74,10 @@ class SermonDetailSheet extends StatelessWidget {
                                   errorBuilder:
                                       (context, error, stackTrace) => Container(
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context)
+                                            color: Theme.of(context)
                                               .colorScheme
                                               .onSurface
-                                              .withOpacity(0.1),
+                                              .withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
@@ -96,7 +89,7 @@ class SermonDetailSheet extends StatelessWidget {
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .onSurface
-                                                .withOpacity(0.4),
+                                                .withValues(alpha: 0.4),
                                           ),
                                         ),
                                       ),
@@ -144,11 +137,13 @@ class SermonDetailSheet extends StatelessWidget {
                                       await provider.toggleFavorite(current);
                                     }
                                   } catch (error) {
-                                    _showError(
-                                      context,
-                                      message:
-                                          'Could not update favorite: $error',
-                                    );
+                                    if (context.mounted) {
+                                      _showError(
+                                        context,
+                                        message:
+                                            'Could not update favorite: $error',
+                                      );
+                                    }
                                   }
                                 },
                               ),
@@ -162,7 +157,7 @@ class SermonDetailSheet extends StatelessWidget {
                             ).textTheme.titleMedium?.copyWith(
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onSurface.withOpacity(0.7),
+                              ).colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -178,7 +173,7 @@ class SermonDetailSheet extends StatelessWidget {
                                 ),
                                 backgroundColor: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.12),
+                                ).colorScheme.primary.withValues(alpha: 0.12),
                                 side: BorderSide.none,
                               ),
                               if (current.duration != null)
@@ -189,7 +184,7 @@ class SermonDetailSheet extends StatelessWidget {
                                   avatar: const Icon(Icons.schedule, size: 16),
                                   backgroundColor: Theme.of(
                                     context,
-                                  ).colorScheme.primary.withOpacity(0.12),
+                                  ).colorScheme.primary.withValues(alpha: 0.12),
                                   side: BorderSide.none,
                                 ),
                               ...current.ministry.map(
@@ -197,7 +192,7 @@ class SermonDetailSheet extends StatelessWidget {
                                   label: Text(ministry),
                                   backgroundColor: Theme.of(
                                     context,
-                                  ).colorScheme.primary.withOpacity(0.15),
+                                  ).colorScheme.primary.withValues(alpha: 0.15),
                                   side: BorderSide.none,
                                 ),
                               ),
@@ -215,14 +210,14 @@ class SermonDetailSheet extends StatelessWidget {
                                       ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(
+                                SelectableText(
                                   current.summary!,
                                   style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                                 const SizedBox(height: 20),
                               ],
                             ),
-                          Text(
+                          SelectableText(
                             current.description,
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
@@ -254,12 +249,10 @@ class SermonDetailSheet extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         );
@@ -270,11 +263,15 @@ class SermonDetailSheet extends StatelessWidget {
   Future<void> _openYoutube(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      _showError(context, message: 'Invalid video link');
+      if (context.mounted) {
+        _showError(context, message: 'Invalid video link');
+      }
       return;
     }
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _showError(context, message: 'Could not open the video link.');
+      if (context.mounted) {
+        _showError(context, message: 'Could not open the video link.');
+      }
     }
   }
 
