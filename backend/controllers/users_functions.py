@@ -1,6 +1,8 @@
+import asyncio
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
+from mongo.database import DB
 from pydantic import BaseModel
 from fastapi import Request
 from typing import Optional, List, Dict, Literal
@@ -525,3 +527,81 @@ async def resolve_registration_display_names(attendees: List[Dict]) -> List[Dict
         enhanced_attendees.append(enhanced_attendee)
     
     return enhanced_attendees
+
+async def check_if_user_is_admin(uid: str) -> bool:
+    """
+    Check if a user has the Administrator role.
+    
+    Args:
+        uid: Firebase user ID
+        
+    Returns:
+        bool: True if user is an admin, False otherwise
+    """
+    try:
+        users_collection = DB.db["users"]
+        roles_collection = DB.db["roles"]
+        
+        # Fetch user and admin role in parallel
+        user, admin_role = await asyncio.gather(
+            users_collection.find_one({"uid": uid}),
+            roles_collection.find_one({"name": "Administrator"})
+        )
+        
+        if not user or not admin_role:
+            return False
+        
+        user_roles = user.get("roles", [])
+        admin_role_id_str = str(admin_role["_id"])
+        
+        return admin_role_id_str in [str(r) for r in user_roles]
+    except Exception:
+        return False
+
+
+async def delete_user_account(uid: str):
+    """
+    Delete user account from both MongoDB and Firebase, including all related user data.
+    
+    Args:
+        uid: Firebase user ID
+        
+    Returns:
+        dict: Success status and message
+    """
+    try:
+        # Check if user is an admin - admins cannot delete their own accounts
+        is_admin = await check_if_user_is_admin(uid)
+        if is_admin:
+            return {
+                "success": False, 
+                "message": "Administrator accounts cannot be deleted. To delete your account, you must first have another administrator remove your administrator privileges.",
+                "is_admin": True
+            }
+        
+        # Delete user record from MongoDB
+        users_collection = DB.db["users"]
+        user_result = await users_collection.delete_one({"uid": uid})
+        
+        if user_result.deleted_count == 0:
+            return {"success": False, "message": "User not found in database"}
+        
+        # Delete all related user data from other collections
+        collections_to_clean = [
+            ("bible_notes", ["user_id"]),
+            ("bible_plan_tracker", ["uid"]),
+            ("deviceTokens", ["userId"]),
+            ("membership_requests", ["uid"]),
+        ]
+        
+        for collection_name, uid_fields in collections_to_clean:
+            collection = DB.db[collection_name]
+            for field in uid_fields:
+                await collection.delete_many({field: uid})
+        
+        # Delete from Firebase
+        auth.delete_user(uid)
+        
+        return {"success": True, "message": "User account and all related data deleted successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Error deleting account: {str(e)}"}
