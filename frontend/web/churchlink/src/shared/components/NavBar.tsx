@@ -95,21 +95,25 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
         };
 
         fetchHeaderItems();
+    }, [headerData]);
 
-        // Check if user is mod
+    useEffect(() => {
         const checkIfMod = async () => {
-            try {
-                const res = await api.get("/v1/users/check-mod");
-                setIsMod(res.data['success']);
-            } catch (error) {
-                console.error("Error checking if user is mod:", error);
+            if (user) {
+                try {
+                    const res = await api.get("/v1/users/check-mod");
+                    setIsMod(res.data['success']);
+                } catch (error) {
+                    console.error("Error checking if user is mod:", error);
+                    setIsMod(false);
+                }
+            } else {
                 setIsMod(false);
             }
-        }
+        };
 
         checkIfMod();
-
-    }, [headerData]);
+    }, [user]);
 
     return (
         <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80]">
