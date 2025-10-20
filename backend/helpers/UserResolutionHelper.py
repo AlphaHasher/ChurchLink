@@ -39,23 +39,17 @@ class UserResolutionHelper:
         Returns None if family member is not found.
         """
         try:
-            print(f"[HELPER_FAMILY_MEMBER_DEBUG] Resolving family member - UID: {uid}, Person ID: {person_id}")
             
             # Get family member data
             member = await get_family_member_by_id(uid, str(person_id))
-            print(f"[HELPER_FAMILY_MEMBER_DEBUG] get_family_member_by_id returned: {member}")
             
             if member:
                 # PersonOut has first_name and last_name attributes
                 full_name = f"{member.first_name} {member.last_name}".strip()
-                print(f"[HELPER_FAMILY_MEMBER_DEBUG] Resolved name: '{full_name}'")
                 return full_name
             else:
-                print(f"[HELPER_FAMILY_MEMBER_DEBUG] No family member found for person_id: {person_id}")
                 return None
         except Exception as e:
-            print(f"[HELPER_FAMILY_MEMBER_DEBUG] Exception resolving family member: {e}")
-            print(f"[HELPER_FAMILY_MEMBER_DEBUG] Traceback: {traceback.format_exc()}")
             return None
     
     @staticmethod
@@ -63,19 +57,15 @@ class UserResolutionHelper:
         """
         Create a display name for registration entry.
         """
-        print(f"[HELPER_DISPLAY_NAME_DEBUG] Creating display name - user_uid: {user_uid}, person_id: {person_id}, user_name: '{user_name}', person_name: '{person_name}'")
         
         if person_id is None:
             # This is the user themselves
-            print(f"[HELPER_DISPLAY_NAME_DEBUG] Using user name: '{user_name}'")
             return user_name
         elif person_name:
             # This is a family member with a known name
-            print(f"[HELPER_DISPLAY_NAME_DEBUG] Using family member name: '{person_name}'")
             return person_name
         else:
             # Family member exists but name couldn't be resolved
-            print(f"[HELPER_DISPLAY_NAME_DEBUG] Falling back to 'Family Member' for person_id: {person_id}")
             return "Family Member"
     
     @staticmethod
