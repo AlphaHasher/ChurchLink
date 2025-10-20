@@ -86,11 +86,42 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
                   }
 
                   // Paid events - show payment status summary
-                  const pendingCount = rsvpRegistrants.filter(r => 
-                    !r.payment_status || 
-                    r.payment_status === 'awaiting_payment' || 
-                    r.payment_status === 'pending_door'
-                  ).length;
+                  const attendees = event.attendees as any[] | undefined;
+                  const resolveStatus = (r: any): string | undefined => {
+                    if (r.payment_status) return r.payment_status;
+                    if (!Array.isArray(attendees)) return undefined;
+                    const match = attendees.find(a => {
+                      try {
+                        if (r.key && a?.key && String(a.key) === String(r.key)) return true;
+                        if (r.person_id && a?.person_id && String(a.person_id) === String(r.person_id)) return true;
+                        if (!r.person_id && a?.user_uid && a.user_uid === (r as any).user_uid) return true;
+                      } catch (e) {}
+                      return false;
+                    });
+                    if (match && match.payment_status) return match.payment_status;
+                    // Conservative transaction id fallback - only when registrant
+                    // indicates a PayPal payment (payment_method === 'paypal' or meta has payment id)
+                    try {
+                      const registrantIndicatesPayPal = ((r as any)?.payment_method === 'paypal')
+                        || Boolean((r as any)?.meta?.payment_id) || Boolean((r as any)?.payment_id) || Boolean((r as any)?.meta?.transaction_id);
+
+                      if (registrantIndicatesPayPal) {
+                        const registrantTx = (r as any)?.transaction_id || (r as any)?.meta?.transaction_id || (r as any)?.payment_id;
+                        if (registrantTx) {
+                          const txMatch = attendees.find(a => a?.transaction_id && String(a.transaction_id) === String(registrantTx));
+                          if (txMatch && txMatch.payment_status) {
+                            return txMatch.payment_status;
+                          }
+                        }
+                      }
+                    } catch (e) {}
+                    return undefined;
+                  };
+
+                  const pendingCount = rsvpRegistrants.filter(r => {
+                    const s = resolveStatus(r);
+                    return !s || s === 'awaiting_payment' || s === 'pending_door';
+                  }).length;
 
                   if (pendingCount === 0) {
                     return `${totalRegistered} registered - all paid`;

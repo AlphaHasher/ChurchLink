@@ -9,6 +9,7 @@ export const ProfileRoutes = () => {
         <Routes>
             <Route path="/" element={<ProfilePage />}>
                 <Route path="my-events" element={<MyEventsPage />} />
+                <Route path="membership" element={<div />} />
             </Route>
         </Routes>
     );

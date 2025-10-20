@@ -8,7 +8,7 @@ import { ProfileEditDialog } from "@/features/users/components/Profile/ProfileEd
 import { MyEventsSection } from "@/features/events/components/MyEventsSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import Layout from "@/shared/layouts/Layout";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import { ProfileInfo, toContactInfo, toProfileInfo, ContactInfo } from "@/shared/types/ProfileInfo";
@@ -46,7 +46,14 @@ const ProfilePage: React.FC = () => {
 
     const location = useLocation();
     // Determine tab from route
-    const tabValue = location.pathname.includes("/profile/my-events") ? "events" : "profile";
+    // Derive tab from pathname, query param (?tab=membership), or hash (#membership)
+    const searchParams = new URLSearchParams(location.search);
+    const tabValue = location.pathname.includes("/profile/my-events")
+        ? "events"
+        : location.pathname.includes("/profile/membership") || searchParams.get('tab') === 'membership' || location.hash === '#membership'
+            ? 'membership'
+            : 'profile';
+    const navigate = useNavigate();
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [dialogResubmission, setDialogResubmission] = React.useState(false);
     const [dialogDetails, setDialogDetails] = React.useState<MembershipDetails | null>(null);
@@ -102,7 +109,12 @@ const ProfilePage: React.FC = () => {
     return (
         <Layout>
             <div className="mx-auto max-w-7xl p-6">
-                <Tabs defaultValue="profile" className="w-full">
+                <Tabs value={tabValue} onValueChange={(v) => {
+                    // Keep routes in sync: events has its own route; membership uses a query param so it can be deep-linked
+                    if (v === 'events') navigate('/profile/my-events');
+                    else if (v === 'membership') navigate('/profile/membership');
+                    else navigate('/profile');
+                }} className="w-full">
                     <div className="flex justify-center mb-8">
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
@@ -128,10 +140,8 @@ const ProfilePage: React.FC = () => {
                                     value="events"
                                     className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <Link to="/profile/my-events">
-                                        <CalendarDays className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                        My Events
-                                    </Link>
+                                    <CalendarDays className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    My Events
                                 </TabsTrigger>
                             </TabsList>
                         </motion.div>
