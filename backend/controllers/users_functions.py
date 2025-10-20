@@ -589,6 +589,7 @@ async def delete_user_account(uid: str):
             ("bible_notes", ["user_id"]),
             ("bible_plan_tracker", ["uid"]),
             ("deviceTokens", ["userId"]),
+            ("membership_requests", ["uid"]),
         ]
         
         for collection_name, uid_fields in collections_to_clean:
