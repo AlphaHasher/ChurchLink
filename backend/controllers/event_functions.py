@@ -4,6 +4,7 @@ from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 from bson import ObjectId
 from typing import Optional
+import logging
 
 async def process_create_event(event: EventCreate, request:Request):
     # Verify Event has Roles Attached
@@ -129,7 +130,7 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
         )
     except Exception as e:
         # Event RSVP succeeded, but user record failed
-        print(f"Warning: user my_events update failed: {e}")
+        logging.warning(f"Warning: user my_events update failed: {e}")
 
     return True, "success"
 
@@ -167,7 +168,7 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, 
                 person_id=person_object_id,
             )
     except Exception as e:
-        print(f"Warning: user my_events cleanup failed: {e}")
+        logging.warning(f"Warning: user my_events cleanup failed: {e}")
     
     return True
 

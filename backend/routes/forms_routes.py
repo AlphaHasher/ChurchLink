@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException, status, Query
 from typing import List
 import re
+import logging
 
 from models.form import (
     FormCreate,
@@ -236,10 +237,10 @@ async def list_form_responses(form_id: str, request: Request, skip: int = 0, lim
                         }
                         
                 except Exception as e:
-                    print(f"Error adding payment info to response: {e}")
+                    logging.error(f"Error adding payment info to response: {e}")
                     continue
                     
     except Exception as e:
-        print(f"Error fetching payment information: {e}")
-    
+        logging.error(f"Error fetching payment information: {e}")
+
     return data

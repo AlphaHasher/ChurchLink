@@ -545,8 +545,8 @@ class EventPaymentHelper:
         """Complete bulk event registration after successful payment"""
         try:
             self.logger.info(f"[BULK_REGISTRATION] Completing bulk registration for event: {event_id}, user: {user_uid}")
-            print(f"[BULK_REGISTRATION] Completion data: {completion_data}")
-            
+            logging.info(f"[BULK_REGISTRATION] Completion data: {completion_data}")
+
             payment_id = completion_data.get("payment_id")
             if not payment_id:
                 raise HTTPException(status_code=400, detail="payment_id is required")

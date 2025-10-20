@@ -73,7 +73,6 @@ class FormBase(BaseModel):
     payment_amount: Optional[float] = Field(None)
     payment_type: Optional[str] = Field("fixed")  # "fixed" | "donation" | "variable"
     payment_description: Optional[str] = Field(None)
-    allow_partial_payment: bool = Field(False)
     min_payment_amount: Optional[float] = Field(None)
     max_payment_amount: Optional[float] = Field(None)
 
@@ -109,7 +108,6 @@ class FormUpdate(BaseModel):
     payment_amount: Optional[float] = None
     payment_type: Optional[str] = None
     payment_description: Optional[str] = None
-    allow_partial_payment: Optional[bool] = None
     min_payment_amount: Optional[float] = None
     max_payment_amount: Optional[float] = None
 
@@ -137,7 +135,6 @@ class Form(MongoBaseModel, FormBase):
     payment_amount: Optional[float] = Field(None)
     payment_type: Optional[str] = Field("fixed")
     payment_description: Optional[str] = Field(None)
-    allow_partial_payment: bool = Field(False)
     min_payment_amount: Optional[float] = Field(None)
     max_payment_amount: Optional[float] = Field(None)
     expires_at: Optional[datetime]
@@ -163,7 +160,6 @@ class FormOut(BaseModel):
     payment_amount: Optional[float] = Field(None)
     payment_type: Optional[str] = Field("fixed")
     payment_description: Optional[str] = Field(None)
-    allow_partial_payment: bool = Field(False)
     min_payment_amount: Optional[float] = Field(None)
     max_payment_amount: Optional[float] = Field(None)
 
@@ -194,7 +190,6 @@ def _doc_to_out(doc: dict) -> FormOut:
         payment_amount=doc.get("payment_amount"),
         payment_type=doc.get("payment_type", "fixed"),
         payment_description=doc.get("payment_description"),
-        allow_partial_payment=doc.get("allow_partial_payment", False),
         min_payment_amount=doc.get("min_payment_amount"),
         max_payment_amount=doc.get("max_payment_amount"),
     )
@@ -281,7 +276,6 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "payment_amount": getattr(form, "payment_amount", None),
             "payment_type": getattr(form, "payment_type", "fixed"),
             "payment_description": getattr(form, "payment_description", None),
-            "allow_partial_payment": getattr(form, "allow_partial_payment", False),
             "min_payment_amount": getattr(form, "min_payment_amount", None),
             "max_payment_amount": getattr(form, "max_payment_amount", None),
         }
@@ -853,8 +847,6 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             update_doc["payment_type"] = update.payment_type
         if update.payment_description is not None:
             update_doc["payment_description"] = update.payment_description
-        if update.allow_partial_payment is not None:
-            update_doc["allow_partial_payment"] = update.allow_partial_payment
         if update.min_payment_amount is not None:
             update_doc["min_payment_amount"] = update.min_payment_amount
         if update.max_payment_amount is not None:

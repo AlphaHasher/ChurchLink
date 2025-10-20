@@ -19,6 +19,7 @@ from models.transaction import Transaction
 from helpers.UserResolutionHelper import UserResolutionHelper
 from datetime import datetime, timedelta
 import random
+import logging
 
 security = HTTPBearer(auto_error=False)
 
@@ -102,25 +103,25 @@ async def register_for_event(
     try:
         # Log the registration attempt
         uid = request.state.uid
-        print(f"[REGISTER] Registration attempt - Event ID: {event_id}, User ID: {uid}")
-        print(f"[REGISTER] Registration data: {registration_data}")
-        
+        logging.info(f"[REGISTER] Registration attempt - Event ID: {event_id}, User ID: {uid}")
+        logging.info(f"[REGISTER] Registration data: {registration_data}")
+
         # Extract family_member_id and payment_option from body if provided
         family_member_id = registration_data.get('family_member_id') if registration_data else None
         payment_option = registration_data.get('payment_option') if registration_data else None  # 'paypal', 'door', or None
-        
-        print(f"[REGISTER] Registration attempt for event {event_id}, user {uid}")
-        print(f"[REGISTER] Family member ID: {family_member_id}, Payment option: {payment_option}")
-        
+
+        logging.info(f"[REGISTER] Registration attempt for event {event_id}, user {uid}")
+        logging.info(f"[REGISTER] Family member ID: {family_member_id}, Payment option: {payment_option}")
+
         # Check if event exists first
         event = await get_event_by_id(event_id)
         if not event:
-            print(f"[REGISTER] Event not found: {event_id}")
+            logging.warning(f"[REGISTER] Event not found: {event_id}")
             raise HTTPException(status_code=404, detail="Event not found")
-        
-        print(f"[REGISTER] Event found: {event.name} - Spots: {event.spots}, Taken: {event.seats_taken}")
-        print(f"[REGISTER] Event pricing: Price=${event.price}, Payment Options: {event.payment_options}, Requires Payment: {event.requires_payment()}")
-        
+
+        logging.info(f"[REGISTER] Event found: {event.name} - Spots: {event.spots}, Taken: {event.seats_taken}")
+        logging.info(f"[REGISTER] Event pricing: Price=${event.price}, Payment Options: {event.payment_options}, Requires Payment: {event.requires_payment()}")
+
         # Validate payment option if event requires payment
         if event.requires_payment() and payment_option:
             if payment_option not in event.payment_options:
@@ -131,14 +132,14 @@ async def register_for_event(
         
         # Check if event has available spots
         if event.spots > 0 and event.seats_taken >= event.spots:
-            print(f"[REGISTER] Event is full - Spots: {event.spots}, Taken: {event.seats_taken}")
+            logging.warning(f"[REGISTER] Event is full - Spots: {event.spots}, Taken: {event.seats_taken}")
             raise HTTPException(status_code=400, detail="Event is full")
         
         # Use the existing register_rsvp function with payment option
         ok, reason = await register_rsvp(event_id, uid, family_member_id, payment_option=payment_option)
         if not ok:
-            print(f"[REGISTER] register_rsvp returned False for event {event_id}, user {uid}, reason: {reason}")
-            
+            logging.warning(f"[REGISTER] register_rsvp returned False for event {event_id}, user {uid}, reason: {reason}")
+
             # Provide specific error messages based on the reason
             if reason == "already_registered":
                 raise HTTPException(
@@ -155,15 +156,15 @@ async def register_for_event(
                     status_code=400, 
                     detail="Registration failed - please try again or contact support"
                 )
-        
-        print(f"[REGISTER] Successfully registered user {uid} for event {event_id}")
+
+        logging.info(f"[REGISTER] Successfully registered user {uid} for event {event_id}")
         return {"success": True, "message": "Successfully registered for event"}
         
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        print(f"[REGISTER] Unexpected error: {str(e)}")
+        logging.error(f"[REGISTER] Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error during registration: {str(e)}")
 
 # Private Router
@@ -486,7 +487,7 @@ async def delete_events_route(event_ids: List[str], request: Request):
     # Note: This endpoint currently returns success even if some/all IDs were not found.
     # You could add logic to check if deleted_count matches len(event_ids) if needed.
     # if deleted_count < len(event_ids):
-    #     print(f"Warning: Requested deletion for {len(event_ids)} IDs, but only {deleted_count} were found and deleted.")
+    #     logging.warning(f"Warning: Requested deletion for {len(event_ids)} IDs, but only {deleted_count} were found and deleted.")
 
     return {"message": f"Attempted deletion for {len(event_ids)} IDs.", "deleted_count": deleted_count}
 
@@ -577,6 +578,6 @@ async def get_event_history_route(event_id: str):
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        print(f"Error fetching event history: {str(e)}")
+        logging.error(f"Error fetching event history: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch event history: {str(e)}")
 

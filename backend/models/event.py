@@ -12,6 +12,7 @@ from mongo.database import DB
 from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
 from helpers.MongoHelper import serialize_objectid_deep
+import logging
 
 class Event(BaseModel):
     id: str
@@ -193,11 +194,11 @@ async def delete_events(filter_query: dict) -> int:
     Returns:
         int: The number of events deleted.
     """
-    print(
+    logging.info(
         f"Attempting to delete events with filter: {filter_query}"
     )  # Log the filter being used
     deleted_count = await DB.delete_documents("events", filter_query)
-    print(f"Deleted {deleted_count} events.")
+    logging.info(f"Deleted {deleted_count} events.")
     return deleted_count
 
 
@@ -352,7 +353,7 @@ async def get_event_amount() -> int:
         count = await DB.db["events"].count_documents({})
         return count
     except Exception as e:
-        print(f"Error counting events: {e}")
+        logging.error(f"Error counting events: {e}")
         return 0
 
 
@@ -414,12 +415,12 @@ async def rsvp_add_person(
     attendee = _attendee_doc(uid, person_id, display_name, kind, scope, payment_status)
 
 
-    print(f"[RSVP_ADD] Debug info:")
-    print(f"  - Event ID: {event_id}")
-    print(f"  - User ID: {uid}")
-    print(f"  - Person ID: {person_id}")
-    print(f"  - Attendee Key: {key}")
-    print(f"  - Kind: {kind}")
+    logging.info(f"[RSVP_ADD] Debug info:")
+    logging.info(f"  - Event ID: {event_id}")
+    logging.info(f"  - User ID: {uid}")
+    logging.info(f"  - Person ID: {person_id}")
+    logging.info(f"  - Attendee Key: {key}")
+    logging.info(f"  - Kind: {kind}")
 
     # First, let's check if the person is already registered
     existing_event = await DB.db["events"].find_one(
@@ -434,16 +435,16 @@ async def rsvp_add_person(
     seats_taken = existing_event.get('seats_taken', 0)
     total_spots = existing_event.get('spots', 0)
     key_exists = key in attendee_keys
-    
-    print(f"[RSVP_ADD] Event check:")
-    print(f"  - Current attendee keys: {attendee_keys}")
-    print(f"  - Seats taken: {seats_taken}")
-    print(f"  - Total spots: {total_spots}")
-    print(f"  - Key already exists: {key_exists}")
-    
+
+    logging.info(f"[RSVP_ADD] Event check:")
+    logging.info(f"  - Current attendee keys: {attendee_keys}")
+    logging.info(f"  - Seats taken: {seats_taken}")
+    logging.info(f"  - Total spots: {total_spots}")
+    logging.info(f"  - Key already exists: {key_exists}")
+
     # Check specific failure conditions
     if key_exists:
-        print(f"[RSVP_ADD] Key already present, treating as idempotent success: {key}")
+        logging.info(f"[RSVP_ADD] Key already present, treating as idempotent success: {key}")
         return True, "already_registered"
     
     if total_spots > 0 and seats_taken >= total_spots:
@@ -458,12 +459,12 @@ async def rsvp_add_person(
     # Only add capacity constraint if event has limited spots
     if total_spots > 0:
         query_conditions["$expr"] = {"$lte": [{"$add": ["$seats_taken", 1]}, "$spots"]}
-        print(f"[RSVP_ADD] Adding capacity constraint for {total_spots} spots")
+        logging.info(f"[RSVP_ADD] Adding capacity constraint for {total_spots} spots")
     else:
-        print(f"[RSVP_ADD] No capacity constraint (unlimited spots)")
-    
-    print(f"[RSVP_ADD] Query conditions: {query_conditions}")
-    
+        logging.info(f"[RSVP_ADD] No capacity constraint (unlimited spots)")
+
+    logging.info(f"[RSVP_ADD] Query conditions: {query_conditions}")
+
     result = await DB.db["events"].find_one_and_update(
         query_conditions,
         {
@@ -475,35 +476,35 @@ async def rsvp_add_person(
     )
     
     success = result is not None
-    print(f"[RSVP_ADD] Database update result: {result}")
-    print(f"[RSVP_ADD] Success: {'SUCCESS' if success else 'FAILED'}")
-    
+    logging.info(f"[RSVP_ADD] Database update result: {result}")
+    logging.info(f"[RSVP_ADD] Success: {'SUCCESS' if success else 'FAILED'}")
+
     if not success:
         # If the update failed, let's check why with more detailed debugging
-        print(f"[RSVP_ADD] Update failed, investigating...")
-        
+        logging.info(f"[RSVP_ADD] Update failed, investigating...")
+
         # Check if event exists
         event_check = await DB.db["events"].find_one({"_id": ev_oid}, {"_id": 1, "name": 1, "seats_taken": 1, "spots": 1})
         if not event_check:
-            print(f"[RSVP_ADD] Event not found with ID: {ev_oid}")
+            logging.warning(f"[RSVP_ADD] Event not found with ID: {ev_oid}")
             return False, "event_not_found"
         else:
-            print(f"[RSVP_ADD] Event exists: {event_check.get('name', 'No name')}, seats_taken: {event_check.get('seats_taken', 0)}, spots: {event_check.get('spots', 0)}")
-        
+            logging.info(f"[RSVP_ADD] Event exists: {event_check.get('name', 'No name')}, seats_taken: {event_check.get('seats_taken', 0)}, spots: {event_check.get('spots', 0)}")
+
         # Check if key already exists
         key_check = await DB.db["events"].find_one(
             {"_id": ev_oid, "attendee_keys": key}, 
             {"attendee_keys": 1}
         )
         if key_check:
-            print(f"[RSVP_ADD] Key already exists in attendee_keys: {key}")
+            logging.info(f"[RSVP_ADD] Key already exists in attendee_keys: {key}")
             # If another concurrent request added the key between our
             # find_one_and_update attempt and this check, treat this as a
             # successful (idempotent) registration.
             return True, "already_registered"
         else:
-            print(f"[RSVP_ADD] Key does not exist in attendee_keys")
-        
+            logging.info(f"[RSVP_ADD] Key does not exist in attendee_keys: {key}")
+
         # Check capacity constraint manually
         current_event = await DB.db["events"].find_one(
             {"_id": ev_oid}, 
@@ -512,9 +513,9 @@ async def rsvp_add_person(
         if current_event:
             seats_taken = current_event.get("seats_taken", 0)
             spots = current_event.get("spots", 0)
-            print(f"[RSVP_ADD] Final capacity check - seats_taken: {seats_taken}, spots: {spots}")
+            logging.info(f"[RSVP_ADD] Final capacity check - seats_taken: {seats_taken}, spots: {spots}")
             if spots > 0 and seats_taken >= spots:
-                print(f"[RSVP_ADD] Event is full")
+                logging.warning(f"[RSVP_ADD] Event is full")
                 return False, "event_full"
         
         # Try a simpler update to see if there's a validation error
@@ -525,15 +526,15 @@ async def rsvp_add_person(
                 return_document=False,
             )
             if simple_test:
-                print(f"[RSVP_ADD] Simple update works, issue is with query conditions")
+                logging.info(f"[RSVP_ADD] Simple update works, issue is with query conditions")
                 # Remove test field
                 await DB.db["events"].update_one({"_id": ev_oid}, {"$unset": {"test_field": 1}})
             else:
-                print(f"[RSVP_ADD] Simple update also fails, event may be locked or have other issues")
+                logging.warning(f"[RSVP_ADD] Simple update also fails, event may be locked or have other issues")
         except Exception as e:
-            print(f"[RSVP_ADD] Exception during simple test: {e}")
-        
-        print(f"[RSVP_ADD] Unknown reason for update failure")
+            logging.error(f"[RSVP_ADD] Exception during simple test: {e}")
+
+        logging.error(f"[RSVP_ADD] Unknown reason for update failure")
         return False, "update_failed"
     
     if success:
@@ -591,7 +592,7 @@ async def rsvp_remove_person(
             
             return result is not None
         except Exception as e:
-            print(f"Error in rsvp_remove_person: {e}")
+            logging.error(f"Error in rsvp_remove_person: {e}")
             return False
     else:
         # Remove all registrations for this person (both scopes if they exist)
@@ -623,7 +624,7 @@ async def rsvp_remove_person(
             
             return result.modified_count > 0
         except Exception as e:
-            print(f"Error in rsvp_remove_person: {e}")
+            logging.error(f"Error in rsvp_remove_person: {e}")
             return False
 
 async def rsvp_add_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:
@@ -707,7 +708,7 @@ async def get_event_registrations_by_payment_status(event_id: str, payment_statu
             return [serialize_attendee(attendee) for attendee in attendees]
             
     except Exception as e:
-        print(f"Error getting event registrations by payment status: {e}")
+        logging.error(f"Error getting event registrations by payment status: {e}")
         return []
 
 
@@ -767,7 +768,7 @@ async def get_event_payment_summary(event_id: str) -> Dict:
         }
         
     except Exception as e:
-        print(f"Error getting event payment summary: {e}")
+        logging.error(f"Error getting event payment summary: {e}")
         return {
             "total_registrations": 0,
             "paid_count": 0,
@@ -798,5 +799,5 @@ async def update_attendee_payment_status(event_id: str, attendee_key: str, payme
         return result.modified_count > 0
         
     except Exception as e:
-        print(f"Error updating attendee payment status: {e}")
+        logging.error(f"Error updating attendee payment status: {e}")
         return False
