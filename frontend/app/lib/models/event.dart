@@ -128,7 +128,7 @@ class Event {
   // Computed properties
   bool get isFree => price == 0;
 
-  bool get hasSpots => spots == null || spots == 0 || seatsTaken < spots!;
+  bool get hasSpots => spots == null || spots == 0 || (spots != null && seatsTaken < spots!);
 
   int? get availableSpots => spots != null && spots! > 0 ? spots! - seatsTaken : null;
 

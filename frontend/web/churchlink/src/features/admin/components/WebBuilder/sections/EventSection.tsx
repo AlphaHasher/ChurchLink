@@ -185,6 +185,8 @@ function EventRegistrationForm({
           }
         });
 
+  // Reset registration selections and scopes when initializing the form for a new event.
+  // This ensures previous registrations/selections are cleared and do not persist across events.
   setSelectedIds(new Set());
   setSelfSelected(false);
   setPersonScopes(scopes);
