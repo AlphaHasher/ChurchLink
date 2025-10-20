@@ -123,7 +123,6 @@ async def get_uid_by_email(email: str) -> str:
     except auth.UserNotFoundError:
         return None
     except Exception as e:
-        print(f"Error getting UID for email {email}: {e}")
         return None
 
 
