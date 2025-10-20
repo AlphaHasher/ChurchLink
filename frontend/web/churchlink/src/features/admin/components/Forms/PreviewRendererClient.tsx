@@ -275,15 +275,33 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   };
 
   const onSubmit = form.handleSubmit(async (data: any) => {
-    // Prevent duplicate submissions from multiple form instances
+    // Prevent duplicate submissions from multiple form instances, with timestamp-based expiration
     const globalSubmitKey = `form_submitting_${slug || 'preview'}`;
-    if (sessionStorage.getItem(globalSubmitKey)) {
-      console.log(`[${formInstanceId}] Submission already in progress, skipping...`);
-      return;
+    const LOCK_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+    const lockRaw = sessionStorage.getItem(globalSubmitKey);
+    if (lockRaw) {
+      try {
+        const lock = JSON.parse(lockRaw);
+        if (lock.submitting && typeof lock.setAt === 'number') {
+          if (Date.now() - lock.setAt < LOCK_EXPIRY_MS) {
+            console.log(`[${formInstanceId}] Submission already in progress, skipping...`);
+            return;
+          } else {
+            // Lock expired, clean up
+            sessionStorage.removeItem(globalSubmitKey);
+          }
+        } else {
+          // Malformed lock, clean up
+          sessionStorage.removeItem(globalSubmitKey);
+        }
+      } catch {
+        // Malformed lock, clean up
+        sessionStorage.removeItem(globalSubmitKey);
+      }
     }
     
     console.log(`[${formInstanceId}] Starting form submission...`);
-    sessionStorage.setItem(globalSubmitKey, 'true');
+    sessionStorage.setItem(globalSubmitKey, JSON.stringify({ submitting: true, setAt: Date.now() }));
     console.log("Preview submit", data);
     
     // If a slug prop is provided, submit to public endpoint
