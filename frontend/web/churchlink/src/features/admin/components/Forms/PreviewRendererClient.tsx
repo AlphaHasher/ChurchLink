@@ -22,6 +22,7 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} }); // always init form hook
   const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
+  const navigate = useNavigate();
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -72,9 +73,10 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
     // If a slug prop is provided, submit to public endpoint and redirect to thank-you
     if (slug) {
       try {
-        setStatus('Submitting...');
+        setSubmitState('submitting');
         await api.post(`/v1/forms/slug/${slug}/responses`, data);
-        setStatus('Submitted');
+        setSubmitState('success');
+        setSubmitMessage('Thank you for your submission!');
         navigate('/forms/thank-you');
       } catch (err: any) {
         console.error('Submit failed', err);
@@ -259,8 +261,8 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
         />
       ))}
       <div className="col-span-12">
-        <Button type="submit">Submit</Button>
-        {status && <div className="text-sm text-muted-foreground mt-2">{status}</div>}
+        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Submitting...' : 'Submit'}</Button>
+        {submitMessage && <div className="text-sm text-muted-foreground mt-2">{submitMessage}</div>}
       </div>
       {showPricingBar && (
         <div className="col-span-12">

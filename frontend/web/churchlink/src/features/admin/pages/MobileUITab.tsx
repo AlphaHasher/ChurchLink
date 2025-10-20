@@ -14,8 +14,6 @@ const ALLOWED_TABS = [
   { name: 'bulletin', displayName: 'Weekly Bulletin', icon: 'article' },
   { name: 'events', displayName: 'Events', icon: 'event' },
   { name: 'giving', displayName: 'Giving', icon: 'volunteer_activism' },
-  { name: 'ministries', displayName: 'Ministries', icon: 'groups' },
-  { name: 'contact', displayName: 'Contact Us', icon: 'contact_mail' },
   { name: 'sermons', displayName: 'Sermons', icon: 'church' },
   { name: 'bible', displayName: 'Bible', icon: 'menu_book' },
   { name: 'profile', displayName: 'Profile', icon: 'person' }
@@ -132,10 +130,7 @@ const MobileUITab = () => {
       case 'events': return '📅';
       case 'volunteer_activism': 
       case 'giving': return '🤝';
-      case 'groups': 
-      case 'ministries': return '👥';
-      case 'contact_mail': 
-      case 'contact': return '📧';
+      case 'groups': return '👥';
       case 'play_circle': 
       case 'church':
       case 'sermons': return '✝️';
@@ -284,12 +279,12 @@ const MobileUITab = () => {
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-800">
             <strong>Note:</strong> The Home tab is fixed at the first position and cannot be moved or deleted. 
-            You can add up to 5 tabs total (Flutter BottomNavigationBar limit) from the predefined list: Live, Weekly Bulletin, Events, Giving, Ministries, Contact Us, Sermons, Bible, and Profile.
+            You can add up to 5 tabs total (Flutter BottomNavigationBar limit) from the predefined list: Live, Weekly Bulletin, Events, Giving, Sermons, Bible, and Profile.
             Use the dropdown above to select and add new tabs, then arrange them in your desired order.
           </p>
           <div className="mt-2 p-2 bg-blue-25 rounded">
             <p className="text-xs text-blue-700">
-              <strong>Icons:</strong> Home (🏠), Live (📺), Bulletin (📄), Events (📅), Giving (🤝), Ministries (👥), Contact (📧), Sermons (✝️), Bible (📖), Profile (👤)
+              <strong>Icons:</strong> Home (🏠), Live (📺), Bulletin (📄), Events (📅), Giving (🤝), Sermons (✝️), Bible (📖), Profile (👤)
             </p>
           </div>
         </div>
@@ -459,11 +454,6 @@ const MobileUITab = () => {
             No tabs configured. Click "Add Tab" to create your first tab.
           </div>
         )}
-      </div>
-      {/* Future Settings Sections */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Other Settings</h2>
-        <p className="text-gray-600">Additional settings can be added here in the future.</p>
       </div>
     </div>
   );

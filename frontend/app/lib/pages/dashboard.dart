@@ -4,8 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/giving.dart';
 import 'package:app/pages/eventspage.dart';
-import 'package:app/pages/ministries.dart';
-import 'package:app/pages/contact.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
 import 'dart:convert';
@@ -179,26 +177,6 @@ class _DashboardPageState extends State<DashboardPage> {
                           },
                               Colors.green.shade600,
                               imageUrl: images['giving'],
-                          ),
-                          buildCard('Ministries', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(
-                                builder: (_) => const Ministries(),
-                              ),
-                            );
-                          },
-                              Colors.purple.shade600,
-                              imageUrl: images['ministries'],
-                          ),
-                          buildCard('Contact Us', () {
-                            Navigator.push(
-                              ctx,
-                              CupertinoPageRoute(builder: (_) => const Contact()),
-                            );
-                          },
-                              Colors.blueGrey.shade700,
-                              imageUrl: images['contact'],
                           ),
                           buildCard('Forms', () {
                             Navigator.push(
