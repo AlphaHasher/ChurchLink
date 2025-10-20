@@ -119,6 +119,16 @@ class EnhancedEventCard extends StatelessWidget {
           // _buildPlaceholderImage(),
           _buildEventThumb(),
 
+          // Allows the image to be tappable
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onViewPressed,
+              ),
+            ),
+          ),
+
           // View Details button positioned in bottom right
           Positioned(
             bottom: 12,

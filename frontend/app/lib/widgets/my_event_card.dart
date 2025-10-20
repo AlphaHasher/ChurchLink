@@ -91,6 +91,16 @@ class MyEventCard extends StatelessWidget {
                         ),
                       ),
 
+                      // Allows the image to be tappable
+                      Positioned.fill(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: onTap,
+                          ),
+                        ),
+                      ),
+
                       Positioned(
                         bottom: 12,
                         right: 12,
