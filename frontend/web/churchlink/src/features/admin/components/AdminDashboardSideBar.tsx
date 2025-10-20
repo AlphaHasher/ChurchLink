@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Newspaper,
   Lectern,
+  Church,
   Wallet,
 } from "lucide-react";
 import {
@@ -70,7 +71,7 @@ const AdminDashboardSideBar = () => {
     },
 
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
-    { title: "Ministries", url: "/admin/ministries", icon: Lectern },
+    { title: "Ministries", url: "/admin/ministries", icon: Church },
     { title: "Web Builder", icon: FileText, children: webBuilderChildren },
     { title: "Media Library", url: "/admin/media-library", icon: Image },
     { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Smartphone },
