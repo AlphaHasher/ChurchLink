@@ -119,7 +119,7 @@ class MyApp extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: c,
-      builder: (_, __) {
+      builder: (_, child) {
         return MaterialApp(
           title: 'ChurchLink',
           navigatorKey: navigatorKey,
@@ -311,7 +311,6 @@ class _MyHomePageState extends State<MyHomePage> {
     List<Map<String, dynamic>> tabs,
   ) {
     return tabs.asMap().entries.map((entry) {
-      final idx = entry.key;
       final tab = entry.value;
       final name = (tab['name'] as String).toLowerCase();
       final displayName = (tab['displayName'] as String?) ?? name;
