@@ -97,6 +97,10 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
         eventId: widget.event.id,
         eventName: widget.event.name,
         amount: amount,
+        donation: {
+          'amount': amount,
+          'type': widget.event.requiresPayment ? 'payment' : 'donation',
+        },
         message: widget.event.requiresPayment
             ? 'Payment for event: ${widget.event.name}'
             : 'Donation for event: ${widget.event.name}',
