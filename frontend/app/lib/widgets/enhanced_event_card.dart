@@ -93,6 +93,7 @@ class EnhancedEventCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 60), // restrict event name display length
                   ],
                 ),
 
@@ -117,6 +118,16 @@ class EnhancedEventCard extends StatelessWidget {
           // For now, always show placeholder until backend image serving is implemented
           // _buildPlaceholderImage(),
           _buildEventThumb(),
+
+          // Allows the image to be tappable
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onViewPressed,
+              ),
+            ),
+          ),
 
           // View Details button positioned in bottom right
           Positioned(
