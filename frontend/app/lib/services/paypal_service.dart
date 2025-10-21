@@ -6,9 +6,27 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PaypalService {
+  /// Validate that the amount is positive for PayPal payments
+  static void validateAmount(double amount) {
+    if (amount <= 0) {
+      log('[PaypalService] Cannot create PayPal order with amount: $amount');
+      throw Exception('PayPal orders require a positive amount. Amount provided: $amount');
+    }
+  }
+
+  /// Validate donation data including amount
+  static void validateDonation(Map<String, dynamic> donation) {
+    final amount = donation['amount'] as double?;
+    if (amount != null) {
+      validateAmount(amount);
+    }
+  }
+
   static Future<Map<String, dynamic>?> createOrder(
     Map<String, dynamic> donation,
   ) async {
+    validateDonation(donation);
+
     final backendUrl =
         dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
     final endpoint = '/v1/paypal/orders';
@@ -64,6 +82,8 @@ class PaypalService {
   static Future<Map<String, dynamic>?> createSubscription(
     Map<String, dynamic> donation,
   ) async {
+    validateDonation(donation);
+
     final backendUrl =
         dotenv.env['BACKEND_URL']?.replaceAll(RegExp(r'/+$'), '') ?? '';
     final endpoint = '/v1/paypal/subscription';
@@ -125,11 +145,7 @@ class PaypalService {
     String? returnUrl,
     String? cancelUrl,
   }) async {
-    // Prevent creating PayPal orders with zero or negative amounts
-    if (amount <= 0) {
-      log('[PaypalService] Cannot create PayPal order with amount: $amount');
-      throw Exception('PayPal orders require a positive amount. Amount provided: $amount');
-    }
+    validateDonation(donation);
     
     final endpoint = '/v1/events/$eventId/payment/create-bulk-order';
     log('[PaypalService] Creating event payment order for event: $eventId');
@@ -295,6 +311,17 @@ class PaypalService {
     String? returnUrl,
     String? cancelUrl,
   }) async {
+    // Validate that we have registrations with valid amounts
+    double totalAmount = 0.0;
+    for (final registration in registrations) {
+      final regAmount = registration['donation_amount'] as double? ?? 0.0;
+      final eventAmount = registration['amount'] as double? ?? 0.0;
+      totalAmount += regAmount + eventAmount;
+    }
+    if (totalAmount > 0) {
+      validateAmount(totalAmount);
+    }
+    
     final endpoint = '/v1/events/$eventId/payment/create-bulk-order';
     log('[PaypalService] Creating bulk event payment order for event: $eventId');
     log('[PaypalService] Number of registrations: ${registrations.length}');
