@@ -18,7 +18,7 @@ export function MyEventsSection() {
     searchTerm: '',
   });
   const [selectedEvent, setSelectedEvent] = useState<EventWithGroupedData | null>(null);
-  const [userProfile, setUserProfile] = useState<ProfileInfo | null>(null);
+  const [, setUserProfile] = useState<ProfileInfo | null>(null);
 
   // Load user profile for eligibility checking
   useEffect(() => {
@@ -30,7 +30,7 @@ export function MyEventsSection() {
         console.error('Failed to load user profile:', error);
       }
     };
-    
+
     loadUserProfile();
   }, []);
 
@@ -47,30 +47,30 @@ export function MyEventsSection() {
   const groupedEvents = useMemo(() => {
     // First, deduplicate events based on unique key (event_id + person_id combination)
     const uniqueEventsMap = new Map<string, MyEvent>();
-    
+
     events.forEach(eventRef => {
-      const uniqueKey = eventRef.person_id 
-        ? `${eventRef.event_id}-${eventRef.person_id}` 
+      const uniqueKey = eventRef.person_id
+        ? `${eventRef.event_id}-${eventRef.person_id}`
         : `${eventRef.event_id}-user`;
-      
+
       // Keep the first occurrence, ignore duplicates
       if (!uniqueEventsMap.has(uniqueKey)) {
         uniqueEventsMap.set(uniqueKey, eventRef);
       }
     });
-    
+
     const deduplicatedEvents = Array.from(uniqueEventsMap.values());
-    
+
     // Group events by event_id
     const eventGroups = new Map<string, GroupedEvent>();
-    
+
     deduplicatedEvents.forEach(eventRef => {
       const event = eventRef.event;
       if (!event) return; // Skip if no event details loaded
-      
+
       const eventDate = new Date(event.date);
       const isUpcoming = eventDate > new Date();
-      
+
       if (!eventGroups.has(eventRef.event_id)) {
         // Create new group for this event
         eventGroups.set(eventRef.event_id, {
@@ -82,23 +82,23 @@ export function MyEventsSection() {
           allRegistrants: []
         });
       }
-      
+
       const group = eventGroups.get(eventRef.event_id)!;
-      
+
       // Add registrant to appropriate category
       if (eventRef.person_id) {
         group.registrants.family.push(eventRef);
       } else {
         group.registrants.user = eventRef;
       }
-      
+
       group.allRegistrants.push(eventRef);
     });
-    
+
     // Filter groups based on current filters
     return Array.from(eventGroups.values()).filter(group => {
       const event = group.event;
-      
+
       // Date filtering
       if (!filters.showUpcoming && group.isUpcoming) return false;
       if (!filters.showPast && !group.isUpcoming) return false;
@@ -131,7 +131,7 @@ export function MyEventsSection() {
         ...(groupedEvent.registrants.user ? [groupedEvent.registrants.user] : []),
         ...groupedEvent.registrants.family
       ];
-      
+
       const eventWithAllRegistrants: EventWithGroupedData = {
         ...primaryEvent,
         groupedEventData: {
@@ -171,7 +171,7 @@ export function MyEventsSection() {
       <div className="space-y-4">
         <div className="text-center py-8">
           <p className="text-red-600 mb-4">Error: {error}</p>
-          <button 
+          <button
             onClick={refetch}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
@@ -185,8 +185,8 @@ export function MyEventsSection() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <EventFiltersComponent 
-        filters={filters} 
+      <EventFiltersComponent
+        filters={filters}
         onFiltersChange={setFilters}
         onRefresh={refetch}
       />
@@ -195,7 +195,7 @@ export function MyEventsSection() {
       {groupedEvents.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-500">
-            {events.length === 0 
+            {events.length === 0
               ? "You haven't registered for any events yet."
               : "No events match your current filters."
             }
@@ -206,7 +206,7 @@ export function MyEventsSection() {
           {groupedEvents.map((groupedEvent, index) => {
             // Create unique key for grouped events
             const uniqueKey = `grouped-${groupedEvent.event_id}`;
-            
+
             return (
               <motion.div
                 key={uniqueKey}
@@ -232,7 +232,6 @@ export function MyEventsSection() {
           isOpen={Boolean(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           onCancelRSVP={handleCancelRSVP}
-          userProfile={userProfile}
         />
       )}
     </div>

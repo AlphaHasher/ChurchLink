@@ -25,7 +25,6 @@ export function EventPayPalButton({
   eventId,
   event,
   donationAmount = 0,
-  onPaymentSuccess,
   onPaymentError,
   onPaymentStarted,
   className = "",

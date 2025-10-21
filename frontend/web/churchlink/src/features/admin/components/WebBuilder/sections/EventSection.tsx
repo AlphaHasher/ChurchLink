@@ -28,7 +28,7 @@ interface Event {
   min_age?: number;             // if your payload includes them
   max_age?: number;
   gender?: Gender;
-  
+
   // Payment processing fields
   payment_options?: string[]; // Available payment methods: ['PayPal', 'Door']
   refund_policy?: string;
@@ -71,7 +71,7 @@ enum RegistrationStep {
 function EventRegistrationForm({
   event,
   onClose,
-  onSaved, 
+  onSaved,
 }: {
   event: Event;
   onClose: () => void;
@@ -109,7 +109,7 @@ function EventRegistrationForm({
   const [saving, setSaving] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [summary, setSummary] = useState<RegistrationSummary | null>(null);
-  
+
   // Single-step flow state
   const currentStep = RegistrationStep.PEOPLE_SELECTION;
 
@@ -171,11 +171,11 @@ function EventRegistrationForm({
           fetchPeople(),
           api.get(`/v1/events/${event.id}/registrations/summary`),
         ]);
-        
+
         setSummary(regRes.data);
 
-  const scopes: Record<string, "series" | "occurrence"> = {};
-  let selfScopeValue: "series" | "occurrence" = "series";
+        const scopes: Record<string, "series" | "occurrence"> = {};
+        let selfScopeValue: "series" | "occurrence" = "series";
 
         (regRes.data?.user_registrations ?? []).forEach((r: any) => {
           if (r.person_id) {
@@ -185,13 +185,13 @@ function EventRegistrationForm({
           }
         });
 
-  // Reset registration selections and scopes when initializing the form for a new event.
-  // This ensures previous registrations/selections are cleared and do not persist across events.
-  setSelectedIds(new Set());
-  setSelfSelected(false);
-  setPersonScopes(scopes);
-  setSelfScope(selfScopeValue);
-  // local flag -> keep in state by setting selection if needed (no-op here)
+        // Reset registration selections and scopes when initializing the form for a new event.
+        // This ensures previous registrations/selections are cleared and do not persist across events.
+        setSelectedIds(new Set());
+        setSelfSelected(false);
+        setPersonScopes(scopes);
+        setSelfScope(selfScopeValue);
+        // local flag -> keep in state by setting selection if needed (no-op here)
       } catch (e) {
         console.error("Failed to load registration form data:", e);
       } finally {
@@ -203,9 +203,9 @@ function EventRegistrationForm({
   // Update display name when profile loads
   useEffect(() => {
     if (currentUserProfile?.first_name && currentUserProfile?.last_name) {
-      setMe({ 
-        first: currentUserProfile.first_name, 
-        last: currentUserProfile.last_name 
+      setMe({
+        first: currentUserProfile.first_name,
+        last: currentUserProfile.last_name
       });
     }
   }, [currentUserProfile]);
@@ -220,38 +220,38 @@ function EventRegistrationForm({
     () => !!summary?.user_registrations?.some((r) => r.person_id === null),
     [summary]
   );
-  
+
 
   // --- validation used for selection list (enhanced with proper null handling) ---
   const validatePersonForEvent = (person: Person, ev: Event): string | null => {
-  const evGender = ev.gender ?? "all"; // "male" | "female" | "all"
-  
-  // Check gender requirements - FIXED: properly handle null/undefined gender
-  if (evGender !== "all") {
-    if (!person.gender) {
-      // No gender set - block registration for gender-restricted events
-      return `Please set gender in profile to register for this ${evGender}-only event.`;
-    }
-    
-    const personAsEventGender = person.gender === "M" ? "male" : "female";
-    if (personAsEventGender !== evGender) {
-      return `This event is ${evGender}-only.`;
-    }
-  }
+    const evGender = ev.gender ?? "all"; // "male" | "female" | "all"
 
-  if (person.date_of_birth && ev.min_age != null && ev.max_age != null) {
-    const dob =
-      person.date_of_birth.length === 10
-        ? new Date(`${person.date_of_birth}T00:00:00`)
-        : new Date(person.date_of_birth);
-    const on = new Date(ev.date);
-    let age = on.getFullYear() - dob.getFullYear();
-    const m = on.getMonth() - dob.getMonth();
-    if (m < 0 || (m === 0 && on.getDate() < dob.getDate())) age--;
-    if (age < ev.min_age || age > ev.max_age) return `Age restriction: ${ev.min_age}–${ev.max_age}.`;
-  }
-  return null;
-};
+    // Check gender requirements - FIXED: properly handle null/undefined gender
+    if (evGender !== "all") {
+      if (!person.gender) {
+        // No gender set - block registration for gender-restricted events
+        return `Please set gender in profile to register for this ${evGender}-only event.`;
+      }
+
+      const personAsEventGender = person.gender === "M" ? "male" : "female";
+      if (personAsEventGender !== evGender) {
+        return `This event is ${evGender}-only.`;
+      }
+    }
+
+    if (person.date_of_birth && ev.min_age != null && ev.max_age != null) {
+      const dob =
+        person.date_of_birth.length === 10
+          ? new Date(`${person.date_of_birth}T00:00:00`)
+          : new Date(person.date_of_birth);
+      const on = new Date(ev.date);
+      let age = on.getFullYear() - dob.getFullYear();
+      const m = on.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && on.getDate() < dob.getDate())) age--;
+      if (age < ev.min_age || age > ev.max_age) return `Age restriction: ${ev.min_age}–${ev.max_age}.`;
+    }
+    return null;
+  };
 
   // Validate current user for event eligibility
   const validateCurrentUserForEvent = (ev: Event): string | null => {
@@ -279,10 +279,10 @@ function EventRegistrationForm({
   useEffect(() => {
     const errs: Record<string, string | null> = {};
     for (const p of people) errs[p.id] = validatePersonForEvent(p, event);
-    
+
     // FIXED: Actually validate the current user instead of always setting null
     errs["__self__"] = validateCurrentUserForEvent(event);
-    
+
     setErrors(errs);
   }, [people, event]);
 
@@ -291,7 +291,7 @@ function EventRegistrationForm({
     if (registeredSet.has(id)) {
       return;
     }
-    
+
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -327,7 +327,7 @@ function EventRegistrationForm({
       setSaving(false);
     }
   };
-  
+
   const togglePersonScope = (id: string) => {
     setPersonScopes((prev) => ({
       ...prev,
@@ -388,14 +388,14 @@ function EventRegistrationForm({
       const isPaidEvent = requiresPayment(event);
       const isPayPalPayment = selectedPaymentOption === 'paypal';
       const isDoorPayment = selectedPaymentOption === 'door';
-      
+
       if (isPaidEvent && isPayPalPayment) {
         console.log('💳 [EVENT SECTION] Paid event with PayPal - creating PayPal order without registration');
         console.log('⚠️ [EVENT SECTION] Registration will be deferred until PayPal payment completion');
-        
+
         // Prepare bulk registration data for PayPal order
         const registrations = [];
-        
+
         // Add self if selected
         if (wantSelf && !haveSelf) {
           const selfName = me ? `${me.first} ${me.last}` : 'You';
@@ -406,7 +406,7 @@ function EventRegistrationForm({
             payment_amount_per_person: event.price || 0
           });
         }
-        
+
         // Add family members
         for (const id of toAdd) {
           const person = people.find(p => p.id === id);
@@ -418,15 +418,15 @@ function EventRegistrationForm({
             payment_amount_per_person: event.price || 0
           });
         }
-        
+
         if (registrations.length === 0) {
           alert('No people selected for registration.');
           setSaving(false);
           return;
         }
-        
+
         console.log('📋 [EVENT SECTION] Prepared registrations for PayPal:', registrations);
-        
+
         try {
           // Create PayPal order using unified API
           const orderData = {
@@ -440,20 +440,20 @@ function EventRegistrationForm({
             return_url: "",
             cancel_url: ""
           };
-          
+
           console.log('📤 [EVENT SECTION] Creating PayPal order:', orderData);
-          
+
           const response = await api.post(`/v1/events/${event.id}/payment/create-bulk-order`, orderData);
-          
+
           if (response.status === 200 && response.data) {
             const { approval_url, payment_id } = response.data;
-            
+
             if (approval_url) {
               console.log('✅ [EVENT SECTION] PayPal order created successfully');
               console.log('🔗 [EVENT SECTION] Redirecting to PayPal:', approval_url);
               console.log('🆔 [EVENT SECTION] Payment ID:', payment_id);
               console.log('⏳ [EVENT SECTION] People will be registered ONLY after successful payment');
-              
+
               // Redirect to PayPal
               window.location.href = approval_url;
               return; // Don't continue with immediate registration
@@ -472,10 +472,10 @@ function EventRegistrationForm({
         }
       } else if (isPaidEvent && isDoorPayment) {
         console.log('🚪 [EVENT SECTION] Paid event with door payment - registering with pending status');
-        
+
         // Register each person individually for door payment
         const registrationPromises = [];
-        
+
         if (wantSelf && !haveSelf) {
           registrationPromises.push(
             api.post(`/v1/event-people/register/${event.id}`, {
@@ -483,7 +483,7 @@ function EventRegistrationForm({
             })
           );
         }
-        
+
         for (const id of toAdd) {
           registrationPromises.push(
             api.post(`/v1/event-people/register/${event.id}/family-member/${id}`, {
@@ -491,15 +491,15 @@ function EventRegistrationForm({
             })
           );
         }
-        
+
         const responses = await Promise.all(registrationPromises);
-        
+
         // Check if all registrations succeeded
         const failures = responses.filter(response => !response.data?.success);
         if (failures.length > 0) {
           throw new Error(`Failed to register ${failures.length} person(s) for door payment`);
         }
-        
+
         console.log('✅ [EVENT SECTION] Door payment registrations completed');
         onSaved('door'); // parent refreshes + closes with door payment method
         return;
@@ -589,8 +589,8 @@ function EventRegistrationForm({
       //   date_of_birth: "YYYY-MM-DD"
       const payload = {
         first_name: newFirst.trim(),
-        last_name:  newLast.trim(),
-        gender:     newGender,  // "M" | "F"
+        last_name: newLast.trim(),
+        gender: newGender,  // "M" | "F"
         date_of_birth: newDob,  // raw date string from input
       };
 
@@ -605,9 +605,9 @@ function EventRegistrationForm({
       console.error("Add person failed:", e?.response?.data || e);
       alert(
         "Failed to add person: " +
-          (e?.response?.data?.detail
-            ? JSON.stringify(e.response.data.detail)
-            : "Please check required fields.")
+        (e?.response?.data?.detail
+          ? JSON.stringify(e.response.data.detail)
+          : "Please check required fields.")
       );
     } finally {
       setSaving(false);
@@ -620,7 +620,7 @@ function EventRegistrationForm({
     (newGender === "M" || newGender === "F") &&
     !!newDob;
 
-  if (loading) return <div>Loading…</div>;
+  if (loading) return <Skeleton className="h-8 w-full" />;
 
   return (
     <div className="space-y-6">
@@ -633,11 +633,11 @@ function EventRegistrationForm({
           </h3>
           <p className="text-sm text-gray-600">
             {new Date(event.date).toLocaleString()} • {
-              summary?.available_spots === -1 
-                ? "Unlimited spots" 
+              summary?.available_spots === -1
+                ? "Unlimited spots"
                 : summary?.available_spots !== undefined && summary?.available_spots >= 0
-                ? `${summary.available_spots} spots left`
-                : "Loading spots..."
+                  ? `${summary.available_spots} spots left`
+                  : "Loading spots..."
             } (of{" "}
             {summary?.total_spots === 0 ? "unlimited" : summary?.total_spots ?? "?"})
           </p>
@@ -666,338 +666,334 @@ function EventRegistrationForm({
             </div>
           </div>
 
-      {/* Already registered */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-medium">Already Registered</h4>
-          {/* Payment Status Summary for paid events */}
-          {summary?.user_registrations?.length && (event.price ?? 0) > 0 && (
-            <div className="text-xs text-gray-500">
-              {(() => {
-                const registrations = summary.user_registrations;
-                const completedPayments = registrations.filter(r => r.payment_status === 'completed' || r.payment_status === 'paid').length;
-                const doorPayments = registrations.filter(r => r.payment_status === 'pending_door').length;
-                const pendingPayments = registrations.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
-                
-                const parts = [];
-                if (completedPayments > 0) parts.push(`${completedPayments} paid online`);
-                if (doorPayments > 0) parts.push(`${doorPayments} pay at door`);
-                if (pendingPayments > 0) parts.push(`${pendingPayments} pending`);
-                
-                return parts.length > 0 ? parts.join(' • ') : 'All paid';
-              })()}
+          {/* Already registered */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium">Already Registered</h4>
+              {/* Payment Status Summary for paid events */}
+              {summary?.user_registrations?.length && (event.price ?? 0) > 0 && (
+                <div className="text-xs text-gray-500">
+                  {(() => {
+                    const registrations = summary.user_registrations;
+                    const completedPayments = registrations.filter(r => r.payment_status === 'completed' || r.payment_status === 'paid').length;
+                    const doorPayments = registrations.filter(r => r.payment_status === 'pending_door').length;
+                    const pendingPayments = registrations.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
+
+                    const parts = [];
+                    if (completedPayments > 0) parts.push(`${completedPayments} paid online`);
+                    if (doorPayments > 0) parts.push(`${doorPayments} pay at door`);
+                    if (pendingPayments > 0) parts.push(`${pendingPayments} pending`);
+
+                    return parts.length > 0 ? parts.join(' • ') : 'All paid';
+                  })()}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        {summary?.user_registrations?.length ? (
-          <div className="space-y-2">
-            {summary.user_registrations.map((r) => (
-              <div key={`${r.person_id ?? "__self__"}`} className="flex items-center justify-between rounded-lg border p-3">
-                <div className="flex-1">
-                  <div className="font-medium">{r.display_name}</div>
-                  <div className="text-xs text-gray-500">
-                    Registered on {new Date(r.registered_on).toLocaleString()}
-                  </div>
-                  {/* Context-aware Payment Status Display */}
-                  <div className="mt-1">
-                    {event.price === 0 ? (
-                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 inline-block">
-                        ✅ Registered (Free Event)
-                      </span>
-                    ) : r.payment_status ? (
-                      <span className={`text-xs px-2 py-1 rounded-full inline-block ${
-                        (r.payment_status === 'completed' || r.payment_status === 'paid')
-                          ? 'bg-green-100 text-green-700' 
-                          : r.payment_status === 'pending_door'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : r.payment_status === 'awaiting_payment'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {(r.payment_status === 'completed' || r.payment_status === 'paid')
-                          ? '✅ Paid Online' 
-                          : r.payment_status === 'pending_door'
-                          ? '🚪 Pay at Door'
-                          : r.payment_status === 'awaiting_payment'
-                          ? '⏳ PayPal Processing'
-                          : '❌ Payment Required'}
-                      </span>
-                    ) : (
-                      <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block">
-                        ❌ Payment Required
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  disabled={saving}
-                  className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-                  onClick={() => removeRegistered(r.person_id)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">No one is registered yet.</div>
-        )}
-      </div>
-
-      {/* Add Person CTA + Inline form */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600">Need to add a new Event Person?</div>
-        <div className="flex gap-2">
-          <button
-            className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-            onClick={() => setShowAdd((s) => !s)}
-            >
-              {showAdd ? "Close Inline Add" : "Add Person Here"}
-            </button>
-        </div>
-      </div>
-
-      {showAdd && (
-        <div className="rounded-xl border p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input
-              className="border rounded px-3 py-2"
-              placeholder="First name"
-              value={newFirst}
-              onChange={(e) => setNewFirst(e.target.value)}
-              required
-            />
-            <input
-              className="border rounded px-3 py-2"
-              placeholder="Last name"
-              value={newLast}
-              onChange={(e) => setNewLast(e.target.value)}
-              required
-            />
-            <select
-              className="border rounded px-3 py-2"
-              value={newGender}
-              onChange={(e) => setNewGender(e.target.value as "M" | "F" | "")}
-              required
-            >
-              <option value="">Select gender</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-            </select>
-            <input
-              type="date"
-              className="border rounded px-3 py-2"
-              value={newDob}
-              onChange={(e) => setNewDob(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              disabled={saving || !canSavePerson}
-              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-              onClick={submitAddPerson}
-            >
-              Save Person
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Choose from saved Event People */}
-      <div>
-        <h4 className="font-medium mb-2">Choose from your saved Event People</h4>
-
-        {/* Self */}
-        <label className={`flex items-center gap-3 rounded-lg border p-3 mb-2 ${
-          selfRegistered ? "border-green-300 bg-green-50 opacity-60 cursor-not-allowed" : "cursor-pointer"
-        }`}>
-          <input
-            type="checkbox"
-            checked={selfSelected}
-            disabled={selfRegistered}
-            onChange={(e) => {
-              if (!selfRegistered) {
-                setSelfSelected(e.target.checked);
-              }
-            }}
-            className={selfRegistered ? "cursor-not-allowed" : ""}
-          />
-        <div>
-          <div className={`font-medium ${selfRegistered ? "text-green-700" : ""}`}>
-             {me ? `${me.first} ${me.last} (you)` : "You"}
-             {selfRegistered && <span className="ml-2 text-xs text-green-600 font-semibold">✓ Already Registered</span>}
-         </div>
-         {errors["__self__"] && <div className="text-sm text-red-600">{errors["__self__"]}</div>}
-         {isRecurring && selfSelected && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={selfScope === "series"}
-                onChange={() => setSelfScope(selfScope === "series" ? "occurrence" : "series")}
-              />
-              <span className="text-gray-700">Register for all occurrences</span>
-            </label>
-          )}
-        </div>
-        </label>
-
-        {/* Family */}
-        <div className="space-y-2">
-          {people.length === 0 ? (
-            <div className="text-sm text-gray-500">You have no saved Event People yet.</div>
-          ) : (
-            people.map((p) => {
-              const checked = selectedIds.has(p.id);
-              const err = errors[p.id];
-              const isAlreadyRegistered = registeredSet.has(p.id);
-              
-              const scope = personScopes[p.id] || "series";
-              return (
-                <div
-                  key={p.id}
-                  className={`flex items-center gap-3 rounded-lg border p-3 ${
-                    err ? "border-red-300 bg-red-50" : 
-                    isAlreadyRegistered ? "border-green-300 bg-green-50 opacity-60" : ""
-                  } ${isAlreadyRegistered ? "cursor-not-allowed" : "cursor-pointer"}`}
-                >
-                  <input 
-                    type="checkbox" 
-                    checked={checked} 
-                    disabled={isAlreadyRegistered}
-                    onChange={() => togglePerson(p.id)}
-                    className={isAlreadyRegistered ? "cursor-not-allowed" : ""}
-                  />
-                  <div>
-                    <div className={`font-medium ${isAlreadyRegistered ? "text-green-700" : ""}`}>
-                      {p.first_name} {p.last_name}
-                      {isAlreadyRegistered && <span className="ml-2 text-xs text-green-600 font-semibold">✓ Already Registered</span>}
+            {summary?.user_registrations?.length ? (
+              <div className="space-y-2">
+                {summary.user_registrations.map((r) => (
+                  <div key={`${r.person_id ?? "__self__"}`} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex-1">
+                      <div className="font-medium">{r.display_name}</div>
+                      <div className="text-xs text-gray-500">
+                        Registered on {new Date(r.registered_on).toLocaleString()
+                        }
+                      </div>
+                      {/* Context-aware Payment Status Display */}
+                      <div className="mt-1">
+                        {event.price === 0 ? (
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 inline-block">
+                            ✅ Registered (Free Event)
+                          </span>
+                        ) : r.payment_status ? (
+                          <span className={`text-xs px-2 py-1 rounded-full inline-block ${(r.payment_status === 'completed' || r.payment_status === 'paid')
+                              ? 'bg-green-100 text-green-700'
+                              : r.payment_status === 'pending_door'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : r.payment_status === 'awaiting_payment'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-red-100 text-red-700'
+                            }`}>
+                            {(r.payment_status === 'completed' || r.payment_status === 'paid')
+                              ? '✅ Paid Online'
+                              : r.payment_status === 'pending_door'
+                                ? '🚪 Pay at Door'
+                                : r.payment_status === 'awaiting_payment'
+                                  ? '⏳ PayPal Processing'
+                                  : '❌ Payment Required'}
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block">
+                            ❌ Payment Required
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {p.date_of_birth && (
-                      <div className="text-xs text-gray-500">DOB: {new Date(p.date_of_birth).toLocaleDateString()}</div>
-                    )}
-                    {err && <div className="text-sm text-red-600">{err}</div>}
+                    <button
+                      disabled={saving}
+                      className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                      onClick={() => removeRegistered(r.person_id)}
+                    >
+                      Remove
+                    </button>
                   </div>
-                  {isRecurring && checked && (
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={scope === "series"}
-                        onChange={() => togglePersonScope(p.id)}
-                      />
-                      <span className="text-gray-700">Register for all occurrences</span>
-                    </label>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Selected People Summary */}
-      {hasSelections && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h4 className="font-medium text-green-900 mb-2">
-            Selected for Registration ({(selfSelected ? 1 : 0) + selectedIds.size} people)
-          </h4>
-          <div className="text-sm text-green-800">
-            {selfSelected && <p>• You</p>}
-            {Array.from(selectedIds).map(personId => {
-              const person = people.find(p => p.id === personId);
-              return person ? <p key={personId}>• {person.first_name} {person.last_name}</p> : null;
-            })}
-            {requiresPayment(event) && (
-              <p className="font-medium mt-2">
-                Total Cost: ${((event.price || 0) * ((selfSelected ? 1 : 0) + selectedIds.size)).toFixed(2)}
-              </p>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">No one is registered yet.</div>
             )}
           </div>
-        </div>
-      )}
 
-      {/* Payment Method Selection for Paid Events */}
-      {requiresPayment(event) && hasSelections && (
-        <div className="border-t pt-4 mt-4">
-          <h3 className="text-lg font-semibold mb-3">Choose Payment Method</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setSelectedPaymentOption('paypal')}
-              className={`p-4 rounded-lg border-2 transition-all ${
-                selectedPaymentOption === 'paypal'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="text-center">
-                <CreditCard className="h-6 w-6 mx-auto mb-2" />
-                <div className="font-medium">Pay Online</div>
-                <div className="text-sm opacity-75">Pay now with PayPal</div>
-              </div>
-            </button>
-            
-            <button
-              onClick={() => setSelectedPaymentOption('door')}
-              className={`p-4 rounded-lg border-2 transition-all ${
-                selectedPaymentOption === 'door'
-                  ? 'border-orange-500 bg-orange-50 text-orange-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="text-center">
-                <FiDollarSign className="h-6 w-6 mx-auto mb-2" />
-                <div className="font-medium">Pay at Door</div>
-                <div className="text-sm opacity-75">Pay when you arrive</div>
-              </div>
-            </button>
+          {/* Add Person CTA + Inline form */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">Need to add a new Event Person?</div>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                onClick={() => setShowAdd((s) => !s)}
+              >
+                {showAdd ? "Close Inline Add" : "Add Person Here"}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Step 1 Navigation */}
-      <div className="flex justify-between pt-4">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-        >
-          Cancel
-        </button>
+          {showAdd && (
+            <div className="rounded-xl border p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  className="border rounded px-3 py-2"
+                  placeholder="First name"
+                  value={newFirst}
+                  onChange={(e) => setNewFirst(e.target.value)}
+                  required
+                />
+                <input
+                  className="border rounded px-3 py-2"
+                  placeholder="Last name"
+                  value={newLast}
+                  onChange={(e) => setNewLast(e.target.value)}
+                  required
+                />
+                <select
+                  className="border rounded px-3 py-2"
+                  value={newGender}
+                  onChange={(e) => setNewGender(e.target.value as "M" | "F" | "")}
+                  required
+                >
+                  <option value="">Select gender</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+                <input
+                  type="date"
+                  className="border rounded px-3 py-2"
+                  value={newDob}
+                  onChange={(e) => setNewDob(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  disabled={saving || !canSavePerson}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                  onClick={submitAddPerson}
+                >
+                  Save Person
+                </button>
+              </div>
+            </div>
+          )}
 
-        <button
-          onClick={handleNextStep}
-          disabled={!hasSelections || saving}
-          className="min-w-[120px] px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-        >
-          {saving ? (
-            "Processing..."
-          ) : (
-            <>
-              {requiresPayment(event) ? (
+          {/* Choose from saved Event People */}
+          <div>
+            <h4 className="font-medium mb-2">Choose from your saved Event People</h4>
+
+            {/* Self */}
+            <label className={`flex items-center gap-3 rounded-lg border p-3 mb-2 ${selfRegistered ? "border-green-300 bg-green-50 opacity-60 cursor-not-allowed" : "cursor-pointer"
+              }`}>
+              <input
+                type="checkbox"
+                checked={selfSelected}
+                disabled={selfRegistered}
+                onChange={(e) => {
+                  if (!selfRegistered) {
+                    setSelfSelected(e.target.checked);
+                  }
+                }}
+                className={selfRegistered ? "cursor-not-allowed" : ""}
+              />
+              <div>
+                <div className={`font-medium ${selfRegistered ? "text-green-700" : ""}`}>
+                  {me ? `${me.first} ${me.last} (you)` : "You"}
+                  {selfRegistered && <span className="ml-2 text-xs text-green-600 font-semibold">✓ Already Registered</span>}
+                </div>
+                {errors["__self__"] && <div className="text-sm text-red-600">{errors["__self__"]}</div>}
+                {isRecurring && selfSelected && (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selfScope === "series"}
+                      onChange={() => setSelfScope(selfScope === "series" ? "occurrence" : "series")}
+                    />
+                    <span className="text-gray-700">Register for all occurrences</span>
+                  </label>
+                )}
+              </div>
+            </label>
+
+            {/* Family */}
+            <div className="space-y-2">
+              {people.length === 0 ? (
+                <div className="text-sm text-gray-500">You have no saved Event People yet.</div>
+              ) : (
+                people.map((p) => {
+                  const checked = selectedIds.has(p.id);
+                  const err = errors[p.id];
+                  const isAlreadyRegistered = registeredSet.has(p.id);
+
+                  const scope = personScopes[p.id] || "series";
+                  return (
+                    <div
+                      key={p.id}
+                      className={`flex items-center gap-3 rounded-lg border p-3 ${err ? "border-red-300 bg-red-50" :
+                          isAlreadyRegistered ? "border-green-300 bg-green-50 opacity-60" : ""
+                        } ${isAlreadyRegistered ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={isAlreadyRegistered}
+                        onChange={() => togglePerson(p.id)}
+                        className={isAlreadyRegistered ? "cursor-not-allowed" : ""}
+                      />
+                      <div>
+                        <div className={`font-medium ${isAlreadyRegistered ? "text-green-700" : ""}`}>
+                          {p.first_name} {p.last_name}
+                          {isAlreadyRegistered && <span className="ml-2 text-xs text-green-600 font-semibold">✓ Already Registered</span>}
+                        </div>
+                        {p.date_of_birth && (
+                          <div className="text-xs text-gray-500">DOB: {new Date(p.date_of_birth).toLocaleDateString()}</div>
+                        )}
+                        {err && <div className="text-sm text-red-600">{err}</div>}
+                      </div>
+                      {isRecurring && checked && (
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={scope === "series"}
+                            onChange={() => togglePersonScope(p.id)}
+                          />
+                          <span className="text-gray-700">Register for all occurrences</span>
+                        </label>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Selected People Summary */}
+          {hasSelections && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-medium text-green-900 mb-2">
+                Selected for Registration ({(selfSelected ? 1 : 0) + selectedIds.size} people)
+              </h4>
+              <div className="text-sm text-green-800">
+                {selfSelected && <p>• You</p>}
+                {Array.from(selectedIds).map(personId => {
+                  const person = people.find(p => p.id === personId);
+                  return person ? <p key={personId}>• {person.first_name} {person.last_name}</p> : null;
+                })}
+                {requiresPayment(event) && (
+                  <p className="font-medium mt-2">
+                    Total Cost: ${((event.price || 0) * ((selfSelected ? 1 : 0) + selectedIds.size)).toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Payment Method Selection for Paid Events */}
+          {requiresPayment(event) && hasSelections && (
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-lg font-semibold mb-3">Choose Payment Method</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setSelectedPaymentOption('paypal')}
+                  className={`p-4 rounded-lg border-2 transition-all ${selectedPaymentOption === 'paypal'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                  <div className="text-center">
+                    <CreditCard className="h-6 w-6 mx-auto mb-2" />
+                    <div className="font-medium">Pay Online</div>
+                    <div className="text-sm opacity-75">Pay now with PayPal</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setSelectedPaymentOption('door')}
+                  className={`p-4 rounded-lg border-2 transition-all ${selectedPaymentOption === 'door'
+                      ? 'border-orange-500 bg-orange-50 text-orange-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                  <div className="text-center">
+                    <FiDollarSign className="h-6 w-6 mx-auto mb-2" />
+                    <div className="font-medium">Pay at Door</div>
+                    <div className="text-sm opacity-75">Pay when you arrive</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1 Navigation */}
+          <div className="flex justify-between pt-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={handleNextStep}
+              disabled={!hasSelections || saving}
+              className="min-w-[120px] px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? (
+                "Processing..."
+              ) : (
                 <>
-                  {selectedPaymentOption === 'paypal' ? (
+                  {requiresPayment(event) ? (
                     <>
-                      <CreditCard className="h-4 w-4" />
-                      Register & Pay Online
+                      {selectedPaymentOption === 'paypal' ? (
+                        <>
+                          <CreditCard className="h-4 w-4" />
+                          Register & Pay Online
+                        </>
+                      ) : (
+                        <>
+                          <FiDollarSign className="h-4 w-4" />
+                          Register & Pay at Door
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
-                      <FiDollarSign className="h-4 w-4" />
-                      Register & Pay at Door
+                      <Users className="h-4 w-4" />
+                      Register Now
                     </>
                   )}
                 </>
-              ) : (
-                <>
-                  <Users className="h-4 w-4" />
-                  Register Now
-                </>
               )}
-            </>
-          )}
-        </button>
-      </div>
-    </>
-  )}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1028,18 +1024,18 @@ const EventSection: React.FC<EventSectionProps> = ({
   const [watchScopes, setWatchScopes] = useState<Record<string, MyEventScope>>({});
   const getWatchScopeFor = (ev: Event) => watchScopes[ev.id] ?? "series";
   const setWatchScopeFor = (eventId: string, scope: MyEventScope) =>
-        setWatchScopes((m) => ({ ...m, [eventId]: scope }));
+    setWatchScopes((m) => ({ ...m, [eventId]: scope }));
 
   // NEW: registration modal event
   const [regEvent, setRegEvent] = useState<Event | null>(null);
-  
+
   // Payment state management
   const [showPaymentRequired, setShowPaymentRequired] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [donationAmount, setDonationAmount] = useState<number>(0);
   const [donateEvent, setDonateEvent] = useState<Event | null>(null);
-    const now = new Date();
-    const upcomingEvents = events.filter(ev => new Date(ev.date) >= now);
+  const now = new Date();
+  const upcomingEvents = events.filter(ev => new Date(ev.date) >= now);
 
   const recurrenceLabel = (ev: Event) => {
     if (!ev.recurring || ev.recurring === "never") return "One-time";
@@ -1070,59 +1066,59 @@ const EventSection: React.FC<EventSectionProps> = ({
   };
 
   const fetchEvents = async () => {
-  setLoading(true);
-  try {
-    const isNameSet = Array.isArray(eventName)
-      ? eventName.length > 0
-      : typeof eventName === "string" && eventName.trim() !== "";
+    setLoading(true);
+    try {
+      const isNameSet = Array.isArray(eventName)
+        ? eventName.length > 0
+        : typeof eventName === "string" && eventName.trim() !== "";
 
-    const finalMinistry = lockedFilters?.ministry ?? ministry;
-    const finalAgeRange = lockedFilters?.ageRange ?? ageRange;
+      const finalMinistry = lockedFilters?.ministry ?? ministry;
+      const finalAgeRange = lockedFilters?.ageRange ?? ageRange;
 
-    const params = new URLSearchParams();
-    params.append("limit", "999");
+      const params = new URLSearchParams();
+      params.append("limit", "999");
 
-    if (finalMinistry) params.append("ministry", finalMinistry);
+      if (finalMinistry) params.append("ministry", finalMinistry);
 
-    // Age filter (optional)
-    if (finalAgeRange) {
-      const [minAge] = finalAgeRange.split("-");
-      if (minAge) params.append("age", minAge);
+      // Age filter (optional)
+      if (finalAgeRange) {
+        const [minAge] = finalAgeRange.split("-");
+        if (minAge) params.append("age", minAge);
+      }
+
+      // ✅ Use backend "name" filtering instead of local includes()
+      if (isNameSet) {
+        const names = Array.isArray(eventName) ? eventName : [eventName];
+        // if your API expects a single name substring, send the first; or join with commas if supported
+        params.append("name", names.join(","));
+      }
+
+      const { data } = await api.get(`/v1/events/upcoming?${params.toString()}`);
+
+      // Process events to ensure payment fields have default values and handle migration
+      const processedEvents = data.map((event: any) => ({
+        ...event,
+        // Ensure payment_options field exists with backward compatibility
+        payment_options: event.payment_options || (event.paypal_enabled ? ['PayPal'] : []),
+        refund_policy: event.refund_policy ?? "",
+      }));
+
+      setEvents(processedEvents);
+    } catch (error) {
+      console.error("Failed to fetch events:", error);
+    } finally {
+      setLoading(false);
     }
-
-    // ✅ Use backend "name" filtering instead of local includes()
-    if (isNameSet) {
-      const names = Array.isArray(eventName) ? eventName : [eventName];
-      // if your API expects a single name substring, send the first; or join with commas if supported
-      params.append("name", names.join(","));
-    }
-
-    const { data } = await api.get(`/v1/events/upcoming?${params.toString()}`);
-    
-    // Process events to ensure payment fields have default values and handle migration
-    const processedEvents = data.map((event: any) => ({
-      ...event,
-      // Ensure payment_options field exists with backward compatibility
-      payment_options: event.payment_options || (event.paypal_enabled ? ['PayPal'] : []),
-      refund_policy: event.refund_policy ?? "",
-    }));
-    
-    setEvents(processedEvents);
-  } catch (error) {
-    console.error("Failed to fetch events:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const fetchMyEvents = async () => {
-  try {
-    const res = await api.get("/v1/event-people/user");
-    setMyEvents(res.data?.events ?? []);
-  } catch (err) {
-    console.error("Failed to fetch My Events:", err);
-  }
-};
+    try {
+      const res = await api.get("/v1/event-people/user");
+      setMyEvents(res.data?.events ?? []);
+    } catch (err) {
+      console.error("Failed to fetch My Events:", err);
+    }
+  };
 
   useEffect(() => {
     fetchMinistries();
@@ -1142,48 +1138,48 @@ const EventSection: React.FC<EventSectionProps> = ({
 
   // watch actions (unchanged except for removing datetime picker earlier)
   const addWatch = async (ev: Event, desiredScope?: MyEventScope) => {
-  const scopeToUse = desiredScope ?? getWatchScopeFor(ev); // "series" | "occurrence"
-  setChanging(ev.id);
-  try {
-    const params = new URLSearchParams();
-    params.set("scope", scopeToUse);
-    if (scopeToUse === "occurrence") {
-      params.set("occurrenceStart", new Date(ev.date).toISOString());
+    const scopeToUse = desiredScope ?? getWatchScopeFor(ev); // "series" | "occurrence"
+    setChanging(ev.id);
+    try {
+      const params = new URLSearchParams();
+      params.set("scope", scopeToUse);
+      if (scopeToUse === "occurrence") {
+        params.set("occurrenceStart", new Date(ev.date).toISOString());
+      }
+      await api.post(`/v1/event-people/watch/${ev.id}?${params.toString()}`);
+      await fetchMyEvents();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to add to My Events.");
+    } finally {
+      setChanging(null);
     }
-    await api.post(`/v1/event-people/watch/${ev.id}?${params.toString()}`);
-    await fetchMyEvents();
-  } catch (e) {
-    console.error(e);
-    alert("Failed to add to My Events.");
-  } finally {
-    setChanging(null);
-  }
-};
+  };
 
-const removeWatch = async (ev: Event) => {
-  setChanging(ev.id);
-  try {
-    // If you want to target a specific occurrence:
-    // const params = new URLSearchParams();
-    // params.set("scope", currentWatchScope(ev) ?? "series");
-    // await api.delete(`/v1/event-people/watch/${ev.id}?${params.toString()}`);
+  const removeWatch = async (ev: Event) => {
+    setChanging(ev.id);
+    try {
+      // If you want to target a specific occurrence:
+      // const params = new URLSearchParams();
+      // params.set("scope", currentWatchScope(ev) ?? "series");
+      // await api.delete(`/v1/event-people/watch/${ev.id}?${params.toString()}`);
 
-    await api.delete(`/v1/event-people/watch/${ev.id}`);
-    await fetchMyEvents();
-  } catch (e) {
-    console.error(e);
-    alert("Failed to remove from My Events.");
-  } finally {
-    setChanging(null);
-  }
-};
+      await api.delete(`/v1/event-people/watch/${ev.id}`);
+      await fetchMyEvents();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to remove from My Events.");
+    } finally {
+      setChanging(null);
+    }
+  };
 
 
   // registration open/close hooks
   const openRegistration = (ev: Event) => setRegEvent(ev);
   const handleRegistrationSaved = async (paymentMethod?: 'paypal' | 'door') => {
     await fetchMyEvents(); // reflect buttons instantly
-    
+
     // Only show payment interface for PayPal payments, not for door payments
     if (regEvent && (hasPayPalOption(regEvent) || requiresPayment(regEvent))) {
       // Check if door payment was selected - if so, skip payment interface
@@ -1203,103 +1199,102 @@ const removeWatch = async (ev: Event) => {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <Skeleton className="h-8 w-full" />;
 
   const WatchButtons = ({ ev }: { ev: Event }) => {
-   const watched = isWatched(ev);
-   const scope = currentWatchScope(ev);
-   const recurring = !!ev.recurring && ev.recurring !== "never";
+    const watched = isWatched(ev);
+    const scope = currentWatchScope(ev);
+    const recurring = !!ev.recurring && ev.recurring !== "never";
 
-   if (!recurring) {
-     // One-time event
-     return watched ? (
-       <button
-         disabled={changing === ev.id}
-         onClick={() => removeWatch(ev)}
-         className="w-full px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300"
-       >
-         Remove from My Events
-       </button>
-     ) : (
-       <button
-         disabled={changing === ev.id}
-         onClick={() => addWatch(ev)} // one-time doesn't need scope param
-         className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700"
-       >
-         Add to My Events
-       </button>
-     );
-   }
+    if (!recurring) {
+      // One-time event
+      return watched ? (
+        <button
+          disabled={changing === ev.id}
+          onClick={() => removeWatch(ev)}
+          className="w-full px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300"
+        >
+          Remove from My Events
+        </button>
+      ) : (
+        <button
+          disabled={changing === ev.id}
+          onClick={() => addWatch(ev)} // one-time doesn't need scope param
+          className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700"
+        >
+          Add to My Events
+        </button>
+      );
+    }
 
-   // Recurring event
-   if (!watched) {
-     // Show two explicit buttons instead of a dropdown
-     return (
-       <div className="grid grid-cols-2 gap-2">
-         <button
-           disabled={changing === ev.id}
-           onClick={() => addWatch(ev, "series")}
-           className="px-3 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
-         >
-           Watch series
-         </button>
-         <button
-           disabled={changing === ev.id}
-           onClick={() => addWatch(ev, "occurrence")}
-           className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
-         >
-           Watch one time
-         </button>
-       </div>
-     );
-   }
+    // Recurring event
+    if (!watched) {
+      // Show two explicit buttons instead of a dropdown
+      return (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            disabled={changing === ev.id}
+            onClick={() => addWatch(ev, "series")}
+            className="px-3 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+          >
+            Watch series
+          </button>
+          <button
+            disabled={changing === ev.id}
+            onClick={() => addWatch(ev, "occurrence")}
+            className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+          >
+            Watch one time
+          </button>
+        </div>
+      );
+    }
 
-   // Already watched → Switch / Remove
-   return (
-     <div className="grid grid-cols-2 gap-2">
-       <button
-         disabled={changing === ev.id}
-         onClick={async () => {
-           const next: MyEventScope = scope === "series" ? "occurrence" : "series";
-           await removeWatch(ev);
-           await addWatch(ev, next);
-         }}
-         className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
-       >
-         Switch to {scope === "series" ? "one time" : "recurring"}
-       </button>
-       <button
-         disabled={changing === ev.id}
-         onClick={() => removeWatch(ev)}
-         className="px-3 py-2 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300"
-       >
-         Remove
-       </button>
-     </div>
-   );
- };
+    // Already watched → Switch / Remove
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          disabled={changing === ev.id}
+          onClick={async () => {
+            const next: MyEventScope = scope === "series" ? "occurrence" : "series";
+            await removeWatch(ev);
+            await addWatch(ev, next);
+          }}
+          className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+        >
+          Switch to {scope === "series" ? "one time" : "recurring"}
+        </button>
+        <button
+          disabled={changing === ev.id}
+          onClick={() => removeWatch(ev)}
+          className="px-3 py-2 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300"
+        >
+          Remove
+        </button>
+      </div>
+    );
+  };
 
 
   // Replace your current RegisterButtons with this
-const RegisterButtons = ({ ev }: { ev: Event }) => {
-  const anyReg = myEvents.some(
-    (m) => m.event_id === ev.id && m.reason === "rsvp"
-  );
+  const RegisterButtons = ({ ev }: { ev: Event }) => {
+    const anyReg = myEvents.some(
+      (m) => m.event_id === ev.id && m.reason === "rsvp"
+    );
 
-  return (
-    <button
-      disabled={changing === ev.id}
-      onClick={() => openRegistration(ev)}
-      className={`w-full px-4 py-2 font-semibold rounded-xl ${
-        anyReg
-          ? "bg-indigo-600 text-white hover:bg-indigo-700"
-          : "bg-green-600 text-white hover:bg-green-700"
-      }`}
-    >
-      {anyReg ? "Change Registration" : "Register For Event"}
-    </button>
-  );
-};
+    return (
+      <button
+        disabled={changing === ev.id}
+        onClick={() => openRegistration(ev)}
+        className={`w-full px-4 py-2 font-semibold rounded-xl ${anyReg
+            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+            : "bg-green-600 text-white hover:bg-green-700"
+          }`}
+      >
+        {anyReg ? "Change Registration" : "Register For Event"}
+      </button>
+    );
+  };
 
   return (
     <section className="w-full bg-white">
@@ -1446,7 +1441,7 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                       </button>
                     </div>
 
-                    
+
                   </div>
                 </div>
               )
@@ -1468,15 +1463,15 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
 
         {/* Event details modal */}
         {selectedEvent && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
-      <button
-        onClick={() => setSelectedEvent(null)}
-        className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
-        aria-label="Close"
-      >
-        ×
-      </button>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-3xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
+                aria-label="Close"
+              >
+                ×
+              </button>
 
               {/* Image */}
               {selectedEvent.image_url && (
@@ -1492,162 +1487,72 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                 />
               )}
 
-      {/* Title + badges */}
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-3xl font-bold">{selectedEvent.name}</h2>
-        <div className="flex flex-wrap gap-2">
-          {/* Recurrence badge */}
-          {selectedEvent.recurring && selectedEvent.recurring !== "never" ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
-              <FiRepeat className="inline-block" /> Recurring
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 text-gray-700 text-xs font-medium">
-              One-time
-            </span>
-          )}
-          {/* Gender badge */}
-          {selectedEvent.gender && selectedEvent.gender !== "all" ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-medium">
-              {selectedEvent.gender === "male" ? "Men only" : "Women only"}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
-              All welcome
-            </span>
-          )}
-          {/* Age badge */}
-          {typeof selectedEvent.min_age === "number" &&
-            typeof selectedEvent.max_age === "number" && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 text-yellow-700 text-xs font-medium">
-                Ages {selectedEvent.min_age}–{selectedEvent.max_age}
-              </span>
-            )}
-        </div>
-      </div>
-
-      {/* Description */}
-      {selectedEvent.description && (
-        <p className="text-gray-700 mt-3 mb-6 text-lg">{selectedEvent.description}</p>
-      )}
-
-      {/* Meta rows with icons */}
-      <div className="space-y-2 mb-6 text-gray-900">
-        <div className="flex items-center gap-2">
-          <FiCalendar />
-          <span>{new Date(selectedEvent.date).toLocaleString()}</span>
-        </div>
-        {selectedEvent.location && (
-          <div className="flex items-center gap-2">
-            <FiMapPin />
-            <span>{selectedEvent.location}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <FiDollarSign />
-          <span>
-            {requiresPayment(selectedEvent) 
-              ? `$${selectedEvent.price} - PayPal payment required`
-              : selectedEvent.price != null && selectedEvent.price > 0
-              ? `$${selectedEvent.price}`
-              : "Free"}
-          </span>
-        </div>
-      </div>
-
-      {/* Actions */}
-      {selectedEvent.rsvp ? (
-        /* RSVP-required → open registration */
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setSelectedEvent(null)}
-            className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
-          >
-            Close
-          </button>
-          <button
-            onClick={() => {
-              setRegEvent(selectedEvent);
-              setSelectedEvent(null);
-            }}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
-          >
-            Register / Change
-          </button>
-        </div>
-      ) : (
-        /* Non-RSVP → Add/Remove to My Events with per-event scope buttons */
-        <div className="space-y-4">
-          {(() => {
-            const watched = isWatched(selectedEvent);
-            const recurring = selectedEvent.recurring && selectedEvent.recurring !== "never";
-            const currentScope = currentWatchScope(selectedEvent); // null if not watched
-
-            if (!recurring) {
-              // One-time event
-              return (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setSelectedEvent(null)}
-                    className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
-                  >
-                    Close
-                  </button>
-                  {!watched ? (
-                    <button
-                      disabled={changing === selectedEvent.id}
-                      onClick={async () => {
-                        await addWatch(selectedEvent); // scope not needed for one-time
-                        setSelectedEvent(null);
-                      }}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
-                    >
-                      Add to My Events
-                    </button>
+              {/* Title + badges */}
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-3xl font-bold">{selectedEvent.name}</h2>
+                <div className="flex flex-wrap gap-2">
+                  {/* Recurrence badge */}
+                  {selectedEvent.recurring && selectedEvent.recurring !== "never" ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
+                      <FiRepeat className="inline-block" /> Recurring
+                    </span>
                   ) : (
-                    <button
-                      disabled={changing === selectedEvent.id}
-                      onClick={async () => {
-                        await removeWatch(selectedEvent);
-                        setSelectedEvent(null);
-                      }}
-                      className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-lg w-full"
-                    >
-                      Remove from My Events
-                    </button>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 text-gray-700 text-xs font-medium">
+                      One-time
+                    </span>
                   )}
+                  {/* Gender badge */}
+                  {selectedEvent.gender && selectedEvent.gender !== "all" ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-medium">
+                      {selectedEvent.gender === "male" ? "Men only" : "Women only"}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+                      All welcome
+                    </span>
+                  )}
+                  {/* Age badge */}
+                  {typeof selectedEvent.min_age === "number" &&
+                    typeof selectedEvent.max_age === "number" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 text-yellow-700 text-xs font-medium">
+                        Ages {selectedEvent.min_age}–{selectedEvent.max_age}
+                      </span>
+                    )}
                 </div>
-              );
-            }
+              </div>
 
-            // Recurring events
-            return !watched ? (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm">Add as:</span>
-                  <div className="inline-flex rounded-lg overflow-hidden border">
-                    <button
-                      className={`px-3 py-1 text-sm ${
-                        (getWatchScopeFor(selectedEvent) ?? "series") === "series"
-                          ? "bg-indigo-600 text-white"
-                          : "bg-white text-gray-700"
-                      }`}
-                      onClick={() => setWatchScopeFor(selectedEvent.id, "series")}
-                    >
-                      Recurring
-                    </button>
-                    <button
-                      className={`px-3 py-1 text-sm ${
-                        (getWatchScopeFor(selectedEvent) ?? "series") === "occurrence"
-                          ? "bg-indigo-600 text-white"
-                          : "bg-white text-gray-700"
-                      }`}
-                      onClick={() => setWatchScopeFor(selectedEvent.id, "occurrence")}
-                    >
-                      One time
-                    </button>
-                  </div>
+              {/* Description */}
+              {selectedEvent.description && (
+                <p className="text-gray-700 mt-3 mb-6 text-lg">{selectedEvent.description}</p>
+              )}
+
+              {/* Meta rows with icons */}
+              <div className="space-y-2 mb-6 text-gray-900">
+                <div className="flex items-center gap-2">
+                  <FiCalendar />
+                  <span>{new Date(selectedEvent.date).toLocaleString()}</span>
                 </div>
+                {selectedEvent.location && (
+                  <div className="flex items-center gap-2">
+                    <FiMapPin />
+                    <span>{selectedEvent.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <FiDollarSign />
+                  <span>
+                    {requiresPayment(selectedEvent)
+                      ? `$${selectedEvent.price} - PayPal payment required`
+                      : selectedEvent.price != null && selectedEvent.price > 0
+                        ? `$${selectedEvent.price}`
+                        : "Free"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              {selectedEvent.rsvp ? (
+                /* RSVP-required → open registration */
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setSelectedEvent(null)}
@@ -1656,122 +1561,210 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                     Close
                   </button>
                   <button
-                    disabled={changing === selectedEvent.id}
-                    onClick={async () => {
-                      await addWatch(selectedEvent, getWatchScopeFor(selectedEvent));
+                    onClick={() => {
+                      setRegEvent(selectedEvent);
                       setSelectedEvent(null);
                     }}
                     className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
                   >
-                    Add to My Events ({getWatchScopeFor(selectedEvent)})
+                    Register / Change
                   </button>
                 </div>
-              </>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setSelectedEvent(null)}
-                  className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
-                >
-                  Close
-                </button>
-                <button
-                  disabled={changing === selectedEvent.id}
-                  onClick={async () => {
-                    const next = currentScope === "series" ? "occurrence" : "series";
-                    await removeWatch(selectedEvent);
-                    await addWatch(selectedEvent, next);
-                    setSelectedEvent(null);
-                  }}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-lg w-full"
-                >
-                  Switch to {currentScope === "series" ? "one time" : "recurring"}
-                </button>
-                <button
-                  disabled={changing === selectedEvent.id}
-                  onClick={async () => {
-                    await removeWatch(selectedEvent);
-                    setSelectedEvent(null);
-                  }}
-                  className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-lg w-full"
-                >
-                  Remove
-                </button>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-    </div>
-  </div>
-)}
+              ) : (
+                /* Non-RSVP → Add/Remove to My Events with per-event scope buttons */
+                <div className="space-y-4">
+                  {(() => {
+                    const watched = isWatched(selectedEvent);
+                    const recurring = selectedEvent.recurring && selectedEvent.recurring !== "never";
+                    const currentScope = currentWatchScope(selectedEvent); // null if not watched
+
+                    if (!recurring) {
+                      // One-time event
+                      return (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => setSelectedEvent(null)}
+                            className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
+                          >
+                            Close
+                          </button>
+                          {!watched ? (
+                            <button
+                              disabled={changing === selectedEvent.id}
+                              onClick={async () => {
+                                await addWatch(selectedEvent); // scope not needed for one-time
+                                setSelectedEvent(null);
+                              }}
+                              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
+                            >
+                              Add to My Events
+                            </button>
+                          ) : (
+                            <button
+                              disabled={changing === selectedEvent.id}
+                              onClick={async () => {
+                                await removeWatch(selectedEvent);
+                                setSelectedEvent(null);
+                              }}
+                              className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-lg w-full"
+                            >
+                              Remove from My Events
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Recurring events
+                    return !watched ? (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm">Add as:</span>
+                          <div className="inline-flex rounded-lg overflow-hidden border">
+                            <button
+                              className={`px-3 py-1 text-sm ${(getWatchScopeFor(selectedEvent) ?? "series") === "series"
+                                  ? "bg-indigo-600 text-white"
+                                  : "bg-white text-gray-700"
+                                }`}
+                              onClick={() => setWatchScopeFor(selectedEvent.id, "series")}
+                            >
+                              Recurring
+                            </button>
+                            <button
+                              className={`px-3 py-1 text-sm ${(getWatchScopeFor(selectedEvent) ?? "series") === "occurrence"
+                                  ? "bg-indigo-600 text-white"
+                                  : "bg-white text-gray-700"
+                                }`}
+                              onClick={() => setWatchScopeFor(selectedEvent.id, "occurrence")}
+                            >
+                              One time
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => setSelectedEvent(null)}
+                            className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
+                          >
+                            Close
+                          </button>
+                          <button
+                            disabled={changing === selectedEvent.id}
+                            onClick={async () => {
+                              await addWatch(selectedEvent, getWatchScopeFor(selectedEvent));
+                              setSelectedEvent(null);
+                            }}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg w-full"
+                          >
+                            Add to My Events ({getWatchScopeFor(selectedEvent)})
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => setSelectedEvent(null)}
+                          className="px-6 py-3 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-lg w-full"
+                        >
+                          Close
+                        </button>
+                        <button
+                          disabled={changing === selectedEvent.id}
+                          onClick={async () => {
+                            const next = currentScope === "series" ? "occurrence" : "series";
+                            await removeWatch(selectedEvent);
+                            await addWatch(selectedEvent, next);
+                            setSelectedEvent(null);
+                          }}
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-lg w-full"
+                        >
+                          Switch to {currentScope === "series" ? "one time" : "recurring"}
+                        </button>
+                        <button
+                          disabled={changing === selectedEvent.id}
+                          onClick={async () => {
+                            await removeWatch(selectedEvent);
+                            setSelectedEvent(null);
+                          }}
+                          className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-lg w-full"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Donate modal for quick donations from event card */}
         {donateEvent && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="bg-white rounded-2xl p-8 max-w-xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
-      <button
-        onClick={() => setDonateEvent(null)}
-        className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
-        aria-label="Close"
-      >
-        ×
-      </button>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh]">
+              <button
+                onClick={() => setDonateEvent(null)}
+                className="absolute top-4 right-6 text-gray-500 hover:text-gray-800 text-2xl"
+                aria-label="Close"
+              >
+                ×
+              </button>
 
-      <h2 className="text-2xl font-bold mb-2">Donate to {donateEvent.name}</h2>
-      <p className="text-sm text-gray-600 mb-4">Optional donation to support this event.</p>
+              <h2 className="text-2xl font-bold mb-2">Donate to {donateEvent.name}</h2>
+              <p className="text-sm text-gray-600 mb-4">Optional donation to support this event.</p>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-        <label htmlFor="donationQuickInput" className="block text-sm font-medium text-gray-700 mb-2">
-          Donation Amount (USD)
-        </label>
-        <div className="flex items-center">
-          <input
-            id="donationQuickInput"
-            type="number"
-            min="0"
-            step="0.01"
-            className="border rounded px-3 py-2 w-40"
-            placeholder="0.00"
-            value={donationAmount || ''}
-            onChange={(e) => setDonationAmount(parseFloat(e.target.value) || 0)}
-          />
-        </div>
-      </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <label htmlFor="donationQuickInput" className="block text-sm font-medium text-gray-700 mb-2">
+                  Donation Amount (USD)
+                </label>
+                <div className="flex items-center">
+                  <input
+                    id="donationQuickInput"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="border rounded px-3 py-2 w-40"
+                    placeholder="0.00"
+                    value={donationAmount || ''}
+                    onChange={(e) => setDonationAmount(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
 
-      <EventPayPalButton
-        eventId={donateEvent.id}
-        event={{
-          name: donateEvent.name,
-          price: donateEvent.price || 0,
-          requires_payment: (donateEvent.price && donateEvent.price > 0) || false,
-          is_free_event: !donateEvent.price || donateEvent.price === 0,
-          payment_options: donateEvent.payment_options
-        }}
-        donationAmount={donationAmount}
-        onPaymentSuccess={() => {
-          setDonateEvent(null);
-          setDonationAmount(0);
-          alert('Thank you for your donation!');
-        }}
-        onPaymentError={(error) => {
-          console.error('Donation failed:', error);
-          alert('Donation failed: ' + error);
-        }}
-        className="w-full"
-      />
+              <EventPayPalButton
+                eventId={donateEvent.id}
+                event={{
+                  name: donateEvent.name,
+                  price: donateEvent.price || 0,
+                  requires_payment: (donateEvent.price && donateEvent.price > 0) || false,
+                  is_free_event: !donateEvent.price || donateEvent.price === 0,
+                  payment_options: donateEvent.payment_options
+                }}
+                donationAmount={donationAmount}
+                onPaymentSuccess={() => {
+                  setDonateEvent(null);
+                  setDonationAmount(0);
+                  alert('Thank you for your donation!');
+                }}
+                onPaymentError={(error) => {
+                  console.error('Donation failed:', error);
+                  alert('Donation failed: ' + error);
+                }}
+                className="w-full"
+              />
 
-      <div className="mt-4">
-        <button
-          onClick={() => setDonateEvent(null)}
-          className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+              <div className="mt-4">
+                <button
+                  onClick={() => setDonateEvent(null)}
+                  className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Registration modal */}
         {regEvent && (
@@ -1790,14 +1783,14 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                   <div className="border-b pb-4">
                     <h2 className="text-2xl font-bold text-gray-900">Complete Your Registration</h2>
                     <p className="text-gray-600 mt-2">
-                      You have successfully registered for <strong>{regEvent.name}</strong>. 
-                      {regEvent.price && regEvent.price > 0 
+                      You have successfully registered for <strong>{regEvent.name}</strong>.
+                      {regEvent.price && regEvent.price > 0
                         ? "You can pay online now or pay at the door."
                         : "You may optionally make a donation to support this event."
                       }
                     </p>
                   </div>
-                  
+
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-lg font-medium">Event:</span>
@@ -1862,7 +1855,7 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                         }}
                         className="w-full"
                       />
-                      
+
                       {/* Show skip button for various scenarios */}
                       <button
                         onClick={() => {
@@ -1873,8 +1866,8 @@ const RegisterButtons = ({ ev }: { ev: Event }) => {
                         }}
                         className="w-full px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                       >
-                        {regEvent.price && regEvent.price > 0 
-                          ? "I'll Pay at the Door" 
+                        {regEvent.price && regEvent.price > 0
+                          ? "I'll Pay at the Door"
                           : "Skip Donation & Complete Registration"
                         }
                       </button>

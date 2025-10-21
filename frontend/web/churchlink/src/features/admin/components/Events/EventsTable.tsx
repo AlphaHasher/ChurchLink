@@ -1,16 +1,4 @@
-import {
-    ColumnDef,
-    ColumnFiltersState,
-    SortingState,
-    VisibilityState,
-    flexRender,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-} from "@tanstack/react-table"
-import { ArrowUpDown, Eye } from "lucide-react"
+import { Eye } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useState, useRef, useMemo, useCallback } from "react";
 import { AgGridReact } from "ag-grid-react";
@@ -46,12 +34,12 @@ export function EventsTable({ data, permData, onSave }: EventsTableProps) {
     const columnDefs = useMemo(() => {
         // Create columns using createPermColumn approach
         const columns: any[] = [];
-        
+
         Object.keys(eventLabels).forEach((key) => {
             if (!skipTerms.includes(key)) {
                 const field = key as keyof ChurchEvent;
                 const headerName = eventLabels[field];
-                
+
                 const colDef: any = {
                     field,
                     headerName,

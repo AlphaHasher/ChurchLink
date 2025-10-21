@@ -9,7 +9,7 @@ import { ProfileEditDialog } from "@/features/users/components/Profile/ProfileEd
 import { MyEventsSection } from "@/features/events/components/MyEventsSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import Layout from "@/shared/layouts/Layout";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import { ProfileInfo, toContactInfo, toProfileInfo, ContactInfo } from "@/shared/types/ProfileInfo";

@@ -8,13 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Separator } from "@/shared/components/ui/separator";
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
-  Users, 
-  Download, 
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  Users,
+  Download,
   Eye,
   BarChart3,
   Settings,
@@ -132,17 +132,17 @@ const FinancePage: React.FC = () => {
   const fetchSummary = async () => {
     try {
       const response = await api.get("/v1/finance/analytics/summary");
-      
+
       // Transform backend response to match frontend expectations
       const backendData = response.data;
-      
+
       // Calculate revenue by type from payment type data
       const revenueByType = {
         donations: 0,
         event_registrations: 0,
         form_submissions: 0
       };
-      
+
       // Calculate revenue by status from status data
       const revenueByStatus = {
         completed: 0,
@@ -150,7 +150,7 @@ const FinancePage: React.FC = () => {
         failed: 0,
         refunded: 0
       };
-      
+
       // Process payment type data
       if (backendData.summary?.by_payment_type) {
         backendData.summary.by_payment_type.forEach((item: any) => {
@@ -164,7 +164,7 @@ const FinancePage: React.FC = () => {
           }
         });
       }
-      
+
       // Process status data
       if (backendData.summary?.by_status) {
         backendData.summary.by_status.forEach((item: any) => {
@@ -174,14 +174,14 @@ const FinancePage: React.FC = () => {
           }
         });
       }
-      
+
       // Transform time series data
       const trendingData = (backendData.summary?.time_series || []).map((item: any) => ({
         date: item.period || '',
         revenue: item.total_amount || 0,
         transaction_count: item.transaction_count || 0
       }));
-      
+
       // Create transformed summary matching FinancialSummary interface
       const transformedSummary: FinancialSummary = {
         total_revenue: backendData.summary?.overall?.total_revenue || 0,
@@ -195,7 +195,7 @@ const FinancePage: React.FC = () => {
         },
         trending_data: trendingData
       };
-      
+
       setSummary(transformedSummary);
     } catch (err: any) {
       console.error("Failed to fetch financial summary:", err);
@@ -209,7 +209,7 @@ const FinancePage: React.FC = () => {
       const params = new URLSearchParams();
       params.append("skip", pagination.skip.toString());
       params.append("limit", pagination.limit.toString());
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value && value !== "all") params.append(key, value);
       });
@@ -251,7 +251,7 @@ const FinancePage: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         await Promise.all([
           fetchSummary(),
@@ -296,22 +296,22 @@ const FinancePage: React.FC = () => {
   };
 
   // Get status badge variant
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     const variants = {
-      completed: "default",
-      pending: "secondary",
-      failed: "destructive",
-      refunded: "outline"
+      completed: "default" as const,
+      pending: "secondary" as const,
+      failed: "destructive" as const,
+      refunded: "outline" as const
     };
     return variants[status as keyof typeof variants] || "outline";
   };
 
   // Get payment type badge variant
-  const getPaymentTypeBadge = (type: string) => {
+  const getPaymentTypeBadge = (type: string): "default" | "secondary" | "outline" => {
     const variants = {
-      donation: "default",
-      event_registration: "secondary", 
-      form_submission: "outline"
+      donation: "default" as const,
+      event_registration: "secondary" as const,
+      form_submission: "outline" as const
     };
     return variants[type as keyof typeof variants] || "outline";
   };
@@ -356,7 +356,7 @@ const FinancePage: React.FC = () => {
       ])
     ];
 
-    const csvContent = csvData.map(row => 
+    const csvContent = csvData.map(row =>
       row.map(field => `"${field}"`).join(',')
     ).join('\n');
 
@@ -381,7 +381,7 @@ const FinancePage: React.FC = () => {
   const goToPage = (direction: 'next' | 'prev') => {
     setPagination(prev => ({
       ...prev,
-      skip: direction === 'next' 
+      skip: direction === 'next'
         ? Math.min(prev.skip + prev.limit, prev.total - prev.limit)
         : Math.max(prev.skip - prev.limit, 0)
     }));
@@ -575,7 +575,7 @@ const FinancePage: React.FC = () => {
                     className="pl-8"
                   />
                 </div>
-                
+
                 <Select value={filters.payment_type} onValueChange={(value) => updateFilter('payment_type', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Payment Type" />
@@ -653,8 +653,8 @@ const FinancePage: React.FC = () => {
                           </td>
                           <td className="p-4 text-sm">{formatDate(transaction.created_on)}</td>
                           <td className="p-4">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => viewTransactionDetail(transaction)}
                             >
@@ -673,8 +673,8 @@ const FinancePage: React.FC = () => {
                     Showing {pagination.skip + 1} to {Math.min(pagination.skip + pagination.limit, pagination.total)} of {pagination.total} transactions
                   </div>
                   <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => goToPage('prev')}
                       disabled={pagination.skip === 0}
@@ -682,8 +682,8 @@ const FinancePage: React.FC = () => {
                       <ChevronLeft className="h-4 w-4" />
                       Previous
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => goToPage('next')}
                       disabled={pagination.skip + pagination.limit >= pagination.total}
@@ -719,9 +719,9 @@ const FinancePage: React.FC = () => {
                       <p className="text-2xl font-bold">{formatCurrency(eventAnalytics.total_revenue)}</p>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div>
                     <p className="text-sm font-medium mb-2">Top Events by Revenue</p>
                     <div className="space-y-2">
@@ -759,9 +759,9 @@ const FinancePage: React.FC = () => {
                       <p className="text-2xl font-bold">{formatCurrency(formAnalytics.total_revenue)}</p>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div>
                     <p className="text-sm font-medium mb-2">Top Forms by Revenue</p>
                     <div className="space-y-2">
@@ -798,7 +798,7 @@ const FinancePage: React.FC = () => {
               Complete information for transaction {selectedTransaction?.transaction_id}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedTransaction && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

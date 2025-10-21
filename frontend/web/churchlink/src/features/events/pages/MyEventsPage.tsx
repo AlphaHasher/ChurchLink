@@ -18,7 +18,7 @@ export default function MyEventsPage() {
     searchTerm: '',
   });
   const [selectedEvent, setSelectedEvent] = useState<MyEvent | null>(null);
-  const [userProfile, setUserProfile] = useState<ProfileInfo | null>(null);
+  const [, setUserProfile] = useState<ProfileInfo | null>(null);
 
   // Load user profile for eligibility checking
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function MyEventsPage() {
         console.error('Failed to load user profile:', error);
       }
     };
-    
+
     loadUserProfile();
   }, []);
 
@@ -60,29 +60,29 @@ export default function MyEventsPage() {
   const filteredEvents = useMemo(() => {
     console.log('[MyEventsPage] Raw events from API:', events);
     console.log('[MyEventsPage] Events count before filtering:', events.length);
-    
+
     // Deduplicate events based on unique key (event_id + person_id combination)
     // This provides a robust safety net against backend data inconsistencies
     const uniqueEventsMap = new Map<string, MyEvent>();
-    
+
     events.forEach(eventRef => {
-      const uniqueKey = eventRef.person_id 
-        ? `${eventRef.event_id}-${eventRef.person_id}` 
+      const uniqueKey = eventRef.person_id
+        ? `${eventRef.event_id}-${eventRef.person_id}`
         : `${eventRef.event_id}-user`;
-      
+
       // Keep the first occurrence, ignore duplicates
       if (!uniqueEventsMap.has(uniqueKey)) {
         uniqueEventsMap.set(uniqueKey, eventRef);
       }
     });
-    
+
     const deduplicatedEvents = Array.from(uniqueEventsMap.values());
     console.log('[MyEventsPage] Deduplicated events:', deduplicatedEvents);
-    
+
     const filtered = deduplicatedEvents.filter(eventRef => {
       const event = eventRef.event;
       console.log('[MyEventsPage] Filtering event:', { eventRef, event });
-      
+
       if (!event) {
         console.log('[MyEventsPage] Skipping event - no event details');
         return false; // Skip if no event details loaded
@@ -126,7 +126,7 @@ export default function MyEventsPage() {
       console.log('[MyEventsPage] Event passed all filters');
       return true;
     });
-    
+
     console.log('[MyEventsPage] Filtered events:', filtered);
     console.log('[MyEventsPage] Filtered events count:', filtered.length);
     return filtered;
@@ -152,101 +152,100 @@ export default function MyEventsPage() {
   // Render loading state
   if (loading) {
     return (
-        <div className="container mx-auto px-4 py-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">My Events</h1>
-            <p className="text-gray-600">Manage your event registrations</p>
-          </div>
-          <p>Loading events...</p>
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">My Events</h1>
+          <p className="text-gray-600">Manage your event registrations</p>
         </div>
+        <p>Loading events...</p>
+      </div>
     );
   }
 
   // Render error state
   if (error) {
     return (
-        <div className="container mx-auto px-4 py-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">My Events</h1>
-            <p className="text-gray-600">Manage your event registrations</p>
-          </div>
-          <div className="text-center py-12">
-            <p className="text-red-600 mb-4">Error: {error}</p>
-            <button 
-              onClick={refetch}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-    );
-  }
-
-  return (
       <div className="container mx-auto px-4 py-6">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold">My Events</h1>
           <p className="text-gray-600">Manage your event registrations</p>
         </div>
-
-        {/* Filters */}
-        <div className="mb-6">
-          <EventFiltersComponent 
-            filters={filters} 
-            onFiltersChange={setFilters} 
-          />
+        <div className="text-center py-12">
+          <p className="text-red-600 mb-4">Error: {error}</p>
+          <button
+            onClick={refetch}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
         </div>
-
-        {/* Events Grid */}
-        {filteredEvents.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-500">
-              {events.length === 0 
-                ? "You haven't registered for any events yet."
-                : "No events match your current filters."
-              }
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((eventRef, index) => {
-              // Create unique key combining event_id and person_id to handle cases where
-              // both user and family member are registered for the same event
-              const uniqueKey = eventRef.person_id 
-                ? `${eventRef.event_id}-${eventRef.person_id}` 
-                : `${eventRef.event_id}-user`;
-              
-              return (
-                <motion.div
-                  key={uniqueKey}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  data-testid="event-card"
-                >
-                  <MyEventCard
-                    groupedEvent={createGroupedEvent(eventRef)}
-                    onClick={() => handleEventClick(eventRef)}
-                    // onCancelRSVP={async () => await handleCancelRSVP(eventRef)}
-                  />
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Event Details Modal */}
-        {selectedEvent && (
-          <EventDetailsModal
-            eventRef={selectedEvent}
-            isOpen={Boolean(selectedEvent)}
-            onClose={() => setSelectedEvent(null)}
-            onCancelRSVP={handleCancelRSVP}
-            userProfile={userProfile}
-          />
-        )}
       </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">My Events</h1>
+        <p className="text-gray-600">Manage your event registrations</p>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-6">
+        <EventFiltersComponent
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
+      </div>
+
+      {/* Events Grid */}
+      {filteredEvents.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-gray-500">
+            {events.length === 0
+              ? "You haven't registered for any events yet."
+              : "No events match your current filters."
+            }
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEvents.map((eventRef, index) => {
+            // Create unique key combining event_id and person_id to handle cases where
+            // both user and family member are registered for the same event
+            const uniqueKey = eventRef.person_id
+              ? `${eventRef.event_id}-${eventRef.person_id}`
+              : `${eventRef.event_id}-user`;
+
+            return (
+              <motion.div
+                key={uniqueKey}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                data-testid="event-card"
+              >
+                <MyEventCard
+                  groupedEvent={createGroupedEvent(eventRef)}
+                  onClick={() => handleEventClick(eventRef)}
+                // onCancelRSVP={async () => await handleCancelRSVP(eventRef)}
+                />
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <EventDetailsModal
+          eventRef={selectedEvent}
+          isOpen={Boolean(selectedEvent)}
+          onClose={() => setSelectedEvent(null)}
+          onCancelRSVP={handleCancelRSVP}
+        />
+      )}
+    </div>
   );
 }
