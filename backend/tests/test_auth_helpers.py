@@ -1,7 +1,7 @@
 import os
 import requests
 import pytest
-from backend.get_bearer_token import generate_test_token
+from get_bearer_token import generate_test_token
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -81,5 +81,10 @@ def get_admin_headers():
 		"Content-Type": "application/json",
 		"Authorization": f"Bearer {token}"
 	}
+
+
+def get_user_headers():
+	"""Alias for get_auth_headers for consistency"""
+	return get_auth_headers()
 
 

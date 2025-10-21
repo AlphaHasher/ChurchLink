@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/bulletin.dart';
-import '../providers/bulletins_provider.dart';
+import 'package:app/models/bulletin.dart';
+import 'package:app/providers/bulletins_provider.dart';
 
 class BulletinDetailSheet extends StatelessWidget {
   const BulletinDetailSheet({super.key, required this.bulletinId});
@@ -140,7 +140,7 @@ class BulletinDetailSheet extends StatelessWidget {
                                 ),
                                 backgroundColor: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.12),
+                                ).colorScheme.primary.withAlpha(12),
                                 side: BorderSide.none,
                               ),
                               ...current.ministries.map(
@@ -148,7 +148,7 @@ class BulletinDetailSheet extends StatelessWidget {
                                   label: Text(ministry),
                                   backgroundColor: Theme.of(
                                     context,
-                                  ).colorScheme.primary.withOpacity(0.15),
+                                  ).colorScheme.primary.withAlpha(15),
                                   side: BorderSide.none,
                                 ),
                               ),
@@ -205,11 +205,15 @@ class BulletinDetailSheet extends StatelessWidget {
   Future<void> _openAttachment(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      _showError(context, message: 'Invalid attachment link');
+      if (context.mounted) {
+        _showError(context, message: 'Invalid attachment link');
+      }
       return;
     }
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _showError(context, message: 'Could not open the attachment.');
+      if (context.mounted) {
+        _showError(context, message: 'Could not open the attachment.');
+      }
     }
   }
 

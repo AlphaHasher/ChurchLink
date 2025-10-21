@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../models/bulletin.dart';
+import 'package:app/models/bulletin.dart';
 
 class BulletinFilterSheet extends StatefulWidget {
   const BulletinFilterSheet({super.key, required this.initialFilter});

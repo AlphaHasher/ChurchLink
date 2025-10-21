@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 from dotenv import load_dotenv
 
-from backend.tests.test_auth_helpers import get_auth_headers, get_admin_headers
+from test_auth_helpers import get_auth_headers, get_admin_headers
 
 load_dotenv()
 

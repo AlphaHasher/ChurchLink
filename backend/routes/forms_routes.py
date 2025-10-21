@@ -9,9 +9,6 @@ from models.form import (
     FormUpdate,
     get_form_by_slug,
     search_forms,
-    create_folder,
-    list_folders,
-    delete_folder,
     create_form,
     list_forms,
     get_form_by_id,
@@ -61,35 +58,6 @@ async def list_user_forms(request: Request, skip: int = 0, limit: int = Query(10
 async def search_user_forms(request: Request, name: str | None = None, folder: str | None = None, skip: int = 0, limit: int = Query(100, le=500)) -> List[FormOut]:
     uid = request.state.uid
     return await search_forms(uid, name=name, folder=folder, skip=skip, limit=limit)
-
-
-@mod_forms_router.post('/folders', status_code=status.HTTP_201_CREATED)
-async def create_new_folder(request: Request, name: str):
-    uid = request.state.uid
-    # Check for duplicate folder name (case-insensitive)
-    existing = await DB.db.form_folders.find_one({"user_id": uid, "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}})
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Folder already exists')
-
-    created = await create_folder(uid, name)
-    if not created:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Failed to create folder')
-    return created
-
-
-@mod_forms_router.get('/folders', response_model=List[dict])
-async def list_user_folders(request: Request):
-    uid = request.state.uid
-    return await list_folders(uid)
-
-
-@mod_forms_router.delete('/folders/{folder_id}')
-async def delete_user_folder(folder_id: str, request: Request):
-    uid = request.state.uid
-    ok = await delete_folder(uid, folder_id)
-    if not ok:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
-    return {"message": "Folder deleted"}
 
 
 @mod_forms_router.get("/{form_id}", response_model=FormOut)
