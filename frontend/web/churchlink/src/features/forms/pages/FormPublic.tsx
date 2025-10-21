@@ -78,7 +78,6 @@ export default function FormPublic() {
         setSchema({
           title: form.title,
           description: form.description,
-          folder: form.folder,
           defaultLocale: form.defaultLocale || 'en',
           locales: form.locales || [],
           formWidth: formWidthValue,
