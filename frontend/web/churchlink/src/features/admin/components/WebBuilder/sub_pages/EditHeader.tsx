@@ -673,6 +673,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "link" ? "default" : "outline"}
+                                        className="flex items-center gap-2 dark:hover:bg-muted dark:hover:text-foreground focus-visible:ring-1 focus-visible:ring-border"
                                         onClick={() => setItemType("link")}
                                     >
                                         Link
@@ -680,6 +681,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "dropdown" ? "default" : "outline"}
+                                        className="flex items-center gap-2 dark:hover:bg-muted dark:hover:text-foreground focus-visible:ring-1 focus-visible:ring-border"
                                         onClick={() => setItemType("dropdown")}
                                     >
                                         Dropdown
