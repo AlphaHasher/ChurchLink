@@ -11,9 +11,10 @@ type Props = {
     canManage?: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (id: string, data: { new_name?: string; new_description?: string | null }) => void;
+    onRequestDelete?: () => void;
 };
 
-export const ImagePreviewDialog: React.FC<Props> = ({ open, image, canManage = false, onOpenChange, onSave }) => {
+export const ImagePreviewDialog: React.FC<Props> = ({ open, image, canManage = false, onOpenChange, onSave, onRequestDelete }) => {
     const [name, setName] = React.useState('');
     const [desc, setDesc] = React.useState<string | undefined>('');
     const [zoomOpen, setZoomOpen] = React.useState(false);
@@ -80,6 +81,15 @@ export const ImagePreviewDialog: React.FC<Props> = ({ open, image, canManage = f
                         >
                             Download
                         </a>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
+                                onRequestDelete?.();
+                            }}
+                        >
+                            Delete
+                        </Button>
                         <Button
                             onClick={() => {
                                 if (!canManage) { window.alert('You do not have permission to save image updates.'); return; }

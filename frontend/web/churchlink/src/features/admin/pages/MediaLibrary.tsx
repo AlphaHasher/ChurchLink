@@ -601,6 +601,12 @@ const MediaLibrary: React.FC<{
           image={selectedImage}
           canManage={canManage}
           onOpenChange={() => setSelectedImage(null)}
+          onRequestDelete={() => {
+            if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
+            if (!selectedImage) return;
+            setDeletingImage(selectedImage);
+            setDeleteConfirmOpen(true);
+          }}
           onSave={async (id, data) => {
             if (!requireManage('save image updates')) return;
             try {
@@ -632,6 +638,7 @@ const MediaLibrary: React.FC<{
               await deleteImage(deletingImage.id);
               setDeleteConfirmOpen(false);
               setDeletingImage(null);
+              setSelectedImage(null);
               fetchCurrentData();
             } catch {
               setError('Failed to delete image');
