@@ -701,6 +701,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Link Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newLinkTitle}
                                             onChange={(e) => setNewLinkTitle(e.target.value)}
                                             required
@@ -708,6 +709,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Russian Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newLinkRussianTitle}
                                             onChange={(e) => setNewLinkRussianTitle(e.target.value)}
                                             required
@@ -761,6 +763,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Dropdown Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newDropdownTitle}
                                             onChange={(e) => setNewDropdownTitle(e.target.value)}
                                             required
@@ -768,6 +771,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Russian Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newDropdownRussianTitle}
                                             onChange={(e) => setNewDropdownRussianTitle(e.target.value)}
                                             required
@@ -818,12 +822,14 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     <Input
                                                         type="text"
                                                         placeholder="Link Title"
+                                                        className="placeholder:text-muted-foreground/70"
                                                         value={tempLinkTitle}
                                                         onChange={(e) => setTempLinkTitle(e.target.value)}
                                                     />
                                                     <Input
                                                         type="text"
                                                         placeholder="Russian Title"
+                                                        className="placeholder:text-muted-foreground/70"
                                                         value={tempLinkRussianTitle}
                                                         onChange={(e) => setTempLinkRussianTitle(e.target.value)}
                                                     />
@@ -900,6 +906,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 <Input
                                     type="text"
                                     placeholder="Title"
+                                    className="placeholder:text-muted-foreground/70"
                                     value={editTitle}
                                     onChange={(e) => setEditTitle(e.target.value)}
                                     required
@@ -907,6 +914,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 <Input
                                     type="text"
                                     placeholder="Russian Title"
+                                    className="placeholder:text-muted-foreground/70"
                                     value={editRussianTitle}
                                     onChange={(e) => setEditRussianTitle(e.target.value)}
                                     required
