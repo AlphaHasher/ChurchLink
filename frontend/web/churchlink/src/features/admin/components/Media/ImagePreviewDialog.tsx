@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Textarea } from '@/shared/components/ui/textarea';
+import { Trash, Download, Save } from 'lucide-react';
 import type { ImageResponse } from '@/shared/types/ImageData';
 
 type Props = {
@@ -77,25 +78,30 @@ export const ImagePreviewDialog: React.FC<Props> = ({ open, image, canManage = f
                         <a
                             href={downloadHref}
                             download={`${(image.name || image.id)}.${image.extension || 'bin'}`}
-                            className="inline-flex items-center justify-center rounded-md border bg-background px-3 py-2 text-sm"
+                            className="inline-flex items-center justify-center rounded-md border bg-background px-3 py-2 text-sm hover:bg-accent transition-colors"
                         >
+                            <Download className="mr-2 h-4 w-4" />
                             Download
                         </a>
-                        <Button
-                            variant="destructive"
-                            onClick={() => {
-                                if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
-                                onRequestDelete?.();
-                            }}
-                        >
-                            Delete
-                        </Button>
+                        {onRequestDelete && (
+                            <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
+                                    onRequestDelete();
+                                }}
+                            >
+                                <Trash className="mr-2 h-4 w-4" />
+                                Delete
+                            </Button>
+                        )}
                         <Button
                             onClick={() => {
                                 if (!canManage) { window.alert('You do not have permission to save image updates.'); return; }
                                 onSave(image.id, { new_name: name.trim() || image.name, new_description: (desc ?? '').trim() || null });
                             }}
                         >
+                            <Save className="mr-2 h-4 w-4" />
                             Save
                         </Button>
                     </DialogFooter>
