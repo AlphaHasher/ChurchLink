@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/event.dart';
-import '../models/event_registration_summary.dart';
-import '../helpers/asset_helper.dart'; // New import for asset URL resolution
+import 'package:app/models/event.dart';
+import 'package:app/models/event_registration_summary.dart';
+import 'package:app/helpers/asset_helper.dart';
 
 class EnhancedEventCard extends StatelessWidget {
   final Event event;
@@ -93,7 +93,9 @@ class EnhancedEventCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 60), // restrict event name display length
+                    const SizedBox(
+                      width: 60,
+                    ), // restrict event name display length
                   ],
                 ),
 
@@ -123,9 +125,7 @@ class EnhancedEventCard extends StatelessWidget {
           Positioned.fill(
             child: Material(
               color: Colors.transparent,
-              child: InkWell(
-                onTap: onViewPressed,
-              ),
+              child: InkWell(onTap: onViewPressed),
             ),
           ),
 
@@ -196,7 +196,8 @@ class EnhancedEventCard extends StatelessWidget {
     // Check if event is full first (but not if unlimited spots)
     if (registrationSummary != null &&
         registrationSummary!.availableSpots <= 0 &&
-        registrationSummary!.availableSpots != -1) {  // Don't show full for unlimited spots
+        registrationSummary!.availableSpots != -1) {
+      // Don't show full for unlimited spots
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -218,9 +219,20 @@ class EnhancedEventCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: event.hasPayPalOption 
-              ? const Color.fromARGB(255, 46, 125, 50) // Green for donations enabled
-              : const Color.fromARGB(255, 142, 163, 168), // Gray for completely free
+          color:
+              event.hasPayPalOption
+                  ? const Color.fromARGB(
+                    255,
+                    46,
+                    125,
+                    50,
+                  ) // Green for donations enabled
+                  : const Color.fromARGB(
+                    255,
+                    142,
+                    163,
+                    168,
+                  ), // Gray for completely free
           borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
@@ -249,9 +261,15 @@ class EnhancedEventCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: event.hasPayPalOption
-              ? const Color(0xFF0070BA) // PayPal blue for online payment
-              : const Color.fromARGB(255, 142, 163, 168), // Gray for pay at door
+          color:
+              event.hasPayPalOption
+                  ? const Color(0xFF0070BA) // PayPal blue for online payment
+                  : const Color.fromARGB(
+                    255,
+                    142,
+                    163,
+                    168,
+                  ), // Gray for pay at door
           borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
@@ -267,11 +285,7 @@ class EnhancedEventCard extends StatelessWidget {
             ),
             if (event.hasPayPalOption) ...[
               const SizedBox(width: 4),
-              const Icon(
-                Icons.payment,
-                color: Colors.white,
-                size: 12,
-              ),
+              const Icon(Icons.payment, color: Colors.white, size: 12),
             ],
           ],
         ),

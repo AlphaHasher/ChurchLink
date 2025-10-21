@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import '../models/event.dart';
-import '../services/paypal_service.dart';
+import 'package:app/models/event.dart';
+import 'package:app/services/paypal_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Custom input formatter for currency amounts
 class CurrencyInputFormatter extends TextInputFormatter {
@@ -18,18 +19,18 @@ class CurrencyInputFormatter extends TextInputFormatter {
 
     // Remove any non-digit and non-decimal point characters
     String filtered = newValue.text.replaceAll(RegExp(r'[^0-9.]'), '');
-    
+
     // Ensure only one decimal point
     List<String> parts = filtered.split('.');
     if (parts.length > 2) {
       filtered = '${parts[0]}.${parts.sublist(1).join('')}';
     }
-    
+
     // Limit to 2 decimal places
     if (parts.length == 2 && parts[1].length > 2) {
       filtered = '${parts[0]}.${parts[1].substring(0, 2)}';
     }
-    
+
     // Prevent amounts over 10000 (reasonable limit for donations)
     final double? amount = double.tryParse(filtered);
     if (amount != null && amount > 10000) {
@@ -50,12 +51,12 @@ class EventPayPalButton extends StatefulWidget {
   final double? donationAmount; // For free events
 
   const EventPayPalButton({
-    Key? key,
+    super.key,
     required this.event,
     this.onPaymentSuccess,
     this.onPaymentError,
     this.donationAmount,
-  }) : super(key: key);
+  });
 
   @override
   State<EventPayPalButton> createState() => _EventPayPalButtonState();
@@ -69,7 +70,9 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
   void initState() {
     super.initState();
     // Initialize donation amount from widget prop (if provided) or sensible default
-    _donationAmount = widget.donationAmount ?? (widget.event.requiresPayment ? widget.event.price : 10.0);
+    _donationAmount =
+        widget.donationAmount ??
+        (widget.event.requiresPayment ? widget.event.price : 10.0);
   }
 
   Future<void> _initiatePayment() async {
@@ -80,7 +83,7 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
     try {
       // Determine the payment amount
       double amount;
-      
+
       if (widget.event.requiresPayment) {
         // Paid event - use event price
         amount = widget.event.price;
@@ -97,17 +100,25 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
         eventId: widget.event.id,
         eventName: widget.event.name,
         amount: amount,
-        message: widget.event.requiresPayment
-            ? 'Payment for event: ${widget.event.name}'
-            : 'Donation for event: ${widget.event.name}',
-        returnUrl: 'http://localhost:3000/events/${widget.event.id}/payment/success',
-        cancelUrl: 'http://localhost:3000/events/${widget.event.id}/payment/cancel',
+        donation: {
+          'amount': amount,
+          'eventId': widget.event.id,
+          'eventName': widget.event.name,
+        },
+        message:
+            widget.event.requiresPayment
+                ? 'Payment for event: ${widget.event.name}'
+                : 'Donation for event: ${widget.event.name}',
+        returnUrl:
+            "${dotenv.env['BACKEND_URL']}/events/${widget.event.id}/payment/success",
+        cancelUrl:
+            "${dotenv.env['BACKEND_URL']}/events/${widget.event.id}/payment/cancel",
       );
 
       if (result != null && result['success'] == true) {
         final approvalUrl = result['approval_url'] as String?;
         final paymentId = result['payment_id'] as String?;
-        
+
         if (approvalUrl != null && paymentId != null) {
           // Use WebView to handle PayPal payment like donation flow
           if (mounted) {
@@ -136,81 +147,97 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
 
   void _showPayPalWebView(String approvalUrl, String paymentId) {
     // Define success and cancel URLs that the WebView can intercept
-    final successUrl = 'http://localhost:3000/events/${widget.event.id}/payment/success';
-    final cancelUrl = 'http://localhost:3000/events/${widget.event.id}/payment/cancel';
-    
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Complete Payment'),
-          backgroundColor: Theme.of(context).primaryColor,
-          foregroundColor: Colors.white,
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () {
-              Navigator.pop(context);
-              if (widget.onPaymentError != null) {
-                widget.onPaymentError!('Payment cancelled by user');
-              }
-            },
-          ),
-        ),
-        body: WebViewWidget(
-          controller: WebViewController()
-            ..setJavaScriptMode(JavaScriptMode.unrestricted)
-            ..setNavigationDelegate(
-              NavigationDelegate(
-                onNavigationRequest: (NavigationRequest request) async {
-                  print('WebView navigation request: ${request.url}');
-                  
-                  // Handle success URL
-                  if (request.url.startsWith(successUrl)) {
-                    final uri = Uri.parse(request.url);
-                    final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
-                    final token = uri.queryParameters['token'];
-                    
-                    print('Payment success detected - PayerID: $payerId, token: $token');
-                    
-                    if (payerId != null && token != null) {
-                      // Simulate deep link success handling
-                      Navigator.pop(context);
-                      
-                      // Trigger the event payment completion through deep linking service
-                      _triggerEventPaymentCompletion(widget.event.id, paymentId, payerId);
-                      
-                      if (widget.onPaymentSuccess != null) {
-                        widget.onPaymentSuccess!();
-                      }
-                    }
-                    return NavigationDecision.prevent;
-                  }
-                  
-                  // Handle cancel URL  
-                  if (request.url.startsWith(cancelUrl)) {
-                    print('Payment cancel detected');
+    final successUrl =
+        "${dotenv.env['BACKEND_URL']}/events/${widget.event.id}/payment/success";
+    final cancelUrl =
+        "${dotenv.env['BACKEND_URL']}/events/${widget.event.id}/payment/cancel";
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) => Scaffold(
+              appBar: AppBar(
+                title: const Text('Complete Payment'),
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
                     Navigator.pop(context);
                     if (widget.onPaymentError != null) {
                       widget.onPaymentError!('Payment cancelled by user');
                     }
-                    return NavigationDecision.prevent;
-                  }
-                  
-                  return NavigationDecision.navigate;
-                },
+                  },
+                ),
               ),
-            )
-            ..loadRequest(Uri.parse(approvalUrl)),
-        ),
+              body: WebViewWidget(
+                controller:
+                    WebViewController()
+                      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+                      ..setNavigationDelegate(
+                        NavigationDelegate(
+                          onNavigationRequest: (
+                            NavigationRequest request,
+                          ) async {
+                            // Handle success URL
+                            if (request.url.startsWith(successUrl)) {
+                              final uri = Uri.parse(request.url);
+                              final payerId =
+                                  uri.queryParameters['PayerID'] ??
+                                  uri.queryParameters['payer_id'];
+                              final token = uri.queryParameters['token'];
+
+                              if (payerId != null && token != null) {
+                                Navigator.pop(context);
+
+                                // Trigger the event payment completion through deep linking service
+                                _triggerEventPaymentCompletion(
+                                  widget.event.id,
+                                  paymentId,
+                                  payerId,
+                                );
+
+                                if (widget.onPaymentSuccess != null) {
+                                  widget.onPaymentSuccess!();
+                                }
+                              }
+                              return NavigationDecision.prevent;
+                            }
+
+                            // Handle cancel URL
+                            if (request.url.startsWith(cancelUrl)) {
+                              Navigator.pop(context);
+                              if (widget.onPaymentError != null) {
+                                widget.onPaymentError!(
+                                  'Payment cancelled by user',
+                                );
+                              }
+                              return NavigationDecision.prevent;
+                            }
+
+                            return NavigationDecision.navigate;
+                          },
+                        ),
+                      )
+                      ..loadRequest(Uri.parse(approvalUrl)),
+              ),
+            ),
       ),
-    ));
+    );
   }
 
   // Trigger event payment completion similar to deep link handling
-  void _triggerEventPaymentCompletion(String eventId, String paymentId, String payerId) {
+  void _triggerEventPaymentCompletion(
+    String eventId,
+    String paymentId,
+    String payerId,
+  ) {
     // This simulates what the deep linking service does for event payment completion
     // We can call the same backend endpoint that handles payment completion
-    print('Triggering event payment completion for event: $eventId, payment: $paymentId, payer: $payerId');
-    
+    print(
+      'Triggering event payment completion for event: $eventId, payment: $paymentId, payer: $payerId',
+    );
+
     // In a real implementation, this would call the backend to complete the registration
     // For now, we'll rely on the onPaymentSuccess callback to handle the UI update
   }
@@ -218,29 +245,30 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
   void _showErrorDialog(String error) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Payment Error'),
-        content: Text('Failed to start payment: $error'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Payment Error'),
+            content: Text('Failed to start payment: $error'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-  // Determine button appearance based on event type
-  final isPaidEvent = widget.event.requiresPayment;
-  final amount = isPaidEvent ? widget.event.price : _donationAmount;
-    
+    // Determine button appearance based on event type
+    final isPaidEvent = widget.event.requiresPayment;
+    final amount = isPaidEvent ? widget.event.price : _donationAmount;
+
     String buttonText;
     Color buttonColor;
     IconData buttonIcon;
-    
+
     if (isPaidEvent) {
       buttonText = 'Pay \$${amount.toStringAsFixed(2)} with PayPal';
       buttonColor = const Color(0xFF0070BA); // PayPal blue
@@ -254,8 +282,8 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-  // If this is a free event and donations are allowed, show the amount selector
-  if (!isPaidEvent && widget.event.allowsDonations) ...[
+        // If this is a free event and donations are allowed, show the amount selector
+        if (!isPaidEvent && widget.event.allowsDonations) ...[
           DonationAmountSelector(
             initialAmount: _donationAmount,
             onAmountChanged: (amt) => setState(() => _donationAmount = amt),
@@ -263,39 +291,43 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
           const SizedBox(height: 12),
         ],
 
-        Container(
+        SizedBox(
           width: double.infinity,
           height: 50,
           child: ElevatedButton.icon(
-        onPressed: (_isLoading || (!isPaidEvent && _donationAmount <= 0)) ? null : _initiatePayment,
-        icon: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Icon(buttonIcon, color: Colors.white),
-        label: Text(
-          _isLoading ? 'Processing...' : buttonText,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            onPressed:
+                (_isLoading || (!isPaidEvent && _donationAmount <= 0))
+                    ? null
+                    : _initiatePayment,
+            icon:
+                _isLoading
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                    : Icon(buttonIcon, color: Colors.white),
+            label: Text(
+              _isLoading ? 'Processing...' : buttonText,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: buttonColor,
+              disabledBackgroundColor: buttonColor.withAlpha(60),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: buttonColor,
-          disabledBackgroundColor: buttonColor.withOpacity(0.6),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        ),
-      ),
       ],
     );
   }
@@ -307,10 +339,10 @@ class DonationAmountSelector extends StatefulWidget {
   final double initialAmount;
 
   const DonationAmountSelector({
-    Key? key,
+    super.key,
     required this.onAmountChanged,
     this.initialAmount = 10.0,
-  }) : super(key: key);
+  });
 
   @override
   State<DonationAmountSelector> createState() => _DonationAmountSelectorState();
@@ -359,7 +391,7 @@ class _DonationAmountSelectorState extends State<DonationAmountSelector> {
 
   String? _validateCustomAmount(String value) {
     if (value.isEmpty) return null;
-    
+
     final amount = double.tryParse(value);
     if (amount == null) {
       return 'Please enter a valid number';
@@ -380,38 +412,46 @@ class _DonationAmountSelectorState extends State<DonationAmountSelector> {
       children: [
         const Text(
           'Select Donation Amount',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _presetAmounts.map((amount) {
-            final isSelected = !_isCustomAmount && _selectedAmount == amount;
-            return GestureDetector(
-              onTap: () => _selectAmount(amount),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
+          children:
+              _presetAmounts.map((amount) {
+                final isSelected =
+                    !_isCustomAmount && _selectedAmount == amount;
+                return GestureDetector(
+                  onTap: () => _selectAmount(amount),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          isSelected
+                              ? Theme.of(context).primaryColor
+                              : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color:
+                            isSelected
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey[300]!,
+                      ),
+                    ),
+                    child: Text(
+                      '\$${amount.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
-                ),
-                child: Text(
-                  '\$${amount.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
+                );
+              }).toList(),
         ),
         const SizedBox(height: 12),
         Row(
@@ -421,19 +461,26 @@ class _DonationAmountSelectorState extends State<DonationAmountSelector> {
             Expanded(
               child: TextField(
                 controller: _customAmountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  CurrencyInputFormatter(),
-                ],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [CurrencyInputFormatter()],
                 decoration: InputDecoration(
                   hintText: 'Custom amount',
                   border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  errorText: _validateCustomAmount(_customAmountController.text),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  errorText: _validateCustomAmount(
+                    _customAmountController.text,
+                  ),
                 ),
                 onChanged: (value) {
                   _onCustomAmountChanged(value);
-                  setState(() {}); // Trigger rebuild to show/hide validation errors
+                  setState(
+                    () {},
+                  ); // Trigger rebuild to show/hide validation errors
                 },
               ),
             ),
