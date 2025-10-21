@@ -16,7 +16,7 @@ import { EventPersonType } from "./EventPersonType"
 import { EventRSVPSelection } from "./EventRSVPSelection"
 import { EventMinistryDropdown } from "./EventMinistryDropdown"
 import { EventImageSelector } from "./EventImageSelector"
-import { handleEventEdit } from "@/helpers/EventsHelper"
+import { handleEventEdit, fetchMinistries } from "@/helpers/EventsHelper"
 import { EventManagementOptions } from "./EventManagementOptions"
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
 import { getMyPermissions } from "@/helpers/UserHelper"
@@ -39,9 +39,13 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
     const [rolesEnabled, setRolesEnabled] = useState(false)
     const [checkingPerms, setCheckingPerms] = useState(false)
     const [roleList, setRoleList] = useState<any[]>([]);
+    const [ministries, setMinistries] = useState<string[]>([]);
 
     useEffect(() => {
-        if (isOpen) setEvent(originalEvent)
+        if (isOpen) {
+            setEvent(originalEvent)
+            fetchMinistries().then(setMinistries)
+        }
     }, [originalEvent, isOpen])
 
     const handleDialogClose = () => {
@@ -153,12 +157,9 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
                         />
                         <EventMinistryDropdown
                             selected={event.ministry}
-                            ministries={[
-                                "Youth", "Children", "Women", "Men", "Family",
-                                "Worship", "Outreach", "Bible Study", "Young Adults", "Seniors"
-                            ]}
+                            ministries={ministries}
                             onChange={(updated) =>
-                                setEvent((prev) => ({ ...prev, ministry: updated }))
+                                setEvent({ ...event, ministry: updated })
                             }
                         />
                         <EventPersonType

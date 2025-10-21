@@ -12,7 +12,7 @@ import { EventPersonType } from "./EventPersonType"
 import { EventRSVPSelection } from "./EventRSVPSelection"
 import { EventMinistryDropdown } from "./EventMinistryDropdown"
 import { EventImageSelector } from "./EventImageSelector"
-import { handleEventCreation } from "@/helpers/EventsHelper"
+import { handleEventCreation, fetchMinistries } from "@/helpers/EventsHelper"
 import { getMyPermissions } from "@/helpers/UserHelper"
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
 import { EventManagementOptions } from "./EventManagementOptions"
@@ -54,9 +54,13 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
     const [saving, setSaving] = useState(false)
     const [checkingPerms, setCheckingPerms] = useState(false)
     const [roleList, setRoleList] = useState<any[]>([]);
+    const [ministries, setMinistries] = useState<string[]>([]);
 
     useEffect(() => {
-        if (isOpen) setEvent(initialEvent)
+        if (isOpen) {
+            setEvent(initialEvent)
+            fetchMinistries().then(setMinistries)
+        }
     }, [isOpen])
 
     const handleDialogClose = () => {
@@ -180,10 +184,7 @@ export function CreateEventDialog({ onSave }: CreateEventProps) {
                         />
                         <EventMinistryDropdown
                             selected={event.ministry}
-                            ministries={[
-                                "Youth", "Children", "Women", "Men", "Family",
-                                "Worship", "Outreach", "Bible Study", "Young Adults", "Seniors"
-                            ]}
+                            ministries={ministries}
                             onChange={(updated) => handleArrayChange('ministry', updated)}
                         />
                         <EventPersonType

@@ -7,7 +7,6 @@ import { Button } from "@/shared/components/ui/button";
 import type { AnyField, DateField, SelectField } from "./types";
 import { format } from "date-fns";
 import api from '@/api/api';
-import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 import { MailCheck } from 'lucide-react';
@@ -22,7 +21,6 @@ export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: 
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} }); // always init form hook
   const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
-  const navigate = useNavigate();
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);

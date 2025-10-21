@@ -13,6 +13,17 @@ export const fetchEvents = async () => {
     }
 }
 
+// Fetch canonical ministries list
+export const fetchMinistries = async (): Promise<string[]> => {
+    try {
+        const res = await api.get("/v1/ministries")
+        return res.data?.map((m: any) => m.name) || []
+    } catch (err) {
+        console.error("Failed to fetch ministries:", err)
+        return []
+    }
+}
+
 // Validates the event — throws if anything is missing
 export const verifyValidEvent = (event: ChurchEvent) => {
     const missingFields: string[] = []

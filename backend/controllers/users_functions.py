@@ -542,7 +542,6 @@ async def check_if_user_is_admin(uid: str) -> bool:
         users_collection = DB.db["users"]
         roles_collection = DB.db["roles"]
         
-        # Fetch user and admin role in parallel
         user, admin_role = await asyncio.gather(
             users_collection.find_one({"uid": uid}),
             roles_collection.find_one({"name": "Administrator"})
