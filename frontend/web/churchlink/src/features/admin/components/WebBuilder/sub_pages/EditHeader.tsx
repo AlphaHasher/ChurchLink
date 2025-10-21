@@ -673,7 +673,11 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "link" ? "default" : "outline"}
-                                        className="flex items-center gap-2 dark:hover:bg-muted dark:hover:text-foreground focus-visible:ring-1 focus-visible:ring-border"
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
+                                        itemType !== "link"
+                                            ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                                            : ""
+                                        }`}
                                         onClick={() => setItemType("link")}
                                     >
                                         Link
@@ -681,7 +685,11 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "dropdown" ? "default" : "outline"}
-                                        className="flex items-center gap-2 dark:hover:bg-muted dark:hover:text-foreground focus-visible:ring-1 focus-visible:ring-border"
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
+                                        itemType !== "dropdown"
+                                            ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                                            : ""
+                                        }`}
                                         onClick={() => setItemType("dropdown")}
                                     >
                                         Dropdown
