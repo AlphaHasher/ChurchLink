@@ -29,6 +29,10 @@ class DB:
             "indexes": ["name"]
         },
         {
+            "name": "ministries",
+            "indexes": ["normalized_name"],
+        },
+        {
             "name": "sermons",
             "indexes": ["title", "video_id"],
             "compound_indexes": [["published", "date_posted"]],
@@ -132,7 +136,7 @@ class DB:
                             name="unique_" + index + "_index"
                         )
                     ])
-            
+
             # Create compound indexes (non-unique)
             if "compound_indexes" in collection:
                 for compound_index in collection["compound_indexes"]:
@@ -307,7 +311,7 @@ class DB:
         except Exception as e:
             print(f"Error deleting documents from {collection_name}: {e}")
             return 0
-            
+
     @staticmethod
     async def get_setting(key: str, default_value=None):
         """Get a setting from the database by key."""
@@ -339,7 +343,7 @@ class DB:
         except Exception as e:
             logging.error(f"Error setting {key}: {e}")
             return False
-        
+
     @staticmethod
     async def get_paypal_settings():
         """Get all PayPal settings as a dictionary."""
@@ -351,16 +355,16 @@ class DB:
             "CHURCH_NAME": "Church",
             "ALLOWED_FUNDS": ["General", "Building", "Missions", "Youth", "Other"]
         }
-        
+
         # Try to get settings from database, fall back to defaults or env vars
         for key, default in defaults.items():
             # Try to get from database first
             value = await DB.get_setting(key, None)
-            
+
             # If not in database, use default (keep environment variables separate)
             if value is None:
                 value = default
-                
+
             settings[key] = value
-            
+
         return settings

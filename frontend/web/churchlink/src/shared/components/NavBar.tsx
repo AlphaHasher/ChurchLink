@@ -95,6 +95,20 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
         };
 
         fetchHeaderItems();
+
+        // Check if user is mod
+        const checkIfMod = async () => {
+            try {
+                const res = await api.get("/v1/users/check-mod");
+                setIsMod(res.data['success']);
+            } catch (error) {
+                console.error("Error checking if user is mod:", error);
+                setIsMod(false);
+            }
+        }
+
+        checkIfMod();
+
     }, [headerData]);
 
     useEffect(() => {

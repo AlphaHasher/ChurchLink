@@ -24,7 +24,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
   
-  const navigate = useNavigate();
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [paymentConfig, setPaymentConfig] = useState<any>(null);

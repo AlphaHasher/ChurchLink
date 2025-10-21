@@ -66,7 +66,6 @@ export function EventMinistryDropdown({
                             onSelect={(e) => e.preventDefault()}
                             className={cn(
                                 "capitalize",
-                                "data-[state=checked]:bg-blue-500 data-[state=checked]:text-white",
                                 "focus:bg-gray-100 dark:focus:bg-gray-700",
                                 "text-black dark:text-white"
                             )}

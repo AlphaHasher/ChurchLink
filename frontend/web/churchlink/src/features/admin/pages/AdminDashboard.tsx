@@ -29,6 +29,7 @@ import {
   Shield,
   CalendarFold,
   Lectern,
+  Church,
 } from "lucide-react";
 
 type Tile = {
@@ -52,6 +53,13 @@ const tiles: Tile[] = [
       "View all the various permission roles, create, edit, and delete permission roles. Quickly view all the users that have a particular permission role.",
     icon: Shield,
     to: "/admin/permissions",
+  },
+  {
+    title: "Ministries",
+    description:
+      "Create and manage ministry categorizations to apply to events, forms, sermons, and more.",
+    icon: Church,
+    to: "/admin/ministries",
   },
   {
     title: "Web Builder",
