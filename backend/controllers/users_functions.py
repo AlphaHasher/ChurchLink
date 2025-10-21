@@ -2,8 +2,8 @@ import asyncio
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
+from pydantic import BaseModel, field_validator
 from mongo.database import DB
-from pydantic import BaseModel
 from fastapi import Request
 from typing import Optional, List, Dict, Literal
 from datetime import datetime
@@ -30,6 +30,20 @@ class PersonalInfo(BaseModel):
     membership: bool
     birthday: Optional[datetime]
     gender: Optional[str]
+
+    @field_validator('membership', mode='before')
+    @classmethod
+    def validate_membership(cls, v):
+        if isinstance(v, str):
+            if v == "":
+                return False
+            elif v.lower() in ('true', '1', 'yes'):
+                return True
+            elif v.lower() in ('false', '0', 'no'):
+                return False
+            else:
+                raise ValueError(f"Invalid membership value: {v}")
+        return v
 
 class ContactInfo(BaseModel):
     phone: Optional[str]
@@ -186,7 +200,7 @@ async def fetch_profile_info(request: Request):
 
     contact_info = ContactInfo(
         phone = user.get("phone", ""),
-        address = user.get("address")
+        address = user.get("address") or {}
     )
 
     return {
@@ -213,7 +227,7 @@ async def fetch_detailed_user(uid: str):
 
         contact_info_load = ContactInfo(
             phone = user.get("phone", ""),
-            address = user.get("address")
+            address = user.get("address") or {}
         )
 
         detailed_info = DetailedUserInfo(
@@ -340,7 +354,7 @@ async def update_contact(uid:str, contact_info: ContactInfo):
     
     refreshed = ContactInfo(
         phone = updated.get("phone", ""),
-        address = updated.get("address")
+        address = updated.get("address") or {}
     )
 
     return {

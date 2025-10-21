@@ -72,6 +72,14 @@ class FormBase(BaseModel):
     slug: Optional[str] = Field(None)
     expires_at: Optional[datetime] = Field(None)
     form_width: Optional[str] = Field(None)
+    
+    # Payment configuration fields
+    requires_payment: bool = Field(False)
+    payment_amount: Optional[float] = Field(None)
+    payment_type: Optional[str] = Field("fixed")  # "fixed" | "donation" | "variable"
+    payment_description: Optional[str] = Field(None)
+    min_payment_amount: Optional[float] = Field(None)
+    max_payment_amount: Optional[float] = Field(None)
 
     @field_validator("form_width", mode="before")
     def validate_form_width(cls, v):
@@ -116,6 +124,14 @@ class FormUpdate(BaseModel):
     expires_at: Optional[datetime] = None
     data: Optional[Any] = None
     form_width: Optional[str] = None
+    
+    # Payment configuration fields
+    requires_payment: Optional[bool] = None
+    payment_amount: Optional[float] = None
+    payment_type: Optional[str] = None
+    payment_description: Optional[str] = None
+    min_payment_amount: Optional[float] = None
+    max_payment_amount: Optional[float] = None
 
     @field_validator("slug", mode="before")
     def validate_slug_update(cls, v):
@@ -152,6 +168,14 @@ class Form(MongoBaseModel, FormBase):
     data: Any = Field(default_factory=list)
     slug: Optional[str]
     form_width: Optional[str]
+    
+    # Payment configuration fields
+    requires_payment: bool = Field(False)
+    payment_amount: Optional[float] = Field(None)
+    payment_type: Optional[str] = Field("fixed")
+    payment_description: Optional[str] = Field(None)
+    min_payment_amount: Optional[float] = Field(None)
+    max_payment_amount: Optional[float] = Field(None)
     expires_at: Optional[datetime]
 
 
@@ -168,6 +192,14 @@ class FormOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     form_width: Optional[str]
+    
+    # Payment configuration fields
+    requires_payment: bool = Field(False)
+    payment_amount: Optional[float] = Field(None)
+    payment_type: Optional[str] = Field("fixed")
+    payment_description: Optional[str] = Field(None)
+    min_payment_amount: Optional[float] = Field(None)
+    max_payment_amount: Optional[float] = Field(None)
 
 
 def _doc_to_out(doc: dict) -> FormOut:
@@ -202,6 +234,12 @@ def _doc_to_out(doc: dict) -> FormOut:
         created_at=doc.get("created_at"),
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
+        requires_payment=doc.get("requires_payment", False),
+        payment_amount=doc.get("payment_amount"),
+        payment_type=doc.get("payment_type", "fixed"),
+        payment_description=doc.get("payment_description"),
+        min_payment_amount=doc.get("min_payment_amount"),
+        max_payment_amount=doc.get("max_payment_amount"),
     )
 
 
@@ -240,6 +278,13 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "form_width": width,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
+            # Payment configuration fields
+            "requires_payment": getattr(form, "requires_payment", False),
+            "payment_amount": getattr(form, "payment_amount", None),
+            "payment_type": getattr(form, "payment_type", "fixed"),
+            "payment_description": getattr(form, "payment_description", None),
+            "min_payment_amount": getattr(form, "min_payment_amount", None),
+            "max_payment_amount": getattr(form, "max_payment_amount", None),
         }
         result = await DB.db.forms.insert_one(doc)
         if result.inserted_id:
@@ -696,7 +741,21 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
                 except Exception:
                     pass
             update_doc["expires_at"] = expires_val
-
+        
+        # Handle payment configuration updates
+        if update.requires_payment is not None:
+            update_doc["requires_payment"] = update.requires_payment
+        if update.payment_amount is not None:
+            update_doc["payment_amount"] = update.payment_amount
+        if update.payment_type is not None:
+            update_doc["payment_type"] = update.payment_type
+        if update.payment_description is not None:
+            update_doc["payment_description"] = update.payment_description
+        if update.min_payment_amount is not None:
+            update_doc["min_payment_amount"] = update.min_payment_amount
+        if update.max_payment_amount is not None:
+            update_doc["max_payment_amount"] = update.max_payment_amount
+        
         try:
             provided = update.model_dump(exclude_unset=True)
         except Exception:

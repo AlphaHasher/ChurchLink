@@ -9,6 +9,7 @@ import { ProfileEditDialog } from "@/features/users/components/Profile/ProfileEd
 import { MyEventsSection } from "@/features/events/components/MyEventsSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import Layout from "@/shared/layouts/Layout";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import { ProfileInfo, toContactInfo, toProfileInfo, ContactInfo } from "@/shared/types/ProfileInfo";
@@ -44,6 +45,16 @@ const ProfilePage: React.FC = () => {
     const [contact, setContact] = React.useState<ContactInfo | null>(null);
     const [members, setMembers] = React.useState<PersonDetails[]>([]);
 
+    const location = useLocation();
+    // Determine tab from route
+    // Derive tab from pathname, query param (?tab=membership), or hash (#membership)
+    const searchParams = new URLSearchParams(location.search);
+    const tabValue = location.pathname.includes("/profile/my-events")
+        ? "events"
+        : location.pathname.includes("/profile/membership") || searchParams.get('tab') === 'membership' || location.hash === '#membership'
+            ? 'membership'
+            : 'profile';
+    const navigate = useNavigate();
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [dialogResubmission, setDialogResubmission] = React.useState(false);
     const [dialogDetails, setDialogDetails] = React.useState<MembershipDetails | null>(null);
@@ -99,7 +110,12 @@ const ProfilePage: React.FC = () => {
     return (
         <Layout>
             <div className="mx-auto max-w-7xl p-6">
-                <Tabs defaultValue="profile" className="w-full">
+                <Tabs value={tabValue} onValueChange={(v) => {
+                    // Keep routes in sync: events has its own route; membership uses a query param so it can be deep-linked
+                    if (v === 'events') navigate('/profile/my-events');
+                    else if (v === 'membership') navigate('/profile/membership');
+                    else navigate('/profile');
+                }} className="w-full">
                     <div className="flex justify-center mb-8">
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}

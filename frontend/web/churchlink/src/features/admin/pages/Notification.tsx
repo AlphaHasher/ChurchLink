@@ -668,7 +668,7 @@ const Notification = () => {
                 })
                 .map((n, idx) => {
                   // Prefer sent_at, then scheduled_time, then timestamp
-                  let rawTime = n.sent_at || n.scheduled_time || n.timestamp || "";
+                  const rawTime = n.sent_at || n.scheduled_time || n.timestamp || "";
                   let timeString = "-";
                   let isoTime = rawTime;
                   // If ISO string has microseconds, strip them and add 'Z' for UTC

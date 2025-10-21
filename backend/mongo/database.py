@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pathlib import Path
 from datetime import datetime
 from bson import ObjectId
+import logging
 
 # MongoDB connection settings
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -315,7 +316,7 @@ class DB:
     async def get_setting(key: str, default_value=None):
         """Get a setting from the database by key."""
         if DB.db is None:
-            print("Database not initialized.")
+            logging.warning("Database not initialized.")
             return default_value
         try:
             setting = await DB.db["settings"].find_one({"key": key})
@@ -323,14 +324,14 @@ class DB:
                 return setting["value"]
             return default_value
         except Exception as e:
-            print(f"Error getting setting {key}: {e}")
+            logging.error(f"Error getting setting {key}: {e}")
             return default_value
 
     @staticmethod
     async def set_setting(key: str, value):
         """Set or update a setting in the database."""
         if DB.db is None:
-            print("Database not initialized.")
+            logging.warning("Database not initialized.")
             return False
         try:
             result = await DB.db["settings"].update_one(
@@ -340,7 +341,7 @@ class DB:
             )
             return result.modified_count > 0 or result.upserted_id is not None
         except Exception as e:
-            print(f"Error setting {key}: {e}")
+            logging.error(f"Error setting {key}: {e}")
             return False
 
     @staticmethod

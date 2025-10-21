@@ -6,10 +6,12 @@ class EventRegistrationService {
   /// If familyMemberId is null, registers the current user
   /// If familyMemberId is provided, registers that family member
   /// scope: "series" for recurring registration, "occurrence" for one-time registration
+  /// paymentOption: "paypal", "door", "free", or null
   static Future<bool> registerForEvent({
     required String eventId,
     String? familyMemberId,
     String scope = 'series',
+    String? paymentOption,
   }) async {
     try {
       final String endpoint;
@@ -20,9 +22,15 @@ class EventRegistrationService {
         endpoint = '/v1/event-people/register/$eventId';
       }
 
+      final data = <String, dynamic>{};
+      if (paymentOption != null) {
+        data['payment_option'] = paymentOption;
+      }
+
       final response = await api.post(
         endpoint,
         queryParameters: {'scope': scope},
+        data: data.isNotEmpty ? data : null,
       );
       return response.data['success'] == true;
     } catch (e) {
@@ -110,7 +118,7 @@ class EventRegistrationService {
     }
   }
 
-  /// Check if multiple family members are registered for event (bulk operation)
+  /// Check if multiple family members are registered for event (bulk operation)  
   /// Returns a map of family member ID to registration status
   static Future<Map<String, bool>> areFamilyMembersRegistered({
     required String eventId,
@@ -133,6 +141,114 @@ class EventRegistrationService {
       return {};
     } catch (e) {
       throw Exception('Failed to check family members registration status: $e');
+    }
+  }
+
+  /// Register multiple people for an event (unified method)
+  static Future<bool> registerMultiplePeople({
+    required String eventId,
+    required List<Map<String, dynamic>> registrations,
+    String? paymentOption,
+    double donationAmount = 0.0,
+  }) async {
+    try {
+      bool allSuccessful = true;
+      List<String> errors = [];
+
+      // Register each person individually using the existing registerForEvent function
+      for (final registration in registrations) {
+        try {
+          final type = registration['type'];
+          String? familyMemberId;
+          
+          if (type == 'family_member') {
+            familyMemberId = registration['family_member_id'];
+            if (familyMemberId == null) {
+              allSuccessful = false;
+              errors.add('Missing family member ID for registration');
+              continue;
+            }
+          }
+
+          final success = await EventRegistrationService.registerForEvent(
+            eventId: eventId,
+            familyMemberId: familyMemberId,
+            paymentOption: paymentOption,
+          );
+          
+          if (!success) {
+            allSuccessful = false;
+            errors.add('Failed to register ${type == 'user' ? 'user' : 'family member'}');
+          }
+        } catch (e) {
+          allSuccessful = false;
+          errors.add('Registration error: $e');
+        }
+      }
+
+      if (!allSuccessful) {
+        throw Exception('Some registrations failed: ${errors.join(', ')}');
+      }
+
+      return true;
+    } catch (e) {
+      throw Exception('Failed to register multiple people: $e');
+    }
+  }
+
+  /// Create payment order for multiple registrations (simplified)
+  static Future<Map<String, dynamic>> createPaymentOrderForMultiple({
+    required String eventId,
+    required List<Map<String, dynamic>> registrations,  
+    required double totalAmount,
+    double donationAmount = 0.0,
+  }) async {
+    try {
+      // Prevent creating PayPal orders with zero or negative amounts
+      if (totalAmount <= 0) {
+        throw Exception('PayPal orders require a positive amount. Total amount provided: $totalAmount');
+      }
+
+      final data = {
+        'registrations': registrations,
+        'total_amount': totalAmount,
+        'donation_amount': donationAmount,
+        'payment_option': 'paypal',
+      };
+
+      final response = await api.post(
+        '/v1/events/$eventId/payment/create-bulk-order',
+        data: data,
+      );
+
+      if (response.data['success'] == true) {
+        return response.data;
+      }
+
+      throw Exception(response.data['message'] ?? 'Failed to create payment order');
+    } catch (e) {
+      throw Exception('Failed to create payment order: $e');
+    }
+  }
+
+  /// Complete PayPal payment for event registration
+  static Future<bool> completePayPalPayment({
+    required String eventId,
+    required String paymentId,
+    required String payerId,
+  }) async {
+    try {
+      final response = await api.post(
+        '/v1/events/$eventId/payment/complete-bulk-registration',
+        data: {
+          'payment_id': paymentId,
+          'payer_id': payerId,
+        },
+      );
+
+      return response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to complete PayPal payment: $e');
     }
   }
 }

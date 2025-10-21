@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useMyEvents } from '../hooks/useMyEvents';
 import { MyEventCard } from './MyEventCard';
 import { EventFiltersComponent } from './EventFilters';
 import { EventDetailsModal } from './EventDetailsModal';
 import { myEventsApi } from '@/features/events/api/myEventsApi';
+import { getMyProfileInfo } from '@/helpers/UserHelper';
 import { MyEvent, EventFilters, GroupedEvent, EventWithGroupedData } from '../types/myEvents';
+import { ProfileInfo } from '@/shared/types/ProfileInfo';
 
 export function MyEventsSection() {
   // State management
@@ -16,6 +18,21 @@ export function MyEventsSection() {
     searchTerm: '',
   });
   const [selectedEvent, setSelectedEvent] = useState<EventWithGroupedData | null>(null);
+  const [userProfile, setUserProfile] = useState<ProfileInfo | null>(null);
+
+  // Load user profile for eligibility checking
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const profile = await getMyProfileInfo();
+        setUserProfile(profile);
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+      }
+    };
+    
+    loadUserProfile();
+  }, []);
 
   // Memoize the API parameters to prevent infinite re-renders
   const apiParams = useMemo(() => ({
@@ -215,6 +232,7 @@ export function MyEventsSection() {
           isOpen={Boolean(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           onCancelRSVP={handleCancelRSVP}
+          userProfile={userProfile}
         />
       )}
     </div>

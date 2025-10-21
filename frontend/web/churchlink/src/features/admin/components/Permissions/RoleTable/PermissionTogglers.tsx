@@ -121,6 +121,14 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
                 onChange={handleChange("media_management")}
                 disabled={!editor_permissions.admin && !editor_permissions.media_management}
             />
+            <RadioToggler
+                name="finance"
+                label="Finance Manager"
+                description="This option grants the user the ability to manage financial settings including PayPal credentials, view donation reports, and configure payment requirements for events."
+                value={permissions.finance}
+                onChange={handleChange("finance")}
+                disabled={!editor_permissions.admin && !editor_permissions.finance}
+            />
 
         </div>
     )

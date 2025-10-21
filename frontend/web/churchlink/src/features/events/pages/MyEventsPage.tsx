@@ -1,12 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useMyEvents } from '../hooks/useMyEvents';
 import { MyEventCard } from '../components/MyEventCard';
 import { EventFiltersComponent } from '../components/EventFilters';
 import { EventDetailsModal } from '../components/EventDetailsModal';
 import { myEventsApi } from '@/features/events/api/myEventsApi';
-import Layout from '@/shared/layouts/Layout';
+import { getMyProfileInfo } from '@/helpers/UserHelper';
 import { MyEvent, EventFilters, GroupedEvent } from '../types/myEvents';
+import { ProfileInfo } from '@/shared/types/ProfileInfo';
 
 export default function MyEventsPage() {
   // State management
@@ -17,6 +18,21 @@ export default function MyEventsPage() {
     searchTerm: '',
   });
   const [selectedEvent, setSelectedEvent] = useState<MyEvent | null>(null);
+  const [userProfile, setUserProfile] = useState<ProfileInfo | null>(null);
+
+  // Load user profile for eligibility checking
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const profile = await getMyProfileInfo();
+        setUserProfile(profile);
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+      }
+    };
+    
+    loadUserProfile();
+  }, []);
 
   // Helper function to convert single event to grouped format
   const createGroupedEvent = (eventRef: MyEvent): GroupedEvent => {
@@ -42,6 +58,9 @@ export default function MyEventsPage() {
 
   // Filter events based on current filters
   const filteredEvents = useMemo(() => {
+    console.log('[MyEventsPage] Raw events from API:', events);
+    console.log('[MyEventsPage] Events count before filtering:', events.length);
+    
     // Deduplicate events based on unique key (event_id + person_id combination)
     // This provides a robust safety net against backend data inconsistencies
     const uniqueEventsMap = new Map<string, MyEvent>();
@@ -58,35 +77,59 @@ export default function MyEventsPage() {
     });
     
     const deduplicatedEvents = Array.from(uniqueEventsMap.values());
+    console.log('[MyEventsPage] Deduplicated events:', deduplicatedEvents);
     
-    return deduplicatedEvents.filter(eventRef => {
+    const filtered = deduplicatedEvents.filter(eventRef => {
       const event = eventRef.event;
-      if (!event) return false; // Skip if no event details loaded
+      console.log('[MyEventsPage] Filtering event:', { eventRef, event });
+      
+      if (!event) {
+        console.log('[MyEventsPage] Skipping event - no event details');
+        return false; // Skip if no event details loaded
+      }
 
       const eventDate = new Date(event.date);
       const now = new Date();
       const isUpcoming = eventDate > now;
 
       // Date filtering
-      if (!filters.showUpcoming && isUpcoming) return false;
-      if (!filters.showPast && !isUpcoming) return false;
+      if (!filters.showUpcoming && isUpcoming) {
+        console.log('[MyEventsPage] Skipping event - upcoming filtered out');
+        return false;
+      }
+      if (!filters.showPast && !isUpcoming) {
+        console.log('[MyEventsPage] Skipping event - past filtered out');
+        return false;
+      }
 
       // Family filtering
-      if (!filters.showFamily && eventRef.person_id) return false;
+      if (!filters.showFamily && eventRef.person_id) {
+        console.log('[MyEventsPage] Skipping event - family filtered out');
+        return false;
+      }
 
       // Search filtering
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
-        return (
+        const matches = (
           event.name.toLowerCase().includes(searchLower) ||
           event.description.toLowerCase().includes(searchLower) ||
           event.location.toLowerCase().includes(searchLower) ||
           event.ministry.some((m: string) => m.toLowerCase().includes(searchLower))
         );
+        if (!matches) {
+          console.log('[MyEventsPage] Skipping event - search filter no match');
+          return false;
+        }
       }
 
+      console.log('[MyEventsPage] Event passed all filters');
       return true;
     });
+    
+    console.log('[MyEventsPage] Filtered events:', filtered);
+    console.log('[MyEventsPage] Filtered events count:', filtered.length);
+    return filtered;
   }, [events, filters]);
 
   // Event handlers
@@ -109,7 +152,6 @@ export default function MyEventsPage() {
   // Render loading state
   if (loading) {
     return (
-      <Layout>
         <div className="container mx-auto px-4 py-6">
           <div className="mb-6">
             <h1 className="text-3xl font-bold">My Events</h1>
@@ -117,14 +159,12 @@ export default function MyEventsPage() {
           </div>
           <p>Loading events...</p>
         </div>
-      </Layout>
     );
   }
 
   // Render error state
   if (error) {
     return (
-      <Layout>
         <div className="container mx-auto px-4 py-6">
           <div className="mb-6">
             <h1 className="text-3xl font-bold">My Events</h1>
@@ -140,12 +180,10 @@ export default function MyEventsPage() {
             </button>
           </div>
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
@@ -206,9 +244,9 @@ export default function MyEventsPage() {
             isOpen={Boolean(selectedEvent)}
             onClose={() => setSelectedEvent(null)}
             onCancelRSVP={handleCancelRSVP}
+            userProfile={userProfile}
           />
         )}
       </div>
-    </Layout>
   );
 }
