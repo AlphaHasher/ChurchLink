@@ -776,7 +776,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                             onChange={(e) => setNewDropdownRussianTitle(e.target.value)}
                                             required
                                         />
-                                        <div className="border rounded p-4 bg-muted shadow-sm">
+                                        <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                                             <h4 className="font-medium mb-2">Dropdown Links</h4>
 
                                             {dropdownLinks.length > 0 ? (
@@ -962,7 +962,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 )}
 
                                 {editingItem && 'items' in editingItem && (
-                                    <div className="border rounded p-4 bg-muted">
+                                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                                         <h4 className="font-medium mb-2">Dropdown Items</h4>
 
                                         {editDropdownItems.length > 0 ? (
