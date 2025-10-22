@@ -385,7 +385,7 @@ const Notification = () => {
             onChange={(e) =>
               setNewNotification({ ...newNotification, actionType: e.target.value as NotificationActionType })
             }
-            className="border p-2 w-full"
+            className="border p-2 w-full bg-background text-foreground"
           >
             <option value="text">Text Only (default)</option>
             <option value="link">Open Link (external)</option>
@@ -400,7 +400,7 @@ const Notification = () => {
             <select
               value={newNotification.route || ""}
               onChange={(e) => setNewNotification({ ...newNotification, route: e.target.value })}
-              className="border p-2 w-full"
+              className="border p-2 w-full bg-background text-foreground"
             >
               <option value="">Select a page...</option>
               <option value="/home">Home</option>
@@ -478,7 +478,7 @@ const Notification = () => {
           <select
             value={newNotification.schedule}
             onChange={(e) => setNewNotification({ ...newNotification, schedule: e.target.value as DraftNotification["schedule"] })}
-            className="border p-2 w-full"
+            className="border p-2 w-full bg-background text-foreground"
           >
             <option value="">Select Time</option>
             <option value="now">Now</option>
@@ -512,7 +512,7 @@ const Notification = () => {
           <select
             value={targetAudience}
             onChange={(e) => setTargetAudience(e.target.value as NotificationTarget)}
-            className="border p-2 w-full"
+            className="border p-2 w-full bg-background text-foreground"
           >
             <option value="all">All Users</option>
             <option value="logged_in">Logged-in Users</option>
