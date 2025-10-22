@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../helpers/api_client.dart';
 import '../models/my_events.dart';
 
@@ -10,7 +12,7 @@ class MyEventsService {
     bool expand = true,
   }) async {
     try {
-      print(
+      debugPrint(
         'DEBUG: Calling my-events API with expand=$expand, includeFamily=$includeFamily',
       );
 
@@ -22,12 +24,12 @@ class MyEventsService {
         },
       );
 
-      print('DEBUG: API response status: ${response.statusCode}');
-      print('DEBUG: API response data type: ${response.data.runtimeType}');
+      debugPrint('DEBUG: API response status: ${response.statusCode}');
+      debugPrint('DEBUG: API response data type: ${response.data.runtimeType}');
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        print(
+        debugPrint(
           'DEBUG: Response has ${responseData['events']?.length ?? 0} events',
         );
 
@@ -35,18 +37,18 @@ class MyEventsService {
         if (responseData['events'] != null &&
             (responseData['events'] as List).isNotEmpty) {
           final firstEvent = (responseData['events'] as List).first;
-          print(
+          debugPrint(
             'DEBUG: First event has "event" field: ${firstEvent['event'] != null}',
           );
           if (firstEvent['event'] != null) {
-            print(
+            debugPrint(
               'DEBUG: Event field keys: ${(firstEvent['event'] as Map).keys}',
             );
           } else {
-            print(
+            debugPrint(
               'WARNING: API returned events but "event" field is null - backend may not be expanding',
             );
-            print('DEBUG: First event keys: ${firstEvent.keys}');
+            debugPrint('DEBUG: First event keys: ${firstEvent.keys}');
           }
         }
 
@@ -56,7 +58,7 @@ class MyEventsService {
       // If response format is unexpected, return empty success response
       return MyEventsResponse(success: false, events: []);
     } catch (e) {
-      print('ERROR: Failed to fetch my events: $e');
+      debugPrint('ERROR: Failed to fetch my events: $e');
       throw Exception('Failed to fetch my events: $e');
     }
   }

@@ -338,7 +338,7 @@ class _EventShowcaseState extends State<EventShowcase> {
               registrations: registrations,
               navigateOnPayAtDoor: true, // Enable direct navigation for pay-at-door
               onSuccess: (String paymentType) async {
-                print('[EventShowcase] Success callback called with paymentType: $paymentType');
+                debugPrint('[EventShowcase] Success callback called with paymentType: $paymentType');
 
                 // For pay-at-door, navigation is handled directly by the widget
                 // For other payment types, show snackbar (using dialogContext) and close dialog
@@ -358,7 +358,7 @@ class _EventShowcaseState extends State<EventShowcase> {
                 }
 
                 // Refresh data in background for all payment types
-                print('[EventShowcase] Refreshing registration data in background');
+                debugPrint('[EventShowcase] Refreshing registration data in background');
                 _refreshRegistrationData();
               },
               onPaymentSuccess: (String paymentId, String payerId) async {
@@ -1365,11 +1365,11 @@ class _EventShowcaseState extends State<EventShowcase> {
           
           if (mounted) {
             setState(() => _selectedRegistrants.clear());
-            print('[EventShowcase] Background data refresh completed');
+            debugPrint('[EventShowcase] Background data refresh completed');
           }
         }
       } catch (e) {
-        print('[EventShowcase] Error during background data refresh: $e');
+        debugPrint('[EventShowcase] Error during background data refresh: $e');
       }
     });
   }

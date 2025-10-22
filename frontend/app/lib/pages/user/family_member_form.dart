@@ -108,8 +108,6 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(

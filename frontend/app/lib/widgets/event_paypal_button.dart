@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -234,7 +235,7 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
   ) {
     // This simulates what the deep linking service does for event payment completion
     // We can call the same backend endpoint that handles payment completion
-    print(
+    debugPrint(
       'Triggering event payment completion for event: $eventId, payment: $paymentId, payer: $payerId',
     );
 

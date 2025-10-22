@@ -52,7 +52,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
   MembershipDetails? _details;
   bool _loading = true;
   bool _online = false;
-  String? _error;
 
   @override
   void initState() {
@@ -64,7 +63,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
     if (!mounted) return;
     setState(() {
       _loading = true;
-      _error = null;
     });
 
     Future<void> _loadCache() async {
@@ -85,7 +83,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
         if (!mounted) return;
         setState(() {
           _loading = false;
-          _error = 'Failed to load membership details.';
           _online = false;
         });
       }
@@ -217,7 +214,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
           break;
         }
       case _PrimaryAction.none:
-      default:
         break;
     }
   }
