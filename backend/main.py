@@ -227,7 +227,6 @@ private_router = AuthProtectedRouter(prefix="/api/v1")
 
 private_router.include_router(bible_note_router)
 private_router.include_router(auth_bible_plan_router)
-private_router.include_router(private_bible_plan_router)
 private_router.include_router(bible_notification_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)

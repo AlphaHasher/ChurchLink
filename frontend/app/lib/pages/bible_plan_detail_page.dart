@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/bible_plan.dart';
-import '../services/bible_plan_service.dart';
-import '../widgets/days_pagination_header.dart';
-import '../widgets/day_preview_card.dart';
-import '../widgets/days_window.dart';
+import 'package:app/models/bible_plan.dart';
+import 'package:app/services/bible_plan_service.dart';
+import 'package:app/helpers/bible_plan_auth_utils.dart';
+import 'package:app/widgets/days_pagination_header.dart';
+import 'package:app/widgets/day_preview_card.dart';
+import 'package:app/widgets/days_window.dart';
 
 /// Detail page for a Bible plan where users can view and subscribe
 class BiblePlanDetailPage extends StatefulWidget {
@@ -33,6 +34,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   // pagination is handled by DaysWindow widget
 
   bool get _isAlreadySubscribed => widget.existingSubscription != null;
+  
+  bool get _isUserLoggedIn => BiblePlanAuthUtils.isUserLoggedIn();
 
   @override
   void initState() {
@@ -76,9 +79,11 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             // Reading preview
             _buildReadingPreviewSection(),
             
-            // Subscription form
+            // Subscription form or login reminder
             if (_isAlreadySubscribed)
               _buildAlreadySubscribedBanner()
+            else if (!_isUserLoggedIn)
+              _buildLoginReminder()
             else
               _buildSubscriptionForm(),
           ],
@@ -488,6 +493,95 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
     );
   }
 
+  Widget _buildLoginReminder() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(150, 130, 255, 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  color: Color.fromRGBO(150, 130, 255, 1),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sign In Required',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sign in to subscribe to this reading plan and track your progress.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final result = await BiblePlanAuthUtils.navigateToMyBiblePlans(
+                  context,
+                  showLoginReminder: false,
+                  allowPageAccess: false,
+                );
+                if (result && mounted) {
+                  // User successfully logged in, refresh this page
+                  setState(() {});
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.login),
+              label: const Text(
+                'Sign In to Subscribe',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStartDatePicker() {
     return InkWell(
       onTap: _selectStartDate,
@@ -683,6 +777,12 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   }
 
   Future<void> _handleSubscribe() async {
+    // Check authentication first
+    if (!_isUserLoggedIn) {
+      BiblePlanAuthUtils.showLoginSnackBar(context);
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
