@@ -320,8 +320,8 @@ const Notification = () => {
         {saveStatus && (
           <div
             className={`mb-2 p-2 rounded ${saveStatus.toLowerCase().includes("success")
-              ? "bg-green-100 text-green-800 border border-green-400"
-              : "bg-red-100 text-red-800 border border-red-400"
+              ? "bg-green-400 text-white"
+              : "bg-destructive text-destructive-foreground"
               }`}
           >
             {saveStatus}
@@ -368,14 +368,14 @@ const Notification = () => {
       {scheduleStatus && (
         <div
           className={`mb-2 p-2 rounded ${scheduleStatus.toLowerCase().includes("success")
-            ? "bg-green-100 text-green-800 border border-green-400"
-            : "bg-red-100 text-red-800 border border-red-400"
+            ? "bg-green-400 text-white"
+            : "bg-destructive text-destructive-foreground"
             }`}
         >
           {scheduleStatus}
         </div>
       )}
-      {formError && <div className="mb-2 p-2 rounded bg-red-100 text-red-800 border border-red-400">{formError}</div>}
+      {formError && <div className="mb-2 p-2 rounded bg-destructive text-destructive-foreground">{formError}</div>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
