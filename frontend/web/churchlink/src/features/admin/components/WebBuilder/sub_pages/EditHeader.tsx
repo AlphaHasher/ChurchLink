@@ -100,8 +100,8 @@ const VisibilityToggle: React.FC<{ item: HeaderItem; onToggle: (title: string, c
                     <span
                         className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
                             item.visible
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
                         }`}
                     >
                         {item.visible ? "Visible" : "Hidden"}
@@ -138,7 +138,7 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
     return (
         <div ref={setNodeRef} style={style} className="border-b last:border-0">
             <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
+                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-muted-foreground">
                     &#x2630;
                 </div>
                 <div className="flex-grow">
@@ -661,7 +661,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 Add Navigation Item
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[600px]">
+                        <DialogContent className="sm:max-w-[600px] border border-border shadow-xl">
                             <DialogHeader>
                                 <DialogTitle>Add Navigation Item</DialogTitle>
                                 <DialogDescription>
@@ -673,6 +673,11 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "link" ? "default" : "outline"}
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
+                                        itemType !== "link"
+                                            ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                                            : ""
+                                        }`}
                                         onClick={() => setItemType("link")}
                                     >
                                         Link
@@ -680,6 +685,11 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "dropdown" ? "default" : "outline"}
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
+                                        itemType !== "dropdown"
+                                            ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                                            : ""
+                                        }`}
                                         onClick={() => setItemType("dropdown")}
                                     >
                                         Dropdown
@@ -691,6 +701,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Link Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newLinkTitle}
                                             onChange={(e) => setNewLinkTitle(e.target.value)}
                                             required
@@ -698,6 +709,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Russian Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newLinkRussianTitle}
                                             onChange={(e) => setNewLinkRussianTitle(e.target.value)}
                                             required
@@ -751,6 +763,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Dropdown Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newDropdownTitle}
                                             onChange={(e) => setNewDropdownTitle(e.target.value)}
                                             required
@@ -758,11 +771,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <Input
                                             type="text"
                                             placeholder="Russian Title"
+                                            className="placeholder:text-muted-foreground/70"
                                             value={newDropdownRussianTitle}
                                             onChange={(e) => setNewDropdownRussianTitle(e.target.value)}
                                             required
                                         />
-                                        <div className="border rounded p-4 bg-gray-50">
+                                        <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                                             <h4 className="font-medium mb-2">Dropdown Links</h4>
 
                                             {dropdownLinks.length > 0 ? (
@@ -778,17 +792,17 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                         <ul className="mb-4">
                                                             {dropdownLinks.map((link, index) => (
                                                                 <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
-                                                                    <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                    <li className="flex justify-between items-center p-2 bg-card border rounded shadow-sm">
                                                                         <div>
                                                                             <div className="font-medium">{link.title}</div>
-                                                                            <div className="text-sm text-blue-600">{link.url}</div>
+                                                                            <div className="text-sm text-primary">{link.url}</div>
                                                                         </div>
                                                                         <Button
                                                                             type="button"
                                                                             variant="ghost"
                                                                             size="sm"
                                                                             onClick={() => handleRemoveDropdownLink(index)}
-                                                                            className="text-red-500 hover:text-red-700"
+                                                                            className="text-destructive hover:text-destructive/80"
                                                                         >
                                                                             Remove
                                                                         </Button>
@@ -799,7 +813,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     </SortableContext>
                                                 </DndContext>
                                             ) : (
-                                                <p className="text-gray-500 italic mb-4">No links</p>
+                                                <p className="text-muted-foreground italic mb-4">No links</p>
                                             )}
 
                                             <div className="border-t pt-3">
@@ -808,12 +822,14 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     <Input
                                                         type="text"
                                                         placeholder="Link Title"
+                                                        className="placeholder:text-muted-foreground/70"
                                                         value={tempLinkTitle}
                                                         onChange={(e) => setTempLinkTitle(e.target.value)}
                                                     />
                                                     <Input
                                                         type="text"
                                                         placeholder="Russian Title"
+                                                        className="placeholder:text-muted-foreground/70"
                                                         value={tempLinkRussianTitle}
                                                         onChange={(e) => setTempLinkRussianTitle(e.target.value)}
                                                     />
@@ -890,6 +906,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 <Input
                                     type="text"
                                     placeholder="Title"
+                                    className="placeholder:text-muted-foreground/70"
                                     value={editTitle}
                                     onChange={(e) => setEditTitle(e.target.value)}
                                     required
@@ -897,6 +914,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 <Input
                                     type="text"
                                     placeholder="Russian Title"
+                                    className="placeholder:text-muted-foreground/70"
                                     value={editRussianTitle}
                                     onChange={(e) => setEditRussianTitle(e.target.value)}
                                     required
@@ -944,7 +962,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                 )}
 
                                 {editingItem && 'items' in editingItem && (
-                                    <div className="border rounded p-4 bg-gray-50">
+                                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                                         <h4 className="font-medium mb-2">Dropdown Items</h4>
 
                                         {editDropdownItems.length > 0 ? (
@@ -960,10 +978,10 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     <ul className="mb-4">
                                                         {editDropdownItems.map((link, index) => (
                                                             <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
-                                                                <li className="flex justify-between items-center p-2 bg-white border rounded">
+                                                                <li className="flex justify-between items-center p-2 bg-card border rounded">
                                                                     <div>
                                                                         <div className="font-medium">{link.title}</div>
-                                                                        <div className="text-sm text-blue-600">{link.url}</div>
+                                                                        <div className="text-sm text-primary">{link.url}</div>
                                                                     </div>
                                                                     <div className="flex gap-2">
                                                                         <Button
@@ -971,7 +989,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                                             variant="ghost"
                                                                             size="sm"
                                                                             onClick={() => handleEditDropdownItem(index)}
-                                                                            className="text-blue-500 hover:text-blue-700"
+                                                                            className="text-primary hover:text-primary/80"
                                                                         >
                                                                             Edit
                                                                         </Button>
@@ -980,7 +998,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                                             variant="ghost"
                                                                             size="sm"
                                                                             onClick={() => handleRemoveEditDropdownItem(index)}
-                                                                            className="text-red-500 hover:text-red-700"
+                                                                            className="text-destructive hover:text-destructive/80"
                                                                         >
                                                                             Remove
                                                                         </Button>
@@ -992,7 +1010,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                 </SortableContext>
                                             </DndContext>
                                         ) : (
-                                            <p className="text-gray-500 italic mb-4">No dropdown items</p>
+                                            <p className="text-muted-foreground italic mb-4">No dropdown items</p>
                                         )}
 
                                         <div className="border-t pt-3">
@@ -1094,7 +1112,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={confirmDeleteItem} className="bg-red-600 hover:bg-red-700">
+                                <AlertDialogAction onClick={confirmDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                                     Delete
                                 </AlertDialogAction>
                             </AlertDialogFooter>
@@ -1125,7 +1143,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                             <div className="flex flex-1">
                                                 <div>
                                                     <span className="font-medium">{item.title}</span>
-                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                                                    {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
@@ -1153,7 +1171,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                             size="sm"
                                                             onClick={() => window.open(href as string, "_blank")}
                                                             title="Open in new tab"
-                                                            className="text-gray-600 hover:text-gray-800"
+                                                            className="text-muted-foreground hover:text-foreground"
                                                         >
                                                             <ExternalLink className="h-4 w-4" />
                                                         </Button>
@@ -1164,7 +1182,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleEditItem(item)}
-                                                    className="text-blue-600 hover:text-blue-700"
+                                                    className="text-primary hover:text-primary/80"
                                                 >
                                                     Edit
                                                 </Button>
@@ -1172,7 +1190,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleRemoveItem(item.title)}
-                                                    className="text-red-600 hover:text-red-700"
+                                                    className="text-destructive hover:text-destructive/80"
                                                 >
                                                     Remove
                                                 </Button>
@@ -1184,7 +1202,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                         </SortableContext>
                     </DndContext>
                 ) : (
-                    <p className="text-gray-500">No navigation items yet. Click "Add Navigation Item" to create one.</p>
+                    <p className="text-muted-foreground">No navigation items yet. Click "Add Navigation Item" to create one.</p>
                 )}
             </div>
 

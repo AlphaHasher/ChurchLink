@@ -320,8 +320,8 @@ const Notification = () => {
         {saveStatus && (
           <div
             className={`mb-2 p-2 rounded ${saveStatus.toLowerCase().includes("success")
-              ? "bg-green-100 text-green-800 border border-green-400"
-              : "bg-red-100 text-red-800 border border-red-400"
+              ? "bg-green-400 text-white"
+              : "bg-destructive text-destructive-foreground"
               }`}
           >
             {saveStatus}
@@ -329,7 +329,7 @@ const Notification = () => {
         )}
         <h2 className="text-xl font-semibold mb-2">YouTube Live Notifications Setting</h2>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Livestream Notification Title</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Livestream Notification Title</label>
           <input
             type="text"
             placeholder="Livestream Notification Title"
@@ -340,7 +340,7 @@ const Notification = () => {
           />
         </div>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Stream Notification Message</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Stream Notification Message</label>
           <input
             type="text"
             placeholder="Stream Notification Message"
@@ -351,11 +351,11 @@ const Notification = () => {
           />
         </div>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Time Zone (from backend)</label>
-          <input type="text" value={selectedTimezone} className="border p-2 w-full mb-2 bg-gray-100" disabled />
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Time Zone (from backend)</label>
+          <input type="text" value={selectedTimezone} className="border border-input p-2 w-full mb-2 bg-muted text-foreground placeholder:text-muted-foreground" disabled />
         </div>
         <button
-          className="mt-2 bg-blue-500 text-white px-4 py-2 rounded"
+          className="mt-2 bg-primary text-white px-4 py-2 rounded"
           onClick={handleSaveYoutubeSettings}
           disabled={loading || envOverride}
         >
@@ -368,24 +368,24 @@ const Notification = () => {
       {scheduleStatus && (
         <div
           className={`mb-2 p-2 rounded ${scheduleStatus.toLowerCase().includes("success")
-            ? "bg-green-100 text-green-800 border border-green-400"
-            : "bg-red-100 text-red-800 border border-red-400"
+            ? "bg-green-400 text-white"
+            : "bg-destructive text-destructive-foreground"
             }`}
         >
           {scheduleStatus}
         </div>
       )}
-      {formError && <div className="mb-2 p-2 rounded bg-red-100 text-red-800 border border-red-400">{formError}</div>}
+      {formError && <div className="mb-2 p-2 rounded bg-destructive text-destructive-foreground">{formError}</div>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Action Type</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Action Type</label>
           <select
             value={newNotification.actionType}
             onChange={(e) =>
               setNewNotification({ ...newNotification, actionType: e.target.value as NotificationActionType })
             }
-            className="border p-2 w-full"
+            className="border p-2 w-full bg-background text-foreground"
           >
             <option value="text">Text Only (default)</option>
             <option value="link">Open Link (external)</option>
@@ -396,11 +396,11 @@ const Notification = () => {
         
         {newNotification.actionType === "route" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Page</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Select Page</label>
             <select
               value={newNotification.route || ""}
               onChange={(e) => setNewNotification({ ...newNotification, route: e.target.value })}
-              className="border p-2 w-full"
+              className="border p-2 w-full bg-background text-foreground"
             >
               <option value="">Select a page...</option>
               <option value="/home">Home</option>
@@ -419,7 +419,7 @@ const Notification = () => {
 
         {newNotification.actionType === "link" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Link</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Link</label>
             <input
               type="text"
               placeholder="Link (e.g. https://...)"
@@ -434,7 +434,7 @@ const Notification = () => {
 
         {newNotification.actionType === "event" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Event</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Select Event</label>
             <select
               value={newNotification.eventId || ""}
               onChange={(e) => setNewNotification({ ...newNotification, eventId: e.target.value })}
@@ -452,7 +452,7 @@ const Notification = () => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Title</label>
           <input
             type="text"
             placeholder="Title"
@@ -463,7 +463,7 @@ const Notification = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Message</label>
           <input
             type="text"
             placeholder="Message"
@@ -474,11 +474,11 @@ const Notification = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Schedule</label>
           <select
             value={newNotification.schedule}
             onChange={(e) => setNewNotification({ ...newNotification, schedule: e.target.value as DraftNotification["schedule"] })}
-            className="border p-2 w-full"
+            className="border p-2 w-full bg-background text-foreground"
           >
             <option value="">Select Time</option>
             <option value="now">Now</option>
@@ -488,7 +488,7 @@ const Notification = () => {
 
         {newNotification.schedule === "custom" && (
           <div className="flex gap-2 items-center">
-            <label className="text-sm font-medium text-gray-700">Select Date:</label>
+            <label className="text-sm font-medium text-muted-foreground">Select Date:</label>
             <input
               type="date"
               value={newNotification.customDate}
@@ -496,7 +496,7 @@ const Notification = () => {
               className="border p-2 rounded"
               style={{ minWidth: 140 }}
             />
-            <label className="text-sm font-medium text-gray-700">Time:</label>
+            <label className="text-sm font-medium text-muted-foreground">Time:</label>
             <input
               type="time"
               value={newNotification.customTime}
@@ -508,11 +508,11 @@ const Notification = () => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Target Audience</label>
           <select
             value={targetAudience}
             onChange={(e) => setTargetAudience(e.target.value as NotificationTarget)}
-            className="border p-2 w-full"
+            className="border p-2 w-full bg-background text-foreground"
           >
             <option value="all">All Users</option>
             <option value="logged_in">Logged-in Users</option>
@@ -533,6 +533,7 @@ const Notification = () => {
       <div className="mt-6">
         <h2 className="text-xl font-semibold mb-2">Notification List</h2>
         <Tabs
+          textColor="inherit"
           value={activeTab}
           onChange={(_e, v: ActiveTab) => {
             setActiveTab(v);
@@ -546,9 +547,9 @@ const Notification = () => {
         </Tabs>
 
         {activeTab === "scheduled" && (
-          <table className="w-full border-collapse border border-gray-300 mt-4">
+          <table className="w-full border-collapse border border-border mt-4">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-muted text-muted-foreground">
                 <th className="border p-2">Time</th>
                 <th className="border p-2">Title</th>
                 <th className="border p-2">Message</th>
@@ -609,7 +610,7 @@ const Notification = () => {
                           {link.length > 50 ? `${link.substring(0, 50)}...` : link}
                         </a>
                       ) : (
-                        <span className="text-gray-700">{detailContent}</span>
+                        <span className="text-muted-foreground">{detailContent}</span>
                       )}
                     </td>
                     <td className="p-2 border">All</td>
@@ -631,7 +632,7 @@ const Notification = () => {
                     <td className="p-2 border">
                       {!n.sent && !n.canceled && (
                         <button
-                          className={`bg-red-500 text-white px-3 py-1 rounded ${cancelLoadingId === n._id ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`bg-destructive text-white px-3 py-1 rounded ${cancelLoadingId === n._id ? "opacity-50 cursor-not-allowed" : ""}`}
                           onClick={() => handleRemoveScheduledNotification(n._id)}
                           disabled={cancelLoadingId === n._id}
                         >
@@ -647,9 +648,9 @@ const Notification = () => {
         )}
 
         {activeTab === "history" && (
-          <table className="w-full border-collapse border border-gray-300 mt-4">
+          <table className="w-full border-collapse border border-border mt-4">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-muted text-muted-foreground">
                 <th className="border p-2">Time</th>
                 <th className="border p-2">Title</th>
                 <th className="border p-2">Message</th>
@@ -726,7 +727,7 @@ const Notification = () => {
                             {link.length > 50 ? `${link.substring(0, 50)}...` : link}
                           </a>
                         ) : (
-                          <span className="text-gray-700">{detailContent}</span>
+                          <span className="text-muted-foreground">{detailContent}</span>
                         )}
                       </td>
                       <td className="p-2 border">

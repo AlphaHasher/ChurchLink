@@ -15,6 +15,8 @@ import {
     SelectValue,
 } from "@/shared/components/ui/select";
 
+import { Button } from "@/shared/components/ui/button";
+
 type SortDir = "asc" | "desc";
 type SearchField = "name" | "email";
 type Status = "pending" | "approved" | "rejected";
@@ -120,26 +122,53 @@ const ManageMemberships = () => {
                     />
                 </div>
 
-                <div className="inline-flex items-center gap-2">
-                    <span className="text-sm text-gray-700">Show:</span>
-                    <button
-                        className={`px-3 py-1 text-sm rounded-md transition-colors ${status === "pending" ? "bg-gray-900 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
-                        onClick={() => { setStatus("pending"); setPage(0); }}
-                    >
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Show:</span>
+
+                    <div className="inline-flex rounded-md border border-border bg-card p-1 shadow-sm">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={status === "pending" ? "default" : "outline"}
+                            className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
+                                status !== "pending"
+                                ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                                : ""
+                            }`}
+                            onClick={() => { setStatus("pending"); setPage(0); }}
+                            aria-pressed={status === "pending"}
+                        >
                         Pending
-                    </button>
-                    <button
-                        className={`px-3 py-1 text-sm rounded-md transition-colors ${status === "approved" ? "bg-gray-900 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
-                        onClick={() => { setStatus("approved"); setPage(0); }}
-                    >
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={status === "approved" ? "default" : "outline"}
+                            className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
+                                status !== "approved"
+                                ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                                : ""
+                            }`}
+                            onClick={() => { setStatus("approved"); setPage(0); }}
+                            aria-pressed={status === "approved"}
+                        >
                         Approved
-                    </button>
-                    <button
-                        className={`px-3 py-1 text-sm rounded-md transition-colors ${status === "rejected" ? "bg-gray-900 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
-                        onClick={() => { setStatus("rejected"); setPage(0); }}
-                    >
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={status === "rejected" ? "default" : "outline"}
+                            className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
+                                status !== "rejected"
+                                ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                                : ""
+                            }`}
+                            onClick={() => { setStatus("rejected"); setPage(0); }}
+                            aria-pressed={status === "rejected"}
+                        >
                         Rejected
-                    </button>
+                        </Button>
+                    </div>
                 </div>
             </div>
 

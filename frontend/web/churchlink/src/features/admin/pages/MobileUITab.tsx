@@ -221,7 +221,7 @@ const MobileUITab = () => {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-6 bg-background text-foreground">
         <h1 className="text-3xl font-bold mb-6">Mobile UI Tab</h1>
         <div className="text-center py-8">
           <Skeleton className="h-8 w-1/3 mx-auto" />
@@ -232,28 +232,44 @@ const MobileUITab = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-background text-foreground">
       <h1 className="text-3xl font-bold mb-6">Mobile UI Tab</h1>
       {/* Tab Management Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-card text-card-foreground border border-border rounded-lg shadow-sm p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">App Tab Configuration</h2>
           <div className="flex gap-2 items-center">
-            <select
-              value={selectedTabToAdd}
-              onChange={(e) => setSelectedTabToAdd(e.target.value)}
-              className="border rounded px-3 py-2"
-              disabled={!!editingTab || tabs.length >= 5}
-            >
-              <option value="">
-                {tabs.length >= 5 ? "Maximum 5 tabs reached" : "Select tab to add..."}
-              </option>
-              {getAvailableTabsToAdd().map((tab) => (
-                <option key={tab.name} value={tab.name}>
-                  {tab.displayName}
+            <div className="relative">
+              <select
+                value={selectedTabToAdd}
+                onChange={(e) => setSelectedTabToAdd(e.target.value)}
+                disabled={!!editingTab || tabs.length >= 5}
+                className="w-[260px] appearance-none bg-background text-foreground
+                  border border-input rounded-md px-3 py-2 pr-10 shadow-sm
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                  focus-visible:ring-offset-2 focus-visible:ring-offset-background
+                  disabled:bg-muted disabled:text-muted-foreground disabled:border-border
+                  disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <option value="" disabled={tabs.length >= 5}>
+                  {tabs.length >= 5 ? "Maximum 5 tabs reached" : "Select tab to add..."}
                 </option>
-              ))}
-            </select>
+                {getAvailableTabsToAdd().map((tab) => (
+                  <option key={tab.name} value={tab.name}>
+                    {tab.displayName}
+                  </option>
+                ))}
+              </select>
+              {/* Chevron icon */}
+              <svg
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.08 1.04l-4.25 4.25a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06z" />
+              </svg>
+            </div>
             <button
               onClick={() => {
                 if (selectedTabToAdd) {
@@ -276,157 +292,162 @@ const MobileUITab = () => {
             </button>
           </div>
         </div>
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-sm text-blue-800">
+        <div className="mb-4 p-3 bg-muted border border-border rounded-md">
+          <p className="text-sm text-muted-foreground">
             <strong>Note:</strong> The Home tab is fixed at the first position and cannot be moved or deleted. 
             You can add up to 5 tabs total (Flutter BottomNavigationBar limit) from the predefined list: Live, Weekly Bulletin, Events, Giving, Sermons, Bible, and Profile.
             Use the dropdown above to select and add new tabs, then arrange them in your desired order.
           </p>
-          <div className="mt-2 p-2 bg-blue-25 rounded">
-            <p className="text-xs text-blue-700">
+          <div className="mt-2 p-2 bg-muted/50 rounded">
+            <p className="text-xs text-muted-foreground">
               <strong>Icons:</strong> Home (🏠), Live (📺), Bulletin (📄), Events (📅), Giving (🤝), Sermons (✝️), Bible (📖), Profile (👤)
             </p>
           </div>
         </div>
+
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-destructive/10 border border-destructive/50 text-destructive px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
         {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <div className="bg-primary/10 border border-primary/50 text-foreground px-4 py-3 rounded mb-4">
             {success}
           </div>
         )}
+
         {/* Editing Form */}
         {editingTab && (
-          <div className="bg-gray-50 border rounded-md p-4 mb-4">
-            <h3 className="text-lg font-medium mb-3">
-              {editingTab.isNew ? "Add New Tab" : "Edit Tab"}
-            </h3>
+          <div className="bg-muted border border-border rounded-md p-4 mb-4">
+            <h3 className="text-lg font-medium mb-3">{editingTab.isNew ? "Add New Tab" : "Edit Tab"}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Index</label>
                 <input
                   type="number"
                   value={editingTab.index}
-                  onChange={(e) => setEditingTab({...editingTab, index: parseInt(e.target.value)})}
-                  className="border rounded px-3 py-2 w-full bg-gray-100"
+                  onChange={(e) => setEditingTab({ ...editingTab, index: parseInt(e.target.value) })}
+                  className="border border-input bg-muted text-foreground rounded px-3 py-2 w-full"
                   min="0"
                   disabled
                 />
-                <small className="text-gray-500">Index is automatically assigned</small>
+                <small className="text-muted-foreground">Index is automatically assigned</small>
               </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">Name (Internal)</label>
                 <input
                   type="text"
                   value={editingTab.name}
-                  onChange={(e) => setEditingTab({...editingTab, name: e.target.value.toLowerCase()})}
-                  className="border rounded px-3 py-2 w-full bg-gray-100"
+                  onChange={(e) => setEditingTab({ ...editingTab, name: e.target.value.toLowerCase() })}
+                  className="border border-input bg-muted text-foreground rounded px-3 py-2 w-full"
                   placeholder="home, bible, sermons, etc."
                   disabled
                 />
-                <small className="text-gray-500">Name is predefined and cannot be changed</small>
+                <small className="text-muted-foreground">Name is predefined and cannot be changed</small>
               </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">Display Name</label>
                 <input
                   type="text"
                   value={editingTab.displayName}
-                  onChange={(e) => setEditingTab({...editingTab, displayName: e.target.value})}
-                  className="border rounded px-3 py-2 w-full"
+                  onChange={(e) => setEditingTab({ ...editingTab, displayName: e.target.value })}
+                  className="border border-input bg-background text-foreground rounded px-3 py-2 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   placeholder="Home, Bible, Sermons, etc."
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">Icon</label>
                 <input
                   type="text"
                   value={editingTab.icon || ""}
-                  onChange={(e) => setEditingTab({...editingTab, icon: e.target.value})}
-                  className="border rounded px-3 py-2 w-full bg-gray-100"
+                  onChange={(e) => setEditingTab({ ...editingTab, icon: e.target.value })}
+                  className="border border-input bg-muted text-foreground rounded px-3 py-2 w-full"
                   placeholder="home, bible, event, etc."
                   disabled
                 />
-                <small className="text-gray-500">Icon is predefined and cannot be changed</small>
+                <small className="text-muted-foreground">Icon is predefined and cannot be changed</small>
               </div>
             </div>
+
             <div className="flex gap-2 mt-4">
               <button
                 onClick={handleSaveEdit}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                className="bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90"
               >
                 Save
               </button>
               <button
                 onClick={handleCancelEdit}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                className="bg-secondary text-secondary-foreground px-4 py-2 rounded hover:bg-secondary/90"
               >
                 Cancel
               </button>
             </div>
           </div>
         )}
+
         {/* Tabs List */}
         <div className="space-y-2">
           {tabs.map((tab, idx) => {
-            const isHomeTab = tab.name.toLowerCase() === 'home';
+            const isHomeTab = tab.name.toLowerCase() === "home";
             return (
-              <div 
-                key={tab.index} 
-                className={`flex items-center gap-4 p-3 border rounded-md ${
-                  isHomeTab 
-                    ? 'bg-blue-50 border-blue-200' 
-                    : 'bg-gray-50'
+              <div
+                key={tab.index}
+                className={`flex items-center gap-4 p-3 border border-border rounded-md ${
+                  isHomeTab ? "bg-muted/40" : "bg-muted/20"
                 }`}
               >
-                {isHomeTab && (
-                  <div className="text-xs bg-blue-500 text-white px-2 py-1 rounded">
-                    FIXED
-                  </div>
-                )}
+                {isHomeTab && <div className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">FIXED</div>}
+
                 <div className="flex flex-col">
                   <button
-                    onClick={() => handleMoveTab(tab.index, 'up')}
+                    onClick={() => handleMoveTab(tab.index, "up")}
                     disabled={idx === 0 || isHomeTab}
                     className="text-gray-500 hover:text-gray-700 disabled:opacity-30"
                   >
                     <ArrowUp size={16} />
                   </button>
                   <button
-                    onClick={() => handleMoveTab(tab.index, 'down')}
+                    onClick={() => handleMoveTab(tab.index, "down")}
                     disabled={idx === tabs.length - 1 || isHomeTab}
                     className="text-gray-500 hover:text-gray-700 disabled:opacity-30"
                   >
                     <ArrowDown size={16} />
                   </button>
                 </div>
+
                 <div className="flex-1 grid grid-cols-4 gap-4">
                   <div>
-                    <div className="text-sm text-gray-500">Index</div>
+                    <div className="text-sm text-muted-foreground">Index</div>
                     <div className="font-medium">{tab.index}</div>
                   </div>
+
                   <div>
-                    <div className="text-sm text-gray-500">Name</div>
+                    <div className="text-sm text-muted-foreground">Name</div>
                     <div className="font-medium">{tab.name}</div>
                   </div>
+
                   <div>
-                    <div className="text-sm text-gray-500">Display Name</div>
+                    <div className="text-sm text-muted-foreground">Display Name</div>
                     <div className="font-medium">{tab.displayName}</div>
                   </div>
+
                   <div>
-                    <div className="text-sm text-gray-500">Icon</div>
+                    <div className="text-sm text-muted-foreground">Icon</div>
                     <div className="font-medium flex items-center gap-2">
                       <span>{_getIconEmoji(tab.icon || tab.name)}</span>
                       <span>{tab.icon || "—"}</span>
                     </div>
                   </div>
                 </div>
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEditTab(tab)}
-                    className="text-blue-500 hover:text-blue-700"
+                    className="text-primary hover:opacity-90"
                     disabled={!!editingTab}
                     title={isHomeTab ? "Edit display name only" : "Edit tab"}
                   >
@@ -435,9 +456,7 @@ const MobileUITab = () => {
                   <button
                     onClick={() => handleDeleteTab(tab.index)}
                     className={`${
-                      isHomeTab 
-                        ? 'text-gray-300 cursor-not-allowed' 
-                        : 'text-red-500 hover:text-red-700'
+                      isHomeTab ? "text-muted-foreground/40 cursor-not-allowed" : "text-destructive hover:opacity-90"
                     }`}
                     disabled={!!editingTab || isHomeTab}
                     title={isHomeTab ? "Home tab cannot be deleted" : "Delete tab"}
@@ -449,10 +468,9 @@ const MobileUITab = () => {
             );
           })}
         </div>
+
         {tabs.length === 0 && !editingTab && (
-          <div className="text-center py-8 text-gray-500">
-            No tabs configured. Click "Add Tab" to create your first tab.
-          </div>
+          <div className="text-center py-8 text-muted-foreground">No tabs configured. Click "Add Tab" to create your first tab.</div>
         )}
       </div>
     </div>
