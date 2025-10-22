@@ -35,6 +35,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         bulletin_editing: false,
         media_management: false,
         layout_management: false,
+        finance: false,
     }
 
     const initialEditorPermissions: PermMask = {
@@ -46,6 +47,7 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         media_management: false,
         layout_management: false,
         bulletin_editing: false,
+        finance: false,
     }
 
 

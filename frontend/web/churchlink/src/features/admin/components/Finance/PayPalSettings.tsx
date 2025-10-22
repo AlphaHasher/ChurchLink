@@ -25,7 +25,7 @@ const PayPalSettingsComponent: React.FC = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const response = await api.get("/v1/paypal/settings");
+      const response = await api.get("/v1/finance/paypal/settings");
       const paypalSettings: PayPalSettings = response.data.settings || {};
       setSettings(paypalSettings);
 
@@ -54,7 +54,7 @@ const PayPalSettingsComponent: React.FC = () => {
         ALLOWED_FUNDS: funds,
       };
 
-      const response = await api.post("/v1/paypal/settings", dbSettings);
+      const response = await api.post("/v1/finance/paypal/settings", dbSettings);
       if (response.data.success) {
         message.success("PayPal settings updated successfully");
         fetchSettings();

@@ -14,7 +14,9 @@ import {
   ClipboardList,
   Newspaper,
   Lectern,
+  Church,
   Wallet,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,13 +58,13 @@ const AdminDashboardSideBar = () => {
       { title: "Pages", url: "/admin/webbuilder" },
       { title: "Header", url: "/admin/webbuilder/header" },
       { title: "Footer", url: "/admin/webbuilder/footer" },
-      { title: "Settings", url: "/admin/webbuilder/settings" },
     ],
     []
   );
 
   const items: Item[] = [
-    { title: "Home", url: "/", icon: Home },
+    { title: "Go Back to Main Site", url: "/", icon: ArrowLeft },
+    { title: "Admin Panel Home", url: "/admin/", icon: Home },
     {
       title: "Users", url: "/admin/users", icon: User, children: [
         { title: "Management", url: "/admin/users/manage-users" },
@@ -71,6 +73,7 @@ const AdminDashboardSideBar = () => {
     },
 
     { title: "Permissions", url: "/admin/permissions", icon: Shield },
+    { title: "Ministries", url: "/admin/ministries", icon: Church },
     { title: "Web Builder", icon: FileText, children: webBuilderChildren },
     { title: "Media Library", url: "/admin/media-library", icon: Image },
     { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Smartphone },

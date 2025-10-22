@@ -1,3 +1,5 @@
+import { Eye } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { useState, useRef, useMemo, useCallback } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { ClientSideRowModelModule } from "ag-grid-community";
@@ -20,7 +22,9 @@ interface EventsTableProps {
 
 const skipTerms = ["id", "description", "image_url", "thumbnail_url", "ru_name", "ru_description"];
 
+
 export function EventsTable({ data, permData, onSave }: EventsTableProps) {
+    const navigate = useNavigate();
     const gridRef = useRef<AgGridReact>(null);
     const [searchValue, setSearchValue] = useState("");
     const [isFirstPage, setIsFirstPage] = useState(true);
@@ -28,67 +32,81 @@ export function EventsTable({ data, permData, onSave }: EventsTableProps) {
     const [currentPageNum, setCurrentPageNum] = useState(1);
 
     const columnDefs = useMemo(() => {
-        const nameCol: any = {
-            field: "name",
-            headerName: eventLabels.name,
-            pinned: "left",
-            sortable: true,
-            filter: true,
-            flex: 1,
-            minWidth: 150,
-            cellStyle: {
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                display: "block"
-            }
-        };
+        // Create columns using createPermColumn approach
+        const columns: any[] = [];
 
-        const actionsCol: any = {
-            headerName: "Actions",
-            pinned: "right",
-            cellRenderer: (params: any) => {
-                const rowData = params.data as ChurchEvent;
-                return (
-                    <div className="flex items-center space-x-2 justify-end">
-                        <EditEventDialog event={rowData} onSave={onSave} />
-                        <DeleteEventDialog event={rowData} onSave={onSave} />
-                    </div>
-                );
-            },
-            sortable: false,
-            filter: false,
-            width: 120,
-            suppressSizeToFit: true
-        };
-
-        const restCols = Object.keys(eventLabels)
-            .filter((key) => key !== "name" && !skipTerms.includes(key))
-            .map((key) => {
+        Object.keys(eventLabels).forEach((key) => {
+            if (!skipTerms.includes(key)) {
                 const field = key as keyof ChurchEvent;
                 const headerName = eventLabels[field];
+
                 const colDef: any = {
                     field,
                     headerName,
                     sortable: true,
                     filter: true,
-                    width: 150,
+                    width: field === "name" ? 200 : 150,
+                    pinned: field === "name" ? "left" : undefined,
+                    flex: field === "name" ? 1 : undefined,
+                    minWidth: field === "name" ? 150 : undefined,
                 };
 
-                if (field === "roles") {
+                // Custom cell renderer based on field type
+                if (field === "name") {
+                    colDef.cellRenderer = (params: any) => {
+                        const rowData = params.data as ChurchEvent;
+                        return (
+                            <div className="flex items-center justify-between w-full">
+                                <span className="font-medium">{params.value}</span>
+                                <div className="flex space-x-2 ml-auto">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => navigate(`/admin/events/${rowData.id}`)}
+                                        className="h-8 w-8 p-0"
+                                        title="View Details"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <EditEventDialog event={rowData} onSave={onSave} />
+                                    <DeleteEventDialog event={rowData} onSave={onSave} />
+                                </div>
+                            </div>
+                        );
+                    };
+                    colDef.cellStyle = {
+                        whiteSpace: "nowrap",
+                        overflow: "visible",
+                        display: "flex",
+                        alignItems: "center"
+                    };
+                } else if (field === "roles") {
                     colDef.valueGetter = (params: any) => {
                         const roles = roleIdListToRoleStringList(permData, params.data.roles);
                         return getDisplayValue(roles, field);
                     };
                 } else {
-                    colDef.cellRenderer = (params: any) => getDisplayValue(params.value, field);
+                    colDef.cellRenderer = (params: any) => {
+                        return (
+                            <div className="flex items-center justify-center text-center">
+                                {getDisplayValue(params.value, field)}
+                            </div>
+                        );
+                    };
+                    colDef.cellStyle = {
+                        textAlign: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                    };
                 }
 
-                return colDef;
-            });
+                columns.push(colDef);
+            }
+        });
 
-        return [nameCol, actionsCol, ...restCols];
-    }, [permData, onSave]);
+        return columns;
+    }, [permData, onSave, navigate]);
 
     const defaultColDef = useMemo(() => ({
         resizable: true,

@@ -32,6 +32,23 @@ const FormResponses = () => {
   const query = useQuery();
   const formId = query.get('formId') || '';
 
+  const [responses, setResponses] = useState<{ 
+    submitted_at: string; 
+    user_id?: string; 
+    response: Record<string, any>; 
+    id?: string; 
+    _id?: string;
+    payment_info?: {
+      transaction_id: string;
+      amount: number;
+      status: string;
+      payment_method: string;
+      payer_name?: string;
+      payer_email?: string;
+      payment_time?: string;
+      order_id?: string;
+    };
+  }[]>([]);
   const [formMeta, setFormMeta] = useState<{
     title: string;
     description?: string;
@@ -39,7 +56,6 @@ const FormResponses = () => {
     defaultLocale?: string;
     locales?: string[];
   } | null>(null);
-  const [responses, setResponses] = useState<{ submitted_at: string; user_id?: string; response: Record<string, any>; id?: string; _id?: string }[]>([]);
   const [userInfo, setUserInfo] = useState<Record<string, { name: string; email: string }>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +188,7 @@ const FormResponses = () => {
       const name = userData?.name || (userId ? 'Loading...' : 'Anonymous');
       const email = userData?.email || '';
       const key = response.id || response._id || `${userId || 'anonymous'}-${response.submitted_at || index}-${index}`;
+      const hasPayment = !!response.payment_info;
 
       return {
         key,
@@ -180,6 +197,7 @@ const FormResponses = () => {
         submitted: response.submitted_at,
         submittedLabel: formatSidebarDate(response.submitted_at),
         response,
+        hasPayment,
       };
     });
   }, [responses, userInfo]);
@@ -484,7 +502,12 @@ const FormResponses = () => {
                                     className="items-center justify-between gap-2"
                                     size="lg"
                                   >
-                                    <span className="truncate font-medium">{item.name}</span>
+                                    <div className="flex items-center gap-2 truncate">
+                                      <span className="truncate font-medium">{item.name}</span>
+                                      {item.hasPayment && (
+                                        <span className="text-green-600 text-xs">💰</span>
+                                      )}
+                                    </div>
                                     <span className="ml-2 shrink-0 text-right text-xs text-muted-foreground">
                                       {item.submittedLabel}
                                     </span>
@@ -508,6 +531,28 @@ const FormResponses = () => {
                           <div className="text-sm text-muted-foreground">
                             Submitted on {formatDate(selectedItem.submitted)}
                           </div>
+                          
+                          {/* Payment Information */}
+                          {selectedItem.response.payment_info && (
+                            <div className="mt-4 rounded-lg border bg-green-50 p-4">
+                              <div className="text-sm font-medium text-green-800 mb-2">💰 Payment Information</div>
+                              <div className="space-y-1 text-sm text-green-700">
+                                <div><strong>Amount:</strong> ${selectedItem.response.payment_info.amount}</div>
+                                <div><strong>Status:</strong> {selectedItem.response.payment_info.status}</div>
+                                <div><strong>Method:</strong> {selectedItem.response.payment_info.payment_method}</div>
+                                {selectedItem.response.payment_info.payer_name && (
+                                  <div><strong>Payer:</strong> {selectedItem.response.payment_info.payer_name}</div>
+                                )}
+                                {selectedItem.response.payment_info.payer_email && (
+                                  <div><strong>Email:</strong> {selectedItem.response.payment_info.payer_email}</div>
+                                )}
+                                <div><strong>Transaction ID:</strong> {selectedItem.response.payment_info.transaction_id}</div>
+                                {selectedItem.response.payment_info.payment_time && (
+                                  <div><strong>Payment Time:</strong> {formatDate(selectedItem.response.payment_info.payment_time)}</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div className="space-y-2">
                           {renderFieldRows() || (

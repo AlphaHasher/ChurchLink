@@ -1,6 +1,12 @@
 import 'package:intl/intl.dart';
 
 class Event {
+  /// Returns only upcoming events from a list
+  static List<Event> upcomingEvents(List<Event> events) {
+    final now = DateTime.now();
+    return events.where((e) => e.date.isAfter(now)).toList();
+  }
+
   final String id;
   final String name;
   final String? ruName; // Russian translation
@@ -22,6 +28,10 @@ class Event {
   final int seatsTaken; // Current registrations
   final List<String> attendeeKeys; // Attendee identifiers
   final List<dynamic> attendees; // Full attendee objects
+  
+  // Payment integration fields  
+  final List<String> paymentOptions; // Available payment methods: ['paypal', 'door']
+  final String? refundPolicy; // Refund policy text
 
   Event({
     required this.id,
@@ -45,6 +55,8 @@ class Event {
     required this.seatsTaken,
     required this.attendeeKeys,
     required this.attendees,
+    this.paymentOptions = const [],
+    this.refundPolicy,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
@@ -80,6 +92,8 @@ class Event {
           json['attendees'] != null
               ? List<dynamic>.from(json['attendees'])
               : <dynamic>[],
+      paymentOptions: _parsePaymentOptions(json),
+      refundPolicy: json['refund_policy']?.toString(),
     );
   }
 
@@ -106,15 +120,17 @@ class Event {
       'seats_taken': seatsTaken,
       'attendee_keys': attendeeKeys,
       'attendees': attendees,
+      'payment_options': paymentOptions,
+      if (refundPolicy != null) 'refund_policy': refundPolicy,
     };
   }
 
   // Computed properties
   bool get isFree => price == 0;
 
-  bool get hasSpots => spots == null || seatsTaken < spots!;
+  bool get hasSpots => spots == null || spots == 0 || (spots != null && seatsTaken < spots!);
 
-  int? get availableSpots => spots != null ? spots! - seatsTaken : null;
+  int? get availableSpots => spots != null && spots! > 0 ? spots! - seatsTaken : null;
 
   bool get isUpcoming => date.isAfter(DateTime.now());
 
@@ -139,5 +155,46 @@ class Event {
       return ruDescription!;
     }
     return description;
+  }
+  
+  // Payment-related computed properties
+  bool get requiresPayment => price > 0 && paymentOptions.isNotEmpty;
+  
+  bool get hasPayPalOption => paymentOptions.contains('paypal');
+  
+  bool get hasDoorPaymentOption => paymentOptions.contains('door');
+  
+  bool get allowsDonations => isFree && hasPayPalOption;
+  
+  String get paymentStatus {
+    if (isFree && paymentOptions.isEmpty) return 'Free Event';
+    if (isFree && hasPayPalOption) return 'Free • Donations Welcome';
+    if (requiresPayment) return 'Paid Event • \$${price.toStringAsFixed(2)}';
+    return 'Contact for Payment';
+  }
+  
+  // Helper method to safely parse payment options with comprehensive error handling
+  static List<String> _parsePaymentOptions(Map<String, dynamic> json) {
+    try {
+      // First try to get the new payment_options field
+      if (json.containsKey('payment_options') && json['payment_options'] != null) {
+        var options = json['payment_options'];
+        if (options is List) {
+          return options.map((e) => e.toString()).toList();
+        }
+      }
+      
+      // Fallback to old paypal_enabled field for backward compatibility
+      if (json['paypal_enabled'] == true) {
+        return ['paypal'];
+      }
+      
+      // Default to empty list
+      return <String>[];
+    } catch (e) {
+      // If any error occurs, return empty list to prevent crashes
+      print('Error parsing payment options: $e');
+      return <String>[];
+    }
   }
 }

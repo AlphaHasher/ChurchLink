@@ -7,8 +7,6 @@ import 'package:app/pages/user/user_settings.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/weeklybulletin.dart';
 import 'package:app/pages/giving.dart';
-import 'package:app/pages/ministries.dart';
-import 'package:app/pages/contact.dart';
 import 'package:app/services/connectivity_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -121,7 +119,7 @@ class MyApp extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: c,
-      builder: (_, __) {
+      builder: (_, _) {
         return MaterialApp(
           title: 'ChurchLink',
           navigatorKey: navigatorKey,
@@ -139,8 +137,6 @@ class MyApp extends StatelessWidget {
             '/live': (context) => const JoinLive(),
             '/bulletin': (context) => const WeeklyBulletin(),
             '/giving': (context) => const Giving(),
-            '/ministries': (context) => const Ministries(),
-            '/contact': (context) => const Contact(),
           },
         );
       },
@@ -223,10 +219,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return const WeeklyBulletin();
       case 'giving':
         return const Giving();
-      case 'ministries':
-        return const Ministries();
-      case 'contact':
-        return const Contact();
       default:
         return const DashboardPage(); // Fallback
     }
@@ -252,33 +244,65 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: IndexedStack(
-        index: tabProvider.currentIndex,
-        children: List.generate(
-          tabRoots.length,
-          (i) => _buildTabNavigator(
-            navKey: navKeys[i],
-            root: tabRoots[i],
-            isActive: tabProvider.currentIndex == i,
+    return PopScope(
+      canPop: false, // Stop the app from exiting when pressing the back button
+      onPopInvokedWithResult: (didPop, result) {
+        // If the pop is handled elsewhere, do nothing
+        if (didPop) return;
+
+        // Restrict popping behavior to within the current tab
+        final idx = tabProvider.currentIndex;
+        final nav = navKeys[idx].currentState;
+
+        // Pop only if possible
+        if (nav != null && nav.canPop()) {
+          nav.pop();
+        }
+        else {
+          // Do nothing, no more pages to pop
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: tabProvider.currentIndex,
+          children: List.generate(
+            tabRoots.length,
+            (i) => _buildTabNavigator(
+              navKey: navKeys[i],
+              root: tabRoots[i],
+              isActive: tabProvider.currentIndex == i,
+            ),
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: tabProvider.currentIndex,
-        onTap: (value) => tabProvider.setTab(value),
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        selectedFontSize: 11,
-        unselectedFontSize: 9,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
-        // Use Theme Colors
-        backgroundColor: theme.colorScheme.surface,
-        selectedItemColor: theme.colorScheme.primary,
-        unselectedItemColor: theme.colorScheme.onSurfaceVariant,
-        items: _buildNavItems(tabProvider.tabs),
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: tabProvider.currentIndex,
+          onTap: (value) {
+            // If selecting the current tab, pop to the base page
+            if (value == tabProvider.currentIndex) {
+              final name = (tabs[value]['name'] as String).toLowerCase();
+              final key = _navKeyForTab[name];
+              key?.currentState?.popUntil((route) => route.isFirst);
+            } else {
+              // Switch tabs and pop to the base of the new tab
+              final targetName = (tabs[value]['name'] as String).toLowerCase();
+              final targetKey = _navKeyForTab[targetName];
+              targetKey?.currentState?.popUntil((route) => route.isFirst);
+              tabProvider.setTab(value);
+            }
+          },
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          selectedFontSize: 11,
+          unselectedFontSize: 9,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
+          // Use Theme Colors
+          backgroundColor: theme.colorScheme.surface,
+          selectedItemColor: theme.colorScheme.primary,
+          unselectedItemColor: theme.colorScheme.onSurfaceVariant,
+          items: _buildNavItems(tabs),
+        ),
       ),
     );
   }
@@ -356,7 +380,6 @@ class _MyHomePageState extends State<MyHomePage> {
           Icons.volunteer_activism,
         );
       case 'groups':
-      case 'ministries':
         return Icon(
           Icons.groups,
         );
@@ -406,10 +429,6 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'giving':
         return Icon(
           Icons.volunteer_activism,
-        );
-      case 'ministries':
-        return Icon(
-          Icons.groups,
         );
       case 'contact':
         return Icon(

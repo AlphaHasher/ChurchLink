@@ -13,6 +13,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 import { AccountPermissions } from "@/shared/types/AccountPermissions";
 import { BaseUserMask, UserLabels } from "@/shared/types/UserInfo";
 import { AssignRolesDialog } from "./AssignRolesDialog";
+import { DeleteUserDialog } from "./DeleteUserDialog";
 import { recoverRoleArray } from "@/helpers/DataFunctions";
 import DetailedUserDialog from "./DetailedUserDialog";
 
@@ -40,6 +41,9 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
     onSave: () => Promise<void>;
   };
 
+  // Check if this user is an admin
+  const isAdmin = data.permissions?.includes("Administrator") || false;
+
   return (
     <div className="flex items-center gap-2">
       <DetailedUserDialog userId={data.uid} onSaved={onSave} />
@@ -48,6 +52,13 @@ const ActionsCellRenderer = (props: ICellRendererParams<BaseUserMask>) => {
         initialRoles={recoverRoleArray(data)}
         permData={permData}
         onSave={onSave}
+      />
+      <DeleteUserDialog
+        userId={data.uid}
+        userEmail={data.email}
+        userName={data.name}
+        isAdmin={isAdmin}
+        onDeleted={onSave}
       />
     </div>
   );
@@ -75,7 +86,7 @@ export function UsersTable({
       { field: "membership", headerName: UserLabels.membership, sortable: true, filter: true, flex: 2, width: 50 },
       { field: "permissions", headerName: UserLabels.permissions, sortable: true, filter: false, flex: 2, minWidth: 150 },
       { field: "uid", headerName: UserLabels.uid, sortable: true, filter: false, flex: 2, minWidth: 200 },
-      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 130 },
+      { headerName: "Actions", cellRenderer: ActionsCellRenderer, sortable: false, filter: false, width: 180 },
     ],
     []
   );

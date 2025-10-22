@@ -9,6 +9,7 @@ import { useBuilderStore } from "./store";
 import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth, collectAvailableLocales } from "./types";
 import { getBoundsViolations } from "./validation";
 import { Button } from "@/shared/components/ui/button";
+import { EventMinistryDropdown } from "@/features/admin/components/Events/EventMinistryDropdown";
 import { Calendar } from '@/shared/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Calendar as CalendarIcon } from 'lucide-react'
@@ -54,7 +55,7 @@ export function BuilderShell() {
 
   const [formName, setFormName] = useState((schema as any)?.title ?? "");
   const [description, setDescription] = useState((schema as any)?.description ?? "");
-  const [folder, setFolder] = useState<string | null>((schema as any)?.folder ?? null);
+  const [ministries, setMinistries] = useState<string[]>((schema as any)?.ministries ?? []);
   const [expiresAt, setExpiresAt] = useState<string | null>((schema as any)?.expires_at ? (() => {
     try {
       const d = new Date((schema as any).expires_at);
@@ -62,8 +63,7 @@ export function BuilderShell() {
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     } catch (e) { return null; }
   })() : null);
-  const [folders, setFolders] = useState<{ _id: string; name: string }[]>([]);
-  const [newFolderName, setNewFolderName] = useState('');
+  const [availableMinistries, setAvailableMinistries] = useState<{ id: string; name: string }[]>([]);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | 'warning' | null; title?: string; message?: string } | null>(null);
   const [showNameConflictDialog, setShowNameConflictDialog] = useState(false);
   const [overrideTargetId, setOverrideTargetId] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export function BuilderShell() {
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [previewExpanded, setPreviewExpanded] = useState(false);
-  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
+  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
   const widthOptions = FORM_WIDTH_VALUES.map((value) => ({ value, label: `${value}%` }));
   const handleFormWidthChange = (value: string) => {
     updateSchemaMeta({ formWidth: normalizeFormWidth(value) });
@@ -118,12 +118,12 @@ export function BuilderShell() {
     let mounted = true;
     const load = async () => {
       try {
-        const resp = await api.get('/v1/forms/folders');
+        const resp = await api.get('/v1/ministries');
         if (!mounted) return;
-        setFolders(resp.data || []);
+        setAvailableMinistries(resp.data || []);
       } catch (err) {
-        console.error('Failed to load folders', err);
-        setStatus({ type: 'error', title: 'Load failed', message: 'Could not load folders' });
+        console.error('Failed to load ministries', err);
+        setStatus({ type: 'error', title: 'Load failed', message: 'Could not load ministries' });
       }
     };
     load();
@@ -147,7 +147,7 @@ export function BuilderShell() {
           setSchema({
             title: form.title || '',
             description: form.description || '',
-            folder: form.folder || null,
+            ministries: form.ministries || [],
             defaultLocale: form.defaultLocale || 'en',
             locales: form.locales || [],
             formWidth: formWidthValue,
@@ -155,7 +155,7 @@ export function BuilderShell() {
           } as any);
           setFormName(form.title || '');
           setDescription(form.description || '');
-          setFolder(form.folder || null);
+          setMinistries(form.ministries || []);
           setExpiresAt(form.expires_at ? (() => {
             try {
               const d = new Date(form.expires_at);
@@ -164,7 +164,7 @@ export function BuilderShell() {
             } catch (e) { return null; }
           })() : null);
           setStatus(null);
-          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', folder: form.folder || null, defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], formWidth: formWidthValue, data: dataArray });
+          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', ministries: form.ministries || [], defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], formWidth: formWidthValue, data: dataArray });
         }
       } catch (err) {
         console.error('Failed to load form', err);
@@ -187,19 +187,19 @@ export function BuilderShell() {
       return;
     }
     const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: dataArray });
-    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] });
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: dataArray });
+    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] });
     if (isDirty) setShowDiscardDialog(true);
     else resetToBlank();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetToBlank = () => {
-    const blank: any = { title: '', description: '', folder: null, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
+    const blank: any = { title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
     setSchema(blank);
     setFormName('');
     setDescription('');
-    setFolder(null);
+    setMinistries([]);
     setExpiresAt(null);
     lastSavedSnapshotRef.current = JSON.stringify(blank);
   };
@@ -207,10 +207,10 @@ export function BuilderShell() {
   // Track dirty state and expose it for manager page via localStorage
   useEffect(() => {
     const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', folder: folder || null, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: (schema as any)?.data || [] });
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: (schema as any)?.data || [] });
     const isDirtyNow = snapshot !== lastSavedSnapshotRef.current;
     try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch { }
-  }, [schema, formName, description, folder]);
+  }, [schema, formName, description, ministries]);
 
   const sanitizeFieldForLocale = (field: any, defaultLocale: string): any => {
     const clone: any = { ...field };
@@ -253,12 +253,12 @@ export function BuilderShell() {
       setStatus({ type: 'error', title: 'Invalid field bounds', message: invalidBoundsMessage });
       return false;
     }
-    // Persist name, folder and description into top-level schema so it stays with exported JSON
-    const newSchema = { ...(schema || { data: [] }), title: formName, folder, description };
+    // Persist name, ministries and description into top-level schema so it stays with exported JSON
+    const newSchema = { ...(schema || { data: [] }), title: formName, ministries, description };
     setSchema(newSchema as any);
 
-    if (!folder) {
-      setStatus({ type: 'warning', title: 'Folder required', message: 'Select or create a folder before saving' });
+    if (!ministries || ministries.length === 0) {
+      setStatus({ type: 'warning', title: 'Ministries required', message: 'Select at least one ministry before saving' });
       return false;
     }
 
@@ -273,7 +273,7 @@ export function BuilderShell() {
       const payload = {
         title: formName,
         description: description,
-        folder,
+        ministries,
         expires_at: expiresAt ? `${expiresAt}:00` : null,
         form_width: normalizedWidth,
         data: cleanedData,
@@ -290,7 +290,7 @@ export function BuilderShell() {
       }
 
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
       return true;
     } catch (err: any) {
       console.error('Failed to save form to server', err);
@@ -322,7 +322,7 @@ export function BuilderShell() {
       const updatePayload = {
         title: formName,
         description,
-        folder,
+        ministries,
         // Send local naive datetime string (no timezone conversion) so DB stores the selected local time
         expires_at: expiresAt ? `${expiresAt}:00` : null,
         visible: true,
@@ -332,10 +332,10 @@ export function BuilderShell() {
       await api.put(`/v1/forms/${overrideTargetId}`, updatePayload);
       setStatus({ type: 'success', message: 'Form overridden' });
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, folder, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
-      // Refresh folders list just in case
-      const foldersResp = await api.get('/v1/forms/folders');
-      setFolders(foldersResp.data || []);
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
+      // Refresh ministries list just in case
+      const ministriesResp = await api.get('/v1/ministries');
+      setAvailableMinistries(ministriesResp.data || []);
     } catch (err) {
       console.error('Failed to override form', err);
       setStatus({ type: 'error', title: 'Override failed', message: 'Could not override form' });
@@ -350,7 +350,7 @@ export function BuilderShell() {
     const exportObj: any = {
       title: formName || (schema as any)?.title || 'Untitled Form',
       description: description || (schema as any)?.description || '',
-      folder: (schema as any)?.folder || null,
+      ministries: (schema as any)?.ministries || [],
       defaultLocale: (schema as any)?.defaultLocale || 'en',
       locales: (schema as any)?.locales || [],
       formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH),
@@ -378,7 +378,7 @@ export function BuilderShell() {
           setSchema({
             title: parsed.title || '',
             description: parsed.description || '',
-            folder: parsed.folder || null,
+            ministries: parsed.ministries || [],
             defaultLocale: parsed.defaultLocale || 'en',
             locales: parsed.locales || [],
             formWidth: normalizeFormWidth(parsed.formWidth ?? parsed.form_width ?? DEFAULT_FORM_WIDTH),
@@ -386,6 +386,7 @@ export function BuilderShell() {
           });
           if (parsed.title) setFormName(parsed.title);
           if (parsed.description) setDescription(parsed.description);
+          if (parsed.ministries) setMinistries(parsed.ministries);
           setStatus({ type: 'success', title: 'Imported', message: 'Form imported' });
         } else {
           setStatus({ type: 'error', title: 'Invalid JSON', message: 'Expected top-level "data" array' });
@@ -401,51 +402,57 @@ export function BuilderShell() {
 
   const previewOverlay = previewExpanded
     ? createPortal(
-      <div className="fixed inset-0 z-[100] bg-background">
-        <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
-          {/* Width and locale selectors in overlay so changes are visible live when maximized */}
-          <Select value={formWidth} onValueChange={handleFormWidthChange}>
-            <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-              <SelectValue placeholder="Width" />
-            </SelectTrigger>
-            <SelectContent align="end" className="z-[200]">
-              {widthOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-            <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="end" className="z-[200]">
-              {availableLocales.map((l) => (
-                <SelectItem key={l} value={l}>{l}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg"
-            onClick={() => setPreviewExpanded(false)}
-            aria-label="Collapse preview"
-          >
-            <Minimize2 className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex h-full w-full flex-col overflow-auto p-6">
-          <div className="mx-auto w-full max-w-6xl">
-            <ErrorBoundary>
-              <PreviewRendererClient applyFormWidth={true} />
-            </ErrorBoundary>
+        <div className="fixed inset-0 z-[100] bg-background">
+          <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
+            {/* Width and locale selectors in overlay so changes are visible live when maximized */}
+            <Select value={formWidth} onValueChange={handleFormWidthChange}>
+              <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+                <SelectValue placeholder="Width" />
+              </SelectTrigger>
+              <SelectContent align="end" className="z-[200]">
+                {widthOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+              <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end" className="z-[200]">
+                {availableLocales.map((l) => (
+                  <SelectItem key={l} value={l}>{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="rounded-full shadow-lg"
+              onClick={() => setPreviewExpanded(false)}
+              aria-label="Collapse preview"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      </div>,
-      document.body
-    )
+          <div className="flex h-full w-full flex-col overflow-auto p-6">
+            <div className="mx-auto w-full max-w-6xl">
+              <ErrorBoundary>
+                <PreviewRendererClient applyFormWidth={true} />
+              </ErrorBoundary>
+            </div>
+            <div className="mx-auto w-full max-w-6xl">
+              <ErrorBoundary>
+                <PreviewRendererClient instanceId="expanded" />
+              </ErrorBoundary>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
     : null;
+
   return (
     <ErrorBoundary>
       <div className="p-2">
@@ -537,45 +544,18 @@ export function BuilderShell() {
           <div className="space-y-3">
             <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} />
             <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Folder</div>
-              {folders && folders.length > 0 ? (
-                <Select value={folder || undefined} onValueChange={(v) => setFolder(String(v))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose folder" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {folders.map((f) => (
-                      <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-sm text-muted-foreground">No folders created</div>
-              )}
-              <div className="flex items-center gap-2">
-                <Input placeholder="New folder" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} />
-                <Button variant="ghost" onClick={async () => {
-                  if (!newFolderName) return;
-                  try {
-                    setStatus({ type: 'info', title: 'Creating folder', message: 'Please wait...' });
-                    const resp = await api.post('/v1/forms/folders', {}, { params: { name: newFolderName } });
-                    const created = resp.data;
-                    setFolders((prev) => [...prev, created]);
-                    setFolder(created['_id']);
-                    setNewFolderName('');
-                    setStatus({ type: 'success', title: 'Folder created', message: undefined });
-                  } catch (err: any) {
-                    console.error('Failed to create folder', err);
-                    if (err?.response?.status === 409) {
-                      setStatus({ type: 'warning', title: 'Folder exists', message: 'Choose it from the list' });
-                    } else {
-                      setStatus({ type: 'error', title: 'Create folder failed', message: 'Please try again' });
-                    }
-                  }
-                }}>Create</Button>
+            {availableMinistries && availableMinistries.length > 0 ? (
+              <EventMinistryDropdown
+                selected={ministries}
+                onChange={setMinistries}
+                ministries={availableMinistries.map(m => m.name)}
+              />
+            ) : (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Ministries</div>
+                <div className="text-sm text-muted-foreground">No ministries available. Create ministries from Admin &gt; Ministries first.</div>
               </div>
-            </div>
+            )}
             <div>
               <div className="text-sm font-medium">Expiration (optional)</div>
               <div className="mt-1 flex gap-2 items-center">
@@ -778,7 +758,7 @@ export function BuilderShell() {
                     <Skeleton className="h-8 w-full mt-2" />
                   </div>
                 ) : (
-                  <PreviewRendererClient applyFormWidth={false} />
+                  <PreviewRendererClient instanceId="card" />
                 )}
               </ErrorBoundary>
             </CardContent>

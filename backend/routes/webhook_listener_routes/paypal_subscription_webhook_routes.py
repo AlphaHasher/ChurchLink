@@ -80,14 +80,19 @@ async def paypal_money_webhook(request: Request):
         transaction_data = {
             "transaction_id": transaction_id,
             "order_id": parent_payment,
-            "amount": amount,
-            "currency": currency,
-            "status": status,
+            "amount": float(amount) if amount else 0.0,
+            "currency": currency or "USD",
+            "status": "completed" if status == "completed" else status,
             "time": create_time,
             "update_time": update_time,
-            "user_email": user_email,
+            "user_email": user_email or "unknown@example.com",
             "payment_method": "paypal",
             "type": "subscription",
+            "event_type": event_type,
+            "created_on": create_time,
+            "name": f"{payer_info.get('first_name', '')} {payer_info.get('last_name', '')}".strip() or "Anonymous",
+            "fund_name": "Subscription Payment",
+            "note": f"Subscription payment - Event: {event_type}"
         }
         await Transaction.save_paypal_transaction(transaction_data)
         return {"success": True, "event_type": event_type, "order_id": parent_payment, "transaction_id": transaction_id}

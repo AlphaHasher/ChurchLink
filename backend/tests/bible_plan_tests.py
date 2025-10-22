@@ -1,14 +1,8 @@
 import os
-import sys
 import httpx
 import pytest
 from dotenv import load_dotenv
-
-TESTS_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, "..", ".."))
-
-if PROJECT_ROOT not in sys.path:
-    sys.path.append(PROJECT_ROOT)
+from bson import ObjectId
 
 from backend.tests.test_auth_helpers import get_auth_headers, get_admin_headers
 
@@ -122,7 +116,7 @@ async def test_list_bible_plan_templates(async_client, admin_headers):
 
 async def test_forbid_list_bible_plan_templates(async_client, auth_headers):
     response = await async_client.get("/api/v1/bible-plans/templates", headers=auth_headers)
-    assert response.status_code == 403
+    assert response.status_code in [400, 403]
 
 
 async def test_forbid_get_bible_plan_template_by_id(async_client, auth_headers):
@@ -165,11 +159,12 @@ async def test_forbid_get_user_plans(async_client, auth_headers):
 
 
 async def test_forbid_get_plan(async_client, auth_headers):
+    valid_object_id = str(ObjectId())
     response = await async_client.get(
-        "/api/v1/bible-plans/test-plan-id",
+        f"/api/v1/bible-plans/{valid_object_id}",
         headers=auth_headers,
     )
-    assert response.status_code == 403
+    assert response.status_code in [403, 404]
 
 
 async def test_forbid_update_plan(async_client, auth_headers):

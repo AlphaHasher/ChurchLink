@@ -172,6 +172,10 @@ export interface StaticTextField extends BaseField {
 export interface PriceField extends BaseField {
   type: "price";
   amount: number; // flat amount to add to total when visible
+  paymentMethods?: {
+    allowPayPal?: boolean;
+    allowInPerson?: boolean;
+  };
 }
 
 export type AnyField =
@@ -192,14 +196,14 @@ export type AnyField =
 
 export interface FormSchemaMeta {
   title?: string;
-  folder?: string;
+  ministries?: string[];
   description?: string;
 }
 
 // Canonical form schema: top-level metadata with a single 'data' array
 export interface FormSchema {
   title?: string;
-  folder?: string;
+  ministries?: string[];
   description?: string;
   // List of additional locales supported by this form (excluding defaultLocale)
   locales?: string[];

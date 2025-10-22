@@ -16,7 +16,8 @@ import { EventPersonType } from "./EventPersonType"
 import { EventRSVPSelection } from "./EventRSVPSelection"
 import { EventMinistryDropdown } from "./EventMinistryDropdown"
 import { EventImageSelector } from "./EventImageSelector"
-import { handleEventEdit } from "@/helpers/EventsHelper"
+import { EventPaymentSettings } from "./EventPaymentSettings"
+import { handleEventEdit, fetchMinistries } from "@/helpers/EventsHelper"
 import { EventManagementOptions } from "./EventManagementOptions"
 import { MyPermsRequest } from "@/shared/types/MyPermsRequest"
 import { getMyPermissions } from "@/helpers/UserHelper"
@@ -39,9 +40,13 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
     const [rolesEnabled, setRolesEnabled] = useState(false)
     const [checkingPerms, setCheckingPerms] = useState(false)
     const [roleList, setRoleList] = useState<any[]>([]);
+    const [ministries, setMinistries] = useState<string[]>([]);
 
     useEffect(() => {
-        if (isOpen) setEvent(originalEvent)
+        if (isOpen) {
+            setEvent(originalEvent)
+            fetchMinistries().then(setMinistries)
+        }
     }, [originalEvent, isOpen])
 
     const handleDialogClose = () => {
@@ -153,12 +158,9 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
                         />
                         <EventMinistryDropdown
                             selected={event.ministry}
-                            ministries={[
-                                "Youth", "Children", "Women", "Men", "Family",
-                                "Worship", "Outreach", "Bible Study", "Young Adults", "Seniors"
-                            ]}
+                            ministries={ministries}
                             onChange={(updated) =>
-                                setEvent((prev) => ({ ...prev, ministry: updated }))
+                                setEvent({ ...event, ministry: updated })
                             }
                         />
                         <EventPersonType
@@ -182,6 +184,23 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
                                     [field]: typeof value === "number" && isNaN(value) ? 0 : value,
                                 }))
                             }
+                        />
+
+                        <EventPaymentSettings
+                            payment_options={event.payment_options}
+                            refund_policy={event.refund_policy}
+                            price={event.price}
+                            onChange={(field, value) => {
+                                console.log('EditEventDialog onChange:', { field, value })
+                                setEvent((prev) => {
+                                    const updated = {
+                                        ...prev,
+                                        [field]: value,
+                                    }
+                                    console.log('Updated edit event state:', updated)
+                                    return updated
+                                })
+                            }}
                         />
 
                         <EventManagementOptions

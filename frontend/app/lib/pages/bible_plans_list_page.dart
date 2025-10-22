@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/bible_plan.dart';
-import '../services/bible_plan_service.dart';
-import 'bible_plan_detail_page.dart';
+import 'package:app/models/bible_plan.dart';
+import 'package:app/services/bible_plan_service.dart';
+import 'package:app/helpers/bible_plan_auth_utils.dart';
+import 'package:app/pages/bible_plan_detail_page.dart';
 
 /// Page showing all published Bible plans available for subscription
 class BiblePlansListPage extends StatefulWidget {
@@ -16,12 +17,18 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
   List<BiblePlan> _publishedPlans = [];
   Map<String, UserBiblePlanSubscription> _userSubscriptions = {};
   bool _isLoading = false;
+  bool _isUserLoggedIn = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadPlans();
+    _checkAuthAndLoadPlans();
+  }
+
+  Future<void> _checkAuthAndLoadPlans() async {
+    _isUserLoggedIn = BiblePlanAuthUtils.isUserLoggedIn();
+    await _loadPlans();
   }
 
   Future<void> _loadPlans({bool showLoader = true}) async {
@@ -35,21 +42,24 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
     });
 
     try {
-      final results = await Future.wait([
-        _service.getPublishedPlans(),
-        _service.getMyBiblePlans(),
-      ]);
+      // Always load published plans
+      final published = await _service.getPublishedPlans();
+
+      // Only load user subscriptions if logged in
+      List<UserBiblePlanSubscription> subscriptions = [];
+      if (_isUserLoggedIn) {
+        try {
+          subscriptions = await _service.getMyBiblePlans();
+        } catch (e) {
+          // user may have lost connection or auth expired - not critical here
+        }
+      }
 
       if (!mounted) return;
 
-      final published = results[0] as List<BiblePlan>;
-      final subscriptions = results[1] as List<UserBiblePlanSubscription>;
-
       setState(() {
         _publishedPlans = published;
-        _userSubscriptions = {
-          for (final sub in subscriptions) sub.planId: sub,
-        };
+        _userSubscriptions = {for (final sub in subscriptions) sub.planId: sub};
         _isLoading = false;
       });
     } catch (e) {
@@ -70,9 +80,7 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text(
-          'Bible Reading Plans',
-        ),
+        title: const Text('Bible Reading Plans'),
       ),
       body: Stack(
         children: [
@@ -101,12 +109,16 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.error,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage!,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onBackground,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 16,
                   ),
                   textAlign: TextAlign.center,
@@ -132,12 +144,18 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.book_outlined, size: 64, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                Icon(
+                  Icons.book_outlined,
+                  size: 64,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withAlpha(50),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'No Bible Plans Available',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onBackground,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
@@ -145,7 +163,11 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
                 const SizedBox(height: 8),
                 Text(
                   'Check back later for new reading plans',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withAlpha(70),
+                  ),
                 ),
               ],
             ),
@@ -176,13 +198,14 @@ class _BiblePlansListPageState extends State<BiblePlansListPage> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BiblePlanDetailPage(
-          plan: plan,
-          existingSubscription: existingSubscription,
-        ),
+        builder:
+            (context) => BiblePlanDetailPage(
+              plan: plan,
+              existingSubscription: existingSubscription,
+            ),
       ),
     );
-    
+
     // If user subscribed successfully, return true to parent and close this page
     if (result == true && mounted) {
       Navigator.pop(context, true);
@@ -210,9 +233,7 @@ class _BiblePlanCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -247,8 +268,11 @@ class _BiblePlanCard extends StatelessWidget {
                             children: [
                               Text(
                                 plan.name,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleMedium?.copyWith(
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 maxLines: 2,
@@ -262,13 +286,17 @@ class _BiblePlanCard extends StatelessWidget {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
                                     'Currently Enrolled',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -306,7 +334,7 @@ class _BiblePlanCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Action button
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -317,19 +345,20 @@ class _BiblePlanCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      gradient: isEnrolled
-                          ? LinearGradient(
-                              colors: [
-                                Color.fromRGBO(90, 90, 90, 1),
-                                Color.fromRGBO(120, 120, 120, 1),
-                              ],
-                            )
-                          : LinearGradient(
-                              colors: [
-                                Color.fromRGBO(100, 80, 200, 1),
-                                Color.fromRGBO(150, 130, 255, 1),
-                              ],
-                            ),
+                      gradient:
+                          isEnrolled
+                              ? LinearGradient(
+                                colors: [
+                                  Color.fromRGBO(90, 90, 90, 1),
+                                  Color.fromRGBO(120, 120, 120, 1),
+                                ],
+                              )
+                              : LinearGradient(
+                                colors: [
+                                  Color.fromRGBO(100, 80, 200, 1),
+                                  Color.fromRGBO(150, 130, 255, 1),
+                                ],
+                              ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -337,7 +366,9 @@ class _BiblePlanCard extends StatelessWidget {
                       children: [
                         Text(
                           isEnrolled ? 'Review Plan' : 'View Plan',
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelLarge?.copyWith(
                             color: Theme.of(context).colorScheme.onPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
@@ -359,13 +390,5 @@ class _BiblePlanCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  int _getTotalReadings(BiblePlan plan) {
-    int total = 0;
-    for (var dayReadings in plan.readings.values) {
-      total += dayReadings.length;
-    }
-    return total;
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/event.dart';
-import '../models/event_registration_summary.dart';
-import '../helpers/asset_helper.dart'; // New import for asset URL resolution
+import 'package:app/models/event.dart';
+import 'package:app/models/event_registration_summary.dart';
+import 'package:app/helpers/asset_helper.dart';
 
 class EnhancedEventCard extends StatelessWidget {
   final Event event;
@@ -93,6 +93,9 @@ class EnhancedEventCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(
+                      width: 60,
+                    ), // restrict event name display length
                   ],
                 ),
 
@@ -117,6 +120,14 @@ class EnhancedEventCard extends StatelessWidget {
           // For now, always show placeholder until backend image serving is implemented
           // _buildPlaceholderImage(),
           _buildEventThumb(),
+
+          // Allows the image to be tappable
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(onTap: onViewPressed),
+            ),
+          ),
 
           // View Details button positioned in bottom right
           Positioned(
@@ -182,9 +193,11 @@ class EnhancedEventCard extends StatelessWidget {
   }
 
   Widget _buildCostLabel() {
-    // Check if event is full first
+    // Check if event is full first (but not if unlimited spots)
     if (registrationSummary != null &&
-        registrationSummary!.availableSpots <= 0) {
+        registrationSummary!.availableSpots <= 0 &&
+        registrationSummary!.availableSpots != -1) {
+      // Don't show full for unlimited spots
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -206,32 +219,75 @@ class EnhancedEventCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 142, 163, 168),
+          color:
+              event.hasPayPalOption
+                  ? const Color.fromARGB(
+                    255,
+                    46,
+                    125,
+                    50,
+                  ) // Green for donations enabled
+                  : const Color.fromARGB(
+                    255,
+                    142,
+                    163,
+                    168,
+                  ), // Gray for completely free
           borderRadius: BorderRadius.circular(15),
         ),
-        child: const Text(
-          'FREE',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'FREE',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            if (event.hasPayPalOption) ...[
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.volunteer_activism,
+                color: Colors.white,
+                size: 12,
+              ),
+            ],
+          ],
         ),
       );
     } else {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 142, 163, 168),
+          color:
+              event.hasPayPalOption
+                  ? const Color(0xFF0070BA) // PayPal blue for online payment
+                  : const Color.fromARGB(
+                    255,
+                    142,
+                    163,
+                    168,
+                  ), // Gray for pay at door
           borderRadius: BorderRadius.circular(15),
         ),
-        child: Text(
-          '\$${event.price.toStringAsFixed(2)}',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '\$${event.price.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            if (event.hasPayPalOption) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.payment, color: Colors.white, size: 12),
+            ],
+          ],
         ),
       );
     }

@@ -8,11 +8,18 @@ from mongo.database import DB
 from fastapi.responses import JSONResponse
 from fastapi import Query, Request, HTTPException
 import re
+import traceback
+import logging
+from helpers.audit_logger import payment_audit_logger, get_client_ip, get_user_agent
+from helpers.Firebase_helpers import get_uid_by_email
+from models.event import update_attendee_payment_status, get_event_by_id
+from mongo.churchuser import UserHandler
 
 # PayPal configuration from environment variables
 PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 def get_paypal_base_url():
     """Get PayPal base URL based on mode"""
@@ -24,6 +31,10 @@ def get_paypal_base_url():
 def get_paypal_access_token():
     """Get PayPal access token for REST API calls"""
     try:
+        # Check if credentials are available
+        if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
+            raise Exception("PayPal credentials not configured. Please set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET environment variables.")
+            
         url = f"{get_paypal_base_url()}/v1/oauth2/token"
         headers = {
             'Accept': 'application/json',
@@ -45,6 +56,17 @@ def get_paypal_access_token():
     except Exception as e:
         return None
 
+def configure_paypal():
+    """Configure PayPal SDK with credentials"""
+    if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
+        raise Exception("PayPal credentials not configured. Please set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET environment variables.")
+    
+    paypalrestsdk.configure({
+        "mode": PAYPAL_MODE,  # sandbox or live
+        "client_id": PAYPAL_CLIENT_ID,
+        "client_secret": PAYPAL_CLIENT_SECRET
+    })
+
 async def validate_and_extract_donation(donation):
     # Get settings from database
     paypal_settings = await DB.get_paypal_settings() or {}
@@ -57,8 +79,8 @@ async def validate_and_extract_donation(donation):
     interval_unit = donation.get("interval_unit")
     interval_count = donation.get("interval_count")
     cycles = donation.get("cycles")
-    cancel_url = donation.get("cancel_url", "https://yourchurch.org/donation/cancel")
-    return_url = donation.get("return_url", "https://yourchurch.org/donation/success")
+    cancel_url = donation.get("cancel_url", f"{FRONTEND_URL}/donation/cancel")
+    return_url = donation.get("return_url", f"{FRONTEND_URL}/donation/success")
     start_date = donation.get("start_date")
     first_name = donation.get("first_name", "").strip()
     last_name = donation.get("last_name", "").strip()
@@ -120,31 +142,257 @@ async def validate_and_extract_donation(donation):
         "errors": errors
     }
 
+async def create_order_from_data(order_data: dict):
+    """Create PayPal order from dictionary data using PayPal v2 API structure"""
+    try:
+        logging.info("🔍 PayPal create_order_from_data called")
+
+        # Configure PayPal SDK first
+        logging.info("🔍 Configuring PayPal SDK")
+        configure_paypal()
+        logging.info("✅ PayPal SDK configured successfully")
+
+        logging.info(f"🔍 Order data: {order_data}")
+
+        if not order_data or not isinstance(order_data, dict):
+            logging.error("❌ Missing or invalid order data")
+            return {"error": "Missing or invalid order data.", "status_code": 400}
+
+        # Extract total amount from purchase units for validation
+        purchase_units = order_data.get("purchase_units", [])
+        if not purchase_units:
+            logging.error("❌ No purchase units found")
+            return {"error": "No purchase units found in order data.", "status_code": 400}
+        
+        total_amount = float(purchase_units[0].get("amount", {}).get("value", 0))
+        if total_amount <= 0:
+            logging.error("❌ Invalid total amount")
+            return {"error": "Total amount must be positive.", "status_code": 400}
+
+        logging.info(f"🔍 Processing total amount: {total_amount}")
+
+        # Create PayPal order using the provided structure
+        logging.info("🔍 Creating PayPal order object")
+
+
+
+        # Convert v2 structure to v1 Payment structure
+        purchase_unit = purchase_units[0]
+        items = purchase_unit.get("items", [])
+        
+        # Convert items to v1 format
+        v1_items = []
+        for item in items:
+            v1_items.append({
+                "name": item.get("name", "Event Registration"),
+                "sku": "event",
+                "price": item.get("unit_amount", {}).get("value", "0.00"),
+                "currency": item.get("unit_amount", {}).get("currency_code", "USD"),
+                "quantity": int(item.get("quantity", 1))
+            })
+        
+        # Get redirect URLs from application_context
+        app_context = order_data.get("application_context", {})
+        return_url = app_context.get("return_url", f"{FRONTEND_URL}/payment/success")
+        cancel_url = app_context.get("cancel_url", f"{FRONTEND_URL}/payment/cancel")
+        
+        # Create v1 Payment object
+        payment = paypalrestsdk.Payment({
+            "intent": "sale",
+            "payer": {
+                "payment_method": "paypal"
+            },
+            "transactions": [{
+                "amount": {
+                    "total": purchase_unit.get("amount", {}).get("value", "0.00"),
+                    "currency": purchase_unit.get("amount", {}).get("currency_code", "USD")
+                },
+                "description": purchase_unit.get("description", "Event registration payment"),
+                "item_list": {
+                    "items": v1_items
+                }
+            }],
+            "redirect_urls": {
+                "return_url": return_url,
+                "cancel_url": cancel_url
+            }
+        })
+
+        logging.info("🔍 Attempting to create PayPal payment")
+        if payment.create():
+            logging.info("✅ PayPal payment created successfully")
+
+            # Find approval URL
+            approval_url = None
+            for link in payment.links:
+                if link.rel == "approval_url":
+                    approval_url = link.href
+                    break
+
+            logging.info(f"✅ Approval URL: {approval_url}")
+
+            # Log successful PayPal order creation
+            description = purchase_units[0].get("description", "Event registration")
+            payment_audit_logger.log_paypal_order_created(
+                user_email=None,  # Will be available during capture
+                amount=total_amount,
+                fund_name=description,
+                payment_method="paypal",
+                payment_id=payment.id,
+                request_ip=None  # No request object available
+            )
+            
+            return {"approval_url": approval_url, "payment_id": payment.id}
+        else:
+            logging.error(f"❌ PayPal payment creation failed: {payment.error}")
+
+            # Log PayPal order creation failure
+            payment_audit_logger.log_paypal_capture_failed(
+                payment_id="unknown",
+                error_message=f"PayPal payment creation failed: {payment.error}",
+                amount=total_amount,
+                request_ip=None
+            )
+            
+            return {"error": "Failed to create PayPal payment.", "details": payment.error, "status_code": 500}
+            
+    except Exception as e:
+        logging.error(f"❌ Exception in create_order_from_data: {str(e)}")
+        logging.error(f"❌ Traceback: {traceback.format_exc()}")
+        return {"error": str(e), "status_code": 500}
+
+async def capture_payment_by_id(payment_id: str, payer_id: str):
+    """Capture PayPal payment and return dictionary result"""
+    try:
+        logging.info(f"🔍 Capturing PayPal payment {payment_id} with payer {payer_id}")
+
+        if not payment_id or not payer_id:
+            return {"error": "Missing payment_id or payer_id.", "status_code": 400}
+        
+        # Configure PayPal SDK
+        configure_paypal()
+        
+        # Find the payment
+        payment = paypalrestsdk.Payment.find(payment_id)
+        
+        if not payment:
+            return {"error": "Payment not found.", "status_code": 404}
+        
+        # Check payment state and execute if needed
+        if payment.state == "approved":
+            # Payment already executed
+            logging.info("✅ Payment already approved")
+            transaction = payment.to_dict()
+        elif payment.state == "created":
+            # Execute the payment
+            logging.info("🔍 Executing payment")
+            if payment.execute({"payer_id": payer_id}):
+                logging.info("✅ Payment executed successfully")
+                transaction = payment.to_dict()
+            else:
+                logging.error(f"❌ Payment execution failed: {payment.error}")
+                return {
+                    "error": "Failed to execute payment", 
+                    "details": payment.error, 
+                    "status_code": 422
+                }
+        else:
+            return {
+                "error": f"Payment is in invalid state: {payment.state}", 
+                "status_code": 422
+            }
+        
+        # Extract transaction details
+        payer_info = transaction.get("payer", {}).get("payer_info", {})
+        transactions = transaction.get("transactions", [])
+        
+        if not transactions:
+            return {"error": "No transaction data found", "status_code": 422}
+        
+        transaction_data = transactions[0]
+        amount_data = transaction_data.get("amount", {})
+        
+        # Log successful capture using the existing payment_completed method
+        payment_audit_logger.log_payment_completed(
+            user_uid=None,  # User UID not available in this context
+            event_id=None,  # Event ID not available in this context
+            payment_id=payment_id,
+            amount=float(amount_data.get("total", 0)),
+            successful_registrations=1,  # Single payment capture
+            failed_registrations=0,
+            request_ip=None
+        )
+        
+        return {
+            "success": True,
+            "payment_id": payment_id,
+            "payer_id": payer_id,
+            "state": payment.state,
+            "amount": amount_data.get("total"),
+            "currency": amount_data.get("currency", "USD"),
+            "payer_email": payer_info.get("email"),
+            "payer_name": f"{payer_info.get('first_name', '')} {payer_info.get('last_name', '')}".strip(),
+            "transaction_id": transaction.get("id"),
+            "create_time": transaction.get("create_time"),
+            "update_time": transaction.get("update_time")
+        }
+        
+    except Exception as e:
+        logging.error(f"❌ Exception in capture_payment_by_id: {str(e)}")
+
+        # Log capture failure
+        payment_audit_logger.log_paypal_capture_failed(
+            payment_id=payment_id,
+            error_message=str(e),
+            amount=None,
+            request_ip=None
+        )
+        
+        return {"error": str(e), "status_code": 500}
+
 async def create_order(request: Request):
     try:
+        logging.info("🔍 PayPal create_order called")
+
+        # Configure PayPal SDK first
+        logging.info("🔍 Configuring PayPal SDK")
+        configure_paypal()
+        logging.info("✅ PayPal SDK configured successfully")
+
+        logging.info("🔍 Parsing request JSON")
         request_body = await request.json()
         donation = request_body.get("donation")
+        logging.info(f"🔍 Donation data: {donation}")
+
         if not donation or not isinstance(donation, dict):
+            logging.error("❌ Missing or invalid donation object")
             return JSONResponse(status_code=400, content={"error": "Missing or invalid donation object."})
 
         fund_name = donation.get("fund_name")
         if not fund_name or not isinstance(fund_name, str) or not fund_name.strip():
+            logging.error("❌ Invalid fund_name")
             return JSONResponse(status_code=400, content={"error": "fund_name is required and must be a non-empty string."})
+        
         amount = donation.get("amount")
+        logging.info(f"🔍 Processing amount: {amount}")
         try:
             amount = float(amount)
             if amount <= 0 or not isinstance(amount, float):
+                logging.error("❌ Invalid amount (not positive)")
                 return JSONResponse(status_code=400, content={"error": "amount must be a positive number."})
         except (TypeError, ValueError):
+            logging.error("❌ Invalid amount (not a number)")
             return JSONResponse(status_code=400, content={"error": "amount must be a positive number."})
+        
         message = donation.get("message", "")
         
         # Get settings from database; DB may contain ALLOWED_* and plan details.
+        logging.info("🔍 Getting PayPal settings from database")
         paypal_settings = await DB.get_paypal_settings() or {}
         church_name = paypal_settings.get("CHURCH_NAME") or "Church"
+        logging.info(f"🔍 Church name: {church_name}")
 
-        
-
+        logging.info("🔍 Creating PayPal payment object")
         payment = paypalrestsdk.Payment({
             "intent": "sale",
             "payer": {
@@ -171,16 +419,45 @@ async def create_order(request: Request):
                 }
             ],
             "redirect_urls": {
-                "cancel_url": donation.get("cancel_url", "https://yourchurch.org/donation/cancel"),
-                "return_url": donation.get("return_url", "https://yourchurch.org/donation/success"),
+                "cancel_url": donation.get("cancel_url", f"{settings.FRONTEND_URL}/donation/cancel"),
+                "return_url": donation.get("return_url", f"{settings.FRONTEND_URL}/donation/success"),
             }
         })
+
+        logging.info("🔍 Attempting to create PayPal payment")
         if payment.create():
+            logging.info("✅ PayPal payment created successfully")
             approval_url = next((link.href for link in payment.links if link.rel == "approval_url"), None)
+            logging.info(f"✅ Approval URL: {approval_url}")
+
+            # Log successful PayPal order creation
+            client_ip = get_client_ip(request) if hasattr(request, 'headers') else None
+            payment_audit_logger.log_paypal_order_created(
+                user_email=None,  # Will be available during capture
+                amount=amount,
+                fund_name=fund_name,
+                payment_method="paypal",
+                payment_id=payment.id,
+                request_ip=client_ip
+            )
+            
             return JSONResponse(content={"approval_url": approval_url, "payment_id": payment.id})
         else:
+            logging.error(f"❌ PayPal payment creation failed: {payment.error}")
+
+            # Log PayPal order creation failure
+            client_ip = get_client_ip(request) if hasattr(request, 'headers') else None
+            payment_audit_logger.log_paypal_capture_failed(
+                payment_id="unknown",
+                error_message=f"PayPal order creation failed: {payment.error}",
+                amount=amount,
+                request_ip=client_ip
+            )
+            
             return JSONResponse(status_code=500, content={"error": "Failed to create PayPal payment.", "details": payment.error})
     except Exception as e:
+        logging.error(f"❌ Exception in create_order: {str(e)}")
+        logging.error(f"❌ Traceback: {traceback.format_exc()}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -194,104 +471,261 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
         church_name_meta = paypal_settings.get('CHURCH_NAME') or 'Church'
 
         payment = paypalrestsdk.Payment.find(payment_id)
-        if payment.execute({"payer_id": payer_id}):
+        
+        # Check if payment is already executed
+        if payment.state == "approved":
+            # Payment is already executed, use it as is
             transaction = payment.to_dict()
-            
-            # Get payer information
-            payer_info = transaction.get("payer", {}).get("payer_info", {})
-            first_name = payer_info.get("first_name", "")
-            last_name = payer_info.get("last_name", "")
-            donor_name = f"{first_name} {last_name}".strip()
-            user_email = payer_info.get("email", "")
-            
-            # Get shipping address
-            address = {}
-            if payer_info.get("shipping_address"):
-                address = payer_info.get("shipping_address", {})
-            
-            # Check transactions for shipping address if not found
-            if not address:
-                transactions_list = transaction.get("transactions", [])
-                for txn in transactions_list:
-                    item_list = txn.get("item_list", {})
-                    if item_list.get("shipping_address"):
-                        address = item_list.get("shipping_address", {})
-                        break
-            
-            # Parse description for fund name
-            description = transaction.get("transactions", [{}])[0].get("description", "")
-            fund_name = "General"
-            message = ""
-            
-            if "Donation to" in description and " fund by " in description:
-                try:
-                    church_name_and_fund = description.split("Donation to ")[1].split(" fund by ")[0]
-                    if " - " in church_name_and_fund:
-                        fund_name = church_name_and_fund.split(" - ")[1].strip()
-                except:
-                    fund_name = "General"
-            
-            if "Message:" in description:
-                message = description.split("Message:")[1].strip()
-            
-            # Ensure donor name
-            if not donor_name:
-                donor_name = "Anonymous"
-            
-            # Get amount
-            amount_str = transaction.get("transactions", [{}])[0].get("amount", {}).get("total", "0")
+        elif payment.state == "created":
+            # Payment needs to be executed
+            if payment.execute({"payer_id": payer_id}):
+                transaction = payment.to_dict()
+            else:
+                return JSONResponse(status_code=422, content={"error": "Failed to execute payment", "details": payment.error})
+        else:
+            return JSONResponse(status_code=422, content={"error": f"Payment is in invalid state: {payment.state}"})
+        
+        # Get payer information
+        payer_info = transaction.get("payer", {}).get("payer_info", {})
+        first_name = payer_info.get("first_name", "")
+        last_name = payer_info.get("last_name", "")
+        donor_name = f"{first_name} {last_name}".strip()
+        user_email = payer_info.get("email", "")
+        
+        logging.info(f"[PAYPAL_CAPTURE] Extracted payer info - first_name: {first_name}, last_name: {last_name}, donor_name: {donor_name}")
+        
+        # Get shipping address
+        address = {}
+        if payer_info.get("shipping_address"):
+            address = payer_info.get("shipping_address", {})
+        
+        # Check transactions for shipping address if not found
+        if not address:
+            transactions_list = transaction.get("transactions", [])
+            for txn in transactions_list:
+                item_list = txn.get("item_list", {})
+                if item_list.get("shipping_address"):
+                    address = item_list.get("shipping_address", {})
+                    break
+        
+        # Parse description for fund name
+        description = transaction.get("transactions", [{}])[0].get("description", "")
+        fund_name = "General"
+        message = ""
+        
+        if "Donation to" in description and " fund by " in description:
             try:
-                amount = float(amount_str)
-            except ValueError:
-                amount = 0.0
+                church_name_and_fund = description.split("Donation to ")[1].split(" fund by ")[0]
+                if " - " in church_name_and_fund:
+                    fund_name = church_name_and_fund.split(" - ")[1].strip()
+            except:
+                fund_name = "General"
+        
+        if "Message:" in description:
+            message = description.split("Message:")[1].strip()
+        
+        # Ensure donor name
+        if not donor_name:
+            donor_name = "Anonymous"
+        
+        # Get amount
+        amount_str = transaction.get("transactions", [{}])[0].get("amount", {}).get("total", "0")
+        try:
+            amount = float(amount_str)
+        except ValueError:
+            amount = 0.0
+        
+        # Create transaction data
+        transaction_data = {
+            "transaction_id": payment_id,
+            "user_email": user_email,
+            "amount": amount,
+            "status": transaction.get("state", "completed"),
+            "time": transaction.get("create_time", ""),
+            "payment_method": "paypal",
+            "type": "one-time",
+            "order_id": payment_id,
+            "currency": transaction.get("transactions", [{}])[0].get("amount", {}).get("currency", "USD"),
+            "name": donor_name.strip() if donor_name.strip() else "Anonymous",
+            "note": message,
+            "created_on": datetime.datetime.utcnow().isoformat(),
+            "fund_name": fund_name,
+        }
+        
+        # Check if this is an event payment by examining the description
+        description = transaction.get("transactions", [{}])[0].get("description", "")
+        logging.info(f"[PAYPAL_CAPTURE] Checking payment description: {description}")
+        logging.info(f"[PAYPAL_CAPTURE] Fund name: {fund_name}")
+
+        if "Event registration" in description or "Event:" in description or fund_name.startswith("Event:"):
+            # Extract event information from fund_name or description
+            transaction_data["payment_type"] = "event_registration"
+            logging.info(f"[PAYPAL_CAPTURE] Detected event payment")
+
+            # Extract event ID and user UID from description (works for both fund_name and description)
+            event_id_match = re.search(r'Event ID:\s*([a-fA-F0-9]{24})', description)
+            user_uid_match = re.search(r'User:\s*([a-zA-Z0-9]+)', description)
             
-            # Create transaction data
-            transaction_data = {
-                "transaction_id": payment_id,
-                "user_email": user_email,
-                "amount": amount,
-                "status": transaction.get("state", "completed"),
-                "time": transaction.get("create_time", ""),
-                "payment_method": "paypal",
-                "type": "one-time",
-                "order_id": payment_id,
-                "currency": transaction.get("transactions", [{}])[0].get("amount", {}).get("currency", "USD"),
-                "name": donor_name.strip() if donor_name.strip() else "Anonymous",
-                "note": message,
-                "created_on": datetime.datetime.utcnow().isoformat(),
+            if event_id_match:
+                event_id = event_id_match.group(1)
+                transaction_data["event_id"] = event_id
+                logging.info(f"[PAYPAL_CAPTURE] Extracted Event ID: {event_id}")
+
+                if user_uid_match:
+                    user_uid = user_uid_match.group(1)
+                    transaction_data["user_uid"] = user_uid
+                    logging.info(f"[PAYPAL_CAPTURE] Extracted User UID: {user_uid}")
+                else:
+                    logging.info(f"[PAYPAL_CAPTURE] No User UID found in description, trying email lookup")
+                    # Fallback: try to get UID from email
+                    if user_email:
+                        try:
+                            user_uid = await get_uid_by_email(user_email)
+                            if user_uid:
+                                transaction_data["user_uid"] = user_uid
+                                logging.info(f"[PAYPAL_CAPTURE] Got user UID from email - User: {user_uid}")
+                        except Exception as e:
+                            logging.error(f"[PAYPAL_CAPTURE] Failed to get UID from email: {str(e)}")
+            else:
+                logging.info(f"[PAYPAL_CAPTURE] No Event ID found in description")
+
+            # Extract event name if available
+            if fund_name.startswith("Event:"):
+                event_name = fund_name.replace("Event:", "").strip()
+                transaction_data["event_name"] = event_name
+            else:
+                transaction_data["payment_type"] = "donation"
+            
+            # Add metadata
+            transaction_data["metadata"] = {
+                "payer_name": donor_name,
                 "fund_name": fund_name,
-                "metadata": {
-                    "payer_name": donor_name,
-                    "fund_name": fund_name,
-                    "shipping_address": address,
-                    "payer_id": payer_id,
-                    "shipping_line_1": address.get("line1", ""),
-                    "shipping_line_2": address.get("line2", ""),
-                    "shipping_city": address.get("city", ""),
-                    "shipping_state": address.get("state", ""),
-                    "shipping_postal_code": address.get("postal_code", ""),
-                    "shipping_country_code": address.get("country_code", "")
-                }
+                "shipping_address": address,
+                "payer_id": payer_id,
+                "shipping_line_1": address.get("line1", ""),
+                "shipping_line_2": address.get("line2", ""),
+                "shipping_city": address.get("city", ""),
+                "shipping_state": address.get("state", ""),
+                "shipping_postal_code": address.get("postal_code", ""),
+                "shipping_country_code": address.get("country_code", "")
             }
             
-            # Create transaction in database
-            tx = await Transaction.create_transaction(Transaction(**transaction_data))
+            # Create transaction in database - but check if it already exists first
+            existing_tx = await Transaction.get_transaction_by_id(payment_id)
             
-            if tx:
+            if existing_tx:
+                # Transaction already exists, return the existing data
+                logging.info(f"[PAYPAL_CAPTURE] Transaction {payment_id} already exists, returning existing data")
+
+                # Log duplicate transaction attempt
+                payment_audit_logger.log_donation_completed(
+                    user_email=user_email,
+                    amount=amount,
+                    fund_name=fund_name,
+                    payment_id=payment_id,
+                    donor_name=donor_name.strip() if donor_name.strip() else "Anonymous",
+                    transaction_type="one-time"
+                )
+                
                 return JSONResponse(content={
                     "status": "success", 
                     "transaction_id": payment_id,
                     "amount": amount,
                     "fund_name": fund_name,
-                    "user_email": user_email
+                    "user_email": user_email,
+                    "payer_name": donor_name.strip() if donor_name.strip() else "Anonymous"
                 })
             else:
-                return JSONResponse(
-                    status_code=500, 
-                    content={"status": "error", "message": "Payment processed but failed to save transaction"}
+                # Create new transaction
+                tx = await Transaction.create_transaction(Transaction(**transaction_data))
+                
+                if tx:
+                    # Log successful donation completion
+                    payment_audit_logger.log_donation_completed(
+                        user_email=user_email,
+                        amount=amount,
+                        fund_name=fund_name,
+                        payment_id=payment_id,
+                        donor_name=donor_name.strip() if donor_name.strip() else "Anonymous",
+                        transaction_type="one-time"
+                    )
+                    
+                    # Check for large transaction
+                    payment_audit_logger.log_large_transaction(
+                        user_identifier=user_email,
+                        amount=amount,
+                        transaction_type="donation",
+                        payment_method="paypal",
+                        threshold=1000.0
+                    )
+                    
+                    # If this is an event payment, update the registration status to "completed"
+                    if transaction_data.get("payment_type") == "event_registration":
+                        event_id = transaction_data.get("event_id")
+                        user_uid = transaction_data.get("user_uid")
+
+                        logging.info(f"[PAYPAL_CAPTURE] Event payment status update - Event ID: {event_id}, User UID: {user_uid}")
+
+                        if event_id and user_uid:
+                            try:
+                                logging.info(f"[PAYPAL_CAPTURE] Updating event registration status - Event: {event_id}, User: {user_uid}")
+
+                                # Get the user's registrations for this event
+                                user_data = await UserHandler.find_by_uid(user_uid)
+                                logging.info(f"[PAYPAL_CAPTURE] Found user data: {user_data is not None}")
+
+                                if user_data and "events" in user_data:
+                                    event_registrations = user_data["events"].get(event_id, {})
+                                    logging.info(f"[PAYPAL_CAPTURE] Found {len(event_registrations)} registrations for event {event_id}")
+                                    updated_count = 0
+                                    
+                                    # Update all registrations that are awaiting payment
+                                    for attendee_key, registration in event_registrations.items():
+                                        current_status = registration.get("payment_status", "unknown")
+                                        logging.info(f"[PAYPAL_CAPTURE] Registration {attendee_key} has status: {current_status}")
+
+                                        if registration.get("payment_status") in ["awaiting_payment", None, ""]:
+                                            logging.info(f"[PAYPAL_CAPTURE] Updating registration: {attendee_key}")
+                                            success = await update_attendee_payment_status(
+                                                event_id=event_id,
+                                                attendee_key=attendee_key,
+                                                payment_status="completed",
+                                                transaction_id=payment_id
+                                            )
+                                            logging.info(f"[PAYPAL_CAPTURE] Update result for {attendee_key}: {success}")
+                                            if success:
+                                                updated_count += 1
+
+                                    logging.info(f"[PAYPAL_CAPTURE] Successfully updated {updated_count} registrations to 'completed'")
+                                else:
+                                    logging.info(f"[PAYPAL_CAPTURE] No user data or events found for user {user_uid}")
+
+                            except Exception as e:
+                                logging.error(f"[PAYPAL_CAPTURE] Error updating registration payment status: {str(e)}")
+                                # Don't fail the entire payment capture if this fails
+                                pass
+                    
+                    return JSONResponse(content={
+                        "status": "success", 
+                        "transaction_id": payment_id,
+                        "amount": amount,
+                        "fund_name": fund_name,
+                        "user_email": user_email,
+                        "payer_name": donor_name.strip() if donor_name.strip() else "Anonymous"
+                    })
+                else:
+                    # Log transaction creation failure
+                    payment_audit_logger.log_paypal_capture_failed(
+                        payment_id=payment_id,
+                        error_message="Payment processed but failed to save transaction",
+                        user_email=user_email,
+                        amount=amount
+                    )
+                    
+                    return JSONResponse(
+                        status_code=500, 
+                        content={"status": "error", "message": "Payment processed but failed to save transaction"}
                 )
-        else:
-            return JSONResponse(status_code=422, content={"error": "Unprocessable Content", "details": payment.error})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

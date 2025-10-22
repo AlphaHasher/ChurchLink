@@ -79,7 +79,7 @@ export function EventImageSelector({
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="max-w-6xl max-h-[90vh] p-0">
                     <DialogHeader className="p-4 border-b">
-                        <DialogTitle>Select Event Image</DialogTitle>
+                        <DialogTitle>Select or Upload Event Image</DialogTitle>
                     </DialogHeader>
 
                     <div className="p-4 overflow-auto max-h-[75vh]">

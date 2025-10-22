@@ -91,6 +91,16 @@ class MyEventCard extends StatelessWidget {
                         ),
                       ),
 
+                      // Allows the image to be tappable
+                      Positioned.fill(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: onTap,
+                          ),
+                        ),
+                      ),
+
                       Positioned(
                         bottom: 12,
                         right: 12,
@@ -321,6 +331,7 @@ class MyEventCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 60), // restrict event name display length
                     ],
                   ),
                   // Ministry removed from My Events cards (kept on Events page)
@@ -345,7 +356,7 @@ class MyEventCard extends StatelessWidget {
     final e = event!;
 
     // If event is full (no available spots) show FULL badge
-    if (e.spots != null && e.spots! - e.seatsTaken <= 0) {
+    if (e.spots != null && e.spots! > 0 && e.spots! - e.seatsTaken <= 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(

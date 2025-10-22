@@ -1,5 +1,4 @@
 import os
-import sys
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -7,12 +6,6 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
-TESTS_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, "..", ".."))
-
-if PROJECT_ROOT not in sys.path:
-    sys.path.append(PROJECT_ROOT)
 
 from models.bible_plan_tracker import reset_user_bible_plan
 from mongo.database import DB

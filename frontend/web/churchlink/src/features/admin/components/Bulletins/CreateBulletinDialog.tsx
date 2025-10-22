@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import {
     Dialog,
@@ -15,6 +15,7 @@ import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
 
 interface CreateBulletinProps {
@@ -41,6 +42,13 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
+    const [ministries, setMinistries] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchMinistries().then(setMinistries)
+        }
+    }, [isOpen])
 
     const handleDialogClose = () => {
         setBulletin(initial);
@@ -126,43 +134,43 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                     <div className="grid gap-4 py-4">
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Headline *</span>
-                            <input 
+                            <input
                                 className="border p-2 rounded"
                                 placeholder="Headline"
-                                value={bulletin.headline} 
-                                onChange={(e) => setBulletin({ ...bulletin, headline: e.target.value })} 
+                                value={bulletin.headline}
+                                onChange={(e) => setBulletin({ ...bulletin, headline: e.target.value })}
                             />
                         </label>
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium text-gray-600">Headline (RU)</span>
-                            <input 
+                            <input
                                 className="border p-2 rounded"
                                 placeholder="Headline (RU)"
-                                value={bulletin.ru_headline || ''} 
-                                onChange={(e) => setBulletin({ ...bulletin, ru_headline: e.target.value })} 
+                                value={bulletin.ru_headline || ''}
+                                onChange={(e) => setBulletin({ ...bulletin, ru_headline: e.target.value })}
                             />
                         </label>
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Body *</span>
-                            <textarea 
-                                className="border p-2 rounded" 
+                            <textarea
+                                className="border p-2 rounded"
                                 rows={6}
                                 placeholder="Body"
-                                value={bulletin.body} 
-                                onChange={(e) => setBulletin({ ...bulletin, body: e.target.value })} 
+                                value={bulletin.body}
+                                onChange={(e) => setBulletin({ ...bulletin, body: e.target.value })}
                             />
                         </label>
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium text-gray-600">Body (RU)</span>
-                            <textarea 
-                                className="border p-2 rounded" 
+                            <textarea
+                                className="border p-2 rounded"
                                 rows={6}
                                 placeholder="Body (RU)"
-                                value={bulletin.ru_body || ''} 
-                                onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })} 
+                                value={bulletin.ru_body || ''}
+                                onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })}
                             />
                         </label>
 
@@ -170,36 +178,27 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                             <EventMinistryDropdown
                                 selected={bulletin.ministries ?? []}
                                 onChange={(next: string[]) => setBulletin({ ...bulletin, ministries: next })}
-                                ministries={[
-                                    "Youth",
-                                    "Children",
-                                    "Women",
-                                    "Men",
-                                    "Family",
-                                    "Worship",
-                                    "Outreach",
-                                    "Bible Study",
-                                ]}
+                                ministries={ministries}
                             />
                         </div>
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Publish Date *</span>
-                            <input 
-                                type="date" 
-                                className="border p-2 rounded" 
-                                value={bulletin.publish_date ? bulletin.publish_date.toISOString().slice(0,10) : ''} 
-                                onChange={(e) => setBulletin({ ...bulletin, publish_date: e.target.value ? new Date(e.target.value) : new Date() })} 
+                            <input
+                                type="date"
+                                className="border p-2 rounded"
+                                value={bulletin.publish_date ? bulletin.publish_date.toISOString().slice(0,10) : ''}
+                                onChange={(e) => setBulletin({ ...bulletin, publish_date: e.target.value ? new Date(e.target.value) : new Date() })}
                             />
                         </label>
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Expiration Date (optional)</span>
-                            <input 
-                                type="date" 
-                                className="border p-2 rounded" 
-                                value={bulletin.expire_at ? bulletin.expire_at.toISOString().slice(0,10) : ''} 
-                                onChange={(e) => setBulletin({ ...bulletin, expire_at: e.target.value ? new Date(e.target.value) : undefined })} 
+                            <input
+                                type="date"
+                                className="border p-2 rounded"
+                                value={bulletin.expire_at ? bulletin.expire_at.toISOString().slice(0,10) : ''}
+                                onChange={(e) => setBulletin({ ...bulletin, expire_at: e.target.value ? new Date(e.target.value) : undefined })}
                             />
                         </label>
 
@@ -213,23 +212,23 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                             </div>
                             {(bulletin.attachments || []).map((att, idx) => (
                                 <div key={idx} className="grid grid-cols-12 gap-2 mb-2">
-                                    <input 
-                                        className="border p-2 rounded col-span-4" 
-                                        placeholder="Title" 
-                                        value={att.title} 
-                                        onChange={(e) => updateAttachment(idx, 'title', e.target.value)} 
+                                    <input
+                                        className="border p-2 rounded col-span-4"
+                                        placeholder="Title"
+                                        value={att.title}
+                                        onChange={(e) => updateAttachment(idx, 'title', e.target.value)}
                                     />
-                                    <input 
-                                        className="border p-2 rounded col-span-7" 
-                                        placeholder="URL" 
-                                        value={att.url} 
-                                        onChange={(e) => updateAttachment(idx, 'url', e.target.value)} 
+                                    <input
+                                        className="border p-2 rounded col-span-7"
+                                        placeholder="URL"
+                                        value={att.url}
+                                        onChange={(e) => updateAttachment(idx, 'url', e.target.value)}
                                     />
-                                    <Button 
-                                        type="button" 
-                                        size="sm" 
-                                        variant="destructive" 
-                                        className="col-span-1" 
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="destructive"
+                                        className="col-span-1"
                                         onClick={() => removeAttachment(idx)}
                                     >
                                         <X className="h-4 w-4" />
@@ -243,19 +242,19 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
 
                         <div className="flex gap-4">
                             <label className="flex items-center space-x-2">
-                                <input 
-                                    type="checkbox" 
-                                    checked={bulletin.published || false} 
-                                    onChange={(e) => setBulletin({ ...bulletin, published: e.target.checked })} 
+                                <input
+                                    type="checkbox"
+                                    checked={bulletin.published || false}
+                                    onChange={(e) => setBulletin({ ...bulletin, published: e.target.checked })}
                                 />
                                 <span className="text-sm">Published</span>
                             </label>
 
                             <label className="flex items-center space-x-2">
-                                <input 
-                                    type="checkbox" 
-                                    checked={bulletin.pinned || false} 
-                                    onChange={(e) => setBulletin({ ...bulletin, pinned: e.target.checked })} 
+                                <input
+                                    type="checkbox"
+                                    checked={bulletin.pinned || false}
+                                    onChange={(e) => setBulletin({ ...bulletin, pinned: e.target.checked })}
                                 />
                                 <span className="text-sm">Pinned</span>
                             </label>

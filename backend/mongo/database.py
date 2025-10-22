@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pathlib import Path
 from datetime import datetime
 from bson import ObjectId
+import logging
 
 # MongoDB connection settings
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -26,6 +27,10 @@ class DB:
             "name": "events",
             # Reverting indexes back to original based on user feedback
             "indexes": ["name"]
+        },
+        {
+            "name": "ministries",
+            "indexes": ["normalized_name"],
         },
         {
             "name": "sermons",
@@ -131,7 +136,7 @@ class DB:
                             name="unique_" + index + "_index"
                         )
                     ])
-            
+
             # Create compound indexes (non-unique)
             if "compound_indexes" in collection:
                 for compound_index in collection["compound_indexes"]:
@@ -306,12 +311,12 @@ class DB:
         except Exception as e:
             print(f"Error deleting documents from {collection_name}: {e}")
             return 0
-            
+
     @staticmethod
     async def get_setting(key: str, default_value=None):
         """Get a setting from the database by key."""
         if DB.db is None:
-            print("Database not initialized.")
+            logging.warning("Database not initialized.")
             return default_value
         try:
             setting = await DB.db["settings"].find_one({"key": key})
@@ -319,14 +324,14 @@ class DB:
                 return setting["value"]
             return default_value
         except Exception as e:
-            print(f"Error getting setting {key}: {e}")
+            logging.error(f"Error getting setting {key}: {e}")
             return default_value
-        
+
     @staticmethod
     async def set_setting(key: str, value):
         """Set or update a setting in the database."""
         if DB.db is None:
-            print("Database not initialized.")
+            logging.warning("Database not initialized.")
             return False
         try:
             result = await DB.db["settings"].update_one(
@@ -336,9 +341,9 @@ class DB:
             )
             return result.modified_count > 0 or result.upserted_id is not None
         except Exception as e:
-            print(f"Error setting {key}: {e}")
+            logging.error(f"Error setting {key}: {e}")
             return False
-        
+
     @staticmethod
     async def get_paypal_settings():
         """Get all PayPal settings as a dictionary."""
@@ -350,16 +355,16 @@ class DB:
             "CHURCH_NAME": "Church",
             "ALLOWED_FUNDS": ["General", "Building", "Missions", "Youth", "Other"]
         }
-        
+
         # Try to get settings from database, fall back to defaults or env vars
         for key, default in defaults.items():
             # Try to get from database first
             value = await DB.get_setting(key, None)
-            
+
             # If not in database, use default (keep environment variables separate)
             if value is None:
                 value = default
-                
+
             settings[key] = value
-            
+
         return settings

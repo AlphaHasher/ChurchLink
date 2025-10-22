@@ -25,4 +25,5 @@ dependencies = [
     "python-multipart>=0.0.20",
     "pillow>=11.3.0",
     "pytz>=2024.2",
+    "pytest-asyncio>=1.2.0",
 ]
