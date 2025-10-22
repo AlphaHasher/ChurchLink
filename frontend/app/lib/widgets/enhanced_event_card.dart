@@ -17,95 +17,104 @@ class EnhancedEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Banner Section
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: _buildEventImage(),
-          ),
+    return GestureDetector(
+      onTap: onViewPressed,
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Banner Section
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              child: _buildEventImage(),
+            ),
 
-          // Event Details Section
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Event Name and Cost Label Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        event.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+            // Event Details Section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Event Name and Cost Label Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildCostLabel(),
-                  ],
-                ),
+                      const SizedBox(width: 8),
+                      _buildCostLabel(),
+                    ],
+                  ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
 
-                // Date and Time
-                Row(
-                  children: [
-                    const Icon(Icons.schedule, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      event.formattedDateTime,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 4),
-
-                // Location
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        event.location,
+                  // Date and Time
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 16, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        event.formattedDateTime,
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
+                          fontWeight: FontWeight.w500,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(
-                      width: 60,
-                    ), // restrict event name display length
-                  ],
-                ),
+                    ],
+                  ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 4),
 
-                // Description removed per design parity with My Events
-              ],
+                  // Location
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          event.location,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 60,
+                      ), // restrict event name display length
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Description removed per design parity with My Events
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -120,39 +129,6 @@ class EnhancedEventCard extends StatelessWidget {
           // For now, always show placeholder until backend image serving is implemented
           // _buildPlaceholderImage(),
           _buildEventThumb(),
-
-          // Allows the image to be tappable
-          Positioned.fill(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(onTap: onViewPressed),
-            ),
-          ),
-
-          // View Details button positioned in bottom right
-          Positioned(
-            bottom: 12,
-            right: 12,
-            child: ElevatedButton(
-              onPressed: onViewPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 142, 163, 168),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                elevation: 4,
-              ),
-              child: const Text(
-                'View Details',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
         ],
       ),
     );
