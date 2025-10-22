@@ -355,7 +355,7 @@ const Notification = () => {
           <input type="text" value={selectedTimezone} className="border border-input p-2 w-full mb-2 bg-muted text-foreground placeholder:text-muted-foreground" disabled />
         </div>
         <button
-          className="mt-2 bg-blue-500 text-white px-4 py-2 rounded"
+          className="mt-2 bg-primary text-white px-4 py-2 rounded"
           onClick={handleSaveYoutubeSettings}
           disabled={loading || envOverride}
         >
@@ -631,7 +631,7 @@ const Notification = () => {
                     <td className="p-2 border">
                       {!n.sent && !n.canceled && (
                         <button
-                          className={`bg-red-500 text-white px-3 py-1 rounded ${cancelLoadingId === n._id ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`bg-destructive text-white px-3 py-1 rounded ${cancelLoadingId === n._id ? "opacity-50 cursor-not-allowed" : ""}`}
                           onClick={() => handleRemoveScheduledNotification(n._id)}
                           disabled={cancelLoadingId === n._id}
                         >
