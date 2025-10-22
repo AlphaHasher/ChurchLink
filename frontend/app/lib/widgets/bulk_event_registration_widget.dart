@@ -482,6 +482,7 @@ class _BulkEventRegistrationWidgetState
             '[BulkRegistration] Navigating directly to success page for pay-at-door',
           );
           try {
+            if (!mounted) return;
             // Navigate immediately while context is still valid
             Navigator.of(context, rootNavigator: true).pushReplacement(
               MaterialPageRoute(
@@ -514,7 +515,7 @@ class _BulkEventRegistrationWidgetState
       }
     } catch (e) {
       log('[BulkRegistration] Error during pay-at-door registration: $e');
-      throw e;
+      rethrow;
     }
   }
 

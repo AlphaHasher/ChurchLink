@@ -65,7 +65,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
       _loading = true;
     });
 
-    Future<void> _loadCache() async {
+    Future<void> loadCache() async {
       try {
         final profile = await UserHelper.readCachedProfile();
         final isMember = (profile == null ? false : profile.membership);
@@ -91,7 +91,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
     try {
       final fresh = await MembershipHelper.readMembershipDetails();
       if (fresh == null) {
-        _loadCache();
+        loadCache();
         return;
       }
       if (!mounted) return;

@@ -362,6 +362,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
               eventRef: eventRef,
               onViewPressed: () async {
                 final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
                 try {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user != null) {
@@ -373,7 +374,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
                 final d = eventRef.event;
                 if (d == null) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text(
                         'Event details could not be loaded. Please try again later.',
@@ -559,8 +560,9 @@ class _MyEventsPageState extends State<MyEventsPage> {
 
     final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
+      final xfile = XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics');
       await Share.shareXFiles(
-        [XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics')],
+        [xfile],
         subject: 'Add to Calendar',
         text: 'Open this to add the event to your calendar.',
       );
@@ -599,9 +601,12 @@ class _MyEventsPageState extends State<MyEventsPage> {
       if (await _openAndroidCalendarInsert(
         event,
         packageName: 'com.google.android.calendar',
-      ))
+      )) {
         return;
-      if (await _openAndroidCalendarInsert(event)) return;
+      }
+      if (await _openAndroidCalendarInsert(event)) {
+        return;
+      }
       await _shareIcsForEvent(event);
       return;
     }

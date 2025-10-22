@@ -188,8 +188,8 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                           style: TextStyle(
                             color:
                                 _selectedDate == null
-                                    ? theme.colorScheme.onSurface.withOpacity(
-                                      0.5,
+                                    ? theme.colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
                                     )
                                     : theme.colorScheme.onSurface,
                           ),

@@ -420,8 +420,9 @@ END:VCALENDAR
     // Try opening directly (ACTION_VIEW). If no app can handle it, show share sheet.
     final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
+      final xfile = XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics');
       await Share.shareXFiles(
-        [XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics')],
+        [xfile],
         subject: 'Add to Calendar',
         text: 'Open this to add the event to your calendar.',
       );

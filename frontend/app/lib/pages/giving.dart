@@ -97,28 +97,28 @@ class _GivingState extends State<Giving> {
               if (result != null && result['success'] == true) {
                 log('[DeepLink] Bulk registration completed successfully');
                 // Close any open dialogs and clear navigation stack
+                if (!mounted) return;
                 Navigator.of(context).popUntil((route) => route.isFirst);
-                
+
                 // Navigate to events list, replacing the current route
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/events',
                   (route) => false, // Remove all previous routes
                 );
-                
+
                 // Show success message after navigation
                 final numberOfPeople = registrations.length;
                 Future.delayed(Duration(milliseconds: 800), () {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
-                        ),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 4),
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
                       ),
-                    );
-                  }
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
                 });
               } else {
                 log('[DeepLink] Bulk registration failed: ${result?['error']}');
@@ -141,28 +141,28 @@ class _GivingState extends State<Giving> {
               
               log('[DeepLink] Single event payment API result: $result');
               
-              if (result != null && result['success'] == true) {
+                if (result != null && result['success'] == true) {
                 log('[DeepLink] Single event payment completed successfully');
                 // Close any open dialogs and clear navigation stack
+                if (!mounted) return;
                 Navigator.of(context).popUntil((route) => route.isFirst);
-                
+
                 // Navigate to events list, replacing the current route
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/events',
                   (route) => false, // Remove all previous routes
                 );
-                
+
                 // Show success message after navigation
                 Future.delayed(Duration(milliseconds: 800), () {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('✅ Event payment completed successfully!'),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 4),
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✅ Event payment completed successfully!'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
                 });
               } else {
                 log('[DeepLink] Single event payment failed: ${result?['error']}');

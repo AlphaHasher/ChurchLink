@@ -802,6 +802,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 ],
               ),
         );
+        if (!mounted) return;
         Navigator.of(context).pop(false);
       }
     } catch (e) {
@@ -823,6 +824,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 ],
               ),
         );
+        if (!mounted) return;
         Navigator.of(context).pop(false);
       }
     } finally {
