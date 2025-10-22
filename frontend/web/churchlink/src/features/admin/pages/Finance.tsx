@@ -502,6 +502,18 @@ const FinanceRoute: React.FC = () => {
       theme={{
         algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         cssVar: true,
+        token: isDark
+          ? {
+              colorBgContainer: "#12171f",
+              colorBgElevated: "#12171f",
+              colorBorder: "#2a3340",
+              colorSplit: "#202734",
+              colorText: "#e6edf3",
+              colorTextSecondary: "#9aa7b3",
+              colorPrimary: "#2e7cf6",
+              borderRadius: 10,
+            }
+          : { borderRadius: 10 },
       }}
     >
       <App>
