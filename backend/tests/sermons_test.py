@@ -1,14 +1,7 @@
 import os
-import sys
 import httpx
 import pytest
 from dotenv import load_dotenv
-
-TESTS_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, "..", ".."))
-
-if PROJECT_ROOT not in sys.path:
-    sys.path.append(PROJECT_ROOT)
 
 from backend.tests.test_auth_helpers import get_auth_headers
 
