@@ -329,7 +329,7 @@ const Notification = () => {
         )}
         <h2 className="text-xl font-semibold mb-2">YouTube Live Notifications Setting</h2>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Livestream Notification Title</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Livestream Notification Title</label>
           <input
             type="text"
             placeholder="Livestream Notification Title"
@@ -340,7 +340,7 @@ const Notification = () => {
           />
         </div>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Stream Notification Message</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Stream Notification Message</label>
           <input
             type="text"
             placeholder="Stream Notification Message"
@@ -351,7 +351,7 @@ const Notification = () => {
           />
         </div>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Time Zone (from backend)</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Time Zone (from backend)</label>
           <input type="text" value={selectedTimezone} className="border border-input p-2 w-full mb-2 bg-muted text-foreground placeholder:text-muted-foreground" disabled />
         </div>
         <button
@@ -379,7 +379,7 @@ const Notification = () => {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Action Type</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Action Type</label>
           <select
             value={newNotification.actionType}
             onChange={(e) =>
@@ -396,7 +396,7 @@ const Notification = () => {
         
         {newNotification.actionType === "route" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Page</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Select Page</label>
             <select
               value={newNotification.route || ""}
               onChange={(e) => setNewNotification({ ...newNotification, route: e.target.value })}
@@ -419,7 +419,7 @@ const Notification = () => {
 
         {newNotification.actionType === "link" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Link</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Link</label>
             <input
               type="text"
               placeholder="Link (e.g. https://...)"
@@ -434,7 +434,7 @@ const Notification = () => {
 
         {newNotification.actionType === "event" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Event</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Select Event</label>
             <select
               value={newNotification.eventId || ""}
               onChange={(e) => setNewNotification({ ...newNotification, eventId: e.target.value })}
@@ -452,7 +452,7 @@ const Notification = () => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Title</label>
           <input
             type="text"
             placeholder="Title"
@@ -463,7 +463,7 @@ const Notification = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Message</label>
           <input
             type="text"
             placeholder="Message"
@@ -474,7 +474,7 @@ const Notification = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Schedule</label>
           <select
             value={newNotification.schedule}
             onChange={(e) => setNewNotification({ ...newNotification, schedule: e.target.value as DraftNotification["schedule"] })}
@@ -488,7 +488,7 @@ const Notification = () => {
 
         {newNotification.schedule === "custom" && (
           <div className="flex gap-2 items-center">
-            <label className="text-sm font-medium text-gray-700">Select Date:</label>
+            <label className="text-sm font-medium text-muted-foreground">Select Date:</label>
             <input
               type="date"
               value={newNotification.customDate}
@@ -496,7 +496,7 @@ const Notification = () => {
               className="border p-2 rounded"
               style={{ minWidth: 140 }}
             />
-            <label className="text-sm font-medium text-gray-700">Time:</label>
+            <label className="text-sm font-medium text-muted-foreground">Time:</label>
             <input
               type="time"
               value={newNotification.customTime}
@@ -508,7 +508,7 @@ const Notification = () => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">Target Audience</label>
           <select
             value={targetAudience}
             onChange={(e) => setTargetAudience(e.target.value as NotificationTarget)}
@@ -609,7 +609,7 @@ const Notification = () => {
                           {link.length > 50 ? `${link.substring(0, 50)}...` : link}
                         </a>
                       ) : (
-                        <span className="text-gray-700">{detailContent}</span>
+                        <span className="text-muted-foreground">{detailContent}</span>
                       )}
                     </td>
                     <td className="p-2 border">All</td>
@@ -726,7 +726,7 @@ const Notification = () => {
                             {link.length > 50 ? `${link.substring(0, 50)}...` : link}
                           </a>
                         ) : (
-                          <span className="text-gray-700">{detailContent}</span>
+                          <span className="text-muted-foreground">{detailContent}</span>
                         )}
                       </td>
                       <td className="p-2 border">
