@@ -13,6 +13,10 @@ import 'package:app/pages/forms/text_form_component.dart';
 import 'package:app/pages/forms/textarea_form_component.dart';
 import 'package:app/pages/forms/time_form_component.dart';
 import 'package:app/pages/forms/phone_form_component.dart';
+import 'package:app/services/form_payment_service.dart';
+import 'package:app/widgets/form_payment_widget.dart';
+import 'package:app/widgets/form_payment_summary.dart';
+import 'package:app/widgets/form_payment_selector_widget.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -35,12 +39,15 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
   bool _isDirty = false; // tracks whether user has typed/changed anything
   List<String> _availableLocales = <String>[];
   late String _activeLocale;
+  bool _showPaymentSection = false; // Track if payment section should be visible
+  List<String> _availablePaymentMethods = []; // Store available payment methods
 
   @override
   void initState() {
     super.initState();
     _form = Map<String, dynamic>.from(widget.form);
     _setupLocales();
+    _loadPaymentConfig();
   }
 
   @override
@@ -51,6 +58,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         _form = Map<String, dynamic>.from(widget.form);
         _setupLocales(preferredLocale: _activeLocale);
       });
+      _loadPaymentConfig();
     }
   }
 
@@ -647,6 +655,124 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     );
   }
 
+  bool _requiresPayment() {
+    return FormPaymentService.formRequiresPayment(_form);
+  }
+
+  Future<void> _loadPaymentConfig() async {
+    if (!_requiresPayment()) return;
+    
+    // Get available payment methods from form configuration
+    setState(() {
+      _availablePaymentMethods = FormPaymentService.getAvailablePaymentMethods(_form);
+    });
+  }
+
+  void _handlePaymentRequired() {
+    final total = _computeTotal();
+    if (total > 0) {
+      setState(() {
+        _showPaymentSection = true;
+      });
+    } else {
+      // No payment needed, submit directly
+      _submitDirectly();
+    }
+  }
+
+  void _onPaymentSuccess() {
+    setState(() {
+      _showPaymentSection = false;
+    });
+    
+    // Show success message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment completed successfully! Your form has been submitted.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    }
+  }
+
+  void _onPaymentError(String error) {
+    setState(() {
+      _error = 'Payment failed: $error';
+      _showPaymentSection = false;
+    });
+  }
+
+  void _onPaymentCancel() {
+    setState(() {
+      _showPaymentSection = false;
+      _error = null;
+    });
+  }
+
+  Widget _buildDoorPaymentWidget(double total) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              const Icon(Icons.store, size: 48),
+              const SizedBox(height: 8),
+              const Text(
+                'Pay at Door',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('Total: \$${total.toStringAsFixed(2)}'),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _onPaymentCancel,
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          final result = await FormPaymentService.completeDoorPayment(
+                            formSlug: (_form['slug']?.toString() ?? '').trim(),
+                            formResponse: _values,
+                            paymentAmount: total,
+                          );
+                          if (result != null && result['success'] == true) {
+                            _onPaymentSuccess();
+                          } else {
+                            _onPaymentError('Failed to submit form with door payment');
+                          }
+                        } catch (e) {
+                          _onPaymentError('Error: $e');
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                      ),
+                      child: const Text('Submit Form'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     final formState = _scaffoldFormKey.currentState;
     if (formState == null) return;
@@ -670,6 +796,15 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
 
     formState.save();
 
+    // Check if payment is required
+    if (_requiresPayment()) {
+      _handlePaymentRequired();
+    } else {
+      _submitDirectly();
+    }
+  }
+
+  Future<void> _submitDirectly() async {
     setState(() {
       _submitting = true;
       _error = null;
@@ -901,6 +1036,39 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                     ],
                   ),
                 ),
+              
+              // Show payment summary when there's pricing
+              if (showPricing && total > 0)
+                FormPaymentSummary(
+                  form: _form,
+                  values: _values,
+                ),
+              
+              // Show payment widget when payment is required and total > 0
+              if (_showPaymentSection && total > 0) 
+                _availablePaymentMethods.length > 1
+                    ? FormPaymentSelectorWidget(
+                        formSlug: (_form['slug']?.toString() ?? '').trim(),
+                        formTitle: title,
+                        formResponse: _values,
+                        totalAmount: total,
+                        paymentMethods: _availablePaymentMethods,
+                        onPaymentSuccess: _onPaymentSuccess,
+                        onPaymentError: _onPaymentError,
+                        onPaymentCancel: _onPaymentCancel,
+                      )
+                    : _availablePaymentMethods.contains('paypal')
+                        ? FormPaymentWidget(
+                            formSlug: (_form['slug']?.toString() ?? '').trim(),
+                            formTitle: title,
+                            formResponse: _values,
+                            totalAmount: total,
+                            onPaymentSuccess: _onPaymentSuccess,
+                            onPaymentError: _onPaymentError,
+                            onPaymentCancel: _onPaymentCancel,
+                          )
+                        : _buildDoorPaymentWidget(total),
+                
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -909,26 +1077,35 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                     style: const TextStyle(color: Colors.red),
                   ),
                 ),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _submitting || !canSubmit ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+              
+              // Only show submit button if not showing payment section
+              if (!_showPaymentSection)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _submitting || !canSubmit ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                    ),
+                    child:
+                        _submitting
+                            ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : Text(_requiresPayment() && total > 0 
+                                ? (_availablePaymentMethods.length > 1 
+                                    ? 'Choose Payment Method' 
+                                    : _availablePaymentMethods.contains('door') 
+                                        ? 'Continue to Payment' 
+                                        : 'Continue to Payment')
+                                : 'Submit'),
                   ),
-                  child:
-                      _submitting
-                          ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                          : const Text('Submit'),
                 ),
-              ),
             ],
           ),
         ),

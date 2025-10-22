@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import '../helpers/backend_helper.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:app/helpers/api_client.dart';
 
 class TabProvider extends ChangeNotifier {
   static TabProvider? instance;
@@ -36,12 +34,11 @@ class TabProvider extends ChangeNotifier {
   Future<void> loadTabConfiguration() async {
     try {
       debugPrint('Loading tab configuration from API...');
-      final url = '${BackendHelper.apiBase}/api/v1/app/tabs';
       
-      final response = await http.get(Uri.parse(url));
+      final response = await api.get('/v1/app/tabs');
       
       if (response.statusCode == 200) {
-        final List<dynamic> tabData = json.decode(response.body);
+        final List<dynamic> tabData = response.data;
         _tabs = tabData.cast<Map<String, dynamic>>();
         
         // Debug: Print the raw tab data
@@ -130,6 +127,72 @@ class TabProvider extends ChangeNotifier {
   Future<void> refreshTabConfiguration() async {
     debugPrint('Refreshing tab configuration...');
     await loadTabConfiguration();
+  }
+
+  /// Save tab configuration to API
+  Future<bool> saveTabConfiguration(List<Map<String, dynamic>> tabsToSave) async {
+    try {
+      debugPrint('Saving tab configuration to API...');
+      
+      final response = await api.post('/v1/app/tabs', data: tabsToSave);
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('Tab configuration saved successfully');
+        // Reload the configuration to get the updated data
+        await loadTabConfiguration();
+        return true;
+      } else {
+        debugPrint('Failed to save tab configuration: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error saving tab configuration: $e');
+      return false;
+    }
+  }
+
+  /// Update a specific tab by index
+  Future<bool> updateTab(int tabIndex, Map<String, dynamic> tabData) async {
+    try {
+      debugPrint('Updating tab at index $tabIndex...');
+      
+      final response = await api.put('/v1/app/tabs/$tabIndex', data: tabData);
+      
+      if (response.statusCode == 200) {
+        debugPrint('Tab updated successfully');
+        // Reload the configuration to get the updated data
+        await loadTabConfiguration();
+        return true;
+      } else {
+        debugPrint('Failed to update tab: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error updating tab: $e');
+      return false;
+    }
+  }
+
+  /// Delete a tab by index
+  Future<bool> deleteTab(int tabIndex) async {
+    try {
+      debugPrint('Deleting tab at index $tabIndex...');
+      
+      final response = await api.delete('/v1/app/tabs/$tabIndex');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        debugPrint('Tab deleted successfully');
+        // Reload the configuration to get the updated data
+        await loadTabConfiguration();
+        return true;
+      } else {
+        debugPrint('Failed to delete tab: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error deleting tab: $e');
+      return false;
+    }
   }
 
   /// Get tab index by name (useful for dynamic navigation)
