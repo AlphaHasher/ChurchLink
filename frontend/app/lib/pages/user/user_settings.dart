@@ -424,16 +424,6 @@ class _UserSettingsState extends State<UserSettings> {
         ],
       },
       {
-        'category': 'Privacy',
-        'items': [
-          {
-            'icon': Icons.delete,
-            'title': 'Delete Account',
-            'subtitle': 'Permanently remove your data',
-          },
-        ],
-      },
-      {
         'category': 'Support',
         'items': [
           {
@@ -490,7 +480,7 @@ class _UserSettingsState extends State<UserSettings> {
 
     for (final category in settingsCategories) {
       final catName = category['category'] as String;
-      if ((catName == 'Account' || catName == 'Privacy') && !loggedIn) {
+      if (catName == 'Account' && !loggedIn) {
         continue;
       }
       if (catName == 'Guest' && loggedIn) continue;
