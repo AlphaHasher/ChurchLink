@@ -6,12 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
-import '../pages/event_showcase.dart';
-import '../models/event.dart';
-import '../helpers/api_client.dart';
-import '../helpers/backend_helper.dart';
-import '../services/paypal_service.dart';
-import '../main.dart';
+import 'package:app/pages/event_showcase.dart';
+import 'package:app/models/event.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/backend_helper.dart';
+import 'package:app/services/paypal_service.dart';
+import 'package:app/main.dart';
 
 class DeepLinkingService {
   // Reference to the navigator key

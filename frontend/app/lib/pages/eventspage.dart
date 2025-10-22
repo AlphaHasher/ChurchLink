@@ -62,7 +62,7 @@ class _EventsPageState extends State<EventsPage> {
     _dateRange = RangeValues(0, totalDays);
 
     _loadEvents();
-    
+
     // Auto-refresh every 60 seconds when page is visible
     _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted) _loadEvents();
@@ -130,10 +130,10 @@ class _EventsPageState extends State<EventsPage> {
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = response.data;
         final allEvents = jsonData.map((json) => Event.fromJson(json)).toList();
-        
+
         // Filter to only show upcoming events
         final upcomingEvents = Event.upcomingEvents(allEvents);
-        
+
         setState(() {
           _events = upcomingEvents;
           _isLoading = false;
@@ -385,7 +385,7 @@ class _EventsPageState extends State<EventsPage> {
     String fmt(DateTime dt) =>
         '${dt.year}${two(dt.month)}${two(dt.day)}T${two(dt.hour)}${two(dt.minute)}${two(dt.second)}Z';
 
-    String _esc(String s) => s
+    String esc(String s) => s
         .replaceAll('\\', '\\\\')
         .replaceAll('\n', '\\n')
         .replaceAll(',', '\\,')
@@ -400,9 +400,9 @@ UID:${event.id}@churchlink
 DTSTAMP:${fmt(DateTime.now().toUtc())}
 DTSTART:${fmt(startUtc)}
 DTEND:${fmt(endUtc)}
-SUMMARY:${_esc(event.name)}
-DESCRIPTION:${_esc(event.description)}
-LOCATION:${_esc(event.location)}
+SUMMARY:${esc(event.name)}
+DESCRIPTION:${esc(event.description)}
+LOCATION:${esc(event.location)}
 BEGIN:VALARM
 TRIGGER:-PT60M
 ACTION:DISPLAY

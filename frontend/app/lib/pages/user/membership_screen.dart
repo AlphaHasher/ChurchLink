@@ -71,7 +71,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
         final isMember = (profile == null ? false : profile.membership);
         final synthesized = MembershipDetails(
           membership: isMember,
-          pending_request: null,
+          pendingRequest: null,
         );
         if (!mounted) return;
         setState(() {
@@ -106,7 +106,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
   Future<void> _reload() => _load();
 
   _UiPlan _deriveUi(MembershipDetails d) {
-    final pr = d.pending_request;
+    final pr = d.pendingRequest;
 
     if (d.membership == true || _online == false) {
       return _UiPlan.none;

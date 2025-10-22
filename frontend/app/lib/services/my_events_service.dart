@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../helpers/api_client.dart';
-import '../models/my_events.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/my_events.dart';
 
 class MyEventsService {
   /// Fetch user's events with optional family inclusion and expansion
@@ -307,3 +307,4 @@ class MyEventsService {
     }
   }
 }
+

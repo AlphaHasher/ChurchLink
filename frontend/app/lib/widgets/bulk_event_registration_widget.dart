@@ -217,14 +217,11 @@ class _BulkEventRegistrationWidgetState
   }
 
   Widget _buildPaymentOptionsSelector() {
-    // For paid events: show payment options if there are multiple payment methods available
     if (widget.event.requiresPayment) {
-      // Count available payment options
       int availableOptions = 0;
       if (widget.event.hasPayPalOption) availableOptions++;
       if (widget.event.hasDoorPaymentOption) availableOptions++;
 
-      // Only show selector if there are multiple payment options
       if (availableOptions <= 1) {
         return const SizedBox.shrink();
       }
@@ -257,7 +254,7 @@ class _BulkEventRegistrationWidgetState
               children: [
                 // Show PayPal option if available
                 if (widget.event.hasPayPalOption)
-                  RadioListTile<String>(
+                  ListTile(
                     title: Row(
                       children: [
                         const Text('Pay with PayPal'),
@@ -285,30 +282,24 @@ class _BulkEventRegistrationWidgetState
                     subtitle: Text(
                       'Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} now',
                     ),
-                    value: 'paypal',
-                    groupValue: _selectedPaymentOption,
-                    onChanged: (value) {
+                    onTap: () {
                       setState(() {
-                        _selectedPaymentOption = value!;
+                        _selectedPaymentOption = 'paypal';
                       });
                     },
-                    contentPadding: EdgeInsets.zero,
                   ),
                 // Show door payment option if available
                 if (widget.event.hasDoorPaymentOption)
-                  RadioListTile<String>(
+                  ListTile(
                     title: const Text('Pay at Door'),
                     subtitle: Text(
                       'Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} when you arrive',
                     ),
-                    value: 'door',
-                    groupValue: _selectedPaymentOption,
-                    onChanged: (value) {
+                    onTap: () {
                       setState(() {
-                        _selectedPaymentOption = value!;
+                        _selectedPaymentOption = 'door';
                       });
                     },
-                    contentPadding: EdgeInsets.zero,
                   ),
               ],
             ),
@@ -339,35 +330,27 @@ class _BulkEventRegistrationWidgetState
               ),
             ),
             const SizedBox(height: 8),
-
-            const SizedBox(height: 12),
-            RadioListTile<String>(
+            ListTile(
               title: const Text('Register'),
               subtitle: const Text('No donation'),
-              value: 'free',
-              groupValue: _selectedPaymentOption,
-              onChanged: (value) {
+              onTap: () {
                 setState(() {
-                  _selectedPaymentOption = value!;
+                  _selectedPaymentOption = 'free';
                   _donationAmount = 0.0;
                 });
               },
-              contentPadding: EdgeInsets.zero,
             ),
-            RadioListTile<String>(
+            ListTile(
               title: const Text('Register + Donate'),
               subtitle: const Text('Support this Event via PayPal'),
-              value: 'paypal',
-              groupValue: _selectedPaymentOption,
-              onChanged: (value) {
+              onTap: () {
                 setState(() {
-                  _selectedPaymentOption = value!;
+                  _selectedPaymentOption = 'paypal';
                   if (_donationAmount <= 0) {
                     _donationAmount = 0.0; // Default donation amount
                   }
                 });
               },
-              contentPadding: EdgeInsets.zero,
             ),
           ],
         ),

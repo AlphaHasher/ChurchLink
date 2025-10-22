@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/paypal_service.dart';
+import 'package:app/services/paypal_service.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -532,7 +532,7 @@ class _GivingState extends State<Giving> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _purpose,
+                    initialValue: _purpose,
                     decoration: const InputDecoration(
                       labelText: 'Purpose',
                       border: OutlineInputBorder(),
@@ -605,7 +605,7 @@ class _GivingState extends State<Giving> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _intervalUnit,
+                              initialValue: _intervalUnit,
                               decoration: const InputDecoration(
                                 labelText: 'Interval Unit',
                                 border: OutlineInputBorder(),
@@ -639,10 +639,10 @@ class _GivingState extends State<Giving> {
                                   int maxVal = 1;
                                   if (_intervalUnit == 'DAY') {
                                     maxVal = 365;
-                                  } else if (_intervalUnit == 'WEEK') maxVal = 52;
-                                  else if (_intervalUnit == 'MONTH') maxVal = 12;
-                                  else if (_intervalUnit == 'YEAR') maxVal = 1;
-                                  
+                                  } else if (_intervalUnit == 'WEEK') { maxVal = 52; }
+                                  else if (_intervalUnit == 'MONTH') { maxVal = 12; }
+                                  else if (_intervalUnit == 'YEAR') { maxVal = 1; }
+
                                   setState(() {
                                     _intervalCount = parsed > maxVal ? maxVal : parsed;
                                   });

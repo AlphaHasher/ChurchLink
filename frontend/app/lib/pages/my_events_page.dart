@@ -183,7 +183,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
         color: theme.colorScheme.surfaceContainerLow,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             spreadRadius: 0,
             offset: const Offset(0, 2),
@@ -266,14 +266,14 @@ class _MyEventsPageState extends State<MyEventsPage> {
             color:
                 isSelected
                     ? theme.colorScheme.primary
-                    : theme.colorScheme.outline.withOpacity(0.3),
+                    : theme.colorScheme.outline.withValues(alpha: 0.3),
             width: 2,
           ),
           boxShadow:
               isSelected
                   ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 8,
                       spreadRadius: 0,
                       offset: const Offset(0, 3),
@@ -281,7 +281,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
                   ]
                   : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       spreadRadius: 0,
                       offset: const Offset(0, 1),
@@ -321,7 +321,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
               _errorMessage!,
               style: TextStyle(
                 fontSize: 16,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -491,7 +491,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
           Icon(
             Icons.event_busy,
             size: 64,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -499,7 +499,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             textAlign: TextAlign.center,
           ),
@@ -508,7 +508,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
             subMessage,
             style: TextStyle(
               fontSize: 14,
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             textAlign: TextAlign.center,
           ),
@@ -609,3 +609,4 @@ class _MyEventsPageState extends State<MyEventsPage> {
     await _shareIcsForEvent(event);
   }
 }
+

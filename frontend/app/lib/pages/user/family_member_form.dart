@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../models/family_member.dart';
-import '../../services/family_member_service.dart';
+import 'package:app/models/family_member.dart';
+import 'package:app/services/family_member_service.dart';
 
 class FamilyMemberForm extends StatefulWidget {
   final FamilyMember? member; // null for create, populated for edit
@@ -159,8 +159,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedGender,
+                    DropdownButtonFormField<String>( initialValue: _selectedGender,
                       decoration: const InputDecoration(
                         labelText: 'Gender',
                         border: OutlineInputBorder(),
@@ -234,3 +233,5 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
     );
   }
 }
+
+
