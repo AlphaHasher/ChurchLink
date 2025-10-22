@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/my_events.dart';
-import '../services/my_events_service.dart';
-import '../widgets/my_event_card.dart';
+import 'package:app/models/my_events.dart';
+import 'package:app/services/my_events_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'event_showcase.dart';
-import '../models/event.dart' as event_model;
+import 'package:app/pages/event_showcase.dart';
+import 'package:app/models/event.dart' as event_model;
+import 'package:app/widgets/event_card.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -358,9 +358,9 @@ class _MyEventsPageState extends State<MyEventsPage> {
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            MyEventCard(
+            EventCard(
               eventRef: eventRef,
-              onTap: () async {
+              onViewPressed: () async {
                 final navigator = Navigator.of(context);
                 try {
                   final user = FirebaseAuth.instance.currentUser;

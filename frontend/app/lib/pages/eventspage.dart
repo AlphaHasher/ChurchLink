@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-import '../helpers/api_client.dart';
-import '../models/event.dart';
-import '../models/event_registration_summary.dart';
-import '../services/event_registration_service.dart';
-import '../widgets/enhanced_event_card.dart';
-import 'event_showcase.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/event.dart';
+import 'package:app/models/event_registration_summary.dart';
+import 'package:app/services/event_registration_service.dart';
+import 'package:app/pages/event_showcase.dart';
+import 'package:app/widgets/event_card.dart';
 
 // ICS sharing + open
 import 'dart:io';
@@ -14,7 +14,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_filex/open_filex.dart';
 
-// NEW: direct Android Calendar insert intent (skips chooser)
 import 'package:android_intent_plus/android_intent.dart';
 
 class EventsPage extends StatefulWidget {
@@ -222,7 +221,7 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Gender"),
-                    value: tempGender,
+                    initialValue: tempGender,
                     items:
                         [
                           null, // Show all: no filtering
@@ -257,7 +256,7 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Ministry"),
-                    value: tempMinistry,
+                    initialValue: tempMinistry,
                     items:
                         [
                           null,
@@ -382,9 +381,9 @@ class _EventsPageState extends State<EventsPage> {
     final DateTime startUtc = event.date.toUtc();
     final DateTime endUtc = startUtc.add(const Duration(hours: 1));
 
-    String _two(int n) => n.toString().padLeft(2, '0');
-    String _fmt(DateTime dt) =>
-        '${dt.year}${_two(dt.month)}${_two(dt.day)}T${_two(dt.hour)}${_two(dt.minute)}${_two(dt.second)}Z';
+    String two(int n) => n.toString().padLeft(2, '0');
+    String fmt(DateTime dt) =>
+        '${dt.year}${two(dt.month)}${two(dt.day)}T${two(dt.hour)}${two(dt.minute)}${two(dt.second)}Z';
 
     String _esc(String s) => s
         .replaceAll('\\', '\\\\')
@@ -398,9 +397,9 @@ VERSION:2.0
 PRODID:-//ChurchLink//Events//EN
 BEGIN:VEVENT
 UID:${event.id}@churchlink
-DTSTAMP:${_fmt(DateTime.now().toUtc())}
-DTSTART:${_fmt(startUtc)}
-DTEND:${_fmt(endUtc)}
+DTSTAMP:${fmt(DateTime.now().toUtc())}
+DTSTART:${fmt(startUtc)}
+DTEND:${fmt(endUtc)}
 SUMMARY:${_esc(event.name)}
 DESCRIPTION:${_esc(event.description)}
 LOCATION:${_esc(event.location)}
@@ -531,7 +530,7 @@ END:VCALENDAR
                         final event = _events[index];
                         return Stack(
                           children: [
-                            EnhancedEventCard(
+                            EventCard(
                               event: event,
                               onViewPressed: () => _navigateToShowcase(event),
                               registrationSummary:
