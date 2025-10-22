@@ -92,7 +92,7 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
-              value: _ministry?.isNotEmpty == true ? _ministry : null,
+              initialValue: _ministry?.isNotEmpty == true ? _ministry : null,
               decoration: const InputDecoration(
                 labelText: 'Ministry',
                 prefixIcon: Icon(Icons.church),
@@ -247,7 +247,7 @@ class _DateField extends StatelessWidget {
           style: TextStyle(
             color:
                 value == null
-                    ? theme.colorScheme.onSurface.withOpacity(0.5)
+                    ? theme.colorScheme.onSurface.withAlpha(50)
                     : theme.colorScheme.onSurface,
           ),
         ),
