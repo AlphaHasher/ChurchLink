@@ -533,6 +533,7 @@ const Notification = () => {
       <div className="mt-6">
         <h2 className="text-xl font-semibold mb-2">Notification List</h2>
         <Tabs
+          textColor="inherit"
           value={activeTab}
           onChange={(_e, v: ActiveTab) => {
             setActiveTab(v);
