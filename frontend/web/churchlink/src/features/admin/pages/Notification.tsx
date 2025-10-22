@@ -352,7 +352,7 @@ const Notification = () => {
         </div>
         <div className="mb-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Time Zone (from backend)</label>
-          <input type="text" value={selectedTimezone} className="border p-2 w-full mb-2 bg-gray-100" disabled />
+          <input type="text" value={selectedTimezone} className="border border-input p-2 w-full mb-2 bg-muted text-foreground placeholder:text-muted-foreground" disabled />
         </div>
         <button
           className="mt-2 bg-blue-500 text-white px-4 py-2 rounded"
@@ -546,9 +546,9 @@ const Notification = () => {
         </Tabs>
 
         {activeTab === "scheduled" && (
-          <table className="w-full border-collapse border border-gray-300 mt-4">
+          <table className="w-full border-collapse border border-border mt-4">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-muted text-muted-foreground">
                 <th className="border p-2">Time</th>
                 <th className="border p-2">Title</th>
                 <th className="border p-2">Message</th>
@@ -647,9 +647,9 @@ const Notification = () => {
         )}
 
         {activeTab === "history" && (
-          <table className="w-full border-collapse border border-gray-300 mt-4">
+          <table className="w-full border-collapse border border-border mt-4">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-muted text-muted-foreground">
                 <th className="border p-2">Time</th>
                 <th className="border p-2">Title</th>
                 <th className="border p-2">Message</th>
