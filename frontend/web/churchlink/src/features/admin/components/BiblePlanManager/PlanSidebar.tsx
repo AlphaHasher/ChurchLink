@@ -90,8 +90,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
       templatesInFlight = api.get('/v1/bible-plans/templates')
         .then(r => r.data as ReadingPlanWithId[])
         .then(data => {
-          templatesCache = data || [];
-          return templatesCache;
+          return data || [];
         })
         .finally(() => {
           templatesInFlight = null;
