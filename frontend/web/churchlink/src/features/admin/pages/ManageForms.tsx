@@ -74,10 +74,10 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
         size="icon"
         variant="ghost"
         onClick={() => openMinistryAssignment([data.id], ministries)}
-        className="flex-shrink-0 h-6 w-6"
+        className="flex-shrink-0"
         title="Edit ministries"
       >
-        <Pencil className="h-3 w-3" />
+        <Pencil className="h-4 w-4" />
       </Button>
     </div>
   );
@@ -145,7 +145,6 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
           <DropdownMenuItem onClick={() => handleExport(data.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExportCsv(data.id)}><Download className="h-4 w-4 mr-2" /> Download Responses</DropdownMenuItem>
           <DropdownMenuItem onClick={() => setRenameTarget({ id: data.id, title: data.title })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setAssignmentTarget({ formIds: [data.id], selected: new Set(data.ministries || []) })}><FileEdit className="h-4 w-4 mr-2" /> Assign ministries</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-red-600" onClick={() => setConfirmDeleteIds([data.id])}><Trash className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
         </DropdownMenuContent>
@@ -329,10 +328,10 @@ const ManageForms = () => {
   const handleDelete = async (ids: string[]) => {
     setStatus('Deleting...');
     try {
-  await Promise.all(ids.map((id) => api.delete(`/v1/forms/${id}`)));
-  setAllForms((prev) => prev.filter((f) => !ids.includes(f.id)));
-  setSelectedRows((prev) => prev.filter((row) => !ids.includes(row.id)));
-  await refreshFormsAndMinistries();
+      await Promise.all(ids.map((id) => api.delete(`/v1/forms/${id}`)));
+      setAllForms((prev) => prev.filter((f) => !ids.includes(f.id)));
+      setSelectedRows((prev) => prev.filter((row) => !ids.includes(row.id)));
+      await refreshFormsAndMinistries();
       setStatus('Deleted');
     } catch (e) {
       console.error('Delete failed', e);
@@ -437,9 +436,9 @@ const ManageForms = () => {
         }
       }
 
-  await api.put(`/v1/forms/${id}`, { visible });
-  setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
-  await refreshFormsAndMinistries();
+      await api.put(`/v1/forms/${id}`, { visible });
+      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, visible } : f)));
+      await refreshFormsAndMinistries();
     } catch (e) {
       console.error('Visibility update failed', e);
       setStatus('Visibility update failed');
@@ -464,30 +463,30 @@ const ManageForms = () => {
     if (!slugDialog) return;
     const { id, slug, autoEnableVisibility } = slugDialog;
     const cleaned = slugify(slug);
-    if (!cleaned) { 
-      setSlugError('Slug cannot be empty'); 
-      return; 
+    if (!cleaned) {
+      setSlugError('Slug cannot be empty');
+      return;
     }
-    
+
     try {
       const form = allForms.find((f) => f.id === id);
       const hasMinistries = !!(form && Array.isArray(form.ministries) && form.ministries.length > 0);
       const shouldEnableVisibility = autoEnableVisibility && hasMinistries;
-      
+
       const updates: { slug: string; visible?: boolean } = { slug: cleaned };
       if (shouldEnableVisibility) {
         updates.visible = true;
       }
-      
+
       await api.put(`/v1/forms/${id}`, updates);
-      
-      setAllForms((prev) => prev.map((f) => 
+
+      setAllForms((prev) => prev.map((f) =>
         f.id === id ? { ...f, ...updates } : f
       ));
-      
+
       await refreshFormsAndMinistries();
       setSlugDialog(null);
-      
+
       if (autoEnableVisibility && !hasMinistries) {
         setStatus('Slug created. Please assign ministries before making the form visible');
         setAssignmentTarget({ formIds: [id], selected: [] });
@@ -503,9 +502,9 @@ const ManageForms = () => {
 
   const handleRemoveSlug = async (id: string) => {
     try {
-  await api.put(`/v1/forms/${id}`, { slug: null });
-  setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
-  await refreshFormsAndMinistries();
+      await api.put(`/v1/forms/${id}`, { slug: null });
+      setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: undefined } : f)));
+      await refreshFormsAndMinistries();
     } catch (err) {
       setStatus('Failed to remove slug');
     }
@@ -514,9 +513,9 @@ const ManageForms = () => {
   const handleRename = async () => {
     if (!renameTarget) return;
     try {
-  await api.put(`/v1/forms/${renameTarget.id}`, { title: renameTarget.title });
-  setAllForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
-  await refreshFormsAndMinistries();
+      await api.put(`/v1/forms/${renameTarget.id}`, { title: renameTarget.title });
+      setAllForms((prev) => prev.map((f) => (f.id === renameTarget.id ? { ...f, title: renameTarget.title } : f)));
+      await refreshFormsAndMinistries();
       setRenameTarget(null);
     } catch (e: any) {
       console.error('Rename failed', e);
@@ -564,12 +563,12 @@ const ManageForms = () => {
 
   const handleAssignMinistries = async () => {
     if (!assignmentTarget || assignmentTarget.selected.length === 0) return;
-    
+
     const formIds = assignmentTarget.formIds;
     const selectedMinistries = assignmentTarget.selected;
-    
+
     setAssignmentTarget(null);
-    
+
     try {
       await Promise.all(
         formIds.map((id) =>
@@ -740,7 +739,7 @@ const ManageForms = () => {
       {/* Slug create/edit dialog */}
       <Dialog open={!!slugDialog} onOpenChange={(open) => { if (!open) setSlugDialog(null); }}>
         <DialogContent>
-            <DialogHeader>
+          <DialogHeader>
             <DialogTitle>{slugDialog?.isExisting ? 'Edit link' : 'Create link'}</DialogTitle>
           </DialogHeader>
           <Input value={slugDialog?.slug || ''} onChange={(e) => setSlugDialog((s) => s ? ({ ...s, slug: e.target.value }) : s)} placeholder="Enter slug (letters, numbers, dashes)" />
