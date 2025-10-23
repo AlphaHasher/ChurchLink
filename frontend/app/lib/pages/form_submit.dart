@@ -17,6 +17,7 @@ import 'package:app/services/form_payment_service.dart';
 import 'package:app/widgets/form_payment_widget.dart';
 import 'package:app/widgets/form_payment_summary.dart';
 import 'package:app/widgets/form_payment_selector_widget.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -868,9 +869,16 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         // If anything goes wrong during local checks, proceed to call the server which will provide authoritative reason.
       }
 
+      final user = FirebaseAuth.instance.currentUser;
+      final submissionData = {
+        ..._values,
+        if (user != null) 'user_id': user.uid,
+        'submitted_at': DateTime.now().toIso8601String(),
+      };
+
       final response = await api.post(
         '/v1/forms/slug/$slug/responses',
-        data: _values,
+        data: submissionData,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -885,8 +893,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         final detailStr = detail is String ? detail.toLowerCase() : null;
         String msg = 'Failed to submit (${response.statusCode})';
         if (detailStr != null) {
-          if (detailStr.contains('expired')) msg = 'This form has expired and is no longer accepting responses.';
-          else if (detailStr.contains('not available') || detailStr.contains('not visible')) msg = 'This form is not available for public viewing.';
+          if (detailStr.contains('expired')) {
+            msg = 'This form has expired and is no longer accepting responses.';
+          } else if (detailStr.contains('not available') || detailStr.contains('not visible')) msg = 'This form is not available for public viewing.';
           else if (detailStr.contains('not found')) msg = 'Form not found.';
         }
         // Show blocking dialog with Ok to return to list
@@ -1013,7 +1022,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                       key: Key('form-instance-$_formInstanceId'),
                       physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: visibleFields.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final f = visibleFields[index];
                         return _buildField(f);

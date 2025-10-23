@@ -27,10 +27,69 @@ import {
 const useQuery = () => new URLSearchParams(useLocation().search);
 
 
+
 const FormResponses = () => {
   const navigate = useNavigate();
   const query = useQuery();
   const formId = query.get('formId') || '';
+
+  // Helper functions
+  const formatDate = (iso?: string): string => {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString();
+    } catch {
+      return iso;
+    }
+  };
+
+  const formatSidebarDate = (iso?: string): string => {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString('en-US', { month: 'short', day: '2-digit' });
+    } catch {
+      return iso;
+    }
+  };
+
+  // Payment rendering helper
+  const renderPaymentInfo = (selectedItem: any) => {
+    const responseData = selectedItem?.response?.response;
+    if (!responseData) return null;
+    
+    // Check for PayPal payment
+    const hasPayPalPayment = responseData.payment_status;
+    // Check for in-person payment
+    const hasInPersonPayment = responseData.price_payment_method;
+    
+    if (!hasPayPalPayment && !hasInPersonPayment) return null;
+    
+    return (
+      <div className="mt-4 rounded-lg border bg-green-50 p-4">
+        <div className="text-sm font-medium text-green-800 mb-2">💰 Payment Information</div>
+        <div className="space-y-1 text-sm text-green-700">
+          {hasPayPalPayment ? (
+            <>
+              <div><strong>Amount:</strong> ${responseData.payment_amount}</div>
+              <div><strong>Status:</strong> {responseData.payment_status}</div>
+              <div><strong>Method:</strong> PayPal</div>
+              <div><strong>Transaction ID:</strong> {responseData.payment_id}</div>
+              <div><strong>Payment Time:</strong> {formatDate(responseData.submitted_at)}</div>
+            </>
+          ) : (
+            <>
+              <div><strong>Amount:</strong> ${responseData.price_amount}</div>
+              <div><strong>Status:</strong> Pending Door Payment</div>
+              <div><strong>Method:</strong> {responseData.price_payment_method}</div>
+              <div><strong>Payment Time:</strong> {formatDate(responseData.submitted_at)}</div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const [responses, setResponses] = useState<{ 
     submitted_at: string; 
@@ -87,7 +146,7 @@ const FormResponses = () => {
     fetchMeta();
   }, [formId]);
 
-  const preloadUserInfo = useCallback(async (userIds: string[]) => {
+  const preloadUserInfoCallback = useCallback(async (userIds: string[]) => {
     const idsToFetch = userIds.filter((id) => !userInfoRef.current[id]);
     if (idsToFetch.length === 0) return;
 
@@ -129,11 +188,14 @@ const FormResponses = () => {
       const resp = await api.get(`/v1/forms/${formId}/responses`);
       let fetched = resp.data?.items || [];
       if (!Array.isArray(fetched)) fetched = [];
+      
+
+      
       setResponses(fetched);
 
       const uniqueUserIds = [...new Set(fetched.map((item: any) => item.user_id).filter(Boolean))] as string[];
       if (uniqueUserIds.length > 0) {
-        preloadUserInfo(uniqueUserIds);
+        preloadUserInfoCallback(uniqueUserIds);
       }
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
@@ -142,33 +204,13 @@ const FormResponses = () => {
     } finally {
       setLoading(false);
     }
-  }, [formId, preloadUserInfo]);
+  }, [formId, preloadUserInfoCallback]);
 
   useEffect(() => {
     fetchResponses();
   }, [fetchResponses]);
 
-  const formatDate = (iso?: string) => {
-    if (!iso) return '—';
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString();
-    } catch {
-      return iso;
-    }
-  };
-
-  const formatSidebarDate = (iso?: string) => {
-    if (!iso) return '—';
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString('en-US', { month: 'short', day: '2-digit' });
-    } catch {
-      return iso;
-    }
-  };
-
-  const exportCsv = async () => {
+  const exportCsv = useCallback(async () => {
     if (!formId) return;
     try {
       await fetchResponsesAndDownloadCsv(formId, {
@@ -177,29 +219,32 @@ const FormResponses = () => {
         filename: `${formMeta?.title || 'responses'}.csv`,
       });
     } catch (e) {
-      // ignore
+      console.error('CSV export failed:', e);
     }
-  };
+  }, [formId, formMeta?.title]);
 
   const responseItems = useMemo(() => {
-    return responses.map((response, index) => {
-      const userId = response.user_id;
-      const userData = userId ? userInfo[userId] : null;
-      const name = userData?.name || (userId ? 'Loading...' : 'Anonymous');
-      const email = userData?.email || '';
-      const key = response.id || response._id || `${userId || 'anonymous'}-${response.submitted_at || index}-${index}`;
-      const hasPayment = !!response.payment_info;
+    return responses
+      .filter((response) => response.user_id) // Only authenticated responses allowed
+      .map((response, index) => {
+        const userId = response.user_id!; // We know it exists due to filter
+        
+        const userData = userInfo[userId];
+        const name = userData?.name || 'Loading...';
+        const email = userData?.email || '';
+        const key = response.id || response._id || `${userId}-${response.submitted_at || index}-${index}`;
+        const hasPayment = !!(response.response?.payment_status || response.response?.price_payment_method);
 
-      return {
-        key,
-        name,
-        email,
-        submitted: response.submitted_at,
-        submittedLabel: formatSidebarDate(response.submitted_at),
-        response,
-        hasPayment,
-      };
-    });
+        return {
+          key,
+          name,
+          email,
+          submitted: response.submitted_at,
+          submittedLabel: formatSidebarDate(response.submitted_at),
+          response,
+          hasPayment,
+        };
+      });
   }, [responses, userInfo]);
 
   const filteredResponseItems = useMemo(() => {
@@ -228,9 +273,11 @@ const FormResponses = () => {
     }
   }, [filteredResponseItems, selectedResponseKey]);
 
-  const selectedItem = filteredResponseItems.find((item) => item.key === selectedResponseKey) ||
-    responseItems.find((item) => item.key === selectedResponseKey) ||
-    (filteredResponseItems.length > 0 ? filteredResponseItems[0] : null);
+  const selectedItem = useMemo(() => {
+    return filteredResponseItems.find((item) => item.key === selectedResponseKey) ||
+      responseItems.find((item) => item.key === selectedResponseKey) ||
+      (filteredResponseItems.length > 0 ? filteredResponseItems[0] : null);
+  }, [filteredResponseItems, responseItems, selectedResponseKey]);
 
   const getFieldLabel = (field: any): string => {
     if (!field) return 'Field';
@@ -376,7 +423,7 @@ const FormResponses = () => {
     return String(rawValue);
   };
 
-  const renderFieldRows = () => {
+  const renderedFieldRows = useMemo(() => {
     if (!selectedItem || !formMeta?.data) return null;
 
     return formMeta.data
@@ -394,11 +441,11 @@ const FormResponses = () => {
             className="grid grid-cols-1 gap-2 border-b py-3 last:border-b-0 sm:grid-cols-[minmax(0,220px)_1fr] sm:gap-6"
           >
             <div className="text-sm font-medium text-muted-foreground">{label}</div>
-            <div className="text-sm whitespace-pre-wrap break-words">{displayValue}</div>
+            <div className="text-sm whitespace-pre-wrap overflow-wrap-break-word">{displayValue}</div>
           </div>
         );
       });
-  };
+  }, [selectedItem, formMeta?.data]);
 
   return (
     <div className="p-6">
@@ -469,7 +516,7 @@ const FormResponses = () => {
               </div>
             ) : (
               <div className="rounded-lg border">
-                <SidebarProvider className="flex h-full min-h-[420px] min-h-0">
+                <SidebarProvider className="flex h-full min-h-[420px]">
                   <Sidebar
                     collapsible="none"
                     className="w-72 border-r bg-muted/30"
@@ -503,7 +550,9 @@ const FormResponses = () => {
                                     size="lg"
                                   >
                                     <div className="flex items-center gap-2 truncate">
-                                      <span className="truncate font-medium">{item.name}</span>
+                                      <span className="truncate font-medium">
+                                        {item.name}
+                                      </span>
                                       {item.hasPayment && (
                                         <span className="text-green-600 text-xs">💰</span>
                                       )}
@@ -531,36 +580,19 @@ const FormResponses = () => {
                           <div className="text-sm text-muted-foreground">
                             Submitted on {formatDate(selectedItem.submitted)}
                           </div>
+                        </div>
+                        
+                        {/* Payment Information */}
+                        {renderPaymentInfo(selectedItem)}
                           
-                          {/* Payment Information */}
-                          {selectedItem.response.payment_info && (
-                            <div className="mt-4 rounded-lg border bg-green-50 p-4">
-                              <div className="text-sm font-medium text-green-800 mb-2">💰 Payment Information</div>
-                              <div className="space-y-1 text-sm text-green-700">
-                                <div><strong>Amount:</strong> ${selectedItem.response.payment_info.amount}</div>
-                                <div><strong>Status:</strong> {selectedItem.response.payment_info.status}</div>
-                                <div><strong>Method:</strong> {selectedItem.response.payment_info.payment_method}</div>
-                                {selectedItem.response.payment_info.payer_name && (
-                                  <div><strong>Payer:</strong> {selectedItem.response.payment_info.payer_name}</div>
-                                )}
-                                {selectedItem.response.payment_info.payer_email && (
-                                  <div><strong>Email:</strong> {selectedItem.response.payment_info.payer_email}</div>
-                                )}
-                                <div><strong>Transaction ID:</strong> {selectedItem.response.payment_info.transaction_id}</div>
-                                {selectedItem.response.payment_info.payment_time && (
-                                  <div><strong>Payment Time:</strong> {formatDate(selectedItem.response.payment_info.payment_time)}</div>
-                                )}
+                          {/* Form Fields */}
+                          <div className="space-y-2">
+                            {renderedFieldRows || (
+                              <div className="rounded-md border bg-muted/10 p-4 text-sm text-muted-foreground">
+                                No fields to display for this response.
                               </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          {renderFieldRows() || (
-                            <div className="rounded-md border bg-muted/10 p-4 text-sm text-muted-foreground">
-                              No fields to display for this response.
-                            </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
                       </div>
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
