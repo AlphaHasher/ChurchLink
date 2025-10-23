@@ -52,7 +52,7 @@ async def complete_form_submission(
         raise
 
     # Ensure we have a valid user ID
-    if not user_id or user_id.strip() == "" or user_id == "anonymous":
+    if not user_id or user_id.strip() == "":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required - anonymous submissions not allowed")
     
     # Add authenticated user_id to completion data
@@ -91,7 +91,7 @@ async def complete_paypal_payment(
         raise
 
     # Ensure we have a valid user ID
-    if not user_id or user_id.strip() == "" or user_id == "anonymous":
+    if not user_id or user_id.strip() == "":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required - anonymous submissions not allowed")
     
     # Add authenticated user_id to completion data
