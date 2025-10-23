@@ -20,6 +20,7 @@ ModuleRegistry.registerModules([
 
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { VisibilityToggleCellRenderer } from '@/shared/components/VisibilityToggle';
 import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
@@ -27,7 +28,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
-import { Switch } from '@/shared/components/ui/switch';
 import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, RefreshCcw, AlertTriangle } from 'lucide-react';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Skeleton } from '@/shared/components/ui/skeleton';
@@ -114,21 +114,7 @@ const LinksCellRenderer = (props: ICellRendererParams) => {
   );
 };
 
-// Cell renderer for visible column (switch)
-const VisibleCellRenderer = (props: ICellRendererParams) => {
-  const { data, context } = props;
-  if (!data) return null;
-
-  const { handleToggleVisible } = context;
-
-  return (
-    <Switch
-      checked={!!data.visible}
-      onCheckedChange={(c) => handleToggleVisible(data.id, !!c)}
-      aria-label="Toggle visibility"
-    />
-  );
-};
+const VisibleCellRenderer = VisibilityToggleCellRenderer;
 
 // Cell renderer for actions column
 const ActionsCellRenderer = (props: ICellRendererParams) => {
@@ -261,8 +247,9 @@ const ManageForms = () => {
       headerName: 'Visible',
       field: 'visible',
       flex: 1,
-      minWidth: 80,
+      minWidth: 120,
       cellRenderer: VisibleCellRenderer,
+      cellStyle: { display: 'grid', placeItems: 'center', padding: 0 },
     },
     {
       headerName: 'Expired',
@@ -703,6 +690,9 @@ const ManageForms = () => {
                 setRenameTarget,
                 setConfirmDeleteIds,
                 handleToggleVisible,
+                onToggleVisibility: async (id: string, newVisibility: boolean) => {
+                  await handleToggleVisible(id, newVisibility);
+                },
                 slugify,
                 setAssignmentTarget,
                 openMinistryAssignment,
