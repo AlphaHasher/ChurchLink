@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'donation_success_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
 import '../models/event_registration_summary.dart';
@@ -829,13 +828,8 @@ class _EventShowcaseState extends State<EventShowcase> {
                   await _checkRegistrationStatus();
                   await _checkFamilyMemberRegistrations();
                   if (mounted) setState(() {});
-
-                  // Navigate to a Thank You / Donation Success page for donations on no-RSVP events
-                  if (mounted) {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (context) => DonationSuccessPage(eventName: widget.event.name),
-                    ));
-                  }
+                  
+                  // Success page navigation is now handled by EventPayPalButton itself
                 },
                 onPaymentError: (err) {
                   if (mounted) {

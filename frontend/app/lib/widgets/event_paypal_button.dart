@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:app/models/event.dart';
 import 'package:app/services/paypal_service.dart';
+import 'package:app/pages/donation_success_page.dart';
+import 'package:app/pages/payment_success_page.dart';
 
 // Custom input formatter for currency amounts
 class CurrencyInputFormatter extends TextInputFormatter {
@@ -96,7 +98,7 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
         }
       }
 
-      // Create payment order
+      // Create payment order - use default mobile deep links
       final result = await PaypalService.createEventPaymentOrder(
         eventId: widget.event.id,
         eventName: widget.event.name,
@@ -105,25 +107,22 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
         message: widget.event.requiresPayment
             ? 'Payment for event: ${widget.event.name}'
             : 'Donation for event: ${widget.event.name}',
-        returnUrl: 'http://localhost:3000/events/${widget.event.id}/payment/success',
-        cancelUrl: 'http://localhost:3000/events/${widget.event.id}/payment/cancel',
+        // Don't provide custom URLs - let service use mobile deep links
       );
 
-      if (result != null && result['success'] == true) {
-        final approvalUrl = result['approval_url'] as String?;
-        final paymentId = result['payment_id'] as String?;
-        
-        if (approvalUrl != null && paymentId != null) {
-          // Use WebView to handle PayPal payment like donation flow
-          if (mounted) {
-            _showPayPalWebView(approvalUrl, paymentId);
-          }
-        } else {
-          throw Exception('No approval URL or payment ID received');
-        }
-      } else {
-        final error = result?['error'] ?? 'Failed to create payment order';
-        throw Exception(error);
+      if (result?['success'] != true) {
+        throw Exception(result?['error'] ?? 'Failed to create payment order');
+      }
+
+      final approvalUrl = result!['approval_url'] as String?;
+      final paymentId = result['payment_id'] as String?;
+      
+      if (approvalUrl == null || paymentId == null) {
+        throw Exception('No approval URL or payment ID received');
+      }
+
+      if (mounted) {
+        _showPayPalWebView(approvalUrl, paymentId);
       }
     } catch (e) {
       if (mounted) {
@@ -140,10 +139,6 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
   }
 
   void _showPayPalWebView(String approvalUrl, String paymentId) {
-    // Define success and cancel URLs that the WebView can intercept
-    final successUrl = 'http://localhost:3000/events/${widget.event.id}/payment/success';
-    final cancelUrl = 'http://localhost:3000/events/${widget.event.id}/payment/cancel';
-    
     Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => Scaffold(
         appBar: AppBar(
@@ -154,9 +149,7 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
             icon: const Icon(Icons.close),
             onPressed: () {
               Navigator.pop(context);
-              if (widget.onPaymentError != null) {
-                widget.onPaymentError!('Payment cancelled by user');
-              }
+              widget.onPaymentError?.call('Payment cancelled by user');
             },
           ),
         ),
@@ -168,8 +161,8 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
                 onNavigationRequest: (NavigationRequest request) async {
                   log('WebView navigation request: ${request.url}', name: 'EventPayPalButton');
                   
-                  // Handle success URL
-                  if (request.url.startsWith(successUrl)) {
+                  // Handle mobile deep link success
+                  if (request.url.startsWith('churchlink://paypal-success')) {
                     final uri = Uri.parse(request.url);
                     final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
                     final token = uri.queryParameters['token'];
@@ -177,26 +170,38 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
                     log('Payment success detected - PayerID: $payerId, token: $token', name: 'EventPayPalButton');
                     
                     if (payerId != null && token != null) {
-                      // Simulate deep link success handling
-                      Navigator.pop(context);
+                      Navigator.pop(context); // Close WebView
                       
-                      // Trigger the event payment completion through deep linking service
-                      _triggerEventPaymentCompletion(widget.event.id, paymentId, payerId);
-                      
-                      if (widget.onPaymentSuccess != null) {
-                        widget.onPaymentSuccess!();
+                      // Navigate to appropriate success page
+                      if (mounted) {
+                        if (widget.event.requiresPayment) {
+                          // For paid events, use PaymentSuccessPage
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => PaymentSuccessPage(
+                              eventId: widget.event.id,
+                              eventName: widget.event.name,
+                              paymentId: paymentId,
+                              payerId: payerId,
+                            ),
+                          ));
+                        } else {
+                          // For donations on free events, use DonationSuccessPage
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => DonationSuccessPage(eventName: widget.event.name),
+                          ));
+                        }
                       }
+                      
+                      widget.onPaymentSuccess?.call();
                     }
                     return NavigationDecision.prevent;
                   }
                   
-                  // Handle cancel URL  
-                  if (request.url.startsWith(cancelUrl)) {
+                  // Handle mobile deep link cancel
+                  if (request.url.startsWith('churchlink://paypal-cancel')) {
                     log('Payment cancel detected', name: 'EventPayPalButton');
                     Navigator.pop(context);
-                    if (widget.onPaymentError != null) {
-                      widget.onPaymentError!('Payment cancelled by user');
-                    }
+                    widget.onPaymentError?.call('Payment cancelled by user');
                     return NavigationDecision.prevent;
                   }
                   
@@ -208,16 +213,6 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
         ),
       ),
     ));
-  }
-
-  // Trigger event payment completion similar to deep link handling
-  void _triggerEventPaymentCompletion(String eventId, String paymentId, String payerId) {
-    // This simulates what the deep linking service does for event payment completion
-    // We can call the same backend endpoint that handles payment completion
-    log('Triggering event payment completion for event: $eventId, payment: $paymentId, payer: $payerId', name: 'EventPayPalButton');
-    
-    // In a real implementation, this would call the backend to complete the registration
-    // For now, we'll rely on the onPaymentSuccess callback to handle the UI update
   }
 
   void _showErrorDialog(String error) {
@@ -238,69 +233,63 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
 
   @override
   Widget build(BuildContext context) {
-  // Determine button appearance based on event type
-  final isPaidEvent = widget.event.requiresPayment;
-  final amount = isPaidEvent ? widget.event.price : _donationAmount;
+    final isPaidEvent = widget.event.requiresPayment;
+    final amount = isPaidEvent ? widget.event.price : _donationAmount;
     
-    String buttonText;
-    Color buttonColor;
-    IconData buttonIcon;
+    final buttonText = isPaidEvent 
+        ? 'Pay \$${amount.toStringAsFixed(2)} with PayPal'
+        : 'Donate \$${amount.toStringAsFixed(2)} with PayPal';
     
-    if (isPaidEvent) {
-      buttonText = 'Pay \$${amount.toStringAsFixed(2)} with PayPal';
-      buttonColor = const Color(0xFF0070BA); // PayPal blue
-      buttonIcon = Icons.payment;
-    } else {
-      buttonText = 'Donate \$${amount.toStringAsFixed(2)} with PayPal';
-      buttonColor = const Color(0xFF009CDE); // Lighter blue for donations
-      buttonIcon = Icons.volunteer_activism;
-    }
+    final buttonColor = isPaidEvent 
+        ? const Color(0xFF0070BA)  // PayPal blue
+        : const Color(0xFF009CDE); // Lighter blue for donations
+    
+    final buttonIcon = isPaidEvent ? Icons.payment : Icons.volunteer_activism;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-  // If this is a free event and donations are allowed, show the amount selector
-  if (!isPaidEvent && widget.event.allowsDonations) ...[
+        // Show donation amount selector for free events that allow donations
+        if (!isPaidEvent && widget.event.allowsDonations) ...[
           DonationAmountSelector(
             initialAmount: _donationAmount,
             onAmountChanged: (amt) => setState(() => _donationAmount = amt),
           ),
           const SizedBox(height: 12),
         ],
-
         SizedBox(
           width: double.infinity,
           height: 50,
           child: ElevatedButton.icon(
-        onPressed: (_isLoading || (!isPaidEvent && _donationAmount <= 0)) ? null : _initiatePayment,
-        icon: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Icon(buttonIcon, color: Colors.white),
-        label: Text(
-          _isLoading ? 'Processing...' : buttonText,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            onPressed: (_isLoading || (!isPaidEvent && _donationAmount <= 0)) ? null : _initiatePayment,
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Icon(buttonIcon, color: Colors.white),
+            label: Text(
+              _isLoading ? 'Processing...' : buttonText,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: buttonColor,
+              disabledBackgroundColor: buttonColor.withValues(alpha: 0.6),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: buttonColor,
-          disabledBackgroundColor: buttonColor.withValues(alpha: 0.6),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        ),
-      ),
       ],
     );
   }
@@ -345,6 +334,15 @@ class _DonationAmountSelectorState extends State<DonationAmountSelector> {
   }
 
   void _onCustomAmountChanged(String value) {
+    if (value.isEmpty) {
+      setState(() {
+        _selectedAmount = 0.0;
+        _isCustomAmount = true;
+      });
+      widget.onAmountChanged(0.0);
+      return;
+    }
+
     final amount = double.tryParse(value);
     if (amount != null && amount >= 0) {
       setState(() {
@@ -352,13 +350,6 @@ class _DonationAmountSelectorState extends State<DonationAmountSelector> {
         _isCustomAmount = true;
       });
       widget.onAmountChanged(amount);
-    } else if (value.isEmpty) {
-      // Allow empty input
-      setState(() {
-        _selectedAmount = 0.0;
-        _isCustomAmount = true;
-      });
-      widget.onAmountChanged(0.0);
     }
   }
 
@@ -366,15 +357,10 @@ class _DonationAmountSelectorState extends State<DonationAmountSelector> {
     if (value.isEmpty) return null;
     
     final amount = double.tryParse(value);
-    if (amount == null) {
-      return 'Please enter a valid number';
-    }
-    if (amount < 0) {
-      return 'Amount cannot be negative';
-    }
-    if (amount > 10000) {
-      return 'Amount cannot exceed \$10,000';
-    }
+    if (amount == null) return 'Please enter a valid number';
+    if (amount < 0) return 'Amount cannot be negative';
+    if (amount > 10000) return 'Amount cannot exceed \$10,000';
+    
     return null;
   }
 
