@@ -17,7 +17,7 @@ import { getBoundsViolations } from "./validation";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 
 
-export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: string, instanceId?: string, applyFormWidth?: boolean }) {
+export function PreviewRendererClient({ slug, applyFormWidth = true }: { slug?: string, applyFormWidth?: boolean }) {
   const schema = useBuilderStore((s) => s.schema);
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const zodSchema = schemaToZodObject(schema); // always create schema
