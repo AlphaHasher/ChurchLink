@@ -141,8 +141,7 @@ const Ministries = () => {
             {
                 headerName: 'Actions',
                 cellRenderer: ActionsCellRenderer,
-                minWidth: 220,
-                maxWidth: 260,
+                minWidth: 300,
                 pinned: 'right',
             },
         ],
