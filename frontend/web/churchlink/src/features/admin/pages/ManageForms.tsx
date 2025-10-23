@@ -189,7 +189,7 @@ const ManageForms = () => {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
   const [assignmentTarget, setAssignmentTarget] = useState<{ formIds: string[]; selected: Set<string> } | null>(null);
-  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean } | null>(null);
+  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean; autoEnableVisibility?: boolean } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
   const [duplicateNameDialog, setDuplicateNameDialog] = useState<{
     formId: string;
@@ -428,7 +428,7 @@ const ManageForms = () => {
 
         if (!hasSlug) {
           setStatus('Please create a link/slug before making the form visible');
-          openCreateSlug(id, slugify((form && form.title) || ''), false);
+          openCreateSlug(id, slugify((form && form.title) || ''), false, true);
           return;
         }
 
@@ -457,21 +457,43 @@ const ManageForms = () => {
       .replace(/-+/g, '-');
   };
 
-  const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false) => {
+  const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false, autoEnableVisibility: boolean = false) => {
     setSlugError(null);
-    setSlugDialog({ id, slug: currentSlug || '', isExisting });
+    setSlugDialog({ id, slug: currentSlug || '', isExisting, autoEnableVisibility });
   };
 
   const saveSlug = async () => {
     if (!slugDialog) return;
-    const { id, slug } = slugDialog;
+    const { id, slug, autoEnableVisibility } = slugDialog;
     const cleaned = slugify(slug);
-    if (!cleaned) { setSlugError('Slug cannot be empty'); return; }
+    if (!cleaned) { 
+      setSlugError('Slug cannot be empty'); 
+      return; 
+    }
+    
     try {
-  await api.put(`/v1/forms/${id}`, { slug: cleaned });
-  setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
-  await refreshFormsAndMinistries();
+      const form = allForms.find((f) => f.id === id);
+      const hasMinistries = !!(form && Array.isArray(form.ministries) && form.ministries.length > 0);
+      const shouldEnableVisibility = autoEnableVisibility && hasMinistries;
+      
+      const updates: { slug: string; visible?: boolean } = { slug: cleaned };
+      if (shouldEnableVisibility) {
+        updates.visible = true;
+      }
+      
+      await api.put(`/v1/forms/${id}`, updates);
+      
+      setAllForms((prev) => prev.map((f) => 
+        f.id === id ? { ...f, ...updates } : f
+      ));
+      
+      await refreshFormsAndMinistries();
       setSlugDialog(null);
+      
+      if (autoEnableVisibility && !hasMinistries) {
+        setStatus('Slug created. Please assign ministries before making the form visible');
+        setAssignmentTarget({ formIds: [id], selected: new Set() });
+      }
     } catch (err: any) {
       if (err?.response?.status === 409) {
         setSlugError('Slug already exists. Pick a different value.');
