@@ -52,7 +52,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
     const { openRename, openDelete } = context as GridContext;
 
     return (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center h-full gap-2">
             <Button size="sm" variant="outline" onClick={() => openRename(ministry)}>
                 <Pencil className="mr-2 h-4 w-4" /> Rename
             </Button>
