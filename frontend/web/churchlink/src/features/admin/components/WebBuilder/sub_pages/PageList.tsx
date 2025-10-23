@@ -5,7 +5,7 @@ import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from 
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { Edit, Trash2 } from "lucide-react";
 import api from "@/api/api";
-import MultiStateBadge from "@/shared/components/MultiStageBadge";
+import { VisibilityToggleCellRenderer } from "@/shared/components/VisibilityToggle";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
@@ -21,61 +21,8 @@ interface Page {
   locked?: boolean;
 }
 
-// Cell renderer component for visibility column
-const VisibilityCellRendererComponent: React.FC<{ data: Page; value: boolean; setPages: React.Dispatch<React.SetStateAction<Page[]>> }> = ({ data, value, setPages }) => {
-  const [badgeState, setBadgeState] = useState<"custom" | "processing" | "success" | "error">("custom");
-
-  const handleToggleVisibility = async () => {
-    if (badgeState !== "custom") return;
-    const newVisibility = !value;
-    setBadgeState("processing");
-
-    try {
-      await api.put(`/v1/pages/${data._id}`, { visible: newVisibility });
-      setBadgeState("success");
-      setTimeout(() => {
-        setPages((prev: Page[]) =>
-          prev.map((p) => (p._id === data._id ? { ...p, visible: newVisibility } : p))
-        );
-        setBadgeState("custom");
-      }, 900);
-    } catch (error) {
-      console.error("Error updating page visibility:", error);
-      setBadgeState("error");
-      setTimeout(() => setBadgeState("custom"), 1200);
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-center h-full w-full overflow-visible">
-      <MultiStateBadge
-        state={badgeState}
-        onClick={handleToggleVisibility}
-        customComponent={
-          <span
-            className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
-              value
-                ? "bg-green-500/20 text-green-400 dark:bg-green-400 dark:text-green-900"
-                : "bg-red-500/20 text-red-400 dark:bg-red-400 dark:text-red-900"
-            }`}
-          >
-            {value ? "Visible" : "Hidden"}
-          </span>
-        }
-      />
-    </div>
-  );
-};
-
 // Cell renderer function for visibility column
-const VisibilityCellRenderer = (props: ICellRendererParams<Page>) => {
-  const { data, value, context } = props;
-  if (!data) return null;
-
-  const { setPages } = context as { setPages: React.Dispatch<React.SetStateAction<Page[]>> };
-
-  return <VisibilityCellRendererComponent data={data} value={value} setPages={setPages} />;
-};
+const VisibilityCellRenderer = VisibilityToggleCellRenderer;
 
 const WebBuilderPageList = () => {
   const [pages, setPages] = useState<Page[]>([]);
@@ -279,7 +226,13 @@ const WebBuilderPageList = () => {
           rowData={pages}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          context={{ setPages }}
+          context={{ 
+            setPages,
+            onToggleVisibility: async (id: string, newVisibility: boolean) => {
+              await api.put(`/v1/pages/${id}`, { visible: newVisibility });
+              setPages((prev) => prev.map((p) => (p._id === id ? { ...p, visible: newVisibility } : p)));
+            }
+          }}
           pagination={true}
           paginationPageSize={20}
           paginationPageSizeSelector={[10, 20, 50]}

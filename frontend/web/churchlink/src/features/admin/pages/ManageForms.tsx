@@ -19,6 +19,8 @@ ModuleRegistry.registerModules([
 ]);
 
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
+import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { VisibilityToggleCellRenderer } from '@/shared/components/VisibilityToggle';
 import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
@@ -26,8 +28,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
-import { Switch } from '@/shared/components/ui/switch';
-import { Checkbox } from '@/shared/components/ui/checkbox';
 import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, RefreshCcw, AlertTriangle } from 'lucide-react';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Skeleton } from '@/shared/components/ui/skeleton';
@@ -62,12 +62,23 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
-      {ministries.map((name: string) => (
-        <span key={name} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
-          {name}
-        </span>
-      ))}
+    <div className="flex items-center gap-2 w-full min-w-0">
+      <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+        {ministries.map((name: string) => (
+          <span key={name} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
+            {name}
+          </span>
+        ))}
+      </div>
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={() => openMinistryAssignment([data.id], ministries)}
+        className="flex-shrink-0 h-6 w-6"
+        title="Edit ministries"
+      >
+        <Pencil className="h-3 w-3" />
+      </Button>
     </div>
   );
 };
@@ -103,21 +114,7 @@ const LinksCellRenderer = (props: ICellRendererParams) => {
   );
 };
 
-// Cell renderer for visible column (switch)
-const VisibleCellRenderer = (props: ICellRendererParams) => {
-  const { data, context } = props;
-  if (!data) return null;
-
-  const { handleToggleVisible } = context;
-
-  return (
-    <Switch
-      checked={!!data.visible}
-      onCheckedChange={(c) => handleToggleVisible(data.id, !!c)}
-      aria-label="Toggle visibility"
-    />
-  );
-};
+const VisibleCellRenderer = VisibilityToggleCellRenderer;
 
 // Cell renderer for actions column
 const ActionsCellRenderer = (props: ICellRendererParams) => {
@@ -188,8 +185,8 @@ const ManageForms = () => {
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
-  const [assignmentTarget, setAssignmentTarget] = useState<{ formIds: string[]; selected: Set<string> } | null>(null);
-  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean } | null>(null);
+  const [assignmentTarget, setAssignmentTarget] = useState<{ formIds: string[]; selected: string[] } | null>(null);
+  const [slugDialog, setSlugDialog] = useState<{ id: string; slug: string; isExisting?: boolean; autoEnableVisibility?: boolean } | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
   const [duplicateNameDialog, setDuplicateNameDialog] = useState<{
     formId: string;
@@ -250,8 +247,9 @@ const ManageForms = () => {
       headerName: 'Visible',
       field: 'visible',
       flex: 1,
-      minWidth: 80,
+      minWidth: 120,
       cellRenderer: VisibleCellRenderer,
+      cellStyle: { display: 'grid', placeItems: 'center', padding: 0 },
     },
     {
       headerName: 'Expired',
@@ -428,13 +426,13 @@ const ManageForms = () => {
 
         if (!hasSlug) {
           setStatus('Please create a link/slug before making the form visible');
-          openCreateSlug(id, slugify((form && form.title) || ''), false);
+          openCreateSlug(id, slugify((form && form.title) || ''), false, true);
           return;
         }
 
         if (!hasMinistries) {
           setStatus('Please assign ministries before making the form visible');
-          setAssignmentTarget({ formIds: [id], selected: new Set() });
+          setAssignmentTarget({ formIds: [id], selected: [] });
           return;
         }
       }
@@ -457,21 +455,43 @@ const ManageForms = () => {
       .replace(/-+/g, '-');
   };
 
-  const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false) => {
+  const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false, autoEnableVisibility: boolean = false) => {
     setSlugError(null);
-    setSlugDialog({ id, slug: currentSlug || '', isExisting });
+    setSlugDialog({ id, slug: currentSlug || '', isExisting, autoEnableVisibility });
   };
 
   const saveSlug = async () => {
     if (!slugDialog) return;
-    const { id, slug } = slugDialog;
+    const { id, slug, autoEnableVisibility } = slugDialog;
     const cleaned = slugify(slug);
-    if (!cleaned) { setSlugError('Slug cannot be empty'); return; }
+    if (!cleaned) { 
+      setSlugError('Slug cannot be empty'); 
+      return; 
+    }
+    
     try {
-  await api.put(`/v1/forms/${id}`, { slug: cleaned });
-  setAllForms((prev) => prev.map((f) => (f.id === id ? { ...f, slug: cleaned } : f)));
-  await refreshFormsAndMinistries();
+      const form = allForms.find((f) => f.id === id);
+      const hasMinistries = !!(form && Array.isArray(form.ministries) && form.ministries.length > 0);
+      const shouldEnableVisibility = autoEnableVisibility && hasMinistries;
+      
+      const updates: { slug: string; visible?: boolean } = { slug: cleaned };
+      if (shouldEnableVisibility) {
+        updates.visible = true;
+      }
+      
+      await api.put(`/v1/forms/${id}`, updates);
+      
+      setAllForms((prev) => prev.map((f) => 
+        f.id === id ? { ...f, ...updates } : f
+      ));
+      
+      await refreshFormsAndMinistries();
       setSlugDialog(null);
+      
+      if (autoEnableVisibility && !hasMinistries) {
+        setStatus('Slug created. Please assign ministries before making the form visible');
+        setAssignmentTarget({ formIds: [id], selected: [] });
+      }
     } catch (err: any) {
       if (err?.response?.status === 409) {
         setSlugError('Slug already exists. Pick a different value.');
@@ -543,21 +563,25 @@ const ManageForms = () => {
   };
 
   const handleAssignMinistries = async () => {
-    if (!assignmentTarget || assignmentTarget.selected.size === 0) return;
+    if (!assignmentTarget || assignmentTarget.selected.length === 0) return;
+    
+    const formIds = assignmentTarget.formIds;
+    const selectedMinistries = assignmentTarget.selected;
+    
+    setAssignmentTarget(null);
+    
     try {
-      const selectedArray = Array.from(assignmentTarget.selected);
       await Promise.all(
-        assignmentTarget.formIds.map((id) =>
-          api.put(`/v1/forms/${id}`, { ministries: selectedArray })
+        formIds.map((id) =>
+          api.put(`/v1/forms/${id}`, { ministries: selectedMinistries })
         )
       );
       setAllForms((prev) =>
         prev.map((f) =>
-          assignmentTarget.formIds.includes(f.id) ? { ...f, ministries: selectedArray } : f
+          formIds.includes(f.id) ? { ...f, ministries: selectedMinistries } : f
         )
       );
       await refreshFormsAndMinistries();
-      setAssignmentTarget(null);
       setStatus('Ministries assigned successfully');
       setTimeout(() => setStatus(null), 3000);
     } catch (e) {
@@ -569,19 +593,8 @@ const ManageForms = () => {
   const openMinistryAssignment = (formIds: string[], currentMinistries: string[] = []) => {
     setAssignmentTarget({
       formIds,
-      selected: new Set(currentMinistries),
+      selected: currentMinistries,
     });
-  };
-
-  const toggleMinistry = (ministryId: string) => {
-    if (!assignmentTarget) return;
-    const newSelected = new Set(assignmentTarget.selected);
-    if (newSelected.has(ministryId)) {
-      newSelected.delete(ministryId);
-    } else {
-      newSelected.add(ministryId);
-    }
-    setAssignmentTarget({ ...assignmentTarget, selected: newSelected });
   };
 
   return (
@@ -633,7 +646,7 @@ const ManageForms = () => {
             <div className="text-sm">{selectedRows.length} selected</div>
             <div className="flex items-center gap-2">
               <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteIds(selectedRows.map(row => row.id))}><Trash className="h-4 w-4 mr-1" /> Delete</Button>
-              <Button size="sm" variant="outline" onClick={() => setAssignmentTarget({ formIds: selectedRows.map(row => row.id), selected: new Set() })}><FileEdit className="h-4 w-4 mr-1" /> Assign ministries</Button>
+              <Button size="sm" variant="outline" onClick={() => setAssignmentTarget({ formIds: selectedRows.map(row => row.id), selected: [] })}><FileEdit className="h-4 w-4 mr-1" /> Assign ministries</Button>
               <Button size="sm" variant="outline" onClick={async () => { for (const row of selectedRows) await handleExport(row.id); }}><Download className="h-4 w-4 mr-1" /> Export</Button>
             </div>
           </div>
@@ -677,6 +690,9 @@ const ManageForms = () => {
                 setRenameTarget,
                 setConfirmDeleteIds,
                 handleToggleVisible,
+                onToggleVisibility: async (id: string, newVisibility: boolean) => {
+                  await handleToggleVisible(id, newVisibility);
+                },
                 slugify,
                 setAssignmentTarget,
                 openMinistryAssignment,
@@ -769,26 +785,24 @@ const ManageForms = () => {
           <DialogHeader>
             <DialogTitle>Assign ministries to {assignmentTarget?.formIds.length === 1 ? 'form' : `${assignmentTarget?.formIds.length} forms`}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="py-4">
             {availableMinistries.length > 0 ? (
-              availableMinistries.map((m: any) => (
-                <div key={m.id} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={assignmentTarget?.selected.has(m.name) ?? false}
-                    onCheckedChange={() => toggleMinistry(m.name)}
-                  />
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    {m.name}
-                  </label>
-                </div>
-              ))
+              <EventMinistryDropdown
+                selected={assignmentTarget?.selected || []}
+                onChange={(updated) => {
+                  if (assignmentTarget) {
+                    setAssignmentTarget({ ...assignmentTarget, selected: updated });
+                  }
+                }}
+                ministries={availableMinistries.map((m: any) => m.name)}
+              />
             ) : (
               <div className="text-sm text-muted-foreground">No ministries available. Create one from Admin &gt; Ministries first.</div>
             )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAssignmentTarget(null)}>Cancel</Button>
-            <Button disabled={!assignmentTarget || assignmentTarget.selected.size === 0} onClick={handleAssignMinistries}>Assign</Button>
+            <Button disabled={!assignmentTarget || assignmentTarget.selected.length === 0} onClick={handleAssignMinistries}>Assign</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
