@@ -256,7 +256,7 @@ const Ministries = () => {
                 </Alert>
             )}
 
-            <div className="ag-theme-quartz w-full border border-border" style={{ height: 500 }}>
+            <div className="ag-theme-quartz w-full border border-border rounded-lg" style={{ height: 500 }}>
                 <AgGridReact<Ministry>
                     ref={gridRef}
                     rowData={ministries}
