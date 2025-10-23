@@ -160,8 +160,12 @@ class FormPaymentHelper:
     ) -> Dict[str, Any]:
         """Complete form submission after payment processing"""
         try:
-            user_id = completion_data.get("user_id", "anonymous")
+            user_id = completion_data.get("user_id")
             payment_id = completion_data.get("payment_id")
+            
+            # Ensure user_id is provided (should be set by the route after authentication)
+            if not user_id:
+                raise HTTPException(status_code=400, detail="User ID is required for form submission")
             
             self.logger.info(f"Completing form submission for slug: {slug}, payment_id: {payment_id}")
             
@@ -517,7 +521,7 @@ class FormPaymentHelper:
             }
             
             # Submit to form system
-            submission_id = await add_response_by_slug(slug, enriched_response)
+            submission_id = await add_response_by_slug(slug, enriched_response, user_id=user_id)
             
             return {"submission_id": submission_id}
             

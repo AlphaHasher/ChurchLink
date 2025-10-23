@@ -32,7 +32,7 @@ import { App, ConfigProvider, theme } from "antd";
 interface Transaction {
   transaction_id: string;
   user_email: string;
-  user_name?: string;
+  name?: string;  // Changed from user_name to name to match backend model
   amount: number;
   currency: string;
   status: string;
@@ -347,7 +347,7 @@ const FinancePage: React.FC = () => {
       ...transactions.map(t => [
         t.transaction_id,
         t.user_email,
-        t.user_name || t.payer_info?.first_name + ' ' + t.payer_info?.last_name || '',
+        t.name || t.payer_info?.first_name + ' ' + t.payer_info?.last_name || '',
         t.amount.toString(),
         t.currency,
         t.status,
@@ -637,7 +637,12 @@ const FinancePage: React.FC = () => {
                           <td className="p-4 font-mono text-sm">{transaction.transaction_id}</td>
                           <td className="p-4">
                             <div>
-                              <p className="font-medium">{transaction.user_name || 'Unknown'}</p>
+                              <p className="font-medium">
+                                {transaction.name || 
+                                 (transaction.payer_info?.first_name && transaction.payer_info?.last_name 
+                                   ? `${transaction.payer_info.first_name} ${transaction.payer_info.last_name}`
+                                   : transaction.payer_info?.first_name || transaction.payer_info?.last_name || 'Unknown')}
+                              </p>
                               <p className="text-sm text-muted-foreground">{transaction.user_email}</p>
                             </div>
                           </td>
@@ -820,7 +825,12 @@ const FinancePage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">User Name</p>
-                  <p>{selectedTransaction.user_name || 'Not provided'}</p>
+                  <p>
+                    {selectedTransaction.name || 
+                     (selectedTransaction.payer_info?.first_name && selectedTransaction.payer_info?.last_name 
+                       ? `${selectedTransaction.payer_info.first_name} ${selectedTransaction.payer_info.last_name}`
+                       : selectedTransaction.payer_info?.first_name || selectedTransaction.payer_info?.last_name || 'Not provided')}
+                  </p>
                 </div>
               </div>
 
