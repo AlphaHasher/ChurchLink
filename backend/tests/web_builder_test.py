@@ -1,12 +1,8 @@
 from dotenv import load_dotenv
 import httpx
-import sys
 import os
 
 from backend.tests.test_auth_helpers import get_admin_headers
-
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(backend_dir)
 
 load_dotenv()
 

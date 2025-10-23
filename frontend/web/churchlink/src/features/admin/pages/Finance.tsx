@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import api from "@/api/api";
 import PayPalSettingsComponent from "../components/Finance/PayPalSettings";
+import { App, ConfigProvider, theme } from "antd";
 
 // Types for the enhanced finance system
 interface Transaction {
@@ -882,4 +883,44 @@ const FinancePage: React.FC = () => {
   );
 };
 
-export default FinancePage;
+const FinanceRoute: React.FC = () => {
+  const [isDark, setIsDark] = React.useState(
+    typeof document !== "undefined" &&
+      document.documentElement.classList.contains("dark")
+  );
+
+  React.useEffect(() => {
+    const element = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsDark(element.classList.contains("dark"));
+    });
+    observer.observe(element, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <ConfigProvider
+      theme={{
+        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        cssVar: true,
+        token: isDark
+          ? {
+              colorBgContainer: "#12171f",
+              colorBgElevated: "#12171f",
+              colorBorder: "#2a3340",
+              colorSplit: "#202734",
+              colorText: "#e6edf3",
+              colorTextSecondary: "#9aa7b3",
+              colorPrimary: "#2e7cf6",
+              borderRadius: 10,
+            }
+          : { borderRadius: 10 },
+      }}
+    >
+      <App>
+        <FinancePage />
+      </App>
+    </ConfigProvider>
+  );
+};
+export default FinanceRoute;

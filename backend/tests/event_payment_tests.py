@@ -1,16 +1,10 @@
 import pytest
 import httpx
 import asyncio
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from bson import ObjectId
-import json
 import os
-import sys
-
-# Add backend to path for imports
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(backend_dir)
 
 from helpers.event_payment_helper import event_payment_helper
 from models.event import Event

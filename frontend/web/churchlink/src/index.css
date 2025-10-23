@@ -238,7 +238,7 @@ h1 {
     @apply bg-background text-foreground;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1, h2, h3, h4, h5 {
     font-family: Helvetica, Arial, sans-serif;
   }
   h1 { font-size: 1.6em; }
@@ -246,42 +246,12 @@ h1 {
   h3 { font-size: 1.3em; }
   h4 { font-size: 1.25em; font-variant: normal; }
   h5 { font-size: 1.12em; font-variant: normal; }
-  h6 { font-size: 1.12em; font-variant: normal; }
 
   /* Church-themed gradient button helpers */
-  .btn-gradient-primary {
-    background: var(--gradient-primary);
-    color: var(--primary-foreground);
-  }
-  .btn-gradient-primary:hover {
-    opacity: 0.9;
-  }
-  .btn-gradient-ring {
-    --tw-ring-color: var(--color-ring);
-  }
 
   /* Church-themed gradient utility classes */
-  .bg-gradient-primary {
-    background: var(--gradient-primary);
-  }
-
-  .bg-gradient-secondary {
-    background: var(--gradient-secondary);
-  }
-
-  .bg-gradient-accent {
-    background: var(--gradient-accent);
-  }
 
   /* Warm gold theme enhancements for church app */
-  .church-glow {
-    box-shadow: 0 0 20px oklch(0.75 0.12 65 / 0.2);
-  }
-
-  .church-border-glow {
-    border: 1px solid oklch(0.75 0.12 65 / 0.3);
-    box-shadow: 0 0 10px oklch(0.75 0.12 65 / 0.1);
-  }
 }
 
 /* Removed forced light theme for iframe content - now respects theme settings */
@@ -320,27 +290,23 @@ h1 {
   }
 
   /* Enhanced styling for church data grids and tables */
-  .ag-theme-quartz ::-webkit-scrollbar,
-  .ag-theme-quartz-dark ::-webkit-scrollbar {
+  .ag-theme-quartz ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
 
-  .ag-theme-quartz ::-webkit-scrollbar-track,
-  .ag-theme-quartz-dark ::-webkit-scrollbar-track {
+  .ag-theme-quartz ::-webkit-scrollbar-track {
     background: var(--ag-background-color);
     border-radius: var(--radius-sm);
   }
 
-  .ag-theme-quartz ::-webkit-scrollbar-thumb,
-  .ag-theme-quartz-dark ::-webkit-scrollbar-thumb {
+  .ag-theme-quartz ::-webkit-scrollbar-thumb {
     background: var(--color-border);
     border: 2px solid var(--ag-background-color);
     border-radius: var(--radius-md);
   }
 
-  .ag-theme-quartz ::-webkit-scrollbar-thumb:hover,
-  .ag-theme-quartz-dark ::-webkit-scrollbar-thumb:hover {
+  .ag-theme-quartz ::-webkit-scrollbar-thumb:hover {
     background: var(--color-accent);
   }
 
@@ -387,10 +353,6 @@ h1 {
   justify-content: center !important;
   overflow: visible !important;
 }
-.perm-cell .ag-cell-wrapper,
-.perm-cell .ag-cell-value {
-  overflow: visible !important;
-}
 
 /* AG Grid Church Theme Support */
 .ag-theme-quartz {
@@ -420,48 +382,6 @@ h1 {
   --ag-border-radius: var(--radius-md);
 }
 
-.ag-theme-quartz-dark {
-  /* Church dark theme - reuse most light theme mappings with dark variables */
-  --ag-selected-row-background-color: oklch(from var(--color-accent) l c h / 0.2); /* Slightly more opaque for dark */
-  --ag-input-disabled-background-color: oklch(from var(--color-background) l calc(l - 0.02) c h); /* Slightly darker warm background */
-}
-
-/* Warm church header polish for settings grids */
-.church-settings-grid .ag-header {
-  background: var(--gradient-secondary);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 1px 0 var(--color-border), 0 6px 16px oklch(from var(--color-background) l calc(l - 0.08) c h / 0.15);
-  border-top-left-radius: var(--radius-md);
-  border-top-right-radius: var(--radius-md);
-}
-
-.church-settings-grid .ag-header .ag-header-cell,
-.church-settings-grid .ag-header .ag-header-group-cell {
-  background: transparent;
-}
-
-.church-settings-grid .ag-header-cell-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.church-settings-grid .ag-header-cell-text {
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  color: var(--color-foreground);
-}
-
-.church-settings-grid .ag-header-cell:hover {
-  background-color: oklch(from var(--color-secondary) l c h / 0.6) !important;
-}
-
-.church-settings-grid .ag-header-viewport .ag-header-row .ag-header-cell:first-child {
-  border-top-left-radius: var(--radius-md);
-}
-.church-settings-grid .ag-header-viewport .ag-header-row .ag-header-cell:last-child {
-  border-top-right-radius: var(--radius-md);
-}
 
 /* AG Grid Dark Mode Support with Church Theme */
 .dark .ag-theme-quartz {
@@ -495,10 +415,6 @@ h1 {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  overflow: visible !important;
-}
-.perm-cell .ag-cell-wrapper,
-.perm-cell .ag-cell-value {
   overflow: visible !important;
 }
 
@@ -535,10 +451,6 @@ h1 {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  overflow: visible !important;
-}
-.perm-cell .ag-cell-wrapper,
-.perm-cell .ag-cell-value {
   overflow: visible !important;
 }
 
