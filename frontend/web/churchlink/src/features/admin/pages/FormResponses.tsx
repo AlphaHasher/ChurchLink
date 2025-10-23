@@ -441,7 +441,7 @@ const FormResponses = () => {
             className="grid grid-cols-1 gap-2 border-b py-3 last:border-b-0 sm:grid-cols-[minmax(0,220px)_1fr] sm:gap-6"
           >
             <div className="text-sm font-medium text-muted-foreground">{label}</div>
-            <div className="text-sm whitespace-pre-wrap overflow-wrap-break-word">{displayValue}</div>
+            <div className="text-sm whitespace-pre-wrap break-words">{displayValue}</div>
           </div>
         );
       });
