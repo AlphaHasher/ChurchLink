@@ -11,7 +11,11 @@ from models.image_data import get_image_data
 class DashboardAppConfigHelper:
     """Helper class for dashboard app configuration CRUD"""
 
-    collection = DB.db.app_config  # Shared with app tabs
+    @staticmethod
+    def _get_collection():
+        if not getattr(DB, "db", None):
+            raise RuntimeError("Database not initialized. Call DB.connect() first.")
+        return DB.db.app_config  # Shared collection
 
     @staticmethod
     async def _validate_image_ids(pages: List[Dict[str, Any]]) -> None:
