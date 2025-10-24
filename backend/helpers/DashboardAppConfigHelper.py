@@ -35,7 +35,8 @@ class DashboardAppConfigHelper:
 
     @staticmethod
     async def get_config() -> Optional[Dict[str, Any]]:
-        return await DashboardAppConfigHelper.collection.find_one({"config_type": "dashboard_pages"})
+        collection = DashboardAppConfigHelper._get_collection()
+        return await collection.find_one({"config_type": "dashboard_pages"})
 
     @staticmethod
     async def get_page_by_index(index: int) -> Optional[Dict[str, Any]]:
