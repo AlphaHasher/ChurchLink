@@ -9,7 +9,10 @@ class DashboardPageConfig(BaseModel):
     index: int = Field(..., description="Order index of the page")
     page_name: str = Field(..., description="Internal page name or slug")
     display_name: str = Field(..., description="Display name for the dashboard UI")
-    image_id: Optional[str] = Field(None, description="Reference to image_data _id")
+    image_id: Optional[str] = Field(
+        None,
+        description="String _id of image_data document (validated)"
+    )
     enabled: bool = Field(True, description="Whether the page is visible/enabled")
 
 class DashboardAppConfig(BaseModel):
@@ -25,3 +28,4 @@ class DashboardAppConfig(BaseModel):
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}
         orm_mode = True
+
