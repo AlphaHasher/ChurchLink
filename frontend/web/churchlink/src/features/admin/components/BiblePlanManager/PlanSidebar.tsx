@@ -90,15 +90,14 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
       templatesInFlight = api.get('/v1/bible-plans/templates')
         .then(r => r.data as ReadingPlanWithId[])
         .then(data => {
-          templatesCache = data;
-          return data;
+          return data || [];
         })
         .finally(() => {
           templatesInFlight = null;
         });
     }
     templatesInFlight
-      .then(data => { if (!cancelled) setTemplates(data); })
+      .then(data => { if (!cancelled) setTemplates(data || []); })
       .catch(error => {
         if (!cancelled) {
           console.error('Failed to load templates:', error);

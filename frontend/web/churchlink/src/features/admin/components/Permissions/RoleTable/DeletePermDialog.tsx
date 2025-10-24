@@ -72,6 +72,7 @@ export function DeletePermDialog({
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
                 variant="destructive"
+                size="sm"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {
@@ -120,7 +121,9 @@ export function DeletePermDialog({
                         <Loader2 className="animate-spin mr-2 h-4 w-4" />
                     </>
                 ) : (
-                    <Trash />
+                    <>
+                        <Trash className="mr-2 h-4 w-4" /> Delete
+                    </>
                 )}
             </Button>
 
