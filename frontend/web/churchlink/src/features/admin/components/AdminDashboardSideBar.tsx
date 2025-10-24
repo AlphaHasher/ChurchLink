@@ -92,7 +92,12 @@ const AdminDashboardSideBar = () => {
         { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
       ]
     },
-    { title: "Finance", url: "/admin/finance", icon: Wallet },
+    {
+      title: "Finance", icon: Wallet, children: [
+        { title: "Overview", url: "/admin/finance" },
+        { title: "Refund Management", url: "/admin/finance/refunds" },
+      ]
+    },
     { title: "Notifications", url: "/admin/notifications", icon: Bell },
   ];
 

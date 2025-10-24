@@ -298,6 +298,11 @@ finance_management_protected_router.include_router(finance_router)
 from routes.event_payment_routes.event_payment_routes import event_payment_router
 app.include_router(event_payment_router, prefix="/api/v1")
 
+# ADMIN REFUND MANAGEMENT ROUTES
+from routes.event_payment_routes.admin_refund_routes import admin_refund_router
+admin_refund_management_router = PermProtectedRouter(prefix="/api/v1", tags=["Admin Refund Management"], required_perms=["finance"])
+admin_refund_management_router.include_router(admin_refund_router)
+
 
 
 
@@ -317,6 +322,7 @@ app.include_router(service_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
 app.include_router(finance_management_protected_router)
+app.include_router(admin_refund_management_router)
 app.include_router(media_management_protected_router)
 
 

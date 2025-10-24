@@ -96,7 +96,7 @@ function EventRegistrationForm({
       registered_on: string;
       kind: "rsvp";
       payment_method?: "paypal" | "door";
-      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door";
+      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded";
       scope?: "series" | "occurrence";
     }>;
     total_registrations: number;
@@ -323,6 +323,47 @@ function EventRegistrationForm({
       console.error("Remove registration failed:", error);
       const errorMessage = error?.response?.data?.detail || error?.message || "Unknown error occurred";
       alert(`Failed to remove registration: ${errorMessage}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRefundRequest = async (personId: string | null, displayName: string) => {
+    try {
+      setSaving(true);
+      
+      // Show confirmation dialog with refund policy
+      const refundPolicy = event.refund_policy || "Standard refund policy applies.";
+      const confirmMessage = `Request refund for ${displayName}?\n\nRefund Policy: ${refundPolicy}\n\nThis will:\n• Submit a refund request to administrators\n• Keep the registration active until refund is processed\n• Send you email updates on refund status`;
+      
+      if (!confirm(confirmMessage)) {
+        setSaving(false);
+        return;
+      }
+
+      // Submit refund request
+      const payload = {
+        event_id: event.id,
+        person_id: personId,
+        display_name: displayName,
+        reason: "User requested refund via registration interface"
+      };
+
+      const response = await api.post(`/v1/events/${event.id}/refund/request`, payload);
+      
+      if (response.data?.success) {
+        alert(`Refund request submitted successfully for ${displayName}. You will receive email updates on the refund status.`);
+        
+        // Refresh registration summary to show updated status
+        const regRes = await api.get(`/v1/events/${event.id}/registrations/summary`);
+        setSummary(regRes.data);
+      } else {
+        throw new Error(response.data?.message || "Failed to submit refund request");
+      }
+    } catch (error: any) {
+      console.error("Refund request failed:", error);
+      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to submit refund request";
+      alert(`Refund request failed: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -712,7 +753,11 @@ function EventRegistrationForm({
                                 ? 'bg-yellow-100 text-yellow-700'
                                 : r.payment_status === 'awaiting_payment'
                                   ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-red-100 text-red-700'
+                                  : r.payment_status === 'refund_requested'
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : r.payment_status === 'refunded'
+                                      ? 'bg-gray-100 text-gray-700'
+                                      : 'bg-red-100 text-red-700'
                             }`}>
                             {(r.payment_status === 'completed' || r.payment_status === 'paid')
                               ? '✅ Paid Online'
@@ -720,7 +765,11 @@ function EventRegistrationForm({
                                 ? '🚪 Pay at Door'
                                 : r.payment_status === 'awaiting_payment'
                                   ? '⏳ PayPal Processing'
-                                  : '❌ Payment Required'}
+                                  : r.payment_status === 'refund_requested'
+                                    ? '🔄 Refund Requested'
+                                    : r.payment_status === 'refunded'
+                                      ? '💰 Refunded'
+                                      : '❌ Payment Required'}
                           </span>
                         ) : (
                           <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block">
@@ -729,13 +778,24 @@ function EventRegistrationForm({
                         )}
                       </div>
                     </div>
-                    <button
-                      disabled={saving}
-                      className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-                      onClick={() => removeRegistered(r.person_id)}
-                    >
-                      Remove
-                    </button>
+                    {/* Smart Remove/Refund Button */}
+                    {(r.payment_status === 'completed' || r.payment_status === 'paid') ? (
+                      <button
+                        disabled={saving}
+                        className="px-3 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700"
+                        onClick={() => handleRefundRequest(r.person_id, r.display_name)}
+                      >
+                        Remove and Request Refund
+                      </button>
+                    ) : (
+                      <button
+                        disabled={saving}
+                        className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        onClick={() => removeRegistered(r.person_id)}
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
