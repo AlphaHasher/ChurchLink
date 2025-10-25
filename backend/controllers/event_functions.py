@@ -172,3 +172,64 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, 
     
     return True
 
+
+async def register_multiple_people(
+    event_id: str, 
+    uid: str, 
+    registrations: list, 
+    payment_option: str = "paypal",
+    donation_amount: float = 0.0
+) -> tuple[bool, str]:
+    """
+    Register multiple people for an event using the provided registration data.
+    
+    Args:
+        event_id: The event ID to register for
+        uid: The user ID performing the registration  
+        registrations: List of registration dicts with person_id and display_name
+        payment_option: Payment method used ("paypal", "door", "free")
+        donation_amount: Optional donation amount (currently not used)
+        
+    Returns:
+        tuple[bool, str]: (success, message)
+    """
+    try:
+        successful_registrations = []
+        failed_registrations = []
+        
+        for registration in registrations:
+            person_id = registration.get('person_id')  # None for self, ObjectId string for family members
+            display_name = registration.get('display_name', registration.get('name'))
+            
+            # Register this person
+            success, reason = await register_rsvp(
+                event_id=event_id,
+                uid=uid,
+                person_id=person_id,
+                display_name=display_name,
+                scope="occurrence",  # Single event registration for PayPal payments
+                payment_option=payment_option
+            )
+            
+            if success:
+                successful_registrations.append(display_name or f"Person {person_id}" if person_id else "Self")
+                logging.info(f"Successfully registered {display_name} for event {event_id}")
+            else:
+                failed_registrations.append(f"{display_name}: {reason}")
+                logging.error(f"Failed to register {display_name} for event {event_id}: {reason}")
+        
+        # Determine overall success
+        total_registrations = len(registrations)
+        successful_count = len(successful_registrations)
+        
+        if successful_count == total_registrations:
+            return True, f"Successfully registered all {successful_count} people"
+        elif successful_count > 0:
+            return True, f"Registered {successful_count}/{total_registrations} people. Failed: {', '.join(failed_registrations)}"
+        else:
+            return False, f"Failed to register any people: {', '.join(failed_registrations)}"
+            
+    except Exception as e:
+        logging.error(f"Error in register_multiple_people: {str(e)}")
+        return False, f"Registration failed due to error: {str(e)}"
+

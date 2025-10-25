@@ -1,10 +1,3 @@
-"""
-Refund Email Notification Helper
-
-This module handles all email notifications related to refund requests.
-Supports multiple email providers: SMTP, SendGrid, Mailgun, etc.
-"""
-
 import os
 import logging
 import smtplib

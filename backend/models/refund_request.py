@@ -4,6 +4,8 @@ from datetime import datetime
 from mongo.database import DB
 from bson import ObjectId
 import logging
+import traceback
+from helpers.MongoHelper import generate_unique_id
 
 class RefundRequestStatus:
     PENDING = "pending"
@@ -27,6 +29,10 @@ class RefundRequest(BaseModel):
     # Payment details
     transaction_id: Optional[str] = Field(None, description="Original PayPal transaction ID")
     payment_amount: float = Field(..., description="Amount to be refunded")
+    original_amount: Optional[float] = Field(None, description="Original payment amount for reference")
+    refund_type: str = Field(default="full", description="Type of refund: 'full', 'partial', 'per_person'")
+    requested_amount: Optional[float] = Field(None, description="Specific amount requested for partial refunds")
+    maximum_refundable: Optional[float] = Field(None, description="Maximum amount that can be refunded")
     payment_method: str = Field(default="paypal", description="Original payment method")
     
     # Request details
@@ -64,6 +70,8 @@ class RefundRequestCreate(BaseModel):
     display_name: str
     reason: str
     user_notes: Optional[str] = None
+    refund_type: str = Field(default="full", description="Type of refund: 'full', 'partial', 'per_person'")
+    requested_amount: Optional[float] = Field(None, description="Specific amount for partial refunds")
 
 class RefundRequestUpdate(BaseModel):
     status: Optional[str] = None
@@ -81,7 +89,6 @@ class RefundRequestOut(RefundRequest):
 async def create_refund_request(request_data: RefundRequestCreate, user_uid: str) -> Optional[RefundRequest]:
     """Create a new refund request"""
     try:
-        from helpers.MongoHelper import generate_unique_id
         
         # Generate unique request ID
         request_id = generate_unique_id("RFD")
@@ -148,9 +155,11 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             logging.error(f"All transactions for event {request_data.event_id}: {all_event_transactions}")
             return None
         
-        # Calculate per-person refund amount for bulk registrations
+        # Calculate refund amount based on refund type
         total_transaction_amount = transaction.get("amount", 0.0)
         per_person_amount = total_transaction_amount
+        requested_refund_amount = request_data.requested_amount
+        maximum_refundable = total_transaction_amount
         
         # Check if this is a bulk registration
         metadata = transaction.get("metadata", {})
@@ -159,6 +168,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             registration_count = metadata.get("registration_count")
             if registration_count and registration_count > 0:
                 per_person_amount = total_transaction_amount / registration_count
+                maximum_refundable = per_person_amount  # For bulk, max is per-person amount
                 logging.info(f"Bulk registration detected. Total: ${total_transaction_amount}, Count: {registration_count}, Per person: ${per_person_amount}")
             else:
                 # Fallback: count attendees for this user in the event
@@ -170,12 +180,36 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                     
                     if len(user_attendees) > 0:
                         per_person_amount = total_transaction_amount / len(user_attendees)
+                        maximum_refundable = per_person_amount
                         logging.info(f"Using attendee count fallback. Total: ${total_transaction_amount}, Attendees: {len(user_attendees)}, Per person: ${per_person_amount}")
                 except Exception as e:
                     logging.error(f"Failed to calculate per-person amount using attendee count: {e}")
                     # Use event price as final fallback
                     per_person_amount = event.get("price", total_transaction_amount)
+                    maximum_refundable = per_person_amount
                     logging.info(f"Using event price as fallback: ${per_person_amount}")
+
+        # Calculate actual refund amount based on refund type
+        final_refund_amount = per_person_amount  # Default to per-person amount
+        
+        if request_data.refund_type == "partial" and requested_refund_amount is not None:
+            # Validate partial refund amount
+            if requested_refund_amount <= 0:
+                logging.error(f"Invalid partial refund amount: ${requested_refund_amount}")
+                return None
+            if requested_refund_amount > maximum_refundable:
+                logging.error(f"Partial refund amount (${requested_refund_amount}) exceeds maximum refundable (${maximum_refundable})")
+                return None
+            final_refund_amount = requested_refund_amount
+            logging.info(f"Partial refund requested: ${requested_refund_amount} (max: ${maximum_refundable})")
+        elif request_data.refund_type == "full":
+            # For full refunds, refund the entire transaction or per-person amount
+            final_refund_amount = per_person_amount if metadata.get("bulk_registration", False) else total_transaction_amount
+            logging.info(f"Full refund requested: ${final_refund_amount}")
+        elif request_data.refund_type == "per_person":
+            # Standard per-person refund (default behavior)
+            final_refund_amount = per_person_amount
+            logging.info(f"Per-person refund requested: ${final_refund_amount}")
 
         # Validation: Check if user has already requested refunds that would exceed the transaction amount
         existing_refunds = await DB.db["refund_requests"].find({
@@ -186,8 +220,8 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
         
         total_existing_refund_amount = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
         
-        if total_existing_refund_amount + per_person_amount > total_transaction_amount:
-            logging.error(f"Refund validation failed: Total refunds (${total_existing_refund_amount + per_person_amount}) would exceed transaction amount (${total_transaction_amount})")
+        if total_existing_refund_amount + final_refund_amount > total_transaction_amount:
+            logging.error(f"Refund validation failed: Total refunds (${total_existing_refund_amount + final_refund_amount}) would exceed transaction amount (${total_transaction_amount})")
             return None
         
         # Check for duplicate refund requests for the same person
@@ -211,13 +245,22 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             "person_id": request_data.person_id,
             "display_name": request_data.display_name,
             "transaction_id": transaction.get("transaction_id"),
-            "payment_amount": per_person_amount,
+            "payment_amount": final_refund_amount,
+            "original_amount": total_transaction_amount,
+            "refund_type": request_data.refund_type,
+            "requested_amount": requested_refund_amount,
+            "maximum_refundable": maximum_refundable,
             "payment_method": transaction.get("payment_method", "paypal"),
             "reason": request_data.reason,
             "user_notes": request_data.user_notes,
             "status": RefundRequestStatus.PENDING,
             "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "updated_at": datetime.utcnow(),
+            "metadata": {
+                "per_person_amount": per_person_amount,
+                "is_bulk_registration": metadata.get("bulk_registration", False),
+                "registration_count": metadata.get("registration_count", 1)
+            }
         }
         
         # Insert into database
@@ -279,7 +322,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
     except Exception as e:
         logging.error(f"Error creating refund request: {e}")
         logging.error(f"Exception details: {str(e)}")
-        import traceback
+        
         logging.error(f"Traceback: {traceback.format_exc()}")
         return None
 
@@ -443,4 +486,170 @@ async def populate_missing_event_names():
     except Exception as e:
         logging.error(f"Error populating missing event names: {e}")
         return 0
+
+# Partial Refund Helper Functions
+async def calculate_refund_options(transaction_id: str, user_uid: str) -> Dict[str, Any]:
+    """Calculate available refund options for a transaction"""
+    try:
+        # Get transaction details
+        transaction = await DB.db["transactions"].find_one({"transaction_id": transaction_id})
+        if not transaction:
+            return {"error": "Transaction not found"}
+        
+        total_amount = transaction.get("amount", 0.0)
+        metadata = transaction.get("metadata", {})
+        is_bulk = metadata.get("bulk_registration", False)
+        registration_count = metadata.get("registration_count", 1)
+        
+        # Calculate per-person amount
+        per_person_amount = total_amount / registration_count if is_bulk else total_amount
+        
+        # Get existing refunds
+        existing_refunds = await DB.db["refund_requests"].find({
+            "transaction_id": transaction_id,
+            "user_uid": user_uid,
+            "status": {"$nin": [RefundRequestStatus.REJECTED, RefundRequestStatus.CANCELLED]}
+        }).to_list(length=None)
+        
+        total_refunded = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
+        remaining_amount = total_amount - total_refunded
+        remaining_per_person = per_person_amount if total_refunded == 0 else max(0, per_person_amount - total_refunded)
+        
+        return {
+            "transaction_id": transaction_id,
+            "original_amount": total_amount,
+            "per_person_amount": per_person_amount,
+            "is_bulk_registration": is_bulk,
+            "registration_count": registration_count,
+            "total_refunded": total_refunded,
+            "remaining_amount": remaining_amount,
+            "remaining_per_person": remaining_per_person,
+            "can_refund_full": remaining_amount > 0,
+            "can_refund_partial": remaining_amount > 0,
+            "can_refund_per_person": remaining_per_person > 0,
+            "existing_refunds": len(existing_refunds),
+            "refund_options": {
+                "full": {
+                    "amount": remaining_amount,
+                    "description": f"Full remaining amount (${remaining_amount:.2f})",
+                    "available": remaining_amount > 0
+                },
+                "per_person": {
+                    "amount": remaining_per_person,
+                    "description": f"Per-person amount (${remaining_per_person:.2f})",
+                    "available": remaining_per_person > 0
+                },
+                "partial": {
+                    "min_amount": 0.01,
+                    "max_amount": remaining_amount,
+                    "description": f"Custom amount (up to ${remaining_amount:.2f})",
+                    "available": remaining_amount > 0
+                }
+            }
+        }
+    except Exception as e:
+        logging.error(f"Error calculating refund options: {e}")
+        return {"error": str(e)}
+
+async def validate_refund_amount(transaction_id: str, user_uid: str, requested_amount: float, refund_type: str) -> Dict[str, Any]:
+    """Validate if a refund amount is allowed"""
+    try:
+        refund_options = await calculate_refund_options(transaction_id, user_uid)
+        if "error" in refund_options:
+            return refund_options
+        
+        # Check if refund type is valid
+        if refund_type not in ["full", "partial", "per_person"]:
+            return {"error": "Invalid refund type", "valid_types": ["full", "partial", "per_person"]}
+        
+        # Validate amount based on refund type
+        if refund_type == "full":
+            if requested_amount != refund_options["remaining_amount"]:
+                return {
+                    "error": "Full refund amount mismatch",
+                    "expected": refund_options["remaining_amount"],
+                    "provided": requested_amount
+                }
+        elif refund_type == "per_person":
+            if requested_amount != refund_options["remaining_per_person"]:
+                return {
+                    "error": "Per-person refund amount mismatch",
+                    "expected": refund_options["remaining_per_person"], 
+                    "provided": requested_amount
+                }
+        elif refund_type == "partial":
+            min_amount = 0.01
+            max_amount = refund_options["remaining_amount"]
+            if requested_amount < min_amount or requested_amount > max_amount:
+                return {
+                    "error": "Partial refund amount out of range",
+                    "min_amount": min_amount,
+                    "max_amount": max_amount,
+                    "provided": requested_amount
+                }
+        
+        return {
+            "valid": True,
+            "refund_type": refund_type,
+            "amount": requested_amount,
+            "refund_options": refund_options
+        }
+    except Exception as e:
+        logging.error(f"Error validating refund amount: {e}")
+        return {"error": str(e)}
+
+async def get_refund_summary(transaction_id: str) -> Dict[str, Any]:
+    """Get a summary of all refunds for a transaction"""
+    try:
+        # Get transaction
+        transaction = await DB.db["transactions"].find_one({"transaction_id": transaction_id})
+        if not transaction:
+            return {"error": "Transaction not found"}
+        
+        # Get all refunds for this transaction
+        refunds = await DB.db["refund_requests"].find({
+            "transaction_id": transaction_id
+        }).to_list(length=None)
+        
+        # Categorize refunds by status
+        refund_summary = {
+            "transaction_amount": transaction.get("amount", 0.0),
+            "total_refunds": len(refunds),
+            "refunds_by_status": {},
+            "total_refunded": 0.0,
+            "pending_refunds": 0.0,
+            "refund_details": []
+        }
+        
+        for refund in refunds:
+            status = refund.get("status", "unknown")
+            amount = refund.get("payment_amount", 0.0)
+            
+            if status not in refund_summary["refunds_by_status"]:
+                refund_summary["refunds_by_status"][status] = {"count": 0, "amount": 0.0}
+            
+            refund_summary["refunds_by_status"][status]["count"] += 1
+            refund_summary["refunds_by_status"][status]["amount"] += amount
+            
+            if status in [RefundRequestStatus.COMPLETED]:
+                refund_summary["total_refunded"] += amount
+            elif status in [RefundRequestStatus.PENDING, RefundRequestStatus.APPROVED, RefundRequestStatus.PROCESSING]:
+                refund_summary["pending_refunds"] += amount
+            
+            refund_summary["refund_details"].append({
+                "request_id": refund.get("request_id"),
+                "amount": amount,
+                "status": status,
+                "refund_type": refund.get("refund_type", "per_person"),
+                "created_at": refund.get("created_at"),
+                "user_uid": refund.get("user_uid"),
+                "display_name": refund.get("display_name")
+            })
+        
+        refund_summary["remaining_amount"] = refund_summary["transaction_amount"] - refund_summary["total_refunded"] - refund_summary["pending_refunds"]
+        
+        return refund_summary
+    except Exception as e:
+        logging.error(f"Error getting refund summary: {e}")
+        return {"error": str(e)}
         return 0

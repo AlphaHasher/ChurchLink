@@ -20,6 +20,9 @@ from helpers.RefundEmailHelper import (
 )
 import logging
 import os
+from models.user import get_user_by_uid
+from mongo.database import DB
+from bson import ObjectId
 
 refund_router = APIRouter(prefix="/events", tags=["Event Refunds"])
 
@@ -55,14 +58,11 @@ async def submit_refund_request(
         # Send email notifications
         try:
             # Get user email from Firebase
-            from helpers.Firebase_helpers import get_user_by_uid
             user_data = await get_user_by_uid(user_uid)
-            user_email = user_data.get('email') if user_data else None
-            user_name = user_data.get('name', refund_request.display_name) if user_data else refund_request.display_name
+            user_email = user_data.email if user_data else None
+            user_name = f"{user_data.first_name} {user_data.last_name}" if user_data else refund_request.display_name
             
             # Get event details
-            from mongo.database import DB
-            from bson import ObjectId
             event_doc = await DB.db["events"].find_one({"_id": ObjectId(event_id)})
             event_name = event_doc.get('name', 'Unknown Event') if event_doc else 'Unknown Event'
             

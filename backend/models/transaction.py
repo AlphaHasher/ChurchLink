@@ -46,9 +46,18 @@ class Transaction(BaseModel):
         Creates a new transaction using DB.insert_document.
         """
         try:
-            doc = transaction.model_dump(exclude_unset=True)
+            # Convert to dict and exclude any _id field to prevent conflicts
+            doc = transaction.dict(exclude_unset=True, exclude={'id'})
+            
+            # Ensure _id is not in the document
+            if '_id' in doc:
+                del doc['_id']
+                
             doc["created_on"] = transaction.created_on or datetime.now().isoformat()
+            
+            logging.info(f"Attempting to insert transaction: {doc.get('transaction_id')}")
             inserted_id = await DB.insert_document("transactions", doc)
+            
             if inserted_id is not None:
                 tx_data = await DB.db["transactions"].find_one({"_id": inserted_id})
                 if tx_data is not None:
@@ -58,8 +67,10 @@ class Transaction(BaseModel):
                     logging.error(f"Transaction inserted but not found: {inserted_id}")
             else:
                 logging.error(f"Failed to insert transaction: {doc}")
+                
         except Exception as e:
             logging.exception(f"Error creating transaction: {e}")
+            
         return None
 
     async def get_transaction_by_id(transaction_id: str):
@@ -125,7 +136,7 @@ class Transaction(BaseModel):
         """
         Save a PayPal transaction (one-time or subscription) to MongoDB using Transaction model.
         """
-        import logging
+        
         logging.info(f"Attempting to save PayPal transaction: {transaction_data}")
         try:
             transaction = Transaction(**transaction_data)

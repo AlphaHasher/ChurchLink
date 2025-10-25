@@ -1,6 +1,5 @@
 import logging
 import os
-import json
 import traceback
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
@@ -10,11 +9,13 @@ from bson import ObjectId
 from models.event import get_event_by_id, update_attendee_payment_status, get_event_payment_summary, get_event_registrations_by_payment_status, rsvp_list
 from models.transaction import Transaction
 from helpers.paypalHelper import create_order_from_data, capture_payment_by_id
-from controllers.event_functions import register_rsvp
+from controllers.event_functions import register_rsvp, register_multiple_people
 from mongo.database import DB
 from mongo.churchuser import UserHandler
-from mongo.roles import RoleHandler
+
 from helpers.audit_logger import payment_audit_logger, AuditEventType
+
+
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
@@ -647,18 +648,12 @@ class EventPaymentHelper:
                         
                         # Update payment status to completed after successful PayPal payment
                         try:
-                            # TODO: Add payment status tracking to user's my_events
-                            # Currently my_events schema doesn't include payment status
-                            # await UserHandler.update_my_events_payment_status(
-                            #     user_uid, 
-                            #     ObjectId(event_id), 
-                            #     person_id=ObjectId(person_id) if person_id else None,
-                            #     payment_status="completed"
-                            # )
+                            
                             
                             # Also update event attendee payment status
-                            from models.event import update_attendee_payment_status
-                            attendee_key = f"{user_uid}|{person_id if person_id else 'self'}|rsvp|occurrence"
+                            person_object_id = ObjectId(person_id) if person_id else None
+                            person_id_str = str(person_object_id) if person_object_id else 'self'
+                            attendee_key = f"{user_uid}|{person_id_str}|rsvp|occurrence"
                             await update_attendee_payment_status(
                                 event_id=event_id,
                                 attendee_key=attendee_key,
@@ -1072,7 +1067,7 @@ class EventPaymentHelper:
                     user_uid = registration_session.get("user_uid")
                     
                     # Actually register the people for the event after payment confirmation
-                    from controllers.event_functions import register_multiple_people
+                    
                     
                     if user_uid:
                         self.logger.info(f"Attempting to register {registration_count} people for event {event_id} by user {user_uid}")
@@ -1091,13 +1086,15 @@ class EventPaymentHelper:
                                 self.logger.info(f"Successfully registered people after payment: {message}")
                                 
                                 # Now update payment status for all registered attendees to 'paid'
-                                from models.event import update_attendee_payment_status
+                                
                                 
                                 for registration in raw_registrations:
                                     person_id = registration.get('person_id')  # None for self, ObjectId string for family members
                                     
                                     # Generate attendee key to identify the specific attendee
-                                    attendee_key = f"{user_uid}|{person_id if person_id else 'self'}|rsvp"
+                                    person_object_id = ObjectId(person_id) if person_id else None
+                                    person_id_str = str(person_object_id) if person_object_id else 'self'
+                                    attendee_key = f"{user_uid}|{person_id_str}|rsvp|occurrence"
                                     
                                     # Update payment status to 'completed'
                                     update_success = await update_attendee_payment_status(
@@ -1188,7 +1185,7 @@ class EventPaymentHelper:
                     
                     # Now actually register each person to the event after payment confirmation
                     try:
-                        from controllers.event_functions import register_rsvp
+                        
                         
                         self.logger.info(f"Processing registration and payment status update for {registration_count} people")
                         
@@ -1220,28 +1217,23 @@ class EventPaymentHelper:
                                 
                                 # Update payment status to 'completed' for both new and existing registrations
                                 try:
-                                    from models.event import update_attendee_payment_status
                                     
-                                    # Generate attendee key to identify the specific attendee (must include scope)
-                                    attendee_key = f"{user_uid}|{person_id if person_id else 'self'}|rsvp|occurrence"
                                     
-                                    # Update both user's my_events and event attendee payment status
+                                    # Generate attendee key to match the format used in register_rsvp
+                                    # Note: person_id gets converted to ObjectId in register_rsvp, so we need to match that
+                                    person_object_id = ObjectId(person_id) if person_id else None
+                                    person_id_str = str(person_object_id) if person_object_id else 'self'
+                                    attendee_key = f"{user_uid}|{person_id_str}|rsvp|occurrence"
                                     
-                                    # 1. Update user's my_events payment status
-                                    try:
-                                        # TODO: Add payment status tracking to user's my_events
-                                        # Currently my_events schema doesn't include payment status
-                                        # await UserHandler.update_my_events_payment_status(
-                                        #     user_uid, 
-                                        #     ObjectId(event_id), 
-                                        #     person_id=ObjectId(person_id) if person_id else None,
-                                        #     payment_status="completed"
-                                        # )
-                                        self.logger.info(f"Skipped my_events payment status update for {display_name} (method not implemented)")
-                                    except Exception as e:
-                                        self.logger.error(f"Failed to update my_events payment status for {display_name}: {str(e)}")
+                                    self.logger.info(f"Updating payment status for {display_name} with attendee_key: {attendee_key}")
                                     
-                                    # 2. Update event attendee payment status
+                                    # Update event attendee payment status (payment status is event-specific)
+                                    
+                                    # NOTE: Payment status is tracked per-event in the events collection, not in user's my_events
+                                    # This is the correct approach because payment status is event-specific, not a global user property
+                                    # A user can have different payment statuses across different events
+                                    
+                                    # Update event attendee payment status
                                     update_success = await update_attendee_payment_status(
                                         event_id=event_id,
                                         attendee_key=attendee_key,
@@ -1253,9 +1245,21 @@ class EventPaymentHelper:
                                         self.logger.info(f"Successfully updated event attendee payment status for {display_name}")
                                     else:
                                         self.logger.error(f"Failed to update event attendee payment status for {display_name}")
+                                        # Let's also log the event to see if the attendee exists
+                                        try:
+                                            event_doc = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
+                                            if event_doc:
+                                                attendee_keys = [att.get("key") for att in event_doc.get("attendees", [])]
+                                                self.logger.error(f"Available attendee keys: {attendee_keys}")
+                                                self.logger.error(f"Looking for key: {attendee_key}")
+                                            else:
+                                                self.logger.error(f"Event not found: {event_id}")
+                                        except Exception as debug_e:
+                                            self.logger.error(f"Debug query failed: {debug_e}")
                                         
                                 except Exception as e:
                                     self.logger.error(f"Exception while updating payment status for {display_name}: {str(e)}")
+                                    self.logger.error(f"Traceback: {traceback.format_exc()}")
                                     
                             except Exception as e:
                                 self.logger.error(f"Exception while registering {display_name}: {str(e)}")
@@ -1280,9 +1284,77 @@ class EventPaymentHelper:
             except Exception as e:
                 self.logger.warning(f"Could not retrieve payment session: {str(e)}")
             
+            # Create and save transaction to database
+            try:
+                # Get event details for transaction
+                event = await get_event_by_id(event_id)
+                user_uid = None
+                
+                # Try to get user_uid from payment session or bulk registration
+                if registration_session:
+                    user_uid = registration_session.get("user_uid")
+                elif 'bulk_registration' in locals() and bulk_registration:
+                    user_uid = bulk_registration.get("user_uid")
+                
+                # Check if transaction already exists to prevent duplicates
+                existing_transaction = await Transaction.get_transaction_by_id(payment_id)
+                if existing_transaction:
+                    self.logger.info(f"✅ Transaction already exists: {payment_id}")
+                    saved_transaction = existing_transaction
+                else:
+                    # Create new transaction record
+                    transaction = Transaction(
+                        transaction_id=payment_id,
+                        user_email=capture_result.get("payer_email", ""),
+                        amount=float(capture_result.get("amount", 0)),
+                        status="COMPLETED",
+                        type="one-time",
+                        order_id=payment_id,
+                        payment_method="paypal",
+                        time=capture_result.get("create_time", datetime.now().isoformat()),
+                        name=capture_result.get("payer_name", ""),
+                        fund_name=f"Event: {event.name if event else 'Unknown Event'}",
+                        currency=capture_result.get("currency", "USD"),
+                        event_type="event_registration",
+                        event_id=event_id,
+                        event_name=event.name if event else "Unknown Event",
+                        payment_type="event_registration",
+                        user_uid=user_uid,
+                        metadata={
+                            "registration_count": registration_count,
+                            "event_fee_total": float(capture_result.get("amount", 0)),
+                            "donation_total": 0.0,
+                            "bulk_registration": registration_count > 1,
+                            "payer_id": payer_id,
+                            "payment_token": token
+                        }
+                    )
+                    
+                    saved_transaction = await Transaction.create_transaction(transaction)
+                    if saved_transaction:
+                        self.logger.info(f"✅ Transaction saved successfully: {saved_transaction.transaction_id}")
+                    else:
+                        self.logger.error("❌ Failed to save transaction")
+                        # Try to get more detailed error info
+                        try:
+                            # Check if it's a duplicate key error by trying to find the transaction again
+                            check_transaction = await Transaction.get_transaction_by_id(payment_id)
+                            if check_transaction:
+                                self.logger.error(f"❌ Transaction was created by another process: {payment_id}")
+                                saved_transaction = check_transaction
+                            else:
+                                self.logger.error(f"❌ Unknown error creating transaction for payment: {payment_id}")
+                        except Exception as check_e:
+                            self.logger.error(f"❌ Error checking transaction existence: {str(check_e)}")
+                    
+            except Exception as e:
+                self.logger.error(f"❌ Error saving transaction: {str(e)}")
+                # Don't fail the payment completion if transaction saving fails
+                pass
+
             # Log successful payment completion
             payment_audit_logger.log_payment_completed(
-                user_uid=None,  # May not have user context in simplified flow
+                user_uid=user_uid if 'user_uid' in locals() else None,
                 event_id=event_id,
                 payment_id=payment_id,
                 amount=float(capture_result.get("amount", 0)),

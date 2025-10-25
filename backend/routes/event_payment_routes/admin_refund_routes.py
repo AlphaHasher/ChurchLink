@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Body, Query
 from typing import Optional, List, Dict, Any
 import os
 import logging
+
 from datetime import datetime
 from models.refund_request import (
     RefundRequestCreate, 
@@ -14,9 +15,11 @@ from models.refund_request import (
     get_refund_requests_by_event,
     update_refund_request,
     list_all_refund_requests,
-    populate_missing_event_names
+    populate_missing_event_names, 
+    validate_refund_amount, 
+    calculate_refund_options, 
+    get_refund_summary
 )
-from helpers.audit_logger import get_client_ip
 from helpers.paypalHelper import process_paypal_refund
 from helpers.RefundEmailHelper import (
     send_refund_approved_notification,
@@ -24,6 +27,12 @@ from helpers.RefundEmailHelper import (
     send_refund_rejected_notification
 )
 import logging
+from controllers.assets_controller import get_image_by_id
+from mongo.database import DB
+from bson import ObjectId
+from models.user import get_user_by_uid
+from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
+import requests
 
 # Helper function to resolve proof URLs
 async def resolve_proof_url(refund_request) -> Optional[str]:
@@ -32,7 +41,6 @@ async def resolve_proof_url(refund_request) -> Optional[str]:
         return None
     try:
         # Import here to avoid circular imports and handle gracefully
-        from controllers.assets_controller import get_image_by_id
         proof_asset = await get_image_by_id(refund_request.manual_refund_proof_image_id)
         return proof_asset.public_url if proof_asset else None
     except ImportError as e:
@@ -77,14 +85,11 @@ async def get_user_and_event_details(refund_request):
     """Get user and event details for email notifications"""
     try:
         # Get user email from Firebase
-        from helpers.Firebase_helpers import get_user_by_uid
         user_data = await get_user_by_uid(refund_request.user_uid)
-        user_email = user_data.get('email') if user_data else None
-        user_name = user_data.get('name', refund_request.display_name) if user_data else refund_request.display_name
+        user_email = user_data.email if user_data else None
+        user_name = f"{user_data.first_name} {user_data.last_name}" if user_data else refund_request.display_name
         
         # Get event details
-        from mongo.database import DB
-        from bson import ObjectId
         event_doc = await DB.db["events"].find_one({"_id": ObjectId(refund_request.event_id)})
         event_name = event_doc.get('name', 'Unknown Event') if event_doc else 'Unknown Event'
         
@@ -222,8 +227,6 @@ async def process_refund_request(
                     
                     # Update event attendee payment status to 'refunded'
                     try:
-                        from mongo.database import DB
-                        from bson import ObjectId
                         
                         event_doc = await DB.db["events"].find_one({"_id": ObjectId(refund_request.event_id)})
                         if event_doc:
@@ -374,8 +377,6 @@ async def manually_complete_refund(
         
         # Update event attendee payment status to 'refunded'
         try:
-            from mongo.database import DB
-            from bson import ObjectId
             
             event_doc = await DB.db["events"].find_one({"_id": ObjectId(refund_request.event_id)})
             if event_doc:
@@ -465,8 +466,6 @@ async def retry_paypal_refund(
                 
                 # Update event attendee payment status to 'refunded'
                 try:
-                    from mongo.database import DB
-                    from bson import ObjectId
                     
                     event_doc = await DB.db["events"].find_one({"_id": ObjectId(refund_request.event_id)})
                     if event_doc:
@@ -540,14 +539,11 @@ async def get_transaction_info(
             raise HTTPException(status_code=404, detail="Refund request not found")
         
         # Get transaction from database
-        from mongo.database import DB
         transaction = await DB.db["transactions"].find_one({"transaction_id": refund_request.transaction_id})
         
         # Try to get PayPal payment info
         paypal_info = {"status": "unknown", "error": None}
         try:
-            from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
-            import requests
             
             access_token = get_paypal_access_token()
             if access_token:
@@ -662,3 +658,129 @@ async def populate_refund_event_names(request: Request):
     except Exception as e:
         logging.error(f"Error running event name migration: {e}")
         raise HTTPException(status_code=500, detail="Failed to populate event names")
+
+# Partial Refund Support Endpoints
+@admin_refund_router.get("/refund-options/{transaction_id}", summary="Get Refund Options")
+async def get_refund_options(transaction_id: str, user_uid: str, request: Request):
+    """Get available refund options for a transaction"""
+    try:
+        
+        
+        options = await calculate_refund_options(transaction_id, user_uid)
+        
+        if "error" in options:
+            raise HTTPException(status_code=404, detail=options["error"])
+        
+        return {
+            "success": True,
+            "data": options
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error getting refund options: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get refund options")
+
+@admin_refund_router.post("/validate-refund", summary="Validate Refund Amount")
+async def validate_refund_amount_endpoint(
+    request: Request,
+    validation_data: Dict[str, Any] = Body(...)
+):
+    """Validate if a refund amount is allowed"""
+    try:
+        
+        transaction_id = validation_data.get("transaction_id")
+        user_uid = validation_data.get("user_uid")
+        requested_amount = validation_data.get("requested_amount")
+        refund_type = validation_data.get("refund_type", "per_person")
+        
+        if not all([transaction_id, user_uid, requested_amount]):
+            raise HTTPException(status_code=400, detail="Missing required fields")
+        
+        validation_result = await validate_refund_amount(transaction_id, user_uid, float(requested_amount), refund_type)
+        
+        if "error" in validation_result:
+            return {
+                "success": False,
+                "error": validation_result["error"],
+                "details": validation_result
+            }
+        
+        return {
+            "success": True,
+            "valid": validation_result.get("valid", False),
+            "data": validation_result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error validating refund amount: {e}")
+        raise HTTPException(status_code=500, detail="Failed to validate refund amount")
+
+@admin_refund_router.get("/refund-summary/{transaction_id}", summary="Get Refund Summary")
+async def get_refund_summary_endpoint(transaction_id: str, request: Request):
+    """Get a comprehensive summary of all refunds for a transaction"""
+    try:
+        
+        
+        summary = await get_refund_summary(transaction_id)
+        
+        if "error" in summary:
+            raise HTTPException(status_code=404, detail=summary["error"])
+        
+        return {
+            "success": True,
+            "data": summary
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error getting refund summary: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get refund summary")
+
+@admin_refund_router.post("/create-partial-refund", summary="Create Partial Refund Request")
+async def create_partial_refund_request(
+    request: Request,
+    refund_data: RefundRequestCreate = Body(...)
+):
+    """Create a new refund request with support for partial amounts"""
+    try:
+        # Get admin user for validation (optional - could be user-initiated)
+        admin_uid = getattr(request.state, "uid", None)
+        
+        # Validate refund type and amount if provided
+        if refund_data.refund_type == "partial" and refund_data.requested_amount is not None:
+            
+            validation_result = await validate_refund_amount(
+                "",  # Will be validated in create_refund_request
+                admin_uid or "admin",
+                refund_data.requested_amount,
+                refund_data.refund_type
+            )
+            
+            if "error" in validation_result:
+                raise HTTPException(status_code=400, detail=validation_result["error"])
+        
+        # Create the refund request
+        refund_request = await create_refund_request(refund_data, admin_uid or "admin")
+        
+        if not refund_request:
+            raise HTTPException(status_code=400, detail="Failed to create refund request")
+        
+        # Convert to output format
+        refund_out = await create_refund_out(refund_request)
+        
+        return {
+            "success": True,
+            "message": "Partial refund request created successfully",
+            "refund_request": refund_out
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error creating partial refund request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create partial refund request")
