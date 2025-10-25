@@ -13,7 +13,7 @@ class DashboardAppConfigHelper:
 
     @staticmethod
     def _get_collection():
-        if not getattr(DB, "db", None):
+        if DB.db is None:
             raise RuntimeError("Database not initialized. Call DB.connect() first.")
         return DB.db.app_config  # Shared collection
 
