@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../helpers/api_client.dart';
+import 'package:app/helpers/api_client.dart';
 
 class MySermonsService {
   MySermonsService({Dio? client}) : _client = client ?? api;
@@ -18,3 +18,4 @@ class MySermonsService {
     }
   }
 }
+

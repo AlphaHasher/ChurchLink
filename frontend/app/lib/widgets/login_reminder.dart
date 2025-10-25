@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../components/auth_popup.dart';
+import 'package:app/components/auth_popup.dart';
 
 /// Widget shown when user needs to login to access Bible plans
 class LoginReminderCard extends StatelessWidget {
@@ -9,12 +9,12 @@ class LoginReminderCard extends StatelessWidget {
   final VoidCallback? onLoginSuccess;
 
   const LoginReminderCard({
-    Key? key,
+    super.key,
     this.title = 'Sign In Required',
     this.description = 'Please sign in to access your Bible reading plans and track your progress.',
     this.buttonText = 'Sign In',
     this.onLoginSuccess,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -169,9 +169,9 @@ class CompactLoginReminder extends StatelessWidget {
   final VoidCallback? onLoginSuccess;
 
   const CompactLoginReminder({
-    Key? key,
+    super.key,
     this.onLoginSuccess,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

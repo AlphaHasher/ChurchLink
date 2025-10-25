@@ -1,7 +1,7 @@
 import 'dart:developer';
 // import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import '../helpers/api_client.dart';
+import 'package:app/helpers/api_client.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -415,3 +415,4 @@ class PaypalService {
     }
   }
 }
+

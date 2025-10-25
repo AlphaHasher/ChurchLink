@@ -13,7 +13,7 @@ class RequestStatus extends StatelessWidget {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.6),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
         ),
       ),
       child: Row(
@@ -27,3 +27,4 @@ class RequestStatus extends StatelessWidget {
     );
   }
 }
+

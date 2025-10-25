@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../models/service_bulletin.dart';
+import 'package:app/models/service_bulletin.dart';
 
 /// Full-page view displaying detailed information about a service bulletin
 class ServiceDetailPage extends StatelessWidget {
@@ -25,7 +24,7 @@ class ServiceDetailPage extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    colorScheme.primaryContainer.withOpacity(0.3),
+                    colorScheme.primaryContainer.withValues(alpha: 0.3),
                     colorScheme.surface,
                   ],
                   begin: Alignment.topCenter,
@@ -64,7 +63,7 @@ class ServiceDetailPage extends StatelessWidget {
                     Text(
                       service.description!,
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.8),
+                        color: colorScheme.onSurface.withValues(alpha: 0.8),
                         height: 1.5,
                       ),
                     ),
@@ -112,13 +111,13 @@ class ServiceDetailPage extends StatelessWidget {
                       Icon(
                         Icons.event_note,
                         size: 64,
-                        color: colorScheme.onSurface.withOpacity(0.3),
+                        color: colorScheme.onSurface.withValues(alpha: 0.3),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         'No timeline available for this service',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.6),
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -206,7 +205,7 @@ class ServiceDetailPage extends StatelessWidget {
           child: Text(
             line,
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurface.withOpacity(0.9),
+              color: colorScheme.onSurface.withValues(alpha: 0.9),
               height: 1.5,
             ),
           ),
@@ -225,7 +224,7 @@ class ServiceDetailPage extends StatelessWidget {
               child: Divider(
                 height: 1,
                 thickness: 0.5,
-                color: colorScheme.onSurface.withOpacity(0.08),
+                color: colorScheme.onSurface.withValues(alpha: 0.08),
               ),
             ),
           );
@@ -239,3 +238,5 @@ class ServiceDetailPage extends StatelessWidget {
     );
   }
 }
+
+

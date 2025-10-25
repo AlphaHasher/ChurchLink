@@ -1,5 +1,5 @@
-import 'api_client.dart';
-import 'logger.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/logger.dart';
 
 class YoutubeHelper {
   // Fetches the StreamIDs of the current lives from backend

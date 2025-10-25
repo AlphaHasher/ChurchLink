@@ -36,11 +36,11 @@ class ReadMembershipRequest {
 
 class MembershipDetails {
   final bool membership;
-  final ReadMembershipRequest? pending_request;
+  final ReadMembershipRequest? pendingRequest;
 
   const MembershipDetails({
     required this.membership,
-    required this.pending_request,
+    required this.pendingRequest,
   });
 
   factory MembershipDetails.fromJson(Map<String, dynamic> j) {
@@ -48,13 +48,13 @@ class MembershipDetails {
 
     return MembershipDetails(
       membership: (j['membership'] as bool?) ?? false,
-      pending_request:
+      pendingRequest:
           pending == null ? null : ReadMembershipRequest.fromJson(pending),
     );
   }
 
   Map<String, dynamic> toJson() => {
     'membership': membership,
-    'pending_request': pending_request?.toJson(),
+    'pending_request': pendingRequest?.toJson(),
   };
 }

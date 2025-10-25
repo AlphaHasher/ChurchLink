@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_underscores
+
 import 'package:app/helpers/api_client.dart';
 import 'package:app/components/auth_popup.dart';
 import 'package:app/pages/form_submit.dart';

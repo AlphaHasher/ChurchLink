@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'text_form_component.dart';
+import 'package:app/pages/forms/text_form_component.dart';
 
 class TextareaFormComponent extends StatelessWidget {
   final String label;

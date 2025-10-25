@@ -1,7 +1,6 @@
 import 'package:app/models/membership_request.dart';
-
-import 'api_client.dart';
-import 'logger.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/logger.dart';
 
 class CreateMembershipRequestResult {
   final bool success;

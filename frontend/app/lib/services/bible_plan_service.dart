@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
-import '../helpers/api_client.dart';
-import '../models/bible_plan.dart';
-import '../helpers/logger.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/bible_plan.dart';
+import 'package:app/helpers/logger.dart';
 
 /// Service for managing Bible Plan operations
 class BiblePlanService {
@@ -355,3 +355,4 @@ class BiblePlanService {
     }
   }
 }
+

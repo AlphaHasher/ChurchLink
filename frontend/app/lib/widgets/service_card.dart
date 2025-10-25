@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../models/service_bulletin.dart';
+import 'package:app/models/service_bulletin.dart';
 
 /// Card widget to display a service bulletin in the feed
 class ServiceCard extends StatelessWidget {
@@ -26,7 +25,7 @@ class ServiceCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             gradient: LinearGradient(
               colors: [
-                colorScheme.primaryContainer.withOpacity(0.3),
+                colorScheme.primaryContainer.withAlpha(30),
                 colorScheme.surface,
               ],
               begin: Alignment.topLeft,
@@ -63,7 +62,7 @@ class ServiceCard extends StatelessWidget {
                     Icon(
                       Icons.access_time,
                       size: 16,
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withAlpha(60),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -73,7 +72,7 @@ class ServiceCard extends StatelessWidget {
                           service.timeOfDay,
                         ),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.8),
+                          color: colorScheme.onSurface.withAlpha(80),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -88,7 +87,7 @@ class ServiceCard extends StatelessWidget {
                   Text(
                     service.description!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.7),
+                      color: colorScheme.onSurface.withAlpha(70),
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

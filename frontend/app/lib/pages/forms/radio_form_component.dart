@@ -29,7 +29,7 @@ class RadioFormComponent extends StatelessWidget {
             final hasError = state.hasError;
       final borderColor =
         hasError ? Colors.red.shade400 : Colors.grey.shade300;
-            final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
+            final backgroundColor = hasError ? Colors.red.withValues(alpha: 0.05) : null;
             return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -93,3 +93,4 @@ class RadioFormComponent extends StatelessWidget {
     );
   }
 }
+

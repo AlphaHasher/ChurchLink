@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../firebase/firebase_auth_service.dart';
-import '../components/auth_popup.dart';
-import '../pages/my_bible_plans_page.dart';
+import 'package:app/firebase/firebase_auth_service.dart';
+import 'package:app/components/auth_popup.dart';
+import 'package:app/pages/my_bible_plans_page.dart';
 
 /// Authentication utilities for Bible plan features
 class BiblePlanAuthUtils {

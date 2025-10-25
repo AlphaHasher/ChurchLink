@@ -20,7 +20,6 @@ Future<(String, int)?> showJumpPicker({
       String? openBook = selBook;
       return StatefulBuilder(
         builder: (ctx, setSheet) {
-          final total = chapterCountForBook(selBook);
           return SafeArea(
             child: LayoutBuilder(
               builder: (ctx, constraints) {

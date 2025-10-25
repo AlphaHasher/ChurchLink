@@ -79,7 +79,7 @@ class _VerseActionsSheetState extends State<VerseActionsSheet> {
                           HighlightColor.yellow: Colors.yellow,
                           HighlightColor.green: Colors.lightGreenAccent,
                           HighlightColor.purple: Colors.purpleAccent,
-                        }[c]!.withOpacity(.9),
+                        }[c]!.withValues(alpha: .9),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: _pick == c ? Colors.black87 : Colors.black26,
@@ -138,3 +138,4 @@ class _VerseActionsSheetState extends State<VerseActionsSheet> {
     );
   }
 }
+

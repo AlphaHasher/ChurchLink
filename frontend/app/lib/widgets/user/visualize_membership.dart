@@ -50,7 +50,7 @@ class VisualizeMembership extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 12,
             offset: const Offset(0, 8),
           ),
@@ -65,7 +65,7 @@ class VisualizeMembership extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: Colors.white, size: 34),
@@ -91,7 +91,7 @@ class VisualizeMembership extends StatelessWidget {
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
                         height: 1.35,
                       ),
                     ),
@@ -140,3 +140,4 @@ class VisualizeMembership extends StatelessWidget {
     );
   }
 }
+

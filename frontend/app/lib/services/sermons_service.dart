@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 
-import '../helpers/api_client.dart';
-import '../models/sermon.dart';
-import '../models/sermon_filter.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/sermon.dart';
+import 'package:app/models/sermon_filter.dart';
 
 class SermonsService {
   SermonsService({Dio? client}) : _client = client ?? api;
@@ -97,3 +97,4 @@ class SermonsService {
     return <Sermon>[];
   }
 }
+

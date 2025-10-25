@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../helpers/logger.dart';
+import 'package:app/helpers/logger.dart';
 
 class NoLivestreams extends StatelessWidget {
   final String channelLink;
@@ -56,7 +56,7 @@ class NoLivestreams extends StatelessWidget {
                           fontSize: 16,
                           color: Theme.of(
                             context,
-                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                          ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
                         ),
                       ),
                       const SizedBox(height: 24),

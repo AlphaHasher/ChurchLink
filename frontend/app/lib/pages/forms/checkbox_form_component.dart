@@ -33,7 +33,7 @@ class CheckboxFormComponent extends StatelessWidget {
     final hasError = state.hasError;
     final borderColor =
       hasError ? Colors.red.shade400 : Colors.grey.shade300;
-        final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
+        final backgroundColor = hasError ? Colors.red.withAlpha(5) : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

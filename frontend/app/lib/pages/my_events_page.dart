@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/my_events.dart';
-import '../services/my_events_service.dart';
-import '../widgets/my_event_card.dart';
+import 'package:app/models/my_events.dart';
+import 'package:app/services/my_events_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'event_showcase.dart';
-import '../models/event.dart' as event_model;
+import 'package:app/pages/event_showcase.dart';
+import 'package:app/models/event.dart' as event_model;
+import 'package:app/widgets/event_card.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -183,7 +183,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
         color: theme.colorScheme.surfaceContainerLow,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             spreadRadius: 0,
             offset: const Offset(0, 2),
@@ -266,14 +266,14 @@ class _MyEventsPageState extends State<MyEventsPage> {
             color:
                 isSelected
                     ? theme.colorScheme.primary
-                    : theme.colorScheme.outline.withOpacity(0.3),
+                    : theme.colorScheme.outline.withValues(alpha: 0.3),
             width: 2,
           ),
           boxShadow:
               isSelected
                   ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 8,
                       spreadRadius: 0,
                       offset: const Offset(0, 3),
@@ -281,7 +281,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
                   ]
                   : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       spreadRadius: 0,
                       offset: const Offset(0, 1),
@@ -321,7 +321,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
               _errorMessage!,
               style: TextStyle(
                 fontSize: 16,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -358,10 +358,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            MyEventCard(
+            EventCard(
               eventRef: eventRef,
-              onTap: () async {
+              onViewPressed: () async {
                 final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
                 try {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user != null) {
@@ -373,7 +374,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
                 final d = eventRef.event;
                 if (d == null) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text(
                         'Event details could not be loaded. Please try again later.',
@@ -491,7 +492,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
           Icon(
             Icons.event_busy,
             size: 64,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -499,7 +500,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             textAlign: TextAlign.center,
           ),
@@ -508,7 +509,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
             subMessage,
             style: TextStyle(
               fontSize: 14,
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             textAlign: TextAlign.center,
           ),
@@ -559,8 +560,9 @@ class _MyEventsPageState extends State<MyEventsPage> {
 
     final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
+      final xfile = XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics');
       await Share.shareXFiles(
-        [XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics')],
+        [xfile],
         subject: 'Add to Calendar',
         text: 'Open this to add the event to your calendar.',
       );
@@ -599,9 +601,12 @@ class _MyEventsPageState extends State<MyEventsPage> {
       if (await _openAndroidCalendarInsert(
         event,
         packageName: 'com.google.android.calendar',
-      ))
+      )) {
         return;
-      if (await _openAndroidCalendarInsert(event)) return;
+      }
+      if (await _openAndroidCalendarInsert(event)) {
+        return;
+      }
       await _shareIcsForEvent(event);
       return;
     }
@@ -609,3 +614,4 @@ class _MyEventsPageState extends State<MyEventsPage> {
     await _shareIcsForEvent(event);
   }
 }
+

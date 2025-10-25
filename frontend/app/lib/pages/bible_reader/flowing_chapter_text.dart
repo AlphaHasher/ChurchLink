@@ -75,7 +75,7 @@ class _FlowingChapterTextState extends State<FlowingChapterText> {
 
     final numberStyle = base.copyWith(
       fontSize: (base.fontSize ?? 16) * 0.70,
-      color: cs.onSurface.withOpacity(0.60),
+      color: cs.onSurface.withValues(alpha: 0.60),
     );
 
     final headingStyle = base.copyWith(
@@ -229,3 +229,4 @@ extension on _FlowingChapterTextState {
     return s;
   }
 }
+

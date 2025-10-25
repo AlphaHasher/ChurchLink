@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class MyEventDetails {
   final String id;
   final String name;
@@ -173,31 +175,28 @@ class MyEventRef {
       try {
         // Handle both Map<String, dynamic> and Map<dynamic, dynamic>
         final eventData = json['event'];
-        print('DEBUG: event data type: ${eventData.runtimeType}');
         if (eventData is Map) {
-          print('DEBUG: event data keys: ${eventData.keys}');
-        }
-
-        if (eventData is Map<String, dynamic>) {
-          eventDetails = MyEventDetails.fromJson(eventData);
-        } else if (eventData is Map) {
-          eventDetails = MyEventDetails.fromJson(
-            Map<String, dynamic>.from(eventData),
-          );
+          if (eventData is Map<String, dynamic>) {
+            eventDetails = MyEventDetails.fromJson(eventData);
+          } else {
+            eventDetails = MyEventDetails.fromJson(
+              Map<String, dynamic>.from(eventData),
+            );
+          }
         } else {
-          print(
+          debugPrint(
             'ERROR: event data is not a Map, it is: ${eventData.runtimeType}',
           );
         }
       } catch (e, stackTrace) {
         // Log the error but don't crash - event will be null
-        print('ERROR parsing event details: $e');
-        print('Stack trace: $stackTrace');
-        print('Event data was: ${json['event']}');
+        debugPrint('ERROR parsing event details: $e');
+        debugPrint('Stack trace: $stackTrace');
+        debugPrint('Event data was: ${json['event']}');
         eventDetails = null;
       }
     } else {
-      print('WARNING: json["event"] is null for eventId: ${json['event_id']}');
+      debugPrint('WARNING: json["event"] is null for eventId: ${json['event_id']}');
     }
 
     return MyEventRef(

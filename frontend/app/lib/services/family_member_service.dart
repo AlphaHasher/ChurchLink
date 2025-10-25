@@ -1,5 +1,5 @@
-import '../helpers/api_client.dart';
-import '../models/family_member.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/family_member.dart';
 
 class FamilyMemberService {
   static Future<List<FamilyMember>> getFamilyMembers() async {
@@ -56,3 +56,4 @@ class FamilyMemberService {
     }
   }
 }
+

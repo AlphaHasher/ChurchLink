@@ -1,4 +1,4 @@
-import '../helpers/backend_helper.dart';
+import 'package:app/helpers/backend_helper.dart';
 
 class AssetHelper {
   static String getPublicUrl(String id) {
@@ -9,3 +9,4 @@ class AssetHelper {
     return '$base/v1/assets/public/id/${Uri.encodeComponent(id)}';
   }
 }
+

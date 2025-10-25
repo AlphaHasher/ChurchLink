@@ -43,7 +43,7 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
       _cityCtrl.text = cached.address.city ?? '';
       _stateCtrl.text = cached.address.state ?? '';
       _countryCtrl.text = cached.address.country ?? '';
-      _postalCtrl.text = cached.address.postal_code ?? '';
+      _postalCtrl.text = cached.address.postalCode ?? '';
       setState(() {});
     } catch (_) {}
   }
@@ -75,7 +75,7 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
         city: _cityCtrl.text.trim(),
         state: _stateCtrl.text.trim(),
         country: _countryCtrl.text.trim(),
-        postal_code: _postalCtrl.text.trim(),
+        postalCode: _postalCtrl.text.trim(),
       ),
     );
 

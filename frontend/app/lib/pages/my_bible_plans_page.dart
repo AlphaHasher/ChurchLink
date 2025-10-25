@@ -1,14 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/bible_plan.dart';
-import '../services/bible_plan_service.dart';
-import '../widgets/days_window.dart';
-import 'bible_plans_list_page.dart';
-import '../widgets/days_pagination_header.dart';
-import '../firebase/firebase_auth_service.dart';
-import '../widgets/login_reminder.dart';
-import '../components/auth_popup.dart';
+import 'package:app/models/bible_plan.dart';
+import 'package:app/services/bible_plan_service.dart';
+import 'package:app/widgets/days_window.dart';
+import 'package:app/pages/bible_plans_list_page.dart';
+import 'package:app/widgets/days_pagination_header.dart';
+import 'package:app/firebase/firebase_auth_service.dart';
+import 'package:app/widgets/login_reminder.dart';
+import 'package:app/components/auth_popup.dart';
 
 /// Main page showing user's subscribed Bible plans with progress tracking
 class MyBiblePlansPage extends StatefulWidget {

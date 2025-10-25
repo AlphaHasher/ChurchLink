@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/sermon.dart';
-import '../models/sermon_favorite.dart';
-import '../models/sermon_filter.dart';
-import '../services/my_sermons_service.dart';
-import '../services/sermons_service.dart';
+import 'package:app/models/sermon.dart';
+import 'package:app/models/sermon_favorite.dart';
+import 'package:app/models/sermon_filter.dart';
+import 'package:app/services/my_sermons_service.dart';
+import 'package:app/services/sermons_service.dart';
 
 class SermonsProvider extends ChangeNotifier {
   SermonsProvider({
@@ -214,3 +214,4 @@ class SermonsProvider extends ChangeNotifier {
     }
   }
 }
+

@@ -1,5 +1,5 @@
-import "backend_helper.dart";
-import "../firebase/firebase_auth_service.dart";
+import 'package:app/helpers/backend_helper.dart';
+import 'package:app/firebase/firebase_auth_service.dart';
 
 class AuthController {
   final FirebaseAuthService authService = FirebaseAuthService();

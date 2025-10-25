@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/bible_plan_service.dart';
-import '../../services/notification_preferences_service.dart';
-import '../../helpers/logger.dart';
+import 'package:app/services/bible_plan_service.dart';
+import 'package:app/services/notification_preferences_service.dart';
+import 'package:app/helpers/logger.dart';
 
 /// Compact notification preferences card for Bible plans
 class BiblePlanNotificationCard extends StatefulWidget {
@@ -12,13 +12,13 @@ class BiblePlanNotificationCard extends StatefulWidget {
   final VoidCallback? onSettingsChanged;
 
   const BiblePlanNotificationCard({
-    Key? key,
+    super.key,
     required this.planId,
     required this.planName,
     this.currentNotificationTime,
     required this.currentNotificationEnabled,
     this.onSettingsChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<BiblePlanNotificationCard> createState() => _BiblePlanNotificationCardState();
@@ -227,7 +227,7 @@ class _BiblePlanNotificationCardState extends State<BiblePlanNotificationCard> {
                       });
                       await _updateNotificationSettings();
                     } : null,
-                    activeColor: const Color.fromRGBO(150, 130, 255, 1),
+                    activeThumbColor: const Color.fromRGBO(150, 130, 255, 1),
                   ),
                 ],
               ],
@@ -238,9 +238,9 @@ class _BiblePlanNotificationCardState extends State<BiblePlanNotificationCard> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withAlpha(10),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withAlpha(30)),
                 ),
                 child: Row(
                   children: [
