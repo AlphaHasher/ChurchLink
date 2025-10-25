@@ -6,7 +6,7 @@ import 'package:app/main.dart' as app;
 import 'package:app/theme/theme_controller.dart';
 
 void main() {
-  patrolTest('Settings → Theme: Light ↔ Dark + System matches device', ($) async {
+  patrolTest('Theme Test: v2 Working', ($) async {
     app.main();
     await $.pumpAndSettle();
 
@@ -35,19 +35,28 @@ void main() {
     // Navigate to the Profiles page on the navbar where settings are stored
     Future<void> goToSettings() async {
       final candidates = <Finder>[
-        // Finds the profile button by searching for the nav_profile key, person icon, or 'Profile' text
         find.byKey(const ValueKey('nav_profile')),
         find.byIcon(Icons.person),
         find.text('Profile'),
       ];
-      final target = candidates.firstWhere(
-        (f) => f.evaluate().isNotEmpty,
-        orElse: () => throw TestFailure(
-          'Could not find Profile entry. '
-        ),
-      );
-      await $.tester.tap(target);
-      await $.pumpAndSettle();
+
+      // Implement a longer wait in case the app is loading
+      final end = DateTime.now().add(const Duration(seconds: 30));
+      while (DateTime.now().isBefore(end)) {
+        for (final f in candidates) {
+          if (f.evaluate().isNotEmpty) {
+            await $.tester.ensureVisible(f);
+            await $.tester.tap(f);
+            await $.pumpAndSettle();
+            return;
+          }
+        }
+        await $.tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // Optional: dump the tree to help debug when it fails locally
+      debugDumpApp();
+      fail('Could not find Profile/Settings navigation after 30s. ');
     }
 
     // Finds the Theme button and selects it, opening the selector sheet
