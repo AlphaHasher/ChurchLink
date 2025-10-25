@@ -647,38 +647,6 @@ export function EventDetailsModal({
                   )}
                 </div>
               </div>
-
-              {/* Payment Button for events requiring payment */}
-              {event.price > 0 && requiresPayment() && hasPayPalOption() && isUpcoming && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    Payment Required
-                  </h4>
-                  <p className="text-sm text-blue-700 mb-3">
-                    You must complete payment before you can RSVP to this event.
-                  </p>
-                  <EventPayPalButton
-                    eventId={event.id}
-                    event={{
-                      name: event.name,
-                      price: event.price,
-                      requires_payment: requiresPayment(),
-                      is_free_event: event.price === 0,
-                      payment_options: event.payment_options ?? []
-                    }}
-                    onPaymentError={(error) => {
-                      console.error('Payment error:', error);
-                    }}
-                  />
-                  {event.refund_policy && (
-                    <div className="mt-3 pt-3 border-t border-blue-200">
-                      <p className="text-xs text-blue-600 font-medium">Refund Policy:</p>
-                      <p className="text-xs text-blue-700">{event.refund_policy}</p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
