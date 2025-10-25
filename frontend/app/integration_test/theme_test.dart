@@ -6,7 +6,7 @@ import 'package:app/main.dart' as app;
 import 'package:app/theme/theme_controller.dart';
 
 void main() {
-  patrolTest('Theme Test: v2 Working', ($) async {
+  patrolTest('Theme Test: v3 Fix Brightness Check', ($) async {
     app.main();
     await $.pumpAndSettle();
 
@@ -29,7 +29,23 @@ void main() {
       expect(scaffold, findsAtLeastNWidgets(1),
           reason: 'No Scaffold yet. App did not land on a primary screen.');
       final ctx = $.tester.element(scaffold.first);
-      return Theme.of(ctx).brightness;
+      final theme = Theme.of(ctx);
+
+      // Pick whichever of the following is available first to gauge theme visuals
+      final candidates = <Color>[
+        theme.scaffoldBackgroundColor,
+        theme.colorScheme.background,
+        theme.colorScheme.surface,
+        theme.canvasColor,
+      ];
+
+      Color bg = candidates.firstWhere(
+        (c) => c.alpha == 0xFF, // ignore transparent
+        orElse: () => candidates.first,
+      );
+
+      // Gauge if the color from the theme adheres to light or dark
+      return ThemeData.estimateBrightnessForColor(bg);
     }
 
     // Navigate to the Profiles page on the navbar where settings are stored
