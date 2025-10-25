@@ -60,6 +60,7 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
+from routes.form_routes.form_translations_routes import form_translations_router
 from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
@@ -244,6 +245,7 @@ mod_router = ModProtectedRouter(prefix="/api/v1")
 
 mod_router.include_router(mod_bible_plan_router)
 mod_router.include_router(mod_forms_router)
+mod_router.include_router(form_translations_router)
 mod_router.include_router(mod_ministry_router)
 mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)

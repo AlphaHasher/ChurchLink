@@ -72,6 +72,8 @@ class FormBase(BaseModel):
     slug: Optional[str] = Field(None)
     expires_at: Optional[datetime] = Field(None)
     form_width: Optional[str] = Field(None)
+   
+    supported_locales: List[str] = Field(default_factory=list)
     
     # Payment configuration fields
     requires_payment: bool = Field(False)
@@ -124,6 +126,7 @@ class FormUpdate(BaseModel):
     expires_at: Optional[datetime] = None
     data: Optional[Any] = None
     form_width: Optional[str] = None
+    supported_locales: Optional[List[str]] = None
     
     # Payment configuration fields
     requires_payment: Optional[bool] = None
@@ -168,6 +171,7 @@ class Form(MongoBaseModel, FormBase):
     data: Any = Field(default_factory=list)
     slug: Optional[str]
     form_width: Optional[str]
+    supported_locales: List[str] = Field(default_factory=list)
     
     # Payment configuration fields
     requires_payment: bool = Field(False)
@@ -192,6 +196,7 @@ class FormOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     form_width: Optional[str]
+    supported_locales: List[str] = Field(default_factory=list)
     
     # Payment configuration fields
     requires_payment: bool = Field(False)
@@ -234,6 +239,7 @@ def _doc_to_out(doc: dict) -> FormOut:
         created_at=doc.get("created_at"),
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
+        supported_locales=doc.get("supported_locales", []),
         requires_payment=doc.get("requires_payment", False),
         payment_amount=doc.get("payment_amount"),
         payment_type=doc.get("payment_type", "fixed"),
@@ -276,6 +282,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "data": (form.data),
             "expires_at": expires_val,
             "form_width": width,
+            "supported_locales": getattr(form, "supported_locales", []),
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             # Payment configuration fields
@@ -741,6 +748,8 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
                 except Exception:
                     pass
             update_doc["expires_at"] = expires_val
+        if update.supported_locales is not None:
+            update_doc["supported_locales"] = update.supported_locales
         
         # Handle payment configuration updates
         if update.requires_payment is not None:

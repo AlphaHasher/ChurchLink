@@ -9,6 +9,9 @@ export type BuilderState = {
   schema: FormSchema;
   selectedId?: string;
   activeLocale: string; // current preview/edit locale
+  translations: { [fieldId: string]: { [locale: string]: { label?: string; placeholder?: string; options?: { [optionIdx: number]: string } } } }; // field translations by field ID, locale, and property
+  customLocales: Set<string>; // Track manually-entered locales (excluded from bulk translate)
+  modifiedFields: Set<string>; // Track field IDs that have been modified since last translation
   select: (id?: string) => void;
   addField: (type: FieldType) => void;
   removeField: (id: string) => void;
@@ -20,6 +23,13 @@ export type BuilderState = {
   addLocale: (locale: string) => void;
   removeLocale: (locale: string) => void;
   updateSchemaMeta: (patch: Partial<FormSchema>) => void;
+  setTranslations: (fieldId: string, locale: string, property: string, value: string) => void;
+  loadTranslations: (allTranslations: { [fieldId: string]: { [locale: string]: { label?: string; placeholder?: string; options?: { [optionIdx: number]: string } } } }) => void;
+  addCustomLocale: (locale: string) => void;
+  removeCustomLocale: (locale: string) => void;
+  clearCustomLocales: (locales: string[]) => void;
+  markFieldModified: (fieldId: string) => void;
+  clearModifiedFields: (fieldIds?: string[]) => void;
 };
 
 const newField = (type: FieldType): AnyField => {
@@ -67,9 +77,12 @@ const newField = (type: FieldType): AnyField => {
 };
 
 export const useBuilderStore = create<BuilderState>((set, get) => ({
-  schema: { title: DEFAULT_META.title, description: DEFAULT_META.description, defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] },
+  schema: { title: DEFAULT_META.title, description: DEFAULT_META.description, supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] },
   selectedId: undefined,
   activeLocale: 'en',
+  translations: {},
+  customLocales: new Set(),
+  modifiedFields: new Set(),
   select: (id?: string) => set({ selectedId: id }),
   addField: (type: FieldType) => set((s) => ({ schema: { ...s.schema, data: [...s.schema.data, newField(type)] } })),
   removeField: (id: string) => set((s) => ({
@@ -82,26 +95,46 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     arr.splice(to, 0, moved);
     return { schema: { ...s.schema, data: arr } };
   }),
-  updateField: (id: string, patch: Partial<AnyField>) => set((s) => ({
-    schema: {
-      ...s.schema,
-      data: s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[],
-    },
-  })),
-  updateOptions: (id: string, options: OptionItem[]) => set((s) => ({
-    schema: {
-      ...s.schema,
-      data: s.schema.data.map((f) => (f.id === id ? ({ ...f, options } as AnyField) : f)) as AnyField[],
-    },
-  })),
+  updateField: (id: string, patch: Partial<AnyField>) => set((s) => {
+    // Mark field as modified if label, placeholder, or content changed
+    const field = s.schema.data.find(f => f.id === id);
+    if (field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined)) {
+      const newModified = new Set(s.modifiedFields);
+      newModified.add(id);
+      return {
+        schema: {
+          ...s.schema,
+          data: s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[],
+        },
+        modifiedFields: newModified,
+      };
+    }
+    return {
+      schema: {
+        ...s.schema,
+        data: s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[],
+      },
+    };
+  }),
+  updateOptions: (id: string, options: OptionItem[]) => set((s) => {
+    // Mark field as modified since options changed
+    const newModified = new Set(s.modifiedFields);
+    newModified.add(id);
+    return {
+      schema: {
+        ...s.schema,
+        data: s.schema.data.map((f) => (f.id === id ? ({ ...f, options } as AnyField) : f)) as AnyField[],
+      },
+      modifiedFields: newModified,
+    };
+  }),
   setSchema: (schema) => set({
     schema: {
       ...schema,
-      defaultLocale: schema.defaultLocale || 'en',
-      locales: schema.locales || [],
+      supported_locales: schema.supported_locales || [],
       formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width),
     },
-    activeLocale: schema.defaultLocale || get().activeLocale || 'en',
+    activeLocale: 'en',
   }),
   setActiveLocale: (locale: string) => set({ activeLocale: locale }),
   updateSchemaMeta: (patch) => set((s) => {
@@ -112,16 +145,60 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     return { schema: { ...s.schema, ...next } };
   }),
   addLocale: (locale: string) => set((s) => {
-    const existing = new Set([...(s.schema.locales || [])]);
-    // avoid adding defaultLocale into locales list
-    const dl = s.schema.defaultLocale || 'en';
-    if (locale === dl) return { schema: { ...s.schema } };
+    const existing = new Set([...(s.schema.supported_locales || [])]);
+    // avoid adding if already present
+    if (locale === 'en') return { schema: { ...s.schema } };
     existing.add(locale);
-    return { schema: { ...s.schema, locales: Array.from(existing) } };
+    return { schema: { ...s.schema, supported_locales: Array.from(existing) } };
   }),
   removeLocale: (locale: string) => set((s) => ({
-    schema: { ...s.schema, locales: (s.schema.locales || []).filter((l) => l !== locale) },
-    // If removing currently active locale, fallback to default
-    activeLocale: get().activeLocale === locale ? (s.schema.defaultLocale || 'en') : get().activeLocale,
+    schema: { ...s.schema, supported_locales: (s.schema.supported_locales || []).filter((l: string) => l !== locale) },
+    // If removing currently active locale, fallback to default 'en'
+    activeLocale: get().activeLocale === locale ? 'en' : get().activeLocale,
   })),
+  setTranslations: (fieldId: string, locale: string, property: string, value: string) => set((s) => {
+    const fieldTrans = s.translations[fieldId] || {};
+    const localeTrans = fieldTrans[locale] || {};
+    return {
+      translations: {
+        ...s.translations,
+        [fieldId]: {
+          ...fieldTrans,
+          [locale]: {
+            ...localeTrans,
+            [property]: value,
+          },
+        },
+      },
+    };
+  }),
+  loadTranslations: (allTranslations) => set({ translations: allTranslations }),
+  addCustomLocale: (locale: string) => set((s) => {
+    const newCustom = new Set(s.customLocales);
+    newCustom.add(locale);
+    return { customLocales: newCustom };
+  }),
+  removeCustomLocale: (locale: string) => set((s) => {
+    const newCustom = new Set(s.customLocales);
+    newCustom.delete(locale);
+    return { customLocales: newCustom };
+  }),
+  clearCustomLocales: (locales: string[]) => set((s) => {
+    const newCustom = new Set(s.customLocales);
+    locales.forEach(locale => newCustom.delete(locale));
+    return { customLocales: newCustom };
+  }),
+  markFieldModified: (fieldId: string) => set((s) => {
+    const newModified = new Set(s.modifiedFields);
+    newModified.add(fieldId);
+    return { modifiedFields: newModified };
+  }),
+  clearModifiedFields: (fieldIds?: string[]) => set((s) => {
+    if (!fieldIds) {
+      return { modifiedFields: new Set() };
+    }
+    const newModified = new Set(s.modifiedFields);
+    fieldIds.forEach(id => newModified.delete(id));
+    return { modifiedFields: newModified };
+  }),
 }));

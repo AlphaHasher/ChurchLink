@@ -33,48 +33,13 @@ class FormLocalizationHelper {
 
     addLocale(defaultLocale(form));
 
-    final locales = form['locales'];
-    if (locales is List) {
-      for (final locale in locales) {
+    final supportedLocales = form['supported_locales'];
+    if (supportedLocales is List) {
+      for (final locale in supportedLocales) {
         if (locale is String) {
           addLocale(locale);
         } else if (locale != null) {
           addLocale(locale.toString());
-        }
-      }
-    }
-
-    final data = form['data'];
-    if (data is List) {
-      for (final field in data) {
-        if (field is Map) {
-          final i18n = field['i18n'];
-          if (i18n is Map) {
-            for (final entry in i18n.keys) {
-              if (entry is String) {
-                addLocale(entry);
-              } else if (entry != null) {
-                addLocale(entry.toString());
-              }
-            }
-          }
-          final options = field['options'];
-          if (options is List) {
-            for (final option in options) {
-              if (option is Map) {
-                final optionI18n = option['i18n'];
-                if (optionI18n is Map) {
-                  for (final entry in optionI18n.keys) {
-                    if (entry is String) {
-                      addLocale(entry);
-                    } else if (entry != null) {
-                      addLocale(entry.toString());
-                    }
-                  }
-                }
-              }
-            }
-          }
         }
       }
     }
@@ -126,11 +91,11 @@ class FormLocalizationHelper {
     String locale,
     String key,
   ) {
-    final i18n = source['i18n'];
-    if (i18n is Map) {
-      final entry = i18n[locale];
-      if (entry is Map) {
-        final value = entry[key];
+    final translations = source['translations'];
+    if (translations is Map) {
+      final localeData = translations[locale];
+      if (localeData is Map) {
+        final value = localeData[key];
         if (value is String) {
           final trimmed = value.trim();
           if (trimmed.isNotEmpty) {
@@ -205,14 +170,16 @@ class FormLocalizationHelper {
           options.map((opt) {
             if (opt is Map) {
               final optionMap = Map<String, dynamic>.from(opt);
-              final label = getLocalizedString(
-                optionMap,
-                'label',
-                activeLocale: activeLocale,
-                defaultLocale: defaultLocale,
-              );
-              if (label != null) {
-                optionMap['label'] = label;
+              final translations = optionMap['translations'];
+              if (translations is Map) {
+                final localeData = translations[activeLocale] ?? translations[defaultLocale];
+                if (localeData is Map) {
+                  final label = localeData['label'];
+                  if (label is String && label.trim().isNotEmpty) {
+                    optionMap['label'] = label.trim();
+                    return optionMap;
+                  }
+                }
               }
               return optionMap;
             }

@@ -89,11 +89,11 @@ export function Canvas() {
                               <Pencil className="h-4 w-4" />
                             </Button>
                           </SheetTrigger>
-                          <SheetContent side="left" className="sm:max-w-md w-[90vw] p-0">
-                            <SheetHeader className="p-4 pb-2">
+                          <SheetContent side="left" className="sm:max-w-md w-[90vw] p-0 flex flex-col">
+                            <SheetHeader className="p-4 pb-2 flex-shrink-0">
                               <SheetTitle>Edit Field</SheetTitle>
                             </SheetHeader>
-                            <div className="max-h-[80vh] overflow-auto p-4 pt-2">
+                            <div className="flex-1 overflow-y-auto p-4 pt-2 pb-6">
                               <Inspector />
                             </div>
                           </SheetContent>

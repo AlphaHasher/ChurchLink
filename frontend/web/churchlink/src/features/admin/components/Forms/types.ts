@@ -65,11 +65,6 @@ export interface BaseField {
   required?: boolean;
   width?: Width;
   visibleIf?: string;
-  i18n?: Record<string, {
-    label?: string;
-    placeholder?: string;
-    helpText?: string;
-  }>;
 }
 
 export interface NumberField extends BaseField {
@@ -114,8 +109,6 @@ export interface OptionItem {
   label: string;
   value: string;
   price?: number; // optional price for this option
-  // Per-locale overrides for option label
-  i18n?: Record<string, { label?: string }>;
 }
 
 export interface SelectField extends BaseField {
@@ -205,10 +198,8 @@ export interface FormSchema {
   title?: string;
   ministries?: string[];
   description?: string;
-  // List of additional locales supported by this form (excluding defaultLocale)
-  locales?: string[];
-  // Default/primary locale, used as base language for authoring
-  defaultLocale?: string;
+  // List of additional locales supported by this form (excluding default 'en')
+  supported_locales?: string[];
   formWidth?: FormWidthOption;
   data: AnyField[];
 }
@@ -251,29 +242,9 @@ export const formWidthToClass = (w?: string) => {
 export const collectAvailableLocales = (schema: FormSchema | undefined | null): string[] => {
   if (!schema) return ['en'];
   const set = new Set<string>();
-  const dl = schema.defaultLocale || 'en';
-  if (dl) set.add(dl);
-  for (const l of schema.locales || []) {
+  set.add('en'); // English is always available as the default
+  for (const l of schema.supported_locales || []) {
     if (l) set.add(l);
-  }
-  for (const field of schema.data || []) {
-    const fieldI18n = (field as any)?.i18n as Record<string, any> | undefined;
-    if (fieldI18n) {
-      for (const key of Object.keys(fieldI18n)) {
-        if (key) set.add(key);
-      }
-    }
-    const options = (field as any)?.options as Array<any> | undefined;
-    if (Array.isArray(options)) {
-      for (const option of options) {
-        const optionI18n = option?.i18n as Record<string, any> | undefined;
-        if (optionI18n) {
-          for (const key of Object.keys(optionI18n)) {
-            if (key) set.add(key);
-          }
-        }
-      }
-    }
   }
   return Array.from(set);
 };

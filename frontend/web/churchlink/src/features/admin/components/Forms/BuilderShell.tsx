@@ -34,6 +34,8 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import api from '@/api/api';
+import { useFormTranslator } from './useFormTranslator';
+import { LocaleSelector } from './LocaleSelector';
 
 
 
@@ -42,6 +44,13 @@ export function BuilderShell() {
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
   const updateSchemaMeta = useBuilderStore((s) => s.updateSchemaMeta);
+  const customLocales = useBuilderStore((s) => s.customLocales);
+  const addCustomLocale = useBuilderStore((s) => s.addCustomLocale);
+  const removeCustomLocale = useBuilderStore((s) => s.removeCustomLocale);
+  const clearCustomLocales = useBuilderStore((s) => s.clearCustomLocales);
+  const modifiedFields = useBuilderStore((s) => s.modifiedFields);
+  const clearModifiedFields = useBuilderStore((s) => s.clearModifiedFields);
+  const translations = useBuilderStore((s) => s.translations);
   const formWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
   const availableLocales = useMemo(() => collectAvailableLocales(schema as any), [schema]);
   const setSchema = useBuilderStore((s) => s.setSchema);
@@ -71,7 +80,60 @@ export function BuilderShell() {
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [previewExpanded, setPreviewExpanded] = useState(false);
-  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
+  const [supportedLocales, setSupportedLocales] = useState<string[]>((schema as any)?.supported_locales ?? []);
+  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', ministries: [], supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
+  const { translateForm, loading: translating, error: translationError } = useFormTranslator();
+  const loadTranslations = useBuilderStore((s) => s.loadTranslations);
+
+  // Helper to extract translatable texts in same order as backend
+  // onlyModified: if true, only extract from fields in modifiedFields set
+  const extractTranslatableTexts = (formData: any[], onlyModified: boolean = false): { texts: string[], fieldMap: Array<{ fieldId: string, property: string, optionIdx?: number }> } => {
+    const texts: string[] = [];
+    const fieldMap: Array<{ fieldId: string, property: string, optionIdx?: number }> = [];
+    
+    for (const field of formData) {
+      // Skip if onlyModified and this field isn't modified
+      if (onlyModified && !modifiedFields.has(field.id)) {
+        continue;
+      }
+      
+      // Add label
+      if (field.label) {
+        texts.push(field.label);
+        fieldMap.push({ fieldId: field.id, property: 'label' });
+      }
+      
+      // Add placeholder
+      if (field.placeholder) {
+        texts.push(field.placeholder);
+        fieldMap.push({ fieldId: field.id, property: 'placeholder' });
+      }
+      
+      // Add helpText
+      if (field.helpText) {
+        texts.push(field.helpText);
+        fieldMap.push({ fieldId: field.id, property: 'helpText' });
+      }
+      
+      // Add option labels
+      if (field.options) {
+        field.options.forEach((option: any, idx: number) => {
+          if (option.label) {
+            texts.push(option.label);
+            fieldMap.push({ fieldId: field.id, property: 'option', optionIdx: idx });
+          }
+        });
+      }
+      
+      // Add content for static fields
+      if (field.type === 'static' && field.content) {
+        texts.push(field.content);
+        fieldMap.push({ fieldId: field.id, property: 'content' });
+      }
+    }
+    
+    return { texts, fieldMap };
+  };
   const widthOptions = FORM_WIDTH_VALUES.map((value) => ({ value, label: `${value}%` }));
   const handleFormWidthChange = (value: string) => {
     updateSchemaMeta({ formWidth: normalizeFormWidth(value) });
@@ -148,14 +210,14 @@ export function BuilderShell() {
             title: form.title || '',
             description: form.description || '',
             ministries: form.ministries || [],
-            defaultLocale: form.defaultLocale || 'en',
-            locales: form.locales || [],
+            supported_locales: form.supported_locales || [],
             formWidth: formWidthValue,
             data: dataArray,
           } as any);
           setFormName(form.title || '');
           setDescription(form.description || '');
           setMinistries(form.ministries || []);
+          setSupportedLocales(form.supported_locales || []);
           setExpiresAt(form.expires_at ? (() => {
             try {
               const d = new Date(form.expires_at);
@@ -164,7 +226,7 @@ export function BuilderShell() {
             } catch (e) { return null; }
           })() : null);
           setStatus(null);
-          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', ministries: form.ministries || [], defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], formWidth: formWidthValue, data: dataArray });
+          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', ministries: form.ministries || [], supported_locales: form.supported_locales || [], formWidth: formWidthValue, data: dataArray });
         }
       } catch (err) {
         console.error('Failed to load form', err);
@@ -187,19 +249,20 @@ export function BuilderShell() {
       return;
     }
     const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: dataArray });
-    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] });
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], supported_locales: supportedLocales, formWidth: currentWidth, data: dataArray });
+    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', ministries: [], supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] });
     if (isDirty) setShowDiscardDialog(true);
     else resetToBlank();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetToBlank = () => {
-    const blank: any = { title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
+    const blank: any = { title: '', description: '', ministries: [], supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
     setSchema(blank);
     setFormName('');
     setDescription('');
     setMinistries([]);
+    setSupportedLocales([]);
     setExpiresAt(null);
     lastSavedSnapshotRef.current = JSON.stringify(blank);
   };
@@ -207,54 +270,25 @@ export function BuilderShell() {
   // Track dirty state and expose it for manager page via localStorage
   useEffect(() => {
     const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: (schema as any)?.data || [] });
+    const dataWithTranslations = ((schema as any)?.data || []).map((field: any) => {
+      const fieldTranslations = translations[field.id];
+      if (fieldTranslations && Object.keys(fieldTranslations).length > 0) {
+        return { ...field, translations: fieldTranslations };
+      }
+      return field;
+    });
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], supported_locales: supportedLocales, formWidth: currentWidth, data: dataWithTranslations });
     const isDirtyNow = snapshot !== lastSavedSnapshotRef.current;
     try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch { }
-  }, [schema, formName, description, ministries]);
-
-  const sanitizeFieldForLocale = (field: any, defaultLocale: string): any => {
-    const clone: any = { ...field };
-    if (field.i18n) {
-      clone.i18n = { ...field.i18n };
-      const localeEntry = clone.i18n?.[defaultLocale];
-      if (localeEntry?.label && String(localeEntry.label).trim().length > 0) {
-        delete clone.label;
-      }
-      if (localeEntry?.placeholder && String(localeEntry.placeholder).trim().length > 0) {
-        delete clone.placeholder;
-      }
-      if (localeEntry?.helpText && String(localeEntry.helpText).trim().length > 0) {
-        delete clone.helpText;
-      }
-    }
-    if ((field.type === 'select' || field.type === 'radio') && Array.isArray(field.options)) {
-      clone.options = field.options.map((opt: any) => {
-        const optClone: any = { ...opt };
-        if (opt.i18n) {
-          optClone.i18n = { ...opt.i18n };
-          const optLocale = optClone.i18n?.[defaultLocale];
-          if (optLocale?.label && String(optLocale.label).trim().length > 0) {
-            delete optClone.label;
-          }
-        }
-        return optClone;
-      });
-    }
-    return clone;
-  };
-
-  const sanitizeSchemaData = (data: any[], defaultLocale: string): any[] => {
-    if (!Array.isArray(data)) return [];
-    return data.map((field) => sanitizeFieldForLocale(field, defaultLocale));
-  };
+  }, [schema, formName, description, ministries, supportedLocales, translations]);
 
   const handleSave = async (): Promise<boolean> => {
     if (hasInvalidBounds) {
       setStatus({ type: 'error', title: 'Invalid field bounds', message: invalidBoundsMessage });
       return false;
     }
-    // Persist name, ministries and description into top-level schema so it stays with exported JSON
-    const newSchema = { ...(schema || { data: [] }), title: formName, ministries, description };
+    // Persist name, ministries, description, and supported_locales into top-level schema so it stays with exported JSON
+    const newSchema = { ...(schema || { data: [] }), title: formName, ministries, description, supported_locales: supportedLocales };
     setSchema(newSchema as any);
 
     if (!ministries || ministries.length === 0) {
@@ -265,8 +299,16 @@ export function BuilderShell() {
     // Perform the actual save
     const currentFormId = getCurrentFormId();
     const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const defaultLocale = (schema as any)?.defaultLocale || 'en';
-    const cleanedData = sanitizeSchemaData(((schema as any)?.data || []), defaultLocale);
+    const cleanedData = ((schema as any)?.data || []);
+    
+    // Embed translations into each field for persistence
+    const dataWithTranslations = cleanedData.map((field: any) => {
+      const fieldTranslations = translations[field.id];
+      if (fieldTranslations && Object.keys(fieldTranslations).length > 0) {
+        return { ...field, translations: fieldTranslations };
+      }
+      return field;
+    });
 
     try {
       setStatus({ type: 'info', title: 'Saving', message: 'Saving to server...' });
@@ -274,9 +316,10 @@ export function BuilderShell() {
         title: formName,
         description: description,
         ministries,
+        supported_locales: supportedLocales,
         expires_at: expiresAt ? `${expiresAt}:00` : null,
         form_width: normalizedWidth,
-        data: cleanedData,
+        data: dataWithTranslations,
       };
 
       if (currentFormId) {
@@ -290,7 +333,7 @@ export function BuilderShell() {
       }
 
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, supported_locales: supportedLocales, formWidth: snapshotWidth, data: dataWithTranslations });
       return true;
     } catch (err: any) {
       console.error('Failed to save form to server', err);
@@ -317,22 +360,32 @@ export function BuilderShell() {
     try {
       setStatus({ type: 'info', title: 'Overriding', message: 'Overriding existing form...' });
       const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      const defaultLocale = (schema as any)?.defaultLocale || 'en';
-      const cleanedData = sanitizeSchemaData(((schema as any)?.data || []), defaultLocale);
+      const cleanedData = (((schema as any)?.data || []));
+      
+      // Embed translations into each field for persistence
+      const dataWithTranslations = cleanedData.map((field: any) => {
+        const fieldTranslations = translations[field.id];
+        if (fieldTranslations && Object.keys(fieldTranslations).length > 0) {
+          return { ...field, translations: fieldTranslations };
+        }
+        return field;
+      });
+      
       const updatePayload = {
         title: formName,
         description,
         ministries,
+        supported_locales: supportedLocales,
         // Send local naive datetime string (no timezone conversion) so DB stores the selected local time
         expires_at: expiresAt ? `${expiresAt}:00` : null,
         visible: true,
         form_width: normalizedWidth,
-        data: cleanedData,
+        data: dataWithTranslations,
       };
       await api.put(`/v1/forms/${overrideTargetId}`, updatePayload);
       setStatus({ type: 'success', message: 'Form overridden' });
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, supported_locales: supportedLocales, formWidth: snapshotWidth, data: dataWithTranslations });
       // Refresh ministries list just in case
       const ministriesResp = await api.get('/v1/ministries');
       setAvailableMinistries(ministriesResp.data || []);
@@ -346,15 +399,13 @@ export function BuilderShell() {
   };
 
   const onExport = () => {
-    const defaultLocale = (schema as any)?.defaultLocale || 'en';
     const exportObj: any = {
       title: formName || (schema as any)?.title || 'Untitled Form',
       description: description || (schema as any)?.description || '',
       ministries: (schema as any)?.ministries || [],
-      defaultLocale: (schema as any)?.defaultLocale || 'en',
-      locales: (schema as any)?.locales || [],
+      supported_locales: supportedLocales,
       formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH),
-      data: sanitizeSchemaData(((schema as any)?.data || []), defaultLocale),
+      data: ((schema as any)?.data || []),
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -379,14 +430,14 @@ export function BuilderShell() {
             title: parsed.title || '',
             description: parsed.description || '',
             ministries: parsed.ministries || [],
-            defaultLocale: parsed.defaultLocale || 'en',
-            locales: parsed.locales || [],
+            supported_locales: parsed.supported_locales || [],
             formWidth: normalizeFormWidth(parsed.formWidth ?? parsed.form_width ?? DEFAULT_FORM_WIDTH),
             data: parsed.data,
           });
           if (parsed.title) setFormName(parsed.title);
           if (parsed.description) setDescription(parsed.description);
           if (parsed.ministries) setMinistries(parsed.ministries);
+          if (parsed.supported_locales) setSupportedLocales(parsed.supported_locales);
           setStatus({ type: 'success', title: 'Imported', message: 'Form imported' });
         } else {
           setStatus({ type: 'error', title: 'Invalid JSON', message: 'Expected top-level "data" array' });
@@ -464,12 +515,12 @@ export function BuilderShell() {
           <div className="flex items-center gap-2">
             {/* Status Alert to the left of Save button */}
             {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
-              <div className="hidden md:block max-w-xs">
+              <div className="hidden md:block max-w-md">
                 <Alert
                   variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
-                  className="h-10 inline-flex items-center px-3 py-1"
+                  className="inline-flex items-start px-3 py-2"
                 >
-                  <span className="text-sm truncate">{status.message ?? status.title}</span>
+                  <span className="text-sm line-clamp-2">{status.message ?? status.title}</span>
                 </Alert>
               </div>
             )}
@@ -499,14 +550,118 @@ export function BuilderShell() {
             </DropdownMenu>
           </div>
         </div>
+        
+        {/* Locale Selector */}
+        <div className="mb-3 p-3 border rounded bg-muted/50">
+          <LocaleSelector
+            supportedLocales={supportedLocales}
+            customLocales={customLocales}
+            onAddLocale={(locale) => {
+              if (!supportedLocales.includes(locale)) {
+                const newLocales = [...supportedLocales, locale];
+                setSupportedLocales(newLocales);
+                // Automatically track as custom (manually entered) locale
+                addCustomLocale(locale);
+                // Immediately update schema so Inspector shows translation tabs
+                updateSchemaMeta({ supported_locales: newLocales });
+              }
+            }}
+            onRemoveLocale={(locale) => {
+              const newLocales = supportedLocales.filter((l) => l !== locale);
+              setSupportedLocales(newLocales);
+              // Remove from custom locales set if present
+              removeCustomLocale(locale);
+              // Update schema to reflect removed locale
+              updateSchemaMeta({ supported_locales: newLocales });
+            }}
+            onRequestTranslations={async () => {
+              const formId = getCurrentFormId();
+              if (!formId) {
+                setStatus({ type: 'error', title: 'Error', message: 'Form must be saved before requesting translations' });
+                return;
+              }
+              
+              // Filter out custom locales from bulk translation
+              const localesToTranslate = supportedLocales.filter(locale => !customLocales.has(locale));
+              
+              if (localesToTranslate.length === 0) {
+                setStatus({ type: 'info', title: 'No locales to translate', message: 'All locales are marked as custom. Use the Inspector to translate individual fields.' });
+                return;
+              }
+              
+              // Map the translation results to field IDs (onlyModified = true for requirement #3)
+              const formData = (schema as any)?.data || [];
+              const { texts, fieldMap } = extractTranslatableTexts(formData, true);
+              
+              // Check if there are any modified fields to translate
+              if (texts.length === 0) {
+                setStatus({ type: 'info', title: 'No changes to translate', message: 'No fields have been modified since last translation.' });
+                return;
+              }
+              
+              const result = await translateForm(formId, localesToTranslate);
+              if (result) {
+                // Update schema with supported locales so Inspector can display translations
+                updateSchemaMeta({ supported_locales: supportedLocales });
+                
+                const translationsMap: { [fieldId: string]: { [locale: string]: any } } = {};
+                const translatedFieldIds = new Set<string>();
+                
+                // result.translations is { "0": { "es": "...", "ru": "..." }, "1": { ... } }
+                Object.keys(result).forEach((indexStr) => {
+                  const index = parseInt(indexStr, 10);
+                  const mapping = fieldMap[index];
+                  if (!mapping) return;
+                  
+                  const { fieldId, property, optionIdx } = mapping;
+                  translatedFieldIds.add(fieldId);
+                  
+                  if (!translationsMap[fieldId]) {
+                    translationsMap[fieldId] = {};
+                  }
+                  
+                  // For each locale in the translation result
+                  const translations = result[indexStr];
+                  Object.keys(translations).forEach((locale) => {
+                    if (!translationsMap[fieldId][locale]) {
+                      translationsMap[fieldId][locale] = {};
+                    }
+                    
+                    if (property === 'option' && optionIdx !== undefined) {
+                      translationsMap[fieldId][locale][`option_${optionIdx}`] = translations[locale];
+                    } else {
+                      translationsMap[fieldId][locale][property] = translations[locale];
+                    }
+                  });
+                });
+                
+                // Load translations into the store
+                loadTranslations(translationsMap);
+                
+                // Clear modified fields that were just translated
+                clearModifiedFields(Array.from(translatedFieldIds));
+                
+                // Remove translated locales from customLocales (they're now auto-translated)
+                clearCustomLocales(localesToTranslate);
+                
+                setStatus({ type: 'success', title: 'Success', message: `Translations generated for ${localesToTranslate.join(', ')}. You can now modify them in the inspector.` });
+              } else {
+                setStatus({ type: 'error', title: 'Error', message: translationError || 'Failed to generate translations' });
+              }
+            }}
+            isTranslating={translating}
+            translationError={translationError}
+          />
+        </div>
+
         {/* Fallback status below header for smaller screens (hidden when dialog open) */}
         {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
           <div className="md:hidden mb-2">
             <Alert
               variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
-              className="h-10 inline-flex items-center px-3 py-1"
+              className="inline-flex items-start px-3 py-2"
             >
-              <span className="text-sm truncate">{status.message ?? status.title}</span>
+              <span className="text-sm line-clamp-2">{status.message ?? status.title}</span>
             </Alert>
           </div>
         )}

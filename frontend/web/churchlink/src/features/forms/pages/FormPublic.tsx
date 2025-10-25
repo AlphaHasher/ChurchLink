@@ -12,6 +12,11 @@ import { buildLoginPath } from "@/router/paths";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 
+interface LanguageOption {
+  code: string;
+  name: string;
+}
+
 type RawOption = string | { label?: string; value?: string; id?: string; [key: string]: any };
 
 const normalizeOption = (opt: RawOption, index: number) => {
@@ -42,6 +47,7 @@ export default function FormPublic() {
   const { slug } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availableLanguages, setAvailableLanguages] = useState<LanguageOption[]>([]);
   const setSchema = useBuilderStore((s) => s.setSchema);
   const schema = useBuilderStore((s) => s.schema);
   const activeLocale = useBuilderStore((s) => s.activeLocale);
@@ -52,6 +58,27 @@ export default function FormPublic() {
   const location = useLocation();
   const navigate = useNavigate();
   const availableLocales = useMemo(() => collectAvailableLocales(schema), [schema]);
+
+  // Load available languages for display names
+  useEffect(() => {
+    const loadLanguages = async () => {
+      try {
+        const response = await api.get<{ languages: LanguageOption[] }>('/v1/translator/languages');
+        setAvailableLanguages(response.data.languages);
+      } catch (error) {
+        console.error('Failed to load languages:', error);
+        setAvailableLanguages([]);
+      }
+    };
+    loadLanguages();
+  }, []);
+
+  // Get display name for a locale code
+  const getLanguageName = (code: string) => {
+    if (code === 'en') return 'English';
+    const lang = availableLanguages.find(l => l.code === code);
+    return lang ? lang.name : code;
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -75,14 +102,28 @@ export default function FormPublic() {
         // set schema into builder store for rendering
         const rawFields: any[] = Array.isArray(form.data) ? form.data : (form.data?.data || []);
         const normalizedFields = rawFields.map((f) => normalizeFieldData(f));
+        
+        // Extract and load translations from form data
+        const translations: { [fieldId: string]: { [locale: string]: any } } = {};
+        for (const field of normalizedFields) {
+          if (field.translations) {
+            translations[field.id] = field.translations;
+          }
+        }
+        
         setSchema({
           title: form.title,
           description: form.description,
-          defaultLocale: form.defaultLocale || 'en',
-          locales: form.locales || [],
+          supported_locales: form.supported_locales || [],
           formWidth: formWidthValue,
           data: normalizedFields,
         });
+        
+        // Load translations into the store
+        if (Object.keys(translations).length > 0) {
+          useBuilderStore.getState().loadTranslations(translations);
+        }
+        
         setLoading(false);
       } catch (err: any) {
         console.error("Failed to load public form", err);
@@ -174,13 +215,15 @@ export default function FormPublic() {
               {availableLocales.length > 1 && (
                 <div className="mb-4 flex justify-end">
                   <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-                    <SelectTrigger className="w-[160px]" aria-label="Select language">
-                      <SelectValue />
+                    <SelectTrigger className="w-[200px]" aria-label="Select language">
+                      <SelectValue>
+                        {getLanguageName(activeLocale)}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent align="end">
                       {availableLocales.map((locale) => (
                         <SelectItem key={locale} value={locale}>
-                          {locale}
+                          {getLanguageName(locale)}
                         </SelectItem>
                       ))}
                     </SelectContent>
