@@ -104,14 +104,16 @@ class UserHandler:
 
         Uniqueness key ensures add/remove is easy and duplicates are prevented.
         """
-        # Build a stable “composite key” to enforce uniqueness inside the array
+        # Build a stable "composite key" to enforce uniqueness inside the array
+        # FIXED: Include person_id in unique key to prevent duplicates for family member registrations
         parts = [
             str(event_id),
             scope,
             str(series_id) if series_id else "",
             str(occurrence_id) if occurrence_id else "",
             occurrence_start.isoformat() if occurrence_start else "",
-            reason
+            reason,
+            str(person_id) if person_id else ""  # Include person_id for family members
         ]
         unique_key = "|".join(parts)
 
@@ -476,6 +478,11 @@ class UserHandler:
         meta: dict | None = None,
         person_id: ObjectId = None        # optional: for family member registrations
     ):
+        """
+        Add an event to user's my_events with proper duplicate prevention.
+        Returns the event reference if added, None if already exists.
+        """
+        # Create the event reference with proper unique key
         ref = UserHandler.create_event_ref_schema(
             event_id=event_id,
             reason=reason,
@@ -487,11 +494,29 @@ class UserHandler:
             person_id=person_id
         )
 
-        result = await DB.db["users"].update_one(
-           {"uid": uid},
-           {"$addToSet": {"my_events": ref}}
+        # IMPROVED: Proper duplicate prevention
+        # MongoDB's $addToSet doesn't work with documents that have unique _id fields
+        # So we check first, then add only if it doesn't exist
+        
+        # Check if registration with this unique key already exists
+        existing = await DB.db["users"].find_one(
+            {
+                "uid": uid,
+                "my_events.key": ref["key"]
+            },
+            {"_id": 1}  # Just check existence, don't return full document
         )
-        # Only return ref if we actually added it (not when it was a duplicate)
+        
+        if existing:
+            # Registration already exists - return None to indicate no change
+            return None
+        
+        # Add the new registration since it doesn't exist
+        result = await DB.db["users"].update_one(
+            {"uid": uid},
+            {"$push": {"my_events": ref}}  # Use $push since we verified no duplicates exist
+        )
+        
         return ref if result.modified_count == 1 else None
     
     @staticmethod

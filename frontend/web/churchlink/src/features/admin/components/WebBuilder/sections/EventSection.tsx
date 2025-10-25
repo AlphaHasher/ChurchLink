@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat, Users, CreditCard } from "lucide-react";
+import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat, Users, CreditCard, ExternalLink } from "lucide-react";
 import api from "@/api/api";
 import { EventPayPalButton } from "@/features/events/components/EventPayPalButton";
 import { useUserProfile } from "@/helpers/useUserProfile";
@@ -305,68 +305,6 @@ function EventRegistrationForm({
       }
       return next;
     });
-  };
-
-  const removeRegistered = async (personId: string | null) => {
-    try {
-      setSaving(true);
-      if (personId === null) {
-        await api.delete(`/v1/event-people/unregister/${event.id}`);
-      } else {
-        await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${personId}`);
-      }
-      const regRes = await api.get(`/v1/events/${event.id}/registrations/summary`);
-      setSummary(regRes.data);
-      if (personId === null) setSelfSelected(false);
-      else setSelectedIds((prev) => { const n = new Set(prev); n.delete(personId); return n; });
-    } catch (error: any) {
-      console.error("Remove registration failed:", error);
-      const errorMessage = error?.response?.data?.detail || error?.message || "Unknown error occurred";
-      alert(`Failed to remove registration: ${errorMessage}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleRefundRequest = async (personId: string | null, displayName: string) => {
-    try {
-      setSaving(true);
-      
-      // Show confirmation dialog with refund policy
-      const refundPolicy = event.refund_policy || "Standard refund policy applies.";
-      const confirmMessage = `Request refund for ${displayName}?\n\nRefund Policy: ${refundPolicy}\n\nThis will:\n• Submit a refund request to administrators\n• Keep the registration active until refund is processed\n• Send you email updates on refund status`;
-      
-      if (!confirm(confirmMessage)) {
-        setSaving(false);
-        return;
-      }
-
-      // Submit refund request
-      const payload = {
-        event_id: event.id,
-        person_id: personId,
-        display_name: displayName,
-        reason: "User requested refund via registration interface"
-      };
-
-      const response = await api.post(`/v1/events/${event.id}/refund/request`, payload);
-      
-      if (response.data?.success) {
-        alert(`Refund request submitted successfully for ${displayName}. You will receive email updates on the refund status.`);
-        
-        // Refresh registration summary to show updated status
-        const regRes = await api.get(`/v1/events/${event.id}/registrations/summary`);
-        setSummary(regRes.data);
-      } else {
-        throw new Error(response.data?.message || "Failed to submit refund request");
-      }
-    } catch (error: any) {
-      console.error("Refund request failed:", error);
-      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to submit refund request";
-      alert(`Refund request failed: ${errorMessage}`);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const togglePersonScope = (id: string) => {
@@ -707,10 +645,10 @@ function EventRegistrationForm({
             </div>
           </div>
 
-          {/* Already registered */}
+          {/* Registration Management - Redirect to My Events */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium">Already Registered</h4>
+              <h4 className="font-medium">Your Registration</h4>
               {/* Payment Status Summary for paid events */}
               {summary?.user_registrations?.length && (event.price ?? 0) > 0 && (
                 <div className="text-xs text-gray-500">
@@ -730,74 +668,38 @@ function EventRegistrationForm({
                 </div>
               )}
             </div>
+            
             {summary?.user_registrations?.length ? (
-              <div className="space-y-2">
-                {summary.user_registrations.map((r) => (
-                  <div key={`${r.person_id ?? "__self__"}`} className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex-1">
-                      <div className="font-medium">{r.display_name}</div>
-                      <div className="text-xs text-gray-500">
-                        Registered on {new Date(r.registered_on).toLocaleString()
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h5 className="font-medium text-blue-800 mb-2">You are registered for this event!</h5>
+                    <p className="text-sm text-blue-700 mb-3">
+                      You have {summary.user_registrations.length} registration{summary.user_registrations.length > 1 ? 's' : ''} for this event. 
+                      To manage your registrations, cancel RSVPs, or request refunds, please visit your My Events page.
+                    </p>
+                    <button
+                      onClick={() => {
+                        // Navigate to My Events page
+                        if (typeof window !== 'undefined') {
+                          window.location.href = '/my-events';
                         }
-                      </div>
-                      {/* Context-aware Payment Status Display */}
-                      <div className="mt-1">
-                        {event.price === 0 ? (
-                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 inline-block">
-                            ✅ Registered (Free Event)
-                          </span>
-                        ) : r.payment_status ? (
-                          <span className={`text-xs px-2 py-1 rounded-full inline-block ${(r.payment_status === 'completed' || r.payment_status === 'paid')
-                              ? 'bg-green-100 text-green-700'
-                              : r.payment_status === 'pending_door'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : r.payment_status === 'awaiting_payment'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : r.payment_status === 'refund_requested'
-                                    ? 'bg-orange-100 text-orange-700'
-                                    : r.payment_status === 'refunded'
-                                      ? 'bg-gray-100 text-gray-700'
-                                      : 'bg-red-100 text-red-700'
-                            }`}>
-                            {(r.payment_status === 'completed' || r.payment_status === 'paid')
-                              ? '✅ Paid Online'
-                              : r.payment_status === 'pending_door'
-                                ? '🚪 Pay at Door'
-                                : r.payment_status === 'awaiting_payment'
-                                  ? '⏳ PayPal Processing'
-                                  : r.payment_status === 'refund_requested'
-                                    ? '🔄 Refund Requested'
-                                    : r.payment_status === 'refunded'
-                                      ? '💰 Refunded'
-                                      : '❌ Payment Required'}
-                          </span>
-                        ) : (
-                          <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block">
-                            ❌ Payment Required
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {/* Smart Remove/Refund Button */}
-                    {(r.payment_status === 'completed' || r.payment_status === 'paid') ? (
-                      <button
-                        disabled={saving}
-                        className="px-3 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700"
-                        onClick={() => handleRefundRequest(r.person_id, r.display_name)}
-                      >
-                        Remove and Request Refund
-                      </button>
-                    ) : (
-                      <button
-                        disabled={saving}
-                        className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-                        onClick={() => removeRegistered(r.person_id)}
-                      >
-                        Remove
-                      </button>
-                    )}
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Manage in My Events
+                    </button>
                   </div>
-                ))}
+                </div>
+                
+                {/* Show registration summary */}
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="text-xs text-blue-600">
+                    <strong>Registered:</strong> {summary.user_registrations.map(r => r.display_name).join(', ')}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-sm text-gray-500">No one is registered yet.</div>

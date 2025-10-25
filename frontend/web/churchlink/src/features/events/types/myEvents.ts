@@ -14,7 +14,7 @@ export interface MyEvent {
   
   // Payment tracking fields (for RSVP events with payments)
   payment_method?: "paypal" | "door";  // Payment method used
-  payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door"; // Payment status
+  payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded"; // Payment status
 
   // Full event details (when expand=True used)
   event?: {
@@ -38,7 +38,17 @@ export interface MyEvent {
     published: boolean;
     seats_taken: number;
     attendee_keys: string[];
-    attendees: unknown[];
+    attendees: Array<{
+      key: string;
+      kind: string;
+      scope: string;
+      user_uid: string;
+      person_id: string | null;
+      display_name: string;
+      addedOn: string;
+      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded";
+      transaction_id?: string;
+    }>;
     // Payment settings  
     payment_options?: string[]; // ['paypal', 'door'] - available payment methods
     refund_policy?: string;

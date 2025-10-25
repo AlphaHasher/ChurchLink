@@ -1,10 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useMyEvents } from '../hooks/useMyEvents';
 import { MyEventCard } from '../components/MyEventCard';
 import { EventFiltersComponent } from '../components/EventFilters';
 import { EventDetailsModal } from '../components/EventDetailsModal';
 import { myEventsApi } from '@/features/events/api/myEventsApi';
+import api from '@/api/api';
 import { getMyProfileInfo } from '@/helpers/UserHelper';
 import { MyEvent, EventFilters, GroupedEvent } from '../types/myEvents';
 import { ProfileInfo } from '@/shared/types/ProfileInfo';
@@ -70,9 +73,18 @@ export default function MyEventsPage() {
         ? `${eventRef.event_id}-${eventRef.person_id}`
         : `${eventRef.event_id}-user`;
 
-      // Keep the first occurrence, ignore duplicates
+      // Keep the most recent occurrence (latest addedOn timestamp)
       if (!uniqueEventsMap.has(uniqueKey)) {
         uniqueEventsMap.set(uniqueKey, eventRef);
+      } else {
+        const existing = uniqueEventsMap.get(uniqueKey)!;
+        const existingDate = new Date(existing.addedOn);
+        const currentDate = new Date(eventRef.addedOn);
+        
+        // Replace with more recent registration
+        if (currentDate > existingDate) {
+          uniqueEventsMap.set(uniqueKey, eventRef);
+        }
       }
     });
 
@@ -141,11 +153,54 @@ export default function MyEventsPage() {
     try {
       await myEventsApi.cancelRSVP(eventRef.event_id, eventRef.person_id);
       refetch(); // Refresh the events list
-      // TODO: Show success notification
-      console.log('RSVP cancelled successfully');
-    } catch (error) {
-      // TODO: Show error notification
+      
+      // Show success notification
+      const personName = eventRef.display_name ? ` for ${eventRef.display_name}` : '';
+      toast.success(`RSVP cancelled successfully${personName}`);
+      
+    } catch (error: any) {
       console.error('Failed to cancel RSVP:', error);
+      
+      // Show error notification with more details
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to cancel RSVP';
+      toast.error(`Error: ${errorMessage}`);
+    }
+  };
+
+  // Handle refund request
+  const handleRefundRequest = async (eventRef: MyEvent): Promise<void> => {
+    try {
+      // Show confirmation dialog with refund policy
+      const refundPolicy = eventRef.event?.refund_policy || "Standard refund policy applies.";
+      const displayName = eventRef.display_name || 'your registration';
+      const confirmMessage = `Request refund for ${displayName}?\n\nRefund Policy: ${refundPolicy}\n\nThis will:\n• Submit a refund request to administrators\n• Keep the registration active until refund is processed\n• Send you email updates on refund status`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      // Submit refund request
+      const payload = {
+        event_id: eventRef.event_id,
+        person_id: eventRef.person_id,
+        display_name: displayName,
+        reason: "User requested refund via My Events page"
+      };
+
+      const response = await api.post(`/v1/events/${eventRef.event_id}/refund/request`, payload);
+      
+      if (response.data?.success) {
+        toast.success(`Refund request submitted successfully for ${displayName}. You will receive email updates on the refund status.`);
+        
+        // Refresh the events list to show updated status
+        refetch();
+      } else {
+        throw new Error(response.data?.message || "Failed to submit refund request");
+      }
+    } catch (error: any) {
+      console.error("Refund request failed:", error);
+      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to submit refund request";
+      toast.error(`Refund request failed: ${errorMessage}`);
     }
   };
 
@@ -244,6 +299,7 @@ export default function MyEventsPage() {
           isOpen={Boolean(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           onCancelRSVP={handleCancelRSVP}
+          onRefundRequest={handleRefundRequest}
         />
       )}
     </div>
