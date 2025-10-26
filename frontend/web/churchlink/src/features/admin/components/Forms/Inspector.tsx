@@ -455,9 +455,11 @@ export function Inspector() {
         </>
       )}
       {renderOptions()}
-      <div className="border-t pt-3">
-        <TranslationsPanel field={field} />
-      </div>
+      {field.type !== 'price' && (
+        <div className="border-t pt-3">
+          <TranslationsPanel field={field} />
+        </div>
+      )}
     </div>
   );
 }
