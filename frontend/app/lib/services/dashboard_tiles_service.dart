@@ -25,7 +25,12 @@ class DashboardTilesService {
       _cacheAt != null &&
       DateTime.now().difference(_cacheAt!) < _ttl;
 
-  // Build the URL pathing for the call
+  // Build the URL pathing for a call by appending paths to the .env URL
+  // Used to access the dashboard info and the images themselves
+  // EX: call _u('/app/dashboard/pages')
+  //     return http://10.0.2.2:8000/api/v1/app/dashboard/pages
+  // EX: call _u('/assets/public/id/123')
+  //     return http://10.0.2.2:8000/api/v1/assets/public/id/123
   Uri _u(String path) {
     String b = baseUrl;
     if (!b.endsWith('/')) b = '$b/';
@@ -37,13 +42,17 @@ class DashboardTilesService {
   }
 
   // Normalize the page names, swapping dashes and underscores to spaces to match existing dashboard naming
+  // EX: 'join live' -> 'join-live'
   String _norm(String s) => s
       .trim()
       .toLowerCase()
       .replaceAll(RegExp(r'\s+'), '-')
       .replaceAll('_', '-');
 
-  // Build the URL for the image, using the built URL
+  // Build the URL for an image
+  // Uses the page name and imageId pairing from the previously retrieved dashboard pages json
+  // EX: call "_img('ABC123')"
+  //     return "http://10.0.2.2:8000/api/v1/assets/public/id/ABC123?thumbnail=1"
   String _img(String id, {bool thumbnail = true}) {
     final t = thumbnail ? '?thumbnail=1' : '';
     return _u('/assets/public/id/$id').toString() + t;
@@ -54,6 +63,7 @@ class DashboardTilesService {
   Future<Map<String, String>> fetchImageUrls({bool forceRefresh = false}) async {
     if (!forceRefresh && _isFresh()) return _cache!;
 
+    // Retrieve the Dashboard structure from the backend
     final uri = _u('/app/dashboard/pages');
     debugPrint('Dashboard GET => $uri');
 
@@ -66,6 +76,7 @@ class DashboardTilesService {
     final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
     final map = <String, String>{};
 
+    // Iterate for each item
     for (final m in list) {
       // Skip disabled items (default to true if missing)
       final enabled = m['enabled'] is bool ? m['enabled'] as bool : true;
