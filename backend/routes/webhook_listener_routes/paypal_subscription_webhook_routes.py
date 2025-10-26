@@ -87,11 +87,10 @@ async def paypal_money_webhook(request: Request):
         existing_transaction = await Transaction.get_transaction_by_id(parent_payment)
         
         if existing_transaction:
-            # Transaction exists - update status if needed
-            if existing_transaction.status != "COMPLETED" and status == "completed":
-                await Transaction.update_transaction_status(parent_payment, "COMPLETED")
-                logging.info(f"🔄 Money webhook updated transaction {parent_payment} status to COMPLETED")
-            return {"success": True, "action": "status_updated", "order_id": parent_payment, "transaction_id": transaction_id}
+            # Transaction exists - delegate to main PayPal webhook for status updates
+            # to prevent race conditions and ensure single source of truth
+            logging.info(f"🔄 Transaction {parent_payment} exists - delegating to main webhook for status updates")
+            return {"success": True, "action": "delegated_to_main_webhook", "order_id": parent_payment, "transaction_id": transaction_id}
         
         # Transaction doesn't exist - determine payment type and create
         

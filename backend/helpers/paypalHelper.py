@@ -1584,9 +1584,8 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
                 reason=reason
             )
             
-            # Update transaction status in database
-            from models.transaction import Transaction
-            await Transaction.update_transaction_status(transaction_id, "refunded")
+            # Note: Transaction status will be updated to "refunded" by PayPal webhook
+            # when PayPal sends the PAYMENT.SALE.REFUNDED event
             
             return {
                 "success": True,
