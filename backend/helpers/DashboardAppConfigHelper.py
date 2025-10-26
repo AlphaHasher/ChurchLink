@@ -71,6 +71,9 @@ class DashboardAppConfigHelper:
             if display_name_value is not None:
                 normalized["display_name"] = display_name_value
 
+            for key in ["displayName", "imageId"]:
+                normalized.pop(key, None)
+
             normalized_pages.append(normalized)
 
         await DashboardAppConfigHelper._validate_image_ids(pages)
@@ -115,6 +118,9 @@ class DashboardAppConfigHelper:
                     updates["display_name"] = display_name_value
 
                     updated_page = {**page, **updates}
+
+                    for key in ["displayName", "imageId"]:
+                        updated_page.pop(key, None)
 
                     if image_id_value is not None:
                         await DashboardAppConfigHelper._validate_image_ids([updated_page])
