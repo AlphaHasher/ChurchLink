@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Save, ArrowUp, ArrowDown, Image } from "lucide-react";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import DashboardImageSelector from "@/features/admin/components/AppConfig/DashboardImageSelector";
 import {
   getDashboardPages,
   saveDashboardPageConfiguration,
@@ -314,18 +315,13 @@ const DashboardPagesManager = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Image ID</label>
-                <input
-                  type="text"
+                <DashboardImageSelector
                   value={editingPage.imageId || ""}
-                  onChange={(e) =>
-                    setEditingPage({ ...editingPage, imageId: e.target.value })
-                  }
-                  placeholder="Enter image _id from image_data collection"
-                  className="border border-input bg-background rounded px-3 py-2 w-full"
-                />
-                <small className="text-muted-foreground">Must match a valid image _id</small>
-              </div>
+                  onChange={(id) => setEditingPage({ ...editingPage, imageId: id })}
+                  label="Page Image"
+                  helperText="Select or upload an image for this dashboard page."
+               />
+             </div>
             </div>
 
             <div className="flex gap-2 mt-4">
