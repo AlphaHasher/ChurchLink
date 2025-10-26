@@ -6,14 +6,12 @@ import 'package:app/pages/giving.dart';
 import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
-// URL for Strapi, currently hardcoded to the Android emulator default value.
-// Potentially migrate this into the .env later
-const String strapiUrl = "http://10.0.2.2:1339"; //TODO Remove
+final String _apiBaseUrl = dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8000';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -37,7 +35,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _tilesFuture = DashboardTilesService(strapiUrl).fetchImageUrls()
+    _tilesFuture = DashboardTilesService(_apiBaseUrl).fetchImageUrls()
       .then((map) async {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('dashboard_urls', json.encode(map));
