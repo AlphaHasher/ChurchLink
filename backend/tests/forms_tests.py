@@ -1,16 +1,17 @@
 import os
-import sys
 import uuid
 from typing import Any, Dict, Optional, Tuple
 import httpx
-import requests
 import pytest
 from bson import ObjectId
 from dotenv import load_dotenv
-
 load_dotenv()
 
-from backend.tests.test_auth_helpers import get_auth_headers, get_admin_headers, FIREBASE_AUTH_URL, ADMIN_EMAIL, ADMIN_PASSWORD
+try:
+    from backend.tests.test_auth_helpers import get_auth_headers, get_admin_headers, ADMIN_EMAIL
+except Exception:
+    # Local import fallback when running inside backend/
+    from tests.test_auth_helpers import get_auth_headers, get_admin_headers, ADMIN_EMAIL
 
 BASE_URL = os.getenv("BACKEND_URL")
 
@@ -477,16 +478,8 @@ async def test_response_saves_user_id(async_client, admin_headers):
     payload = build_form_payload(slug=slug)
     created, _ = await create_form_record(async_client, admin_headers, payload)
     try:
-        try:
-            resp = requests.post(FIREBASE_AUTH_URL, json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD, "returnSecureToken": True}, timeout=10)
-        except Exception:
-            pytest.skip('Could not contact Firebase auth endpoint')
-        if not resp.ok:
-            pytest.skip(f'Firebase sign-in failed: {resp.status_code}')
-        resp.raise_for_status()
-        local_id = resp.json().get('localId')
-        if not local_id:
-            pytest.skip('Could not obtain localId for admin user')
+        # With dev tokens, the admin uid is derived from the email local-part
+        local_id = ADMIN_EMAIL.split("@")[0] + "-uid"
 
         response_payload = {"email": "tester@example.com"}
         submit = await async_client.post(f"/api/v1/forms/slug/{slug}/responses", json=response_payload, headers=admin_headers)

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from typing import Callable, List, Optional, Sequence, Union
 
-from helpers.Firebase_helpers import authenticate_uid
+from helpers.Firebase_helpers import authenticate_uid, ensure_user_for_dev_token
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 
@@ -24,6 +24,8 @@ def _normalize_required_perms(required_perms: Optional[Union[str, Sequence[str]]
 def _make_perm_dependency(required_perms: List[str]) -> Callable:
     async def _dep(request: Request, uid: str = Depends(authenticate_uid)) -> str:
         user = await UserHandler.find_by_uid(uid)
+        if user is None:
+            user = await ensure_user_for_dev_token(request, uid)
         if user is None:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User not found in MongoDB")
 

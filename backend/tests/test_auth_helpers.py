@@ -1,85 +1,54 @@
-import os
-import requests
-import pytest
-from dotenv import load_dotenv
-
-load_dotenv()
-
-FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
-if not FIREBASE_WEB_API_KEY:
-	raise RuntimeError("Environment variable FIREBASE_WEB_API_KEY must be set for auth tests")
-
-FIREBASE_AUTH_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
+import pytest  # noqa: F401
+try:
+	from helpers.Firebase_helpers import make_dev_token
+except Exception:
+	def make_dev_token(email: str, roles=None, uid: str | None = None) -> str:
+		local_part = (email or "user").split("@")[0]
+		uid_val = uid or f"{local_part}-uid"
+		if roles:
+			if isinstance(roles, str):
+				roles_part = roles
+			else:
+				roles_part = ",".join([r for r in roles if r])
+			return f"dev:{uid_val}:{email}:{roles_part}"
+		return f"dev:{uid_val}:{email}"
 
 # Hardcoded test user emails
 AUTH_EMAIL = "noadmin@testing.com"
 ADMIN_EMAIL = "admin@testing.com"
 
-# Password is FIREBASE_WEB_API_KEY + "!"
-AUTH_PASSWORD = FIREBASE_WEB_API_KEY + "!"
-ADMIN_PASSWORD = FIREBASE_WEB_API_KEY + "!"
+def _dev_token_for(email: str, roles: str | None = None, uid: str | None = None) -> str:
+    """
+    Wrapper to build a dev token using shared helper.
+    roles may be a comma-separated string; we accept both str and list.
+    """
+    if roles is None:
+        return make_dev_token(email)
+    # pass through string or convert to list
+    if isinstance(roles, str):
+        roles_list = roles.split(",")
+    else:
+        roles_list = roles
+    return make_dev_token(email, roles_list, uid)
 
-def _env_bearer(*env_names: str) -> str | None:
-	for name in env_names:
-		token = os.environ.get(name)
-		if token:
-			return token
-	return None
+# Define default bearer tokens here (not from .env)
+TEST_USER_BEARER = _dev_token_for(AUTH_EMAIL)
+TEST_ADMIN_BEARER = _dev_token_for(ADMIN_EMAIL, roles="Administrator")
 
-def token_from_email_password(email: str, password: str) -> str:
-	"""
-	Sign in to Firebase with email+password and return idToken (JWT).
-	Skips tests gracefully if Firebase reports quota exceeded.
-	"""
-	payload = {
-		"email": email,
-		"password": password,
-		"returnSecureToken": True  # ensures idToken + refreshToken returned
-	}
-	resp = requests.post(FIREBASE_AUTH_URL, json=payload, timeout=10)
-	if not resp.ok:
-		try:
-			data = resp.json()
-			msg = (data.get("error") or {}).get("message", "")
-			if "QUOTA_EXCEEDED" in msg:
-				pytest.skip("Firebase password auth quota exceeded; provide TEST_USER_BEARER/TEST_ADMIN_BEARER env tokens to run.")
-		except Exception:
-			pass
-		# include response text for debugging (be cautious with logs)
-		raise RuntimeError(f"Firebase sign-in failed: {resp.status_code} {resp.text}")
-	data = resp.json()
-	# data contains: idToken, refreshToken, expiresIn, localId, email
-	return data["idToken"]
 
 def get_auth_headers():
-	# Prefer env-provided bearer to avoid hitting Firebase in CI
-	env_token = _env_bearer("TEST_USER_BEARER", "AUTH_BEARER_TOKEN_USER", "BACKEND_TEST_USER_TOKEN")
-	if env_token:
-		return {
-			"Content-Type": "application/json",
-			"Authorization": f"Bearer {env_token}"
-		}
-	# Fallback to live sign-in
-	token = token_from_email_password(AUTH_EMAIL, AUTH_PASSWORD)
-	return {
-		"Content-Type": "application/json",
-		"Authorization": f"Bearer {token}"
-	}
+    # Use dev token defined in this file by default
+    return {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {TEST_USER_BEARER}"
+    }
 
 def get_admin_headers():
-	# Prefer env-provided bearer to avoid hitting Firebase in CI
-	env_token = _env_bearer("TEST_ADMIN_BEARER", "AUTH_BEARER_TOKEN_ADMIN", "BACKEND_TEST_ADMIN_TOKEN")
-	if env_token:
-		return {
-			"Content-Type": "application/json",
-			"Authorization": f"Bearer {env_token}"
-		}
-	# Fallback to live sign-in
-	token = token_from_email_password(ADMIN_EMAIL, ADMIN_PASSWORD)
-	return {
-		"Content-Type": "application/json",
-		"Authorization": f"Bearer {token}"
-	}
+    # Use dev token defined in this file by default
+    return {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {TEST_ADMIN_BEARER}"
+    }
 
 
 def get_user_headers():

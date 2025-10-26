@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from typing import Callable, Optional
-from helpers.Firebase_helpers import authenticate_uid
+from helpers.Firebase_helpers import authenticate_uid, ensure_user_for_dev_token
 from mongo.churchuser import UserHandler
 
 async def _attach_uid_to_state(request: Request, uid: str = Depends(authenticate_uid)) -> str:
@@ -11,6 +11,8 @@ async def _attach_uid_to_state(request: Request, uid: str = Depends(authenticate
     request.state.uid = uid
 
     user = await UserHandler.find_by_uid(uid)
+    if user is None:
+        user = await ensure_user_for_dev_token(request, uid)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
