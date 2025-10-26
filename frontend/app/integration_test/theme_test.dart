@@ -34,13 +34,13 @@ void main() {
       // Pick whichever of the following is available first to gauge theme visuals
       final candidates = <Color>[
         theme.scaffoldBackgroundColor,
-        theme.colorScheme.background,
+        theme.colorScheme.surface,
         theme.colorScheme.surface,
         theme.canvasColor,
       ];
 
       Color bg = candidates.firstWhere(
-        (c) => c.alpha == 0xFF, // ignore transparent
+        (c) => (c.a * 255.0).round() & 0xff == 0xFF, // ignore transparent
         orElse: () => candidates.first,
       );
 
