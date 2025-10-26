@@ -22,6 +22,7 @@ const ALLOWED_PAGES = [
   { pageName: "giving", displayName: "Giving" },
   { pageName: "weekly bulletin", displayName: "Weekly Bulletin" },
   { pageName: "contact us", displayName: "Contact Us" },
+  { pageName: "forms", displayName: "Forms" }
 ];
 
 const DashboardPagesManager = () => {
