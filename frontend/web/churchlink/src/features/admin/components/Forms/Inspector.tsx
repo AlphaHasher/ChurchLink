@@ -269,6 +269,21 @@ export function Inspector() {
               <Input type="number" value={(field as any).price ?? ""} onChange={(e) => onChange({ price: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
             </div>
           )}
+          {field.type === "switch" && (
+            <div className="space-y-1 border-t pt-3">
+              <Label>On/Off Text</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">On Text</Label>
+                  <Input value={(field as any).onText || ""} onChange={(e) => onChange({ onText: e.target.value } as any)} placeholder="e.g., Yes" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Off Text</Label>
+                  <Input value={(field as any).offText || ""} onChange={(e) => onChange({ offText: e.target.value } as any)} placeholder="e.g., No" />
+                </div>
+              </div>
+            </div>
+          )}
           {field.type === "number" && (
             <div className="grid grid-cols-3 gap-2">
               <div>

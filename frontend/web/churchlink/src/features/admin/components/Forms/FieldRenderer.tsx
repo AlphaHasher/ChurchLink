@@ -340,11 +340,9 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <div className="flex items-center gap-2">
                   <Switch checked={!!rhf.value} onCheckedChange={rhf.onChange} id={field.name} />
-                  {localizedPlaceholder && (
-                    <Label htmlFor={field.name} className="text-sm text-muted-foreground">
-                      {localizedPlaceholder}
-                    </Label>
-                  )}
+                  <Label htmlFor={field.name} className="text-sm text-muted-foreground">
+                    {rhf.value ? ((field as any).onText || localizedPlaceholder) : ((field as any).offText || localizedPlaceholder)}
+                  </Label>
                 </div>
               );
             case "select": {

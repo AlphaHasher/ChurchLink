@@ -125,7 +125,9 @@ export interface CheckboxField extends BaseField {
 
 export interface SwitchField extends BaseField {
   type: "switch";
-  price?: number; // price when on
+  price?: number;
+  onText?: string;
+  offText?: string;
 }
 
 export interface DateField extends BaseField {
