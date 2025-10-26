@@ -124,10 +124,6 @@ class DashboardAppConfigHelper:
 
         return False
 
-
-
-
-
     @staticmethod
     async def delete_page(index: int, updated_by: Optional[str] = None) -> bool:
         config = await DashboardAppConfigHelper.get_config()

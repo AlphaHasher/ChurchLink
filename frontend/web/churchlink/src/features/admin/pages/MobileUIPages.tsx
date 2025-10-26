@@ -119,7 +119,6 @@ const DashboardPagesManager = () => {
       const success = await deleteDashboardPage(index);
 
       if (success) {
-        // ✅ Remove from local state after backend confirms
         const newPages = pages.filter((page) => page.index !== index);
         newPages.forEach((page, idx) => (page.index = idx));
         setPages(newPages);
