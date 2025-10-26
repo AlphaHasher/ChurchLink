@@ -55,10 +55,26 @@ class DashboardAppConfigHelper:
 
     @staticmethod
     async def save_config(pages: List[Dict[str, Any]], updated_by: Optional[str] = None) -> bool:
-        collection = DashboardAppConfigHelper._get_collection()  # ✅ FIXED
+        collection = DashboardAppConfigHelper._get_collection()
         now = datetime.utcnow()
 
+        normalized_pages = []
+        for page in pages:
+            normalized = page.copy()
+
+            image_id_value = normalized.pop("imageId", None)
+            display_name_value = normalized.pop("displayName", None)
+
+            if image_id_value is not None:
+                normalized["image_id"] = image_id_value
+
+            if display_name_value is not None:
+                normalized["display_name"] = display_name_value
+
+            normalized_pages.append(normalized)
+
         await DashboardAppConfigHelper._validate_image_ids(pages)
+
         for i, page in enumerate(pages):
             page["index"] = i
 
@@ -84,14 +100,33 @@ class DashboardAppConfigHelper:
             return False
 
         pages = config.get("pages", [])
+
         for i, page in enumerate(pages):
             if page["index"] == index:
-                updated_page = {**page, **updates}
-                if "image_id" in updates:
-                    await DashboardAppConfigHelper._validate_image_ids([updated_page])
-                pages[i] = updated_page
-                return await DashboardAppConfigHelper.save_config(pages, updated_by)
+                image_id_value = None
+                display_name_value = None
+
+                if "imageId" in updates:
+                    image_id_value = updates.pop("imageId")
+                    updates["image_id"] = image_id_value
+
+                if "displayName" in updates:
+                    display_name_value = updates.pop("displayName")
+                    updates["display_name"] = display_name_value
+
+                    updated_page = {**page, **updates}
+
+                    if image_id_value is not None:
+                        await DashboardAppConfigHelper._validate_image_ids([updated_page])
+
+                    pages[i] = updated_page
+                    return await DashboardAppConfigHelper.save_config(pages, updated_by)
+
         return False
+
+
+
+
 
     @staticmethod
     async def delete_page(index: int, updated_by: Optional[str] = None) -> bool:
