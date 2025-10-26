@@ -152,6 +152,16 @@ class RoleHandler:
                 role_ids.append((await RoleHandler.find_role(role))[0]["_id"])
         return role_ids
 
+    @staticmethod
+    async def ids_to_names(role_ids):
+        """Convert list of role IDs to list of role names"""
+        role_names = []
+        for role_id in role_ids:
+            role = await RoleHandler.find_role_by_id(str(role_id))
+            if role:
+                role_names.append(role["name"])
+        return role_names
+
     ################
     ## Operations ##
     ################

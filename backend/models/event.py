@@ -372,7 +372,14 @@ def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp", s
     # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
     return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|{scope}"
 
-def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", scope: str = "series", payment_status: Optional[str] = None) -> Dict:
+def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", scope: str = "series", transaction_id: Optional[str] = None) -> Dict:
+    """
+    Create attendee document structure.
+    
+    MIGRATION NOTE: 
+    - Old approach: stored payment_status directly in attendee record
+    - New approach: store only transaction_id, query status from Transaction model
+    """
     attendee_doc = {
         "key": _attendee_key(uid, person_id, kind, scope),
         "kind": kind,  # "rsvp" | "registration"
@@ -383,9 +390,9 @@ def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optiona
         "addedOn": datetime.now(),
     }
     
-    # Add payment status if provided
-    if payment_status:
-        attendee_doc["payment_status"] = payment_status
+    # Add transaction reference if provided (new centralized approach)
+    if transaction_id:
+        attendee_doc["transaction_id"] = transaction_id
     
     return attendee_doc
 
@@ -396,15 +403,19 @@ async def rsvp_add_person(
     display_name: Optional[str] = None,
     kind: str = "rsvp",
     scope: str = "series",
-    payment_status: Optional[str] = None,
+    transaction_id: Optional[str] = None,
 ) -> tuple[bool, str]:
     """
     Add RSVP atomically. Only manages the event collection.
     Returns (success, reason) where reason explains why it failed if success is False.
+    
+    MIGRATION NOTE: 
+    - Old approach: stored payment_status directly 
+    - New approach: store transaction_id, query status from Transaction model
     """
     ev_oid = ObjectId(event_id)
     key = _attendee_key(uid, person_id, kind, scope)
-    attendee = _attendee_doc(uid, person_id, display_name, kind, scope, payment_status)
+    attendee = _attendee_doc(uid, person_id, display_name, kind, scope, transaction_id)
 
 
     logging.info(f"[RSVP_ADD] Debug info:")
@@ -667,41 +678,13 @@ async def rsvp_list(event_id: str) -> Dict:
 
 
 async def get_event_registrations_by_payment_status(event_id: str, payment_status: Optional[str] = None) -> List[Dict]:
-    """Get event registrations filtered by payment status"""
-    try:
-        event = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
-        if not event:
-            return []
-        
-        attendees = event.get("attendees", [])
-        
-        # Convert ObjectIds to strings for JSON serialization
-        def serialize_attendee(attendee):
-            serialized = attendee.copy()
-            if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
-                serialized['person_id'] = str(serialized['person_id'])
-            if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
-                serialized['_id'] = str(serialized['_id'])
-            # Convert any other ObjectId fields that might exist
-            for key, value in serialized.items():
-                if isinstance(value, ObjectId):
-                    serialized[key] = str(value)
-            return serialized
-        
-        if payment_status:
-            # Filter by specific payment status and serialize
-            filtered_attendees = [
-                serialize_attendee(attendee) for attendee in attendees 
-                if attendee.get("payment_status") == payment_status
-            ]
-            return filtered_attendees
-        else:
-            # Return all attendees with serialization
-            return [serialize_attendee(attendee) for attendee in attendees]
-            
-    except Exception as e:
-        logging.error(f"Error getting event registrations by payment status: {e}")
-        return []
+    """
+    Get event registrations filtered by payment status.
+    
+    Delegates to Transaction model for centralized payment status logic.
+    """
+    from models.transaction import Transaction
+    return await Transaction.get_event_registrations_by_payment_status(event_id, payment_status)
 
 
 async def get_event_payment_summary(event_id: str) -> Dict:
@@ -772,24 +755,16 @@ async def get_event_payment_summary(event_id: str) -> Dict:
 
 
 async def update_attendee_payment_status(event_id: str, attendee_key: str, payment_status: str, transaction_id: Optional[str] = None) -> bool:
-    """Update payment status for a specific attendee"""
-    try:
-        update_data = {"attendees.$.payment_status": payment_status}
-        if transaction_id:
-            update_data["attendees.$.transaction_id"] = transaction_id
-        
-        result = await DB.db["events"].update_one(
-            {
-                "_id": ObjectId(event_id),
-                "attendees.key": attendee_key
-            },
-            {
-                "$set": update_data
-            }
-        )
-        
-        return result.modified_count > 0
-        
-    except Exception as e:
-        logging.error(f"Error updating attendee payment status: {e}")
+    """
+    Update payment reference for a specific attendee.
+    
+    This function now requires transaction_id to link to Transaction model.
+    Direct payment_status storage has been replaced with centralized tracking.
+    """
+    if not transaction_id:
+        logging.error("transaction_id is required - direct payment_status storage no longer supported")
         return False
+    
+    # Use centralized approach: just set transaction_id
+    from models.transaction import Transaction
+    return await Transaction.update_attendee_transaction_reference(event_id, attendee_key, transaction_id)

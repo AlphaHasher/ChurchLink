@@ -6,8 +6,8 @@ from datetime import datetime
 from fastapi import HTTPException
 from bson import ObjectId
 
-from models.event import get_event_by_id, update_attendee_payment_status, get_event_payment_summary, get_event_registrations_by_payment_status, rsvp_list
-from models.transaction import Transaction
+from models.event import get_event_by_id, get_event_payment_summary, rsvp_list
+from models.transaction import Transaction, PaymentStatus, RegistrationPaymentStatus
 from helpers.paypalHelper import create_order_from_data, capture_payment_by_id
 from controllers.event_functions import register_rsvp, register_multiple_people
 from mongo.database import DB
@@ -210,8 +210,14 @@ class EventPaymentHelper:
         """Validate individual registration data"""
         try:
             # Validate required fields
-            if not registration_data.get("name"):
+            name = registration_data.get("name")
+            if not name:
                 return False, "Missing required field: name"
+            
+            # Validate name format (basic validation for reasonable characters)
+            import re
+            if not re.match(r"^[a-zA-Z\s\-\.\']+$", name.strip()):
+                return False, "Name contains invalid characters. Only letters, spaces, hyphens, dots, and apostrophes are allowed"
             
             # Email can come from registration data or will be filled from user profile
             # No need to validate email here as it will be populated later
@@ -684,7 +690,7 @@ class EventPaymentHelper:
                     transaction_id=payment_id,
                     user_email=successful_registrations[0].get("email", ""),
                     amount=total_amount,
-                    status="COMPLETED",
+                    status=PaymentStatus.COMPLETED,
                     type="one-time",
                     order_id=payment_id,
                     payment_method="paypal",
@@ -862,8 +868,8 @@ class EventPaymentHelper:
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
             
-            # Get registrations by payment status
-            registrations = await get_event_registrations_by_payment_status(event_id, payment_status)
+            # Get registrations by payment status using centralized approach
+            registrations = await Transaction.get_event_registrations_by_payment_status(event_id, payment_status)
             
             return {
                 "success": True,
@@ -886,42 +892,48 @@ class EventPaymentHelper:
         registration_key: str,
         status_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Update payment status for a specific registration (admin only)"""
+        """
+        Update payment status for a specific registration (admin only).
+        
+        Uses transaction_id as single source of truth for payment status.
+        """
         try:
             # Get the event
             event = await get_event_by_id(event_id)
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
             
-            payment_status = status_data.get("payment_status")
             transaction_id = status_data.get("transaction_id")
             
-            if payment_status not in ["not_required", "pending", "completed", "failed"]:
+            if not transaction_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="payment_status must be one of: not_required, pending, completed, failed"
+                    detail="transaction_id is required"
                 )
             
-            # Update the payment status
-            updated = await update_attendee_payment_status(
+            # Update attendee with transaction reference
+            updated = await Transaction.update_attendee_transaction_reference(
                 event_id=event_id,
-                registration_key=registration_key,
-                payment_status=payment_status,
+                attendee_key=registration_key,
                 transaction_id=transaction_id
             )
             
             if updated:
+                # Get the actual payment status from the transaction
+                actual_status = await Transaction.get_attendee_payment_status(event_id, registration_key)
+                
                 return {
                     "success": True,
-                    "message": "Payment status updated successfully",
+                    "message": "Payment transaction reference updated successfully",
                     "event_id": event_id,
                     "registration_key": registration_key,
-                    "payment_status": payment_status
+                    "transaction_id": transaction_id,
+                    "computed_payment_status": actual_status
                 }
             else:
                 raise HTTPException(
                     status_code=404,
-                    detail="Registration not found or update failed"
+                    detail="Registration not found or failed to update"
                 )
                 
         except HTTPException:
@@ -1240,7 +1252,7 @@ class EventPaymentHelper:
                         transaction_id=payment_id,
                         user_email=capture_result.get("payer_email", ""),
                         amount=float(capture_result.get("amount", 0)),
-                        status="COMPLETED",
+                        status=PaymentStatus.COMPLETED,
                         type="one-time",
                         order_id=payment_id,
                         payment_method="paypal",

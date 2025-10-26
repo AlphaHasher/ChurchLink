@@ -142,7 +142,7 @@ async def lifespan(app: FastAPI):
         logger.info("Starting background tasks")
         youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
-
+        
         # Initialize Bible Plan Notification System
         logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
@@ -302,9 +302,6 @@ app.include_router(event_payment_router, prefix="/api/v1")
 from routes.event_payment_routes.admin_refund_routes import admin_refund_router
 admin_refund_management_router = PermProtectedRouter(prefix="/api/v1", tags=["Admin Refund Management"], required_perms=["finance"])
 admin_refund_management_router.include_router(admin_refund_router)
-
-
-
 
 # MEDIA MANAGEMENT CORE
 media_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Media Protected"], required_perms=['media_management'])

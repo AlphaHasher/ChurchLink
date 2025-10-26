@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from mongo.database import DB
 from models.form import get_form_by_slug, get_form_by_id, add_response_by_slug
-from models.transaction import Transaction
+from models.transaction import Transaction, PaymentStatus
 
 from helpers.audit_logger import payment_audit_logger
 from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
@@ -508,7 +508,7 @@ class FormPaymentHelper:
             # Add payment information to form response
             enriched_response = {
                 **form_response,
-                "payment_status": "completed",
+                "payment_status": PaymentStatus.COMPLETED,
                 "payment_id": payment_session["payment_id"],
                 "payment_amount": payment_session["amount"],
                 "submitted_at": datetime.now().isoformat(),
@@ -538,7 +538,7 @@ class FormPaymentHelper:
                 transaction_id=payment_id,
                 user_email=payment_session.get("user_email", ""),
                 amount=payment_session["amount"],
-                status="COMPLETED",
+                status=PaymentStatus.COMPLETED,
                 type="one-time",
                 order_id=payment_id,
                 payment_method="paypal",
@@ -631,8 +631,8 @@ class FormPaymentHelper:
             transactions = await DB.db["transactions"].find({"form_id": form_id}).to_list(length=None)
             
             total_amount = sum(tx.get("amount", 0) for tx in transactions)
-            successful_payments = len([tx for tx in transactions if tx.get("status") == "COMPLETED"])
-            failed_payments = len([tx for tx in transactions if tx.get("status") != "COMPLETED"])
+            successful_payments = len([tx for tx in transactions if tx.get("status") == PaymentStatus.COMPLETED])
+            failed_payments = len([tx for tx in transactions if tx.get("status") != PaymentStatus.COMPLETED])
             
             return {
                 "total_revenue": total_amount,

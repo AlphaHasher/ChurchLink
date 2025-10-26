@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Request
-from models.transaction import Transaction
+from fastapi import APIRouter, Request, HTTPException
+from models.transaction import Transaction, PaymentStatus
+from models.paypal_webhook_schemas import validate_webhook_payload, extract_payment_info
 from helpers.event_payment_helper import event_payment_helper
 from mongo.database import DB
 import logging
@@ -13,24 +14,44 @@ async def paypal_webhook(request: Request):
     """Handle PayPal webhook events for payments, refunds, and event registrations"""
     try:
         payload = await request.json()
-        event_type = payload.get("event_type")
-        resource = payload.get("resource", {})
         
-        logging.info(f"🔔 PayPal Webhook received: {event_type}")
-        logging.info(f"📄 Payload: {json.dumps(payload, indent=2)}")
+        logging.info(f"🔔 PayPal Webhook received: {payload.get('event_type')}")
+        logging.info(f"📄 Raw Payload: {json.dumps(payload, indent=2)}")
+        
+        # Validate payload structure
+        try:
+            validated_payload = validate_webhook_payload(payload)
+            payment_info = extract_payment_info(validated_payload)
+            logging.info(f"✅ Webhook payload validated successfully")
+            logging.info(f"💰 Payment info: {payment_info}")
+        except Exception as validation_error:
+            logging.error(f"❌ Invalid webhook payload: {validation_error}")
+            # Don't fail completely, try to process with original payload for backward compatibility
+            resource = payload.get("resource", {})
+            payer_info = resource.get("payer", {}).get("payer_info", {})
+            payment_info = {
+                "event_type": payload.get("event_type"),
+                "transaction_id": resource.get("parent_payment"),
+                "sale_id": resource.get("id"),
+                "amount": float(resource.get("amount", {}).get("total", 0)),
+                "currency": resource.get("amount", {}).get("currency", "USD"),
+                "state": resource.get("state"),
+                "create_time": resource.get("create_time"),
+                "payer_email": payer_info.get("email"),
+                "payer_name": f"{payer_info.get('first_name', '')} {payer_info.get('last_name', '')}".strip() or "Anonymous"
+            }
+        
+        event_type = payment_info["event_type"]
+        parent_payment = payment_info["transaction_id"]
+        sale_id = payment_info["sale_id"]
+        amount = payment_info["amount"]
+        currency = payment_info["currency"]
+        create_time = payment_info["create_time"]
+        user_email = payment_info["payer_email"]
+        payer_name = payment_info["payer_name"]
         
         # Handle different event types
         if event_type == "PAYMENT.SALE.COMPLETED":
-            # Payment completed - this is the main event for successful payments
-            sale_id = resource.get("id")
-            parent_payment = resource.get("parent_payment")
-            amount = resource.get("amount", {}).get("total")
-            currency = resource.get("amount", {}).get("currency", "USD")
-            status = resource.get("state")
-            create_time = resource.get("create_time")
-            payer_info = resource.get("payer", {}).get("payer_info", {})
-            user_email = payer_info.get("email")
-            
             logging.info(f"💰 Payment completed - Sale ID: {sale_id}, Parent: {parent_payment}, Amount: ${amount}")
             
             # Check if this is an event registration payment
@@ -48,13 +69,13 @@ async def paypal_webhook(request: Request):
                 transaction_data = {
                     "transaction_id": parent_payment,
                     "user_email": user_email or "",
-                    "amount": float(amount) if amount else 0.0,
-                    "status": "COMPLETED",
+                    "amount": amount,
+                    "status": PaymentStatus.COMPLETED,
                     "type": "one-time",
                     "order_id": parent_payment,
                     "payment_method": "paypal",
                     "time": create_time,
-                    "name": f"{payer_info.get('first_name', '')} {payer_info.get('last_name', '')}".strip() or "Anonymous",
+                    "name": payer_name,
                     "currency": currency,
                     "created_on": create_time,
                 }
@@ -78,7 +99,7 @@ async def paypal_webhook(request: Request):
                             "event_type": "event_registration",
                             "metadata": {
                                 "registration_count": session.get("registration_count", 1),
-                                "event_fee_total": float(amount) if amount else 0.0,
+                                "event_fee_total": amount,
                                 "donation_total": 0.0,
                                 "bulk_registration": session.get("registration_count", 1) > 1,
                                 "webhook_created": True
@@ -108,7 +129,7 @@ async def paypal_webhook(request: Request):
                                     update_success = await update_attendee_payment_status(
                                         event_id=event_id,
                                         attendee_key=attendee_key_series,
-                                        payment_status='completed',
+                                        payment_status=PaymentStatus.COMPLETED,
                                         transaction_id=parent_payment
                                     )
                                     
@@ -118,7 +139,7 @@ async def paypal_webhook(request: Request):
                                         update_success = await update_attendee_payment_status(
                                             event_id=event_id,
                                             attendee_key=attendee_key_occurrence,
-                                            payment_status='completed',
+                                            payment_status=PaymentStatus.COMPLETED,
                                             transaction_id=parent_payment
                                         )
                                         logging.info(f"🔄 Webhook used occurrence scope for person {person_id}")
@@ -156,10 +177,6 @@ async def paypal_webhook(request: Request):
                         })
                         
                         logging.info(f"📝 Form payment webhook - Form: {form_slug}, User: {user_uid}")
-                        
-                        # NOTE: Form submissions are typically handled in complete_paypal_payment route
-                        # This webhook creates the transaction record for tracking purposes
-                        # No additional form processing needed here as it's handled by direct route
                             
                     else:
                         # Regular donation
@@ -194,9 +211,9 @@ async def paypal_webhook(request: Request):
                     return {"success": False, "message": "Failed to create transaction"}
             else:
                 # Transaction already exists - just update status if needed
-                if existing_transaction.status != "COMPLETED":
-                    await Transaction.update_transaction_status(parent_payment, "COMPLETED")
-                    logging.info(f"🔄 Webhook updated transaction {parent_payment} status to COMPLETED")
+                if existing_transaction.status != PaymentStatus.COMPLETED:
+                    await Transaction.update_transaction_status(parent_payment, PaymentStatus.COMPLETED)
+                    logging.info(f"🔄 Webhook updated transaction {parent_payment} status to {PaymentStatus.COMPLETED}")
                     
                     # Also update Event attendees' payment status for existing transactions
                     try:
@@ -229,7 +246,7 @@ async def paypal_webhook(request: Request):
                                     update_success = await update_attendee_payment_status(
                                         event_id=event_id,
                                         attendee_key=attendee_key_series,
-                                        payment_status='completed',
+                                        payment_status=PaymentStatus.COMPLETED,
                                         transaction_id=parent_payment
                                     )
                                     
@@ -239,7 +256,7 @@ async def paypal_webhook(request: Request):
                                         update_success = await update_attendee_payment_status(
                                             event_id=event_id,
                                             attendee_key=attendee_key_occurrence,
-                                            payment_status='completed',
+                                            payment_status=PaymentStatus.COMPLETED,
                                             transaction_id=parent_payment
                                         )
                                         logging.info(f"🔄 Webhook used occurrence scope for existing person {person_id}")
@@ -278,11 +295,8 @@ async def paypal_webhook(request: Request):
         
         elif event_type == "PAYMENT.SALE.REFUNDED":
             # Handle refunds
-            sale_id = resource.get("id")
-            parent_payment = resource.get("parent_payment")
-            
-            await Transaction.update_transaction_status(parent_payment, "refunded")
-            logging.info(f"🔄 Webhook updated transaction {parent_payment} status to refunded")
+            await Transaction.update_transaction_status(parent_payment, PaymentStatus.REFUNDED)
+            logging.info(f"🔄 Webhook updated transaction {parent_payment} status to {PaymentStatus.REFUNDED}")
             
             return {
                 "success": True, 
@@ -293,11 +307,8 @@ async def paypal_webhook(request: Request):
         
         elif event_type == "PAYMENT.SALE.DENIED":
             # Handle denied payments
-            sale_id = resource.get("id")
-            parent_payment = resource.get("parent_payment")
-            
-            await Transaction.update_transaction_status(parent_payment, "failed")
-            logging.info(f"🔄 Webhook updated transaction {parent_payment} status to failed")
+            await Transaction.update_transaction_status(parent_payment, PaymentStatus.FAILED)
+            logging.info(f"🔄 Webhook updated transaction {parent_payment} status to {PaymentStatus.FAILED}")
             
             return {
                 "success": True, 
