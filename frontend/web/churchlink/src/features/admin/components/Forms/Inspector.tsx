@@ -114,7 +114,7 @@ export function Inspector() {
             <Label>Text content</Label>
             <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
           </div>
-          <div className="grid grid-cols-4 gap-2 items-end">
+          <div className="grid grid-cols-3 gap-2 items-end">
             <div className="space-y-1 min-w-0">
               <Label>As</Label>
               <Select value={(field as any).as || "p"} onValueChange={(v) => onChange({ as: v as any } as any)}>
@@ -140,7 +140,7 @@ export function Inspector() {
               />
             </div>
 
-            <div className="space-y-1 col-span-2 min-w-0">
+            <div className="space-y-1 min-w-0">
               <Label>Style</Label>
               <ToggleGroup
                 type="multiple"
