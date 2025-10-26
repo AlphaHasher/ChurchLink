@@ -206,6 +206,14 @@ export function BuilderShell() {
         if (form && form.data) {
           const dataArray = Array.isArray(form.data) ? form.data : (form.data?.data || []);
           const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
+          
+          const translations: { [fieldId: string]: { [locale: string]: any } } = {};
+          for (const field of dataArray) {
+            if (field.translations) {
+              translations[field.id] = field.translations;
+            }
+          }
+          
           setSchema({
             title: form.title || '',
             description: form.description || '',
@@ -214,6 +222,11 @@ export function BuilderShell() {
             formWidth: formWidthValue,
             data: dataArray,
           } as any);
+          
+          if (Object.keys(translations).length > 0) {
+            loadTranslations(translations);
+          }
+          
           setFormName(form.title || '');
           setDescription(form.description || '');
           setMinistries(form.ministries || []);
@@ -234,7 +247,7 @@ export function BuilderShell() {
       }
     })();
     return () => { mounted = false; };
-  }, [setSchema]);
+  }, [setSchema, loadTranslations]);
 
   // Handle New Form flow via ?new=1 param
   useEffect(() => {
@@ -913,7 +926,7 @@ export function BuilderShell() {
                     <Skeleton className="h-8 w-full mt-2" />
                   </div>
                 ) : (
-                  <PreviewRendererClient instanceId="card" />
+                  <PreviewRendererClient instanceId="card" applyFormWidth={false} />
                 )}
               </ErrorBoundary>
             </CardContent>
