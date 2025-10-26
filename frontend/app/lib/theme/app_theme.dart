@@ -27,6 +27,7 @@ class AppTheme {
       border: OutlineInputBorder(),
     ),
     appBarTheme: const AppBarTheme(
+      centerTitle: true,
       backgroundColor: Color.fromARGB(255, 142, 163, 168), // was 0xFFF5F5F7
       foregroundColor: Colors.white,      // was 0xFF222222
       elevation: 0,
@@ -57,6 +58,7 @@ class AppTheme {
       border: OutlineInputBorder(),
     ),
     appBarTheme: const AppBarTheme(
+      centerTitle: true,
       backgroundColor: Color(0xFF1B1B1B), // was 0xFF232323 (now darker than page)
       foregroundColor: Color(0xFFF5F5F7),
       elevation: 0,

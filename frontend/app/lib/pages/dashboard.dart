@@ -7,6 +7,11 @@ import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/forms.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+
+// URL for Strapi, currently hardcoded to the Android emulator default value.
+// Potentially migrate this into the .env later
+const String strapiUrl = "http://10.0.2.2:1339"; //TODO Remove
+
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
   @override
@@ -14,6 +19,45 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  late final Future<Map<String, String>> _tilesFuture;
+  late final Future<Map<String, String>> _readyFuture;
+
+  // Stops the app from causing errors when a precache for the dashboard images fails
+  Future<void> _precacheSafe(ImageProvider provider, BuildContext context) async {
+    try {
+      await precacheImage(provider, context);
+    } catch (_) {
+      debugPrint('[Dashboard] precache failed');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tilesFuture = DashboardTilesService(strapiUrl).fetchImageUrls()
+      .then((map) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('dashboard_urls', json.encode(map));
+        return map;
+      }).catchError((_) async {
+        final prefs = await SharedPreferences.getInstance();
+        final s = prefs.getString('dashboard_urls');
+        if (s != null) {
+          final Map<String, dynamic> raw = json.decode(s);
+          return raw.map((k, v) => MapEntry(k, v as String));
+        }
+        return <String, String>{};
+      });
+
+    _readyFuture = _tilesFuture.then((map) async {
+      for (final url in map.values) {
+        if (url.isEmpty) continue;
+        _precacheSafe(NetworkImage(url), context);
+      }
+      return map;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

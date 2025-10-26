@@ -362,6 +362,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'profile':
         return Icon(
           Icons.person,
+          key: ValueKey('nav_profile')
         );
       case 'live_tv':
       case 'live':
@@ -416,6 +417,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'profile':
         return Icon(
           Icons.person,
+          key: ValueKey('nav_profile')
         );
       case 'live':
         return Icon(

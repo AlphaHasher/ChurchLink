@@ -131,6 +131,7 @@ class _UserSettingsState extends State<UserSettings> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                key: const Key('choose_theme_light'),
                 leading: const Icon(Icons.wb_sunny_outlined),
                 title: const Text('Light'),
                 trailing: current == ThemeMode.light
@@ -143,6 +144,7 @@ class _UserSettingsState extends State<UserSettings> {
                 },
               ),
               ListTile(
+                key: const Key('choose_theme_system'),
                 leading: const Icon(Icons.brightness_auto),
                 title: const Text('System'),
                 trailing: current == ThemeMode.system
@@ -155,6 +157,7 @@ class _UserSettingsState extends State<UserSettings> {
                 },
               ),
               ListTile(
+                key: const Key('choose_theme_dark'),
                 leading: const Icon(Icons.nights_stay_outlined),
                 title: const Text('Dark'),
                 trailing: current == ThemeMode.dark
@@ -401,6 +404,7 @@ class _UserSettingsState extends State<UserSettings> {
             'title': 'Theme',
             'subtitle': themeLabel,
             'ontap': _showThemeSheet,
+            'key': const ValueKey('settings_theme_tile'),
           },
           {
             'icon': Icons.language,
@@ -521,6 +525,7 @@ class _UserSettingsState extends State<UserSettings> {
                 ],
               ),
               child: ListTile(
+                key: item['key'] as Key?,
                 leading: Icon(
                   item['icon'] as IconData,
                   color: theme.colorScheme.primary,

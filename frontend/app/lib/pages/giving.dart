@@ -449,21 +449,19 @@ class _GivingState extends State<Giving> {
       title: 'Church Giving',
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        appBar: AppBar(
-          backgroundColor: const Color.fromARGB(159, 144, 79, 230),
-          iconTheme: const IconThemeData(color: Colors.white),
-          title: const Padding(
-            padding: EdgeInsets.only(left: 80),
-            child: Text(
-              'Church Giving',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(159, 144, 79, 230),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Church Giving',
+          style: TextStyle(color: Colors.white),
         ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
         backgroundColor: const Color.fromARGB(246, 244, 236, 255),
         body: SafeArea(
           minimum: const EdgeInsets.symmetric(horizontal: 10),
