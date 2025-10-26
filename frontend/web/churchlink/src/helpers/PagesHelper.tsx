@@ -11,10 +11,10 @@ export interface DashboardPage {
 
 // Default dashboard page structure (fallback)
 export const DEFAULT_DASHBOARD_PAGES: DashboardPage[] = [
-  { index: 0, pageName: "overview", displayName: "Overview" },
-  { index: 1, pageName: "reports", displayName: "Reports" },
-  { index: 2, pageName: "analytics", displayName: "Analytics" },
-  { index: 3, pageName: "settings", displayName: "Settings" },
+  { index: 0, pageName: "join live", displayName: "Join Live" },
+  { index: 1, pageName: "events", displayName: "Events" },
+  { index: 2, pageName: "ministries", displayName: "Ministries" },
+  { index: 3, pageName: "sermons", displayName: "Sermons" },
 ];
 
 // Fetch all dashboard pages from backend
