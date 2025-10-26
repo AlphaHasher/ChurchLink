@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../models/bulletin.dart';
+import 'package:app/models/bulletin.dart';
 
 class BulletinFilterSheet extends StatefulWidget {
   const BulletinFilterSheet({super.key, required this.initialFilter});
@@ -76,7 +75,7 @@ class _BulletinFilterSheetState extends State<BulletinFilterSheet> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
-              value: _ministry?.isNotEmpty == true ? _ministry : null,
+              initialValue: _ministry?.isNotEmpty == true ? _ministry : null,
               decoration: const InputDecoration(
                 labelText: 'Ministry',
                 prefixIcon: Icon(Icons.church),

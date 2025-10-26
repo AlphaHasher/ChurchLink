@@ -49,7 +49,7 @@ class SelectFormComponent extends StatelessWidget {
       final hasError = state.hasError;
       final borderColor =
         hasError ? Colors.red.shade400 : Colors.grey.shade300;
-          final backgroundColor = hasError ? Colors.red.withOpacity(0.05) : null;
+          final backgroundColor = hasError ? Colors.red.withAlpha(5) : null;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -128,7 +128,7 @@ class SelectFormComponent extends StatelessWidget {
 
     final current = value?.toString();
     return DropdownButtonFormField<String>(
-      value: current?.isNotEmpty == true ? current : null,
+      initialValue: current?.isNotEmpty == true ? current : null,
       decoration: InputDecoration(
         labelText: label,
         hintText: placeholder?.trim().isEmpty ?? true ? null : placeholder,

@@ -14,7 +14,7 @@ class DaysPaginationHeader extends StatelessWidget {
   final Color? color;
 
   const DaysPaginationHeader({
-    Key? key,
+    super.key,
     required this.start,
     required this.end,
     required this.total,
@@ -23,7 +23,7 @@ class DaysPaginationHeader extends StatelessWidget {
     this.onNext,
     this.label = 'Days',
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

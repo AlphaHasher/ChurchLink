@@ -47,6 +47,7 @@ from routes.common_routes.user_routes import user_mod_router, user_private_route
 from routes.common_routes.membership_routes import member_private_router, member_mod_router
 from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
+from routes.common_routes.dashboard_app_config_routes import dashboard_app_config_public_router, dashboard_app_config_private_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 
 from routes.event_payment_routes.event_payment_routes import event_payment_router
@@ -213,6 +214,7 @@ public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
 public_router.include_router(public_notification_router)
 public_router.include_router(app_config_public_router)
+public_router.include_router(dashboard_app_config_public_router)
 public_router.include_router(paypal_public_router)
 public_router.include_router(form_payment_router)
 public_router.include_router(paypal_subscription_webhook_router)
@@ -230,7 +232,6 @@ private_router = AuthProtectedRouter(prefix="/api/v1")
 
 private_router.include_router(bible_note_router)
 private_router.include_router(auth_bible_plan_router)
-private_router.include_router(private_bible_plan_router)
 private_router.include_router(bible_notification_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
@@ -256,6 +257,7 @@ mod_router.include_router(permissions_view_router)
 mod_router.include_router(private_notification_router)
 mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
+mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
 mod_router.include_router(mod_ministry_router)

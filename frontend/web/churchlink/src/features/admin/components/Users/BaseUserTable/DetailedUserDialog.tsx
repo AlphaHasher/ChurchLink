@@ -229,13 +229,27 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
             </Button>
 
             <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
+                <DialogContent
+                    className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto
+                                [&_input]:opacity-100
+                                [&_input]:bg-muted/30
+                                [&_input]:text-foreground
+                                [&_input]:border-border
+                                [&_select]:opacity-100
+                                [&_select]:bg-muted/30
+                                [&_select]:text-foreground
+                                [&_select]:border-border
+                                [&_textarea]:opacity-100
+                                [&_textarea]:bg-muted/30
+                                [&_textarea]:text-foreground
+                                [&_textarea]:border-border"
+                    >
                     <DialogHeader>
                         <DialogTitle>{fullName} Details</DialogTitle>
                     </DialogHeader>
 
                     <div className="grid gap-6 py-2">
-                        <div className="flex items-center justify-between rounded-md border p-3">
+                        <div className="flex items-center justify-between rounded-md border p-3 bg-card">
                             <div className="space-y-0.5">
                                 <div className="font-medium">Allow editing</div>
                                 <p className="text-sm text-muted-foreground">
@@ -260,7 +274,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
 
                             <div className="space-y-2 md:col-span-2">
                                 <Label>Verified</Label>
-                                <div className="flex h-10 items-center justify-between rounded-md border px-3">
+                                <div className="flex h-10 items-center justify-between rounded-md border px-3 bg-card">
                                     <span className="text-sm text-muted-foreground">Email verification</span>
                                     <Switch checked={emailVerified} disabled />
                                 </div>
@@ -271,7 +285,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
 
                         <div className="space-y-2">
                             <Label>Church Membership</Label>
-                            <div className="flex h-10 items-center justify-between rounded-md border px-3">
+                            <div className="flex h-10 items-center justify-between rounded-md border px-3 bg-card">
                                 <span className="text-sm text-muted-foreground">Member</span>
                                 <Switch
                                     checked={membership}

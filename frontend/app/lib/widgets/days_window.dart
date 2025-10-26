@@ -9,16 +9,23 @@ class DaysWindow extends StatefulWidget {
   final int totalDays;
   final int pageSize;
   final int initialDay;
-  final Widget Function(BuildContext context, int start, int end, VoidCallback? onPrev, VoidCallback? onNext) builder;
+  final Widget Function(
+    BuildContext context,
+    int start,
+    int end,
+    VoidCallback? onPrev,
+    VoidCallback? onNext,
+  )
+  builder;
 
   const DaysWindow({
-    Key? key,
+    super.key,
     required this.storageKey,
     required this.totalDays,
     required this.builder,
     this.pageSize = 5,
     this.initialDay = 1,
-  }) : super(key: key);
+  });
 
   @override
   State<DaysWindow> createState() => _DaysWindowState();
@@ -72,10 +79,12 @@ class _DaysWindowState extends State<DaysWindow> {
   @override
   Widget build(BuildContext context) {
     final start = _windowStart.clamp(1, widget.totalDays).toInt();
-    final end = (_windowStart + widget.pageSize - 1).clamp(1, widget.totalDays).toInt();
+    final end =
+        (_windowStart + widget.pageSize - 1).clamp(1, widget.totalDays).toInt();
 
     final onPrev = start > 1 ? () => _seekWindowBy(-widget.pageSize) : null;
-    final onNext = end < widget.totalDays ? () => _seekWindowBy(widget.pageSize) : null;
+    final onNext =
+        end < widget.totalDays ? () => _seekWindowBy(widget.pageSize) : null;
 
     return widget.builder(context, start, end, onPrev, onNext);
   }

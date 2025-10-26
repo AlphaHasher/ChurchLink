@@ -12,8 +12,8 @@ extension ThemeExtensions on BuildContext {
   Color get onPrimaryColor => colorScheme.onPrimary;
   Color get secondaryColor => colorScheme.secondary;
   Color get onSecondaryColor => colorScheme.onSecondary;
-  Color get backgroundColor => colorScheme.background;
-  Color get onBackgroundColor => colorScheme.onBackground;
+  Color get backgroundColor => colorScheme.surface;
+  Color get onBackgroundColor => colorScheme.onSurface;
   Color get surfaceColor => colorScheme.surface;
   Color get onSurfaceColor => colorScheme.onSurface;
   Color get errorColor => colorScheme.error;

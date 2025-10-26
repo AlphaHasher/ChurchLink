@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 
-import '../helpers/api_client.dart';
-import '../models/bulletin.dart';
-import '../models/service_bulletin.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/bulletin.dart';
+import 'package:app/models/service_bulletin.dart';
 
 /// Response model for combined bulletin feed containing services and bulletins
 class BulletinFeedResponse {
@@ -125,3 +125,4 @@ class BulletinsService {
     return <Bulletin>[];
   }
 }
+

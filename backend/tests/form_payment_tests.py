@@ -1,11 +1,5 @@
 import pytest
 from unittest.mock import patch, MagicMock
-import os
-import sys
-
-# Add backend to path for imports
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(backend_dir)
 
 # Import only what we need to avoid circular dependencies
 from helpers.audit_logger import payment_audit_logger

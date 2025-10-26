@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/bulletin.dart';
-import '../models/service_bulletin.dart';
-import '../services/bulletins_service.dart';
+import 'package:app/models/bulletin.dart';
+import 'package:app/models/service_bulletin.dart';
+import 'package:app/services/bulletins_service.dart';
 
 /// Get the Monday of the current week at 00:00:00
 /// Used ONLY for filtering services by week (services still use week-based display_week)
@@ -190,3 +190,4 @@ class BulletinsProvider extends ChangeNotifier {
     super.dispose();
   }
 }
+

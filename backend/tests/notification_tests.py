@@ -1,18 +1,12 @@
 from dotenv import load_dotenv
 import httpx
-import sys
 import os
 
 from backend.tests.test_auth_helpers import get_admin_headers
 
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(backend_dir)
-
 load_dotenv()
 
 BASE_URL = os.getenv("BACKEND_URL")
-
-
 
 def test_register_device_token():
     headers = get_admin_headers()
@@ -28,9 +22,6 @@ def test_register_device_token():
     )
     assert response.status_code == 200
     assert response.json().get("success") is True
-
-
-
 
 
 def test_get_notification_settings():

@@ -18,31 +18,18 @@ ModuleRegistry.registerModules([
 ]);
 
 import BiblePlansTabs from '@/features/admin/components/BiblePlanManager/BiblePlansTabs';
+import { VisibilityToggleCellRenderer } from '@/shared/components/VisibilityToggle';
 import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
-import { Switch } from '@/shared/components/ui/switch';
 import { MoreHorizontal, Pencil, Copy, Download, Trash, RefreshCcw } from 'lucide-react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
-// Cell renderer for visible column (switch)
-const VisibleCellRenderer = (props: ICellRendererParams) => {
-  const { data, context } = props;
-  if (!data) return null;
-
-  const { handleToggleVisible } = context;
-
-  return (
-    <Switch
-      checked={!!data.visible}
-      onCheckedChange={(c) => handleToggleVisible(data.id, !!c)}
-      aria-label="Toggle visibility"
-    />
-  );
-};
+// Cell renderer for visible column
+const VisibleCellRenderer = VisibilityToggleCellRenderer;
 
 // Cell renderer for actions column
 const ActionsCellRenderer = (props: ICellRendererParams) => {
@@ -218,7 +205,9 @@ const ManageBiblePlans = () => {
       field: 'visible',
       headerName: 'Visible',
       flex: 1,
+      minWidth: 120,
       cellRenderer: VisibleCellRenderer,
+      cellStyle: { display: 'grid', placeItems: 'center', padding: 0 },
     },
     {
       headerName: 'Actions',
@@ -232,6 +221,9 @@ const ManageBiblePlans = () => {
   const gridContext = {
     handleEdit,
     handleToggleVisible,
+    onToggleVisibility: async (id: string, newVisibility: boolean) => {
+      await handleToggleVisible(id, newVisibility);
+    },
     handleDuplicate,
     handleExport,
     setRenameTarget,

@@ -1,3 +1,5 @@
+// ignore_for_file: no_leading_underscores_for_local_identifiers
+
 import 'package:intl/intl.dart';
 
 /// Domain model representing a sermon document returned by the backend.

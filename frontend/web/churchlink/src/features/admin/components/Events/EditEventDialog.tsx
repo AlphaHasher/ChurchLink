@@ -126,16 +126,16 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
             </Button>
 
             <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-800 text-black dark:text-white border border-gray-200 dark:border-gray-600">
                     <DialogHeader>
-                        <DialogTitle>Edit Event</DialogTitle>
+                        <DialogTitle className="text-black dark:text-white">Edit Event</DialogTitle>
                         <div className="pt-6">
-                            <DialogDescription>
+                            <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
                                 Make changes to the event details. Click "Save changes" when done.
                             </DialogDescription>
                         </div>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
+                    <div className="grid gap-4 py-4 bg-white dark:bg-gray-800">
                         <EventTextInputs
                             name={event.name}
                             ru_name={event.ru_name}
@@ -211,9 +211,9 @@ export function EditEventDialog({ event: originalEvent, onSave }: EditEventDialo
                         />
                     </div>
 
-                    <DialogFooter>
-                        <Button type="button" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
-                        <Button type="button" onClick={handleSaveChanges} disabled={saving}>
+                    <DialogFooter className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
+                        <Button type="button" onClick={handleDialogClose} disabled={saving} className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">Cancel</Button>
+                        <Button type="button" onClick={handleSaveChanges} disabled={saving} className="dark:bg-blue-600 dark:border-blue-500 dark:text-white">
                             {saving ? (
                                 <>
                                     <Loader2 className="animate-spin mr-2 h-4 w-4" />

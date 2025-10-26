@@ -6,12 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
-import '../pages/event_showcase.dart';
-import '../models/event.dart';
-import '../helpers/api_client.dart';
-import '../helpers/backend_helper.dart';
-import '../services/paypal_service.dart';
-import '../main.dart';
+import 'package:app/pages/event_showcase.dart';
+import 'package:app/models/event.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/backend_helper.dart';
+import 'package:app/services/paypal_service.dart';
+import 'package:app/main.dart';
 
 class DeepLinkingService {
   // Reference to the navigator key
@@ -72,9 +72,9 @@ class DeepLinkingService {
       await _completeEventPayment(eventId, paymentId, payerId);
     } else {
       // Regular donation payment - navigate to success page
-      final context = (_navigatorKey ?? navigatorKey).currentContext;
-      if (context != null) {
-        Navigator.of(context).pushNamed(
+      final nav = (_navigatorKey ?? navigatorKey).currentState;
+      if (nav != null) {
+        nav.pushNamed(
           '/paypal-success',
           arguments: {'token': token},
         );
@@ -94,14 +94,14 @@ class DeepLinkingService {
       eventId = uri.pathSegments.first;
     }
     
-    final context = (_navigatorKey ?? navigatorKey).currentContext;
-    if (context != null) {
+    final nav = (_navigatorKey ?? navigatorKey).currentState;
+    if (nav != null) {
       if (eventId != null) {
         // Event payment was cancelled
-        _showEventPaymentCancelDialog(context);
+        _showEventPaymentCancelDialog(nav.context);
       } else {
         // Regular donation cancellation
-        Navigator.of(context).pushNamed('/cancel');
+        nav.pushNamed('/cancel');
       }
     }
   }
@@ -120,10 +120,7 @@ class DeepLinkingService {
         log('[DeepLinkingService] EventId match: ${pendingBulkData['eventId'] == eventId}');
       }
       
-      final context = (_navigatorKey ?? navigatorKey).currentContext;
-      if (context == null) return;
-      
-      if (pendingBulkData != null && pendingBulkData['eventId'] == eventId) {
+  if (pendingBulkData != null && pendingBulkData['eventId'] == eventId) {
         // This is a bulk registration completion
         log('[DeepLinkingService] Processing bulk registration completion');
         final registrations = pendingBulkData['registrations'] as List<dynamic>;
@@ -142,32 +139,38 @@ class DeepLinkingService {
         if (result != null && result['success'] == true) {
           log('[DeepLinkingService] Bulk registration completed successfully');
           // Close any open dialogs and clear navigation stack
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          
+          final nav = (_navigatorKey ?? navigatorKey).currentState;
+          if (nav == null) return;
+
+          nav.popUntil((route) => route.isFirst);
+
           // Navigate to events list, replacing the current route
-          Navigator.of(context).pushNamedAndRemoveUntil(
+          nav.pushNamedAndRemoveUntil(
             '/events',
             (route) => false, // Remove all previous routes
           );
-          
+
           // Show success message after navigation
           final numberOfPeople = registrations.length;
           Future.delayed(Duration(milliseconds: 800), () {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
-                  ),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 4),
+            final nav2 = (_navigatorKey ?? navigatorKey).currentState;
+            if (nav2 == null || !nav2.mounted) return;
+            ScaffoldMessenger.of(nav2.context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
                 ),
-              );
-            }
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 4),
+              ),
+            );
           });
         } else {
           log('[DeepLinkingService] Bulk registration failed: ${result?['error']}');
-          _showEventPaymentErrorDialog(context, result?['error'] ?? 'Bulk registration failed');
+          final nav = (_navigatorKey ?? navigatorKey).currentState;
+          if (nav != null && nav.mounted) {
+            _showEventPaymentErrorDialog(nav.context, result?['error'] ?? 'Bulk registration failed');
+          }
         }
       } else {
         // Single event payment
@@ -189,36 +192,41 @@ class DeepLinkingService {
         if (result != null && result['success'] == true) {
           log('[DeepLinkingService] Single event payment completed successfully');
           // Close any open dialogs and clear navigation stack
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          
-          // Navigate to events list, replacing the current route
-          Navigator.of(context).pushNamedAndRemoveUntil(
+          final nav = (_navigatorKey ?? navigatorKey).currentState;
+          if (nav == null) return;
+
+          nav.popUntil((route) => route.isFirst);
+
+          nav.pushNamedAndRemoveUntil(
             '/events',
             (route) => false, // Remove all previous routes
           );
-          
+
           // Show success message after navigation
           Future.delayed(Duration(milliseconds: 800), () {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✅ Event payment completed successfully!'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 4),
-                ),
-              );
-            }
+            final nav2 = (_navigatorKey ?? navigatorKey).currentState;
+            if (nav2 == null || !nav2.mounted) return;
+            ScaffoldMessenger.of(nav2.context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Event payment completed successfully!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 4),
+              ),
+            );
           });
         } else {
           log('[DeepLinkingService] Single event payment failed: ${result?['error']}');
-          _showEventPaymentErrorDialog(context, result?['error'] ?? 'Payment completion failed');
+          final nav = (_navigatorKey ?? navigatorKey).currentState;
+          if (nav != null && nav.mounted) {
+            _showEventPaymentErrorDialog(nav.context, result?['error'] ?? 'Payment completion failed');
+          }
         }
       }
     } catch (e) {
       log('[DeepLinkingService] Error completing payment: $e');
-      final context = (_navigatorKey ?? navigatorKey).currentContext;
-      if (context != null) {
-        _showEventPaymentErrorDialog(context, 'Error completing payment: $e');
+      final nav = (_navigatorKey ?? navigatorKey).currentState;
+      if (nav != null && nav.mounted) {
+        _showEventPaymentErrorDialog(nav.context, 'Error completing payment: $e');
       }
     }
   }

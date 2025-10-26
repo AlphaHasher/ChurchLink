@@ -614,6 +614,13 @@ const MediaLibrary: React.FC<{
               setError('Failed to update image');
             }
           }}
+          onRequestDelete={() => {
+            if (!canManage) { window.alert('You do not have permission to delete images.'); return; }
+            if (!selectedImage) return;
+            setDeletingImage(selectedImage);
+            setDeleteConfirmOpen(true);
+            setSelectedImage(null);
+          }}
         />
       )}
 
@@ -632,6 +639,7 @@ const MediaLibrary: React.FC<{
               await deleteImage(deletingImage.id);
               setDeleteConfirmOpen(false);
               setDeletingImage(null);
+              setSelectedImage(null);
               fetchCurrentData();
             } catch {
               setError('Failed to delete image');

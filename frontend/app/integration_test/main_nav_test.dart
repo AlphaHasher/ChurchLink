@@ -8,7 +8,7 @@ Future<void> expectVisible(PatrolFinder f) async {
   try {
     await f.waitUntilVisible(timeout: const Duration(seconds: 10));
   } catch (_) {
-    expect(await f.exists, true);
+    expect(f.exists, true);
   }
 }
 

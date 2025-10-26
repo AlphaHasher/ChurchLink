@@ -58,31 +58,34 @@ def _make_test_image_bytes(size=(640, 480), color=(200, 120, 80)) -> bytes:
 async def _upload_image(async_client: httpx.AsyncClient, admin_headers: dict, *, folder: str | None = None) -> dict | None:
 	filename = f"test-{uuid.uuid4().hex}.jpg"
 	content = _make_test_image_bytes()
-	files = {
-		"file": (filename, content, "image/jpeg"),
-	}
-	data = {}
+	
+	# Build multipart form data
+	files_data = [
+		("file", (filename, content, "image/jpeg")),
+	]
 	if folder:
-		data["folder"] = folder
-	resp = await async_client.post("/api/v1/assets/upload", files=files, data=data, headers=admin_headers)
+		files_data.append(("folder", (None, folder)))
+	
+	resp = await async_client.post("/api/v1/assets/upload", files=files_data, headers=admin_headers)
 	if resp.status_code not in (200, 201):
 		pytest.skip(f"Upload not permitted or server not configured for uploads: {resp.status_code} {resp.text}")
-	return resp.json()
+	result = resp.json()
+	return result[0] if isinstance(result, list) and len(result) > 0 else None
 
 
 async def test_create_folder_and_list(async_client, admin_headers):
 	folder_name = f"tests_{uuid.uuid4().hex[:8]}"
-	create = await async_client.post("/api/v1/assets/folder", data={"name": folder_name}, headers=admin_headers)
+	create = await async_client.post("/api/v1/assets/folders/create", json={"path": folder_name}, headers=admin_headers)
 	if create.status_code not in (200, 201):
 		pytest.skip(f"Folder creation requires admin roles; skipping. Got {create.status_code}: {create.text}")
 	body = create.json()
-	assert body.get("folder") == folder_name
+	assert body.get("path") == folder_name
 
-	list_root = await async_client.get("/api/v1/assets/", headers=admin_headers)
+	list_root = await async_client.get("/api/v1/assets/folders", headers=admin_headers)
 	if list_root.status_code != 200:
-		pytest.skip(f"Listing requires admin roles; skipping. Got {list_root.status_code}")
+		pytest.skip(f"Listing folders requires admin roles; skipping. Got {list_root.status_code}")
 	root_payload = list_root.json()
-	assert "files" in root_payload and "folders" in root_payload
+	assert "folders" in root_payload
 
 	list_folder = await async_client.get("/api/v1/assets/", params={"folder": folder_name}, headers=admin_headers)
 	if list_folder.status_code != 200:
@@ -93,7 +96,7 @@ async def test_create_folder_and_list(async_client, admin_headers):
 
 async def test_upload_list_and_serve_original(async_client, admin_headers):
 	folder = f"tests_{uuid.uuid4().hex[:6]}"
-	created = await async_client.post("/api/v1/assets/folder", data={"name": folder}, headers=admin_headers)
+	created = await async_client.post("/api/v1/assets/folders/create", json={"path": folder}, headers=admin_headers)
 	if created.status_code not in (200, 201):
 		pytest.skip(f"Folder creation requires admin roles; skipping. Got {created.status_code}")
 
@@ -116,7 +119,7 @@ async def test_upload_list_and_serve_original(async_client, admin_headers):
 
 async def test_thumbnail_generation_and_cache(async_client, admin_headers):
 	folder = f"tests_{uuid.uuid4().hex[:6]}"
-	_ = await async_client.post("/api/v1/assets/folder", data={"name": folder}, headers=admin_headers)
+	_ = await async_client.post("/api/v1/assets/folders/create", json={"path": folder}, headers=admin_headers)
 	uploaded = await _upload_image(async_client, admin_headers, folder=folder)
 	if uploaded is None:
 		pytest.skip("Upload not available")
@@ -136,7 +139,7 @@ async def test_thumbnail_generation_and_cache(async_client, admin_headers):
 
 async def test_delete_asset_removes_thumbnail(async_client, admin_headers):
 	folder = f"tests_{uuid.uuid4().hex[:6]}"
-	_ = await async_client.post("/api/v1/assets/folder", data={"name": folder}, headers=admin_headers)
+	_ = await async_client.post("/api/v1/assets/folders/create", json={"path": folder}, headers=admin_headers)
 	uploaded = await _upload_image(async_client, admin_headers, folder=folder)
 	if uploaded is None:
 		pytest.skip("Upload not available")
