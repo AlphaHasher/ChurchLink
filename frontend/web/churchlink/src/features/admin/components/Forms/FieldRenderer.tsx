@@ -244,7 +244,7 @@ export function FieldRenderer({ field, control, error }: Props) {
       fontWeight: f.bold ? 600 : undefined,
       textDecoration: f.underline ? "underline" : undefined,
     };
-    const staticText = localizedLabel || f.label || field.name;
+    const staticText = t('content', f.content) || "Modify Me!";
     return (
       <div className={cn("flex flex-col gap-2", colClass)}>
         <Tag className={sizeClass} style={style}>{staticText}</Tag>
