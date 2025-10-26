@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../models/family_member.dart';
-import '../../services/family_member_service.dart';
+import 'package:app/models/family_member.dart';
+import 'package:app/services/family_member_service.dart';
 
 class FamilyMemberForm extends StatefulWidget {
   final FamilyMember? member; // null for create, populated for edit
@@ -108,8 +108,6 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    const Color ssbcGray = Color.fromARGB(255, 142, 163, 168);
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
@@ -161,8 +159,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedGender,
+                    DropdownButtonFormField<String>( initialValue: _selectedGender,
                       decoration: const InputDecoration(
                         labelText: 'Gender',
                         border: OutlineInputBorder(),
@@ -191,8 +188,8 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                           style: TextStyle(
                             color:
                                 _selectedDate == null
-                                    ? theme.colorScheme.onSurface.withOpacity(
-                                      0.5,
+                                    ? theme.colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
                                     )
                                     : theme.colorScheme.onSurface,
                           ),
@@ -236,3 +233,5 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
     );
   }
 }
+
+

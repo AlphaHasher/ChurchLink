@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class DonationSuccessPage extends StatelessWidget {
   final String eventName;
 
-  const DonationSuccessPage({Key? key, required this.eventName}) : super(key: key);
+  const DonationSuccessPage({super.key, required this.eventName});
 
   @override
   Widget build(BuildContext context) {

@@ -59,7 +59,7 @@ class Bulletin {
       return DateTime.tryParse(value);
     }
 
-    List<String> _coerceStringList(dynamic value) {
+    List<String> coerceStringList(dynamic value) {
       if (value is List) {
         return value
             .map((element) => element.toString())
@@ -72,10 +72,10 @@ class Bulletin {
       return <String>[];
     }
 
-    List<AttachmentItem> _parseAttachments(dynamic value) {
+    List<AttachmentItem> parseAttachments(dynamic value) {
       if (value is List) {
         return value
-            .where((element) => element is Map)
+            .whereType<Map>()
             .map(
               (element) =>
                   AttachmentItem.fromJson(element as Map<String, dynamic>),
@@ -98,9 +98,9 @@ class Bulletin {
       expireAt: parseDate(expireAtRaw?.toString()),
       published: json['published'] == true,
       pinned: json['pinned'] == true,
-      roles: _coerceStringList(json['roles']),
-      ministries: _coerceStringList(json['ministries']),
-      attachments: _parseAttachments(json['attachments']),
+      roles: coerceStringList(json['roles']),
+      ministries: coerceStringList(json['ministries']),
+      attachments: parseAttachments(json['attachments']),
       ruHeadline: json['ru_headline']?.toString(),
       ruBody: json['ru_body']?.toString(),
       createdAt: parseDate(createdAtRaw?.toString()),
