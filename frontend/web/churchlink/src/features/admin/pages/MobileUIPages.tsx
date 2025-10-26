@@ -4,7 +4,8 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 import {
   getDashboardPages,
   saveDashboardPageConfiguration,
-  DashboardPage
+  DashboardPage,
+  updateDashboardPage
 } from "../../../helpers/PagesHelper";
 
 interface EditingPage extends DashboardPage {
@@ -134,12 +135,15 @@ const DashboardPagesManager = () => {
     setPages(newPages);
   };
 
-  const handleSaveEdit = () => {
-    if (!editingPage || !editingPage.pageName || !editingPage.displayName) {
-      setError("Page name and Display Name are required");
-      return;
-    }
+  const handleSaveEdit = async () => {
+  if (!editingPage || !editingPage.pageName || !editingPage.displayName) {
+    setError("Page name and Display Name are required");
+    return;
+  }
 
+  try {
+    // 🔹 Update state locally
+    let newPages;
     if (editingPage.isNew) {
       const exists = pages.some(
         (p) =>
@@ -150,18 +154,40 @@ const DashboardPagesManager = () => {
         setError("Page name or index already exists");
         return;
       }
-      setPages([...pages, { ...editingPage, isNew: undefined }].sort((a, b) => a.index - b.index));
+      newPages = [...pages, { ...editingPage, isNew: undefined }].sort(
+        (a, b) => a.index - b.index
+      );
     } else {
-      setPages(
-        pages.map((p) =>
-          p.index === editingPage.index
-            ? { ...editingPage, isNew: undefined }
-            : p
-        )
+      newPages = pages.map((p) =>
+        p.index === editingPage.index
+          ? { ...editingPage, isNew: undefined }
+          : p
       );
     }
+    setPages(newPages);
+
+    // 🔹 Persist to backend immediately
+    const success = await updateDashboardPage(
+      editingPage.index,
+      {
+        displayName: editingPage.displayName,
+        imageId: editingPage.imageId,
+        enabled: editingPage.enabled
+      }
+    );
+
+    if (success) {
+      setSuccess("Page updated successfully!");
+      setTimeout(() => setSuccess(null), 3000);
+    } else {
+      setError("Failed to update page on the server");
+    }
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message || "Failed to update page");
+  } finally {
     setEditingPage(null);
-    setError(null);
+  }
   };
 
   const handleCancelEdit = () => {

@@ -32,7 +32,7 @@ class DashboardAppConfigHelper:
 
     @staticmethod
     async def get_config() -> Optional[Dict[str, Any]]:
-        collection = DashboardAppConfigHelper._get_collection() 
+        collection = DashboardAppConfigHelper._get_collection()
         config = await collection.find_one({"config_type": "dashboard_pages"})
         if not config:
             default_pages = [
