@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../../helpers/api_client.dart';
+import 'package:app/helpers/api_client.dart';
 
 class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({super.key});

@@ -1,7 +1,7 @@
 import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
-import '../../components/password_reset.dart';
-import '../../firebase/firebase_auth_service.dart';
+import 'package:app/components/password_reset.dart';
+import 'package:app/firebase/firebase_auth_service.dart';
 
 class ContinueWithEmailPage extends StatefulWidget {
   const ContinueWithEmailPage({super.key});
@@ -260,3 +260,4 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
     super.dispose();
   }
 }
+

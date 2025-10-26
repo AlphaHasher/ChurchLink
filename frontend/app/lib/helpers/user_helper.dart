@@ -1,7 +1,7 @@
 import 'package:app/models/contact_info.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'api_client.dart';
-import 'logger.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/logger.dart';
 
 import 'package:app/models/profile_info.dart';
 import 'package:app/caches/user_status_cache.dart';
@@ -130,18 +130,18 @@ class UserHelper {
     ContactInfo contact,
   ) async {
     try {
-      final sub_payload = <String, dynamic>{
+      final subPayload = <String, dynamic>{
         'address': contact.address.address,
         'suite': contact.address.suite,
         'city': contact.address.city,
         'state': contact.address.state,
         'country': contact.address.country,
-        'postal_code': contact.address.postal_code,
+        'postal_code': contact.address.postalCode,
       };
 
       final payload = <String, dynamic>{
         'phone': contact.phone,
-        'address': sub_payload,
+        'address': subPayload,
       };
 
       final res = await api.patch("/v1/users/update-contact", data: payload);

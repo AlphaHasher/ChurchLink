@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../models/family_member.dart';
-import '../../services/family_member_service.dart';
-import 'family_member_form.dart';
+import 'package:app/models/family_member.dart';
+import 'package:app/services/family_member_service.dart';
+import 'package:app/pages/user/family_member_form.dart';
 
 class FamilyMembersPage extends StatefulWidget {
   const FamilyMembersPage({super.key});
@@ -100,21 +100,21 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                       Icon(
                         Icons.family_restroom,
                         size: 64,
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: theme.colorScheme.onSurface.withAlpha(50),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'No family members yet',
                         style: TextStyle(
                           fontSize: 18,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          color: theme.colorScheme.onSurface.withAlpha(60),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Tap the + button to add a family member',
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: theme.colorScheme.onSurface.withAlpha(50),
                         ),
                       ),
                     ],

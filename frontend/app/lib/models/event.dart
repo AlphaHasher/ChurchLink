@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 class Event {
@@ -193,7 +194,7 @@ class Event {
       return <String>[];
     } catch (e) {
       // If any error occurs, return empty list to prevent crashes
-      print('Error parsing payment options: $e');
+      debugPrint('Error parsing payment options: $e');
       return <String>[];
     }
   }

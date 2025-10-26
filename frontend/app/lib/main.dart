@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:app/services/FirebaseMessaging_service.dart';
+import 'package:app/services/firebase_messaging_service.dart';
 import 'package:provider/provider.dart';
 import 'package:app/providers/sermons_provider.dart';
 import 'package:app/providers/bulletins_provider.dart';
@@ -311,7 +311,6 @@ class _MyHomePageState extends State<MyHomePage> {
     List<Map<String, dynamic>> tabs,
   ) {
     return tabs.asMap().entries.map((entry) {
-      final idx = entry.key;
       final tab = entry.value;
       final name = (tab['name'] as String).toLowerCase();
       final displayName = (tab['displayName'] as String?) ?? name;

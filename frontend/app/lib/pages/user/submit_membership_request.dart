@@ -65,8 +65,9 @@ class _SubmitMembershipRequestScreenState
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _submitting = false);
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
     }
   }
 

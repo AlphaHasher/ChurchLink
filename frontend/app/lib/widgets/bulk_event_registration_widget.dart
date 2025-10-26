@@ -4,11 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../models/event.dart';
-import '../pages/payment_cancel_page.dart';
-import '../pages/payment_success_page.dart';
-
-import '../services/event_registration_service.dart';
+import 'package:app/models/event.dart';
+import 'package:app/pages/payment_cancel_page.dart';
+import 'package:app/pages/payment_success_page.dart';
+import 'package:app/services/event_registration_service.dart';
 
 // Custom input formatter for currency amounts
 class CurrencyInputFormatter extends TextInputFormatter {
@@ -24,18 +23,18 @@ class CurrencyInputFormatter extends TextInputFormatter {
 
     // Remove any non-digit and non-decimal point characters
     String filtered = newValue.text.replaceAll(RegExp(r'[^0-9.]'), '');
-    
+
     // Ensure only one decimal point
     List<String> parts = filtered.split('.');
     if (parts.length > 2) {
       filtered = '${parts[0]}.${parts.sublist(1).join('')}';
     }
-    
+
     // Limit to 2 decimal places
     if (parts.length == 2 && parts[1].length > 2) {
       filtered = '${parts[0]}.${parts[1].substring(0, 2)}';
     }
-    
+
     // Prevent amounts over 10000 (reasonable limit for donations)
     final double? amount = double.tryParse(filtered);
     if (amount != null && amount > 10000) {
@@ -52,26 +51,31 @@ class CurrencyInputFormatter extends TextInputFormatter {
 class BulkEventRegistrationWidget extends StatefulWidget {
   final Event event;
   final List<Map<String, dynamic>> registrations;
-  final Function(String paymentType)? onSuccess; // Modified to include payment type
+  final Function(String paymentType)?
+  onSuccess; // Modified to include payment type
   final VoidCallback? onCancel;
-  final Function(String paymentId, String payerId)? onPaymentSuccess; // New callback for payment success
+  final Function(String paymentId, String payerId)?
+  onPaymentSuccess; // New callback for payment success
   final bool navigateOnPayAtDoor; // New parameter to enable direct navigation
 
   const BulkEventRegistrationWidget({
-    Key? key,
+    super.key,
     required this.event,
     required this.registrations,
     this.onSuccess,
     this.onCancel,
     this.onPaymentSuccess, // Add this parameter
-    this.navigateOnPayAtDoor = false, // Default to false for backward compatibility
-  }) : super(key: key);
+    this.navigateOnPayAtDoor =
+        false, // Default to false for backward compatibility
+  });
 
   @override
-  State<BulkEventRegistrationWidget> createState() => _BulkEventRegistrationWidgetState();
+  State<BulkEventRegistrationWidget> createState() =>
+      _BulkEventRegistrationWidgetState();
 }
 
-class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidget> {
+class _BulkEventRegistrationWidgetState
+    extends State<BulkEventRegistrationWidget> {
   bool _isLoading = false;
   double _donationAmount = 0.0;
   String _selectedPaymentOption = 'free'; // 'free', 'paypal', 'door'
@@ -80,7 +84,7 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
   @override
   void initState() {
     super.initState();
-    
+
     // Set default payment option based on event requirements
     if (widget.event.requiresPayment) {
       // For paid events, default to the first available payment method
@@ -105,11 +109,16 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
   String get _buttonText {
     if (_selectedPaymentOption == 'door') {
       return 'Register & Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} at Door';
-    } else if (_selectedPaymentOption == 'paypal' && widget.event.requiresPayment) {
+    } else if (_selectedPaymentOption == 'paypal' &&
+        widget.event.requiresPayment) {
       return 'Pay \$${_totalAmount.toStringAsFixed(2)} with PayPal';
-    } else if (_selectedPaymentOption == 'paypal' && !widget.event.requiresPayment && _donationAmount > 0) {
+    } else if (_selectedPaymentOption == 'paypal' &&
+        !widget.event.requiresPayment &&
+        _donationAmount > 0) {
       return 'Donate \$${_donationAmount.toStringAsFixed(2)} with PayPal';
-    } else if (_selectedPaymentOption == 'paypal' && !widget.event.requiresPayment && _donationAmount <= 0) {
+    } else if (_selectedPaymentOption == 'paypal' &&
+        !widget.event.requiresPayment &&
+        _donationAmount <= 0) {
       return 'Register ${widget.registrations.length} people';
     } else if (_donationAmount > 0) {
       return 'Donate \$${_donationAmount.toStringAsFixed(2)}';
@@ -163,14 +172,17 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
               const SizedBox(width: 8),
               Expanded(
                 child: TextFormField(
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    CurrencyInputFormatter(),
-                  ],
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [CurrencyInputFormatter()],
                   decoration: const InputDecoration(
                     hintText: '0.00',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     errorStyle: TextStyle(fontSize: 12),
                   ),
                   validator: (value) {
@@ -205,18 +217,15 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
   }
 
   Widget _buildPaymentOptionsSelector() {
-    // For paid events: show payment options if there are multiple payment methods available
     if (widget.event.requiresPayment) {
-      // Count available payment options
       int availableOptions = 0;
       if (widget.event.hasPayPalOption) availableOptions++;
       if (widget.event.hasDoorPaymentOption) availableOptions++;
-      
-      // Only show selector if there are multiple payment options
+
       if (availableOptions <= 1) {
         return const SizedBox.shrink();
       }
-      
+
       return Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -245,13 +254,16 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
               children: [
                 // Show PayPal option if available
                 if (widget.event.hasPayPalOption)
-                  RadioListTile<String>(
+                  ListTile(
                     title: Row(
                       children: [
                         const Text('Pay with PayPal'),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF0070BA),
                             borderRadius: BorderRadius.circular(4),
@@ -267,29 +279,27 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
                         ),
                       ],
                     ),
-                    subtitle: Text('Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} now'),
-                    value: 'paypal',
-                    groupValue: _selectedPaymentOption,
-                    onChanged: (value) {
+                    subtitle: Text(
+                      'Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} now',
+                    ),
+                    onTap: () {
                       setState(() {
-                        _selectedPaymentOption = value!;
+                        _selectedPaymentOption = 'paypal';
                       });
                     },
-                    contentPadding: EdgeInsets.zero,
                   ),
                 // Show door payment option if available
                 if (widget.event.hasDoorPaymentOption)
-                  RadioListTile<String>(
+                  ListTile(
                     title: const Text('Pay at Door'),
-                    subtitle: Text('Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} when you arrive'),
-                    value: 'door',
-                    groupValue: _selectedPaymentOption,
-                    onChanged: (value) {
+                    subtitle: Text(
+                      'Pay \$${(widget.event.price * widget.registrations.length).toStringAsFixed(2)} when you arrive',
+                    ),
+                    onTap: () {
                       setState(() {
-                        _selectedPaymentOption = value!;
+                        _selectedPaymentOption = 'door';
                       });
                     },
-                    contentPadding: EdgeInsets.zero,
                   ),
               ],
             ),
@@ -297,7 +307,7 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
         ),
       );
     }
-    
+
     // For free events: show optional donation selector if PayPal is available
     if (widget.event.isFree && widget.event.hasPayPalOption) {
       return Container(
@@ -320,41 +330,33 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
               ),
             ),
             const SizedBox(height: 8),
-            
-            const SizedBox(height: 12),
-            RadioListTile<String>(
+            ListTile(
               title: const Text('Register'),
               subtitle: const Text('No donation'),
-              value: 'free',
-              groupValue: _selectedPaymentOption,
-              onChanged: (value) {
+              onTap: () {
                 setState(() {
-                  _selectedPaymentOption = value!;
+                  _selectedPaymentOption = 'free';
                   _donationAmount = 0.0;
                 });
               },
-              contentPadding: EdgeInsets.zero,
             ),
-            RadioListTile<String>(
+            ListTile(
               title: const Text('Register + Donate'),
               subtitle: const Text('Support this Event via PayPal'),
-              value: 'paypal',
-              groupValue: _selectedPaymentOption,
-              onChanged: (value) {
+              onTap: () {
                 setState(() {
-                  _selectedPaymentOption = value!;
+                  _selectedPaymentOption = 'paypal';
                   if (_donationAmount <= 0) {
                     _donationAmount = 0.0; // Default donation amount
                   }
                 });
               },
-              contentPadding: EdgeInsets.zero,
             ),
           ],
         ),
       );
     }
-    
+
     // No payment options needed for free events without PayPal
     return const SizedBox.shrink();
   }
@@ -419,12 +421,18 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     try {
       // Debug logging
       log('[BulkRegistration] Registration debug info:');
-      log('[BulkRegistration] Selected payment option: $_selectedPaymentOption');
+      log(
+        '[BulkRegistration] Selected payment option: $_selectedPaymentOption',
+      );
       log('[BulkRegistration] Total amount: $_totalAmount');
       log('[BulkRegistration] Donation amount: $_donationAmount');
-      log('[BulkRegistration] Event requires payment: ${widget.event.requiresPayment}');
+      log(
+        '[BulkRegistration] Event requires payment: ${widget.event.requiresPayment}',
+      );
       log('[BulkRegistration] Event price: ${widget.event.price}');
-      log('[BulkRegistration] Registration count: ${widget.registrations.length}');
+      log(
+        '[BulkRegistration] Registration count: ${widget.registrations.length}',
+      );
 
       // Determine registration flow based on selected payment option
       if (_selectedPaymentOption == 'door') {
@@ -432,7 +440,9 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
         await _handlePayAtDoorRegistration();
       } else if (_selectedPaymentOption == 'paypal' && _totalAmount > 0) {
         // Use PayPal flow only when there's actually money to process
-        log('[BulkRegistration] Using PayPal flow - total: $_totalAmount, donation: $_donationAmount');
+        log(
+          '[BulkRegistration] Using PayPal flow - total: $_totalAmount, donation: $_donationAmount',
+        );
         await _handlePayPalPayment();
       } else {
         // Use direct registration for completely free events
@@ -453,32 +463,36 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
 
   Future<void> _handlePayAtDoorRegistration() async {
     log('[BulkRegistration] Processing pay-at-door registration');
-    
+
     try {
       // Use the simplified unified registration API with door payment option
       final success = await EventRegistrationService.registerMultiplePeople(
         eventId: widget.event.id,
         registrations: widget.registrations,
-        paymentOption: 'door',  // Mark as pay at door
+        paymentOption: 'door', // Mark as pay at door
         donationAmount: _donationAmount,
       );
 
       if (success) {
         log('[BulkRegistration] Pay-at-door registrations completed');
-        
+
         // Handle navigation directly if requested
         if (widget.navigateOnPayAtDoor) {
-          log('[BulkRegistration] Navigating directly to success page for pay-at-door');
+          log(
+            '[BulkRegistration] Navigating directly to success page for pay-at-door',
+          );
           try {
+            if (!mounted) return;
             // Navigate immediately while context is still valid
             Navigator.of(context, rootNavigator: true).pushReplacement(
               MaterialPageRoute(
-                builder: (context) => PaymentSuccessPage(
-                  paymentId: null, // No payment ID for pay-at-door
-                  payerId: null,   // No payer ID for pay-at-door
-                  eventId: widget.event.id,
-                  eventName: widget.event.name,
-                ),
+                builder:
+                    (context) => PaymentSuccessPage(
+                      paymentId: null, // No payment ID for pay-at-door
+                      payerId: null, // No payer ID for pay-at-door
+                      eventId: widget.event.id,
+                      eventName: widget.event.name,
+                    ),
               ),
             );
             log('[BulkRegistration] Direct navigation completed successfully');
@@ -488,7 +502,7 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
             // Fall back to callback approach
           }
         }
-        
+
         // Call success callback in a separate try-catch to avoid UI exceptions affecting registration
         try {
           widget.onSuccess?.call('door'); // Pass payment type
@@ -501,27 +515,34 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
       }
     } catch (e) {
       log('[BulkRegistration] Error during pay-at-door registration: $e');
-      throw e;
+      rethrow;
     }
   }
 
   Future<void> _handlePayPalPayment() async {
     log('[BulkRegistration] Creating PayPal payment order');
-    
+
     // Add payment amount to registrations for backend processing
-    final registrationsWithPayment = widget.registrations.map((reg) => {
-      ...reg,
-      'payment_method': 'paypal',
-      'payment_amount_per_person': _selectedPaymentOption == 'paypal' ? widget.event.price : 0,
-      'donation_amount': _donationAmount,
-    }).toList();
-    
+    final registrationsWithPayment =
+        widget.registrations
+            .map(
+              (reg) => {
+                ...reg,
+                'payment_method': 'paypal',
+                'payment_amount_per_person':
+                    _selectedPaymentOption == 'paypal' ? widget.event.price : 0,
+                'donation_amount': _donationAmount,
+              },
+            )
+            .toList();
+
     // Store pending bulk registration data for deep link completion
     await _storePendingBulkRegistration(registrationsWithPayment);
-    
+
     final result = await EventRegistrationService.createPaymentOrderForMultiple(
       eventId: widget.event.id,
-      registrations: registrationsWithPayment,  // Use registrations with payment data
+      registrations:
+          registrationsWithPayment, // Use registrations with payment data
       totalAmount: _totalAmount,
       donationAmount: _donationAmount,
     );
@@ -541,7 +562,9 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
     // No longer show manual completion dialog - WebView will handle it automatically
   }
 
-  Future<void> _storePendingBulkRegistration(List<Map<String, dynamic>> registrations) async {
+  Future<void> _storePendingBulkRegistration(
+    List<Map<String, dynamic>> registrations,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final pendingData = {
@@ -549,8 +572,13 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
         'registrations': registrations,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
-      await prefs.setString('pending_bulk_registration', jsonEncode(pendingData));
-      log('[BulkRegistration] Stored pending bulk registration data for eventId: ${widget.event.id}');
+      await prefs.setString(
+        'pending_bulk_registration',
+        jsonEncode(pendingData),
+      );
+      log(
+        '[BulkRegistration] Stored pending bulk registration data for eventId: ${widget.event.id}',
+      );
       log('[BulkRegistration] Stored ${registrations.length} registrations');
     } catch (e) {
       log('[BulkRegistration] Failed to store pending registration: $e');
@@ -562,22 +590,22 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
 
   Future<void> _handleFreeRegistration() async {
     log('[BulkRegistration] Processing free registrations');
-    
+
     // For free events, register each person individually using the bulk registration endpoint
     // This matches the React frontend pattern
-    
+
     try {
       // Use the simplified unified registration API
       final success = await EventRegistrationService.registerMultiplePeople(
         eventId: widget.event.id,
         registrations: widget.registrations,
-        paymentOption: null,  // null for free events
+        paymentOption: null, // null for free events
         donationAmount: _donationAmount,
       );
 
       if (success) {
         log('[BulkRegistration] Free registrations completed');
-        
+
         // Call success callback in a separate try-catch to avoid UI exceptions affecting registration
         try {
           widget.onSuccess?.call('free'); // Pass payment type
@@ -597,140 +625,173 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
   Future<void> _showPayPalWebView(String approvalUrl, String paymentId) async {
     // Enhanced success/cancel detection using PayPal parameters
     // Instead of relying on specific URLs, look for PayPal success/cancel indicators
-    
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Complete Payment'),
-          backgroundColor: Theme.of(context).primaryColor,
-          foregroundColor: Colors.white,
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _errorMessage = 'Payment cancelled by user';
-              });
-            },
-          ),
-        ),
-        body: Column(
-          children: [
-            // WebView
-            Expanded(
-              child: WebViewWidget(
-          controller: WebViewController()
-            ..setJavaScriptMode(JavaScriptMode.unrestricted)
-            ..setNavigationDelegate(
-              NavigationDelegate(
-                onPageStarted: (String url) {
-                  log('[BulkRegistration] Page started loading: $url');
-                },
-                onPageFinished: (String url) {
-                  log('[BulkRegistration] Page finished loading: $url');
-                  
-                  // Also check for success indicators when page finishes loading
-                  if (url.contains('PayerID=') || url.contains('payer_id=')) {
-                    log('[BulkRegistration] SUCCESS DETECTED in onPageFinished: $url');
-                    
-                    final uri = Uri.parse(url);
-                    final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
-                    
-                    if (payerId != null) {
-                      log('[BulkRegistration] Triggering success flow from onPageFinished');
-                      _handlePaymentSuccess(paymentId, payerId);
-                    }
-                  }
-                },
-                onNavigationRequest: (NavigationRequest request) async {
-                  log('[BulkRegistration] WebView navigation request: ${request.url}');
-                  
-                  final uri = Uri.parse(request.url);
-                  final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
-                  final token = uri.queryParameters['token'];
-                  
-                  log('[BulkRegistration] URL parameters - PayerID: $payerId, token: $token');
-                  
-                  // Check for PayPal success indicators
-                  bool isPayPalSuccess = (payerId != null && token != null) || 
-                                        request.url.contains('payment/success') ||
-                                        request.url.contains('/success');
-                  
-                  // Check for PayPal cancel indicators  
-                  bool isPayPalCancel = request.url.contains('payment/cancel') ||
-                                       request.url.contains('/cancel') ||
-                                       request.url.contains('cancelled');
-                  
-                  log('[BulkRegistration] Detection - isPayPalSuccess: $isPayPalSuccess, isPayPalCancel: $isPayPalCancel');
-                  
-                  // Handle success
-                  if (isPayPalSuccess) {
-                    log('[BulkRegistration] Payment success detected - PayerID: $payerId, token: $token');
-                    log('[BulkRegistration] Success URL: ${request.url}');
-                    
-                    // Use async function for reliable navigation
-                    if (payerId != null) {
-                      _handlePaymentSuccess(paymentId, payerId);
-                    }
-                    
-                
-                    
-                    return NavigationDecision.prevent;
-                  }
-                  
-                  // Handle cancel
-                  if (isPayPalCancel) {
-                    log('[BulkRegistration] Payment cancel detected');
-                    log('[BulkRegistration] Cancel URL: ${request.url}');
-                    
-                    // Use async function for reliable navigation
-                    _handlePaymentCancel(paymentId);
-                    
-                    return NavigationDecision.prevent;
-                  }
-                  
-                  return NavigationDecision.navigate;
-                },
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) => Scaffold(
+              appBar: AppBar(
+                title: const Text('Complete Payment'),
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _errorMessage = 'Payment cancelled by user';
+                    });
+                  },
+                ),
               ),
-            )
-            ..loadRequest(Uri.parse(approvalUrl)),
+              body: Column(
+                children: [
+                  // WebView
+                  Expanded(
+                    child: WebViewWidget(
+                      controller:
+                          WebViewController()
+                            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+                            ..setNavigationDelegate(
+                              NavigationDelegate(
+                                onPageStarted: (String url) {
+                                  log(
+                                    '[BulkRegistration] Page started loading: $url',
+                                  );
+                                },
+                                onPageFinished: (String url) {
+                                  log(
+                                    '[BulkRegistration] Page finished loading: $url',
+                                  );
+
+                                  // Also check for success indicators when page finishes loading
+                                  if (url.contains('PayerID=') ||
+                                      url.contains('payer_id=')) {
+                                    log(
+                                      '[BulkRegistration] SUCCESS DETECTED in onPageFinished: $url',
+                                    );
+
+                                    final uri = Uri.parse(url);
+                                    final payerId =
+                                        uri.queryParameters['PayerID'] ??
+                                        uri.queryParameters['payer_id'];
+
+                                    if (payerId != null) {
+                                      log(
+                                        '[BulkRegistration] Triggering success flow from onPageFinished',
+                                      );
+                                      _handlePaymentSuccess(paymentId, payerId);
+                                    }
+                                  }
+                                },
+                                onNavigationRequest: (
+                                  NavigationRequest request,
+                                ) async {
+                                  log(
+                                    '[BulkRegistration] WebView navigation request: ${request.url}',
+                                  );
+
+                                  final uri = Uri.parse(request.url);
+                                  final payerId =
+                                      uri.queryParameters['PayerID'] ??
+                                      uri.queryParameters['payer_id'];
+                                  final token = uri.queryParameters['token'];
+
+                                  log(
+                                    '[BulkRegistration] URL parameters - PayerID: $payerId, token: $token',
+                                  );
+
+                                  // Check for PayPal success indicators
+                                  bool isPayPalSuccess =
+                                      (payerId != null && token != null) ||
+                                      request.url.contains('payment/success') ||
+                                      request.url.contains('/success');
+
+                                  // Check for PayPal cancel indicators
+                                  bool isPayPalCancel =
+                                      request.url.contains('payment/cancel') ||
+                                      request.url.contains('/cancel') ||
+                                      request.url.contains('cancelled');
+
+                                  log(
+                                    '[BulkRegistration] Detection - isPayPalSuccess: $isPayPalSuccess, isPayPalCancel: $isPayPalCancel',
+                                  );
+
+                                  // Handle success
+                                  if (isPayPalSuccess) {
+                                    log(
+                                      '[BulkRegistration] Payment success detected - PayerID: $payerId, token: $token',
+                                    );
+                                    log(
+                                      '[BulkRegistration] Success URL: ${request.url}',
+                                    );
+
+                                    // Use async function for reliable navigation
+                                    if (payerId != null) {
+                                      _handlePaymentSuccess(paymentId, payerId);
+                                    }
+
+                                    return NavigationDecision.prevent;
+                                  }
+
+                                  // Handle cancel
+                                  if (isPayPalCancel) {
+                                    log(
+                                      '[BulkRegistration] Payment cancel detected',
+                                    );
+                                    log(
+                                      '[BulkRegistration] Cancel URL: ${request.url}',
+                                    );
+
+                                    // Use async function for reliable navigation
+                                    _handlePaymentCancel(paymentId);
+
+                                    return NavigationDecision.prevent;
+                                  }
+
+                                  return NavigationDecision.navigate;
+                                },
+                              ),
+                            )
+                            ..loadRequest(Uri.parse(approvalUrl)),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
       ),
-    ));
+    );
   }
 
   // Handle payment success with proper async navigation
   Future<void> _handlePaymentSuccess(String paymentId, String payerId) async {
     try {
       log('[BulkRegistration] Calling payment success callback');
-      
+
       // Complete registration in background first
       if (payerId.isNotEmpty) {
         await _completeBulkRegistrationAfterPayment(paymentId, payerId);
       }
-      
+
       // Navigate properly with context checks
       if (!mounted) return;
-      
+
       // Pop the WebView dialog first
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
-      
+
       await Future.delayed(const Duration(milliseconds: 100));
       if (!mounted) return;
-      
+
       // Pop the member registration list dialog
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
-      
+
       await Future.delayed(const Duration(milliseconds: 100));
       if (!mounted) return;
-      
+
       // Use callback to let parent handle success page navigation
       widget.onPaymentSuccess?.call(paymentId, payerId);
     } catch (error) {
@@ -770,12 +831,13 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PaymentCancelPage(
-            paymentId: paymentId,
-            eventId: widget.event.id,
-            eventName: widget.event.name,
-            reason: 'Payment was cancelled by the user',
-          ),
+          builder:
+              (context) => PaymentCancelPage(
+                paymentId: paymentId,
+                eventId: widget.event.id,
+                eventName: widget.event.name,
+                reason: 'Payment was cancelled by the user',
+              ),
         ),
       );
     } catch (error) {
@@ -784,36 +846,46 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
   }
 
   // Complete bulk registration after successful PayPal payment
-  Future<void> _completeBulkRegistrationAfterPayment(String paymentId, String payerId) async {
+  Future<void> _completeBulkRegistrationAfterPayment(
+    String paymentId,
+    String payerId,
+  ) async {
     try {
-      log('[BulkRegistration] Completing registration after payment - PaymentID: $paymentId, PayerID: $payerId');
-      
+      log(
+        '[BulkRegistration] Completing registration after payment - PaymentID: $paymentId, PayerID: $payerId',
+      );
+
       // For WebView payments, we need to call the backend completion endpoint directly
       // This simulates what the deep link handler would do
       await _callPaymentCompletionEndpoint(paymentId, payerId);
-      
-      log('[BulkRegistration] Bulk registration completed successfully after payment');
+
+      log(
+        '[BulkRegistration] Bulk registration completed successfully after payment',
+      );
     } catch (e) {
       log('[BulkRegistration] Error completing registration after payment: $e');
-      
+
       // Don't navigate to cancel page here since we've already shown success page
       // PayPal payment succeeded, but registration completion failed
       // User should contact support with their payment ID
-      
+
       // Note: This is a background operation, so UI has already shown success
       rethrow;
     }
   }
 
   // Call the backend payment completion endpoint
-  Future<void> _callPaymentCompletionEndpoint(String paymentId, String payerId) async {
+  Future<void> _callPaymentCompletionEndpoint(
+    String paymentId,
+    String payerId,
+  ) async {
     try {
       final response = await EventRegistrationService.completePayPalPayment(
         eventId: widget.event.id,
         paymentId: paymentId,
         payerId: payerId,
       );
-      
+
       if (!response) {
         throw Exception('Payment completion failed');
       }
@@ -831,7 +903,7 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
         _buildRegistrationSummary(),
         _buildPaymentOptionsSelector(),
         _buildDonationAmountSelector(),
-        
+
         if (_errorMessage.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -857,26 +929,27 @@ class _BulkEventRegistrationWidgetState extends State<BulkEventRegistrationWidge
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          child: _isLoading
-              ? const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(color: Colors.white),
+          child:
+              _isLoading
+                  ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Processing...'),
+                    ],
+                  )
+                  : Text(
+                    _buttonText,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(width: 12),
-                    Text('Processing...'),
-                  ],
-                )
-              : Text(
-                  _buttonText,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
                   ),
-                ),
         ),
       ],
     );
