@@ -128,6 +128,15 @@ async def lifespan(app: FastAPI):
         await DatabaseManager.init_db()
         logger.info("MongoDB connected")
 
+        # Run one-time migration to update header/footer items have titles map
+        try:
+            from scripts.header_footer_titles_migration import run_header_footer_titles_migration
+            logger.info("Running header/footer titles migration (non-blocking errors)")
+            await run_header_footer_titles_migration()
+            logger.info("Header/footer titles migration completed")
+        except Exception as e:
+            logger.warning(f"Header/footer titles migration skipped due to error: {e}")
+
         if not BYPASS_FIREBASE_SYNC:
             logger.info("Running initial Firebase -> Mongo sync")
             await FirebaseSyncer.SyncDBToFirebase()

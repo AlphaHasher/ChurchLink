@@ -36,13 +36,13 @@ def validate_footer_item(item: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
     ok, msg = _nonempty("title", item.get("title"))
     if not ok:
         return False, {}, msg
-    ok, msg = _nonempty("russian_title", item.get("russian_title"))
-    if not ok:
-        return False, {}, msg
+    titles = item.get("titles")
+    if not isinstance(titles, dict) or not titles.get("en"):
+        return False, {}, "titles must be an object with at least an 'en' label"
 
     cleaned = {
         "title": _clean(item["title"]),
-        "russian_title": _clean(item["russian_title"]),
+        "titles": {k: _clean(v) for k, v in titles.items()},
         "url": _clean(item.get("url")),
         "visible": bool(item.get("visible", True)),
     }
@@ -53,9 +53,9 @@ def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[
     ok, msg = _nonempty("title", payload.get("title"))
     if not ok:
         return False, {}, msg
-    ok, msg = _nonempty("russian_title", payload.get("russian_title"))
-    if not ok:
-        return False, {}, msg
+    titles = payload.get("titles")
+    if not isinstance(titles, dict) or not titles.get("en"):
+        return False, {}, "titles must be an object with at least an 'en' label"
 
     items = payload.get("items") or []
     if not isinstance(items, list):
@@ -70,7 +70,7 @@ def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[
 
     cleaned = {
         "title": _clean(payload["title"]),
-        "russian_title": _clean(payload["russian_title"]),
+        "titles": {k: _clean(v) for k, v in titles.items()},
         "items": cleaned_items,  # keep as dicts for DB
         "visible": bool(payload.get("visible", True)),
     }

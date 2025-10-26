@@ -1,18 +1,18 @@
 # backend/models/footer.py
 from datetime import datetime
-from typing import List, Optional, Final, Union
+from typing import List, Optional, Dict
 from pydantic import BaseModel
 from mongo.database import DB
 
 class FooterSubItem(BaseModel):
     title: str
-    russian_title: str
+    titles: Dict[str, str]
     url: Optional[str]
     visible: Optional[bool] = True
 
 class FooterItem(BaseModel):
     title: str
-    russian_title: str
+    titles: Dict[str, str]
     items: List[FooterSubItem]
     visible: Optional[bool] = True
 
@@ -53,7 +53,7 @@ async def get_footer_items() -> Optional[Footer]:
             item = items_data[i]
             footer_items[item["index"]] = FooterItem(
                 title=item["title"],
-                russian_title=item["russian_title"],
+                titles=item.get("titles") or {},
                 items=item["items"],
                 visible=item["visible"]
             )
@@ -121,11 +121,11 @@ async def add_item(item: dict) -> bool:
     try:
         res = await DB.insert_document(db_path, {
             "title": item["title"],
-            "russian_title": item["russian_title"],
+            "titles": item.get("titles") or {},
             "items": [
                 {
                     "title": subitem.title,
-                    "russian_title": item["russian_title"],
+                    "titles": getattr(subitem, "titles", {}),
                     "url": subitem.url or None
                 } for subitem in item["items"]
             ],
@@ -150,7 +150,7 @@ async def get_item_by_title(title: str) -> Optional[FooterItem]:
         if not item:
             return None
 
-        return FooterItem(title=item["title"], russian_title=item["russian_title"], items=item["items"])
+        return FooterItem(title=item["title"], titles=item.get("titles") or {}, items=item["items"])
 
     except Exception as e:
         print(f"Error getting footer item by title: {e}")

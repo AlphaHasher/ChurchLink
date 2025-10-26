@@ -70,9 +70,10 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
     ok, msg = _nonempty("title", link.get("title"))
     if not ok:
         return False, {}, msg
-    ok, msg = _nonempty("russian_title", link.get("russian_title"))
-    if not ok:
-        return False, {}, msg
+
+    titles = link.get("titles")
+    if not isinstance(titles, dict) or not titles.get("en"):
+        return False, {}, "titles must be an object with at least an 'en' label"
     
     # Check if this is a hardcoded URL or slug-based URL
     is_hardcoded = link.get("is_hardcoded_url", False)
@@ -89,7 +90,7 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
         
         cleaned = {
             "title": _clean(link["title"]),
-            "russian_title": _clean(link["russian_title"]),
+            "titles": {k: _clean(v) for k, v in titles.items()},
             "url": corrected_url,  # Use the corrected URL with https:// added if needed
             "is_hardcoded_url": True,
             "visible": bool(link.get("visible", True)),
@@ -102,7 +103,7 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
         
         cleaned = {
             "title": _clean(link["title"]),
-            "russian_title": _clean(link["russian_title"]),
+            "titles": {k: _clean(v) for k, v in titles.items()},
             "slug": _clean(link["slug"]),
             "is_hardcoded_url": False,
             "visible": bool(link.get("visible", True)),
@@ -116,9 +117,9 @@ def validate_header_dropdown(dd: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], 
     ok, msg = _nonempty("title", dd.get("title"))
     if not ok:
         return False, {}, msg
-    ok, msg = _nonempty("russian_title", dd.get("russian_title"))
-    if not ok:
-        return False, {}, msg
+    titles = dd.get("titles")
+    if not isinstance(titles, dict) or not titles.get("en"):
+        return False, {}, "titles must be an object with at least an 'en' label"
 
     items = dd.get("items") or []
     if not isinstance(items, list) or len(items) == 0:
@@ -133,7 +134,7 @@ def validate_header_dropdown(dd: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], 
 
     cleaned = {
         "title": _clean(dd["title"]),
-        "russian_title": _clean(dd["russian_title"]),
+        "titles": {k: _clean(v) for k, v in titles.items()},
         "items": cleaned_items,
         "visible": bool(dd.get("visible", True)),
         "type": "dropdown",

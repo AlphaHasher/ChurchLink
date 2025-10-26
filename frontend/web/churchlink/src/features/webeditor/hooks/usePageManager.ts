@@ -165,6 +165,51 @@ export function usePageManager(slug: string) {
       setPublishState("processing");
       await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections });
       await pageApi.publish(slug);
+      try {
+        const localesSet = new Set<string>();
+        const dl = String((page as any)?.defaultLocale || 'en');
+        if (dl) localesSet.add(dl);
+        for (const l of ((page as any)?.locales || [])) if (l) localesSet.add(String(l));
+        const dest = Array.from(localesSet).filter((l) => l && l !== 'en');
+        if (dest.length) {
+          // Header
+          try {
+            const hres = await api.get('/v1/header/items');
+            const hitems: any[] = (hres?.data?.items || []) as any[];
+            const collectHeaderTitles = (items: any[]): string[] => {
+              const set = new Set<string>();
+              for (const it of items) {
+                if (it?.title) set.add(String(it.title));
+                if (Array.isArray((it as any)?.items)) {
+                  for (const sub of (it as any).items) if (sub?.title) set.add(String(sub.title));
+                }
+              }
+              return Array.from(set);
+            };
+            const items = collectHeaderTitles(hitems);
+            if (items.length) {
+              await api.post('/v1/translator/translate-multi', { items, dest_languages: dest, src: 'en' });
+            }
+          } catch {}
+          // Footer
+          try {
+            const fres = await api.get('/v1/footer/items');
+            const fitems: any[] = (fres?.data?.items || []) as any[];
+            const collectFooterTitles = (sections: any[]): string[] => {
+              const set = new Set<string>();
+              for (const sec of sections) {
+                if (sec?.title) set.add(String(sec.title));
+                for (const it of (sec?.items || [])) if (it?.title) set.add(String(it.title));
+              }
+              return Array.from(set);
+            };
+            const items = collectFooterTitles(fitems);
+            if (items.length) {
+              await api.post('/v1/translator/translate-multi', { items, dest_languages: dest, src: 'en' });
+            }
+          } catch {}
+        }
+      } catch {}
       // Refresh live visibility after publish
       try {
         const res = await api.get(`/v1/pages/slug/${encodeURIComponent(slug)}`);
