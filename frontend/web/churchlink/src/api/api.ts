@@ -116,4 +116,44 @@ api.interceptors.response.use(
   }
 );
 
+// Website Configuration API functions
+export const websiteConfigApi = {
+  // Get current website configuration (public)
+  getConfig: async () => {
+    const response = await api.get('/v1/website/config');
+    return response.data;
+  },
+
+  // Update website configuration (admin only)
+  updateConfig: async (config: { title?: string; favicon_url?: string; meta_description?: string }) => {
+    const response = await api.put('/v1/website/config', config);
+    return response.data;
+  },
+
+  // Upload favicon file (admin only)
+  uploadFavicon: async (file: File) => {
+    const formData = new FormData();
+    formData.append('favicon', file);
+    
+    const response = await api.post('/v1/website/favicon', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Update website title (admin only)
+  updateTitle: async (title: string) => {
+    const response = await api.put('/v1/website/title', { title });
+    return response.data;
+  },
+
+  // Get admin website configuration with metadata (admin only)
+  getAdminConfig: async () => {
+    const response = await api.get('/v1/website/config/admin');
+    return response.data;
+  },
+};
+
 export default api;

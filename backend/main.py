@@ -21,6 +21,7 @@ from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
 from mongo.scheduled_notifications import scheduled_notification_loop
 
+from firebase.firebase_credentials import get_firebase_credentials
 from helpers.youtubeHelper import YoutubeHelper
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
 import asyncio
@@ -48,6 +49,8 @@ from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 
+from routes.event_payment_routes.event_payment_routes import event_payment_router
+from routes.finance_routes.finance_routes import finance_router
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
 from routes.page_management_routes.page_routes import mod_page_router, public_page_router
@@ -63,7 +66,8 @@ from routes.form_routes.public_forms_routes import public_forms_router
 from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
-from fastapi.staticfiles import StaticFiles
+from routes.webbuilder_config_routes import webbuilder_config_public_router, webbuilder_config_private_router
+
 from pathlib import Path
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
@@ -117,7 +121,6 @@ async def lifespan(app: FastAPI):
         # Initialize Firebase Admin SDK if not already initialized
         if not firebase_admin._apps:
             logger.info("Initializing Firebase Admin SDK")
-            from firebase.firebase_credentials import get_firebase_credentials
 
             cred = credentials.Certificate(get_firebase_credentials())
             firebase_admin.initialize_app(cred)
@@ -237,6 +240,7 @@ private_router.include_router(user_private_router)
 private_router.include_router(member_private_router)
 private_router.include_router(private_forms_router)
 public_router.include_router(public_forms_router)
+public_router.include_router(webbuilder_config_public_router)
 
 #####################################################
 # Mod Routers - Requires at least 1 perm role, agnostic to specific permissions
@@ -289,14 +293,13 @@ permissions_management_protected_router.include_router(permissions_protected_rou
 layout_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Header/Footer Layout"], required_perms=['layout_management'])
 layout_management_protected_router.include_router(mod_header_router)
 layout_management_protected_router.include_router(mod_footer_router)
+layout_management_protected_router.include_router(webbuilder_config_private_router)
 
 # FINANCE MANAGEMENT CORE
-from routes.finance_routes.finance_routes import finance_router
 finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Finance Management"], required_perms=["finance"])
 finance_management_protected_router.include_router(finance_router)
 
 # EVENT PAYMENT ROUTES
-from routes.event_payment_routes.event_payment_routes import event_payment_router
 app.include_router(event_payment_router, prefix="/api/v1")
 
 
