@@ -3,6 +3,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group";
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
 import { format } from "date-fns";
@@ -113,7 +114,7 @@ export function Inspector() {
             <Label>Text content</Label>
             <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
           </div>
-          <div className="grid grid-cols-3 gap-2 items-end">
+          <div className="grid grid-cols-4 gap-2 items-end">
             <div className="space-y-1">
               <Label>As</Label>
               <Select value={(field as any).as || "p"} onValueChange={(v) => onChange({ as: v as any } as any)}>
@@ -132,15 +133,26 @@ export function Inspector() {
               <Label>Color</Label>
               <Input type="color" value={(field as any).color || "#000000"} onChange={(e) => onChange({ color: e.target.value } as any)} />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Checkbox checked={(field as any).bold || false} onCheckedChange={(v) => onChange({ bold: !!v } as any)} />
-                <Label>Bold</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox checked={(field as any).underline || false} onCheckedChange={(v) => onChange({ underline: !!v } as any)} />
-                <Label>Underline</Label>
-              </div>
+            <div className="space-y-1 col-span-2">
+              <Label>Style</Label>
+              <ToggleGroup
+                type="multiple"
+                value={[(field as any).bold ? "bold" : "", (field as any).underline ? "underline" : ""].filter(Boolean)}
+                onValueChange={(values) => {
+                  onChange({
+                    bold: values.includes("bold"),
+                    underline: values.includes("underline"),
+                  } as any);
+                }}
+                className="w-full justify-start"
+              >
+                <ToggleGroupItem value="bold" aria-label="Bold" size="sm">
+                  <span className="font-bold">B</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="underline" aria-label="Underline" size="sm">
+                  <span className="underline">U</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
           </div>
         </div>
@@ -234,10 +246,18 @@ export function Inspector() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <Checkbox checked={!!field.required} onCheckedChange={(v) => onChange({ required: !!v })} />
-            <Label>Required</Label>
-          </div>
+          <ToggleGroup
+            type="single"
+            value={field.required ? "required" : ""}
+            onValueChange={(value) => {
+              onChange({ required: value === "required" });
+            }}
+            className="w-full justify-start"
+          >
+            <ToggleGroupItem value="required" aria-label="Required" size="sm">
+              Required
+            </ToggleGroupItem>
+          </ToggleGroup>
           {(field.type === "checkbox" || field.type === "switch") && (
             <div className="space-y-1">
               <Label>Price when selected</Label>
