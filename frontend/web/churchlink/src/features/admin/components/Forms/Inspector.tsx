@@ -115,11 +115,11 @@ export function Inspector() {
             <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
           </div>
           <div className="grid grid-cols-4 gap-2 items-end">
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label>As</Label>
               <Select value={(field as any).as || "p"} onValueChange={(v) => onChange({ as: v as any } as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="w-full min-w-0"><SelectValue /></SelectTrigger>
+                <SelectContent className="w-[var(--radix-select-trigger-width)]">
                   <SelectItem value="h1">H1</SelectItem>
                   <SelectItem value="h2">H2</SelectItem>
                   <SelectItem value="h3">H3</SelectItem>
@@ -129,21 +129,25 @@ export function Inspector() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+
+            <div className="space-y-1 min-w-0">
               <Label>Color</Label>
-              <Input type="color" value={(field as any).color || "#000000"} onChange={(e) => onChange({ color: e.target.value } as any)} />
+              <Input
+                type="color"
+                value={(field as any).color || "#000000"}
+                onChange={(e) => onChange({ color: e.target.value } as any)}
+                className="w-full min-w-0"
+              />
             </div>
-            <div className="space-y-1 col-span-2">
+
+            <div className="space-y-1 col-span-2 min-w-0">
               <Label>Style</Label>
               <ToggleGroup
                 type="multiple"
                 value={[(field as any).bold ? "bold" : "", (field as any).underline ? "underline" : ""].filter(Boolean)}
-                onValueChange={(values) => {
-                  onChange({
-                    bold: values.includes("bold"),
-                    underline: values.includes("underline"),
-                  } as any);
-                }}
+                onValueChange={(values) =>
+                  onChange({ bold: values.includes("bold"), underline: values.includes("underline") } as any)
+                }
                 className="w-full justify-start"
               >
                 <ToggleGroupItem value="bold" aria-label="Bold" size="sm">
