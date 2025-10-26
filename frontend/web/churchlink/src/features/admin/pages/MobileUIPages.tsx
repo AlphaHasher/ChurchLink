@@ -20,6 +20,7 @@ const ALLOWED_PAGES = [
   { pageName: "ministries", displayName: "Ministries" },
   { pageName: "sermons", displayName: "Sermons" },
   { pageName: "giving", displayName: "Giving" },
+  { pageName: "weekly bulletin", displayName: "Weekly Bulletin" },
   { pageName: "contact us", displayName: "Contact Us" },
 ];
 
