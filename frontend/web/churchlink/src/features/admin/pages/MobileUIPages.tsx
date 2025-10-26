@@ -5,21 +5,21 @@ import {
   getDashboardPages,
   saveDashboardPageConfiguration,
   DashboardPage,
-  updateDashboardPage
+  updateDashboardPage,
+  deleteDashboardPage
 } from "../../../helpers/PagesHelper";
 
 interface EditingPage extends DashboardPage {
   isNew?: boolean;
 }
 
-// Predefined allowed dashboard pages (example list)
 const ALLOWED_PAGES = [
-  { pageName: "overview", displayName: "Overview" },
-  { pageName: "reports", displayName: "Reports" },
-  { pageName: "analytics", displayName: "Analytics" },
-  { pageName: "settings", displayName: "Settings" },
-  { pageName: "users", displayName: "Users" },
-  { pageName: "media", displayName: "Media Library" },
+  { pageName: "join live", displayName: "Join Live" },
+  { pageName: "events", displayName: "Events" },
+  { pageName: "ministries", displayName: "Ministries" },
+  { pageName: "sermons", displayName: "Sermons" },
+  { pageName: "giving", displayName: "Giving" },
+  { pageName: "contact us", displayName: "Contact Us" },
 ];
 
 const DashboardPagesManager = () => {
@@ -109,13 +109,32 @@ const DashboardPagesManager = () => {
     setEditingPage({ ...page });
   };
 
-  const handleDeletePage = (index: number) => {
-    if (confirm("Are you sure you want to delete this page?")) {
-      const newPages = pages.filter((page) => page.index !== index);
-      newPages.forEach((page, idx) => (page.index = idx));
-      setPages(newPages);
+  const handleDeletePage = async (index: number) => {
+    if (!confirm("Are you sure you want to delete this page?")) return;
+
+    try {
+      setError(null);
+      setSuccess(null);
+
+      const success = await deleteDashboardPage(index);
+
+      if (success) {
+        // ✅ Remove from local state after backend confirms
+        const newPages = pages.filter((page) => page.index !== index);
+        newPages.forEach((page, idx) => (page.index = idx));
+        setPages(newPages);
+
+        setSuccess(`Page ${index} deleted successfully`);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(`Failed to delete page ${index}`);
+      }
+    } catch (err: any) {
+      console.error("Failed to delete page:", err);
+      setError(err.message || "Failed to delete page");
     }
   };
+
 
   const handleMovePage = (index: number, direction: "up" | "down") => {
     const pageIndex = pages.findIndex((p) => p.index === index);
@@ -135,60 +154,53 @@ const DashboardPagesManager = () => {
     setPages(newPages);
   };
 
-  const handleSaveEdit = async () => {
-  if (!editingPage || !editingPage.pageName || !editingPage.displayName) {
-    setError("Page name and Display Name are required");
-    return;
-  }
-
-  try {
-    // 🔹 Update state locally
-    let newPages;
-    if (editingPage.isNew) {
-      const exists = pages.some(
-        (p) =>
-          p.pageName.toLowerCase() === editingPage.pageName.toLowerCase() ||
-          p.index === editingPage.index
-      );
-      if (exists) {
-        setError("Page name or index already exists");
+    const handleSaveEdit = async () => {
+      if (!editingPage || !editingPage.pageName || !editingPage.displayName) {
+        setError("Page name and Display Name are required");
         return;
       }
-      newPages = [...pages, { ...editingPage, isNew: undefined }].sort(
-        (a, b) => a.index - b.index
-      );
-    } else {
-      newPages = pages.map((p) =>
-        p.index === editingPage.index
-          ? { ...editingPage, isNew: undefined }
-          : p
-      );
-    }
-    setPages(newPages);
 
-    // 🔹 Persist to backend immediately
-    const success = await updateDashboardPage(
-      editingPage.index,
-      {
-        displayName: editingPage.displayName,
-        imageId: editingPage.imageId,
-        enabled: editingPage.enabled
+      try {
+        let newPages;
+        if (editingPage.isNew) {
+        const exists = pages.some(
+          (p) =>
+            p.pageName.toLowerCase() === editingPage.pageName.toLowerCase() ||
+            p.index === editingPage.index
+        );
+        if (exists) {
+          setError("Page name or index already exists");
+          return;
+        }
+
+        newPages = [...pages, { ...editingPage, isNew: undefined }].sort(
+          (a, b) => a.index - b.index
+        );
+        setPages(newPages);
+        const success = await saveDashboardPageConfiguration(newPages);
+        if (!success) throw new Error("Failed to create new page");
+
+      } else {
+        newPages = pages.map((p) =>
+          p.index === editingPage.index
+            ? { ...editingPage, isNew: undefined }
+             : p
+        );
+        setPages(newPages);
+
+        const success = await updateDashboardPage(editingPage.index, editingPage);
+        if (!success) throw new Error("Failed to update page");
       }
-    );
 
-    if (success) {
-      setSuccess("Page updated successfully!");
+      setSuccess("Changes saved successfully!");
       setTimeout(() => setSuccess(null), 3000);
-    } else {
-      setError("Failed to update page on the server");
+      setEditingPage(null);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to save changes");
     }
-  } catch (err: any) {
-    console.error(err);
-    setError(err.message || "Failed to update page");
-  } finally {
-    setEditingPage(null);
-  }
   };
+
 
   const handleCancelEdit = () => {
     setEditingPage(null);
