@@ -44,10 +44,6 @@ export function BuilderShell() {
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
   const updateSchemaMeta = useBuilderStore((s) => s.updateSchemaMeta);
-  const customLocales = useBuilderStore((s) => s.customLocales);
-  const addCustomLocale = useBuilderStore((s) => s.addCustomLocale);
-  const removeCustomLocale = useBuilderStore((s) => s.removeCustomLocale);
-  const clearCustomLocales = useBuilderStore((s) => s.clearCustomLocales);
   const modifiedFields = useBuilderStore((s) => s.modifiedFields);
   const clearModifiedFields = useBuilderStore((s) => s.clearModifiedFields);
   const translations = useBuilderStore((s) => s.translations);
@@ -341,7 +337,12 @@ export function BuilderShell() {
         setStatus({ type: 'success', title: 'Updated', message: 'Form updated successfully' });
       } else {
         // Create new form - default to not visible
-        await api.post('/v1/forms/', { ...payload, visible: false });
+        const response = await api.post('/v1/forms/', { ...payload, visible: false });
+        const newFormId = response.data?.id;
+        if (newFormId) {
+          const newUrl = `${window.location.pathname}?load=${newFormId}`;
+          window.history.replaceState({ path: newUrl }, '', newUrl);
+        }
         setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
       }
 
@@ -521,22 +522,22 @@ export function BuilderShell() {
     <ErrorBoundary>
       <div className="p-2">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
+        <div className="flex items-center justify-between mb-3 gap-4">
+          <div className="flex-1">
             <div className="text-xl font-semibold">{formName || 'Untitled Form'}</div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Status Alert to the left of Save button */}
-            {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
-              <div className="hidden md:block max-w-md">
-                <Alert
-                  variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
-                  className="inline-flex items-start px-3 py-2"
-                >
-                  <span className="text-sm line-clamp-2">{status.message ?? status.title}</span>
-                </Alert>
-              </div>
-            )}
+          {/* Status Alert - wraps text and right-aligned */}
+          {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
+            <div className="hidden md:block">
+              <Alert
+                variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
+                className="inline-flex items-start px-3 py-2"
+              >
+                <span className="text-sm line-clamp-2">{status.message ?? status.title}</span>
+              </Alert>
+            </div>
+          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button variant="outline" onClick={() => setShowClearConfirm(true)} title="Clear form (start fresh)">
               <Trash className="h-4 w-4 mr-2" /> Clear
             </Button>
@@ -561,20 +562,17 @@ export function BuilderShell() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+            </div>
         </div>
         
         {/* Locale Selector */}
         <div className="mb-3 p-3 border rounded bg-muted/50">
           <LocaleSelector
             supportedLocales={supportedLocales}
-            customLocales={customLocales}
             onAddLocale={(locale) => {
               if (!supportedLocales.includes(locale)) {
                 const newLocales = [...supportedLocales, locale];
                 setSupportedLocales(newLocales);
-                // Automatically track as custom (manually entered) locale
-                addCustomLocale(locale);
                 // Immediately update schema so Inspector shows translation tabs
                 updateSchemaMeta({ supported_locales: newLocales });
               }
@@ -582,8 +580,6 @@ export function BuilderShell() {
             onRemoveLocale={(locale) => {
               const newLocales = supportedLocales.filter((l) => l !== locale);
               setSupportedLocales(newLocales);
-              // Remove from custom locales set if present
-              removeCustomLocale(locale);
               // Update schema to reflect removed locale
               updateSchemaMeta({ supported_locales: newLocales });
             }}
@@ -594,21 +590,23 @@ export function BuilderShell() {
                 return;
               }
               
-              // Filter out custom locales from bulk translation
-              const localesToTranslate = supportedLocales.filter(locale => !customLocales.has(locale));
+              // Always translate all supported locales (except 'en' which is the base)
+              const localesToTranslate = supportedLocales.filter(locale => locale !== 'en');
               
               if (localesToTranslate.length === 0) {
-                setStatus({ type: 'info', title: 'No locales to translate', message: 'All locales are marked as custom. Use the Inspector to translate individual fields.' });
+                setStatus({ type: 'info', title: 'No locales to translate', message: 'Add a language first to request translations.' });
                 return;
               }
               
-              // Map the translation results to field IDs (onlyModified = true for requirement #3)
+              // Map the translation results to field IDs
+              // If no translations exist yet, translate all fields. Otherwise, only modified ones (requirement #3)
+              const hasExistingTranslations = Object.keys(translations).length > 0;
               const formData = (schema as any)?.data || [];
-              const { texts, fieldMap } = extractTranslatableTexts(formData, true);
+              const { texts, fieldMap } = extractTranslatableTexts(formData, hasExistingTranslations);
               
-              // Check if there are any modified fields to translate
+              // Check if there are any fields to translate
               if (texts.length === 0) {
-                setStatus({ type: 'info', title: 'No changes to translate', message: 'No fields have been modified since last translation.' });
+                setStatus({ type: 'info', title: 'No changes to translate', message: 'No fields to translate.' });
                 return;
               }
               
@@ -653,9 +651,6 @@ export function BuilderShell() {
                 
                 // Clear modified fields that were just translated
                 clearModifiedFields(Array.from(translatedFieldIds));
-                
-                // Remove translated locales from customLocales (they're now auto-translated)
-                clearCustomLocales(localesToTranslate);
                 
                 setStatus({ type: 'success', title: 'Success', message: `Translations generated for ${localesToTranslate.join(', ')}. You can now modify them in the inspector.` });
               } else {

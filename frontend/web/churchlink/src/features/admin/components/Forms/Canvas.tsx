@@ -65,10 +65,10 @@ export function Canvas() {
                       onClick={() => select(f.id)}
                       {...attributes}
                     >
-                      <div className="text-sm flex items-center gap-2">
+                      <div className="text-sm flex items-center gap-2 min-w-0">
                         <span
                           ref={setActivatorNodeRef}
-                          className="mr-1 cursor-grab select-none"
+                          className="mr-1 cursor-grab select-none flex-shrink-0"
                           {...listeners}
                           onClick={(e) => e.stopPropagation()}
                           aria-label="Drag handle"
@@ -76,16 +76,31 @@ export function Canvas() {
                         >
                           ⋮⋮
                         </span>
-                        {idx + 1}. {(() => {
+                        <span className="flex-shrink-0">{idx + 1}.</span>
+                        <span className="truncate" title={(() => {
+                          if (f.type === 'static') {
+                            const content = (f as any).content;
+                            return typeof content === 'string' && content.trim().length > 0 ? content : FRIENDLY_TYPE[f.type];
+                          }
                           const raw = (f as any).label;
-                          const hasCustom = typeof raw === 'string' && raw.trim().length > 0;
-                          return hasCustom ? raw : FRIENDLY_TYPE[f.type] || `${f.type[0].toUpperCase()}${f.type.slice(1)} Field`;
-                        })()} <span className="text-muted-foreground">({f.type}{f.width ? ` • ${f.width}` : ""})</span>
+                          return typeof raw === 'string' && raw.trim().length > 0 ? raw : FRIENDLY_TYPE[f.type] || `${f.type[0].toUpperCase()}${f.type.slice(1)} Field`;
+                        })()}>
+                          {(() => {
+                            if (f.type === 'static') {
+                              const content = (f as any).content;
+                              return typeof content === 'string' && content.trim().length > 0 ? content : FRIENDLY_TYPE[f.type];
+                            }
+                            const raw = (f as any).label;
+                            const hasCustom = typeof raw === 'string' && raw.trim().length > 0;
+                            return hasCustom ? raw : FRIENDLY_TYPE[f.type] || `${f.type[0].toUpperCase()}${f.type.slice(1)} Field`;
+                          })()}
+                        </span>
+                        <span className="text-muted-foreground flex-shrink-0">({f.type}{f.width ? ` • ${f.width}` : ""})</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Sheet>
                           <SheetTrigger asChild>
-                            <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); select(f.id); }} title="Edit">
+                            <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); select(f.id); }} title="Edit" className="ml-2">
                               <Pencil className="h-4 w-4" />
                             </Button>
                           </SheetTrigger>

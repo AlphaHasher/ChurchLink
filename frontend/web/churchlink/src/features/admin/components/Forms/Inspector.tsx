@@ -4,6 +4,7 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group";
+import { Textarea } from "@/shared/components/ui/textarea";
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
 import { format } from "date-fns";
@@ -112,7 +113,7 @@ export function Inspector() {
         <div className="space-y-2">
           <div className="space-y-1">
             <Label>Text content</Label>
-            <Input value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} />
+            <Textarea value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} placeholder="Enter static text content" className="resize-none" rows={4} />
           </div>
           <div className="grid grid-cols-3 gap-2 items-end">
             <div className="space-y-1 min-w-0">
