@@ -86,6 +86,81 @@ async def paypal_webhook(request: Request):
                         })
                         
                         logging.info(f"🎫 Event registration webhook - Event: {event_id}, User: {user_uid}")
+                        
+                        # Update Event attendees' payment status after successful payment
+                        try:
+                            from models.event import update_attendee_payment_status
+                            from bson import ObjectId
+                            
+                            # Get registrations from the session to update their payment status
+                            registrations = session.get("registrations", [])
+                            if registrations:
+                                updated_count = 0
+                                for registration in registrations:
+                                    person_id = registration.get("person_id")
+                                    
+                                    # Generate attendee key - try both series and occurrence scopes
+                                    person_object_id = ObjectId(person_id) if person_id else None
+                                    person_id_str = str(person_object_id) if person_object_id else 'self'
+                                    
+                                    # Try series scope first (default registration scope)
+                                    attendee_key_series = f"{user_uid}|{person_id_str}|rsvp|series"
+                                    update_success = await update_attendee_payment_status(
+                                        event_id=event_id,
+                                        attendee_key=attendee_key_series,
+                                        payment_status='completed',
+                                        transaction_id=parent_payment
+                                    )
+                                    
+                                    if not update_success:
+                                        # Try occurrence scope as fallback
+                                        attendee_key_occurrence = f"{user_uid}|{person_id_str}|rsvp|occurrence"
+                                        update_success = await update_attendee_payment_status(
+                                            event_id=event_id,
+                                            attendee_key=attendee_key_occurrence,
+                                            payment_status='completed',
+                                            transaction_id=parent_payment
+                                        )
+                                        logging.info(f"🔄 Webhook used occurrence scope for person {person_id}")
+                                    else:
+                                        logging.info(f"🔄 Webhook used series scope for person {person_id}")
+                                    
+                                    if update_success:
+                                        updated_count += 1
+                                        logging.info(f"🔄 Webhook updated attendee payment status for person {person_id}")
+                                    else:
+                                        logging.error(f"❌ Webhook failed to update attendee payment status for person {person_id} (tried both scopes)")
+                                
+                                logging.info(f"✅ Webhook updated {updated_count}/{len(registrations)} attendee payment statuses")
+                            else:
+                                logging.warning(f"⚠️ No registrations found in session for payment {parent_payment}")
+                                
+                        except Exception as payment_update_error:
+                            logging.error(f"❌ Webhook error updating payment status: {payment_update_error}")
+                            # Don't fail the webhook if payment status update fails
+                            
+                    elif session.get("form_slug"):
+                        # Form payment
+                        form_slug = session.get("form_slug")
+                        form_response = session.get("form_response", {})
+                        
+                        transaction_data.update({
+                            "payment_type": "form_submission",
+                            "fund_name": f"Form: {form_slug}",
+                            "form_slug": form_slug,
+                            "note": "Form payment completed via webhook",
+                            "metadata": {
+                                "form_response_count": len(form_response),
+                                "webhook_created": True
+                            }
+                        })
+                        
+                        logging.info(f"📝 Form payment webhook - Form: {form_slug}, User: {user_uid}")
+                        
+                        # NOTE: Form submissions are typically handled in complete_paypal_payment route
+                        # This webhook creates the transaction record for tracking purposes
+                        # No additional form processing needed here as it's handled by direct route
+                            
                     else:
                         # Regular donation
                         transaction_data.update({
@@ -122,6 +197,70 @@ async def paypal_webhook(request: Request):
                 if existing_transaction.status != "COMPLETED":
                     await Transaction.update_transaction_status(parent_payment, "COMPLETED")
                     logging.info(f"🔄 Webhook updated transaction {parent_payment} status to COMPLETED")
+                    
+                    # Also update Event attendees' payment status for existing transactions
+                    try:
+                        from models.event import update_attendee_payment_status
+                        from bson import ObjectId
+                        
+                        # Check if this is an event registration by looking for session data
+                        payment_session = await DB.db["payment_sessions"].find_one({"payment_id": parent_payment})
+                        bulk_registration = await DB.db["bulk_registrations"].find_one({"payment_id": parent_payment})
+                        
+                        if payment_session or bulk_registration:
+                            session = payment_session or bulk_registration
+                            event_id = session.get("event_id")
+                            user_uid = session.get("user_uid")
+                            registrations = session.get("registrations", [])
+                            form_slug = session.get("form_slug")
+                            
+                            if event_id and user_uid and registrations:
+                                # Handle event registration payment status updates
+                                updated_count = 0
+                                for registration in registrations:
+                                    person_id = registration.get("person_id")
+                                    
+                                    # Generate attendee key - try both series and occurrence scopes
+                                    person_object_id = ObjectId(person_id) if person_id else None
+                                    person_id_str = str(person_object_id) if person_object_id else 'self'
+                                    
+                                    # Try series scope first (default registration scope)
+                                    attendee_key_series = f"{user_uid}|{person_id_str}|rsvp|series"
+                                    update_success = await update_attendee_payment_status(
+                                        event_id=event_id,
+                                        attendee_key=attendee_key_series,
+                                        payment_status='completed',
+                                        transaction_id=parent_payment
+                                    )
+                                    
+                                    if not update_success:
+                                        # Try occurrence scope as fallback
+                                        attendee_key_occurrence = f"{user_uid}|{person_id_str}|rsvp|occurrence"
+                                        update_success = await update_attendee_payment_status(
+                                            event_id=event_id,
+                                            attendee_key=attendee_key_occurrence,
+                                            payment_status='completed',
+                                            transaction_id=parent_payment
+                                        )
+                                        logging.info(f"🔄 Webhook used occurrence scope for existing person {person_id}")
+                                    else:
+                                        logging.info(f"🔄 Webhook used series scope for existing person {person_id}")
+                                    
+                                    if update_success:
+                                        updated_count += 1
+                                        logging.info(f"🔄 Webhook updated existing attendee payment status for person {person_id}")
+                                    else:
+                                        logging.error(f"❌ Webhook failed to update existing attendee payment status for person {person_id} (tried both scopes)")
+                                
+                                logging.info(f"✅ Webhook updated {updated_count}/{len(registrations)} existing attendee payment statuses")
+                            elif form_slug:
+                                # Handle form payment - no special processing needed, just log
+                                logging.info(f"📝 Webhook confirmed form payment completion - Form: {form_slug}, User: {user_uid}")
+                                
+                    except Exception as payment_update_error:
+                        logging.error(f"❌ Webhook error updating existing payment status: {payment_update_error}")
+                        # Don't fail the webhook if payment status update fails
+                        
                     return {
                         "success": True, 
                         "action": "status_updated",

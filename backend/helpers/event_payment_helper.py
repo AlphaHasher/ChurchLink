@@ -646,25 +646,10 @@ class EventPaymentHelper:
                         registration_data["registration_key"] = result.get("registration_key") if isinstance(result, dict) else None
                         successful_registrations.append(registration_data)
                         
-                        # Update payment status to completed after successful PayPal payment
-                        try:
-                            
-                            
-                            # Also update event attendee payment status
-                            person_object_id = ObjectId(person_id) if person_id else None
-                            person_id_str = str(person_object_id) if person_object_id else 'self'
-                            attendee_key = f"{user_uid}|{person_id_str}|rsvp|occurrence"
-                            await update_attendee_payment_status(
-                                event_id=event_id,
-                                attendee_key=attendee_key,
-                                payment_status='completed',
-                                transaction_id=payment_id
-                            )
-                            
-                            self.logger.info(f"Successfully updated payment status to 'completed' for {registration_data.get('name')}")
-                        except Exception as update_error:
-                            self.logger.warning(f"Failed to update payment status for {registration_data.get('name')}: {str(update_error)}")
-                            # Don't fail the whole registration, just log the warning
+                        # NOTE: Payment status updates are now handled by PayPal webhooks for reliability
+                        # Webhook processing ensures payment status is updated even if this direct route fails
+                        # This prevents duplicate processing and race conditions
+                        self.logger.info(f"Registration successful for {registration_data.get('name')} - payment status will be updated by webhook")
                     else:
                         registration_data["registration_status"] = "failed"
                         registration_data["failure_reason"] = reason
@@ -1085,29 +1070,10 @@ class EventPaymentHelper:
                             if success:
                                 self.logger.info(f"Successfully registered people after payment: {message}")
                                 
-                                # Now update payment status for all registered attendees to 'paid'
-                                
-                                
-                                for registration in raw_registrations:
-                                    person_id = registration.get('person_id')  # None for self, ObjectId string for family members
-                                    
-                                    # Generate attendee key to identify the specific attendee
-                                    person_object_id = ObjectId(person_id) if person_id else None
-                                    person_id_str = str(person_object_id) if person_object_id else 'self'
-                                    attendee_key = f"{user_uid}|{person_id_str}|rsvp|occurrence"
-                                    
-                                    # Update payment status to 'completed'
-                                    update_success = await update_attendee_payment_status(
-                                        event_id=event_id,
-                                        attendee_key=attendee_key,
-                                        payment_status='completed',
-                                        transaction_id=payment_id
-                                    )
-                                    
-                                    if update_success:
-                                        self.logger.info(f"Updated payment status to 'completed' for attendee {attendee_key}")
-                                    else:
-                                        self.logger.error(f"Failed to update payment status for attendee {attendee_key}")
+                                # NOTE: Payment status updates are now handled by PayPal webhooks for reliability
+                                # Webhook processing ensures payment status is updated even if this direct route fails
+                                # This prevents duplicate processing and race conditions
+                                self.logger.info(f"Bulk registration successful - payment status will be updated by webhook for {len(raw_registrations)} registrations")
                                 
                             else:
                                 self.logger.error(f"Failed to register people after payment: {message}")
@@ -1219,43 +1185,10 @@ class EventPaymentHelper:
                                 try:
                                     
                                     
-                                    # Generate attendee key to match the format used in register_rsvp
-                                    # Note: person_id gets converted to ObjectId in register_rsvp, so we need to match that
-                                    person_object_id = ObjectId(person_id) if person_id else None
-                                    person_id_str = str(person_object_id) if person_object_id else 'self'
-                                    attendee_key = f"{user_uid}|{person_id_str}|rsvp|occurrence"
-                                    
-                                    self.logger.info(f"Updating payment status for {display_name} with attendee_key: {attendee_key}")
-                                    
-                                    # Update event attendee payment status (payment status is event-specific)
-                                    
-                                    # NOTE: Payment status is tracked per-event in the events collection, not in user's my_events
-                                    # This is the correct approach because payment status is event-specific, not a global user property
-                                    # A user can have different payment statuses across different events
-                                    
-                                    # Update event attendee payment status
-                                    update_success = await update_attendee_payment_status(
-                                        event_id=event_id,
-                                        attendee_key=attendee_key,
-                                        payment_status='completed',
-                                        transaction_id=payment_id
-                                    )
-                                    
-                                    if update_success:
-                                        self.logger.info(f"Successfully updated event attendee payment status for {display_name}")
-                                    else:
-                                        self.logger.error(f"Failed to update event attendee payment status for {display_name}")
-                                        # Let's also log the event to see if the attendee exists
-                                        try:
-                                            event_doc = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
-                                            if event_doc:
-                                                attendee_keys = [att.get("key") for att in event_doc.get("attendees", [])]
-                                                self.logger.error(f"Available attendee keys: {attendee_keys}")
-                                                self.logger.error(f"Looking for key: {attendee_key}")
-                                            else:
-                                                self.logger.error(f"Event not found: {event_id}")
-                                        except Exception as debug_e:
-                                            self.logger.error(f"Debug query failed: {debug_e}")
+                                    # NOTE: Payment status updates are now handled by PayPal webhooks for reliability
+                                    # Webhook processing ensures payment status is updated even if this direct route fails
+                                    # This prevents duplicate processing and race conditions
+                                    self.logger.info(f"Individual registration successful for {display_name} - payment status will be updated by webhook")
                                         
                                 except Exception as e:
                                     self.logger.error(f"Exception while updating payment status for {display_name}: {str(e)}")

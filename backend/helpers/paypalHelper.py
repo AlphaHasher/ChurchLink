@@ -660,51 +660,13 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
                         threshold=1000.0
                     )
                     
-                    # If this is an event payment, update the registration status to "completed"
+                    # NOTE: For event payments, payment status updates are now handled by PayPal webhooks
+                    # Webhook processing ensures reliable payment status updates for all payment types
+                    # This prevents duplicate processing and race conditions between direct routes and webhooks
                     if transaction_data.get("payment_type") == "event_registration":
                         event_id = transaction_data.get("event_id")
                         user_uid = transaction_data.get("user_uid")
-
-                        logging.info(f"[PAYPAL_CAPTURE] Event payment status update - Event ID: {event_id}, User UID: {user_uid}")
-
-                        if event_id and user_uid:
-                            try:
-                                logging.info(f"[PAYPAL_CAPTURE] Updating event registration status - Event: {event_id}, User: {user_uid}")
-
-                                # Get the user's registrations for this event
-                                user_data = await UserHandler.find_by_uid(user_uid)
-                                logging.info(f"[PAYPAL_CAPTURE] Found user data: {user_data is not None}")
-
-                                if user_data and "events" in user_data:
-                                    event_registrations = user_data["events"].get(event_id, {})
-                                    logging.info(f"[PAYPAL_CAPTURE] Found {len(event_registrations)} registrations for event {event_id}")
-                                    updated_count = 0
-                                    
-                                    # Update all registrations that are awaiting payment
-                                    for attendee_key, registration in event_registrations.items():
-                                        current_status = registration.get("payment_status", "unknown")
-                                        logging.info(f"[PAYPAL_CAPTURE] Registration {attendee_key} has status: {current_status}")
-
-                                        if registration.get("payment_status") in ["awaiting_payment", None, ""]:
-                                            logging.info(f"[PAYPAL_CAPTURE] Updating registration: {attendee_key}")
-                                            success = await update_attendee_payment_status(
-                                                event_id=event_id,
-                                                attendee_key=attendee_key,
-                                                payment_status="completed",
-                                                transaction_id=payment_id
-                                            )
-                                            logging.info(f"[PAYPAL_CAPTURE] Update result for {attendee_key}: {success}")
-                                            if success:
-                                                updated_count += 1
-
-                                    logging.info(f"[PAYPAL_CAPTURE] Successfully updated {updated_count} registrations to 'completed'")
-                                else:
-                                    logging.info(f"[PAYPAL_CAPTURE] No user data or events found for user {user_uid}")
-
-                            except Exception as e:
-                                logging.error(f"[PAYPAL_CAPTURE] Error updating registration payment status: {str(e)}")
-                                # Don't fail the entire payment capture if this fails
-                                pass
+                        logging.info(f"[PAYPAL_CAPTURE] Event payment detected - Event: {event_id}, User: {user_uid} - payment status will be updated by webhook")
                     
                     return JSONResponse(content={
                         "status": "success", 
