@@ -11,7 +11,16 @@ paypal_webhook_router = APIRouter(prefix="/paypal", tags=["paypal_webhook"])
 
 @paypal_webhook_router.post("/webhook", status_code=200)
 async def paypal_webhook(request: Request):
-    """Handle PayPal webhook events for payments, refunds, and event registrations"""
+    """
+    Handle PayPal webhook events for external/unexpected payment events only.
+    
+    Normal payment flow (user-initiated) is handled synchronously in the success callback.
+    Webhooks are reserved for:
+    - PAYMENT.SALE.REFUNDED (refunds from PayPal website)
+    - PAYMENT.SALE.DENIED (failed payments)
+    - BILLING.SUBSCRIPTION.CANCELLED (subscription cancellations from PayPal)
+    - Disputes, chargebacks, and other external events
+    """
     try:
         payload = await request.json()
         
@@ -52,15 +61,15 @@ async def paypal_webhook(request: Request):
         
         # Handle different event types
         if event_type == "PAYMENT.SALE.COMPLETED":
-            logging.info(f"💰 Payment completed - Sale ID: {sale_id}, Parent: {parent_payment}, Amount: ${amount}")
+            logging.info(f"💰 Payment completed webhook - Sale ID: {sale_id}, Parent: {parent_payment}, Amount: ${amount}")
             
-            # Check if this is an event registration payment
-            # Look for existing transaction or payment session
+            # NOTE: Normal payment flow is handled synchronously in success callback
+            # This webhook handles edge cases where transaction wasn't created properly
             existing_transaction = await Transaction.get_transaction_by_id(parent_payment)
             
             if not existing_transaction:
-                # Transaction doesn't exist - create it via webhook
-                logging.info(f"🆕 Creating transaction from webhook for payment {parent_payment}")
+                logging.info(f"🆕 Creating missing transaction from webhook for payment {parent_payment}")
+                # This is likely a delayed or missed transaction - create it from webhook
                 
                 # Try to find payment session or bulk registration to get context
                 payment_session = await DB.db["payment_sessions"].find_one({"payment_id": parent_payment})

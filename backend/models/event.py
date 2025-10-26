@@ -376,9 +376,6 @@ def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optiona
     """
     Create attendee document structure.
     
-    MIGRATION NOTE: 
-    - Old approach: stored payment_status directly in attendee record
-    - New approach: store only transaction_id, query status from Transaction model
     """
     attendee_doc = {
         "key": _attendee_key(uid, person_id, kind, scope),
@@ -408,10 +405,6 @@ async def rsvp_add_person(
     """
     Add RSVP atomically. Only manages the event collection.
     Returns (success, reason) where reason explains why it failed if success is False.
-    
-    MIGRATION NOTE: 
-    - Old approach: stored payment_status directly 
-    - New approach: store transaction_id, query status from Transaction model
     """
     ev_oid = ObjectId(event_id)
     key = _attendee_key(uid, person_id, kind, scope)

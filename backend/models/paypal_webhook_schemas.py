@@ -1,10 +1,3 @@
-"""
-PayPal Webhook Payload Validation
-
-This module validates PayPal webhook payloads to ensure they match
-the official PayPal API documentation.
-"""
-
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field, validator
 import logging

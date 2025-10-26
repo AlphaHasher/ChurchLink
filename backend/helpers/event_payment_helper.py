@@ -6,13 +6,12 @@ from datetime import datetime
 from fastapi import HTTPException
 from bson import ObjectId
 
-from models.event import get_event_by_id, get_event_payment_summary, rsvp_list
+from models.event import get_event_by_id, get_event_payment_summary, rsvp_list, update_attendee_payment_status
 from models.transaction import Transaction, PaymentStatus, RegistrationPaymentStatus
 from helpers.paypalHelper import create_order_from_data, capture_payment_by_id
 from controllers.event_functions import register_rsvp, register_multiple_people
 from mongo.database import DB
 from mongo.churchuser import UserHandler
-
 from helpers.audit_logger import payment_audit_logger, AuditEventType
 
 
@@ -645,17 +644,39 @@ class EventPaymentHelper:
                     # Register for the event - handle both person_id and family_member_id
                     # Mark as PayPal payment since this is bulk payment completion
                     person_id = registration_data.get("person_id") or registration_data.get("family_member_id")
-                    result, reason = await register_rsvp(event_id, user_uid, person_id, payment_option="paypal")
+                    result, reason = await register_rsvp(event_id, user_uid, person_id, payment_option="paypal", transaction_id=payment_id)
                     
                     if result:
                         registration_data["registration_status"] = "success"
                         registration_data["registration_key"] = result.get("registration_key") if isinstance(result, dict) else None
                         successful_registrations.append(registration_data)
                         
-                        # NOTE: Payment status updates are now handled by PayPal webhooks for reliability
-                        # Webhook processing ensures payment status is updated even if this direct route fails
-                        # This prevents duplicate processing and race conditions
-                        self.logger.info(f"Registration successful for {registration_data.get('name')} - payment status will be updated by webhook")
+                        # Update payment status immediately after successful registration
+                        # Webhooks are reserved for external events (refunds, disputes, cancellations from PayPal website)
+                        # Direct updates provide immediate feedback and reliability for normal payment flow
+                        try:
+                                                        
+                            person_object_id = ObjectId(person_id) if person_id else None
+                            person_id_str = str(person_object_id) if person_object_id else 'self'
+                            attendee_key = f"{user_uid}|{person_id_str}|rsvp|series"
+                            
+                            payment_updated = await update_attendee_payment_status(
+                                event_id=event_id,
+                                attendee_key=attendee_key,
+                                payment_status=PaymentStatus.COMPLETED,
+                                transaction_id=payment_id
+                            )
+                            
+                            if payment_updated:
+                                self.logger.info(f"✅ Payment status updated immediately for {registration_data.get('name')}")
+                            else:
+                                self.logger.warning(f"⚠️ Failed to update payment status for {registration_data.get('name')}")
+                                
+                        except Exception as status_error:
+                            self.logger.error(f"Error updating payment status for {registration_data.get('name')}: {str(status_error)}")
+                            # Don't fail the registration if payment status update fails
+                        
+                        self.logger.info(f"Registration successful for {registration_data.get('name')} - payment status updated immediately")
                     else:
                         registration_data["registration_status"] = "failed"
                         registration_data["failure_reason"] = reason
@@ -1082,10 +1103,10 @@ class EventPaymentHelper:
                             if success:
                                 self.logger.info(f"Successfully registered people after payment: {message}")
                                 
-                                # NOTE: Payment status updates are now handled by PayPal webhooks for reliability
-                                # Webhook processing ensures payment status is updated even if this direct route fails
-                                # This prevents duplicate processing and race conditions
-                                self.logger.info(f"Bulk registration successful - payment status will be updated by webhook for {len(raw_registrations)} registrations")
+                                # Update payment status immediately after successful registration
+                                # Webhooks are reserved for external events (refunds, disputes, cancellations from PayPal website)
+                                # Direct updates provide immediate feedback and reliability for normal payment flow
+                                self.logger.info(f"Bulk registration successful - payment status updated immediately for {len(raw_registrations)} registrations")
                                 
                             else:
                                 self.logger.error(f"Failed to register people after payment: {message}")
@@ -1180,7 +1201,8 @@ class EventPaymentHelper:
                                     person_id=person_id,
                                     display_name=display_name,
                                     scope="occurrence",  # Single event registration
-                                    payment_option="paypal"
+                                    payment_option="paypal",
+                                    transaction_id=payment_id  # Pass the PayPal payment ID as transaction ID
                                 )
                                 
                                 if success:
@@ -1193,18 +1215,32 @@ class EventPaymentHelper:
                                     self.logger.error(f"Failed to register {display_name}: {message}")
                                     continue  # Skip payment status update for failed registrations
                                 
-                                # Update payment status to 'completed' for both new and existing registrations
+                                # Update payment status immediately after successful registration  
+                                # Webhooks are reserved for external events (refunds, disputes, cancellations from PayPal website)
+                                # Direct updates provide immediate feedback and reliability for normal payment flow
                                 try:
+                                                                        
+                                    person_object_id = ObjectId(person_id) if person_id else None
+                                    person_id_str = str(person_object_id) if person_object_id else 'self'
+                                    attendee_key = f"{user_uid}|{person_id_str}|rsvp|occurrence"
                                     
+                                    payment_updated = await update_attendee_payment_status(
+                                        event_id=event_id,
+                                        attendee_key=attendee_key,
+                                        payment_status=PaymentStatus.COMPLETED,
+                                        transaction_id=payment_id
+                                    )
                                     
-                                    # NOTE: Payment status updates are now handled by PayPal webhooks for reliability
-                                    # Webhook processing ensures payment status is updated even if this direct route fails
-                                    # This prevents duplicate processing and race conditions
-                                    self.logger.info(f"Individual registration successful for {display_name} - payment status will be updated by webhook")
+                                    if payment_updated:
+                                        self.logger.info(f"✅ Payment status updated immediately for {display_name}")
+                                    else:
+                                        self.logger.warning(f"⚠️ Failed to update payment status for {display_name}")
                                         
-                                except Exception as e:
-                                    self.logger.error(f"Exception while updating payment status for {display_name}: {str(e)}")
-                                    self.logger.error(f"Traceback: {traceback.format_exc()}")
+                                except Exception as status_error:
+                                    self.logger.error(f"Error updating payment status for {display_name}: {str(status_error)}")
+                                    # Don't fail the registration if payment status update fails
+                                
+                                self.logger.info(f"Individual registration successful for {display_name} - payment status updated immediately")
                                     
                             except Exception as e:
                                 self.logger.error(f"Exception while registering {display_name}: {str(e)}")
