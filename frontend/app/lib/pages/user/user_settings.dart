@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
@@ -11,14 +9,11 @@ import 'package:app/pages/user/family_members_page.dart';
 import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 
-import '../../components/auth_popup.dart';
-import '../../components/password_reset.dart';
-import 'notification_settings_page.dart';
-import '../my_events_page.dart';
+import 'package:app/components/auth_popup.dart';
+import 'package:app/components/password_reset.dart';
+import 'package:app/pages/user/notification_settings_page.dart';
+import 'package:app/pages/my_events_page.dart';
 import 'package:app/theme/theme_controller.dart';
 
 class UserSettings extends StatefulWidget {
@@ -31,9 +26,6 @@ class UserSettings extends StatefulWidget {
 class _UserSettingsState extends State<UserSettings> {
   final ScrollController _scrollController = ScrollController();
   final FirebaseAuthService authService = FirebaseAuthService();
-
-  File? _profileImage;
-  bool _isUploading = false;
 
   StreamSubscription<User?>? _authSub;
   StreamSubscription<User?>? _userSub;
@@ -93,7 +85,6 @@ class _UserSettingsState extends State<UserSettings> {
     final ok = await _tryFetchOnlineProfile();
     if (!ok) {
       final cachedProfile = await UserHelper.readCachedProfile();
-      final cachedContact = await UserHelper.readCachedContact();
       if (!mounted) return;
       setState(() {
         _profile =
@@ -124,77 +115,7 @@ class _UserSettingsState extends State<UserSettings> {
     }
   }
 
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? pickedImage = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
-    if (pickedImage == null) return;
 
-    if (!mounted) return;
-    setState(() => _isUploading = true);
-
-    final file = File(pickedImage.path);
-    final user = FirebaseAuth.instance.currentUser;
-
-    try {
-      if (user?.photoURL != null) {
-        await _deleteOldImage(user!.photoURL!);
-      }
-
-      final uri = Uri.parse(
-        "https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/upload",
-      );
-
-      final request = http.MultipartRequest("POST", uri)
-        ..fields['upload_preset'] = "user_avatars"
-        ..files.add(await http.MultipartFile.fromPath('file', file.path));
-
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-      final jsonData = jsonDecode(responseData);
-
-      final imageUrl = jsonData['secure_url'] as String;
-
-      await user?.updatePhotoURL(imageUrl);
-      await user?.reload();
-
-      if (!mounted) return;
-      setState(() {
-        _profileImage = file;
-        _isUploading = false;
-      });
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Profile picture updated!")));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isUploading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to update avatar: $e")));
-    }
-  }
-
-  Future<void> _deleteOldImage(String imageUrl) async {
-    final uri = Uri.parse(imageUrl);
-    final fileName = uri.pathSegments.last.split('.').first;
-
-    final deleteUri = Uri.parse(
-      "https://api.cloudinary.com/v1_1/${dotenv.env['CLOUDINARY_CLOUD_NAME']}/image/destroy",
-    );
-
-    await http.post(
-      deleteUri,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "public_id": fileName,
-        "api_key": dotenv.env['CLOUDINARY_API_KEY'],
-      }),
-    );
-  }
 
   // Show the theme selection bottom sheet
   void _showThemeSheet() {
@@ -453,12 +374,6 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
-            'icon': Icons.image,
-            'title': 'Change Avatar',
-            'subtitle': 'Update your profile picture',
-            'ontap': _pickImage,
-          },
-          {
             'icon': Icons.password,
             'title': 'Change Password',
             'subtitle': 'Request an email to reset your password',
@@ -513,16 +428,6 @@ class _UserSettingsState extends State<UserSettings> {
         ],
       },
       {
-        'category': 'Privacy',
-        'items': [
-          {
-            'icon': Icons.delete,
-            'title': 'Delete Account',
-            'subtitle': 'Permanently remove your data',
-          },
-        ],
-      },
-      {
         'category': 'Support',
         'items': [
           {
@@ -544,29 +449,13 @@ class _UserSettingsState extends State<UserSettings> {
           padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: theme.colorScheme.primary,
-                    backgroundImage: _profileImage != null
-                        ? FileImage(_profileImage!) as ImageProvider
-                        : (user.photoURL != null && user.photoURL!.isNotEmpty
-                              ? NetworkImage(user.photoURL!)
-                              : const AssetImage('assets/user/ssbc-dove.png')
-                                    as ImageProvider),
-                  ),
-                  if (_isUploading)
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withOpacity(0.3),
-                        child: const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: theme.colorScheme.primary,
+                backgroundImage: (user.photoURL != null && user.photoURL!.isNotEmpty
+                    ? NetworkImage(user.photoURL!)
+                    : const AssetImage('assets/user/ssbc-dove.png')
+                        as ImageProvider),
               ),
               const SizedBox(width: 16),
               Column(
@@ -595,7 +484,7 @@ class _UserSettingsState extends State<UserSettings> {
 
     for (final category in settingsCategories) {
       final catName = category['category'] as String;
-      if ((catName == 'Account' || catName == 'Privacy') && !loggedIn) {
+      if (catName == 'Account' && !loggedIn) {
         continue;
       }
       if (catName == 'Guest' && loggedIn) continue;
@@ -618,17 +507,17 @@ class _UserSettingsState extends State<UserSettings> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
-                color: theme.colorScheme.primary.withOpacity(0.2),
+                color: theme.colorScheme.primary.withAlpha(20),
                 width: 3,
               ),
             ),
-            shadowColor: Colors.black.withOpacity(0.1),
+            shadowColor: Colors.black.withAlpha(10),
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withAlpha(20),
                     blurRadius: 8,
                     spreadRadius: 0,
                     offset: const Offset(0, 2),
@@ -665,7 +554,7 @@ class _UserSettingsState extends State<UserSettings> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withAlpha(20),
                 blurRadius: 8,
                 spreadRadius: 0,
                 offset: const Offset(0, 2),
@@ -687,7 +576,7 @@ class _UserSettingsState extends State<UserSettings> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  color: theme.colorScheme.primary.withAlpha(30),
                   width: 4,
                 ),
               ),

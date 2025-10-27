@@ -1,8 +1,7 @@
 import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import '../firebase/firebase_auth_service.dart';
-import '../pages/user/use_email.dart';
+import 'package:app/firebase/firebase_auth_service.dart';
+import 'package:app/pages/user/use_email.dart';
 
 class AuthPopup extends StatelessWidget {
   AuthPopup({super.key});

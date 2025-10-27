@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import '../../services/bible_plan_service.dart';
-import '../../services/notification_preferences_service.dart';
-import '../../helpers/logger.dart';
+import 'package:app/services/bible_plan_service.dart';
+import 'package:app/services/notification_preferences_service.dart';
+import 'package:app/helpers/logger.dart';
 
 /// Widget for managing Bible plan notification settings
 class BiblePlanNotificationSettings extends StatefulWidget {
@@ -13,13 +12,13 @@ class BiblePlanNotificationSettings extends StatefulWidget {
   final VoidCallback? onSettingsChanged;
 
   const BiblePlanNotificationSettings({
-    Key? key,
+    super.key,
     required this.planId,
     required this.planName,
     this.currentNotificationTime,
     required this.currentNotificationEnabled,
     this.onSettingsChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<BiblePlanNotificationSettings> createState() => _BiblePlanNotificationSettingsState();
@@ -207,9 +206,9 @@ class _BiblePlanNotificationSettingsState extends State<BiblePlanNotificationSet
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withAlpha(10),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withAlpha(30)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +260,7 @@ class _BiblePlanNotificationSettingsState extends State<BiblePlanNotificationSet
                     });
                     await _updateNotificationSettings();
                   } : null,
-                  activeColor: const Color.fromRGBO(150, 130, 255, 1),
+                  activeThumbColor: const Color.fromRGBO(150, 130, 255, 1),
                 ),
               ],
             ),
@@ -279,10 +278,10 @@ class _BiblePlanNotificationSettingsState extends State<BiblePlanNotificationSet
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        color: Theme.of(context).primaryColor.withAlpha(10),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Theme.of(context).primaryColor.withOpacity(0.3),
+                          color: Theme.of(context).primaryColor.withAlpha(30),
                         ),
                       ),
                       child: Row(
