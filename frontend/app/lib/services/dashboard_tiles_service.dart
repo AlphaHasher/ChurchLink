@@ -19,6 +19,7 @@ class DashboardTilesService {
   static void invalidateCache() {
     _cache = null;
     _cacheAt = null;
+    _orderCache = null;
   }
 
   bool _isFresh() =>

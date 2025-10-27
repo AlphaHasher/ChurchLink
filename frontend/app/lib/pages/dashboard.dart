@@ -83,7 +83,21 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     });
 
-    _orderFuture = DashboardTilesService(_apiBaseUrl).fetchOrderedSlugs();
+    _orderFuture = DashboardTilesService(_apiBaseUrl)
+      .fetchOrderedSlugs()
+      .then((slugs) async {
+        // If it loads then cache the list order
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList('dashboard_order', slugs);
+        return slugs;
+      })
+      .catchError((_) async {
+        // If offline, use the last cached order
+        final prefs = await SharedPreferences.getInstance();
+        final stored = prefs.getStringList('dashboard_order');
+        if (stored != null && stored.isNotEmpty) return stored;
+        return <String>[];
+      });
   }
 
   @override
@@ -187,12 +201,19 @@ class _DashboardPageState extends State<DashboardPage> {
                       return FutureBuilder<List<String>>(
                         future: _orderFuture,
                         builder: (context, orderSnap) {
-                          final order = orderSnap.data ?? const <String>[];
+                          // Use a local fallback order if attempting to open offline
+                          final List<String> order = (orderSnap.data != null && orderSnap.data!.isNotEmpty)
+                              ? orderSnap.data!
+                              : _kDashboardPages.keys.toList(); 
+
+                          final bool usingFallbackOrder = !(orderSnap.hasData && orderSnap.data!.isNotEmpty);
 
                           final tiles = <Widget>[];
                           for (final slug in order) {
                             final spec = _kDashboardPages[slug];
                             if (spec == null) continue;
+
+                            if (usingFallbackOrder && !images.containsKey(slug)) continue;
 
                             tiles.add(
                               buildCard(
