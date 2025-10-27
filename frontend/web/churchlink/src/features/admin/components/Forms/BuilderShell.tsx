@@ -47,6 +47,8 @@ export function BuilderShell() {
   const modifiedFields = useBuilderStore((s) => s.modifiedFields);
   const clearModifiedFields = useBuilderStore((s) => s.clearModifiedFields);
   const translations = useBuilderStore((s) => s.translations);
+  const setTranslations = useBuilderStore((s) => s.setTranslations);
+  const customLocales = useBuilderStore((s) => s.customLocales);
   const formWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
   const availableLocales = useMemo(() => collectAvailableLocales(schema as any), [schema]);
   const setSchema = useBuilderStore((s) => s.setSchema);
@@ -78,7 +80,7 @@ export function BuilderShell() {
   const [previewExpanded, setPreviewExpanded] = useState(false);
   const [supportedLocales, setSupportedLocales] = useState<string[]>((schema as any)?.supported_locales ?? []);
   const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', ministries: [], supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
-  const { translateForm, loading: translating, error: translationError } = useFormTranslator();
+  const { loading: translating, error: translationError } = useFormTranslator();
   const loadTranslations = useBuilderStore((s) => s.loadTranslations);
 
   // Helper to extract translatable texts in same order as backend
@@ -86,31 +88,31 @@ export function BuilderShell() {
   const extractTranslatableTexts = (formData: any[], onlyModified: boolean = false): { texts: string[], fieldMap: Array<{ fieldId: string, property: string, optionIdx?: number }> } => {
     const texts: string[] = [];
     const fieldMap: Array<{ fieldId: string, property: string, optionIdx?: number }> = [];
-    
+
     for (const field of formData) {
       // Skip if onlyModified and this field isn't modified
       if (onlyModified && !modifiedFields.has(field.id)) {
         continue;
       }
-      
+
       // Add label
       if (field.label) {
         texts.push(field.label);
         fieldMap.push({ fieldId: field.id, property: 'label' });
       }
-      
+
       // Add placeholder
       if (field.placeholder) {
         texts.push(field.placeholder);
         fieldMap.push({ fieldId: field.id, property: 'placeholder' });
       }
-      
-      // Add helpText
+
+      // Add helpText (kept to preserve index parity with backend extractor)
       if (field.helpText) {
         texts.push(field.helpText);
         fieldMap.push({ fieldId: field.id, property: 'helpText' });
       }
-      
+
       // Add option labels
       if (field.options) {
         field.options.forEach((option: any, idx: number) => {
@@ -120,14 +122,14 @@ export function BuilderShell() {
           }
         });
       }
-      
+
       // Add content for static fields
       if (field.type === 'static' && field.content) {
         texts.push(field.content);
         fieldMap.push({ fieldId: field.id, property: 'content' });
       }
     }
-    
+
     return { texts, fieldMap };
   };
   const widthOptions = FORM_WIDTH_VALUES.map((value) => ({ value, label: `${value}%` }));
@@ -202,14 +204,14 @@ export function BuilderShell() {
         if (form && form.data) {
           const dataArray = Array.isArray(form.data) ? form.data : (form.data?.data || []);
           const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
-          
+
           const translations: { [fieldId: string]: { [locale: string]: any } } = {};
           for (const field of dataArray) {
             if (field.translations) {
               translations[field.id] = field.translations;
             }
           }
-          
+
           setSchema({
             title: form.title || '',
             description: form.description || '',
@@ -218,11 +220,11 @@ export function BuilderShell() {
             formWidth: formWidthValue,
             data: dataArray,
           } as any);
-          
+
           if (Object.keys(translations).length > 0) {
             loadTranslations(translations);
           }
-          
+
           setFormName(form.title || '');
           setDescription(form.description || '');
           setMinistries(form.ministries || []);
@@ -309,7 +311,7 @@ export function BuilderShell() {
     const currentFormId = getCurrentFormId();
     const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
     const cleanedData = ((schema as any)?.data || []);
-    
+
     // Embed translations into each field for persistence
     const dataWithTranslations = cleanedData.map((field: any) => {
       const fieldTranslations = translations[field.id];
@@ -375,7 +377,7 @@ export function BuilderShell() {
       setStatus({ type: 'info', title: 'Overriding', message: 'Overriding existing form...' });
       const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
       const cleanedData = (((schema as any)?.data || []));
-      
+
       // Embed translations into each field for persistence
       const dataWithTranslations = cleanedData.map((field: any) => {
         const fieldTranslations = translations[field.id];
@@ -384,7 +386,7 @@ export function BuilderShell() {
         }
         return field;
       });
-      
+
       const updatePayload = {
         title: formName,
         description,
@@ -467,55 +469,55 @@ export function BuilderShell() {
 
   const previewOverlay = previewExpanded
     ? createPortal(
-        <div className="fixed inset-0 z-[100] bg-background">
-          <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
-            {/* Width and locale selectors in overlay so changes are visible live when maximized */}
-            <Select value={formWidth} onValueChange={handleFormWidthChange}>
-              <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-                <SelectValue placeholder="Width" />
-              </SelectTrigger>
-              <SelectContent align="end" className="z-[200]">
-                {widthOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-              <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end" className="z-[200]">
-                {availableLocales.map((l) => (
-                  <SelectItem key={l} value={l}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              className="rounded-full shadow-lg"
-              onClick={() => setPreviewExpanded(false)}
-              aria-label="Collapse preview"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
+      <div className="fixed inset-0 z-[100] bg-background">
+        <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
+          {/* Width and locale selectors in overlay so changes are visible live when maximized */}
+          <Select value={formWidth} onValueChange={handleFormWidthChange}>
+            <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+              <SelectValue placeholder="Width" />
+            </SelectTrigger>
+            <SelectContent align="end" className="z-[200]">
+              {widthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+            <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end" className="z-[200]">
+              {availableLocales.map((l) => (
+                <SelectItem key={l} value={l}>{l}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="rounded-full shadow-lg"
+            onClick={() => setPreviewExpanded(false)}
+            aria-label="Collapse preview"
+          >
+            <Minimize2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex h-full w-full flex-col overflow-auto p-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <ErrorBoundary>
+              <PreviewRendererClient applyFormWidth={true} />
+            </ErrorBoundary>
           </div>
-          <div className="flex h-full w-full flex-col overflow-auto p-6">
-            <div className="mx-auto w-full max-w-6xl">
-              <ErrorBoundary>
-                <PreviewRendererClient applyFormWidth={true} />
-              </ErrorBoundary>
-            </div>
-            <div className="mx-auto w-full max-w-6xl">
-              <ErrorBoundary>
-                <PreviewRendererClient instanceId="expanded" />
-              </ErrorBoundary>
-            </div>
+          <div className="mx-auto w-full max-w-6xl">
+            <ErrorBoundary>
+              <PreviewRendererClient instanceId="expanded" />
+            </ErrorBoundary>
           </div>
-        </div>,
-        document.body
-      )
+        </div>
+      </div>,
+      document.body
+    )
     : null;
 
   return (
@@ -562,9 +564,9 @@ export function BuilderShell() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            </div>
+          </div>
         </div>
-        
+
         {/* Locale Selector */}
         <div className="mb-3 p-3 border rounded bg-muted/50">
           <LocaleSelector
@@ -589,70 +591,88 @@ export function BuilderShell() {
                 setStatus({ type: 'error', title: 'Error', message: 'Form must be saved before requesting translations' });
                 return;
               }
-              
+
               // Always translate all supported locales (except 'en' which is the base)
-              const localesToTranslate = supportedLocales.filter(locale => locale !== 'en');
-              
+              // Skip locales marked as custom (user-managed) to avoid overwriting
+              const localesToTranslate = supportedLocales.filter(locale => locale !== 'en' && !customLocales?.has(locale));
+
               if (localesToTranslate.length === 0) {
-                setStatus({ type: 'info', title: 'No locales to translate', message: 'Add a language first to request translations.' });
+                setStatus({ type: 'info', title: 'No locales to translate', message: 'All selected languages are custom-managed or none selected.' });
                 return;
               }
-              
-              // Map the translation results to field IDs
-              // If no translations exist yet, translate all fields. Otherwise, only modified ones (requirement #3)
-              const hasExistingTranslations = Object.keys(translations).length > 0;
+
               const formData = (schema as any)?.data || [];
-              const { texts, fieldMap } = extractTranslatableTexts(formData, hasExistingTranslations);
-              
+              // Extract all translatable texts (we'll apply selectively per-locale/property below)
+              const { texts, fieldMap } = extractTranslatableTexts(formData, false);
+
               // Check if there are any fields to translate
               if (texts.length === 0) {
-                setStatus({ type: 'info', title: 'No changes to translate', message: 'No fields to translate.' });
+                setStatus({ type: 'info', title: 'No fields to translate', message: 'There are no translatable texts in this form.' });
                 return;
               }
-              
-              const result = await translateForm(formId, localesToTranslate);
-              if (result) {
+
+              let translationsByText: { [text: string]: { [locale: string]: string } } | null = null;
+              try {
+                const resp = await api.post('/v1/translator/translate-multi', {
+                  items: texts,
+                  src: 'en',
+                  dest_languages: localesToTranslate,
+                });
+                translationsByText = resp.data?.translations || {};
+              } catch (e: any) {
+                setStatus({ type: 'error', title: 'Error', message: e?.response?.data?.detail || 'Failed to generate translations' });
+                return;
+              }
+
+              if (translationsByText) {
                 // Update schema with supported locales so Inspector can display translations
                 updateSchemaMeta({ supported_locales: supportedLocales });
-                
-                const translationsMap: { [fieldId: string]: { [locale: string]: any } } = {};
+
                 const translatedFieldIds = new Set<string>();
-                
-                // result.translations is { "0": { "es": "...", "ru": "..." }, "1": { ... } }
-                Object.keys(result).forEach((indexStr) => {
-                  const index = parseInt(indexStr, 10);
+                let applied = 0;
+                const dataArray: any[] = (schema as any)?.data || [];
+                const fieldById = new Map<string, any>(dataArray.map((f: any) => [f.id, f]));
+
+                // Iterate texts by index and map using per-text translation results
+                texts.forEach((text, index) => {
                   const mapping = fieldMap[index];
                   if (!mapping) return;
-                  
+
                   const { fieldId, property, optionIdx } = mapping;
-                  translatedFieldIds.add(fieldId);
-                  
-                  if (!translationsMap[fieldId]) {
-                    translationsMap[fieldId] = {};
-                  }
-                  
-                  // For each locale in the translation result
-                  const translations = result[indexStr];
-                  Object.keys(translations).forEach((locale) => {
-                    if (!translationsMap[fieldId][locale]) {
-                      translationsMap[fieldId][locale] = {};
-                    }
-                    
-                    if (property === 'option' && optionIdx !== undefined) {
-                      translationsMap[fieldId][locale][`option_${optionIdx}`] = translations[locale];
-                    } else {
-                      translationsMap[fieldId][locale][property] = translations[locale];
+                  // Never apply translations to price fields
+                  const fieldMeta = fieldById.get(fieldId);
+                  if (fieldMeta && fieldMeta.type === 'price') return;
+                  const perTextLocales = translationsByText![text] || {};
+
+                  Object.keys(perTextLocales).forEach((locale) => {
+                    if (customLocales?.has(locale)) return;
+
+                    // Determine the property key we'll set
+                    const propKey = property === 'option' && optionIdx !== undefined ? `option_${optionIdx}` : property;
+                    const existing = (translations as any)?.[fieldId]?.[locale]?.[propKey];
+
+                    // Only set when missing to avoid overwriting manual or existing translations
+                    if (existing && String(existing).trim().length > 0) return;
+
+                    const value = perTextLocales[locale];
+                    if (typeof value === 'string' && value.trim().length > 0) {
+                      setTranslations(fieldId, locale, propKey, value);
+                      translatedFieldIds.add(fieldId);
+                      applied += 1;
                     }
                   });
                 });
-                
-                // Load translations into the store
-                loadTranslations(translationsMap);
-                
-                // Clear modified fields that were just translated
-                clearModifiedFields(Array.from(translatedFieldIds));
-                
-                setStatus({ type: 'success', title: 'Success', message: `Translations generated for ${localesToTranslate.join(', ')}. You can now modify them in the inspector.` });
+
+                // Clear modified markers for fields we touched
+                if (translatedFieldIds.size > 0) {
+                  clearModifiedFields(Array.from(translatedFieldIds));
+                }
+
+                if (applied > 0) {
+                  setStatus({ type: 'success', title: 'Success', message: `Applied ${applied} new translation${applied === 1 ? '' : 's'} for ${localesToTranslate.join(', ')}.` });
+                } else {
+                  setStatus({ type: 'info', title: 'Nothing to translate', message: 'All selected languages already have translations or are marked custom.' });
+                }
               } else {
                 setStatus({ type: 'error', title: 'Error', message: translationError || 'Failed to generate translations' });
               }
