@@ -5,6 +5,7 @@ import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/pages/giving.dart';
 import 'package:app/pages/joinlive.dart';
+import 'package:app/pages/sermons.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -26,6 +27,7 @@ class _PageSpec {
 final Map<String, _PageSpec> _kDashboardPages = {
   'join-live': _PageSpec('Join Live', Colors.indigo.shade600, (c) => const JoinLive()),
   'weekly-bulletin': _PageSpec('Weekly Bulletin', Colors.teal.shade600, (c) => const BulletinsPage()),
+  'sermons': _PageSpec('Sermons', Colors.deepPurple.shade600, (c) => const SermonsPage()),
   'events': _PageSpec('Events', Colors.orange.shade600, (c) => const EventsPage()),
   'giving': _PageSpec('Giving', Colors.green.shade600, (c) => const Giving()),
   'forms':_PageSpec('Forms', Colors.brown.shade600, (c) => const Forms()),
