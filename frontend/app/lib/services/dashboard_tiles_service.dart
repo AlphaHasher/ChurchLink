@@ -13,7 +13,8 @@ class DashboardTilesService {
   // Cache
   static Map<String, String>? _cache;
   static DateTime? _cacheAt;
-  static const Duration _ttl = Duration(hours: 6);
+  static const Duration _ttl = Duration(hours: 6); // Cache life
+  static List<String>? _orderCache;
 
   static void invalidateCache() {
     _cache = null;
@@ -63,7 +64,7 @@ class DashboardTilesService {
   Future<Map<String, String>> fetchImageUrls({bool forceRefresh = false}) async {
     if (!forceRefresh && _isFresh()) return _cache!;
 
-    // Retrieve the Dashboard structure from the backend
+    // Return the base URL with the path appended
     final uri = _u('/app/dashboard/pages');
     debugPrint('Dashboard GET => $uri');
 
@@ -100,5 +101,54 @@ class DashboardTilesService {
     _cache = map;
     _cacheAt = DateTime.now();
     return map;
+  }
+
+  /// Returns a list of the enabled pages in order
+  /// Functions similarly to the previously used fetchImageUrls
+  Future<List<String>> fetchOrderedSlugs({bool forceRefresh = false}) async {
+    // Use the cache if still new
+    final fresh = _orderCache != null &&
+        _cacheAt != null &&
+        DateTime.now().difference(_cacheAt!) < _ttl;
+    if (!forceRefresh && fresh) return _orderCache!;
+
+    // Return the base URL with the path appended
+    final uri = _u('/app/dashboard/pages');
+    debugPrint('Dashboard GET => $uri');
+
+    final res = await http.get(uri).timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) {
+      if (_orderCache != null) return _orderCache!;
+      throw Exception('Order fetch failed: ${res.statusCode} (${res.request?.url})');
+    }
+
+    // List of the pages
+    final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+
+    // Compile the list of enabled pages and normalize the names
+    final rows = <Map<String, dynamic>>[];
+    for (final m in list) {
+      final enabled = m['enabled'] is bool ? m['enabled'] as bool : true;
+      if (!enabled) continue;
+
+      final pageName = (m['pageName'] as String?) ?? '';
+      final display  = (m['displayName'] as String?) ?? '';
+      final rawName  = (pageName.isNotEmpty ? pageName : display).trim();
+      if (rawName.isEmpty) continue;
+
+      rows.add({
+        'slug': _norm(rawName),
+        'index': m['index'] is int ? m['index'] : 0
+      });
+    }
+
+    // Sort the entries
+    rows.sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
+
+    final slugs = rows.map((r) => r['slug'] as String).toList();
+
+    _orderCache = slugs;
+    _cacheAt = DateTime.now();
+    return slugs;
   }
 }
