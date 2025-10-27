@@ -22,9 +22,15 @@ export const useMyEvents = (params?: {
       // Create clean params object without the 'expanded' property to avoid conflicts
       const apiParams = includeFamily ? { include_family: includeFamily } : undefined;
       
+      // Add cache-busting timestamp to ensure fresh data
+      const cacheBustParams = {
+        ...apiParams,
+        _t: Date.now() // Cache-busting timestamp
+      };
+      
       const result = expanded 
-        ? await myEventsApi.getMyEventsExpanded(apiParams)
-        : await myEventsApi.getMyEvents(apiParams);
+        ? await myEventsApi.getMyEventsExpanded(cacheBustParams)
+        : await myEventsApi.getMyEvents(cacheBustParams);
       console.log('[useMyEvents] API result:', result);
       console.log('[useMyEvents] Events count:', result?.events?.length || 0);
       setData(result);

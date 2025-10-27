@@ -8,7 +8,6 @@ from models.refund_request import (
     RefundRequestCreate, 
     RefundRequestUpdate, 
     RefundRequestOut,
-    RefundRequestStatus,
     create_refund_request,
     get_refund_request_by_id,
     get_refund_requests_by_user,
@@ -20,6 +19,7 @@ from models.refund_request import (
     calculate_refund_options, 
     get_refund_summary
 )
+from models.transaction import RefundStatus
 from helpers.paypalHelper import process_paypal_refund
 from helpers.RefundEmailHelper import (
     send_refund_approved_notification,
@@ -161,7 +161,7 @@ async def process_refund_request(
             raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
         
         # Update refund request status
-        new_status = RefundRequestStatus.APPROVED if action == "approve" else RefundRequestStatus.REJECTED
+        new_status = RefundStatus.APPROVED if action == "approve" else RefundStatus.REJECTED
         
         updates = RefundRequestUpdate(
             status=new_status,
@@ -204,7 +204,7 @@ async def process_refund_request(
                 if paypal_result.get("success"):
                     # Update with PayPal refund details
                     await update_refund_request(request_id, RefundRequestUpdate(
-                        status=RefundRequestStatus.COMPLETED,
+                        status=RefundStatus.COMPLETED,
                         paypal_refund_id=paypal_result.get("refund_id"),
                         paypal_refund_status=paypal_result.get("status")
                     ))
@@ -254,7 +254,7 @@ async def process_refund_request(
                     # PayPal refund failed, update status
                     error_msg = paypal_result.get('error', 'Unknown error')
                     await update_refund_request(request_id, RefundRequestUpdate(
-                        status=RefundRequestStatus.PENDING,
+                        status=RefundStatus.PENDING,
                         admin_notes=add_system_log(admin_notes, f"PayPal refund failed: {error_msg}")
                     ))
                     
@@ -310,7 +310,7 @@ async def manually_complete_refund(
             raise HTTPException(status_code=404, detail="Refund request not found")
         
         # Only allow manual completion for approved/pending requests
-        if refund_request.status not in [RefundRequestStatus.APPROVED, RefundRequestStatus.PENDING]:
+        if refund_request.status not in [RefundStatus.APPROVED, RefundStatus.PENDING]:
             raise HTTPException(status_code=400, detail="Refund request cannot be manually completed")
         
         manual_notes = completion_data.get("manual_notes", "")
@@ -348,7 +348,7 @@ async def manually_complete_refund(
         
         # Update refund request to completed
         updates = RefundRequestUpdate(
-            status=RefundRequestStatus.COMPLETED,
+            status=RefundStatus.COMPLETED,
             admin_notes=final_admin_notes,
             processed_by=admin_uid,
             manual_refund_method=refund_method,
@@ -428,7 +428,7 @@ async def retry_paypal_refund(
             raise HTTPException(status_code=404, detail="Refund request not found")
         
         # Only allow retry for pending requests
-        if refund_request.status != RefundRequestStatus.PENDING:
+        if refund_request.status != RefundStatus.PENDING:
             raise HTTPException(status_code=400, detail="Can only retry PayPal processing for pending requests")
         
         # Retry PayPal refund
@@ -442,7 +442,7 @@ async def retry_paypal_refund(
             if paypal_result.get("success"):
                 # Update with PayPal refund details
                 await update_refund_request(request_id, RefundRequestUpdate(
-                    status=RefundRequestStatus.COMPLETED,
+                    status=RefundStatus.COMPLETED,
                     paypal_refund_id=paypal_result.get("refund_id"),
                     paypal_refund_status=paypal_result.get("status"),
                     admin_notes=add_system_log(refund_request.admin_notes, "PayPal refund retry successful")

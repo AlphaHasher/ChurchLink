@@ -518,10 +518,27 @@ class UserHandler:
             person_id=person_id
         )
 
-        # Add the event reference to user's my_events array
+        # IMPROVED: Proper duplicate prevention with frontend useRef protection
+        # MongoDB's $addToSet doesn't work with documents that have unique _id fields
+        # So we check first, then add only if it doesn't exist
+        
+        # Check if registration with this unique key already exists
+        existing = await DB.db["users"].find_one(
+            {
+                "uid": uid,
+                "my_events.key": ref["key"]
+            },
+            {"_id": 1}  # Just check existence, don't return full document
+        )
+        
+        if existing:
+            # Registration already exists - return None to indicate no change
+            return None
+        
+        # Add the new registration since it doesn't exist
         result = await DB.db["users"].update_one(
             {"uid": uid},
-            {"$push": {"my_events": ref}}
+            {"$push": {"my_events": ref}}  # Use $push since we verified no duplicates exist
         )
         
         return ref if result.modified_count == 1 else None

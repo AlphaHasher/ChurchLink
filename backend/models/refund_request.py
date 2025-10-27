@@ -7,16 +7,10 @@ from pymongo import ReturnDocument
 import logging
 import traceback
 from helpers.MongoHelper import generate_unique_id
-from .transaction import RefundStatus
+from .transaction import RefundStatus, PaymentStatus
+from fastapi import HTTPException
 
-class RefundRequestStatus:
-    """DEPRECATED: Use RefundStatus from transaction instead"""
-    PENDING = RefundStatus.PENDING
-    APPROVED = RefundStatus.APPROVED
-    REJECTED = RefundStatus.REJECTED
-    PROCESSING = RefundStatus.PROCESSING
-    COMPLETED = RefundStatus.COMPLETED
-    CANCELLED = RefundStatus.CANCELLED
+# Note: RefundRequestStatus is deprecated - use RefundStatus directly
 
 class RefundRequest(BaseModel):
     id: Optional[str] = None
@@ -100,7 +94,49 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
         event = await DB.db["events"].find_one({"_id": ObjectId(request_data.event_id)})
         if not event:
             logging.error(f"Event not found: {request_data.event_id}")
-            return None
+            raise HTTPException(
+                status_code=404,
+                detail="Event not found"
+            )
+        
+        # Check for duplicate refund requests for the same person BEFORE processing
+        duplicate_refund_query = {
+            "event_id": request_data.event_id,
+            "user_uid": user_uid,
+            "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
+        }
+        
+        if request_data.person_id is not None:
+            # Check by person_id if provided
+            duplicate_refund_query["person_id"] = request_data.person_id
+        else:
+            # If no person_id (self refund), match records where person_id is None or "null"
+            duplicate_refund_query["person_id"] = {"$in": [None, "null"]}
+        
+        logging.info(f"Checking for duplicate refund requests with query: {duplicate_refund_query}")
+        duplicate_refund = await DB.db["refund_requests"].find_one(duplicate_refund_query)
+        
+        if duplicate_refund:
+            logging.error(f"EARLY DUPLICATE DETECTION: Found existing refund request")
+            logging.error(f"  - Request ID: {duplicate_refund.get('request_id')}")
+            logging.error(f"  - Transaction ID: {duplicate_refund.get('transaction_id')}")
+            logging.error(f"  - Status: {duplicate_refund.get('status')}")
+            logging.error(f"  - Person ID: {duplicate_refund.get('person_id')}")
+            logging.error(f"  - Display Name: {duplicate_refund.get('display_name')}")
+            
+            if request_data.person_id is not None:
+                error_msg = f"A refund request has already been submitted for this family member in this event."
+                logging.error(f"Duplicate refund request: User {user_uid} already has a pending/approved refund for person {request_data.person_id} in this event")
+            else:
+                error_msg = f"You have already submitted a refund request for yourself in this event."
+                logging.error(f"Duplicate refund request: User {user_uid} already has a pending/approved refund for themselves in this event")
+            
+            raise HTTPException(
+                status_code=409,  # Conflict status code for duplicates
+                detail=error_msg
+            )
+        else:
+            logging.info(f"No duplicate refund request found in early check")
         
         # Try multiple queries to find the transaction - be more flexible
         # Check both uppercase and lowercase status values since actual data uses uppercase
@@ -111,18 +147,96 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
         except Exception:
             event_id_filter = request_data.event_id
 
-        transaction_query = {
-            "event_id": event_id_filter,
-            "user_uid": user_uid,
-            "payment_type": "event_registration",
-            "status": "COMPLETED"  # exact, canonical status only
-        }
-
-        logging.info(f"Looking up transaction with query: {transaction_query}")
-        transaction = await DB.db["transactions"].find_one(transaction_query)
+        # For the new parent-child transaction system, we need to find the right child transaction
+        # Instead of generating attendee_key from potentially wrong person_id, get it from the event attendees
+        
+        logging.info(f"Looking up attendees for user {user_uid} in event {request_data.event_id}")
+        
+        # Get all attendees for this user from the event
+        event_attendees = event.get("attendees", [])
+        user_attendees = [att for att in event_attendees if att.get("user_uid") == user_uid]
+        
+        logging.info(f"Found {len(user_attendees)} attendees for this user:")
+        for i, attendee in enumerate(user_attendees):
+            logging.info(f"  {i+1}. Key: {attendee.get('key')}, Name: {attendee.get('display_name')}, Person ID: {attendee.get('person_id')}")
+        
+        # Strategy 1: If person_id is provided, try to find the specific attendee
+        target_attendee_key = None
+        if request_data.person_id is not None:
+            # Look for attendee with matching person_id
+            for attendee in user_attendees:
+                if str(attendee.get('person_id', '')) == str(request_data.person_id):
+                    target_attendee_key = attendee.get('key')
+                    logging.info(f"Found target attendee by person_id: {target_attendee_key}")
+                    break
+        else:
+            # Look for attendee with person_id = None (self registration)
+            for attendee in user_attendees:
+                if attendee.get('person_id') is None:
+                    target_attendee_key = attendee.get('key')
+                    logging.info(f"Found self-registration attendee: {target_attendee_key}")
+                    break
+        
+        # Strategy 2: Look for exact match by registration_key (if we found target attendee)
+        transaction = None
+        if target_attendee_key:
+            exact_match_query = {
+                "event_id": event_id_filter,
+                "user_uid": user_uid,
+                "payment_type": "event_registration",
+                "status": PaymentStatus.COMPLETED,
+                "type": {"$in": ["bulk_child", "single_child"]},
+                "registration_key": target_attendee_key
+            }
+            
+            logging.info(f"Looking for exact registration_key match: {target_attendee_key}")
+            transaction = await DB.db["transactions"].find_one(exact_match_query)
+            
+            if transaction:
+                logging.info(f"Found exact match: {transaction.get('transaction_id')} with registration_key: {transaction.get('registration_key')}")
+                
+                # Check if this transaction already has a refund request
+                existing_refund_query = {
+                    "transaction_id": transaction.get("transaction_id"),
+                    "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
+                }
+                
+                existing_refund = await DB.db["refund_requests"].find_one(existing_refund_query)
+                if existing_refund:
+                    logging.warning(f"Transaction {transaction.get('transaction_id')} already has a refund request. This is a duplicate.")
+                    raise HTTPException(
+                        status_code=409,
+                        detail="A refund request has already been submitted for this registration."
+                    )
+            else:
+                logging.warning(f"No transaction found with registration_key: {target_attendee_key}")
+                raise HTTPException(
+                    status_code=404,
+                    detail="No payment transaction found for this registration. Please contact support."
+                )
+        else:
+            # No target attendee found - this means the person_id doesn't match any attendee
+            if request_data.person_id is not None:
+                logging.error(f"No attendee found with person_id: {request_data.person_id}")
+                raise HTTPException(
+                    status_code=404,
+                    detail="This person is not registered for this event."
+                )
+            else:
+                logging.error(f"No self-registration attendee found for user")
+                raise HTTPException(
+                    status_code=404,
+                    detail="You are not registered for this event."
+                )
+        
         if not transaction:
-            logging.error(f"No completed transaction found for event {request_data.event_id} and user {user_uid}")
-            return None
+            logging.error(f"No suitable transaction found for refund request")
+            raise HTTPException(
+                status_code=404,
+                detail="No payment transaction found for this registration."
+            )
+
+        logging.info(f"Selected transaction: {transaction.get('transaction_id')} for user {user_uid}, person {request_data.person_id}")
         
         
         
@@ -183,12 +297,14 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             logging.info(f"Per-person refund requested: ${final_refund_amount}")
 
         # Validation: Check if refunds would exceed appropriate limits
-        if metadata.get("bulk_registration", False):
-            # For bulk registrations, check total refunds for the entire transaction (all users)
+        transaction_type = transaction.get("type", "")
+        
+        if metadata.get("bulk_registration", False) and transaction_type != "bulk_child":
+            # For legacy bulk registrations (not parent-child system), check total refunds for the entire transaction (all users)
             logging.info(f"Bulk registration validation: checking transaction {transaction.get('transaction_id')}")
             existing_refunds = await DB.db["refund_requests"].find({
                 "transaction_id": transaction.get("transaction_id"),
-                "status": {"$nin": [RefundRequestStatus.REJECTED, RefundRequestStatus.CANCELLED]}
+                "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
             }).to_list(length=None)
             
             total_existing_refund_amount = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
@@ -198,19 +314,19 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                 logging.error(f"Refund validation failed for transaction {transaction.get('transaction_id')}: Total refunds (${total_existing_refund_amount} + ${final_refund_amount} = ${total_existing_refund_amount + final_refund_amount}) would exceed transaction amount (${total_transaction_amount})")
                 return None
         else:
-            # For non-bulk registrations, check user's refunds against transaction amount
-            logging.info(f"Individual registration validation: checking transaction {transaction.get('transaction_id')} for user {user_uid}")
+            # For individual registrations OR parent-child system (bulk_child), validate per-transaction
+            # Each child transaction in parent-child system represents one person and should be validated independently
+            logging.info(f"Individual transaction validation: checking transaction {transaction.get('transaction_id')} (type: {transaction_type})")
             existing_refunds = await DB.db["refund_requests"].find({
                 "transaction_id": transaction.get("transaction_id"),
-                "user_uid": user_uid,
-                "status": {"$nin": [RefundRequestStatus.REJECTED, RefundRequestStatus.CANCELLED]}
+                "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
             }).to_list(length=None)
             
             total_existing_refund_amount = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
-            logging.info(f"Transaction {transaction.get('transaction_id')}: Found {len(existing_refunds)} existing refunds for user {user_uid} totaling ${total_existing_refund_amount}")
+            logging.info(f"Transaction {transaction.get('transaction_id')}: Found {len(existing_refunds)} existing refunds totaling ${total_existing_refund_amount}")
             
             if total_existing_refund_amount + final_refund_amount > total_transaction_amount:
-                logging.error(f"Refund validation failed for transaction {transaction.get('transaction_id')}: User refunds (${total_existing_refund_amount} + ${final_refund_amount} = ${total_existing_refund_amount + final_refund_amount}) would exceed transaction amount (${total_transaction_amount})")
+                logging.error(f"Refund validation failed for transaction {transaction.get('transaction_id')}: Refunds (${total_existing_refund_amount} + ${final_refund_amount} = ${total_existing_refund_amount + final_refund_amount}) would exceed transaction amount (${total_transaction_amount})")
                 return None
         
         # Check for duplicate refund requests for the same person
@@ -220,7 +336,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                 "transaction_id": transaction.get("transaction_id"),
                 "user_uid": user_uid,
                 "person_id": request_data.person_id,
-                "status": {"$nin": [RefundRequestStatus.REJECTED, RefundRequestStatus.CANCELLED]}
+                "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
             })
             if duplicate_refund:
                 logging.error(f"Duplicate refund request: User {user_uid} already has a pending/approved refund for person {request_data.person_id}")
@@ -232,7 +348,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                 "user_uid": user_uid,
                 "display_name": request_data.display_name,
                 "person_id": None,  # Ensure we're matching records without person_id
-                "status": {"$nin": [RefundRequestStatus.REJECTED, RefundRequestStatus.CANCELLED]}
+                "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
             })
             if duplicate_refund:
                 logging.error(f"Duplicate refund request: User {user_uid} already has a pending/approved refund for display_name '{request_data.display_name}'")
@@ -255,7 +371,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             "payment_method": transaction.get("payment_method", "paypal"),
             "reason": request_data.reason,
             "user_notes": request_data.user_notes,
-            "status": RefundRequestStatus.PENDING,
+            "status": RefundStatus.PENDING,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
             "metadata": {
@@ -422,19 +538,53 @@ async def get_refund_requests_by_event(event_id: str) -> List[RefundRequest]:
         return []
 
 async def update_refund_request(request_id: str, updates: RefundRequestUpdate) -> bool:
-    """Update a refund request"""
+    """Update a refund request with proper rollback handling"""
     try:
+        # Get the current refund request to check for status changes
+        current_refund = await get_refund_request_by_id(request_id)
+        if not current_refund:
+            logging.error(f"Refund request {request_id} not found")
+            return False
+        
         update_data = updates.model_dump(exclude_unset=True)
         update_data["updated_at"] = datetime.utcnow()
         
+        # Check if status is being changed
+        old_status = current_refund.status
+        new_status = update_data.get("status", old_status)
+        
         # If status is being updated to processed states, add processed timestamp
         if "status" in update_data and update_data["status"] in [
-            RefundRequestStatus.APPROVED, 
-            RefundRequestStatus.REJECTED, 
-            RefundRequestStatus.COMPLETED
+            RefundStatus.APPROVED, 
+            RefundStatus.REJECTED, 
+            RefundStatus.COMPLETED
         ]:
             update_data["processed_at"] = datetime.utcnow()
         
+        # Handle rollback for rejected/cancelled refunds
+        if (new_status in [RefundStatus.REJECTED, RefundStatus.CANCELLED] and 
+            old_status not in [RefundStatus.REJECTED, RefundStatus.CANCELLED]):
+            
+            # Rollback the refunded_amount in the transaction
+            refund_amount = current_refund.payment_amount
+            transaction_id = current_refund.transaction_id
+            
+            if transaction_id and refund_amount > 0:
+                try:
+                    rollback_result = await DB.db["transactions"].update_one(
+                        {"transaction_id": transaction_id},
+                        {"$inc": {"refunded_amount": -refund_amount}}
+                    )
+                    
+                    if rollback_result.modified_count > 0:
+                        logging.info(f"Rolled back ${refund_amount} from transaction {transaction_id} for rejected refund {request_id}")
+                    else:
+                        logging.warning(f"Could not rollback refunded_amount for transaction {transaction_id}")
+                        
+                except Exception as e:
+                    logging.error(f"Error rolling back refunded_amount for rejected refund {request_id}: {e}")
+        
+        # Update the refund request
         result = await DB.db["refund_requests"].update_one(
             {"request_id": request_id},
             {"$set": update_data}
@@ -549,7 +699,7 @@ async def calculate_refund_options(transaction_id: str, user_uid: str) -> Dict[s
         existing_refunds = await DB.db["refund_requests"].find({
             "transaction_id": transaction_id,
             "user_uid": user_uid,
-            "status": {"$nin": [RefundRequestStatus.REJECTED, RefundRequestStatus.CANCELLED]}
+            "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
         }).to_list(length=None)
         
         total_refunded = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
@@ -672,9 +822,9 @@ async def get_refund_summary(transaction_id: str) -> Dict[str, Any]:
             refund_summary["refunds_by_status"][status]["count"] += 1
             refund_summary["refunds_by_status"][status]["amount"] += amount
             
-            if status in [RefundRequestStatus.COMPLETED]:
+            if status in [RefundStatus.COMPLETED]:
                 refund_summary["total_refunded"] += amount
-            elif status in [RefundRequestStatus.PENDING, RefundRequestStatus.APPROVED, RefundRequestStatus.PROCESSING]:
+            elif status in [RefundStatus.PENDING, RefundStatus.APPROVED, RefundStatus.PROCESSING]:
                 refund_summary["pending_refunds"] += amount
             
             refund_summary["refund_details"].append({

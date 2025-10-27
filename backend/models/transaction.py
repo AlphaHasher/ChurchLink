@@ -362,14 +362,13 @@ class Transaction(BaseModel):
                 user_uid = key_parts[0]
                 person_id = key_parts[1] if key_parts[1] != 'self' else None
                 
-                # Check for pending refund requests first
+                # Check for pending refund requests
                 refund_query = {
                     "event_id": event_id,
                     "user_uid": user_uid,
-                    "status": {"$in": ["pending", "processing"]}  # RefundStatus.PENDING, RefundStatus.PROCESSING
+                    "status": {"$in": ["pending", "processing"]}
                 }
                 
-                # Add person_id filter if applicable
                 if person_id:
                     refund_query["person_id"] = person_id
                 else:

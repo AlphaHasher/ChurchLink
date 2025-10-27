@@ -4,7 +4,6 @@ from models.refund_request import (
     RefundRequestCreate, 
     RefundRequestUpdate, 
     RefundRequestOut,
-    RefundRequestStatus,
     create_refund_request,
     get_refund_request_by_id,
     get_refund_requests_by_user,
@@ -12,6 +11,7 @@ from models.refund_request import (
     update_refund_request,
     list_all_refund_requests
 )
+from models.transaction import RefundStatus
 from helpers.audit_logger import get_client_ip
 from helpers.paypalHelper import process_paypal_refund
 from helpers.RefundEmailHelper import (
@@ -209,7 +209,7 @@ async def process_refund_request(
             raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
         
         # Update refund request status
-        new_status = RefundRequestStatus.APPROVED if action == "approve" else RefundRequestStatus.REJECTED
+        new_status = RefundStatus.APPROVED if action == "approve" else RefundStatus.REJECTED
         
         updates = RefundRequestUpdate(
             status=new_status,
@@ -236,14 +236,14 @@ async def process_refund_request(
                 if paypal_result.get("success"):
                     # Update with PayPal refund details
                     await update_refund_request(request_id, RefundRequestUpdate(
-                        status=RefundRequestStatus.PROCESSING,
+                        status=RefundStatus.PROCESSING,
                         paypal_refund_id=paypal_result.get("refund_id"),
                         paypal_refund_status=paypal_result.get("status")
                     ))
                 else:
                     # PayPal refund failed, update status
                     await update_refund_request(request_id, RefundRequestUpdate(
-                        status=RefundRequestStatus.PENDING,
+                        status=RefundStatus.PENDING,
                         admin_notes=f"{admin_notes}\n\nPayPal refund failed: {paypal_result.get('error', 'Unknown error')}"
                     ))
                     

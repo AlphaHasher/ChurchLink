@@ -215,7 +215,19 @@ async def get_my_events(request: Request, include_family: bool = True, expand: b
                 logging.warning(f"Could not fetch family member events: {e}")
                 # Continue without family events rather than failing completely
         
-        return {"success": True, "events": serialize_objectid(events)}
+        # Deduplicate events based on unique key (event_id + person_id + kind + scope)
+        # This prevents the same event registration from appearing multiple times
+        # when family members overlap or user appears in multiple contexts
+        unique_events = {}
+        for event in events:
+            key = event.get("key", "")
+            if key and key not in unique_events:
+                unique_events[key] = event
+        
+        deduped_events = list(unique_events.values())
+        logging.info(f"[get_my_events] Original events: {len(events)}, After dedup: {len(deduped_events)}")
+        
+        return {"success": True, "events": serialize_objectid(deduped_events)}
     except HTTPException:
         raise
     except ValueError as e:

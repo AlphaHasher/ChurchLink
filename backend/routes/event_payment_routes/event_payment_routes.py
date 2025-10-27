@@ -16,7 +16,6 @@ from models.refund_request import (
     RefundRequestCreate, 
     RefundRequestUpdate, 
     RefundRequestOut,
-    RefundRequestStatus,
     create_refund_request,
     get_refund_request_by_id,
     get_refund_requests_by_user,
