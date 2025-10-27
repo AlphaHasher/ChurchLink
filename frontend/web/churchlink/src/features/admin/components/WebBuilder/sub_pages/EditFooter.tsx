@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -19,9 +19,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import { useLanguage } from "@/provider/LanguageProvider";
+import { AddLocaleDialog, collectTitles, translateMissingStrings, getEnglishLabel } from "@/shared/utils/localizationUtils";
+import LocaleSelect from "@/shared/components/LocaleSelect";
 
 interface FooterItem {
     title: string;
@@ -114,17 +115,82 @@ interface EditFooterProps {
 const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const [footer, setFooter] = useState<Footer | null>(null);
     const [loading, setLoading] = useState(true);
+    const [translationLoading, setTranslationLoading] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    const { siteLocales, addSiteLocale, refreshSiteLocales } = useLanguage();
+    const { languages, setLocale } = useLanguage();
     const [addLocaleOpen, setAddLocaleOpen] = useState(false);
     const [footerLocale, setFooterLocale] = useState<string>('en');
+    const [availableLocales, setAvailableLocales] = useState<string[]>(['en']);
+    const [translationCache, setTranslationCache] = useState<Record<string, Record<string, string>>>({});
 
     const sensors = useSensors(useSensor(PointerSensor));
 
+    const localeOptions = useMemo(() => {
+        const localeSet = new Set<string>(availableLocales && availableLocales.length ? availableLocales : ['en']);
+        if (footer?.items) {
+            footer.items.forEach(section => {
+                if (section.titles) {
+                    Object.keys(section.titles).forEach(code => localeSet.add(code));
+                }
+                section.items.forEach(item => {
+                    if (item.titles) {
+                        Object.keys(item.titles).forEach(code => localeSet.add(code));
+                    }
+                });
+            });
+        }
+        return Array.from(localeSet);
+    }, [availableLocales, footer]);
+
     useEffect(() => {
-        fetchFooter();
+        void fetchFooter();
+        void fetchLocales();
     }, []);
+
+    const fetchLocales = async () => {
+        try {
+            const response = await api.get("/v1/footer/locales");
+            const locales = response?.data?.locales;
+            if (Array.isArray(locales) && locales.length) {
+                setAvailableLocales(locales);
+                if (!locales.includes(footerLocale)) {
+                    setFooterLocale(locales[0] || 'en');
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching footer locales:", error);
+        }
+    };
+
+    const ensureLocaleTranslations = useCallback(async (localeCode: string) => {
+        if (!localeCode || localeCode === 'en') return;
+        if (!footer?.items?.length) return;
+
+        const englishStrings = collectTitles(footer.items as any);
+        const cached = translationCache[localeCode] || {};
+        const translated = await translateMissingStrings(englishStrings, localeCode, cached);
+        if (translated === cached) return;
+        setTranslationCache((prev) => ({
+            ...prev,
+            [localeCode]: translated,
+        }));
+    }, [footer?.items, translationCache]);
+
+    useEffect(() => {
+        if (!footer?.items?.length) return;
+        if (footerLocale === 'en') return;
+        void ensureLocaleTranslations(footerLocale);
+    }, [footerLocale, footer?.items, ensureLocaleTranslations]);
+
+    const getDisplayTitle = useCallback((section: FooterSection): string => {
+        const english = section.titles?.en || section.title;
+        if (footerLocale === 'en') return english || section.title;
+        const saved = section.titles?.[footerLocale];
+        if (saved) return saved;
+        if (!english) return section.title;
+        return translationCache[footerLocale]?.[english] || english;
+    }, [footerLocale, translationCache]);
 
     useEffect(() => {
         if (footer?.items && onFooterDataChange) {
@@ -194,32 +260,41 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                 <div className="flex justify-between items-center">
                     <CardTitle>Edit Footer Sections</CardTitle>
                     <div className="flex items-center gap-2">
-                        <Select value={footerLocale} onValueChange={async (val) => { setFooterLocale(val); await ensureFooterLocale(footer?.items || [], val); }}>
-                            <SelectTrigger className="w-[120px]"><SelectValue placeholder="Locale" /></SelectTrigger>
-                            <SelectContent>
-                                {(siteLocales && siteLocales.length ? siteLocales : ['en']).map((lc) => (
-                                    <SelectItem key={lc} value={lc}>{lc}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <LocaleSelect
+                            value={footerLocale}
+                            locales={localeOptions}
+                            languages={languages}
+                            isBusy={translationLoading}
+                            onChange={async (val) => {
+                                if (val === footerLocale) return;
+                                setTranslationLoading(true);
+                                try {
+                                    await ensureLocaleTranslations(val);
+                                    setFooterLocale(val);
+                                    setLocale(val);
+                                } finally {
+                                    setTranslationLoading(false);
+                                }
+                            }}
+                        />
                         <AddLocaleDialog
                             open={addLocaleOpen}
                             onOpenChange={setAddLocaleOpen}
-                            siteLocales={siteLocales || ['en']}
-                            addSiteLocale={addSiteLocale}
-                            refreshSiteLocales={refreshSiteLocales}
+                            siteLocales={localeOptions || ['en']}
                             onAddLocale={async (code: string) => {
-                                const items = collectFooterTitles(footer?.items || []);
-                                if (!items.length) return;
-                                setLoading(true);
+                                setTranslationLoading(true);
                                 try {
-                                    await translateStrings(items, [code], 'en');
-                                    await seedGlobalTranslations(code, 'footer');
-                                    toast.success(`Locale "${code}" translations seeded for footer`);
+                                    await api.post("/v1/footer/locales", { code });
+                                    await fetchLocales();
+                                    await ensureLocaleTranslations(code);
                                     setFooterLocale(code);
-                                    await ensureFooterLocale(footer?.items || [], code);
+                                    setLocale(code);
+                                    toast.success(`Locale "${code}" added for footer`);
+                                } catch (error) {
+                                    console.error('Error adding locale:', error);
+                                    toast.error(`Failed to add locale "${code}"`);
                                 } finally {
-                                    setLoading(false);
+                                    setTranslationLoading(false);
                                 }
                             }}
                         />
@@ -246,7 +321,9 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                         <li className="flex justify-between items-center p-2">
                                             <div className="flex flex-1">
                                                 <div>
-                                                    <span className="font-medium">{item.title}</span>
+                                                    <span className="font-medium">
+                                                        {getDisplayTitle(item)}
+                                                    </span>
                                                     {('url' in item) && <span className="ml-2 text-sm text-gray-500">{(item as FooterItem).url}</span>}
                                                     {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>

@@ -1,5 +1,5 @@
 // EditHeader.tsx - Updated to batch changes
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -45,7 +45,8 @@ import {
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import { ExternalLink } from "lucide-react";
 import { useLanguage } from "@/provider/LanguageProvider";
-import { AddLocaleDialog, ensureHeaderLocale, translateStrings } from "@/shared/utils/localizationUtils";
+import { AddLocaleDialog, collectTitles, translateMissingStrings, getEnglishLabel } from "@/shared/utils/localizationUtils";
+import LocaleSelect from "@/shared/components/LocaleSelect";
 
 
 interface HeaderLink {
@@ -160,6 +161,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [originalHeader, setOriginalHeader] = useState<Header | null>(null);
     const [header, setHeader] = useState<Header | null>(null);
     const [loading, setLoading] = useState(true);
+    const [translationLoading, setTranslationLoading] = useState(false);
     const [pendingChanges, setPendingChanges] = useState<PendingChanges>({
         visibility: {}
     });
@@ -203,11 +205,33 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [pages, setPages] = useState<Page[]>([]);
 
     // Locales management for header labels
-    const { siteLocales, addSiteLocale, refreshSiteLocales } = useLanguage();
+    const { languages, setLocale } = useLanguage();
     const [addLocaleOpen, setAddLocaleOpen] = useState(false);
     const [headerLocale, setHeaderLocale] = useState<string>('en');
+    const [availableLocales, setAvailableLocales] = useState<string[]>(['en']);
+    const [translationCache, setTranslationCache] = useState<Record<string, Record<string, string>>>({});
 
     const sensors = useSensors(useSensor(PointerSensor));
+
+
+    const localeOptions = useMemo(() => {
+        const localeSet = new Set<string>(availableLocales && availableLocales.length ? availableLocales : ['en']);
+        if (header?.items) {
+            header.items.forEach(item => {
+                if (item.titles) {
+                    Object.keys(item.titles).forEach(code => localeSet.add(code));
+                }
+                if ('items' in item && Array.isArray(item.items)) {
+                    item.items.forEach((subItem: any) => {
+                        if (subItem.titles) {
+                            Object.keys(subItem.titles).forEach(code => localeSet.add(code));
+                        }
+                    });
+                }
+            });
+        }
+        return Array.from(localeSet);
+    }, [availableLocales, header]);
 
     // Default static public routes (no wildcard params)
     const defaultPublicRoutes = useMemo(
@@ -247,9 +271,54 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     }, [pages, defaultPublicRoutes]);
 
     useEffect(() => {
-        fetchHeader();
-        fetchPages();
+        void fetchHeader();
+        void fetchLocales();
+        void fetchPages();
     }, []);
+
+    const fetchLocales = async () => {
+        try {
+            const response = await api.get("/v1/header/locales");
+            const locales = response?.data?.locales;
+            if (Array.isArray(locales) && locales.length) {
+                setAvailableLocales(locales);
+                if (!locales.includes(headerLocale)) {
+                    setHeaderLocale(locales[0] || 'en');
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching header locales:", error);
+        }
+    };
+
+    const ensureLocaleTranslations = useCallback(async (localeCode: string) => {
+        if (!localeCode || localeCode === 'en') return;
+        if (!header?.items?.length) return;
+
+        const englishStrings = collectTitles(header.items as any);
+        const cached = translationCache[localeCode] || {};
+        const translated = await translateMissingStrings(englishStrings, localeCode, cached);
+        if (translated === cached) return;
+        setTranslationCache((prev) => ({
+            ...prev,
+            [localeCode]: translated,
+        }));
+    }, [header?.items, translationCache]);
+
+    useEffect(() => {
+        if (!header?.items?.length) return;
+        if (headerLocale === 'en') return;
+        void ensureLocaleTranslations(headerLocale);
+    }, [headerLocale, header?.items, ensureLocaleTranslations]);
+
+    const getDisplayTitle = useCallback((item: HeaderItem): string => {
+        const english = item.titles?.en || item.title;
+        if (headerLocale === 'en') return english || item.title;
+        const saved = item.titles?.[headerLocale];
+        if (saved) return saved;
+        if (!english) return item.title;
+        return translationCache[headerLocale]?.[english] || english;
+    }, [headerLocale, translationCache]);
 
     const fetchPages = async () => {
         try {
@@ -699,32 +768,41 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 <div className="flex justify-between items-center">
                     <CardTitle>Edit Header Navigation</CardTitle>
                     <div className="flex items-center gap-2">
-                        <Select value={headerLocale} onValueChange={async (val) => { setHeaderLocale(val); await ensureHeaderLocale(header?.items || [], val); }}>
-                            <SelectTrigger className="w-[120px]"><SelectValue placeholder="Locale" /></SelectTrigger>
-                            <SelectContent>
-                                {(siteLocales && siteLocales.length ? siteLocales : ['en']).map((lc) => (
-                                    <SelectItem key={lc} value={lc}>{lc}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <LocaleSelect
+                            value={headerLocale}
+                            locales={localeOptions}
+                            languages={languages}
+                            isBusy={translationLoading}
+                            onChange={async (val) => {
+                                if (val === headerLocale) return;
+                                setTranslationLoading(true);
+                                try {
+                                    await ensureLocaleTranslations(val);
+                                    setHeaderLocale(val);
+                                    setLocale(val);
+                                } finally {
+                                    setTranslationLoading(false);
+                                }
+                            }}
+                        />
                         <AddLocaleDialog
                             open={addLocaleOpen}
                             onOpenChange={setAddLocaleOpen}
-                            siteLocales={siteLocales || ['en']}
-                            addSiteLocale={addSiteLocale}
-                            refreshSiteLocales={refreshSiteLocales}
+                            siteLocales={localeOptions || ['en']}
                             onAddLocale={async (code: string) => {
-                                const items = collectHeaderTitles(header?.items || []);
-                                if (!items.length) return;
-                                setLoading(true);
+                                setTranslationLoading(true);
                                 try {
-                                    await translateStrings(items, [code], 'en');
-                                    await seedGlobalTranslations(code, 'header');
-                                    toast.success(`Locale "${code}" translations seeded for header`);
+                                    await api.post("/v1/header/locales", { code });
+                                    await fetchLocales();
+                                    await ensureLocaleTranslations(code);
                                     setHeaderLocale(code);
-                                    await ensureHeaderLocale(header?.items || [], code);
+                                    setLocale(code);
+                                    toast.success(`Locale "${code}" added for header`);
+                                } catch (error) {
+                                    console.error('Error adding locale:', error);
+                                    toast.error(`Failed to add locale "${code}"`);
                                 } finally {
-                                    setLoading(false);
+                                    setTranslationLoading(false);
                                 }
                             }}
                         />
@@ -1179,7 +1257,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <li className="flex justify-between items-center p-2">
                                             <div className="flex flex-1">
                                                 <div>
-                                                    <span className="font-medium">{item.title}</span>
+                                                    <span className="font-medium">
+                                                        {getDisplayTitle(item as HeaderItem)}
+                                                    </span>
                                                     {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>

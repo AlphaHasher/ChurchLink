@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { DynamicPageV2RendererBuilder } from "@/features/webeditor/grid/DynamicPageV2RendererBuilder";
 import { ModeToggle } from "@/shared/components/ModeToggle";
@@ -19,6 +18,9 @@ import { useFontManager } from "../hooks/useFontManager";
 import { ELEMENTS, SECTION_PRESETS } from "../utils/sectionHelpers";
 import { Node, SectionV2 } from "@/shared/types/pageV2";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
+import { AddLocaleDialog, collectTranslatablePairs, ensurePageLocale, translateStrings } from "@/shared/utils/localizationUtils";
+import LocaleSelect from "@/shared/components/LocaleSelect";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 const WebEditor: React.FC = () => {
   const { slug: encoded } = useParams();
@@ -44,6 +46,8 @@ const WebEditor: React.FC = () => {
     activeLocale,
     setActiveLocale,
   } = usePageManager(slug);
+
+  const { languages } = useLanguage();
 
   // Section management
   const {
@@ -464,20 +468,17 @@ const WebEditor: React.FC = () => {
           <div className="flex items-center gap-2">
             {/* Locale switcher */}
             <div className="hidden md:flex items-center gap-2 mr-2">
-              <Select value={computedLocales.includes(String((page as any)?.defaultLocale || 'en')) ? (activeLocale || (page as any)?.defaultLocale || 'en') : (activeLocale || 'en')} onValueChange={(val) => setActiveLocale(val)}>
-                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Locale" /></SelectTrigger>
-                <SelectContent>
-                  {computedLocales.map((lc) => (
-                    <SelectItem key={lc} value={lc}>{lc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <LocaleSelect
+                value={computedLocales.includes(String((page as any)?.defaultLocale || 'en')) ? (activeLocale || (page as any)?.defaultLocale || 'en') : (activeLocale || 'en')}
+                locales={computedLocales}
+                languages={languages}
+                onChange={(val) => setActiveLocale(val)}
+                triggerClassName="w-[120px]"
+              />
               <AddLocaleDialog
                 open={addLocaleOpen}
                 onOpenChange={setAddLocaleOpen}
                 siteLocales={computedLocales}
-                addSiteLocale={() => {}}
-                refreshSiteLocales={() => {}}
                 onAddLocale={async (code: string) => {
                   addLocale(code);
                   const src = String((page as any)?.defaultLocale || 'en');

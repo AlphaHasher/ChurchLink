@@ -37,24 +37,26 @@ export function getEnglishLabel(obj: any): string {
   return (t && t.trim()) ? t : base;
 }
 
-export function collectHeaderTitles(items: HeaderItem[]): string[] {
-  const set = new Set<string>();
-  for (const it of items) {
-    set.add(getEnglishLabel(it));
-    if ('items' in it && Array.isArray(it.items)) {
-      for (const sub of it.items) set.add(getEnglishLabel(sub));
-    }
-  }
-  return Array.from(set);
-}
+type TitleNode = {
+  title?: string;
+  titles?: Record<string, string>;
+  items?: TitleNode[];
+};
 
-export function collectFooterTitles(sections: FooterSection[]): string[] {
-  const set = new Set<string>();
-  for (const sec of sections) {
-    set.add(getEnglishLabel(sec));
-    for (const it of sec.items) set.add(getEnglishLabel(it));
-  }
-  return Array.from(set);
+export function collectTitles(nodes: TitleNode[] = []): string[] {
+  const unique = new Set<string>();
+  const walk = (entries: TitleNode[] = []) => {
+    for (const entry of entries) {
+      if (!entry) continue;
+      const label = getEnglishLabel(entry);
+      if (label) unique.add(label);
+      if (Array.isArray(entry.items) && entry.items.length) {
+        walk(entry.items as TitleNode[]);
+      }
+    }
+  };
+  walk(nodes);
+  return Array.from(unique);
 }
 
 export function collectTranslatablePairs(sectionsInput: SectionV2[]): Array<{ id: string; key: 'html' | 'label' | 'alt'; value: string }> {
@@ -88,79 +90,35 @@ export async function translateStrings(items: string[], dest_languages: string[]
   }
 }
 
-export async function ensureHeaderLocale(items: HeaderItem[], code: string): Promise<void> {
-  if (!code || code === 'en') return;
-  const needs = [];
-  for (const it of items) {
-    const titles = it.titles as Record<string, string> | undefined;
-    if (!titles || !titles[code]) needs.push({ kind: 'top', item: it });
-    if ('items' in it && Array.isArray(it.items)) {
-      for (const sub of it.items) {
-        const st = sub.titles as Record<string, string> | undefined;
-        if (!st || !st[code]) needs.push({ kind: 'sub', item: sub });
-      }
+export async function translateMissingStrings(
+  strings: string[],
+  locale: string,
+  existing: Record<string, string> = {},
+  src = 'en'
+): Promise<Record<string, string>> {
+  if (!locale || locale === src) {
+    return existing;
+  }
+
+  const normalized = strings.filter(Boolean);
+  const missing = normalized.filter((value) => !existing[value]);
+  if (!missing.length) {
+    return existing;
+  }
+
+  const batch = await translateStrings(missing, [locale], src);
+  const next = { ...existing } as Record<string, string>;
+
+  for (const value of missing) {
+    const translated = batch?.[value]?.[locale];
+    if (translated && translated.trim()) {
+      next[value] = translated;
     }
   }
-  if (!needs.length) return;
-  const srcStrings = Array.from(new Set(needs.map(n => getEnglishLabel(n.item)).filter(Boolean)));
-  if (!srcStrings.length) return;
-  const translations = await translateStrings(srcStrings, [code], 'en');
-  for (const it of items) {
-    const updated: any = { title: it.title };
-    const baseEn = getEnglishLabel(it);
-    const translated = translations[baseEn]?.[code];
-    const currentTitles = it.titles || {};
-    const nextTitles = { ...currentTitles };
-    if (translated && !nextTitles[code]) nextTitles[code] = translated;
-    if ('items' in it && Array.isArray(it.items)) {
-      const nextItems = it.items.map((sub: any) => {
-        const en = getEnglishLabel(sub);
-        const tr = translations[en]?.[code];
-        const st = sub.titles || {};
-        const nst = { ...st };
-        if (tr && !nst[code]) nst[code] = tr;
-        return { ...sub, titles: nst };
-      });
-      updated.items = nextItems;
-    }
-    updated.titles = nextTitles;
-    if (Object.keys(nextTitles).length > Object.keys(currentTitles).length) {
-      await api.put(`/v1/header/items/edit/${encodeURIComponent(it.title)}`, updated);
-    }
-  }
+
+  return Object.keys(next).length ? next : existing;
 }
 
-export async function ensureFooterLocale(sections: FooterSection[], code: string): Promise<void> {
-  if (!code || code === 'en') return;
-  const needs = [];
-  for (const sec of sections) {
-    const st = sec.titles as Record<string, string> | undefined;
-    if (!st || !st[code]) needs.push(sec);
-    for (const it of sec.items) {
-      const t = it.titles as Record<string, string> | undefined;
-      if (!t || !t[code]) needs.push(it);
-    }
-  }
-  if (!needs.length) return;
-  const srcStrings = Array.from(new Set(needs.map(n => getEnglishLabel(n)).filter(Boolean)));
-  if (!srcStrings.length) return;
-  const translations = await translateStrings(srcStrings, [code], 'en');
-  for (const sec of sections) {
-    const secEn = getEnglishLabel(sec);
-    const secTr = translations[secEn]?.[code];
-    const secTitles = { ... (sec.titles || {}) };
-    if (secTr && !secTitles[code]) secTitles[code] = secTr;
-    const nextItems = sec.items.map((it: any) => {
-      const ien = getEnglishLabel(it);
-      const itr = translations[ien]?.[code];
-      const itTitles = { ... (it.titles || {}) };
-      if (itr && !itTitles[code]) itTitles[code] = itr;
-      return { ...it, titles: itTitles };
-    });
-    const updated = { title: sec.title, titles: secTitles, items: nextItems, visible: sec.visible !== false };
-    await api.put(`/v1/footer/items/edit/${encodeURIComponent(sec.title)}`, updated);
-  }
-}
 
 export function ensurePageLocale(sections: SectionV2[], code: string, translations: Record<string, Record<string, string>>): SectionV2[] {
   return sections.map((section) => {
@@ -214,12 +172,10 @@ export interface AddLocaleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   siteLocales: string[];
-  addSiteLocale: (code: string) => void;
-  refreshSiteLocales: () => void;
   onAddLocale: (code: string) => Promise<void>;
 }
 
-export function AddLocaleDialog({ open, onOpenChange, siteLocales, addSiteLocale, refreshSiteLocales, onAddLocale }: AddLocaleDialogProps) {
+export function AddLocaleDialog({ open, onOpenChange, siteLocales, onAddLocale }: AddLocaleDialogProps) {
   const [localeOptions, setLocaleOptions] = useState<LanguageOption[]>([]);
   const [localeSearch, setLocaleSearch] = useState("");
   const [loadingLocales, setLoadingLocales] = useState(false);
@@ -274,15 +230,13 @@ export function AddLocaleDialog({ open, onOpenChange, siteLocales, addSiteLocale
                   key={l.code}
                   className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-accent border-b last:border-b-0"
                   onClick={async () => {
+                    setLocaleSearch("");
+                    onOpenChange(false);
                     try {
                       await onAddLocale(l.code);
-                      addSiteLocale(l.code);
-                      refreshSiteLocales();
-                      setLocaleSearch("");
                     } catch (e) {
                       toast.error('Failed to add locale');
                     }
-                    onOpenChange(false);
                   }}
                 >
                   <span>{l.name}</span>
@@ -301,19 +255,22 @@ export function AddLocaleDialog({ open, onOpenChange, siteLocales, addSiteLocale
 }
 
 
-export async function seedGlobalTranslations(code: string, componentType: 'header' | 'footer') {
-  try {
-    if (componentType === 'header') {
-      const fitems = await api.get('/v1/footer/items').then(r => r.data.items || []);
-      const fstrings = collectFooterTitles(fitems);
-      if (fstrings.length) await translateStrings(fstrings, [code], 'en');
-    } else {
-      const hitems = await api.get('/v1/header/items').then(r => r.data.items || []);
-      const hstrings = collectHeaderTitles(hitems);
-      if (hstrings.length) await translateStrings(hstrings, [code], 'en');
+export async function addLocaleToAllPages(code: string): Promise<void> {
+  const pagesRes = await api.get("/v1/mod/pages?limit=1000");
+  const pages = pagesRes?.data || [];
+
+  for (const page of pages) {
+    try {
+      const currentLocales = page.locales || [page.defaultLocale || "en"];
+      if (currentLocales.includes(code)) continue;
+
+      const updatedLocales = [...currentLocales, code];
+      await api.put(`/v1/mod/pages/${page._id}`, {
+        locales: updatedLocales,
+      });
+    } catch (pageError) {
+      console.error(`Failed to add locale to page ${page.slug}:`, pageError);
     }
-  } catch (e) {
-    console.error('Global seeding failed', e);
   }
 }
 
