@@ -15,11 +15,13 @@ class DashboardTilesService {
   static DateTime? _cacheAt;
   static const Duration _ttl = Duration(hours: 6); // Cache life
   static List<String>? _orderCache;
+  static Map<String, String>? _namesCache;
 
   static void invalidateCache() {
     _cache = null;
     _cacheAt = null;
     _orderCache = null;
+    _namesCache = null;
   }
 
   bool _isFresh() =>
@@ -151,5 +153,42 @@ class DashboardTilesService {
     _orderCache = slugs;
     _cacheAt = DateTime.now();
     return slugs;
+  }
+
+  /// Return slug and display name pairings
+  Future<Map<String, String>> fetchDisplayNames({bool forceRefresh = false}) async {
+    final fresh = _namesCache != null &&
+        _cacheAt != null &&
+        DateTime.now().difference(_cacheAt!) < _ttl;
+    if (!forceRefresh && fresh) return _namesCache!;
+
+    final uri = _u('/app/dashboard/pages');
+    debugPrint('Dashboard GET => $uri');
+
+    final res = await http.get(uri).timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) {
+      if (_namesCache != null) return _namesCache!;
+      throw Exception('Names fetch failed: ${res.statusCode} (${res.request?.url})');
+    }
+
+    final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+    final map = <String, String>{};
+
+    for (final m in list) {
+      final enabled = m['enabled'] is bool ? m['enabled'] as bool : true;
+      if (!enabled) continue;
+
+      final pageName   = (m['pageName'] as String?)?.trim() ?? '';
+      final display    = (m['displayName'] as String?)?.trim() ?? '';
+      final chosen     = display.isNotEmpty ? display : pageName;
+      if (chosen.isEmpty) continue;
+
+      final slug = _norm(pageName.isNotEmpty ? pageName : chosen);
+      map[slug] = chosen;
+    }
+
+    _namesCache = map;
+    _cacheAt = DateTime.now();
+    return map;
   }
 }
