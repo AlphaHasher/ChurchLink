@@ -368,9 +368,13 @@ async def get_all_ministries():
             detail={"error": "Failed to fetch ministries", "reason": str(exc)},
         ) from exc
 
-def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp", scope: str = "series") -> str:
-    # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
-    return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|{scope}"
+def generate_attendee_key(user_uid: str, person_id: Optional[str], kind: str = "rsvp", scope: str = "series") -> str:
+    """
+    Generate a clean, unique attendee key for event registration/payment.
+    Format: <user_uid>|<person_id or 'self'>|<kind>|<scope>
+    """
+    person_part = str(person_id) if person_id else "self"
+    return f"{user_uid}|{person_part}|{kind}|{scope}"
 
 def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", scope: str = "series", transaction_id: Optional[str] = None) -> Dict:
     """
@@ -378,7 +382,7 @@ def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optiona
     
     """
     attendee_doc = {
-        "key": _attendee_key(uid, person_id, kind, scope),
+        "key" : generate_attendee_key(uid, person_id, kind, scope),
         "kind": kind,  # "rsvp" | "registration"
         "scope": scope,  # "series" | "occurrence"
         "user_uid": uid,
@@ -407,7 +411,7 @@ async def rsvp_add_person(
     Returns (success, reason) where reason explains why it failed if success is False.
     """
     ev_oid = ObjectId(event_id)
-    key = _attendee_key(uid, person_id, kind, scope)
+    key = generate_attendee_key(uid, person_id, kind, scope)
     attendee = _attendee_doc(uid, person_id, display_name, kind, scope, transaction_id)
 
 
@@ -554,7 +558,7 @@ async def rsvp_remove_person(
 
     if scope is not None:
         # Remove specific scope registration
-        key = _attendee_key(uid, person_id, kind, scope)
+        key = generate_attendee_key(uid, person_id, kind, scope)
 
         try:
             result = await DB.db["events"].find_one_and_update(
@@ -572,7 +576,7 @@ async def rsvp_remove_person(
             if result is None:
                 # FALLBACK: Try the opposite scope if the requested one doesn't exist
                 opposite_scope = 'occurrence' if scope == 'series' else 'series'
-                fallback_key = _attendee_key(uid, person_id, kind, opposite_scope)
+                fallback_key = key = generate_attendee_key(uid, person_id, kind, opposite_scope)
 
                 result = await DB.db["events"].find_one_and_update(
                     {"_id": ev_oid, "attendee_keys": fallback_key},

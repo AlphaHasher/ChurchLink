@@ -32,6 +32,8 @@ class RegistrationPaymentStatus:
     PENDING = "pending"            # Payment required but not completed
     COMPLETED = "completed"        # Payment completed
     FAILED = "failed"             # Payment failed
+    REFUND_REQUESTED = "refund_requested"  # Refund has been requested
+    REFUNDED = "refunded"         # Payment refunded
 
 # Valid status transitions
 VALID_PAYMENT_TRANSITIONS = {
@@ -320,48 +322,93 @@ class Transaction(BaseModel):
     async def get_attendee_payment_status(event_id: str, attendee_key: str) -> str:
         """
         Get payment status for an attendee by looking up their transaction.
+        Now supports both single and bulk transactions, and checks for refund requests.
         
         Args:
             event_id: Event ID
             attendee_key: Attendee key (uid|person_id|kind|scope)
             
         Returns:
-            Payment status string (completed, pending, failed, not_required)
+            Payment status string (completed, pending, failed, not_required, refund_requested, refunded)
         """
         try:
-            # Get attendee record
+            # Get attendee record first to check for transaction_id
             attendee_doc = await DB.db["events"].find_one(
                 {"_id": ObjectId(event_id), "attendees.key": attendee_key},
                 {"attendees.$": 1, "price": 1}
             )
             
-            if not attendee_doc or not attendee_doc.get("attendees"):
-                return RegistrationPaymentStatus.NOT_REQUIRED
+            if not attendee_doc:
+                return RegistrationPaymentStatus.PENDING
                 
-            attendee = attendee_doc["attendees"][0]
+            # Check if event is free first
             event_price = attendee_doc.get("price", 0)
-            
-            # If event is free, payment not required
             if event_price == 0:
                 return RegistrationPaymentStatus.NOT_REQUIRED
                 
-            # Check if attendee has transaction_id
+            if not attendee_doc.get("attendees"):
+                return RegistrationPaymentStatus.PENDING
+                
+            attendee = attendee_doc["attendees"][0]
             transaction_id = attendee.get("transaction_id")
+            
             if not transaction_id:
                 return RegistrationPaymentStatus.PENDING
+            
+            # Extract user_uid and person_id from attendee key
+            # Format: uid|person_id|kind|scope
+            key_parts = attendee_key.split("|")
+            if len(key_parts) >= 2:
+                user_uid = key_parts[0]
+                person_id = key_parts[1] if key_parts[1] != 'self' else None
                 
-            # Look up transaction status
-            transaction = await Transaction.get_transaction_by_id(transaction_id)
-            if not transaction:
-                return RegistrationPaymentStatus.PENDING
+                # Check for pending refund requests first
+                refund_query = {
+                    "event_id": event_id,
+                    "user_uid": user_uid,
+                    "status": {"$in": ["pending", "processing"]}  # RefundStatus.PENDING, RefundStatus.PROCESSING
+                }
                 
-            # Map transaction status to registration status
-            if transaction.status == PaymentStatus.COMPLETED:
-                return RegistrationPaymentStatus.COMPLETED
-            elif transaction.status == PaymentStatus.FAILED:
-                return RegistrationPaymentStatus.FAILED
+                # Add person_id filter if applicable
+                if person_id:
+                    refund_query["person_id"] = person_id
+                else:
+                    refund_query["person_id"] = {"$in": [None, ""]}
+                
+                refund_request = await DB.db["refund_requests"].find_one(refund_query)
+                
+                if refund_request:
+                    return RegistrationPaymentStatus.REFUND_REQUESTED
+            
+            # Check if this is a child transaction (bulk payment scenario)
+            if "-CHILD-" in transaction_id:
+                # This is a child transaction from bulk payment
+                transaction = await Transaction.get_transaction_by_id(transaction_id)
+                if not transaction:
+                    return RegistrationPaymentStatus.PENDING
+                    
+                # Map transaction status to registration status
+                if transaction.status == PaymentStatus.COMPLETED:
+                    return RegistrationPaymentStatus.COMPLETED
+                elif transaction.status == PaymentStatus.REFUNDED:
+                    return RegistrationPaymentStatus.REFUNDED
+                else:
+                    return RegistrationPaymentStatus.PENDING
             else:
-                return RegistrationPaymentStatus.PENDING
+                # Single transaction logic
+                transaction = await Transaction.get_transaction_by_id(transaction_id)
+                if not transaction:
+                    return RegistrationPaymentStatus.PENDING
+                    
+                # Map transaction status to registration status
+                if transaction.status == PaymentStatus.COMPLETED:
+                    return RegistrationPaymentStatus.COMPLETED
+                elif transaction.status == PaymentStatus.FAILED:
+                    return RegistrationPaymentStatus.FAILED
+                elif transaction.status == PaymentStatus.REFUNDED:
+                    return RegistrationPaymentStatus.REFUNDED
+                else:
+                    return RegistrationPaymentStatus.PENDING
                 
         except Exception as e:
             logging.error(f"Error getting attendee payment status: {e}")
