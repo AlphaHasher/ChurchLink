@@ -43,6 +43,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   late final Future<Map<String, String>> _tilesFuture;
   late final Future<List<String>> _orderFuture;
+  late final Future<Map<String, String>> _namesFuture;
 
   // Stops the app from causing errors when a precache for the dashboard images fails
   Future<void> _precacheSafe(ImageProvider provider) async {
@@ -98,6 +99,23 @@ class _DashboardPageState extends State<DashboardPage> {
         if (stored != null && stored.isNotEmpty) return stored;
         return <String>[];
       });
+
+    _namesFuture = DashboardTilesService(_apiBaseUrl)
+    .fetchDisplayNames()
+    .then((names) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('dashboard_names', json.encode(names));
+      return names;
+    })
+    .catchError((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      final s = prefs.getString('dashboard_names');
+      if (s != null) {
+        final Map<String, dynamic> raw = json.decode(s);
+        return raw.map((k, v) => MapEntry(k, v as String));
+      }
+      return <String, String>{};
+    });
   }
 
   @override
@@ -194,40 +212,45 @@ class _DashboardPageState extends State<DashboardPage> {
                   }
 
                   return FutureBuilder<Map<String, String>>(
-                    future: _tilesFuture,
+                    future: _tilesFuture, // Images
                     builder: (context, tilesSnap) {
                       final images = tilesSnap.data ?? const <String, String>{};
 
-                      return FutureBuilder<List<String>>(
-                        future: _orderFuture,
-                        builder: (context, orderSnap) {
-                          // Use a local fallback order if attempting to open offline
-                          final List<String> order = (orderSnap.data != null && orderSnap.data!.isNotEmpty)
-                              ? orderSnap.data!
-                              : _kDashboardPages.keys.toList(); 
+                      return FutureBuilder<Map<String, String>>(
+                        future: _namesFuture, // Display Names
+                        builder: (context, namesSnap) {
+                          final names = namesSnap.data ?? const <String, String>{};
 
-                          final bool usingFallbackOrder = !(orderSnap.hasData && orderSnap.data!.isNotEmpty);
+                          return FutureBuilder<List<String>>(
+                            future: _orderFuture, // Sorting order
+                            builder: (context, orderSnap) {
+                              final order = orderSnap.data ?? const <String>[];
 
-                          final tiles = <Widget>[];
-                          for (final slug in order) {
-                            final spec = _kDashboardPages[slug];
-                            if (spec == null) continue;
+                              final tiles = <Widget>[];
+                              for (final slug in order) {
+                                final spec = _kDashboardPages[slug];
+                                if (spec == null) continue;
 
-                            if (usingFallbackOrder && !images.containsKey(slug)) continue;
+                                // Prefer backend display name, else fall back to spec.title
+                                final title = (names[slug]?.trim().isNotEmpty == true)
+                                    ? names[slug]!
+                                    : spec.title;
 
-                            tiles.add(
-                              buildCard(
-                                spec.title,
-                                () => Navigator.push(ctx, CupertinoPageRoute(builder: spec.to)),
-                                spec.color,
-                                imageUrl: images[slug],
-                              ),
-                            );
-                          }
+                                tiles.add(
+                                  buildCard(
+                                    title,
+                                    () => Navigator.push(ctx, CupertinoPageRoute(builder: spec.to)),
+                                    spec.color,
+                                    imageUrl: images[slug],
+                                  ),
+                                );
+                              }
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: tiles,
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: tiles,
+                              );
+                            },
                           );
                         },
                       );
