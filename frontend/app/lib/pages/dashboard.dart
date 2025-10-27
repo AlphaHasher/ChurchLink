@@ -156,44 +156,56 @@ class _DashboardPageState extends State<DashboardPage> {
                     );
                   }
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      buildCard('Join Live', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const JoinLive()),
-                        );
-                      }, Colors.indigo.shade600),
-                      buildCard('Weekly Bulletin', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(
-                            builder: (_) => const BulletinsPage(),
-                          ),
-                        );
-                      }, Colors.teal.shade600),
-                      buildCard('Events', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(
-                            builder: (_) => const EventsPage(),
-                          ),
-                        );
-                      }, Colors.orange.shade600),
-                      buildCard('Giving', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const Giving()),
-                        );
-                      }, Colors.green.shade600),
-                      buildCard('Forms', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const Forms()),
-                        );
-                      }, Colors.brown.shade600),
-                    ],
+                  return FutureBuilder<Map<String, String>>(
+                    future: _tilesFuture,
+                    builder: (context, snap) {
+                      final images = snap.data ?? const <String, String>{};
+
+                      String? img(String slug) {
+                        final u = images[slug];
+                        return (u != null && u.isNotEmpty) ? u : null;
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          buildCard('Join Live', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(builder: (_) => const JoinLive()),
+                            );
+                          }, Colors.indigo.shade600),
+                          buildCard('Weekly Bulletin', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(
+                                builder: (_) => const BulletinsPage(),
+                              ),
+                            );
+                          }, Colors.teal.shade600),
+                          buildCard('Events', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(
+                                builder: (_) => const EventsPage(),
+                              ),
+                            );
+                          }, Colors.orange.shade600),
+                          buildCard('Giving', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(builder: (_) => const Giving()),
+                            );
+                          }, Colors.green.shade600),
+                          buildCard('Forms', () {
+                            Navigator.push(
+                              ctx,
+                              CupertinoPageRoute(builder: (_) => const Forms()),
+                            );
+                          }, Colors.brown.shade600),
+                        ],
+                      );
+                    }
                   );
                 },
               ),
