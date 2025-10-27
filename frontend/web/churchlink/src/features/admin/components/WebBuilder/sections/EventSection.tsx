@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat, Users, CreditCard, ExternalLink } from "lucide-react";
 import api from "@/api/api";
 import { EventPayPalButton } from "@/features/events/components/EventPayPalButton";
@@ -96,7 +96,8 @@ function EventRegistrationForm({
       registered_on: string;
       kind: "rsvp";
       payment_method?: "paypal" | "door";
-      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded";
+      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded"; // Legacy
+      computed_payment_status?: "not_required" | "pending" | "completed" | "failed" | "refunded"; // NEW: From centralized system
       scope?: "series" | "occurrence";
     }>;
     total_registrations: number;
@@ -131,6 +132,9 @@ function EventRegistrationForm({
 
   // Use cached profile hook
   const { profile: currentUserProfile } = useUserProfile();
+
+  // ✅ DUPLICATE PREVENTION: Prevent multiple registration calls (fixes React StrictMode double execution)
+  const registrationInProgress = useRef(false);
 
   /** ---------- INLINE ADD PERSON (schema-conformant) ---------- **/
   const [showAdd, setShowAdd] = useState(false);
@@ -185,10 +189,14 @@ function EventRegistrationForm({
           }
         });
 
-        // Reset registration selections and scopes when initializing the form for a new event.
-        // This ensures previous registrations/selections are cleared and do not persist across events.
-        setSelectedIds(new Set());
-        setSelfSelected(false);
+        // Initialize selections to include all already registered family members and self
+        const registeredIds = (regRes.data?.user_registrations ?? [])
+          .filter((r: any) => r.person_id)
+          .map((r: any) => r.person_id);
+        setSelectedIds(new Set(registeredIds));
+        // If the current user is registered (person_id === null), set selfSelected to true
+        const selfIsRegistered = (regRes.data?.user_registrations ?? []).some((r: any) => r.person_id === null);
+        setSelfSelected(selfIsRegistered);
         setPersonScopes(scopes);
         setSelfScope(selfScopeValue);
         // local flag -> keep in state by setting selection if needed (no-op here)
@@ -287,11 +295,6 @@ function EventRegistrationForm({
   }, [people, event]);
 
   const togglePerson = (id: string) => {
-    // Prevent toggling already registered people
-    if (registeredSet.has(id)) {
-      return;
-    }
-
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -315,8 +318,15 @@ function EventRegistrationForm({
   };
 
   const createOrUpdate = async () => {
-    if (saving) return;
+    // ✅ DUPLICATE PREVENTION: Prevent concurrent registration calls
+    if (saving || registrationInProgress.current) {
+      console.log('🔄 [EVENT SECTION] Registration already in progress, skipping duplicate call');
+      return;
+    }
+    
+    registrationInProgress.current = true;
     setSaving(true);
+    
     try {
       const wantSelf = selfSelected;
       const haveSelf = selfRegistered;
@@ -341,7 +351,16 @@ function EventRegistrationForm({
           }
         }
       });
-      have.forEach((id) => !want.has(id) && toRemove.push(id));
+      
+      // FIXED: Only remove family members who are explicitly deselected
+      // Check if any registered family members are not selected (deselected by user)
+      have.forEach((id) => {
+        // Only add to remove list if the person is registered but NOT selected
+        // AND they are not in the selectedIds (meaning user unchecked them)
+        if (!want.has(id)) {
+          toRemove.push(id);
+        }
+      });
 
       // Check if self scope changed
       let selfScopeChanged = false;
@@ -540,6 +559,7 @@ function EventRegistrationForm({
       alert(`Failed to update registration: ${errorMessage}`);
     } finally {
       setSaving(false);
+      registrationInProgress.current = false; // ✅ Reset duplicate prevention flag
     }
   };
 
@@ -654,13 +674,20 @@ function EventRegistrationForm({
                 <div className="text-xs text-gray-500">
                   {(() => {
                     const registrations = summary.user_registrations;
-                    const completedPayments = registrations.filter(r => r.payment_status === 'completed' || r.payment_status === 'paid').length;
-                    const doorPayments = registrations.filter(r => r.payment_status === 'pending_door').length;
-                    const pendingPayments = registrations.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
+                    // Use computed_payment_status first, fallback to payment_status
+                    const getStatus = (r: any) => r.computed_payment_status || r.payment_status;
+                    
+                    const completedPayments = registrations.filter(r => getStatus(r) === 'completed').length;
+                    const doorPayments = registrations.filter(r => getStatus(r) === 'pending_door').length;
+                    const refundRequestedPayments = registrations.filter(r => getStatus(r) === 'refund_requested').length;
+                    const refundedPayments = registrations.filter(r => getStatus(r) === 'refunded').length;
+                    const pendingPayments = registrations.filter(r => !getStatus(r) || getStatus(r) === 'awaiting_payment' || getStatus(r) === 'pending').length;
 
                     const parts = [];
                     if (completedPayments > 0) parts.push(`${completedPayments} paid online`);
                     if (doorPayments > 0) parts.push(`${doorPayments} pay at door`);
+                    if (refundRequestedPayments > 0) parts.push(`${refundRequestedPayments} refund requested`);
+                    if (refundedPayments > 0) parts.push(`${refundedPayments} refunded`);
                     if (pendingPayments > 0) parts.push(`${pendingPayments} pending`);
 
                     return parts.length > 0 ? parts.join(' • ') : 'All paid';
@@ -683,7 +710,7 @@ function EventRegistrationForm({
                       onClick={() => {
                         // Navigate to My Events page
                         if (typeof window !== 'undefined') {
-                          window.location.href = '/my-events';
+                          window.location.href = '/profile/my-events';
                         }
                       }}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -859,17 +886,35 @@ function EventRegistrationForm({
           {hasSelections && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-medium text-green-900 mb-2">
-                Selected for Registration ({(selfSelected ? 1 : 0) + selectedIds.size} people)
+                {(() => {
+                  // Only count currently selected and selectable (not already registered/disabled)
+                  let count = 0;
+                  if (selfSelected && !selfRegistered) count++;
+                  count += Array.from(selectedIds).filter(id => !registeredSet.has(id)).length;
+                  return `Add Member${count === 1 ? '' : 's'} to Registration (${count} selected)`;
+                })()}
               </h4>
               <div className="text-sm text-green-800">
-                {selfSelected && <p>• You</p>}
+                {/* Only show currently selected people, not all registered */}
+                {/* Only show currently selected and selectable people (not already registered/disabled) */}
+                {selfSelected && !selfRegistered && <p>• You</p>}
                 {Array.from(selectedIds).map(personId => {
-                  const person = people.find(p => p.id === personId);
-                  return person ? <p key={personId}>• {person.first_name} {person.last_name}</p> : null;
+                  // Only show if not already registered (i.e., not disabled)
+                  if (!registeredSet.has(personId)) {
+                    const person = people.find(p => p.id === personId);
+                    return person ? <p key={personId}>• {person.first_name} {person.last_name}</p> : null;
+                  }
+                  return null;
                 })}
                 {requiresPayment(event) && (
                   <p className="font-medium mt-2">
-                    Total Cost: ${((event.price || 0) * ((selfSelected ? 1 : 0) + selectedIds.size)).toFixed(2)}
+                    {(() => {
+                      // Only count currently selected and selectable (not already registered/disabled)
+                      let count = 0;
+                      if (selfSelected && !selfRegistered) count++;
+                      count += Array.from(selectedIds).filter(id => !registeredSet.has(id)).length;
+                      return `Total Cost: $${((event.price || 0) * count).toFixed(2)}`;
+                    })()}
                   </p>
                 )}
               </div>

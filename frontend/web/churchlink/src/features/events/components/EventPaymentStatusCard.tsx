@@ -5,7 +5,6 @@ import { Button } from '@/shared/components/ui/button';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { 
   CreditCard, 
-  DollarSign, 
   CheckCircle, 
   Clock, 
   AlertTriangle,
@@ -15,7 +14,7 @@ import {
 import api from '@/api/api';
 
 interface PaymentInfo {
-  status: 'completed' | 'paid' | 'pending' | 'failed' | 'not_required' | 'pending_door' | 'awaiting_payment';
+  status: 'completed' | 'pending' | 'failed' | 'not_required'; // UPDATED: Standardized status values
   amount?: number;
   method?: 'paypal' | 'door' | 'free';
   transaction_id?: string;
@@ -25,6 +24,15 @@ interface PaymentInfo {
     email?: string;
   };
   created_on?: string;
+  // NEW: Support for computed status from centralized system
+  computed_payment_status?: 'completed' | 'pending' | 'failed' | 'not_required';
+  transaction_details?: {
+    transaction_id: string;
+    amount: number;
+    status: string;
+    payment_method: string;
+    created_on: string;
+  };
 }
 
 interface EventPaymentStatusCardProps {
@@ -57,15 +65,19 @@ export function EventPaymentStatusCard({
       const response = await api.get(`/v1/events/${eventId}/payment/status`);
       const data = response.data;
       
-      // Transform backend response to PaymentInfo
-      if (data && data.payment_status) {
+      // NEW: Transform backend response from centralized system
+      if (data && (data.computed_payment_status || data.payment_status)) {
+        const status = data.computed_payment_status || data.payment_status;
+        
         setPaymentInfo({
-          status: data.payment_status,
-          amount: data.payment_amount,
-          method: data.payment_method,
-          transaction_id: data.transaction_id,
+          status: status,
+          computed_payment_status: data.computed_payment_status,
+          amount: data.payment_amount || data.transaction_details?.amount,
+          method: data.payment_method || data.transaction_details?.payment_method,
+          transaction_id: data.transaction_id || data.transaction_details?.transaction_id,
           payer_info: data.payer_info,
-          created_on: data.payment_date
+          created_on: data.payment_date || data.transaction_details?.created_on,
+          transaction_details: data.transaction_details
         });
       } else {
         // No payment info found
@@ -93,14 +105,8 @@ export function EventPaymentStatusCard({
     switch (status) {
       case 'completed':
         return { variant: 'default' as const, label: 'Paid', icon: CheckCircle, color: 'text-green-600' };
-      case 'paid':
-        return { variant: 'default' as const, label: 'Paid', icon: CheckCircle, color: 'text-green-600' };
       case 'pending':
         return { variant: 'outline' as const, label: 'Payment Pending', icon: Clock, color: 'text-yellow-600' };
-      case 'awaiting_payment':
-        return { variant: 'outline' as const, label: 'PayPal Payment Pending', icon: Clock, color: 'text-blue-600' };
-      case 'pending_door':
-        return { variant: 'outline' as const, label: 'Pay at Door', icon: DollarSign, color: 'text-orange-600' };
       case 'failed':
         return { variant: 'destructive' as const, label: 'Payment Failed', icon: AlertTriangle, color: 'text-red-600' };
       case 'not_required':
@@ -235,27 +241,7 @@ export function EventPaymentStatusCard({
             </div>
           )}
 
-          {/* Pending Door Payment Info */}
-          {paymentInfo.status === 'pending_door' && (
-            <Alert className="mt-2">
-              <DollarSign className="h-4 w-4" />
-              <AlertDescription>
-                Remember to pay {formatCurrency(eventPrice)} when you arrive at the event.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Awaiting PayPal Payment Info */}
-          {paymentInfo.status === 'awaiting_payment' && requiresPayment && (
-            <Alert className="mt-2">
-              <Clock className="h-4 w-4" />
-              <AlertDescription>
-                PayPal payment of {formatCurrency(eventPrice)} is processing. You will receive confirmation once payment is complete.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Pending Payment Info */}
+          {/* Pending Payment Info - Covers all pending scenarios */}
           {paymentInfo.status === 'pending' && requiresPayment && (
             <Alert variant="destructive" className="mt-2">
               <Clock className="h-4 w-4" />

@@ -7,7 +7,6 @@ import { MyEventCard } from './MyEventCard';
 import { EventFiltersComponent } from './EventFilters';
 import { EventDetailsModal } from './EventDetailsModal';
 import { myEventsApi } from '@/features/events/api/myEventsApi';
-import api from '@/api/api';
 import { getMyProfileInfo } from '@/helpers/UserHelper';
 import { MyEvent, EventFilters, GroupedEvent, EventWithGroupedData } from '../types/myEvents';
 import { ProfileInfo } from '@/shared/types/ProfileInfo';
@@ -16,11 +15,11 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
+import { useRefundRequest } from '../hooks/useRefundRequest';
 
 export function MyEventsSection() {
   // State management
@@ -30,6 +29,7 @@ export function MyEventsSection() {
     showFamily: true,
     searchTerm: '',
   });
+  // State
   const [selectedEvent, setSelectedEvent] = useState<EventWithGroupedData | null>(null);
   const [, setUserProfile] = useState<ProfileInfo | null>(null);
   
@@ -179,7 +179,7 @@ export function MyEventsSection() {
   const handleCancelRSVP = async (eventRef: MyEvent): Promise<void> => {
     // Safety check - determine if this is a paid event that needs confirmation
     const isPaidEvent = eventRef.event?.price && eventRef.event.price > 0;
-    const hasPaidStatus = eventRef.payment_status === 'completed' || eventRef.payment_status === 'paid';
+    const hasPaidStatus = eventRef.computed_payment_status === 'completed';
     
     // For paid events or events with completed payments, show confirmation dialog
     if (isPaidEvent || hasPaidStatus) {
@@ -250,40 +250,22 @@ export function MyEventsSection() {
     }
   };
 
-  // Handle refund request
-  const handleRefundRequest = async (eventRef: MyEvent): Promise<void> => {
+  const { handleRefundRequest } = useRefundRequest();
+
+  // Wrapper to handle refund success and close modal
+  const handleRefundRequestWithModalClose = async (eventRef: MyEvent) => {
     try {
-      // Show confirmation dialog with refund policy
-      const refundPolicy = eventRef.event?.refund_policy || "Standard refund policy applies.";
-      const displayName = eventRef.display_name || 'your registration';
-      const confirmMessage = `Request refund for ${displayName}?\n\nRefund Policy: ${refundPolicy}\n\nThis will:\n• Submit a refund request to administrators\n• Keep the registration active until refund is processed\n• Send you email updates on refund status`;
-      
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-
-      // Submit refund request
-      const payload = {
-        event_id: eventRef.event_id,
-        person_id: eventRef.person_id,
-        display_name: displayName,
-        reason: "User requested refund via My Events interface"
-      };
-
-      const response = await api.post(`/v1/events/${eventRef.event_id}/refund/request`, payload);
-      
-      if (response.data?.success) {
-        toast.success(`Refund request submitted successfully for ${displayName}. You will receive email updates on the refund status.`);
-        
-        // Refresh the events list to show updated status
-        refetch();
-      } else {
-        throw new Error(response.data?.message || "Failed to submit refund request");
-      }
-    } catch (error: any) {
-      console.error("Refund request failed:", error);
-      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to submit refund request";
-      toast.error(`Refund request failed: ${errorMessage}`);
+      await handleRefundRequest(eventRef, () => {
+        // Close modal and refresh events on success
+        setSelectedEvent(null);
+        // Simple refresh after refund request
+        setTimeout(() => {
+          refetch();
+        }, 500); // Small delay to ensure backend has processed the request
+      });
+    } catch (error) {
+      // Error is already handled in the hook
+      console.error('Refund request failed:', error);
     }
   };
 
@@ -363,7 +345,7 @@ export function MyEventsSection() {
           isOpen={Boolean(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           onCancelRSVP={handleCancelRSVP}
-          onRefundRequest={handleRefundRequest}
+          onRefundRequest={handleRefundRequestWithModalClose}
         />
       )}
 
@@ -379,8 +361,7 @@ export function MyEventsSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Event Registration</AlertDialogTitle>
-            <AlertDialogDescription>
-              <div className="space-y-3">
+            <div className="space-y-3">
                 {cancelConfirmation.eventRef && (
                   <>
                     <div>
@@ -396,8 +377,7 @@ export function MyEventsSection() {
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                       <div className="text-yellow-800">
                         <strong>⚠️ This is a paid event (${cancelConfirmation.eventRef.event.price})</strong>
-                        {cancelConfirmation.eventRef.payment_status === 'completed' || 
-                         cancelConfirmation.eventRef.payment_status === 'paid' ? (
+                        {cancelConfirmation.eventRef.computed_payment_status === 'completed' ? (
                           <div className="mt-2 text-sm">
                             You have already completed payment for this event. Cancelling may require a 
                             separate refund request depending on the event's refund policy.
@@ -427,7 +407,6 @@ export function MyEventsSection() {
                   </>
                 )}
               </div>
-            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelConfirmation.isProcessing}>

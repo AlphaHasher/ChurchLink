@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/button';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
@@ -20,8 +20,14 @@ export default function FormPaymentSuccessPage() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your payment...');
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  const paymentProcessedRef = useRef<boolean>(false);
 
   useEffect(() => {
+    // Prevent multiple API calls for the same payment
+    if (paymentProcessedRef.current) {
+      return;
+    }
+
     const completePayment = async () => {
       // Validate required parameters
       if (!token || !payerId) {
@@ -37,6 +43,8 @@ export default function FormPaymentSuccessPage() {
       }
 
       try {
+        paymentProcessedRef.current = true; // Mark as processing to prevent duplicate calls
+        
         // Get saved form data
         const savedFormData = localStorage.getItem(`form_data_${slug}`);
         let formResponseData = {};
@@ -77,6 +85,7 @@ export default function FormPaymentSuccessPage() {
       } catch (error) {
         console.error('Payment completion error:', error);
         setStatus('error');
+        paymentProcessedRef.current = false; // Reset flag to allow retry if needed
         setMessage(
           error instanceof Error 
             ? `Payment completion failed: ${error.message}` 

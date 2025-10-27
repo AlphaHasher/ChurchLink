@@ -14,7 +14,8 @@ export interface MyEvent {
   
   // Payment tracking fields (for RSVP events with payments)
   payment_method?: "paypal" | "door";  // Payment method used
-  payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded"; // Payment status
+  computed_payment_status?: "not_required" | "pending" | "completed" | "failed" | "refund_requested" | "refunded"; // Centralized from Transaction model
+  transaction_id?: string; // Reference to Transaction record
 
   // Full event details (when expand=True used)
   event?: {
@@ -46,8 +47,16 @@ export interface MyEvent {
       person_id: string | null;
       display_name: string;
       addedOn: string;
-      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded";
-      transaction_id?: string;
+      payment_status?: "not_required" | "pending" | "completed" | "failed" | "refund_requested" | "refunded"; // Direct payment status stored on attendee
+      computed_payment_status?: "not_required" | "pending" | "completed" | "failed" | "refund_requested" | "refunded"; // Centralized from Transaction model (legacy)
+      transaction_id?: string; // Transaction reference
+      transaction_details?: {
+        transaction_id: string;
+        amount: number;
+        status: string;
+        payment_method: string;
+        created_on: string;
+      }; // NEW: Enriched transaction data
     }>;
     // Payment settings  
     payment_options?: string[]; // ['paypal', 'door'] - available payment methods

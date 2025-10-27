@@ -88,42 +88,59 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
                   // Paid events - show payment status summary
                   const attendees = event.attendees as any[] | undefined;
                   const resolveStatus = (r: any): string | undefined => {
+                    // First check if registrant already has payment status
+                    if (r.computed_payment_status) return r.computed_payment_status;
                     if (r.payment_status) return r.payment_status;
+                    
+                    // Then look up in event attendees array (which has enriched data)
                     if (!Array.isArray(attendees)) return undefined;
+                    
                     const match = attendees.find(a => {
                       try {
+                        // Match by key (most reliable)
                         if (r.key && a?.key && String(a.key) === String(r.key)) return true;
+                        // Match by person_id for family members
                         if (r.person_id && a?.person_id && String(a.person_id) === String(r.person_id)) return true;
-                        if (!r.person_id && a?.user_uid && a.user_uid === (r as any).user_uid) return true;
+                        // Match user registrations (no person_id)
+                        if (!r.person_id && !a?.person_id && a?.user_uid === (r as any).user_uid) return true;
                       } catch (e) {}
                       return false;
                     });
-                    if (match && match.payment_status) return match.payment_status;
-                    // Conservative transaction id fallback - only when registrant
-                    // indicates a PayPal payment (payment_method === 'paypal' or meta has payment id)
-                    try {
-                      const registrantIndicatesPayPal = ((r as any)?.payment_method === 'paypal')
-                        || Boolean((r as any)?.meta?.payment_id) || Boolean((r as any)?.payment_id) || Boolean((r as any)?.meta?.transaction_id);
-
-                      if (registrantIndicatesPayPal) {
-                        const registrantTx = (r as any)?.transaction_id || (r as any)?.meta?.transaction_id || (r as any)?.payment_id;
-                        if (registrantTx) {
-                          const txMatch = attendees.find(a => a?.transaction_id && String(a.transaction_id) === String(registrantTx));
-                          if (txMatch && txMatch.payment_status) {
-                            return txMatch.payment_status;
-                          }
-                        }
-                      }
-                    } catch (e) {}
-                    return undefined;
+                    
+                    // Return computed status from enriched attendee data
+                    return match?.computed_payment_status || match?.payment_status;
                   };
 
                   const pendingCount = rsvpRegistrants.filter(r => {
                     const s = resolveStatus(r);
-                    return !s || s === 'awaiting_payment' || s === 'pending_door';
+                    // Count as pending if no status or status indicates payment needed
+                    return !s || s === 'pending' || s === 'awaiting_payment' || s === 'pending_door';
                   }).length;
 
-                  if (pendingCount === 0) {
+                  const refundRequestedCount = rsvpRegistrants.filter(r => {
+                    const s = resolveStatus(r);
+                    return s === 'refund_requested';
+                  }).length;
+
+                  const refundedCount = rsvpRegistrants.filter(r => {
+                    const s = resolveStatus(r);
+                    return s === 'refunded';
+                  }).length;
+
+                  // Prioritize refund statuses in display
+                  if (refundRequestedCount > 0) {
+                    if (refundRequestedCount === totalRegistered) {
+                      return `${totalRegistered} registered - refund requested`;
+                    } else {
+                      return `${totalRegistered} registered - ${refundRequestedCount} refund requested`;
+                    }
+                  } else if (refundedCount > 0) {
+                    if (refundedCount === totalRegistered) {
+                      return `${totalRegistered} registered - refunded`;
+                    } else {
+                      return `${totalRegistered} registered - ${refundedCount} refunded`;
+                    }
+                  } else if (pendingCount === 0) {
                     return `${totalRegistered} registered - all paid`;
                   } else {
                     return `${totalRegistered} registered - ${pendingCount} required payment`;

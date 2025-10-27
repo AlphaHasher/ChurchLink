@@ -22,20 +22,21 @@ export const useMyEvents = (params?: {
       // Create clean params object without the 'expanded' property to avoid conflicts
       const apiParams = includeFamily ? { include_family: includeFamily } : undefined;
       
-      // Add cache-busting timestamp to ensure fresh data
-      const cacheBustParams = {
+      // Add cache busting timestamp
+      const apiParamsWithCacheBust = {
         ...apiParams,
-        _t: Date.now() // Cache-busting timestamp
+        _t: Date.now()
       };
       
       const result = expanded 
-        ? await myEventsApi.getMyEventsExpanded(cacheBustParams)
-        : await myEventsApi.getMyEvents(cacheBustParams);
-      console.log('[useMyEvents] API result:', result);
-      console.log('[useMyEvents] Events count:', result?.events?.length || 0);
+        ? await myEventsApi.getMyEventsExpanded(apiParamsWithCacheBust)
+        : await myEventsApi.getMyEvents(apiParamsWithCacheBust);
+      
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load events');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load events';
+      console.error('[useMyEvents] Error fetching events:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
