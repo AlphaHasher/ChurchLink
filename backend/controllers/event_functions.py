@@ -111,30 +111,17 @@ async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None
     if not ok:
         return False, reason
 
-    # Check if event requires payment - if so, skip my_events creation until payment is complete
-    event = await get_event_by_id(event_id)
-    is_paid_event = event and event.price > 0 and hasattr(event, 'payment_options') and event.payment_options
-    
-    # Only add to my_events if:
-    # 1. It's a free event (no payment required), OR
-    # 2. It's a paid event but payment is already completed (transaction_id provided)
-    should_add_to_my_events = not is_paid_event or transaction_id is not None
-    
-    if should_add_to_my_events:
-        try:
-            await UserHandler.add_to_my_events(
-                uid=uid,
-                event_id=ObjectId(event_id),
-                reason="rsvp",
-                scope=scope,
-                person_id=person_object_id
-            )
-        except Exception as e:
-            # Event RSVP succeeded, but user record failed
-            logging.warning(f"Warning: user my_events update failed: {e}")
-    else:
-        # For paid events without payment, my_events will be created during payment success
-        logging.info(f"Skipping my_events creation for paid event {event_id} - will be created after payment")
+    try:
+        await UserHandler.add_to_my_events(
+            uid=uid,
+            event_id=ObjectId(event_id),
+            reason="rsvp",
+            scope=scope,
+            person_id=person_object_id
+        )
+    except Exception as e:
+        # Event RSVP succeeded, but user record failed
+        logging.warning(f"Warning: user my_events update failed: {e}")
 
     return True, "success"
 

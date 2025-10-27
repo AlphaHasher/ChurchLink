@@ -753,15 +753,152 @@ async def get_event_payment_summary(event_id: str) -> Dict:
 
 async def update_attendee_payment_status(event_id: str, attendee_key: str, payment_status: str, transaction_id: Optional[str] = None) -> bool:
     """
-    Update payment reference for a specific attendee.
+    Update payment status for a specific attendee.
     
-    This function now requires transaction_id to link to Transaction model.
-    Direct payment_status storage has been replaced with centralized tracking.
+    This function stores the payment_status directly on the attendee record for easy access,
+    and also stores the transaction_id reference for detailed tracking.
+    Also ensures display_name is populated properly.
     """
-    if not transaction_id:
-        logging.error("transaction_id is required - direct payment_status storage no longer supported")
+    try:
+        # First, find the attendee to get user_uid and person_id for display name lookup
+        event_doc = await DB.db["events"].find_one(
+            {"_id": ObjectId(event_id), "attendees.key": attendee_key},
+            {"attendees.$": 1}
+        )
+        
+        if not event_doc or not event_doc.get("attendees"):
+            logging.warning(f"No attendee found with key {attendee_key} in event {event_id}")
+            return False
+        
+        attendee = event_doc["attendees"][0]
+        user_uid = attendee.get("user_uid")
+        person_id = attendee.get("person_id")
+        
+        # Get or update display name if it's missing
+        display_name = attendee.get("display_name")
+        if not display_name:
+            if person_id:
+                # It's a family member - get their name
+                from helpers.UserResolutionHelper import UserResolutionHelper
+                try:
+                    display_name = await UserResolutionHelper.resolve_family_member_name(user_uid, ObjectId(str(person_id)))
+                except Exception as e:
+                    logging.warning(f"Could not get display name for person {person_id}: {e}")
+                    display_name = f"Family Member"
+            else:
+                # It's the user themselves - get their name
+                from models.user import get_user_by_uid
+                try:
+                    user_data = await get_user_by_uid(user_uid)
+                    if user_data:
+                        display_name = f"{user_data.first_name} {user_data.last_name}".strip()
+                        if not display_name:
+                            display_name = user_data.display_name or user_data.email or "User"
+                except Exception as e:
+                    logging.warning(f"Could not get display name for user {user_uid}: {e}")
+                    display_name = "You"
+            
+            # Ensure we have some display name
+            if not display_name:
+                display_name = "Family Member" if person_id else "You"
+        
+        # Update the attendee's payment status and display name directly in the event document
+        update_doc = {
+            "attendees.$.payment_status": payment_status,
+            "attendees.$.transaction_id": transaction_id,
+            "attendees.$.payment_updated_at": datetime.now(timezone.utc),
+            "attendees.$.display_name": display_name
+        }
+        
+        result = await DB.db["events"].update_one(
+            {
+                "_id": ObjectId(event_id),
+                "attendees.key": attendee_key
+            },
+            {"$set": update_doc}
+        )
+        
+        if result.modified_count > 0:
+            logging.info(f"Updated attendee {attendee_key} payment status to '{payment_status}' and display_name to '{display_name}' in event {event_id}")
+            
+            # Also update the transaction reference if provided (for detailed tracking)
+            if transaction_id:
+                from models.transaction import Transaction
+                await Transaction.update_attendee_transaction_reference(event_id, attendee_key, transaction_id)
+            
+            return True
+        else:
+            logging.warning(f"Failed to update attendee {attendee_key} in event {event_id}")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Failed to update attendee payment status: {e}")
         return False
+
+
+async def update_attendee_payment_status_simple(event_id: str, user_uid: str, person_id: Optional[str], payment_status: str) -> bool:
+    """
+    Update payment status for an attendee by user_uid and person_id.
     
-    # Use centralized approach: just set transaction_id
-    from models.transaction import Transaction
-    return await Transaction.update_attendee_transaction_reference(event_id, attendee_key, transaction_id)
+    This is a simpler version that doesn't require the attendee_key.
+    Useful for refund processing and other cases where we match by user/person identifiers.
+    Also ensures display_name is populated properly.
+    """
+    try:
+        # Handle None person_id comparison properly - convert string to ObjectId for MongoDB query
+        person_filter = None if person_id is None else ObjectId(str(person_id))
+        
+        # Get the display name for the person
+        display_name = None
+        if person_id:
+            # It's a family member - get their name
+            from helpers.UserResolutionHelper import UserResolutionHelper
+            try:
+                display_name = await UserResolutionHelper.resolve_family_member_name(user_uid, ObjectId(str(person_id)))
+            except Exception as e:
+                logging.warning(f"Could not get display name for person {person_id}: {e}")
+                display_name = f"Family Member"
+        else:
+            # It's the user themselves - get their name
+            from models.user import get_user_by_uid
+            try:
+                user_data = await get_user_by_uid(user_uid)
+                if user_data:
+                    display_name = f"{user_data.first_name} {user_data.last_name}".strip()
+                    if not display_name:
+                        display_name = user_data.display_name or user_data.email or "User"
+            except Exception as e:
+                logging.warning(f"Could not get display name for user {user_uid}: {e}")
+                display_name = "You"
+        
+        # Ensure we have some display name
+        if not display_name:
+            display_name = "Family Member" if person_id else "You"
+        
+        # Build the update document
+        update_doc = {
+            "attendees.$.payment_status": payment_status,
+            "attendees.$.payment_updated_at": datetime.now(timezone.utc),
+            "attendees.$.display_name": display_name
+        }
+        
+        # Build the query to find the specific attendee
+        result = await DB.db["events"].update_one(
+            {
+                "_id": ObjectId(event_id),
+                "attendees.user_uid": user_uid,
+                "attendees.person_id": person_filter
+            },
+            {"$set": update_doc}
+        )
+        
+        if result.modified_count > 0:
+            logging.info(f"Updated attendee (user: {user_uid}, person: {person_id}) payment status to '{payment_status}' and display_name to '{display_name}' in event {event_id}")
+            return True
+        else:
+            logging.warning(f"No attendee found with user_uid {user_uid} and person_id {person_id} in event {event_id}")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Failed to update attendee payment status: {e}")
+        return False

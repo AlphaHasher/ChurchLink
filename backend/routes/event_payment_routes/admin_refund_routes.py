@@ -19,7 +19,7 @@ from models.refund_request import (
     calculate_refund_options, 
     get_refund_summary
 )
-from models.transaction import RefundStatus
+from models.transaction import RefundStatus, Transaction
 from helpers.paypalHelper import process_paypal_refund
 from helpers.RefundEmailHelper import (
     send_refund_approved_notification,
@@ -227,28 +227,28 @@ async def process_refund_request(
                     
                     # Update event attendee payment status to 'refunded'
                     try:
+                        from models.event import update_attendee_payment_status_simple
+                        success = await update_attendee_payment_status_simple(
+                            event_id=refund_request.event_id,
+                            user_uid=refund_request.user_uid,
+                            person_id=refund_request.person_id,
+                            payment_status="refunded"
+                        )
                         
-                        event_doc = await DB.db["events"].find_one({"_id": ObjectId(refund_request.event_id)})
-                        if event_doc:
-                            attendees = event_doc.get("attendees", [])
-                            modified = False
+                        if success:
+                            logging.info(f"Updated attendee payment status to 'refunded' for refund {request_id}")
+                        else:
+                            logging.error(f"Failed to update attendee payment status for refund {request_id}")
                             
-                            for attendee in attendees:
-                                # Match by user and person ID
-                                if (attendee.get("user_uid") == refund_request.user_uid and
-                                    str(attendee.get("person_id", "")) == str(refund_request.person_id or "")):
-                                    attendee["payment_status"] = "refunded"
-                                    modified = True
-                                    break
-                            
-                            if modified:
-                                await DB.db["events"].update_one(
-                                    {"_id": ObjectId(refund_request.event_id)},
-                                    {"$set": {"attendees": attendees}}
-                                )
-                                logging.info(f"Updated attendee payment status to 'refunded' for refund {request_id}")
                     except Exception as e:
                         logging.error(f"Failed to update attendee status after refund: {e}")
+                    
+                    # Update transaction status to 'refunded'
+                    try:
+                        await Transaction.update_transaction_status(refund_request.transaction_id, "refunded")
+                        logging.info(f"Updated transaction {refund_request.transaction_id} status to 'refunded'")
+                    except Exception as e:
+                        logging.error(f"Failed to update transaction status after refund: {e}")
                         
                 else:
                     # PayPal refund failed, update status
@@ -264,7 +264,7 @@ async def process_refund_request(
                     admin_notes=add_system_log(admin_notes, f"PayPal refund failed: {str(e)}")
                 ))
         else:
-            # Refund was rejected - send rejection email
+            # Refund was rejected - send rejection email and reset attendee payment status
             try:
                 details = await get_user_and_event_details(refund_request)
                 if details["user_email"]:
@@ -279,6 +279,24 @@ async def process_refund_request(
                     logging.info(f"Refund rejection email sent to {details['user_email']}")
             except Exception as e:
                 logging.error(f"Failed to send rejection email: {e}")
+            
+            # Reset attendee payment status back to 'completed' since refund was rejected
+            try:
+                from models.event import update_attendee_payment_status_simple
+                success = await update_attendee_payment_status_simple(
+                    event_id=refund_request.event_id,
+                    user_uid=refund_request.user_uid,
+                    person_id=refund_request.person_id,
+                    payment_status="completed"
+                )
+                
+                if success:
+                    logging.info(f"Reset attendee payment status to 'completed' after rejection for refund {request_id}")
+                else:
+                    logging.error(f"Failed to reset attendee payment status for refund {request_id}")
+                    
+            except Exception as e:
+                logging.error(f"Failed to reset attendee status after refund rejection: {e}")
         
         return {
             "success": True,
@@ -399,6 +417,13 @@ async def manually_complete_refund(
                     logging.info(f"Updated attendee payment status to 'refunded' for manual completion of refund {request_id}")
         except Exception as e:
             logging.error(f"Failed to update attendee status after manual refund completion: {e}")
+        
+        # Update transaction status to 'refunded'
+        try:
+            await Transaction.update_transaction_status(refund_request.transaction_id, "refunded")
+            logging.info(f"Updated transaction {refund_request.transaction_id} status to 'refunded' for manual completion")
+        except Exception as e:
+            logging.error(f"Failed to update transaction status after manual refund completion: {e}")
         
         return {
             "success": True,
