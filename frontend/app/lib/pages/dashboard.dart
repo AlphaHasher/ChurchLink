@@ -174,7 +174,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               ctx,
                               CupertinoPageRoute(builder: (_) => const JoinLive()),
                             );
-                          }, Colors.indigo.shade600),
+                          }, Colors.indigo.shade600, imageUrl: img('join-live')),
                           buildCard('Weekly Bulletin', () {
                             Navigator.push(
                               ctx,
@@ -182,7 +182,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 builder: (_) => const BulletinsPage(),
                               ),
                             );
-                          }, Colors.teal.shade600),
+                          }, Colors.teal.shade600, imageUrl: img('weekly-bulletin')),
                           buildCard('Events', () {
                             Navigator.push(
                               ctx,
@@ -190,19 +190,19 @@ class _DashboardPageState extends State<DashboardPage> {
                                 builder: (_) => const EventsPage(),
                               ),
                             );
-                          }, Colors.orange.shade600),
+                          }, Colors.orange.shade600, imageUrl: img('events')),
                           buildCard('Giving', () {
                             Navigator.push(
                               ctx,
                               CupertinoPageRoute(builder: (_) => const Giving()),
                             );
-                          }, Colors.green.shade600),
+                          }, Colors.green.shade600, imageUrl: img('giving')),
                           buildCard('Forms', () {
                             Navigator.push(
                               ctx,
                               CupertinoPageRoute(builder: (_) => const Forms()),
                             );
-                          }, Colors.brown.shade600),
+                          }, Colors.brown.shade600, imageUrl: img('forms')),
                         ],
                       );
                     }
