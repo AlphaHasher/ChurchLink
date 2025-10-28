@@ -85,8 +85,9 @@ export default function FormPublic() {
     (async () => {
       try {
         setLoading(true);
-        // If user is not logged in, don't call the protected endpoint yet
+        // If user is not logged in, show login error
         if (!user) {
+          setError("You need to be logged in to view this form");
           setLoading(false);
           return;
         }
@@ -102,7 +103,7 @@ export default function FormPublic() {
         // set schema into builder store for rendering
         const rawFields: any[] = Array.isArray(form.data) ? form.data : (form.data?.data || []);
         const normalizedFields = rawFields.map((f) => normalizeFieldData(f));
-        
+
         // Extract and load translations from form data
         const translations: { [fieldId: string]: { [locale: string]: any } } = {};
         for (const field of normalizedFields) {
@@ -110,7 +111,7 @@ export default function FormPublic() {
             translations[field.id] = field.translations;
           }
         }
-        
+
         setSchema({
           title: form.title,
           description: form.description,
@@ -118,12 +119,12 @@ export default function FormPublic() {
           formWidth: formWidthValue,
           data: normalizedFields,
         });
-        
+
         // Load translations into the store
         if (Object.keys(translations).length > 0) {
           useBuilderStore.getState().loadTranslations(translations);
         }
-        
+
         setLoading(false);
       } catch (err: any) {
         console.error("Failed to load public form", err);
@@ -181,6 +182,17 @@ export default function FormPublic() {
           </span>
           <h2 className="text-xl font-semibold">Form unavailable</h2>
           <p className="text-destructive max-w-md">{error}</p>
+          {!user && (
+            <Button
+              className="mt-2"
+              onClick={() => {
+                const redirectTo = location.pathname + location.search;
+                navigate(buildLoginPath(redirectTo));
+              }}
+            >
+              Log in to continue
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -192,26 +204,7 @@ export default function FormPublic() {
         <div className={cn("mx-auto w-full", formWidthClass)}>
           <Card className="w-full gap-0 py-4 sm:py-6 bg-transparent shadow-none">
             <CardContent className="px-4 sm:px-6 bg-transparent">
-              {!user && (
-                <div className="mb-6 rounded-md border border-muted bg-muted/30 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      You need to be logged in to submit this form.
-                    </div>
-                    <div>
-                      <Button
-                        onClick={() => {
-                          const redirectTo = location.pathname + location.search;
-                          navigate(buildLoginPath(redirectTo));
-                        }}
-                      >
-                        Log in to continue
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {/* Render the form UI regardless so users can view it; submission can still be gated server-side */}
+              {/* Render the form UI */}
               {availableLocales.length > 1 && (
                 <div className="mb-4 flex justify-end">
                   <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
