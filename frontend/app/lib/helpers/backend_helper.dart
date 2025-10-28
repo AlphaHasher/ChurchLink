@@ -7,13 +7,18 @@ import 'dart:io' show Platform;
 
 class BackendHelper {
   static String get apiBase {
-    final envUrl = dotenv.env['BACKEND_URL'];
-    if (envUrl != null && envUrl.isNotEmpty) return envUrl;
-    
+    // Try to read from .env file if loaded
+    try {
+      final envUrl = dotenv.env['BACKEND_URL'];
+      if (envUrl != null && envUrl.isNotEmpty) return envUrl;
+    } catch (_) {
+      // dotenv not initialized in test mode, fall through to other options
+    }
+
     // Fall back to compile-time environment variable
     const fromDefine = String.fromEnvironment('API_BASE_URL');
     if (fromDefine.isNotEmpty) return fromDefine;
-    
+
     // Fall back to platform-specific defaults
     try {
       if (Platform.isAndroid) return 'http://10.0.2.2:8000';
@@ -43,16 +48,16 @@ class BackendHelper {
       );
 
       if (response.statusCode != 200) {
-        debugPrint("❌ Backend response: ${response.body}");
+        debugPrint("Backend response: ${response.body}");
         return false;
       }
 
       final responseData = jsonDecode(response.body);
-      debugPrint("✅ Backend verification response: $responseData");
+      debugPrint("Backend verification response: $responseData");
 
       return responseData["verified"] == true;
     } catch (e) {
-      debugPrint("❌ Error syncing user with backend: $e");
+      debugPrint("Error syncing user with backend: $e");
       return false;
     }
   }
