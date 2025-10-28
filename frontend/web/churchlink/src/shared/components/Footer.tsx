@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "@/api/api";
 import { useLanguage } from "@/provider/LanguageProvider";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 interface FooterItem {
     title: string;
@@ -32,6 +33,7 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
     const [loading, setLoading] = useState(!propFooterData);
     const [error, setError] = useState<string | null>(null);
     const { locale } = useLanguage();
+    const localize = useLocalize();
 
     useEffect(() => {
         // If footerData is provided as props, use it directly
@@ -61,8 +63,21 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
     }, [propFooterData]);
 
     const getLabelFromTitles = (t?: Record<string, string>, fallback?: string) => {
-        if (!t) return fallback || "";
-        return t[locale] || t.en || fallback || "";
+
+        const direct = t?.[locale];
+        if (direct && String(direct).trim()) return direct;
+
+  
+        const base = (t?.en ?? fallback ?? "").toString();
+
+    
+        if (locale && locale !== "en" && base) {
+            const translated = localize(base);
+            if (translated && String(translated).trim()) return translated;
+        }
+
+
+        return base;
     };
 
     if (loading) return <div className="h-24 bg-neutral-300 flex items-center justify-center text-black/60 font-[Montserrat]!">Loading footer...</div>;

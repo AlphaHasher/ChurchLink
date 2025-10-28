@@ -9,6 +9,7 @@ import PaypalSection from "@sections/PaypalSection";
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
 import { defaultGridSize, unitsToPx } from "@/features/webeditor/grid/gridMath";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
@@ -139,7 +140,8 @@ const renderNode = (
   gridSize?: number,
   forceFlowLayout?: boolean,
   activeLocale?: string,
-  defaultLocale?: string
+  defaultLocale?: string,
+  localizeFn?: (text: string) => string
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyleRaw = (node as any).style || {};
@@ -153,7 +155,13 @@ const renderNode = (
 
   switch (node.type) {
     case "text": {
-      const html = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale) ?? (node as any).props?.text ?? "";
+      const directHtml = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale);
+      const baseHtml = (node as any).props?.html ?? (node as any).props?.text ?? "";
+      const html = (directHtml != null && String(directHtml).trim())
+        ? directHtml
+        : ((activeLocale && activeLocale !== "en" && baseHtml && localizeFn)
+            ? localizeFn(String(baseHtml))
+            : String(baseHtml));
       const align = (node as any).props?.align ?? "left";
       const variant = (node as any).props?.variant ?? "p";
       const paddingY = nodeStyleRaw?.paddingY ?? 0;
@@ -219,7 +227,13 @@ const renderNode = (
       );
     }
     case "button": {
-      const label = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale) ?? "Button";
+      const direct = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale);
+      const baseLabel = (node as any).props?.label ?? "Button";
+      const label = (direct != null && String(direct).trim())
+        ? direct
+        : ((activeLocale && activeLocale !== "en" && baseLabel && localizeFn)
+            ? localizeFn(String(baseLabel))
+            : String(baseLabel));
       const href = (node as any).props?.href;
       const className = cn(
         (node as any).style?.className ?? "px-4 py-2 bg-blue-600 text-white rounded",
@@ -416,7 +430,13 @@ const renderNode = (
     }
     case "image": {
       const src = getPublicUrl((node as any).props?.src) || "";
-      const alt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale) || "";
+      const directAlt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale);
+      const baseAlt = (node as any).props?.alt || "";
+      const alt = (directAlt != null && String(directAlt).trim())
+        ? directAlt
+        : ((activeLocale && activeLocale !== "en" && baseAlt && localizeFn)
+            ? localizeFn(String(baseAlt))
+            : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || "cover";
       const inlineStyles: React.CSSProperties = {
         ...nodeStyle,
@@ -449,6 +469,7 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
   const defaultFontFamily = (page as any).styleTokens?.defaultFontFamily as string | undefined;
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
+  const localize = useLocalize();
 
   return (
     <div
@@ -486,7 +507,7 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
               {section.children.map((node) => {
                 const hasLayout = !!node.layout?.units;
                 const forceFlow = section.lockLayout === true;
-                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale));
+                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale), localize);
 
                 if (hasLayout && !forceFlow) {
                   const { xu, yu, wu, hu } = node.layout!.units;

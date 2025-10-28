@@ -11,6 +11,7 @@ import { useAuth } from "@/features/auth/hooks/auth-context";
 import api from "@/api/api";
 import { ChevronDown } from "lucide-react";
 import { useLanguage } from "@/provider/LanguageProvider";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 // Define interfaces for header data types
 interface HeaderLink {
@@ -49,6 +50,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { locale } = useLanguage();
+    const localize = useLocalize();
 
     // Helper: normalize slug/url to a single leading slash path
     const normalizePath = (path?: string) => {
@@ -75,8 +77,20 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     };
 
     const getLabelFromTitles = (t?: Record<string, string>, fallback?: string) => {
-        if (!t) return fallback || "";
-        return t[locale] || t.en || fallback || "";
+
+        const direct = t?.[locale];
+        if (direct && String(direct).trim()) return direct;
+
+
+        const base = (t?.en ?? fallback ?? "").toString();
+
+
+        if (locale && locale !== "en" && base) {
+            const translated = localize(base);
+            if (translated && String(translated).trim()) return translated;
+        }
+
+        return base;
     };
 
     useEffect(() => {
