@@ -79,7 +79,7 @@ void setupFirebaseMessaging() async {
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     debugPrint("User granted permission");
     String? token = await messaging.getToken();
-    debugPrint("Firebase Token: $token");
+    debugPrint("Firebase FCM Token: $token");
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint("Foreground message received: ${message.notification?.title}");
       showLocalNotification(message);

@@ -1,3 +1,14 @@
+"""
+SAFE NOTIFICATION TESTS
+======================
+⚠️  IMPORTANT: These tests have been updated to NOT send notifications to production devices.
+✅  All tests use 'send_to_all': False and 'test_tokens' to avoid spamming real users.
+✅  Scheduled notifications use far future dates (2025-12-31) to avoid accidental triggers.
+✅  All test notifications are clearly marked with "TEST -" prefix.
+
+If you need to test actual notification delivery, create a separate test device token.
+"""
+
 from dotenv import load_dotenv
 import httpx
 import os
@@ -58,15 +69,17 @@ def test_send_push_notification():
     response = httpx.post(
         f"{BASE_URL}/api/v1/notification/send",
         json={
-            "title": "Test Push",
-            "body": "Push body",
-            "data": {"target": "all"},
-            "send_to_all": True
+            "title": "TEST - Safe Notification Test",
+            "body": "This is a test notification from automated tests",
+            "data": {"target": "test", "test_mode": True},
+            "send_to_all": False,  # ✅ SAFE: Don't send to all devices
+            "test_tokens": ["test-fcm-token"]  # ✅ SAFE: Only send to test tokens
         },
         headers=headers,
     )
     assert response.status_code == 200
-    assert response.json().get("success") in [True, False]  # May fail if FCM not configured
+    # Note: This may return False if no test tokens are registered, which is expected
+    assert response.json().get("success") in [True, False]
 
 
 def test_schedule_notification():
@@ -74,11 +87,12 @@ def test_schedule_notification():
     response = httpx.post(
         f"{BASE_URL}/api/v1/notification/schedule",
         json={
-            "title": "Scheduled Test",
-            "body": "Scheduled body",
-            "scheduled_time": "2025-09-28T12:00:00Z",
-            "send_to_all": True,
-            "data": {}
+            "title": "TEST - Scheduled Test Notification",
+            "body": "This is a scheduled test notification from automated tests",
+            "scheduled_time": "2025-12-31T23:59:59Z",  # ✅ SAFE: Far future date
+            "send_to_all": False,  # ✅ SAFE: Don't send to all devices
+            "test_tokens": ["test-fcm-token"],  # ✅ SAFE: Only test tokens
+            "data": {"test_mode": True}
         },
         headers=headers,
     )
@@ -100,11 +114,12 @@ def test_remove_scheduled_notification():
     schedule_response = httpx.post(
         f"{BASE_URL}/api/v1/notification/schedule",
         json={
-            "title": "Remove Test",
-            "body": "Remove body",
-            "scheduled_time": "2025-09-28T12:00:00Z",
-            "send_to_all": True,
-            "data": {}
+            "title": "TEST - Remove Test Notification",
+            "body": "This test notification will be removed immediately",
+            "scheduled_time": "2025-12-31T23:59:59Z",  # ✅ SAFE: Far future date
+            "send_to_all": False,  # ✅ SAFE: Don't send to all devices
+            "test_tokens": ["test-fcm-token"],  # ✅ SAFE: Only test tokens
+            "data": {"test_mode": True}
         },
         headers=headers,
     )

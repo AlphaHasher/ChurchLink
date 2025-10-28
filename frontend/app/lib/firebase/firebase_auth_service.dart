@@ -73,6 +73,7 @@ class FirebaseAuthService {
 
       // Get Firebase ID Token for backend authentication
       final String? idToken = await user.getIdToken(true);
+      debugPrint("🔥 Firebase ID Token: $idToken");
       if (idToken == null) {
         throw Exception("❌ Failed to retrieve Firebase ID Token.");
       }
@@ -141,9 +142,16 @@ class FirebaseAuthService {
 
       debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        debugPrint("❌ Registration error: Email already in use.");
+        return "This email is already registered.";
+      }
+      debugPrint("❌ Firebase Auth Error: ${e.code} - ${e.message}");
+      return e.message;
     } catch (e) {
       debugPrint("❌ Error during registration: $e");
-      return null;
+      return "An unexpected error occurred during registration.";
     }
   }
 

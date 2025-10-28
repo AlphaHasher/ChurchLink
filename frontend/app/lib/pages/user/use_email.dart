@@ -233,9 +233,10 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
       } else {
         String email = _emailController.text.trim();
         String password = _passwordController.text.trim();
-        String? token = await authService.registerWithEmail(email, password);
+        String? tokenOrError = await authService.registerWithEmail(email, password);
 
-        if (token != null && token.isNotEmpty) {
+        // If registration returns a token, proceed. Otherwise, show error.
+        if (tokenOrError != null && tokenOrError.length > 100) { // crude check for JWT token
           await authService.getCurrentUser()?.updateProfile(
             displayName:
                 '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
@@ -243,7 +244,15 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
           authService.signOut();
           await _handleLogin();
         } else {
-          // Sign up failed
+          if (mounted) {
+            String errorMsg = tokenOrError ?? 'Registration failed.';
+            if (errorMsg.contains('already registered') || errorMsg.contains('already in use')) {
+              errorMsg = 'This email is already signed up. Please use a different email or sign in.';
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(errorMsg)),
+            );
+          }
         }
       }
     }
