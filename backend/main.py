@@ -23,9 +23,6 @@ from mongo.scheduled_notifications import scheduled_notification_loop
 
 from helpers.youtubeHelper import YoutubeHelper
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
-import asyncio
-import os
-import logging
 
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
@@ -63,8 +60,6 @@ from routes.form_routes.public_forms_routes import public_forms_router
 from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router

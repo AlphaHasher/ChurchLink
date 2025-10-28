@@ -1,8 +1,25 @@
-from typing import Dict, Tuple, Any
-from fastapi import APIRouter, HTTPException, Body, Path
+from typing import Any, Dict, Tuple
+
+from fastapi import APIRouter, Body, HTTPException, Path
 from pydantic import BaseModel
-from models.header import *
-import re
+
+from models.header import (
+    Header,
+    HeaderItem,
+    add_dropdown,
+    add_link,
+    change_visibility,
+    get_header,
+    get_header_items,
+    get_item_by_title,
+    remove_item_by_name,
+    reorder_items,
+    update_item,
+)
+from models.localization_info import (
+    add_locale as add_localization_locale,
+    get_locales as get_localization_locales,
+)
 from urllib.parse import urlparse
 
 public_header_router = APIRouter(prefix="/header", tags=["public header"])
@@ -168,6 +185,22 @@ async def get_header_items_route():
 
 
 # layout_management perms necessary below
+
+@mod_header_router.get("/locales")
+async def get_header_locales_route():
+    locales = await get_localization_locales("header")
+    return {"locales": locales}
+
+
+class LocalePayload(BaseModel):
+    code: str
+
+
+@mod_header_router.post("/locales", response_model=OpResult)
+async def add_header_locale_route(payload: LocalePayload):
+    success = await add_localization_locale("header", payload.code)
+    return OpResult(success=success, msg="" if success else "Failed to add locale.")
+
 
 @mod_header_router.post("/items/links", response_model=OpResult)
 async def add_header_link_route(item: dict = Body(...)):

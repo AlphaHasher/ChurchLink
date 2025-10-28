@@ -4,11 +4,13 @@ from typing import Any, Dict
 from datetime import datetime
 
 from mongo.database import DB
+from models.localization_info import add_locale as add_localization_locale
 
 
 async def _migrate_header_items() -> None:
     coll = DB.db["header-items"]
     cursor = coll.find({})
+    discovered_locales = set()
     async for doc in cursor:
         _id = doc.get("_id")
         if not _id:
@@ -21,6 +23,7 @@ async def _migrate_header_items() -> None:
             titles["en"] = en
         if isinstance(ru, str) and ru and not titles.get("ru"):
             titles["ru"] = ru
+            discovered_locales.add("ru")
 
         items = doc.get("items") or []
         new_items = []
@@ -52,11 +55,18 @@ async def _migrate_header_items() -> None:
             update["$unset"] = unset
 
         await coll.update_one({"_id": _id}, update)
+
+    for locale in discovered_locales:
+        try:
+            await add_localization_locale("header", locale)
+        except Exception:
+            continue
 
 
 async def _migrate_footer_items() -> None:
     coll = DB.db["footer-items"]
     cursor = coll.find({})
+    discovered_locales = set()
     async for doc in cursor:
         _id = doc.get("_id")
         if not _id:
@@ -69,6 +79,7 @@ async def _migrate_footer_items() -> None:
             titles["en"] = en
         if isinstance(ru, str) and ru and not titles.get("ru"):
             titles["ru"] = ru
+            discovered_locales.add("ru")
 
         items = doc.get("items") or []
         new_items = []
@@ -100,6 +111,12 @@ async def _migrate_footer_items() -> None:
             update["$unset"] = unset
 
         await coll.update_one({"_id": _id}, update)
+
+    for locale in discovered_locales:
+        try:
+            await add_localization_locale("footer", locale)
+        except Exception:
+            continue
 
 
 async def run_header_footer_titles_migration() -> None:
