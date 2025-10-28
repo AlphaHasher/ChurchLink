@@ -33,7 +33,8 @@ class RegistrationPaymentStatus:
     COMPLETED = "completed"        # Payment completed
     FAILED = "failed"             # Payment failed
     REFUND_REQUESTED = "refund_requested"  # Refund has been requested
-    REFUNDED = "refunded"         # Payment refunded
+    REFUNDED = "refunded"         # Payment fully refunded
+    PARTIALLY_REFUNDED = "partially_refunded"  # Payment partially refunded
 
 # Valid status transitions
 VALID_PAYMENT_TRANSITIONS = {

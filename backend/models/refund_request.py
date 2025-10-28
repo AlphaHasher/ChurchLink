@@ -72,6 +72,9 @@ class RefundRequestCreate(BaseModel):
 class RefundRequestUpdate(BaseModel):
     status: Optional[str] = None
     admin_notes: Optional[str] = None
+    payment_amount: Optional[float] = None  # For updating to partial refund amount
+    original_amount: Optional[float] = None  # Store original amount for reference
+    refund_type: Optional[str] = None  # Update refund type (full/partial)
     paypal_refund_id: Optional[str] = None
     paypal_refund_status: Optional[str] = None
     processed_by: Optional[str] = None

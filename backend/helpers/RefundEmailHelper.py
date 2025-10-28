@@ -114,13 +114,34 @@ Thank you for your patience.
         return {"subject": subject, "html": html_body, "text": text_body}
     
     @staticmethod
-    def refund_approved(user_name: str, event_name: str, amount: float, request_id: str, admin_notes: Optional[str] = None) -> Dict[str, str]:
+    def refund_approved(user_name: str, event_name: str, amount: float, request_id: str, admin_notes: Optional[str] = None, original_amount: Optional[float] = None, refund_type: str = "full") -> Dict[str, str]:
         """Template for when refund is approved"""
-        subject = f"Refund Approved - {event_name}"
+        
+        # Determine subject and content based on refund type
+        if refund_type == "partial" and original_amount and original_amount > amount:
+            subject = f"Partial Refund Approved - {event_name}"
+            refund_type_text = "partial refund"
+            remaining_balance = original_amount - amount
+        else:
+            subject = f"Refund Approved - {event_name}"
+            refund_type_text = "refund"
+            remaining_balance = 0
         
         admin_section = ""
         if admin_notes and admin_notes.strip():
             admin_section = f"<p><strong>Additional Notes:</strong><br>{admin_notes.replace('\n', '<br>')}</p>"
+        
+        # Build payment breakdown section
+        payment_breakdown = ""
+        if refund_type == "partial" and original_amount and original_amount > amount:
+            payment_breakdown = f"""
+            <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #2196f3;">
+                <h4 style="margin: 0 0 10px 0; color: #1976d2;">Payment Breakdown</h4>
+                <p style="margin: 5px 0;"><strong>Original Payment:</strong> <span style="color: #666;">${original_amount:.2f}</span></p>
+                <p style="margin: 5px 0;"><strong>Partial Refund Amount:</strong> <span style="color: #28a745; font-weight: bold;">${amount:.2f}</span></p>
+                <p style="margin: 5px 0;"><strong>Remaining Balance:</strong> <span style="color: #666;">${remaining_balance:.2f}</span></p>
+            </div>
+            """
         
         html_body = f"""
         <html>
@@ -134,30 +155,43 @@ Thank you for your patience.
                 .amount {{ font-size: 18px; font-weight: bold; color: #28a745; }}
                 .request-id {{ font-family: monospace; background-color: #e9ecef; padding: 5px 10px; border-radius: 4px; }}
                 .success {{ color: #155724; }}
+                .partial-info {{ background-color: #fff3cd; padding: 12px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 10px 0; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h2 class="success">✅ Refund Approved</h2>
+                    <h2 class="success">✅ {refund_type_text.title()} Approved</h2>
                 </div>
                 
                 <div class="content">
                     <p>Dear {user_name},</p>
                     
-                    <p>Great news! Your refund request has been approved.</p>
+                    <p>Great news! Your {refund_type_text} request has been approved.</p>
                     
                     <p><strong>Event:</strong> {event_name}<br>
-                    <strong>Refund Amount:</strong> <span class="amount">${amount:.2f}</span><br>
+                    <strong>{"Partial " if refund_type == "partial" else ""}Refund Amount:</strong> <span class="amount">${amount:.2f}</span><br>
                     <strong>Request ID:</strong> <span class="request-id">{request_id}</span></p>
+                    
+                    {payment_breakdown}
                     
                     {admin_section}
                     
                     <p><strong>Next Steps:</strong></p>
                     <ul>
-                        <li>Your refund is being processed automatically via PayPal</li>
-                        <li>You should see the refund in your account within 3-5 business days</li>
-                        <li>Your event registration will be cancelled once the refund is completed</li>
+                        <li>Your {refund_type_text} is being processed automatically via PayPal</li>
+                        <li>You should see the refund of ${amount:.2f} in your account within 3-5 business days</li>"""
+        
+        # Add different messaging for partial vs full refunds
+        if refund_type == "partial":
+            html_body += f"""
+                        <li>Your event registration remains active for the remaining balance of ${remaining_balance:.2f}</li>
+                        <li>You can continue to attend the event with your active registration</li>"""
+        else:
+            html_body += f"""
+                        <li>Your event registration will be cancelled once the refund is completed</li>"""
+            
+        html_body += f"""
                         <li>You'll receive a final confirmation email when the refund is processed</li>
                     </ul>
                     
@@ -174,23 +208,43 @@ Thank you for your patience.
         </html>
         """
         
+        # Text version
+        text_breakdown = ""
+        if refund_type == "partial" and original_amount and original_amount > amount:
+            text_breakdown = f"""
+Payment Breakdown:
+- Original Payment: ${original_amount:.2f}
+- Partial Refund Amount: ${amount:.2f}
+- Remaining Balance: ${remaining_balance:.2f}
+"""
+        
         text_body = f"""
-Refund Approved
+{refund_type_text.title()} Approved
 
 Dear {user_name},
 
-Great news! Your refund request has been approved.
+Great news! Your {refund_type_text} request has been approved.
 
 Event: {event_name}
-Refund Amount: ${amount:.2f}
+{"Partial " if refund_type == "partial" else ""}Refund Amount: ${amount:.2f}
 Request ID: {request_id}
 
+{text_breakdown}
 {admin_notes if admin_notes else ''}
 
 Next Steps:
-- Your refund is being processed automatically via PayPal
-- You should see the refund in your account within 3-5 business days
-- Your event registration will be cancelled once the refund is completed
+- Your {refund_type_text} is being processed automatically via PayPal
+- You should see the refund of ${amount:.2f} in your account within 3-5 business days"""
+        
+        if refund_type == "partial":
+            text_body += f"""
+- Your event registration remains active for the remaining balance of ${remaining_balance:.2f}
+- You can continue to attend the event with your active registration"""
+        else:
+            text_body += f"""
+- Your event registration will be cancelled once the refund is completed"""
+            
+        text_body += f"""
 - You'll receive a final confirmation email when the refund is processed
 
 If you don't see the refund within 5 business days, please contact us with your request ID.
@@ -204,9 +258,30 @@ Thank you for your understanding.
         return {"subject": subject, "html": html_body, "text": text_body}
     
     @staticmethod
-    def refund_completed(user_name: str, event_name: str, amount: float, request_id: str, completion_method: str = "PayPal") -> Dict[str, str]:
+    def refund_completed(user_name: str, event_name: str, amount: float, request_id: str, completion_method: str = "PayPal", original_amount: Optional[float] = None, refund_type: str = "full") -> Dict[str, str]:
         """Template for when refund is completed"""
-        subject = f"Refund Completed - {event_name}"
+        
+        # Determine subject and content based on refund type
+        if refund_type == "partial" and original_amount and original_amount > amount:
+            subject = f"Partial Refund Completed - {event_name}"
+            refund_type_text = "partial refund"
+            remaining_balance = original_amount - amount
+        else:
+            subject = f"Refund Completed - {event_name}"
+            refund_type_text = "refund"
+            remaining_balance = 0
+            
+        # Build payment breakdown section
+        payment_breakdown = ""
+        if refund_type == "partial" and original_amount and original_amount > amount:
+            payment_breakdown = f"""
+            <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #28a745;">
+                <h4 style="margin: 0 0 10px 0; color: #155724;">Final Payment Summary</h4>
+                <p style="margin: 5px 0;"><strong>Original Payment:</strong> <span style="color: #666;">${original_amount:.2f}</span></p>
+                <p style="margin: 5px 0;"><strong>Refund Processed:</strong> <span style="color: #28a745; font-weight: bold;">${amount:.2f}</span></p>
+                <p style="margin: 5px 0;"><strong>Your Active Registration:</strong> <span style="color: #17a2b8; font-weight: bold;">${remaining_balance:.2f}</span></p>
+            </div>
+            """
         
         html_body = f"""
         <html>
@@ -225,25 +300,38 @@ Thank you for your understanding.
         <body>
             <div class="container">
                 <div class="header">
-                    <h2 class="completed">✅ Refund Completed</h2>
+                    <h2 class="completed">✅ {refund_type_text.title()} Completed</h2>
                 </div>
                 
                 <div class="content">
                     <p>Dear {user_name},</p>
                     
-                    <p>Your refund has been successfully processed and completed!</p>
+                    <p>Your {refund_type_text} has been successfully processed and completed!</p>
                     
                     <p><strong>Event:</strong> {event_name}<br>
-                    <strong>Refund Amount:</strong> <span class="amount">${amount:.2f}</span><br>
+                    <strong>{"Partial " if refund_type == "partial" else ""}Refund Amount:</strong> <span class="amount">${amount:.2f}</span><br>
                     <strong>Request ID:</strong> <span class="request-id">{request_id}</span><br>
                     <strong>Completion Method:</strong> {completion_method}</p>
+                    
+                    {payment_breakdown}
                     
                     <p><strong>What this means:</strong></p>
                     <ul>
                         <li>Your refund of ${amount:.2f} has been processed</li>
-                        <li>The funds should appear in your account within 3-5 business days</li>
+                        <li>The funds should appear in your account within 3-5 business days</li>"""
+        
+        # Add different messaging for partial vs full refunds
+        if refund_type == "partial":
+            html_body += f"""
+                        <li><strong>Your event registration remains active</strong> for ${remaining_balance:.2f}</li>
+                        <li>You can still attend the event with your active registration</li>
+                        <li>This completes your partial refund request</li>"""
+        else:
+            html_body += f"""
                         <li>Your event registration has been cancelled</li>
-                        <li>This completes your refund request</li>
+                        <li>This completes your refund request</li>"""
+            
+        html_body += f"""
                     </ul>
                     
                     <p>If you have any questions or concerns, please don't hesitate to contact us.</p>
@@ -259,23 +347,44 @@ Thank you for your understanding.
         </html>
         """
         
+        # Text version
+        text_breakdown = ""
+        if refund_type == "partial" and original_amount and original_amount > amount:
+            text_breakdown = f"""
+Final Payment Summary:
+- Original Payment: ${original_amount:.2f}
+- Refund Processed: ${amount:.2f}
+- Your Active Registration: ${remaining_balance:.2f}
+"""
+        
         text_body = f"""
-Refund Completed
+{refund_type_text.title()} Completed
 
 Dear {user_name},
 
-Your refund has been successfully processed and completed!
+Your {refund_type_text} has been successfully processed and completed!
 
 Event: {event_name}
-Refund Amount: ${amount:.2f}
+{"Partial " if refund_type == "partial" else ""}Refund Amount: ${amount:.2f}
 Request ID: {request_id}
 Completion Method: {completion_method}
 
+{text_breakdown}
 What this means:
 - Your refund of ${amount:.2f} has been processed
-- The funds should appear in your account within 3-5 business days
+- The funds should appear in your account within 3-5 business days"""
+
+        if refund_type == "partial":
+            text_body += f"""
+- Your event registration remains active for ${remaining_balance:.2f}
+- You can still attend the event with your active registration
+- This completes your partial refund request"""
+        else:
+            text_body += f"""
 - Your event registration has been cancelled
-- This completes your refund request
+- This completes your refund request"""
+            
+        text_body += f"""
 
 If you have any questions or concerns, please don't hesitate to contact us.
 
@@ -562,15 +671,15 @@ async def send_refund_request_confirmation(to_email: str, user_name: str, event_
     return await send_refund_email(to_email, template_data)
 
 
-async def send_refund_approved_notification(to_email: str, user_name: str, event_name: str, amount: float, request_id: str, admin_notes: Optional[str] = None) -> Dict[str, Any]:
+async def send_refund_approved_notification(to_email: str, user_name: str, event_name: str, amount: float, request_id: str, admin_notes: Optional[str] = None, original_amount: Optional[float] = None, refund_type: str = "full") -> Dict[str, Any]:
     """Send notification when refund is approved"""
-    template_data = RefundEmailTemplates.refund_approved(user_name, event_name, amount, request_id, admin_notes)
+    template_data = RefundEmailTemplates.refund_approved(user_name, event_name, amount, request_id, admin_notes, original_amount, refund_type)
     return await send_refund_email(to_email, template_data)
 
 
-async def send_refund_completed_notification(to_email: str, user_name: str, event_name: str, amount: float, request_id: str, completion_method: str = "PayPal") -> Dict[str, Any]:
+async def send_refund_completed_notification(to_email: str, user_name: str, event_name: str, amount: float, request_id: str, completion_method: str = "PayPal", original_amount: Optional[float] = None, refund_type: str = "full") -> Dict[str, Any]:
     """Send notification when refund is completed"""
-    template_data = RefundEmailTemplates.refund_completed(user_name, event_name, amount, request_id, completion_method)
+    template_data = RefundEmailTemplates.refund_completed(user_name, event_name, amount, request_id, completion_method, original_amount, refund_type)
     return await send_refund_email(to_email, template_data)
 
 

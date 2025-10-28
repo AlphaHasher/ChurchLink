@@ -19,7 +19,7 @@ from models.refund_request import (
     calculate_refund_options, 
     get_refund_summary
 )
-from models.transaction import RefundStatus, Transaction
+from models.transaction import RefundStatus, Transaction, RegistrationPaymentStatus
 from helpers.paypalHelper import process_paypal_refund
 from helpers.RefundEmailHelper import (
     send_refund_approved_notification,
@@ -32,6 +32,7 @@ from mongo.database import DB
 from bson import ObjectId
 from models.user import get_user_by_uid
 from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
+from models.event import update_attendee_payment_status_simple
 import requests
 
 # Helper function to resolve proof URLs
@@ -156,17 +157,41 @@ async def process_refund_request(
         
         action = process_data.get("action")  # "approve" or "reject"
         admin_notes = process_data.get("admin_notes", "")
+        custom_refund_amount = process_data.get("refund_amount")  # Optional custom amount for partial refunds
         
         if action not in ["approve", "reject"]:
             raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
         
+        # Determine the actual refund amount
+        actual_refund_amount = refund_request.payment_amount  # Default to full amount
+        if custom_refund_amount is not None:
+            # Validate partial refund amount
+            try:
+                partial_amount = float(custom_refund_amount)
+                if partial_amount <= 0:
+                    raise HTTPException(status_code=400, detail="Refund amount must be greater than 0")
+                if partial_amount > refund_request.payment_amount:
+                    raise HTTPException(status_code=400, detail=f"Refund amount cannot exceed original payment of ${refund_request.payment_amount}")
+                actual_refund_amount = partial_amount
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=400, detail="Invalid refund amount")
+        
         # Update refund request status
         new_status = RefundStatus.APPROVED if action == "approve" else RefundStatus.REJECTED
         
+        # Update the payment_amount field if this is a partial refund
         updates = RefundRequestUpdate(
             status=new_status,
             admin_notes=admin_notes
         )
+        
+        # If approving and it's a partial refund, update the amounts and type
+        if action == "approve" and custom_refund_amount is not None:
+            updates.payment_amount = actual_refund_amount
+            # Store original amount if not already stored
+            if not refund_request.original_amount:
+                updates.original_amount = refund_request.payment_amount
+            updates.refund_type = "partial"
         
         # Add admin info
         updates.processed_by = admin_uid
@@ -182,13 +207,18 @@ async def process_refund_request(
             try:
                 details = await get_user_and_event_details(refund_request)
                 if details["user_email"]:
+                    # Determine refund type for email context
+                    refund_type = "partial" if custom_refund_amount is not None and custom_refund_amount < refund_request.payment_amount else "full"
+                    
                     await send_refund_approved_notification(
                         to_email=details["user_email"],
                         user_name=details["user_name"],
                         event_name=details["event_name"],
                         amount=refund_request.payment_amount,
                         request_id=refund_request.request_id,
-                        admin_notes=admin_notes
+                        admin_notes=admin_notes,
+                        original_amount=refund_request.original_amount if hasattr(refund_request, 'original_amount') else None,
+                        refund_type=refund_type
                     )
                     logging.info(f"Refund approval email sent to {details['user_email']}")
             except Exception as e:
@@ -197,8 +227,8 @@ async def process_refund_request(
             try:
                 paypal_result = await process_paypal_refund(
                     transaction_id=refund_request.transaction_id,
-                    refund_amount=refund_request.payment_amount,
-                    reason=f"Event refund - {refund_request.display_name}"
+                    refund_amount=actual_refund_amount,  # Use actual amount (could be partial)
+                    reason=f"Event refund - {refund_request.display_name}" + (f" (Partial: ${actual_refund_amount})" if actual_refund_amount != refund_request.payment_amount else "")
                 )
                 
                 if paypal_result.get("success"):
@@ -213,30 +243,42 @@ async def process_refund_request(
                     try:
                         details = await get_user_and_event_details(refund_request)
                         if details["user_email"]:
+                            # Determine refund type for email context
+                            refund_type = "partial" if custom_refund_amount is not None and actual_refund_amount < refund_request.payment_amount else "full"
+                            
                             await send_refund_completed_notification(
                                 to_email=details["user_email"],
                                 user_name=details["user_name"],
                                 event_name=details["event_name"],
-                                amount=refund_request.payment_amount,
+                                amount=actual_refund_amount,  # Use actual refunded amount
                                 request_id=refund_request.request_id,
-                                completion_method="PayPal"
+                                completion_method="PayPal",
+                                original_amount=refund_request.original_amount if hasattr(refund_request, 'original_amount') else None,
+                                refund_type=refund_type
                             )
                             logging.info(f"Refund completion email sent to {details['user_email']}")
                     except Exception as e:
                         logging.error(f"Failed to send completion email: {e}")
                     
-                    # Update event attendee payment status to 'refunded'
+                    # Update event attendee payment status to 'refunded' or 'partially_refunded'
                     try:
-                        from models.event import update_attendee_payment_status_simple
+                        # Determine payment status based on refund type
+                        if custom_refund_amount is not None and actual_refund_amount < refund_request.payment_amount:
+                            # This is a partial refund
+                            new_payment_status = "partially_refunded"
+                        else:
+                            # This is a full refund
+                            new_payment_status = "refunded"
+                        
                         success = await update_attendee_payment_status_simple(
                             event_id=refund_request.event_id,
                             user_uid=refund_request.user_uid,
                             person_id=refund_request.person_id,
-                            payment_status="refunded"
+                            payment_status=new_payment_status
                         )
                         
                         if success:
-                            logging.info(f"Updated attendee payment status to 'refunded' for refund {request_id}")
+                            logging.info(f"Updated attendee payment status to '{new_payment_status}' for refund {request_id}")
                         else:
                             logging.error(f"Failed to update attendee payment status for refund {request_id}")
                             
@@ -282,7 +324,6 @@ async def process_refund_request(
             
             # Reset attendee payment status back to 'completed' since refund was rejected
             try:
-                from models.event import update_attendee_payment_status_simple
                 success = await update_attendee_payment_status_simple(
                     event_id=refund_request.event_id,
                     user_uid=refund_request.user_uid,
@@ -381,19 +422,24 @@ async def manually_complete_refund(
         try:
             details = await get_user_and_event_details(refund_request)
             if details["user_email"]:
+                # For manual refunds, check if it was partial based on the refund_type field
+                refund_type = getattr(refund_request, 'refund_type', 'full')
+                
                 await send_refund_completed_notification(
                     to_email=details["user_email"],
                     user_name=details["user_name"],
                     event_name=details["event_name"],
                     amount=refund_request.payment_amount,
                     request_id=refund_request.request_id,
-                    completion_method=refund_method.title()
+                    completion_method=refund_method.title(),
+                    original_amount=refund_request.original_amount if hasattr(refund_request, 'original_amount') else None,
+                    refund_type=refund_type
                 )
                 logging.info(f"Manual refund completion email sent to {details['user_email']}")
         except Exception as e:
             logging.error(f"Failed to send manual completion email: {e}")
         
-        # Update event attendee payment status to 'refunded'
+        # Update event attendee payment status to 'refunded' or 'partially_refunded'
         try:
             
             event_doc = await DB.db["events"].find_one({"_id": ObjectId(refund_request.event_id)})
@@ -401,11 +447,17 @@ async def manually_complete_refund(
                 attendees = event_doc.get("attendees", [])
                 modified = False
                 
+                # Determine payment status based on refund type
+                if refund_request.refund_type == "partial":
+                    new_payment_status = "partially_refunded"
+                else:
+                    new_payment_status = "refunded"
+                
                 for attendee in attendees:
                     # Match by user and person ID
                     if (attendee.get("user_uid") == refund_request.user_uid and
                         str(attendee.get("person_id", "")) == str(refund_request.person_id or "")):
-                        attendee["payment_status"] = "refunded"
+                        attendee["payment_status"] = new_payment_status
                         modified = True
                         break
                 
@@ -414,7 +466,7 @@ async def manually_complete_refund(
                         {"_id": ObjectId(refund_request.event_id)},
                         {"$set": {"attendees": attendees}}
                     )
-                    logging.info(f"Updated attendee payment status to 'refunded' for manual completion of refund {request_id}")
+                    logging.info(f"Updated attendee payment status to '{new_payment_status}' for manual completion of refund {request_id}")
         except Exception as e:
             logging.error(f"Failed to update attendee status after manual refund completion: {e}")
         
@@ -477,13 +529,18 @@ async def retry_paypal_refund(
                 try:
                     details = await get_user_and_event_details(refund_request)
                     if details["user_email"]:
+                        # For retry, check if it was partial based on the refund_type field
+                        refund_type = getattr(refund_request, 'refund_type', 'full')
+                        
                         await send_refund_completed_notification(
                             to_email=details["user_email"],
                             user_name=details["user_name"],
                             event_name=details["event_name"],
                             amount=refund_request.payment_amount,
                             request_id=refund_request.request_id,
-                            completion_method="PayPal"
+                            completion_method="PayPal",
+                            original_amount=refund_request.original_amount if hasattr(refund_request, 'original_amount') else None,
+                            refund_type=refund_type
                         )
                         logging.info(f"Retry completion email sent to {details['user_email']}")
                 except Exception as e:
@@ -501,7 +558,11 @@ async def retry_paypal_refund(
                             # Match by user and person ID
                             if (attendee.get("user_uid") == refund_request.user_uid and
                                 str(attendee.get("person_id", "")) == str(refund_request.person_id or "")):
-                                attendee["payment_status"] = "refunded"
+                                # Set status based on refund type
+                                if refund_request.refund_type == "partial":
+                                    attendee["payment_status"] = RegistrationPaymentStatus.PARTIALLY_REFUNDED
+                                else:
+                                    attendee["payment_status"] = RegistrationPaymentStatus.REFUNDED
                                 modified = True
                                 break
                         
@@ -510,7 +571,8 @@ async def retry_paypal_refund(
                                 {"_id": ObjectId(refund_request.event_id)},
                                 {"$set": {"attendees": attendees}}
                             )
-                            logging.info(f"Updated attendee payment status to 'refunded' for retry of refund {request_id}")
+                            refund_status = "partially refunded" if refund_request.refund_type == "partial" else "refunded"
+                            logging.info(f"Updated attendee payment status to '{refund_status}' for retry of refund {request_id}")
                 except Exception as e:
                     logging.error(f"Failed to update attendee status after retry refund: {e}")
                 

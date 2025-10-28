@@ -32,7 +32,7 @@ interface EventDetailsModalProps {
 const PAID_STATUSES = new Set<string>(['completed', 'paid']);
 const DOOR_STATUSES = new Set<string>(['pending_door']);
 const PENDING_STATUSES = new Set<string>(['awaiting_payment', 'pending']);
-const REFUND_STATUSES = new Set<string>(['refund_requested', 'refunded']);
+const REFUND_STATUSES = new Set<string>(['refund_requested', 'refunded', 'partially_refunded']);
 
 
 export function EventDetailsModal({ 
@@ -201,7 +201,7 @@ export function EventDetailsModal({
     // Use direct payment status first, then computed
     const paymentStatus = attendee.payment_status || attendee.computed_payment_status;
     const hasPayment = paymentStatus === 'completed';
-    const notRefunded = paymentStatus !== 'failed' && paymentStatus !== 'refunded' && paymentStatus !== 'refund_requested';
+    const notRefunded = (paymentStatus as string) !== 'failed' && (paymentStatus as string) !== 'refunded' && (paymentStatus as string) !== 'refund_requested' && (paymentStatus as string) !== 'partially_refunded';
     const isPaidEvent = (event.price || 0) > 0;
     
     return hasPayment && notRefunded && isPaidEvent && Boolean(onRefundRequest);
@@ -262,6 +262,7 @@ export function EventDetailsModal({
       'pending': { bg: 'bg-blue-100 text-blue-700', text: '⏳ Payment Pending' },
       'refund_requested': { bg: 'bg-orange-100 text-orange-700', text: '🔄 Refund Requested' },
       'refunded': { bg: 'bg-gray-100 text-gray-700', text: '↩️ Refunded' },
+      'partially_refunded': { bg: 'bg-purple-100 text-purple-700', text: '🔄 Partially Refunded' },
       'not_required': { bg: 'bg-green-100 text-green-700', text: '✅ Registered' }
     } as const;
 
@@ -384,6 +385,7 @@ export function EventDetailsModal({
                       if (status === 'awaiting_payment' || status === 'pending') return '⏳ PayPal processing';
                       if (status === 'refund_requested') return '🔄 Refund requested';
                       if (status === 'refunded') return '↩️ Refunded';
+                      if (status === 'partially_refunded') return '🔄 Partially refunded';
                       return '❌ Payment required';
                     };
 

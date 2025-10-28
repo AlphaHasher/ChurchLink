@@ -23,6 +23,8 @@ interface RefundRequest {
   display_name: string;
   transaction_id: string;
   payment_amount: number;
+  original_amount?: number;
+  refund_type?: 'full' | 'partial' | 'per_person';
   payment_method: string;
   reason: string;
   user_notes?: string;
@@ -79,15 +81,35 @@ const RefundManagement: React.FC = () => {
     }
   };
 
-  const handleProcessRequest = async (requestId: string, action: 'approve' | 'reject', adminNotes: string) => {
+  const handleProcessRequest = async (requestId: string, action: 'approve' | 'reject' | 'partial' | 'manual', adminNotes: string, partialAmount?: number) => {
     try {
       setProcessing(requestId);
       
-      const response = await api.post(`/v1/events/refund/request/${requestId}/process`, {
-        action,
-        admin_notes: adminNotes,
-        auto_process_paypal: action === 'approve'
-      });
+      let response;
+      
+      if (action === 'partial') {
+        // Handle partial refund
+        response = await api.post(`/v1/events/refund/request/${requestId}/process`, {
+          action: 'approve',
+          admin_notes: `${adminNotes}\n\nPARTIAL REFUND: $${partialAmount} (Original: $${selectedRequest?.payment_amount})`,
+          auto_process_paypal: true,
+          refund_amount: partialAmount
+        });
+      } else if (action === 'manual') {
+        // Handle manual refund - approve but don't auto-process PayPal
+        response = await api.post(`/v1/events/refund/request/${requestId}/process`, {
+          action: 'approve',
+          admin_notes: `${adminNotes}\n\nMANUAL REFUND: Admin will process refund manually outside of PayPal`,
+          auto_process_paypal: false
+        });
+      } else {
+        // Handle normal approve/reject
+        response = await api.post(`/v1/events/refund/request/${requestId}/process`, {
+          action,
+          admin_notes: adminNotes,
+          auto_process_paypal: action === 'approve'
+        });
+      }
 
       if (response.data?.success) {
         // Refresh the list
@@ -194,7 +216,7 @@ const RefundManagement: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; icon: React.ReactNode; label: string }> = {
-      pending: { variant: 'secondary', icon: <Clock className="w-3 h-3" />, label: 'Pending' },
+      pending: { variant: 'secondary', icon: <Clock className="w-3 h-3" />, label: 'Pending Review' },
       approved: { variant: 'default', icon: <CheckCircle className="w-3 h-3" />, label: 'Approved' },
       rejected: { variant: 'destructive', icon: <X className="w-3 h-3" />, label: 'Rejected' },
       processing: { variant: 'outline', icon: <RefreshCw className="w-3 h-3" />, label: 'Processing' },
@@ -209,6 +231,43 @@ const RefundManagement: React.FC = () => {
         {config.label}
       </Badge>
     );
+  };
+
+  // Helper function to show refund type badge
+  const getRefundTypeBadge = (request: RefundRequest) => {
+    // Check refund_type field first (preferred method)
+    if (request.refund_type === 'partial') {
+      return (
+        <Badge variant="outline" className="ml-2 text-blue-600 border-blue-300">
+          <DollarSign className="w-3 h-3 mr-1" />
+          Partial
+        </Badge>
+      );
+    }
+    
+    // Fallback: Check admin notes for legacy records
+    const isPartial = request.admin_notes?.includes('PARTIAL REFUND');
+    const isManual = request.admin_notes?.includes('MANUAL REFUND');
+    
+    if (isPartial) {
+      return (
+        <Badge variant="outline" className="ml-2 text-blue-600 border-blue-300">
+          <DollarSign className="w-3 h-3 mr-1" />
+          Partial
+        </Badge>
+      );
+    }
+    
+    if (isManual) {
+      return (
+        <Badge variant="outline" className="ml-2 text-orange-600 border-orange-300">
+          <FileText className="w-3 h-3 mr-1" />
+          Manual
+        </Badge>
+      );
+    }
+    
+    return null;
   };
 
   const filteredRequests = refundRequests.filter(request => {
@@ -232,8 +291,9 @@ const RefundManagement: React.FC = () => {
   const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
 
   const RefundRequestDetailModal = () => {
-    const [action, setAction] = useState<'approve' | 'reject' | null>(null);
+    const [action, setAction] = useState<'approve' | 'reject' | 'partial' | 'manual' | null>(null);
     const [adminNotes, setAdminNotes] = useState('');
+    const [partialAmount, setPartialAmount] = useState<string>('');
 
     if (!selectedRequest) return null;
 
@@ -252,11 +312,21 @@ const RefundManagement: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">Status</Label>
-                <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
+                <div className="mt-1 flex items-center">
+                  {getStatusBadge(selectedRequest.status)}
+                  {getRefundTypeBadge(selectedRequest)}
+                </div>
               </div>
               <div>
                 <Label className="text-sm font-medium">Amount</Label>
-                <div className="mt-1 font-semibold">${selectedRequest.payment_amount.toFixed(2)}</div>
+                <div className="mt-1">
+                  <div className="font-semibold">${selectedRequest.payment_amount.toFixed(2)}</div>
+                  {selectedRequest.refund_type === 'partial' && selectedRequest.original_amount && (
+                    <div className="text-xs text-gray-500">
+                      Original: ${selectedRequest.original_amount.toFixed(2)}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -330,16 +400,57 @@ const RefundManagement: React.FC = () => {
               <>
                 <div className="border-t pt-4">
                   <Label className="text-sm font-medium">Action</Label>
-                  <Select value={action || ''} onValueChange={(value: 'approve' | 'reject') => setAction(value)}>
+                  <Select value={action || ''} onValueChange={(value: 'approve' | 'reject' | 'partial' | 'manual') => setAction(value)}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Select action..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="approve">Approve & Process Refund</SelectItem>
+                      <SelectItem value="approve">Approve & Process Full Refund</SelectItem>
+                      <SelectItem value="partial">Approve & Process Partial Refund</SelectItem>
+                      <SelectItem value="manual">Approve for Manual Processing</SelectItem>
                       <SelectItem value="reject">Reject Request</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Partial Amount Input */}
+                {action === 'partial' && (
+                  <div>
+                    <Label className="text-sm font-medium">Partial Refund Amount</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm text-gray-500">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={selectedRequest.payment_amount}
+                        value={partialAmount}
+                        onChange={(e) => setPartialAmount(e.target.value)}
+                        placeholder={`Max: ${selectedRequest.payment_amount.toFixed(2)}`}
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Original amount: ${selectedRequest.payment_amount.toFixed(2)}
+                    </p>
+                  </div>
+                )}
+
+                {/* Manual Processing Info */}
+                {action === 'manual' && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-yellow-800">Manual Processing</p>
+                        <p className="text-yellow-700 mt-1">
+                          This will approve the refund request but skip automatic PayPal processing. 
+                          You'll need to process the refund manually and then mark it as complete.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label className="text-sm font-medium">Admin Notes</Label>
@@ -394,14 +505,29 @@ const RefundManagement: React.FC = () => {
             </Button>
             {selectedRequest.status === 'pending' && action && (
               <Button
-                onClick={() => handleProcessRequest(selectedRequest.request_id, action, adminNotes)}
-                disabled={processing === selectedRequest.request_id}
-                variant={action === 'approve' ? 'default' : 'destructive'}
+                onClick={() => {
+                  // Validation for partial refund
+                  if (action === 'partial') {
+                    const amount = parseFloat(partialAmount);
+                    if (!amount || amount <= 0 || amount > selectedRequest.payment_amount) {
+                      alert(`Please enter a valid partial amount between $0.01 and $${selectedRequest.payment_amount.toFixed(2)}`);
+                      return;
+                    }
+                    handleProcessRequest(selectedRequest.request_id, action, adminNotes, amount);
+                  } else {
+                    handleProcessRequest(selectedRequest.request_id, action, adminNotes);
+                  }
+                }}
+                disabled={processing === selectedRequest.request_id || (action === 'partial' && !partialAmount)}
+                variant={action === 'reject' ? 'destructive' : 'default'}
               >
                 {processing === selectedRequest.request_id ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                 ) : null}
-                {action === 'approve' ? 'Approve & Process' : 'Reject Request'}
+                {action === 'approve' && 'Approve & Process Full Refund'}
+                {action === 'partial' && 'Approve & Process Partial Refund'}
+                {action === 'manual' && 'Approve for Manual Processing'}
+                {action === 'reject' && 'Reject Request'}
               </Button>
             )}
           </DialogFooter>
@@ -613,7 +739,12 @@ const RefundManagement: React.FC = () => {
                       <TableCell>{request.event_name}</TableCell>
                       <TableCell>{request.display_name}</TableCell>
                       <TableCell>${request.payment_amount.toFixed(2)}</TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          {getStatusBadge(request.status)}
+                          {getRefundTypeBadge(request)}
+                        </div>
+                      </TableCell>
                       <TableCell>{format(new Date(request.created_at), 'MMM d, yyyy')}</TableCell>
                       <TableCell>
                         <Button
