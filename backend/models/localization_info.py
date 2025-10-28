@@ -1,30 +1,48 @@
 from datetime import datetime
 from typing import Dict, List
 
+from pymongo import ReturnDocument
 from mongo.database import DB
 
 
 COLLECTION_NAME = "localization-info"
+_indexes_ensured = False
+
+
+async def _get_collection():
+    global _indexes_ensured
+    coll = DB.db[COLLECTION_NAME]
+    if not _indexes_ensured:
+        # Ensure a unique index on namespace to prevent duplicates under concurrency
+        await coll.create_index(
+            "namespace", unique=True, name="unique_namespace_index"
+        )
+        _indexes_ensured = True
+    return coll
 
 
 async def _ensure_entry(namespace: str) -> Dict[str, any]:
     if not namespace:
         raise ValueError("namespace is required")
 
-    existing = await DB.db[COLLECTION_NAME].find_one({"namespace": namespace})
-    if existing:
-        return existing
-
+    coll = await _get_collection()
     now = datetime.utcnow()
-    entry = {
-        "namespace": namespace,
-        "locales": ["en"],
-        "default_locale": "en",
-        "created_at": now,
-        "updated_at": now,
-    }
-    await DB.db[COLLECTION_NAME].insert_one(entry)
-    return entry
+    # Atomic upsert that returns the post-update document
+    doc = await coll.find_one_and_update(
+        {"namespace": namespace},
+        {
+            "$setOnInsert": {
+                "namespace": namespace,
+                "locales": ["en"],
+                "default_locale": "en",
+                "created_at": now,
+            },
+            "$set": {"updated_at": now},
+        },
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return doc
 
 
 async def get_localization_info(namespace: str) -> Dict[str, any]:
@@ -37,13 +55,14 @@ async def get_localization_info(namespace: str) -> Dict[str, any]:
             seen.append(code)
     if "en" not in seen:
         seen.insert(0, "en")
-        await DB.db[COLLECTION_NAME].update_one(
+
+    if seen != locales:
+        coll = await _get_collection()
+        await coll.update_one(
             {"namespace": namespace},
             {"$set": {"locales": seen, "updated_at": datetime.utcnow()}},
         )
-        entry["locales"] = seen
-    else:
-        entry["locales"] = seen
+    entry["locales"] = seen
     return entry
 
 
@@ -62,7 +81,8 @@ async def add_locale(namespace: str, code: str) -> bool:
     if code in locales:
         return True
 
-    result = await DB.db[COLLECTION_NAME].update_one(
+    coll = await _get_collection()
+    result = await coll.update_one(
         {"namespace": namespace},
         {
             "$setOnInsert": {
@@ -90,7 +110,8 @@ async def set_locales(namespace: str, locales: List[str]) -> bool:
         normalized.insert(0, "en")
 
     await _ensure_entry(namespace)
-    result = await DB.db[COLLECTION_NAME].update_one(
+    coll = await _get_collection()
+    result = await coll.update_one(
         {"namespace": namespace},
         {
             "$set": {
@@ -108,7 +129,8 @@ async def remove_locale(namespace: str, code: str) -> bool:
         return False
 
     await _ensure_entry(namespace)
-    result = await DB.db[COLLECTION_NAME].update_one(
+    coll = await _get_collection()
+    result = await coll.update_one(
         {"namespace": namespace},
         {
             "$pull": {"locales": code},
@@ -124,7 +146,8 @@ async def set_default_locale(namespace: str, code: str) -> bool:
     await _ensure_entry(namespace)
     await add_locale(namespace, code)
 
-    result = await DB.db[COLLECTION_NAME].update_one(
+    coll = await _get_collection()
+    result = await coll.update_one(
         {"namespace": namespace},
         {
             "$set": {

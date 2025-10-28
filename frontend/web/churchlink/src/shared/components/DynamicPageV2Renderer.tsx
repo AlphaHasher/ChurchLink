@@ -156,12 +156,21 @@ const renderNode = (
   switch (node.type) {
     case "text": {
       const directHtml = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale);
-      const baseHtml = (node as any).props?.html ?? (node as any).props?.text ?? "";
-      const html = (directHtml != null && String(directHtml).trim())
-        ? directHtml
-        : ((activeLocale && activeLocale !== "en" && baseHtml && localizeFn)
-            ? localizeFn(String(baseHtml))
-            : String(baseHtml));
+      const baseHtmlProp = (node as any).props?.html as string | undefined;
+      const baseTextProp = (node as any).props?.text as string | undefined;
+      const isNonDefaultLocale = !!activeLocale && !!(defaultLocale || 'en') && activeLocale !== (defaultLocale || 'en');
+
+      const hasDirectHtml = !!(directHtml != null && String(directHtml).trim());
+      const canUseBaseAuthoredHtml = !!(baseHtmlProp && !isNonDefaultLocale);
+      const shouldInjectHtml = hasDirectHtml || canUseBaseAuthoredHtml;
+      const htmlToInject = hasDirectHtml ? String(directHtml) : String(baseHtmlProp ?? "");
+
+      const baseTextSource = (baseTextProp != null && String(baseTextProp).trim())
+        ? String(baseTextProp)
+        : (typeof baseHtmlProp === 'string' ? String(baseHtmlProp).replace(/<[^>]*>/g, '') : "");
+      const textToRender = (isNonDefaultLocale && baseTextSource && localizeFn)
+        ? localizeFn(String(baseTextSource))
+        : String(baseTextSource);
       const align = (node as any).props?.align ?? "left";
       const variant = (node as any).props?.variant ?? "p";
       const paddingY = nodeStyleRaw?.paddingY ?? 0;
@@ -206,22 +215,40 @@ const renderNode = (
 
       return (
         <>
-          <Tag
-            className={cn(
-              align === "center" && "text-center",
-              align === "right" && "text-right",
-              isBold && "font-bold",
-              isItalic && "italic",
-              isUnderline && "underline",
-              (node as any).style?.className,
-              !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
-              "inline-block max-w-full w-fit align-top break-words",
-              highlightClass(node, highlightNodeId)
-            )}
-            // data-node-id used by ScopedStyle; disabled
-            style={inlineStyles}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          {shouldInjectHtml ? (
+            <Tag
+              className={cn(
+                align === "center" && "text-center",
+                align === "right" && "text-right",
+                isBold && "font-bold",
+                isItalic && "italic",
+                isUnderline && "underline",
+                (node as any).style?.className,
+                !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+                "inline-block max-w-full w-fit align-top break-words",
+                highlightClass(node, highlightNodeId)
+              )}
+              style={inlineStyles}
+              dangerouslySetInnerHTML={{ __html: htmlToInject }}
+            />
+          ) : (
+            <Tag
+              className={cn(
+                align === "center" && "text-center",
+                align === "right" && "text-right",
+                isBold && "font-bold",
+                isItalic && "italic",
+                isUnderline && "underline",
+                (node as any).style?.className,
+                !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+                "inline-block max-w-full w-fit align-top break-words",
+                highlightClass(node, highlightNodeId)
+              )}
+              style={inlineStyles}
+            >
+              {textToRender}
+            </Tag>
+          )}
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );

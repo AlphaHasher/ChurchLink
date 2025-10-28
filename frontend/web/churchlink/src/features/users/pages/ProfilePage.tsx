@@ -127,23 +127,23 @@ const ProfilePage: React.FC = () => {
                             <TabsList className="bg-neutral-300 p-4 rounded-xl gap-4 flex-wrap md:flex-nowrap">
                                 <TabsTrigger
                                     value="profile"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all.duration-300 ease-out rounded-lg group flex items-center gap-3"
+                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <UserCog className="h-5 w-5 transition-transform.duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    <UserCog className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
                                     {localize("Profile")}
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="membership"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all.duration-300 ease-out rounded-lg group flex items-center gap-3"
+                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <IdCard className="h-5 w-5 transition-transform.duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    <IdCard className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
                                     {localize("Membership")}
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="events"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font.bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all.duration-300 ease-out rounded-lg group flex items-center gap-3"
+                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <CalendarDays className="h-5 w-5 transition-transform.duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    <CalendarDays className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
                                     {localize("My Events")}
                                 </TabsTrigger>
                             </TabsList>

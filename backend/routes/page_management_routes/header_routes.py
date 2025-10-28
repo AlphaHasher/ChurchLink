@@ -89,7 +89,10 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
         return False, {}, msg
 
     titles = link.get("titles")
-    if not isinstance(titles, dict) or not titles.get("en"):
+    if not isinstance(titles, dict):
+        return False, {}, "titles must be an object with at least an 'en' label"
+    titles_en = titles.get("en")
+    if not (isinstance(titles_en, str) and titles_en.strip()):
         return False, {}, "titles must be an object with at least an 'en' label"
     
     # Check if this is a hardcoded URL or slug-based URL
@@ -135,7 +138,10 @@ def validate_header_dropdown(dd: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], 
     if not ok:
         return False, {}, msg
     titles = dd.get("titles")
-    if not isinstance(titles, dict) or not titles.get("en"):
+    if not isinstance(titles, dict):
+        return False, {}, "titles must be an object with at least an 'en' label"
+    titles_en = titles.get("en")
+    if not (isinstance(titles_en, str) and titles_en.strip()):
         return False, {}, "titles must be an object with at least an 'en' label"
 
     items = dd.get("items") or []

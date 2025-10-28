@@ -123,12 +123,28 @@ async def lifespan(app: FastAPI):
         await DatabaseManager.init_db()
         logger.info("MongoDB connected")
 
-        # Run one-time migration to update header/footer items have titles map
+        # Run one-time migration to update header/footer items titles
         try:
+            from datetime import datetime
             from scripts.header_footer_titles_migration import run_header_footer_titles_migration
-            logger.info("Running header/footer titles migration (non-blocking errors)")
-            await run_header_footer_titles_migration()
-            logger.info("Header/footer titles migration completed")
+
+            migrations_coll = DatabaseManager.db["migrations"]
+            existing = await migrations_coll.find_one({
+                "name": "header_footer_titles",
+                "completed_at": {"$exists": True}
+            })
+
+            if existing:
+                logger.info("Skipping header/footer titles migration; already completed previously")
+            else:
+                logger.info("Running header/footer titles migration (non-blocking errors)")
+                await run_header_footer_titles_migration()
+                await migrations_coll.update_one(
+                    {"name": "header_footer_titles"},
+                    {"$set": {"name": "header_footer_titles", "completed_at": datetime.utcnow().isoformat()}},
+                    upsert=True,
+                )
+                logger.info("Header/footer titles migration completed and recorded")
         except Exception as e:
             logger.warning(f"Header/footer titles migration skipped due to error: {e}")
 

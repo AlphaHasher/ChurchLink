@@ -1,18 +1,18 @@
 # backend/models/footer.py
 from datetime import datetime
 from typing import List, Optional, Dict
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from mongo.database import DB
 
 class FooterSubItem(BaseModel):
     title: str
-    titles: Dict[str, str]
+    titles: Dict[str, str] = Field(default_factory=dict)
     url: Optional[str]
     visible: Optional[bool] = True
 
 class FooterItem(BaseModel):
     title: str
-    titles: Dict[str, str]
+    titles: Dict[str, str] = Field(default_factory=dict)
     items: List[FooterSubItem]
     visible: Optional[bool] = True
 
