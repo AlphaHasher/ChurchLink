@@ -404,23 +404,13 @@ class DeepLinkingService {
 
   /// Handle Bible plan notification navigation
   static Future<void> _handleBiblePlanNavigation(Map<String, dynamic> data) async {
+    debugPrint('_handleBiblePlanNavigation called with: $data');
     try {
       final context = navigatorKey.currentContext;
-      if (context == null) return;
-
-      await Future.delayed(const Duration(milliseconds: 200));
-      
-      // Extract plan data from notification
-      final planId = data['plan_id'];
-      final day = data['day'];
-      
-      debugPrint('Bible plan notification - planId: $planId, day: $day');
-      
-      // Navigate to Bible page first, then to Bible plans
-      // This ensures proper navigation stack
-      await navigatorKey.currentState?.pushNamed('/bible');
-      
-      // Small delay to ensure Bible page is loaded
+      if (context == null) {
+      debugPrint('Navigator context is null');
+      return;
+    }
       await Future.delayed(const Duration(milliseconds: 300));
       
       // Now navigate to the Bible plans page
@@ -430,6 +420,7 @@ class DeepLinkingService {
             builder: (context) => const MyBiblePlansPage(),
           ),
         );
+        debugPrint('Navigated to MyBiblePlansPage');
       }
     } catch (e) {
       debugPrint('Error navigating to Bible plans: $e');
