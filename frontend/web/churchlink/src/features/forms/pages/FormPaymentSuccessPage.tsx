@@ -20,11 +20,14 @@ export default function FormPaymentSuccessPage() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your payment...');
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  const paymentProcessedRef = useRef<boolean>(false);
+  const paymentProcessedRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Create a unique key for this payment attempt
+    const paymentKey = token && payerId ? `${token}:${payerId}` : null;
+    
     // Prevent multiple API calls for the same payment
-    if (paymentProcessedRef.current) {
+    if (!paymentKey || paymentProcessedRef.current === paymentKey) {
       return;
     }
 
@@ -43,7 +46,7 @@ export default function FormPaymentSuccessPage() {
       }
 
       try {
-        paymentProcessedRef.current = true; // Mark as processing to prevent duplicate calls
+        paymentProcessedRef.current = paymentKey; // Mark as processing to prevent duplicate calls
         
         // Get saved form data
         const savedFormData = localStorage.getItem(`form_data_${slug}`);
@@ -85,7 +88,7 @@ export default function FormPaymentSuccessPage() {
       } catch (error) {
         console.error('Payment completion error:', error);
         setStatus('error');
-        paymentProcessedRef.current = false; // Reset flag to allow retry if needed
+        paymentProcessedRef.current = null; // Reset flag to allow retry if needed
         setMessage(
           error instanceof Error 
             ? `Payment completion failed: ${error.message}` 

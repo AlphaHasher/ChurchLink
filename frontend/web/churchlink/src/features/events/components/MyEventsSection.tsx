@@ -394,7 +394,7 @@ export function MyEventsSection() {
                     {/* Event date information */}
                     {cancelConfirmation.eventRef.event?.date && (
                       <div className="text-sm text-gray-600">
-                        Event Date: {new Date(cancelConfirmation.eventRef.event.date).toLocaleDateString('en-US', {
+                        Event Date: {new Date(cancelConfirmation.eventRef.event.date).toLocaleString('en-US', {
                           weekday: 'long',
                           year: 'numeric',
                           month: 'long',

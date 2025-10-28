@@ -22,6 +22,9 @@ PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+# HTTP timeout configuration (connect_timeout, read_timeout)
+DEFAULT_HTTP_TIMEOUT = (5, 20)
+
 def get_paypal_base_url():
     """Get PayPal base URL based on mode"""
     if PAYPAL_MODE == "live":
@@ -47,7 +50,8 @@ def get_paypal_access_token():
             url,
             headers=headers,
             data=data,
-            auth=(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
+            auth=(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET),
+            timeout=DEFAULT_HTTP_TIMEOUT
         )
         
         if response.status_code == 200:
@@ -420,8 +424,8 @@ async def create_order(request: Request):
                 }
             ],
             "redirect_urls": {
-                "cancel_url": donation.get("cancel_url", f"{settings.FRONTEND_URL}/donation/cancel"),
-                "return_url": donation.get("return_url", f"{settings.FRONTEND_URL}/donation/success"),
+                "cancel_url": donation.get("cancel_url", f"{FRONTEND_URL}/donation/cancel"),
+                "return_url": donation.get("return_url", f"{FRONTEND_URL}/donation/success"),
             }
         })
 
@@ -1007,7 +1011,8 @@ async def create_subscription_helper(request):
             response = requests.patch(
                 f"{get_paypal_base_url()}/v1/payments/billing-plans/{billing_plan.id}",
                 json=patch_data,
-                headers=headers
+                headers=headers,
+                timeout=DEFAULT_HTTP_TIMEOUT
             )
             
             if response.status_code not in [200, 204]:
@@ -1485,7 +1490,7 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
                     'Authorization': f'Bearer {access_token}',
                 }
                 
-                payment_response = requests.get(payment_url, headers=headers)
+                payment_response = requests.get(payment_url, headers=headers, timeout=DEFAULT_HTTP_TIMEOUT)
                 
                 if payment_response.status_code == 200:
                     payment_data = payment_response.json()
@@ -1496,19 +1501,19 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
                         for resource in related_resources:
                             if "sale" in resource:
                                 sale_id = resource["sale"]["id"]
-                                logging.info(f"Found Sale ID {sale_id} for Payment ID {transaction_id}")
+                                logging.info("Found Sale ID %s for Payment ID %s", sale_id, transaction_id)
                                 break
                         
                         if sale_id == transaction_id:
-                            logging.error(f"Could not find Sale ID for Payment ID {transaction_id}")
+                            logging.error("Could not find Sale ID for Payment ID %s", transaction_id)
                             return {"success": False, "error": "Could not find Sale ID for the given Payment ID"}
                 else:
                     error_msg = f"Failed to retrieve payment details for {transaction_id}: HTTP {payment_response.status_code}"
-                    logging.error(f"{error_msg}. PayPal mode: {PAYPAL_MODE}. Response: {payment_response.text if payment_response.content else 'No response body'}")
+                    logging.error("%s. PayPal mode: %s. Response: %s", error_msg, PAYPAL_MODE, payment_response.text if payment_response.content else 'No response body')
                     
                     # Enhanced sandbox handling
                     if payment_response.status_code == 404 and PAYPAL_MODE == "sandbox":
-                        logging.warning(f"PayPal sandbox transaction {transaction_id} not found - likely expired. Using fallback simulation.")
+                        logging.warning("PayPal sandbox transaction %s not found - likely expired. Using fallback simulation.", transaction_id)
                         
                         # Return a simulated response for expired sandbox transactions
                         simulated_refund_id = f"REFUND-EXPIRED-{transaction_id[-8:]}"
@@ -1535,13 +1540,13 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
                     
                     # If we can't find the Payment ID, maybe it's already a Sale ID - try to use it directly
                     if payment_response.status_code == 404:
-                        logging.info(f"Payment ID {transaction_id} not found, attempting to use as Sale ID directly")
+                        logging.info("Payment ID %s not found, attempting to use as Sale ID directly", transaction_id)
                         sale_id = transaction_id  # Try using the original ID as Sale ID
                     else:
                         return {"success": False, "error": f"Failed to retrieve payment details: HTTP {payment_response.status_code}. PayPal mode: {PAYPAL_MODE}"}
                     
             except Exception as e:
-                logging.error(f"Error retrieving Sale ID for Payment ID {transaction_id}: {e}")
+                logging.exception("Error retrieving Sale ID for Payment ID %s", transaction_id)
                 return {"success": False, "error": f"Error retrieving Sale ID: {str(e)}"}
 
         # PayPal refund API endpoint (using Sale ID)
@@ -1555,7 +1560,8 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
         # Prepare refund data
         # PayPal reason field has a limit of approximately 100-127 characters
         truncated_reason = reason[:100] if len(reason) > 100 else reason
-        logging.info(f"PayPal refund for Sale ID {sale_id} (from transaction {transaction_id}), reason (length {len(reason)}): '{reason}' -> truncated (length {len(truncated_reason)}): '{truncated_reason}'")
+        logging.info("PayPal refund for Sale ID %s (from transaction %s), reason (length %d): '%s' -> truncated (length %d): '%s'", 
+                    sale_id, transaction_id, len(reason), reason, len(truncated_reason), truncated_reason)
         
         refund_data = {
             "amount": {
@@ -1566,7 +1572,7 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
         }
         
         # Make refund request to PayPal
-        response = requests.post(refund_url, json=refund_data, headers=headers)
+        response = requests.post(refund_url, json=refund_data, headers=headers, timeout=DEFAULT_HTTP_TIMEOUT)
         
         if response.status_code == 201:  # PayPal returns 201 for successful refund creation
             refund_response = response.json()
@@ -1603,7 +1609,7 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
             try:
                 if response.content:
                     error_response = response.json()
-            except:
+            except Exception:
                 error_response = {"message": "Invalid JSON response"}
             
             error_message = error_response.get("message", f"HTTP {response.status_code} error")
@@ -1649,7 +1655,8 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
                 if detail_messages:
                     error_message += f". Details: {'; '.join(detail_messages)}"
             
-            logging.error(f"PayPal refund failed for transaction {transaction_id}. Status: {response.status_code}. Error: {error_message}. Full response: {error_response}")
+            logging.error("PayPal refund failed for transaction %s. Status: %d. Error: %s. Full response: %s", 
+                         transaction_id, response.status_code, error_message, error_response)
             
             # Enhanced error message for sandbox mode
             if PAYPAL_MODE == "sandbox":
@@ -1671,20 +1678,20 @@ async def process_paypal_refund(transaction_id: str, refund_amount: float, reaso
             }
             
     except requests.RequestException as e:
-        error_message = f"Network error during refund: {str(e)}"
+        logging.exception("Network error during refund for %s", transaction_id)
         payment_audit_logger.log_paypal_refund_failed(
             transaction_id=transaction_id,
-            error_message=error_message
+            error_message=str(e)
         )
-        return {"success": False, "error": error_message}
+        return {"success": False, "error": str(e)}
         
     except Exception as e:
-        error_message = f"Unexpected error during refund: {str(e)}"
+        logging.exception("Unexpected error during refund for %s", transaction_id)
         payment_audit_logger.log_paypal_refund_failed(
             transaction_id=transaction_id,
-            error_message=error_message
+            error_message=str(e)
         )
-        return {"success": False, "error": error_message}
+        return {"success": False, "error": str(e)}
 
 async def get_paypal_refund_details(refund_id: str) -> Dict[str, Any]:
     """
@@ -1708,7 +1715,7 @@ async def get_paypal_refund_details(refund_id: str) -> Dict[str, Any]:
             'Authorization': f'Bearer {access_token}',
         }
         
-        response = requests.get(refund_url, headers=headers)
+        response = requests.get(refund_url, headers=headers, timeout=DEFAULT_HTTP_TIMEOUT)
         
         if response.status_code == 200:
             refund_data = response.json()

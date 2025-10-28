@@ -1171,29 +1171,7 @@ class EventPaymentHelper:
                         raise Exception(f"Failed to create bulk transaction structure: {bulk_result.get('error')}")
                 
                 # Transform registrations to expected format for response
-                total_registrations = []
-                for reg in successful_registrations:
-                    # Try to get name from different possible fields
-                    full_name = (
-                        reg.get("name") or 
-                        reg.get("full_name") or 
-                        f"{reg.get('first_name', '')} {reg.get('last_name', '')}".strip() or
-                        "Unknown"
-                    )
-                    
-                    # Parse the full name into first and last name
-                    name_parts = full_name.split(" ", 1)
-                    first_name = name_parts[0] if len(name_parts) > 0 else ""
-                    last_name = name_parts[1] if len(name_parts) > 1 else ""
-                    
-                    transformed_reg = {
-                        "first_name": first_name,
-                        "last_name": last_name, 
-                        "full_name": full_name,
-                        "email": reg.get("email", ""),
-                        "payment_amount": float(reg.get("payment_amount_per_person", 0)),
-                        "donation_amount": float(reg.get("donation_amount", 0))
-                    }
+                total_registrations = self._extract_person_info_from_registrations(successful_registrations)
                 
                 # Update the bulk registration status to completed
                 await DB.update_document(

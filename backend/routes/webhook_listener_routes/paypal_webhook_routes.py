@@ -6,6 +6,8 @@ from mongo.database import DB
 import logging
 import json
 from models.event import get_event_by_id
+from models.event import update_attendee_payment_status
+from bson import ObjectId
 
 paypal_webhook_router = APIRouter(prefix="/paypal", tags=["paypal_webhook"])
 
@@ -119,9 +121,7 @@ async def paypal_webhook(request: Request):
                         
                         # Update Event attendees' payment status after successful payment
                         try:
-                            from models.event import update_attendee_payment_status
-                            from bson import ObjectId
-                            
+                        
                             # Get registrations from the session to update their payment status
                             registrations = session.get("registrations", [])
                             if registrations:
@@ -226,9 +226,6 @@ async def paypal_webhook(request: Request):
                     
                     # Also update Event attendees' payment status for existing transactions
                     try:
-                        from models.event import update_attendee_payment_status
-                        from bson import ObjectId
-                        
                         # Check if this is an event registration by looking for session data
                         payment_session = await DB.db["payment_sessions"].find_one({"payment_id": parent_payment})
                         bulk_registration = await DB.db["bulk_registrations"].find_one({"payment_id": parent_payment})
@@ -303,15 +300,88 @@ async def paypal_webhook(request: Request):
                     }
         
         elif event_type == "PAYMENT.SALE.REFUNDED":
-            # Handle refunds
+            # Handle refunds - mirror the COMPLETED branch logic for attendee status updates
             await Transaction.update_transaction_status(parent_payment, PaymentStatus.REFUNDED)
             logging.info(f"🔄 Webhook updated transaction {parent_payment} status to {PaymentStatus.REFUNDED}")
+            
+            # Update Event attendees' payment status for refunded transactions
+            try:
+                # Check if this is an event registration by looking for session data
+                payment_session = await DB.db["payment_sessions"].find_one({"payment_id": parent_payment})
+                bulk_registration = await DB.db["bulk_registrations"].find_one({"payment_id": parent_payment})
+                
+                if payment_session or bulk_registration:
+                    session = payment_session or bulk_registration
+                    event_id = session.get("event_id")
+                    user_uid = session.get("user_uid")
+                    registrations = session.get("registrations", [])
+                    form_slug = session.get("form_slug")
+                    
+                    if event_id and user_uid and registrations:
+                        # Handle event registration payment status updates to REFUNDED
+                        updated_count = 0
+                        for registration in registrations:
+                            person_id = registration.get("person_id")
+                            
+                            # Generate attendee key - try both series and occurrence scopes
+                            person_object_id = ObjectId(person_id) if person_id else None
+                            person_id_str = str(person_object_id) if person_object_id else 'self'
+                            
+                            # Try series scope first (default registration scope)
+                            attendee_key_series = f"{user_uid}|{person_id_str}|rsvp|series"
+                            update_success = await update_attendee_payment_status(
+                                event_id=event_id,
+                                attendee_key=attendee_key_series,
+                                payment_status=PaymentStatus.REFUNDED,
+                                transaction_id=parent_payment
+                            )
+                            
+                            if not update_success:
+                                # Try occurrence scope as fallback
+                                attendee_key_occurrence = f"{user_uid}|{person_id_str}|rsvp|occurrence"
+                                update_success = await update_attendee_payment_status(
+                                    event_id=event_id,
+                                    attendee_key=attendee_key_occurrence,
+                                    payment_status=PaymentStatus.REFUNDED,
+                                    transaction_id=parent_payment
+                                )
+                                logging.info(f"🔄 Refund webhook used occurrence scope for person {person_id}")
+                            else:
+                                logging.info(f"🔄 Refund webhook used series scope for person {person_id}")
+                            
+                            if update_success:
+                                updated_count += 1
+                                logging.info(f"💸 Refund webhook updated attendee payment status to REFUNDED for person {person_id}")
+                            else:
+                                logging.error(f"❌ Refund webhook failed to update attendee payment status for person {person_id} (tried both scopes)")
+                        
+                        logging.info(f"✅ Refund webhook updated {updated_count}/{len(registrations)} attendee payment statuses to REFUNDED")
+                        
+                        # TODO: Add additional refund side effects here as needed:
+                        # - Release event seats/capacity if applicable
+                        # - Send refund notification emails
+                        # - Update attendee status (e.g., remove from event, mark as refunded)
+                        # - Record refund metadata for audit trails
+                        
+                    elif form_slug:
+                        # Handle form payment refund - log the refund
+                        logging.info(f"💸 Refund webhook processed form payment refund - Form: {form_slug}, User: {user_uid}")
+                        # TODO: Add form-specific refund processing if needed
+                        
+                else:
+                    # No session found - general payment refund
+                    logging.info(f"💸 Refund webhook processed general payment refund - no session data found")
+                    
+            except Exception as payment_update_error:
+                logging.error(f"❌ Refund webhook error updating payment status: {payment_update_error}")
+                # Don't fail the webhook if payment status update fails
             
             return {
                 "success": True, 
                 "action": "refund_processed",
                 "transaction_id": parent_payment,
-                "sale_id": sale_id
+                "sale_id": sale_id,
+                "amount": amount
             }
         
         elif event_type == "PAYMENT.SALE.DENIED":

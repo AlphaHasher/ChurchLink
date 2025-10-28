@@ -10,6 +10,7 @@ import {
   CardHeader,
 } from '@/shared/components/ui/card';
 import { GroupedEvent } from '../types/myEvents';
+import { groupRegistrantsByPaymentStatus } from '../utils/paymentStatusUtils';
 
 interface MyEventCardProps {
   groupedEvent: GroupedEvent;
@@ -87,63 +88,32 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
 
                   // Paid events - show payment status summary
                   const attendees = event.attendees as any[] | undefined;
-                  const resolveStatus = (r: any): string | undefined => {
-                    // First check if registrant already has payment status
-                    if (r.computed_payment_status) return r.computed_payment_status;
-                    if (r.payment_status) return r.payment_status;
-                    
-                    // Then look up in event attendees array (which has enriched data)
-                    if (!Array.isArray(attendees)) return undefined;
-                    
-                    const match = attendees.find(a => {
-                      try {
-                        // Match by key (most reliable)
-                        if (r.key && a?.key && String(a.key) === String(r.key)) return true;
-                        // Match by person_id for family members
-                        if (r.person_id && a?.person_id && String(a.person_id) === String(r.person_id)) return true;
-                        // Match user registrations (no person_id)
-                        if (!r.person_id && !a?.person_id && a?.user_uid === (r as any).user_uid) return true;
-                      } catch (e) {}
-                      return false;
-                    });
-                    
-                    // Return computed status from enriched attendee data
-                    return match?.computed_payment_status || match?.payment_status;
-                  };
-
-                  const pendingCount = rsvpRegistrants.filter(r => {
-                    const s = resolveStatus(r);
-                    // Count as pending if no status or status indicates payment needed
-                    return !s || s === 'pending' || s === 'awaiting_payment' || s === 'pending_door';
-                  }).length;
-
-                  const refundRequestedCount = rsvpRegistrants.filter(r => {
-                    const s = resolveStatus(r);
-                    return s === 'refund_requested';
-                  }).length;
-
-                  const refundedCount = rsvpRegistrants.filter(r => {
-                    const s = resolveStatus(r);
-                    return s === 'refunded';
-                  }).length;
+                  const statusBuckets = groupRegistrantsByPaymentStatus(rsvpRegistrants, attendees);
 
                   // Prioritize refund statuses in display
-                  if (refundRequestedCount > 0) {
-                    if (refundRequestedCount === totalRegistered) {
+                  if (statusBuckets.refund_requested > 0) {
+                    if (statusBuckets.refund_requested === totalRegistered) {
                       return `${totalRegistered} registered - refund requested`;
                     } else {
-                      return `${totalRegistered} registered - ${refundRequestedCount} refund requested`;
+                      return `${totalRegistered} registered - ${statusBuckets.refund_requested} refund requested`;
                     }
-                  } else if (refundedCount > 0) {
-                    if (refundedCount === totalRegistered) {
+                  } else if (statusBuckets.refunded > 0 || statusBuckets.partially_refunded > 0) {
+                    const totalRefunded = statusBuckets.refunded + statusBuckets.partially_refunded;
+                    if (totalRefunded === totalRegistered) {
                       return `${totalRegistered} registered - refunded`;
                     } else {
-                      return `${totalRegistered} registered - ${refundedCount} refunded`;
+                      return `${totalRegistered} registered - ${totalRefunded} refunded`;
                     }
-                  } else if (pendingCount === 0) {
+                  } else if (statusBuckets.failed > 0) {
+                    if (statusBuckets.failed === totalRegistered) {
+                      return `${totalRegistered} registered - payment failed`;
+                    } else {
+                      return `${totalRegistered} registered - ${statusBuckets.failed} payment failed`;
+                    }
+                  } else if (statusBuckets.pending === 0) {
                     return `${totalRegistered} registered - all paid`;
                   } else {
-                    return `${totalRegistered} registered - ${pendingCount} required payment`;
+                    return `${totalRegistered} registered - ${statusBuckets.pending} required payment`;
                   }
                 } else {
                   // Show general event registration count if user not registered

@@ -1,7 +1,7 @@
 from bson import ObjectId
 from typing import Any, Dict, List, Union
 import uuid
-import datetime
+from datetime import datetime, timezone
 
 
 def serialize_objectid(obj: Any) -> Any:
@@ -35,7 +35,7 @@ def generate_unique_id(prefix: str = "") -> str:
     Returns:
         Unique string ID in format: PREFIX_YYYYMMDD_HHMMSS_UUID4
     """
-    timestamp = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     unique_part = str(uuid.uuid4())[:8].upper()  # First 8 chars of UUID4
     
     if prefix:
