@@ -13,7 +13,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final String _apiBaseUrl = dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8000';
+final _apiBaseUrl = dotenv.get('BACKEND_URL');
 
 // Class for Pages so they can be sorted
 class _PageSpec {
