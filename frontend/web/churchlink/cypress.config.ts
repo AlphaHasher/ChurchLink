@@ -8,5 +8,7 @@ export default defineConfig({
     video: true,
     retries: { runMode: 2, openMode: 0 }, // mild flake control
     screenshotOnRunFailure: true,
+    viewportWidth: 1280, // Set viewport to "lg" breakpoint for Tailwind (1024px+)
+    viewportHeight: 720,
   },
 });
