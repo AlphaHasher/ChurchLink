@@ -49,8 +49,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     const searchInputRef = useRef<HTMLInputElement | null>(null);
     const filteredLanguages = useMemo(() => {
         const q = langQuery.trim().toLowerCase();
-        const allowed = new Set<string>((siteLocales && siteLocales.length ? siteLocales : ["en"]).map((c) => String(c)));
-        const base = languages.filter((l) => allowed.has(l.code));
+        const prioritized = new Set<string>((siteLocales && siteLocales.length ? siteLocales : ["en"]).map((c) => String(c)));
+        const base = languages.slice().sort((a, b) => {
+            const aPri = prioritized.has(a.code) ? 0 : 1;
+            const bPri = prioritized.has(b.code) ? 0 : 1;
+            if (aPri !== bPri) return aPri - bPri;
+            return a.name.localeCompare(b.name);
+        });
         if (!q) return base;
         return base.filter(l => l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q));
     }, [languages, langQuery, siteLocales]);
