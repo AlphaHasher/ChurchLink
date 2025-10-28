@@ -53,7 +53,7 @@ class SermonCard extends StatelessWidget {
                                   size: 16,
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
+                                  ).colorScheme.onSurface.withAlpha(60),
                                 ),
                                 const SizedBox(width: 6),
                                 Expanded(
@@ -64,7 +64,7 @@ class SermonCard extends StatelessWidget {
                                     ).textTheme.bodyMedium?.copyWith(
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.onSurface.withOpacity(0.7),
+                                      ).colorScheme.onSurface.withAlpha(70),
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -80,7 +80,7 @@ class SermonCard extends StatelessWidget {
                                   size: 16,
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
+                                  ).colorScheme.onSurface.withAlpha(60),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -90,7 +90,7 @@ class SermonCard extends StatelessWidget {
                                   ).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(
                                       context,
-                                    ).colorScheme.onSurface.withOpacity(0.7),
+                                    ).colorScheme.onSurface.withAlpha(70),
                                   ),
                                 ),
                               ],
@@ -111,7 +111,7 @@ class SermonCard extends StatelessWidget {
                                   ? Colors.amber
                                   : Theme.of(
                                     context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
+                                  ).colorScheme.onSurface.withAlpha(60),
                         ),
                       ),
                     ],
@@ -123,7 +123,7 @@ class SermonCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.8),
+                        ).colorScheme.onSurface.withAlpha(80),
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -134,7 +134,7 @@ class SermonCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.8),
+                        ).colorScheme.onSurface.withAlpha(80),
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -172,14 +172,14 @@ class SermonCard extends StatelessWidget {
     return Container(
       height: 160,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.onSurface.withAlpha(10),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Center(
         child: Icon(
           Icons.play_circle_outline,
           size: 56,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(40),
         ),
       ),
     );

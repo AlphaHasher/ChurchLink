@@ -1,5 +1,5 @@
-import '../helpers/api_client.dart';
-import '../models/event_registration_summary.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/event_registration_summary.dart';
 
 class EventRegistrationService {
   /// Register user or family member for an event
@@ -252,3 +252,4 @@ class EventRegistrationService {
     }
   }
 }
+

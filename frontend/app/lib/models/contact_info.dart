@@ -22,7 +22,7 @@ class AddressSchema {
   final String? city;
   final String? state;
   final String? country;
-  final String? postal_code;
+  final String? postalCode;
 
   const AddressSchema({
     required this.address,
@@ -30,7 +30,7 @@ class AddressSchema {
     required this.city,
     required this.state,
     required this.country,
-    required this.postal_code,
+    required this.postalCode,
   });
 
   factory AddressSchema.fromJson(Map<String, dynamic> j) {
@@ -40,7 +40,7 @@ class AddressSchema {
       city: (j['city'] ?? '').toString(),
       state: (j['state'] ?? '').toString(),
       country: (j['country'] ?? '').toString(),
-      postal_code: (j['postal_code'] ?? '').toString(),
+      postalCode: (j['postal_code'] ?? '').toString(),
     );
   }
 
@@ -51,7 +51,7 @@ class AddressSchema {
       'city': city,
       'state': state,
       'country': country,
-      'postal_code': postal_code,
+      'postal_code': postalCode,
     };
   }
 }

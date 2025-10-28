@@ -76,7 +76,12 @@ const AdminDashboardSideBar = () => {
     { title: "Ministries", url: "/admin/ministries", icon: Church },
     { title: "Web Builder", icon: FileText, children: webBuilderChildren },
     { title: "Media Library", url: "/admin/media-library", icon: Image },
-    { title: "Mobile UI", url: "/admin/mobile-ui-tab", icon: Smartphone },
+    {
+      title: "Mobile UI", icon: Smartphone, children: [
+        { title: "Tabs", url: "/admin/mobile-ui-tab" },
+        { title: "Pages", url: "/admin/mobile-ui-pages" },
+      ]
+    },
     { title: "Events", url: "/admin/events", icon: CalendarFold },
     {
       title: "Forms", icon: ClipboardList, children: [
