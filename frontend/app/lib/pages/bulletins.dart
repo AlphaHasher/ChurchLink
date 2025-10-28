@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/bulletin.dart';
-import '../models/service_bulletin.dart';
-import '../providers/bulletins_provider.dart';
-import '../widgets/bulletin_card.dart';
-import '../widgets/bulletin_detail_sheet.dart';
-import '../widgets/bulletin_filter_sheet.dart';
-import '../widgets/service_card.dart';
-import 'service_detail.dart';
+import 'package:app/models/bulletin.dart';
+import 'package:app/models/service_bulletin.dart';
+import 'package:app/providers/bulletins_provider.dart';
+import 'package:app/widgets/bulletin_card.dart';
+import 'package:app/widgets/bulletin_detail_sheet.dart';
+import 'package:app/widgets/bulletin_filter_sheet.dart';
+import 'package:app/widgets/service_card.dart';
+import 'package:app/pages/service_detail.dart';
 
 class BulletinsPage extends StatefulWidget {
   const BulletinsPage({super.key});
@@ -197,7 +197,7 @@ class _ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.error.withOpacity(0.1),
+      color: theme.colorScheme.error.withValues(alpha: 0.1),
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
         title: Text(message, style: TextStyle(color: theme.colorScheme.error)),
@@ -239,3 +239,5 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+
+

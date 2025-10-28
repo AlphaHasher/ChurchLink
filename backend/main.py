@@ -43,6 +43,7 @@ from routes.common_routes.user_routes import user_mod_router, user_private_route
 from routes.common_routes.membership_routes import member_private_router, member_mod_router
 from routes.common_routes.youtube_routes import public_youtube_router
 from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
+from routes.common_routes.dashboard_app_config_routes import dashboard_app_config_public_router, dashboard_app_config_private_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
@@ -74,6 +75,22 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+def validate_e2e_mode():
+    if not E2E_TEST_MODE:
+        return
+    logger.warning("E2E_TEST_MODE enabled")
+    
+    # This is a big no-no if test mode + production
+    if ENVIRONMENT == "production":
+        logger.critical("FATAL: E2E_TEST_MODE enabled in production - authentication bypassed!")
+        logger.critical("Set E2E_TEST_MODE=false and restart immediately.")
+        sys.exit(1)
+    
+validate_e2e_mode()
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
@@ -230,6 +247,7 @@ public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
 public_router.include_router(public_notification_router)
 public_router.include_router(app_config_public_router)
+public_router.include_router(dashboard_app_config_public_router)
 public_router.include_router(paypal_public_router)
 public_router.include_router(form_payment_router)
 public_router.include_router(paypal_subscription_webhook_router)
@@ -271,6 +289,7 @@ mod_router.include_router(permissions_view_router)
 mod_router.include_router(private_notification_router)
 mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
+mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
 mod_router.include_router(mod_ministry_router)

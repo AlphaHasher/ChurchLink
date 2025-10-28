@@ -151,9 +151,6 @@ class _SermonsPageState extends State<SermonsPage> {
       ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update favorites: $error')),
-      );
     }
   }
 }
@@ -168,7 +165,7 @@ class _ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.error.withOpacity(0.1),
+      color: theme.colorScheme.error.withValues(alpha: 0.1),
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
         title: Text(message, style: TextStyle(color: theme.colorScheme.error)),
@@ -210,3 +207,4 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+

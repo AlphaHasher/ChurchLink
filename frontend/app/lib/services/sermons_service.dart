@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 
-import '../helpers/api_client.dart';
-import '../models/sermon.dart';
-import '../models/sermon_filter.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/models/sermon.dart';
+import 'package:app/models/sermon_filter.dart';
 
 class SermonsService {
   SermonsService({Dio? client}) : _client = client ?? api;
@@ -55,9 +55,15 @@ class SermonsService {
       if (response.statusCode == null ||
           response.statusCode! < 200 ||
           response.statusCode! >= 300) {
+        if (response.statusCode == 401) {
+          throw Exception('AUTH_REQUIRED');
+        }
         throw Exception('Unexpected status code: ${response.statusCode}');
       }
     } on DioException catch (error) {
+      if (error.response?.statusCode == 401) {
+        throw Exception('AUTH_REQUIRED');
+      }
       throw Exception('Failed to favorite sermon $id: ${error.message}');
     }
   }
@@ -97,3 +103,4 @@ class SermonsService {
     return <Sermon>[];
   }
 }
+

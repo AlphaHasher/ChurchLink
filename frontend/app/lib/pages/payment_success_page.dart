@@ -7,12 +7,12 @@ class PaymentSuccessPage extends StatelessWidget {
   final String? eventName;
 
   const PaymentSuccessPage({
-    Key? key,
+    super.key,
     this.paymentId,
     this.payerId,
     this.eventId,
     this.eventName,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

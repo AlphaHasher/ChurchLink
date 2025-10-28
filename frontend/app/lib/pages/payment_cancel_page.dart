@@ -7,12 +7,12 @@ class PaymentCancelPage extends StatelessWidget {
   final String? reason;
 
   const PaymentCancelPage({
-    Key? key,
+    super.key,
     this.paymentId,
     this.eventId,
     this.eventName,
     this.reason,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../helpers/logger.dart';
-import '../../helpers/youtube_helper.dart';
-import 'stream_embed.dart';
+import 'package:app/helpers/logger.dart';
+import 'package:app/helpers/youtube_helper.dart';
+import 'package:app/components/livestreams/stream_embed.dart';
 
 class StreamViewer extends StatefulWidget {
   const StreamViewer({
@@ -174,3 +174,4 @@ class _StreamViewerState extends State<StreamViewer>
     );
   }
 }
+

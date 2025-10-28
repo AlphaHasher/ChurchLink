@@ -396,12 +396,13 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                 f['inline'])
             ?.toString();
     final requiredField = (field['required'] ?? f['required']) == true;
-    int? _asInt(dynamic raw) {
+    int? asInt(dynamic raw) {
       if (raw is int) return raw;
       if (raw is num) return raw.toInt();
       if (raw is String) return int.tryParse(raw.trim());
       return null;
     }
+
     Widget widget;
     switch (type) {
       case 'static':
@@ -423,8 +424,8 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           initialValue: _values[fieldName]?.toString(),
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
-          minLength: _asInt(field['minLength'] ?? f['minLength']),
-          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
+          minLength: asInt(field['minLength'] ?? f['minLength']),
+          maxLength: asInt(field['maxLength'] ?? f['maxLength']),
         );
         break;
       case 'email':
@@ -442,8 +443,8 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             final trimmed = (v ?? '').trim();
             _values[fieldName] = trimmed.isEmpty ? null : trimmed;
           },
-          minLength: _asInt(field['minLength'] ?? f['minLength']),
-          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
+          minLength: asInt(field['minLength'] ?? f['minLength']),
+          maxLength: asInt(field['maxLength'] ?? f['maxLength']),
         );
         break;
       case 'tel':
@@ -615,8 +616,8 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           initialValue: _values[fieldName]?.toString(),
           onChanged: (v) => _updateValue(fieldName, v),
           onSaved: (v) => _values[fieldName] = v ?? '',
-          minLength: _asInt(field['minLength'] ?? f['minLength']),
-          maxLength: _asInt(field['maxLength'] ?? f['maxLength']),
+          minLength: asInt(field['minLength'] ?? f['minLength']),
+          maxLength: asInt(field['maxLength'] ?? f['maxLength']),
         );
     }
 
@@ -661,7 +662,9 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Please fix the highlighted fields before submitting.'),
+            content: Text(
+              'Please fix the highlighted fields before submitting.',
+            ),
           ),
         );
       }
@@ -689,26 +692,38 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
 
       // Locally check visibility and expiry before attempting to submit.
       try {
-        final visibleFlag = widget.form.containsKey('visible') ? (widget.form['visible'] == true) : false;
+        final visibleFlag =
+            widget.form.containsKey('visible')
+                ? (widget.form['visible'] == true)
+                : false;
         if (!visibleFlag) {
           if (!mounted) return;
-            await showDialog<void>(
+          await showDialog<void>(
             context: context,
             barrierDismissible: false,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Form unavailable'),
-              content: const Text('This form is not available for public viewing.'),
-              actions: [
-                TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Ok')),
-              ],
-            ),
+            builder:
+                (ctx) => AlertDialog(
+                  title: const Text('Form unavailable'),
+                  content: const Text(
+                    'This form is not available for public viewing.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('Ok'),
+                    ),
+                  ],
+                ),
           );
           if (!mounted) return;
           Navigator.of(context).pop(false);
           return;
         }
 
-        final expiresRaw = widget.form['expires_at'] ?? widget.form['expiresAt'] ?? widget.form['expires'];
+        final expiresRaw =
+            widget.form['expires_at'] ??
+            widget.form['expiresAt'] ??
+            widget.form['expires'];
         if (expiresRaw != null) {
           final expires = DateTime.tryParse(expiresRaw.toString());
           if (expires == null || !expires.isAfter(DateTime.now())) {
@@ -716,13 +731,19 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             await showDialog<void>(
               context: context,
               barrierDismissible: false,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Form unavailable'),
-                content: const Text('This form has expired and is no longer accepting responses.'),
-                actions: [
-                  TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Ok')),
-                ],
-              ),
+              builder:
+                  (ctx) => AlertDialog(
+                    title: const Text('Form unavailable'),
+                    content: const Text(
+                      'This form has expired and is no longer accepting responses.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Ok'),
+                      ),
+                    ],
+                  ),
             );
             if (!mounted) return;
             Navigator.of(context).pop(false);
@@ -746,32 +767,42 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         Navigator.of(context).pop(true);
       } else {
         // Map server detail to friendly message when possible
-        final detail = response.data is Map ? (response.data['detail'] ?? response.data['message']) : null;
+        final detail =
+            response.data is Map
+                ? (response.data['detail'] ?? response.data['message'])
+                : null;
         final detailStr = detail is String ? detail.toLowerCase() : null;
         String msg = 'Failed to submit (${response.statusCode})';
         if (detailStr != null) {
-          if (detailStr.contains('expired')) msg = 'This form has expired and is no longer accepting responses.';
-          else if (detailStr.contains('not available') || detailStr.contains('not visible')) msg = 'This form is not available for public viewing.';
-          else if (detailStr.contains('not found')) msg = 'Form not found.';
+          if (detailStr.contains('expired')) {
+            msg = 'This form has expired and is no longer accepting responses.';
+          } else if (detailStr.contains('not available') ||
+              detailStr.contains('not visible')) {
+            msg = 'This form is not available for public viewing.';
+          } else if (detailStr.contains('not found')) {
+            msg = 'Form not found.';
+          }
         }
         // Show blocking dialog with Ok to return to list
         if (!mounted) return;
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Form unavailable'),
-            content: Text(msg),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                },
-                child: const Text('Ok'),
+          builder:
+              (ctx) => AlertDialog(
+                title: const Text('Form unavailable'),
+                content: Text(msg),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                    },
+                    child: const Text('Ok'),
+                  ),
+                ],
               ),
-            ],
-          ),
         );
+        if (!mounted) return;
         Navigator.of(context).pop(false);
       }
     } catch (e) {
@@ -781,17 +812,19 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Submission failed'),
-            content: Text(msg),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Ok'),
+          builder:
+              (ctx) => AlertDialog(
+                title: const Text('Submission failed'),
+                content: Text(msg),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Ok'),
+                  ),
+                ],
               ),
-            ],
-          ),
         );
+        if (!mounted) return;
         Navigator.of(context).pop(false);
       }
     } finally {
@@ -878,7 +911,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                       key: Key('form-instance-$_formInstanceId'),
                       physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: visibleFields.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final f = visibleFields[index];
                         return _buildField(f);

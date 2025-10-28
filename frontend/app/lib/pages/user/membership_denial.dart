@@ -49,7 +49,7 @@ class _ReadMembershipDenialScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cardColor = theme.colorScheme.surface;
-    final borderColor = theme.colorScheme.outlineVariant.withOpacity(0.6);
+    final borderColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Membership Request')),
@@ -125,3 +125,4 @@ class _ReadMembershipDenialScreenState
     );
   }
 }
+
