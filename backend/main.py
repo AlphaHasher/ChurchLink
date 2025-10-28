@@ -82,6 +82,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+def validate_e2e_mode():
+    if not E2E_TEST_MODE:
+        return
+    logger.warning("E2E_TEST_MODE enabled")
+    
+    # This is a big no-no if test mode + production
+    if ENVIRONMENT == "production":
+        logger.critical("FATAL: E2E_TEST_MODE enabled in production - authentication bypassed!")
+        logger.critical("Set E2E_TEST_MODE=false and restart immediately.")
+        sys.exit(1)
+    
+validate_e2e_mode()
+
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
 
