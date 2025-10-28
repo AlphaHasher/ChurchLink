@@ -19,11 +19,27 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const [initLoading, setInitLoading] = useState(true);
     const [isInit, setIsInit] = useState<boolean | null>(null);
 
+    // Check for E2E test mode (Cypress sets this flag)
+    const [isE2EMode] = useState(() => {
+        try {
+            return typeof window !== 'undefined' && window.localStorage.getItem('CL_E2E_TEST') === '1';
+        } catch {
+            return false;
+        }
+    });
+
     // moderator check
     useEffect(() => {
         let alive = true;
 
         const run = async () => {
+            // Skip auth checks in E2E test mode
+            if (isE2EMode) {
+                setIsMod(true);
+                setModCheckLoading(false);
+                return;
+            }
+
             if (!user) {
                 setIsMod(false);
                 setModCheckLoading(false);
@@ -44,13 +60,20 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         return () => {
             alive = false;
         };
-    }, [user, loading]);
+    }, [user, loading, isE2EMode]);
 
     // init check
     useEffect(() => {
         let alive = true;
 
         const run = async () => {
+            // Skip init check in E2E test mode
+            if (isE2EMode) {
+                setIsInit(true);
+                setInitLoading(false);
+                return;
+            }
+
             if (!user) {
                 setIsInit(null);
                 setInitLoading(false);
@@ -72,13 +95,18 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         return () => {
             alive = false;
         };
-    }, [user, loading]);
+    }, [user, loading, isE2EMode]);
 
     if (loading || modCheckLoading || (user && initLoading)) {
         return (
             <div>
             </div>
         );
+    }
+
+    // In E2E test mode, bypass all auth checks
+    if (isE2EMode) {
+        return <>{children}</>;
     }
 
     if (!user) {

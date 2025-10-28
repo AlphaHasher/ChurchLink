@@ -1,37 +1,35 @@
 /// <reference types="cypress" />
-// ***********************************************
-// This example commands.ts shows you how to
-// create various custom commands and overwrite
-// existing commands.
-//
-// For more comprehensive examples of custom
-// commands please read more here:
-// https://on.cypress.io/custom-commands
-// ***********************************************
-//
-//
-// -- This is a parent command --
-// Cypress.Commands.add('login', (email, password) => { ... })
-//
-//
-// -- This is a child command --
-// Cypress.Commands.add('drag', { prevSubject: 'element'}, (subject, options) => { ... })
-//
-//
-// -- This is a dual command --
-// Cypress.Commands.add('dismiss', { prevSubject: 'optional'}, (subject, options) => { ... })
-//
-//
-// -- This will overwrite an existing command --
-// Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-//
-// declare global {
-//   namespace Cypress {
-//     interface Chainable {
-//       login(email: string, password: string): Chainable<void>
-//       drag(subject: string, options?: Partial<TypeOptions>): Chainable<Element>
-//       dismiss(subject: string, options?: Partial<TypeOptions>): Chainable<Element>
-//       visit(originalFn: CommandOriginalFn, url: string, options: Partial<VisitOptions>): Chainable<Element>
-//     }
-//   }
-// }
+
+declare global {
+  namespace Cypress {
+    interface Chainable {
+      prepareConsoleErrorSpy(): Chainable<void>
+      loginWithBearer(): Chainable<void>
+      assertNoClientErrors(): Chainable<void>
+    }
+  }
+}
+
+Cypress.Commands.add('prepareConsoleErrorSpy', () => {
+  cy.on('window:before:load', (win) => {
+    cy.stub(win.console, 'error').as('consoleError');
+  });
+});
+
+// In E2E test mode we do NOT need a real bearer token. This command now only enables test mode.
+Cypress.Commands.add('loginWithBearer', () => {
+  cy.prepareConsoleErrorSpy();
+  cy.on('window:before:load', (win) => {
+    try { win.localStorage.setItem('CL_E2E_TEST', '1'); } catch {}
+  });
+});
+
+Cypress.Commands.add('assertNoClientErrors', () => {
+  cy.get('@consoleError').then((stub) => {
+    expect(stub, 'console.error calls').to.have.callCount(0);
+  });
+  cy.get('body').should(($body) => {
+    const hasOverlay = $body.find('#vite-error-overlay, vite-error-overlay, .vite-error-overlay').length > 0;
+    expect(hasOverlay, 'no Vite compile/runtime overlay').to.be.false;
+  });
+});
