@@ -5,9 +5,14 @@ from pydantic import BaseModel
 from fastapi.security import HTTPBearer
 from typing import List, Callable
 from fastapi import Depends, Request
+import os
 
 
-security = HTTPBearer()
+# Allow requests without Authorization header to reach our handler so we can bypass in E2E mode
+security = HTTPBearer(auto_error=False)
+
+# Check if E2E test mode is enabled (for Cypress tests)
+E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
 
 class FirebaseUser:
     def __init__(self, uid: str, email: str, roles: List[str]):
@@ -23,16 +28,19 @@ class Token(BaseModel):
 
 
 async def authenticate_uid(credentials: HTTPAuthorizationCredentials = Security(security)):
+    # Bypass Firebase authentication entirely in E2E test mode
+    if E2E_TEST_MODE:
+        return "e2e-test-user-id"
+
+    # Outside test mode, enforce presence of a valid Bearer token
+    token = credentials.credentials if credentials else None
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing Authorization: Bearer token")
+
     try:
-        # The token comes in the format "Bearer <token>"
-        token = credentials.credentials
-        # Verify the token with Firebase Admin SDK
         decoded_token = auth.verify_id_token(token)
-        
-        # Get user claims to check
-        uid = decoded_token['uid']
-        return uid
-    except:
+        return decoded_token['uid']
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
@@ -40,29 +48,25 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
     """
     Validate Firebase ID token and verify the user has access to the resource
     """
+    # In E2E mode, return a mocked Administrator user and skip Firebase entirely
+    if E2E_TEST_MODE:
+        return FirebaseUser(uid="e2e-test-user-id", email="e2e-test@example.com", roles=["admin"])
+
+    # Enforce token outside test mode
+    token = credentials.credentials if credentials else None
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing Authorization: Bearer token")
+
     try:
-        # The token comes in the format "Bearer <token>"
-        token = credentials.credentials
-        # Verify the token with Firebase Admin SDK
         decoded_token = auth.verify_id_token(token)
-        
-        # Get user claims to check
         uid = decoded_token['uid']
         user = auth.get_user(uid)
-        
-        # Check email
+
         email = user.email if user.email else decoded_token.get('email', '')
-        
-        # Get custom claims
         custom_claims = user.custom_claims or {}
         roles = custom_claims.get('roles', [])
-        
-        # Create user object
-        firebase_user = FirebaseUser(uid=uid, email=email, roles=roles)
-        
-            
-        return firebase_user
-        
+
+        return FirebaseUser(uid=uid, email=email, roles=roles)
     except auth.RevokedIdTokenError:
         raise HTTPException(status_code=401, detail="Firebase ID token has been revoked. Please sign in again.")
     except auth.ExpiredIdTokenError:
@@ -82,6 +86,11 @@ def role_based_access(required_roles: List[str]) -> Callable:
         Dependency that checks if the user has the required roles in their custom claims.
         """
         try:
+            # In E2E mode, short-circuit all role checks
+            if E2E_TEST_MODE:
+                request.state.current_user = current_user
+                return
+
             user = auth.get_user(current_user.uid)
             custom_claims = user.custom_claims or {}
             roles = custom_claims.get('roles', [])

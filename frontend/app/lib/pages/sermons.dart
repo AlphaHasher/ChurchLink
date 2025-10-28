@@ -151,9 +151,6 @@ class _SermonsPageState extends State<SermonsPage> {
       ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update favorites: $error')),
-      );
     }
   }
 }

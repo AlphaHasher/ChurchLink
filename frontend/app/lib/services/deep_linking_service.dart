@@ -12,6 +12,7 @@ import 'package:app/helpers/api_client.dart';
 import 'package:app/helpers/backend_helper.dart';
 import 'package:app/services/paypal_service.dart';
 import 'package:app/main.dart';
+import 'package:app/pages/my_bible_plans_page.dart';
 
 class DeepLinkingService {
   // Reference to the navigator key
@@ -361,14 +362,74 @@ class DeepLinkingService {
     _linkSubscription?.cancel();
   }
 
-  // Notification handler for deep linking (route and link only)
+  // Notification handler for deep linking (route, link, and actionType)
   static Future<void> handleNotificationData(Map<String, dynamic> data) async {
     if (data.isEmpty) return;
+    
+    // Handle specific action types first
+    if (data['actionType'] != null) {
+      await _handleActionType(data);
+      return;
+    }
+    
     if (data['route'] != null) {
       await _handleRouteNavigation(data['route']);
     }
     if (data['link'] != null) {
       await _handleExternalLink(data['link']);
+    }
+  }
+
+  /// Handle notification action types
+  static Future<void> _handleActionType(Map<String, dynamic> data) async {
+    final actionType = data['actionType'];
+    
+    switch (actionType) {
+      case 'bible_plan':
+        await _handleBiblePlanNavigation(data);
+        break;
+      case 'event':
+        if (data['eventId'] != null) {
+          await _handleEventNavigation(data['eventId']);
+        }
+        break;
+      default:
+        // Fall back to route navigation if available
+        if (data['route'] != null) {
+          await _handleRouteNavigation(data['route']);
+        }
+        break;
+    }
+  }
+
+  /// Handle Bible plan notification navigation
+  static Future<void> _handleBiblePlanNavigation(Map<String, dynamic> data) async {
+    debugPrint('_handleBiblePlanNavigation called with: $data');
+    try {
+      final context = navigatorKey.currentContext;
+      if (context == null) {
+      debugPrint('Navigator context is null');
+      return;
+    }
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // Now navigate to the Bible plans page
+      if (navigatorKey.currentContext != null) {
+        Navigator.of(navigatorKey.currentContext!).push(
+          MaterialPageRoute(
+            builder: (context) => const MyBiblePlansPage(),
+          ),
+        );
+        debugPrint('Navigated to MyBiblePlansPage');
+      }
+    } catch (e) {
+      debugPrint('Error navigating to Bible plans: $e');
+      // Fallback to Bible page if direct navigation fails
+      try {
+        navigatorKey.currentState?.pushNamed('/bible');
+      } catch (fallbackError) {
+        debugPrint('Fallback navigation to Bible page also failed: $fallbackError');
+      }
     }
   }
 
