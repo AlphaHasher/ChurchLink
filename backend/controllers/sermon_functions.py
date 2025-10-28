@@ -222,9 +222,17 @@ async def register_sermon_favorite(sermon_id: str, request: Request):
 			detail="Sermon not found",
 		)
 
+	# Check authentication
+	uid = getattr(request.state, "uid", None)
+	if not uid:
+		raise HTTPException(
+			status_code=status.HTTP_401_UNAUTHORIZED,
+			detail="You must be logged in to favorite a sermon."
+		)
+
 	try:
 		added = await UserHandler.add_to_sermon_favorites(
-			uid=request.state.uid,
+			uid=uid,
 			sermon_id=ObjectId(sermon_id),
 		)
 	except Exception as exc:  # Propagate as HTTP error
