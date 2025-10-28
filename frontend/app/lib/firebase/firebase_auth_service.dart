@@ -73,6 +73,7 @@ class FirebaseAuthService {
 
       // Get Firebase ID Token for backend authentication
       final String? idToken = await user.getIdToken(true);
+      debugPrint("🔥 Firebase ID Token: $idToken");
       if (idToken == null) {
         throw Exception("❌ Failed to retrieve Firebase ID Token.");
       }
