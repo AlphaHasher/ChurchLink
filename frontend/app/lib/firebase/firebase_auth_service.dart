@@ -142,9 +142,16 @@ class FirebaseAuthService {
 
       debugPrint("🔥 Firebase ID Token: $idToken");
       return idToken;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        debugPrint("❌ Registration error: Email already in use.");
+        return "This email is already registered.";
+      }
+      debugPrint("❌ Firebase Auth Error: ${e.code} - ${e.message}");
+      return e.message;
     } catch (e) {
       debugPrint("❌ Error during registration: $e");
-      return null;
+      return "An unexpected error occurred during registration.";
     }
   }
 
