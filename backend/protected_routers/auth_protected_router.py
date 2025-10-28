@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from typing import Callable, Optional
+import os
 from helpers.Firebase_helpers import authenticate_uid
 from mongo.churchuser import UserHandler
+
+# Check if E2E test mode is enabled
+E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
 
 async def _attach_uid_to_state(request: Request, uid: str = Depends(authenticate_uid)) -> str:
     """
@@ -9,6 +13,15 @@ async def _attach_uid_to_state(request: Request, uid: str = Depends(authenticate
     Returning uid allows other dependencies to chain if desired.
     """
     request.state.uid = uid
+
+    # Bypass MongoDB user check in E2E test mode
+    if E2E_TEST_MODE and uid == "e2e-test-user-id":
+        request.state.user = {
+            "uid": uid,
+            "email": "e2e-test@example.com",
+            "roles": ["admin"]  # Administrator role for testing
+        }
+        return uid
 
     user = await UserHandler.find_by_uid(uid)
     if user is None:
