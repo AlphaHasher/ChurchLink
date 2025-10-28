@@ -142,7 +142,7 @@ async def lifespan(app: FastAPI):
 
         # Run one-time migration to update header/footer items titles
         try:
-            from datetime import datetime
+            from datetime import datetime, timezone
             from scripts.header_footer_titles_migration import run_header_footer_titles_migration
 
             migrations_coll = DatabaseManager.db["migrations"]
@@ -158,7 +158,7 @@ async def lifespan(app: FastAPI):
                 await run_header_footer_titles_migration()
                 await migrations_coll.update_one(
                     {"name": "header_footer_titles"},
-                    {"$set": {"name": "header_footer_titles", "completed_at": datetime.utcnow().isoformat()}},
+                    {"$set": {"name": "header_footer_titles", "completed_at": datetime.now(timezone.utc).isoformat()}},
                     upsert=True,
                 )
                 logger.info("Header/footer titles migration completed and recorded")

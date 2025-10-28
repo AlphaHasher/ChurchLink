@@ -258,7 +258,7 @@ const renderNode = (
       const baseLabel = (node as any).props?.label ?? "Button";
       const label = (direct != null && String(direct).trim())
         ? direct
-        : ((activeLocale && activeLocale !== "en" && baseLabel && localizeFn)
+        : ((activeLocale && activeLocale !== defaultLocale && baseLabel && localizeFn)
             ? localizeFn(String(baseLabel))
             : String(baseLabel));
       const href = (node as any).props?.href;
@@ -461,7 +461,7 @@ const renderNode = (
       const baseAlt = (node as any).props?.alt || "";
       const alt = (directAlt != null && String(directAlt).trim())
         ? directAlt
-        : ((activeLocale && activeLocale !== "en" && baseAlt && localizeFn)
+        : ((activeLocale && activeLocale !== defaultLocale && baseAlt && localizeFn)
             ? localizeFn(String(baseAlt))
             : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || "cover";

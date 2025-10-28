@@ -179,7 +179,7 @@ export function usePageManager(slug: string) {
         const dl = String((page as any)?.defaultLocale || 'en');
         if (dl) localesSet.add(dl);
         for (const l of ((page as any)?.locales || [])) if (l) localesSet.add(String(l));
-        const dest = Array.from(localesSet).filter((l) => l && l !== 'en');
+        const dest = Array.from(localesSet).filter((l) => l && l !== dl);
         if (dest.length) {
           console.log(`[Translation] Translating header/footer to: ${dest.join(', ')}`);
           // Header
