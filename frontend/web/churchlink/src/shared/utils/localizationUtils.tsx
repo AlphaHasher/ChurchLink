@@ -1,10 +1,11 @@
 import api from "@/api/api";
 import { toast } from "react-toastify";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/Dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { Node, SectionV2 } from "@/shared/types/pageV2";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 export type LanguageOption = { code: string; name: string };
 
@@ -272,5 +273,153 @@ export async function addLocaleToAllPages(code: string): Promise<void> {
       console.error(`Failed to add locale to page ${page.slug}:`, pageError);
     }
   }
+}
+
+export type TranslationFunction = (text: string | null | undefined, options?: { context?: string; capitalize?: boolean }) => string;
+
+
+//we need to add a batch delay to the translation requests so it just makes one request for all the translations at once
+const BATCH_DELAY_MS = 100;
+const translationCache: Record<string, Record<string, string>> = {};
+const pendingByLocale: Record<string, Set<string>> = {};
+const pendingTimers: Record<string, ReturnType<typeof setTimeout> | null> = {};
+const inflightByLocale: Record<string, Promise<void> | null> = {};
+const listeners = new Set<() => void>();
+
+const notifyListeners = () => {
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (err) {
+      console.error("Localization listener failed", err);
+    }
+  });
+};
+
+function flushLocale(locale: string) {
+  if (pendingTimers[locale] != null) {
+    clearTimeout(pendingTimers[locale] as ReturnType<typeof setTimeout>);
+    pendingTimers[locale] = null;
+  }
+
+  const pending = pendingByLocale[locale];
+  if (!pending || pending.size === 0) {
+    return;
+  }
+
+  const payload = Array.from(pending);
+  pending.clear();
+
+  const run = () =>
+    translateStrings(payload, [locale])
+      .then((translations) => {
+        let updated = false;
+        for (const text of payload) {
+          const translated = translations?.[text]?.[locale];
+          if (translated && translated.trim()) {
+            const prev = translationCache[text] || {};
+            if (prev[locale] !== translated) {
+              translationCache[text] = { ...prev, [locale]: translated };
+              updated = true;
+            }
+          }
+        }
+        if (updated) {
+          notifyListeners();
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to translate batch", err);
+      })
+      .finally(() => {
+        inflightByLocale[locale] = null;
+        if (pendingByLocale[locale] && pendingByLocale[locale].size > 0) {
+          queueFlushForLocale(locale);
+        }
+      });
+
+  inflightByLocale[locale] = inflightByLocale[locale]
+    ? inflightByLocale[locale]!.then(() => run())
+    : run();
+}
+
+function queueFlushForLocale(locale: string) {
+  if (pendingTimers[locale] != null) {
+    return;
+  }
+  pendingTimers[locale] = setTimeout(() => {
+    flushLocale(locale);
+  }, BATCH_DELAY_MS);
+}
+
+const queueTranslation = (text: string, locale: string) => {
+  if (!text || !text.trim()) {
+    return;
+  }
+  if (!locale || locale === "en") {
+    return;
+  }
+  const existing = translationCache[text]?.[locale];
+  if (existing != null) {
+    return;
+  }
+
+  if (!pendingByLocale[locale]) {
+    pendingByLocale[locale] = new Set();
+  }
+
+  pendingByLocale[locale]!.add(text);
+  queueFlushForLocale(locale);
+};
+
+export function useLocalize(): TranslationFunction {
+  const { locale } = useLanguage();
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    const listener = () => {
+      forceUpdate((n) => n + 1);
+    };
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, [locale]);
+
+  useEffect(() => {
+    forceUpdate((n) => n + 1);
+  }, [locale]);
+
+  const translate = useCallback<TranslationFunction>(
+    (input, options) => {
+      const base = (input ?? "").toString();
+      if (!base.trim()) {
+        return "";
+      }
+      if (!locale || locale === "en") {
+        return maybePostProcess(base, options);
+      }
+
+      const cached = translationCache[base]?.[locale];
+      if (cached != null) {
+        return maybePostProcess(cached, options);
+      }
+
+      queueTranslation(base, locale);
+
+      return maybePostProcess(base, options);
+    },
+    [locale]
+  );
+
+  return translate;
+}
+
+function maybePostProcess(text: string, options?: { context?: string; capitalize?: boolean }): string {
+  let result = text;
+  if (options?.capitalize) {
+    result = result.charAt(0).toUpperCase() + result.slice(1);
+  }
+  return result;
 }
 

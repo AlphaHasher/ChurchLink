@@ -25,6 +25,7 @@ import MembershipCard from "../components/Profile/MembershipCard";
 import MembershipRequestDialog from "../components/Profile/MembershipRequestDialog";
 import { readMembershipDetails } from "@/helpers/MembershipHelper";
 import type { MembershipDetails } from "@/shared/types/MembershipRequests";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
@@ -40,6 +41,7 @@ const toPersonInfo = (p: ProfileInfo): EditPersonInfo => ({
 });
 
 const ProfilePage: React.FC = () => {
+    const localize = useLocalize();
     const [loading, setLoading] = React.useState(true);
     const [profile, setProfile] = React.useState<ProfileInfo | null>(null);
     const [contact, setContact] = React.useState<ContactInfo | null>(null);
@@ -125,24 +127,24 @@ const ProfilePage: React.FC = () => {
                             <TabsList className="bg-neutral-300 p-4 rounded-xl gap-4 flex-wrap md:flex-nowrap">
                                 <TabsTrigger
                                     value="profile"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
+                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all.duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <UserCog className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    Profile
+                                    <UserCog className="h-5 w-5 transition-transform.duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    {localize("Profile")}
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="membership"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
+                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all.duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <IdCard className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    Membership
+                                    <IdCard className="h-5 w-5 transition-transform.duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    {localize("Membership")}
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="events"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
+                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font.bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all.duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
-                                    <CalendarDays className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    My Events
+                                    <CalendarDays className="h-5 w-5 transition-transform.duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                    {localize("My Events")}
                                 </TabsTrigger>
                             </TabsList>
                         </motion.div>

@@ -3,7 +3,8 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/u
 import { Separator } from "@/shared/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { useLanguage } from "@/provider/LanguageProvider";
-import { useMemo, useState } from "react";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useMemo, useState, useRef, useEffect } from "react";
 
 type ProfileCardProps = {
     firstName: string;
@@ -25,7 +26,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     gender,
     className,
     footer,
-}) => {
+    }) => {
+        const localize = useLocalize();
     const displayName = `${firstName} ${lastName}`.trim();
 
     const dob = birthday
@@ -43,6 +45,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     // Language selector state
     const { locale: selectedLang, setLocale: handleLanguageChange, languages, loading: langLoading, siteLocales } = useLanguage();
     const [langQuery, setLangQuery] = useState("");
+    const [langOpen, setLangOpen] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
     const filteredLanguages = useMemo(() => {
         const q = langQuery.trim().toLowerCase();
         const allowed = new Set<string>((siteLocales && siteLocales.length ? siteLocales : ["en"]).map((c) => String(c)));
@@ -50,6 +54,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         if (!q) return base;
         return base.filter(l => l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q));
     }, [languages, langQuery, siteLocales]);
+
+    // When dropdown opens, autofocus the search input and keep it focused
+    useEffect(() => {
+        if (!langOpen) return;
+        requestAnimationFrame(() => {
+            searchInputRef.current?.focus();
+            requestAnimationFrame(() => searchInputRef.current?.focus());
+        });
+    }, [langOpen]);
 
     return (
         <motion.div
@@ -73,32 +86,66 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                         aria-disabled="true"
                     >
                         <dl className="cursor-not-allowed">
-                            <OverviewRow label="Account email" value={email} />
+                            <OverviewRow label={localize("Account email")} value={email} />
                             <Separator />
-                            <OverviewRow label="Account name" value={displayName} />
+                            <OverviewRow label={localize("Account name")} value={displayName} />
                             <Separator />
-                            <OverviewRow label="Church Member" value={membership ? "Yes" : "No"} />
+                            <OverviewRow label={localize("Church Member")} value={membership ? localize("Yes") : localize("No")} />
                             <Separator />
-                            <OverviewRow label="DOB" value={dob} />
+                            <OverviewRow label={localize("DOB")} value={dob} />
                             <Separator />
-                            <OverviewRow label="Gender" value={genderDisplay} />
+                            <OverviewRow label={localize("Gender")} value={genderDisplay ? localize(genderDisplay) : genderDisplay} />
                             <Separator />
                             <OverviewRow
-                                label="Language"
+                                label={localize("Language")}
                                 value={
-                                    <Select value={selectedLang} onValueChange={handleLanguageChange} disabled={langLoading} onOpenChange={(o) => { if (o) setLangQuery(""); }}>
-                                        <SelectTrigger className="w-full max-w-[240px]" aria-label="Select language">
-                                            <SelectValue placeholder={langLoading ? "Loading..." : "Select language"} />
+                                    <Select value={selectedLang} onValueChange={handleLanguageChange} disabled={langLoading} onOpenChange={(o) => {
+                                        setLangOpen(o);
+                                        if (o) {
+                                            setLangQuery("");
+                                        }
+                                    }}>
+                                        <SelectTrigger className="w-full max-w-[240px]" aria-label={localize("Select language")}>
+                                            <SelectValue placeholder={langLoading ? localize("Loading...") : localize("Select language")} />
                                         </SelectTrigger>
-                                        <SelectContent className="max-h-60">
+                                        <SelectContent
+                                            className="max-h-60"
+                                            onKeyDownCapture={(e) => {
+                                                const target = e.target as HTMLElement | null;
+                                                if (target && target.tagName === 'INPUT') {
+                                                    e.stopPropagation();
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                const target = e.target as HTMLElement | null;
+                                                if (target && target.tagName === 'INPUT') {
+                                                    e.stopPropagation();
+                                                }
+                                            }}
+                                            onCloseAutoFocus={(e) => {
+                                                e.preventDefault();
+                                            }}
+                                        >
                                             <div className="sticky top-0 z-10 bg-popover p-1">
                                                 <input
+                                                    ref={searchInputRef}
                                                     value={langQuery}
-                                                    onChange={(e) => setLangQuery(e.target.value)}
-                                                    placeholder="Search language..."
+                                                    onChange={(e) => {
+                                                        setLangQuery(e.target.value);
+                                                        requestAnimationFrame(() => searchInputRef.current?.focus());
+                                                    }}
+                                                    placeholder={localize("Search language...")}
                                                     className="w-full h-8 rounded-md border px-2 text-sm"
+                                                    onKeyDownCapture={(e) => e.stopPropagation()}
                                                     onKeyDown={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onPointerDown={(e) => e.stopPropagation()}
                                                     onClick={(e) => e.stopPropagation()}
+                                                    onBlur={() => {
+                                                        if (langOpen) {
+                                                            requestAnimationFrame(() => searchInputRef.current?.focus());
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                             {filteredLanguages.map((l) => (
