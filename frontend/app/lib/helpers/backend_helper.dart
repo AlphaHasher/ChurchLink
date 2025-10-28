@@ -34,7 +34,6 @@ class BackendHelper {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not authenticated");
-
       final String? idToken = await user.getIdToken(true);
       if (idToken == null) {
         throw Exception("Failed to retrieve Firebase ID token.");

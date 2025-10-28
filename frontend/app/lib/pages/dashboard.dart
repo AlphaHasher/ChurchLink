@@ -5,15 +5,34 @@ import 'package:app/pages/eventspage.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/pages/giving.dart';
 import 'package:app/pages/joinlive.dart';
+import 'package:app/pages/sermons.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// URL for Strapi, currently hardcoded to the Android emulator default value.
-// Potentially migrate this into the .env later
-const String strapiUrl = "http://10.0.2.2:1339"; //TODO Remove
+final _apiBaseUrl = dotenv.get('BACKEND_URL');
+
+// Class for Pages so they can be sorted
+class _PageSpec {
+  final String title;
+  final Color color;
+  final WidgetBuilder to;
+  const _PageSpec(this.title, this.color, this.to);
+}
+
+// Defines expected Pages and their fallback default colors
+final Map<String, _PageSpec> _kDashboardPages = {
+  'join-live': _PageSpec('Join Live', Colors.indigo.shade600, (c) => const JoinLive()),
+  'weekly-bulletin': _PageSpec('Weekly Bulletin', Colors.teal.shade600, (c) => const BulletinsPage()),
+  'sermons': _PageSpec('Sermons', Colors.deepPurple.shade600, (c) => const SermonsPage()),
+  'events': _PageSpec('Events', Colors.orange.shade600, (c) => const EventsPage()),
+  'giving': _PageSpec('Giving', Colors.green.shade600, (c) => const Giving()),
+  'forms':_PageSpec('Forms', Colors.brown.shade600, (c) => const Forms()),
+};
+
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -23,6 +42,8 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   late final Future<Map<String, String>> _tilesFuture;
+  late final Future<List<String>> _orderFuture;
+  late final Future<Map<String, String>> _namesFuture;
 
   // Stops the app from causing errors when a precache for the dashboard images fails
   Future<void> _precacheSafe(ImageProvider provider) async {
@@ -38,7 +59,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _tilesFuture = DashboardTilesService(strapiUrl)
+    _tilesFuture = DashboardTilesService(_apiBaseUrl)
         .fetchImageUrls()
         .then((map) async {
           final prefs = await SharedPreferences.getInstance();
@@ -61,6 +82,39 @@ class _DashboardPageState extends State<DashboardPage> {
         if (url.isEmpty) continue;
         await _precacheSafe(NetworkImage(url));
       }
+    });
+
+    _orderFuture = DashboardTilesService(_apiBaseUrl)
+      .fetchOrderedSlugs()
+      .then((slugs) async {
+        // If it loads then cache the list order
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList('dashboard_order', slugs);
+        return slugs;
+      })
+      .catchError((_) async {
+        // If offline, use the last cached order
+        final prefs = await SharedPreferences.getInstance();
+        final stored = prefs.getStringList('dashboard_order');
+        if (stored != null && stored.isNotEmpty) return stored;
+        return <String>[];
+      });
+
+    _namesFuture = DashboardTilesService(_apiBaseUrl)
+    .fetchDisplayNames()
+    .then((names) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('dashboard_names', json.encode(names));
+      return names;
+    })
+    .catchError((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      final s = prefs.getString('dashboard_names');
+      if (s != null) {
+        final Map<String, dynamic> raw = json.decode(s);
+        return raw.map((k, v) => MapEntry(k, v as String));
+      }
+      return <String, String>{};
     });
   }
 
@@ -157,44 +211,50 @@ class _DashboardPageState extends State<DashboardPage> {
                     );
                   }
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      buildCard('Join Live', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const JoinLive()),
-                        );
-                      }, Colors.indigo.shade600),
-                      buildCard('Weekly Bulletin', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(
-                            builder: (_) => const BulletinsPage(),
-                          ),
-                        );
-                      }, Colors.teal.shade600),
-                      buildCard('Events', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(
-                            builder: (_) => const EventsPage(),
-                          ),
-                        );
-                      }, Colors.orange.shade600),
-                      buildCard('Giving', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const Giving()),
-                        );
-                      }, Colors.green.shade600),
-                      buildCard('Forms', () {
-                        Navigator.push(
-                          ctx,
-                          CupertinoPageRoute(builder: (_) => const Forms()),
-                        );
-                      }, Colors.brown.shade600),
-                    ],
+                  return FutureBuilder<Map<String, String>>(
+                    future: _tilesFuture, // Images
+                    builder: (context, tilesSnap) {
+                      final images = tilesSnap.data ?? const <String, String>{};
+
+                      return FutureBuilder<Map<String, String>>(
+                        future: _namesFuture, // Display Names
+                        builder: (context, namesSnap) {
+                          final names = namesSnap.data ?? const <String, String>{};
+
+                          return FutureBuilder<List<String>>(
+                            future: _orderFuture, // Sorting order
+                            builder: (context, orderSnap) {
+                              final order = orderSnap.data ?? const <String>[];
+
+                              final tiles = <Widget>[];
+                              for (final slug in order) {
+                                final spec = _kDashboardPages[slug];
+                                if (spec == null) continue;
+
+                                // Prefer backend display name, else fall back to spec.title
+                                final title = (names[slug]?.trim().isNotEmpty == true)
+                                    ? names[slug]!
+                                    : spec.title;
+
+                                tiles.add(
+                                  buildCard(
+                                    title,
+                                    () => Navigator.push(ctx, CupertinoPageRoute(builder: spec.to)),
+                                    spec.color,
+                                    imageUrl: images[slug],
+                                  ),
+                                );
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: tiles,
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
                   );
                 },
               ),

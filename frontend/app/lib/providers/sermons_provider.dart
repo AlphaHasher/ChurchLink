@@ -174,7 +174,11 @@ class SermonsProvider extends ChangeNotifier {
       if (_selected?.id == sermon.id) {
         _selected = sermon;
       }
-      _error = e.toString();
+      if (e is Exception && e.toString() == 'Exception: AUTH_REQUIRED') {
+        _error = 'Please sign in to favorite sermons.';
+      } else {
+        _error = e.toString();
+      }
       notifyListeners();
       rethrow;
     } finally {
