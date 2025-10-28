@@ -80,6 +80,18 @@ const WebsiteSettings: React.FC = () => {
     }
   };
 
+  const handleClearFaviconSelection = () => {
+    setFaviconFile(null);
+    setFaviconPreview(null);
+    setMessage(null);
+    
+    // Clear the file input
+    const fileInput = document.getElementById('favicon-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
   const handleSaveTitle = async () => {
     try {
       setLoading(true);
@@ -110,7 +122,7 @@ const WebsiteSettings: React.FC = () => {
       setFaviconFile(null);
       setFaviconPreview(null);
       
-      setMessage({ type: 'success', text: 'Favicon uploaded successfully!' });
+      setMessage({ type: 'success', text: 'Favicon uploaded successfully! Refresh your browser tab to see the new favicon in action.' });
       
       // Update favicon in document head
       updateDocumentFavicon(result.favicon_url);
@@ -206,50 +218,109 @@ const WebsiteSettings: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Current Favicon Display */}
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="w-12 h-12 border rounded-lg flex items-center justify-center bg-gray-50">
-                  {faviconPreview ? (
-                    <img 
-                      src={faviconPreview} 
-                      alt="Favicon preview" 
-                      className="w-8 h-8"
-                    />
-                  ) : (
-                    <img 
-                      src={config.favicon_url} 
-                      alt="Current favicon" 
-                      className="w-8 h-8"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                  )}
+                  <img 
+                    src={config.favicon_url} 
+                    alt="Current favicon" 
+                    className="w-8 h-8"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
                 </div>
               </div>
               <div className="flex-1">
-                <Label htmlFor="favicon-upload">Upload New Favicon</Label>
-                <Input
-                  id="favicon-upload"
-                  type="file"
-                  accept=".ico,.png,.svg,image/x-icon,image/png,image/svg+xml"
-                  onChange={handleFaviconFileChange}
-                  className="mt-1"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Supported: ICO, PNG, SVG (max 1MB)
-                </p>
+                <p className="text-sm font-medium">Current Favicon</p>
+                <p className="text-xs text-gray-500">{config.favicon_url}</p>
               </div>
             </div>
-            <Button 
-              onClick={handleUploadFavicon} 
-              disabled={loading || !faviconFile}
-              className="w-full"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Favicon
-            </Button>
+
+            {/* File Selection */}
+            <div>
+              <Label htmlFor="favicon-upload">Choose New Favicon</Label>
+              <Input
+                id="favicon-upload"
+                type="file"
+                accept=".ico,.png,.svg,image/x-icon,image/png,image/svg+xml"
+                onChange={handleFaviconFileChange}
+                className="mt-1"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Supported: ICO, PNG, SVG (max 1MB)
+              </p>
+            </div>
+
+            {/* Preview Section - Only show when file is selected */}
+            {faviconPreview && (
+              <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-center gap-4">
+                  <div className="shrink-0">
+                    <div className="w-16 h-16 border-2 border-blue-300 rounded-lg flex items-center justify-center bg-white">
+                      <img 
+                        src={faviconPreview} 
+                        alt="New favicon preview" 
+                        className="w-12 h-12"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-blue-800">Preview: New Favicon</p>
+                    <p className="text-sm text-blue-600">
+                      This is how your new favicon will look. Review it before uploading.
+                    </p>
+                    {faviconFile && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        File: {faviconFile.name} ({(faviconFile.size / 1024).toFixed(1)}KB)
+                      </p>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleClearFaviconSelection}
+                      className="text-gray-600 hover:text-red-600"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            {faviconFile ? (
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleUploadFavicon} 
+                  disabled={loading}
+                  className="flex-1"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload New Favicon
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleClearFaviconSelection}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                disabled={true}
+                className="w-full"
+                variant="secondary"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Select a file to upload
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
