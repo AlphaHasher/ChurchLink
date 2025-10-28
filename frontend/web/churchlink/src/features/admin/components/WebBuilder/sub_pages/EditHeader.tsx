@@ -45,7 +45,7 @@ import {
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import { ExternalLink } from "lucide-react";
 import { useLanguage } from "@/provider/LanguageProvider";
-import { AddLocaleDialog, collectTitles, translateMissingStrings, getEnglishLabel } from "@/shared/utils/localizationUtils";
+import { AddLocaleDialog, collectTitles, translateMissingStrings } from "@/shared/utils/localizationUtils";
 import LocaleSelect from "@/shared/components/LocaleSelect";
 
 
@@ -191,6 +191,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     // For editing
     const [editingItem, setEditingItem] = useState<HeaderItem | null>(null);
     const [editTitle, setEditTitle] = useState("");
+    const [editPlaceholder, setEditPlaceholder] = useState("");
     const [editSlug, setEditSlug] = useState("");
     const [editUrl, setEditUrl] = useState("");
     const [editIsHardcoded, setEditIsHardcoded] = useState(false);
@@ -598,7 +599,18 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     // Edit functions
     const handleEditItem = (item: HeaderItem) => {
         setEditingItem(item);
-        setEditTitle(item.title);
+        const english = (item as any)?.titles?.en || item.title;
+        const savedLocaleValue = (item as any)?.titles?.[headerLocale];
+        if (headerLocale === 'en') {
+            setEditTitle(english || item.title);
+            setEditPlaceholder(english || item.title);
+        } else if (savedLocaleValue && String(savedLocaleValue).trim()) {
+            setEditTitle(savedLocaleValue);
+            setEditPlaceholder(savedLocaleValue);
+        } else {
+            setEditTitle("");
+            setEditPlaceholder(translationCache[headerLocale]?.[english] || english || item.title);
+        }
 
         if ('url' in item) {
             setEditSlug(item.slug || "");
@@ -626,9 +638,14 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         }
 
         try {
+            const existingTitles = ((editingItem as any)?.titles || {}) as Record<string, string>;
+            const nextTitles: Record<string, string> = { ...existingTitles };
+            const localeKey = headerLocale === 'en' ? 'en' : headerLocale;
+            nextTitles[localeKey] = editTitle;
+
             const updatedItem: any = {
-                title: editTitle,
-                titles: { en: editTitle },
+                title: headerLocale === 'en' ? editTitle : editingItem.title,
+                titles: nextTitles,
             };
 
             if ('url' in editingItem) {
@@ -647,15 +664,22 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                     updatedItem.slug = editSlug;
                 }
             } else if ('items' in editingItem) {
-                updatedItem.items = editDropdownItems.map((sub) => ({
-                    title: sub.title,
-                    titles: (sub as any).titles && (sub as any).titles.en ? (sub as any).titles : { en: sub.title },
-                    is_hardcoded_url: !!(sub as any).is_hardcoded_url,
-                    url: (sub as any).is_hardcoded_url ? (sub as any).url : undefined,
-                    slug: (sub as any).is_hardcoded_url ? undefined : (sub as any).slug,
-                    visible: (sub as any).visible !== false,
-                    type: "link",
-                }));
+                updatedItem.items = editDropdownItems.map((sub, idx) => {
+                    const original = (editingItem as any).items?.[idx];
+                    const baseTitles = ((original?.titles || (sub as any).titles) || {}) as Record<string, string>;
+                    const newTitles: Record<string, string> = { ...baseTitles };
+                    const subLocaleKey = headerLocale === 'en' ? 'en' : headerLocale;
+                    newTitles[subLocaleKey] = sub.title;
+                    return {
+                        title: headerLocale === 'en' ? sub.title : (original?.title ?? sub.title),
+                        titles: newTitles,
+                        is_hardcoded_url: !!(sub as any).is_hardcoded_url,
+                        url: (sub as any).is_hardcoded_url ? (sub as any).url : undefined,
+                        slug: (sub as any).is_hardcoded_url ? undefined : (sub as any).slug,
+                        visible: (sub as any).visible !== false,
+                        type: "link",
+                    } as any;
+                });
             }
 
             const response = await api.put(`/v1/header/items/edit/${editingItem.title}`, updatedItem);
@@ -1034,7 +1058,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                             <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
                                 <Input
                                     type="text"
-                                    placeholder="Title"
+                                    placeholder={editPlaceholder || "Title"}
                                     className="placeholder:text-muted-foreground/70"
                                     value={editTitle}
                                     onChange={(e) => setEditTitle(e.target.value)}

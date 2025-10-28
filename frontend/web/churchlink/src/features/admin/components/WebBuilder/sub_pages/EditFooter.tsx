@@ -19,6 +19,15 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/shared/components/ui/Dialog";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { AddLocaleDialog, collectTitles, translateMissingStrings, getEnglishLabel } from "@/shared/utils/localizationUtils";
@@ -123,6 +132,11 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const [footerLocale, setFooterLocale] = useState<string>('en');
     const [availableLocales, setAvailableLocales] = useState<string[]>(['en']);
     const [translationCache, setTranslationCache] = useState<Record<string, Record<string, string>>>({});
+
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingSection, setEditingSection] = useState<FooterSection | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+    const [editPlaceholder, setEditPlaceholder] = useState("");
 
     const sensors = useSensors(useSensor(PointerSensor));
 
@@ -252,6 +266,57 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
         }
     };
 
+    const handleEditSection = (section: FooterSection) => {
+        setEditingSection(section);
+        const english = section.titles?.en || section.title;
+        const savedLocale = section.titles?.[footerLocale];
+        if (footerLocale === 'en') {
+            setEditTitle(english || section.title);
+            setEditPlaceholder(english || section.title);
+        } else if (savedLocale && String(savedLocale).trim()) {
+            setEditTitle(savedLocale);
+            setEditPlaceholder(savedLocale);
+        } else {
+            setEditTitle("");
+            setEditPlaceholder(translationCache[footerLocale]?.[english] || english || section.title);
+        }
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingSection) return;
+        if (!editTitle) {
+            toast.error("Title is required");
+            return;
+        }
+        try {
+            const existingTitles = (editingSection.titles || {}) as Record<string, string>;
+            const nextTitles: Record<string, string> = { ...existingTitles };
+            const localeKey = footerLocale === 'en' ? 'en' : footerLocale;
+            nextTitles[localeKey] = editTitle;
+
+            const updatedSection: any = {
+                title: footerLocale === 'en' ? editTitle : editingSection.title,
+                titles: nextTitles,
+            };
+
+            const response = await api.put(`/v1/footer/items/edit/${editingSection.title}`, updatedSection);
+            if (response?.data?.success) {
+                toast.success("Footer section updated successfully");
+                setIsEditModalOpen(false);
+                setEditingSection(null);
+                await fetchFooter();
+            } else {
+                const errorMsg = response?.data?.msg || "Failed to update footer section";
+                toast.error(errorMsg);
+            }
+        } catch (err: any) {
+            const errorMsg = err?.response?.data?.msg || err?.response?.data?.message || err?.message || "Failed to update footer section";
+            toast.error(errorMsg);
+        }
+    };
+
     if (loading) return <div className="p-6 text-center">Loading footer data...</div>;
 
     return (
@@ -330,6 +395,14 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                             </div>
                                             <div className="flex gap-2">
                                                 <FooterVisibilityToggle section={item} onToggle={handleChangeVisibility} />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleEditSection(item)}
+                                                    className="text-primary hover:text-primary/80"
+                                                >
+                                                    Edit
+                                                </Button>
                                             </div>
                                         </li>
                                     </SortableItem>
@@ -341,6 +414,31 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                     <p className="text-gray-500">No sections yet. Click "Add Section" to create one.</p>
                 )}
             </div>
+
+            {/* Edit Section Dialog */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit Footer Section</DialogTitle>
+                        <DialogDescription>
+                            Update the section title. Only the current locale will be changed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+                        <Input
+                            type="text"
+                            placeholder={editPlaceholder || "Title"}
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="placeholder:text-muted-foreground/70"
+                            required
+                        />
+                        <DialogFooter>
+                            <Button type="submit">Save Changes</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {footer && footer.items.length > 0 && (
                 <div className="flex gap-4 justify-start mt-6">
