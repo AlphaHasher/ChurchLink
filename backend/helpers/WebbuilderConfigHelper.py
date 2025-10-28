@@ -1,4 +1,5 @@
 from mongo.database import DB
+from models.website_app_config import WebsiteAppConfig
 from typing import Optional, Dict, Any
 from datetime import datetime
 
@@ -15,35 +16,33 @@ class WebbuilderConfigHelper:
             Website configuration dict
         """
         try:
-            # Get website settings from the settings collection
-            title = await DB.get_setting("website_title", "ChurchLink")
-            favicon_url = await DB.get_setting("website_favicon_url", "/dove-favicon.svg")
-            meta_description = await DB.get_setting("website_meta_description", None)
-            updated_by = await DB.get_setting("website_updated_by", "system")
-            updated_at = await DB.get_setting("website_updated_at", datetime.utcnow().isoformat())
+            # Create default config instance to get default values
+            default_config = WebsiteAppConfig()
             
-            return {
-                "title": title,
-                "favicon_url": favicon_url,
-                "meta_description": meta_description,
-                "updated_by": updated_by,
-                "updated_at": updated_at,
-                "created_at": updated_at,  # Use same as updated_at for compatibility
-                "id": "website_config"  # Static ID for compatibility
-            }
+            # Get website settings from the settings collection with defaults from model
+            title = await DB.get_setting("website_title", default_config.title)
+            favicon_url = await DB.get_setting("website_favicon_url", default_config.favicon_url)
+            meta_description = await DB.get_setting("website_meta_description", default_config.meta_description)
+            updated_by = await DB.get_setting("website_updated_by", default_config.updated_by)
+            updated_at = await DB.get_setting("website_updated_at", default_config.updated_at)
+            
+            # Create and return the configuration using the model
+            config = WebsiteAppConfig(
+                title=title,
+                favicon_url=favicon_url,
+                meta_description=meta_description,
+                updated_by=updated_by,
+                updated_at=updated_at,
+                created_at=updated_at  # Use same as updated_at for compatibility
+            )
+            
+            return config.dict()
                 
         except Exception as e:
             print(f"Error loading website configuration: {e}")
-            # Return defaults on error
-            return {
-                "title": "ChurchLink",
-                "favicon_url": "/dove-favicon.svg",
-                "meta_description": None,
-                "updated_by": "system",
-                "updated_at": datetime.utcnow().isoformat(),
-                "created_at": datetime.utcnow().isoformat(),
-                "id": "website_config"
-            }
+            # Return defaults from model on error
+            default_config = WebsiteAppConfig()
+            return default_config.dict()
     
     @staticmethod
     async def save_website_config(config_data: Dict[str, Any], updated_by: str = "admin") -> bool:
@@ -58,18 +57,16 @@ class WebbuilderConfigHelper:
             True if successful, False otherwise
         """
         try:
+            # Validate the config data using the model
+            config = WebsiteAppConfig(**config_data, updated_by=updated_by)
+            
             current_time = datetime.utcnow().isoformat()
             success = True
             
             # Save each setting individually
-            if "title" in config_data:
-                success &= await DB.set_setting("website_title", config_data["title"])
-            
-            if "favicon_url" in config_data:
-                success &= await DB.set_setting("website_favicon_url", config_data["favicon_url"])
-            
-            if "meta_description" in config_data:
-                success &= await DB.set_setting("website_meta_description", config_data["meta_description"])
+            success &= await DB.set_setting("website_title", config.title)
+            success &= await DB.set_setting("website_favicon_url", config.favicon_url)
+            success &= await DB.set_setting("website_meta_description", config.meta_description)
             
             # Always update metadata
             success &= await DB.set_setting("website_updated_by", updated_by)
@@ -94,6 +91,15 @@ class WebbuilderConfigHelper:
             True if successful, False otherwise
         """
         try:
+            # Get current config to merge with updates
+            current_config = await WebbuilderConfigHelper.get_website_config()
+            
+            # Create updated config dict
+            updated_config = {**current_config, **updates, "updated_by": updated_by}
+            
+            # Validate the complete config using the model
+            config = WebsiteAppConfig(**updated_config)
+            
             current_time = datetime.utcnow().isoformat()
             success = True
             
@@ -101,7 +107,7 @@ class WebbuilderConfigHelper:
             for key, value in updates.items():
                 if key in ["title", "favicon_url", "meta_description"]:
                     setting_key = f"website_{key}"
-                    success &= await DB.set_setting(setting_key, value)
+                    success &= await DB.set_setting(setting_key, getattr(config, key))
             
             # Always update metadata
             success &= await DB.set_setting("website_updated_by", updated_by)

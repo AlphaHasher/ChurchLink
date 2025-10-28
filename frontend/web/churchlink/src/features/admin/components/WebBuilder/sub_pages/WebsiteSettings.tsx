@@ -39,7 +39,7 @@ const WebsiteSettings: React.FC = () => {
       console.error('Error loading website config:', error);
       setMessage({ type: 'error', text: 'Failed to load website configuration. Please check your permissions.' });
       
-      // Fallback to basic config for display
+      // Fallback to defaults from model (same as backend defaults)
       setConfig({
         title: 'ChurchLink',
         favicon_url: '/dove-favicon.svg',
