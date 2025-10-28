@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/paypal_service.dart';
+import 'package:app/services/paypal_service.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -97,28 +97,28 @@ class _GivingState extends State<Giving> {
               if (result != null && result['success'] == true) {
                 log('[DeepLink] Bulk registration completed successfully');
                 // Close any open dialogs and clear navigation stack
+                if (!mounted) return;
                 Navigator.of(context).popUntil((route) => route.isFirst);
-                
+
                 // Navigate to events list, replacing the current route
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/events',
                   (route) => false, // Remove all previous routes
                 );
-                
+
                 // Show success message after navigation
                 final numberOfPeople = registrations.length;
                 Future.delayed(Duration(milliseconds: 800), () {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
-                        ),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 4),
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
                       ),
-                    );
-                  }
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
                 });
               } else {
                 log('[DeepLink] Bulk registration failed: ${result?['error']}');
@@ -141,28 +141,28 @@ class _GivingState extends State<Giving> {
               
               log('[DeepLink] Single event payment API result: $result');
               
-              if (result != null && result['success'] == true) {
+                if (result != null && result['success'] == true) {
                 log('[DeepLink] Single event payment completed successfully');
                 // Close any open dialogs and clear navigation stack
+                if (!mounted) return;
                 Navigator.of(context).popUntil((route) => route.isFirst);
-                
+
                 // Navigate to events list, replacing the current route
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/events',
                   (route) => false, // Remove all previous routes
                 );
-                
+
                 // Show success message after navigation
                 Future.delayed(Duration(milliseconds: 800), () {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('✅ Event payment completed successfully!'),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 4),
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✅ Event payment completed successfully!'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
                 });
               } else {
                 log('[DeepLink] Single event payment failed: ${result?['error']}');
@@ -449,21 +449,19 @@ class _GivingState extends State<Giving> {
       title: 'Church Giving',
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        appBar: AppBar(
-          backgroundColor: const Color.fromARGB(159, 144, 79, 230),
-          iconTheme: const IconThemeData(color: Colors.white),
-          title: const Padding(
-            padding: EdgeInsets.only(left: 80),
-            child: Text(
-              'Church Giving',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(159, 144, 79, 230),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Church Giving',
+          style: TextStyle(color: Colors.white),
         ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
         backgroundColor: const Color.fromARGB(246, 244, 236, 255),
         body: SafeArea(
           minimum: const EdgeInsets.symmetric(horizontal: 10),
@@ -532,7 +530,7 @@ class _GivingState extends State<Giving> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _purpose,
+                    initialValue: _purpose,
                     decoration: const InputDecoration(
                       labelText: 'Purpose',
                       border: OutlineInputBorder(),
@@ -605,7 +603,7 @@ class _GivingState extends State<Giving> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _intervalUnit,
+                              initialValue: _intervalUnit,
                               decoration: const InputDecoration(
                                 labelText: 'Interval Unit',
                                 border: OutlineInputBorder(),
@@ -639,10 +637,10 @@ class _GivingState extends State<Giving> {
                                   int maxVal = 1;
                                   if (_intervalUnit == 'DAY') {
                                     maxVal = 365;
-                                  } else if (_intervalUnit == 'WEEK') maxVal = 52;
-                                  else if (_intervalUnit == 'MONTH') maxVal = 12;
-                                  else if (_intervalUnit == 'YEAR') maxVal = 1;
-                                  
+                                  } else if (_intervalUnit == 'WEEK') { maxVal = 52; }
+                                  else if (_intervalUnit == 'MONTH') { maxVal = 12; }
+                                  else if (_intervalUnit == 'YEAR') { maxVal = 1; }
+
                                   setState(() {
                                     _intervalCount = parsed > maxVal ? maxVal : parsed;
                                   });

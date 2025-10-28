@@ -19,13 +19,13 @@ class DaysWindow extends StatefulWidget {
   builder;
 
   const DaysWindow({
-    Key? key,
+    super.key,
     required this.storageKey,
     required this.totalDays,
     required this.builder,
     this.pageSize = 5,
     this.initialDay = 1,
-  }) : super(key: key);
+  });
 
   @override
   State<DaysWindow> createState() => _DaysWindowState();

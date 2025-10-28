@@ -1,7 +1,7 @@
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 // import 'package:http/http.dart' as http;
-import '../helpers/api_client.dart';
+import 'package:app/helpers/api_client.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -91,3 +91,4 @@ class FCMTokenService {
     _tokenSent = false;
   }
 }
+
