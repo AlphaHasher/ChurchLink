@@ -154,7 +154,7 @@ async def lifespan(app: FastAPI):
             if existing:
                 logger.info("Skipping header/footer titles migration; already completed previously")
             else:
-                logger.info("Running header/footer titles migration (non-blocking errors)")
+                logger.info("Running header/footer titles migration (non-blocking for startup)")
                 await run_header_footer_titles_migration()
                 await migrations_coll.update_one(
                     {"name": "header_footer_titles"},
@@ -163,7 +163,7 @@ async def lifespan(app: FastAPI):
                 )
                 logger.info("Header/footer titles migration completed and recorded")
         except Exception as e:
-            logger.warning(f"Header/footer titles migration skipped due to error: {e}")
+            logger.error(f"Header/footer titles migration failed; will retry next startup. Error: {e}")
 
         if not BYPASS_FIREBASE_SYNC:
             logger.info("Running initial Firebase -> Mongo sync")

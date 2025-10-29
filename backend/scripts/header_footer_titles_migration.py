@@ -120,14 +120,7 @@ async def _migrate_footer_items() -> None:
 
 
 async def run_header_footer_titles_migration() -> None:
-    try:
-        await _migrate_header_items()
-    except Exception:
-        # Do not block startup
-        pass
-    try:
-        await _migrate_footer_items()
-    except Exception:
-        pass
+    await _migrate_header_items()
+    await _migrate_footer_items()
 
 

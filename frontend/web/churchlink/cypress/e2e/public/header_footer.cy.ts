@@ -18,7 +18,14 @@ describe('Public – Header & Footer', () => {
       statusCode: 200,
       body: {
         items: [
-          { title: 'About', russian_title: 'О нас', items: [ { title: 'Contact', russian_title: 'Контакты', url: '/contact', visible: true } ], visible: true },
+          {
+            title: 'About',
+            titles: { en: 'About', ru: 'О нас' },
+            items: [
+              { title: 'Contact', titles: { en: 'Contact', ru: 'Контакты' }, url: '/contact', visible: true }
+            ],
+            visible: true
+          },
         ],
       },
     }).as('getFooter');

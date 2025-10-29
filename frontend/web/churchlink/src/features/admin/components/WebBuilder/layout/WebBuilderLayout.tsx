@@ -33,7 +33,7 @@ interface FooterItem {
 
 interface FooterSection {
   title: string;
-  russian_title: string;
+  titles?: Record<string, string>;
   items: FooterItem[];
   visible?: boolean;
 }
