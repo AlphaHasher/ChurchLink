@@ -26,9 +26,42 @@ def _validate_asset_url(url: str) -> bool:
     Returns:
         bool: True if valid asset URL format, False otherwise
     """
-    # Validate basic asset URL format with strict 24-character ObjectId
-    asset_url_pattern = r'^/api/v1/assets/(public/id/[a-f0-9]{24}|[a-zA-Z0-9_/\-]+\.(ico|png|svg))$'
-    return bool(re.match(asset_url_pattern, url))
+    # First check for path traversal sequences
+    if '..' in url:
+        return False
+    
+    # Check for ObjectId format: /api/v1/assets/public/id/{24-char-hex}
+    objectid_pattern = r'^/api/v1/assets/public/id/[a-f0-9]{24}$'
+    if re.match(objectid_pattern, url):
+        return True
+    
+    # Check for file asset format: /api/v1/assets/{safe-path}.{ico|png|svg}
+    # Extract the path after /api/v1/assets/
+    if not url.startswith('/api/v1/assets/'):
+        return False
+    
+    asset_path = url[15:]  # Remove '/api/v1/assets/' prefix
+    
+    # Check file extension
+    if not asset_path.lower().endswith(('.ico', '.png', '.svg')):
+        return False
+    
+    # Split path into segments and validate each one
+    # Remove the file extension for segment validation
+    path_without_ext = asset_path.rsplit('.', 1)[0]
+    segments = path_without_ext.split('/')
+    
+    # Validate each segment
+    for segment in segments:
+        if not segment:  # Empty segment (double slash)
+            return False
+        if segment == '.' or segment == '..':  # Current or parent directory
+            return False
+        # Allow only alphanumeric, underscore, and dash in segments
+        if not re.match(r'^[a-zA-Z0-9_\-]+$', segment):
+            return False
+    
+    return True
 
 
 class WebsiteAppConfig(BaseModel):
@@ -178,6 +211,16 @@ class WebsiteAppConfig(BaseModel):
                 raise ValueError('Meta description cannot exceed 160 characters')
         return v
 
+    @field_validator('favicon_asset_id')
+    @classmethod
+    def validate_favicon_asset_id(cls, v):
+        """Validate favicon_asset_id as MongoDB ObjectId (24 lowercase hex)"""
+        if v is None:
+            return v
+        if not re.match(r'^[a-f0-9]{24}$', v):
+            raise ValueError('favicon_asset_id must be a 24-character lowercase hex string')
+        return v
+
 
 class WebsiteConfigUpdate(BaseModel):
     """
@@ -295,6 +338,16 @@ class WebsiteConfigUpdate(BaseModel):
                 return None
             if len(v) > 160:
                 raise ValueError('Meta description cannot exceed 160 characters')
+        return v
+
+    @field_validator('favicon_asset_id')
+    @classmethod
+    def validate_favicon_asset_id(cls, v):
+        """Validate favicon_asset_id as MongoDB ObjectId (24 lowercase hex)"""
+        if v is None:
+            return v
+        if not re.match(r'^[a-f0-9]{24}$', v):
+            raise ValueError('favicon_asset_id must be a 24-character lowercase hex string')
         return v
 
 
