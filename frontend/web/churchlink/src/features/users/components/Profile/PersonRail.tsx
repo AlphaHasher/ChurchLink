@@ -4,6 +4,7 @@ import { PersonDetails } from "@/shared/types/Person";
 import { PersonTile } from "./PersonTile";
 import { AddPersonDialog } from "./AddPersonDialog";
 import { getMyFamilyMembers } from "@/helpers/UserHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type PersonRailProps = {
     people?: PersonDetails[];
@@ -11,7 +12,8 @@ type PersonRailProps = {
 };
 
 export const PersonRail: React.FC<PersonRailProps> = ({ people, className }) => {
-    const heading = "Family Members";
+    const localize = useLocalize();
+    const heading = localize("Family Members");
 
     const [list, setList] = React.useState<PersonDetails[]>(people ?? []);
     React.useEffect(() => setList(people ?? []), [people]);
@@ -60,7 +62,7 @@ export const PersonRail: React.FC<PersonRailProps> = ({ people, className }) => 
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.3, ease: "easeOut" }}
                     >
-                        You have not added any Family Members to your account.
+                        {localize("You have not added any Family Members to your account.")}
                     </motion.div>
                 )}
             </div>

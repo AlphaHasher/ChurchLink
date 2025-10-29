@@ -8,6 +8,7 @@ import {
     SelectContent,
     SelectItem,
 } from "@/shared/components/ui/select";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 export type Gender = "M" | "F" | "";
 
@@ -33,6 +34,7 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
     disabled,
     className,
 }) => {
+    const localize = useLocalize();
     const onlyDigits = (s: string) => s.replace(/\D/g, "");
     const clamp = (n: number, min: number, max: number) =>
         Math.min(max, Math.max(min, n));
@@ -114,29 +116,29 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
     return (
         <div className={["space-y-6", className].filter(Boolean).join(" ")}>
             <div className="space-y-2">
-                <Label>Full Name</Label>
+                <Label>{localize("Full Name")}</Label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1">
                         <Label htmlFor={`${idPrefix}-firstName`} className="text-xs text-muted-foreground">
-                            First name
+                            {localize("First name")}
                         </Label>
                         <Input
                             id={`${idPrefix}-firstName`}
                             value={value.firstName}
                             onChange={(e) => update({ firstName: e.target.value })}
-                            placeholder="First"
+                            placeholder={localize("First")}
                             disabled={disabled}
                         />
                     </div>
                     <div className="space-y-1">
                         <Label htmlFor={`${idPrefix}-lastName`} className="text-xs text-muted-foreground">
-                            Last name
+                            {localize("Last name")}
                         </Label>
                         <Input
                             id={`${idPrefix}-lastName`}
                             value={value.lastName}
                             onChange={(e) => update({ lastName: e.target.value })}
-                            placeholder="Last"
+                            placeholder={localize("Last")}
                             disabled={disabled}
                         />
                     </div>
@@ -144,18 +146,18 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
             </div>
 
             <div className="space-y-2">
-                <Label>Date of Birth</Label>
+                <Label>{localize("Date of Birth")}</Label>
                 <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
                         <Label htmlFor={`${idPrefix}-dob-mm`} className="text-xs text-muted-foreground">
-                            MM
+                            {localize("MM")}
                         </Label>
                         <Input
                             id={`${idPrefix}-dob-mm`}
                             inputMode="numeric"
                             pattern="\d*"
                             maxLength={2}
-                            placeholder="MM"
+                            placeholder={localize("MM")}
                             value={value.dob.mm}
                             onChange={(e) => onChangeMM(e.target.value)}
                             onBlur={onBlurMM}
@@ -164,14 +166,14 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
                     </div>
                     <div className="space-y-1">
                         <Label htmlFor={`${idPrefix}-dob-dd`} className="text-xs text-muted-foreground">
-                            DD
+                            {localize("DD")}
                         </Label>
                         <Input
                             id={`${idPrefix}-dob-dd`}
                             inputMode="numeric"
                             pattern="\d*"
                             maxLength={2}
-                            placeholder="DD"
+                            placeholder={localize("DD")}
                             value={value.dob.dd}
                             onChange={(e) => onChangeDD(e.target.value)}
                             onBlur={onBlurDD}
@@ -180,14 +182,14 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
                     </div>
                     <div className="space-y-1">
                         <Label htmlFor={`${idPrefix}-dob-yyyy`} className="text-xs text-muted-foreground">
-                            YYYY
+                            {localize("YYYY")}
                         </Label>
                         <Input
                             id={`${idPrefix}-dob-yyyy`}
                             inputMode="numeric"
                             pattern="\d*"
                             maxLength={4}
-                            placeholder="YYYY"
+                            placeholder={localize("YYYY")}
                             value={value.dob.yyyy}
                             onChange={(e) => onChangeYYYY(e.target.value)}
                             onBlur={onBlurYYYY}
@@ -198,7 +200,7 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor={`${idPrefix}-gender`}>Gender</Label>
+                <Label htmlFor={`${idPrefix}-gender`}>{localize("Gender")}</Label>
                 <Select
                     value={value.gender}
                     onValueChange={(v) => update({ gender: v as Gender })}
@@ -208,11 +210,11 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
                         id={`${idPrefix}-gender`}
                         className="!w-full !h-10 !bg-background !text-foreground appearance-none !px-3 !py-2 data-[placeholder]:text-muted-foreground"
                     >
-                        <SelectValue placeholder="Select gender" />
+                        <SelectValue placeholder={localize("Select gender")} />
                     </SelectTrigger>
                     <SelectContent className="z-50 max-h-60">
-                        <SelectItem value="M">M</SelectItem>
-                        <SelectItem value="F">F</SelectItem>
+                        <SelectItem value="M">{localize("M")}</SelectItem>
+                        <SelectItem value="F">{localize("F")}</SelectItem>
                     </SelectContent>
                 </Select>
             </div>

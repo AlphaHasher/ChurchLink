@@ -8,6 +8,7 @@ import { Pencil } from "lucide-react";
 import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";
 import { PersonDetails } from "@/shared/types/Person";
 import { editFamilyMember } from "@/helpers/UserHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type EditPersonDialogProps = {
     person: PersonDetails;
@@ -20,6 +21,7 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
     className,
     onUpdated,
 }) => {
+    const localize = useLocalize();
     const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
     const toInfo = (p: PersonDetails): PersonInfo => {
         const d = new Date(p.date_of_birth);
@@ -72,7 +74,7 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
         if (res?.success) {
             onUpdated?.(updated);
         } else {
-            setError("Failed to save changes. Please try again.");
+            setError(localize("Failed to save changes. Please try again."));
         }
     };
 
@@ -83,7 +85,7 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
                     variant="outline"
                     size="icon"
                     className={["h-8 w-8 !bg-white border shadow-sm hover:bg-blue-600/10", className].filter(Boolean).join(" ")}
-                    title="Edit person"
+                    title={localize("Edit person")}
                 >
                     <Pencil className="h-4 w-4" />
                 </Button>
@@ -91,8 +93,8 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
 
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Edit Family Member</DialogTitle>
-                    <DialogDescription>Update the person’s details below.</DialogDescription>
+                    <DialogTitle>{localize("Edit Family Member")}</DialogTitle>
+                    <DialogDescription>{localize("Update the person’s details below.")}</DialogDescription>
                 </DialogHeader>
 
                 <PersonInfoInput value={info} onChange={setInfo} idPrefix={`edit-${person.id}`} />
@@ -111,13 +113,13 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
                             className="!bg-transparent !text-foreground hover:!bg-muted"
                             disabled={submitting}
                         >
-                            Cancel
+                            {localize("Cancel")}
                         </Button>
                     </DialogClose>
 
                     <DialogClose asChild>
                         <Button type="button" onClick={handleSave} disabled={!isValid || submitting}>
-                            {submitting ? "Saving..." : "Save changes"}
+                            {submitting ? localize("Saving...") : localize("Save changes")}
                         </Button>
                     </DialogClose>
                 </DialogFooter>

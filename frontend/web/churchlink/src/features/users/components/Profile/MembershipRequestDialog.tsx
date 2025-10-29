@@ -17,6 +17,7 @@ import { Separator } from "@/shared/components/ui/separator";
 
 import { createMembershipRequest } from "@/helpers/MembershipHelper";
 import type { MembershipDetails } from "@/shared/types/MembershipRequests";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type Props = {
     open: boolean;
@@ -33,6 +34,7 @@ export default function MembershipRequestDialog({
     resubmission,
     onSubmitted,
 }: Props) {
+    const localize = useLocalize();
     const [message, setMessage] = React.useState<string>("");
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -53,10 +55,10 @@ export default function MembershipRequestDialog({
     const reasonText =
         deniedReason && deniedReason.trim().length > 0
             ? deniedReason
-            : "No denial reason was given.";
+            : localize("No denial reason was given.");
 
-    const title = resubmission ? "Re-Submit Membership Request" : "Submit Membership Request";
-    const submitLabel = resubmission ? "Re-Submit Request" : "Submit Request";
+    const title = resubmission ? localize("Re-Submit Membership Request") : localize("Submit Membership Request");
+    const submitLabel = resubmission ? localize("Re-Submit Request") : localize("Submit Request");
 
     const onSubmit = async () => {
         try {
@@ -89,10 +91,10 @@ export default function MembershipRequestDialog({
                     </DialogTitle>
                     <DialogDescription>
                         {muted
-                            ? "You can read the prior decision below, but cannot submit a new request."
+                            ? localize("You can read the prior decision below, but cannot submit a new request.")
                             : resubmission
-                                ? "Update your request with an optional message before sending it again."
-                                : "Optionally include a short message to accompany your request."}
+                                ? localize("Update your request with an optional message before sending it again.")
+                                : localize("Optionally include a short message to accompany your request.")}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -100,7 +102,7 @@ export default function MembershipRequestDialog({
                     <Alert className="mb-3 border-amber-500/30 bg-amber-500/10">
                         <AlertDescription className="flex items-start gap-2">
                             <ShieldAlert className="h-4 w-4 mt-[2px] text-amber-600" />
-                            <span>You have been prohibited from making future membership requests.</span>
+                            <span>{localize("You have been prohibited from making future membership requests.")}</span>
                         </AlertDescription>
                     </Alert>
                 )}
@@ -111,7 +113,7 @@ export default function MembershipRequestDialog({
                             <div className="flex items-start gap-2">
                                 <Info className="mt-0.5 h-4 w-4 text-muted-foreground" />
                                 <div className="space-y-1">
-                                    <p className="text-sm font-medium">Previous reviewer response</p>
+                                    <p className="text-sm font-medium">{localize("Previous reviewer response")}</p>
                                     <p className="text-sm text-muted-foreground">{reasonText}</p>
                                 </div>
                             </div>
@@ -127,13 +129,13 @@ export default function MembershipRequestDialog({
                 )}
 
                 <div className="grid gap-2">
-                    <Label htmlFor="mr-message">Optional message</Label>
+                    <Label htmlFor="mr-message">{localize("Optional message")}</Label>
                     <Textarea
                         id="mr-message"
                         placeholder={
                             resubmission
-                                ? "Optionally explain why you’re re-submitting…"
-                                : "Optional message to accompany your request…"
+                                ? localize("Optionally explain why you’re re-submitting…")
+                                : localize("Optional message to accompany your request…")
                         }
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
@@ -144,7 +146,7 @@ export default function MembershipRequestDialog({
 
                 <DialogFooter className="gap-2 sm:gap-0">
                     <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-                        Close
+                        {localize("Close")}
                     </Button>
                     <Button onClick={onSubmit} disabled={submitting || muted}>
                         {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

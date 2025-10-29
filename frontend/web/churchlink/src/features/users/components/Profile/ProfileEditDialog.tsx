@@ -7,6 +7,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { Input } from "@/shared/components/ui/input";
 import { PersonInfo, PersonInfoInput, Gender } from "./PersonInfoInput";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 import { updateProfileInfo } from "@/helpers/UserHelper";
 import { ProfileInfo as ApiPersonalInfo } from "@/shared/types/ProfileInfo";
@@ -29,6 +30,7 @@ export const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
     const [open, setOpen] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
     const [person, setPerson] = React.useState<PersonInfo>(initialPerson);
+    const localize = useLocalize();
 
     React.useEffect(() => setPerson(initialPerson), [initialPerson]);
 
@@ -70,15 +72,15 @@ export const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                    Update My Information
+                    {localize("Update My Information")}
                 </Button>
             </DialogTrigger>
 
             <DialogContent className={["sm:max-w-lg", className].filter(Boolean).join(" ")}>
                 <DialogHeader>
-                    <DialogTitle>Update information</DialogTitle>
+                    <DialogTitle>{localize("Update information")}</DialogTitle>
                     <DialogDescription>
-                        Make changes to your profile details. Your email is read-only.
+                        {localize("Make changes to your profile details. Your email is read-only.")}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -99,7 +101,7 @@ export const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
 
                 <DialogFooter>
                     <Button type="button" onClick={handleSave} disabled={saving}>
-                        {saving ? "Saving..." : "Save changes"}
+                        {saving ? localize("Saving...") : localize("Save changes")}
                     </Button>
                 </DialogFooter>
             </DialogContent>
