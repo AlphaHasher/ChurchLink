@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat, Users, CreditCard } from "lucide-react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { Calendar as FiCalendar, MapPin as FiMapPin, DollarSign as FiDollarSign, Repeat as FiRepeat, Users, CreditCard, ExternalLink } from "lucide-react";
 import api from "@/api/api";
 import { EventPayPalButton } from "@/features/events/components/EventPayPalButton";
 import { useUserProfile } from "@/helpers/useUserProfile";
@@ -96,7 +96,8 @@ function EventRegistrationForm({
       registered_on: string;
       kind: "rsvp";
       payment_method?: "paypal" | "door";
-      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door";
+      payment_status?: "awaiting_payment" | "completed" | "paid" | "pending_door" | "refund_requested" | "refunded"; // Legacy
+      computed_payment_status?: "not_required" | "pending" | "completed" | "failed" | "refunded"; // NEW: From centralized system
       scope?: "series" | "occurrence";
     }>;
     total_registrations: number;
@@ -131,6 +132,9 @@ function EventRegistrationForm({
 
   // Use cached profile hook
   const { profile: currentUserProfile } = useUserProfile();
+
+  // ✅ DUPLICATE PREVENTION: Prevent multiple registration calls (fixes React StrictMode double execution)
+  const registrationInProgress = useRef(false);
 
   /** ---------- INLINE ADD PERSON (schema-conformant) ---------- **/
   const [showAdd, setShowAdd] = useState(false);
@@ -185,10 +189,14 @@ function EventRegistrationForm({
           }
         });
 
-        // Reset registration selections and scopes when initializing the form for a new event.
-        // This ensures previous registrations/selections are cleared and do not persist across events.
-        setSelectedIds(new Set());
-        setSelfSelected(false);
+        // Initialize selections to include all already registered family members and self
+        const registeredIds = (regRes.data?.user_registrations ?? [])
+          .filter((r: any) => r.person_id)
+          .map((r: any) => r.person_id);
+        setSelectedIds(new Set(registeredIds));
+        // If the current user is registered (person_id === null), set selfSelected to true
+        const selfIsRegistered = (regRes.data?.user_registrations ?? []).some((r: any) => r.person_id === null);
+        setSelfSelected(selfIsRegistered);
         setPersonScopes(scopes);
         setSelfScope(selfScopeValue);
         // local flag -> keep in state by setting selection if needed (no-op here)
@@ -287,11 +295,6 @@ function EventRegistrationForm({
   }, [people, event]);
 
   const togglePerson = (id: string) => {
-    // Prevent toggling already registered people
-    if (registeredSet.has(id)) {
-      return;
-    }
-
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -307,27 +310,6 @@ function EventRegistrationForm({
     });
   };
 
-  const removeRegistered = async (personId: string | null) => {
-    try {
-      setSaving(true);
-      if (personId === null) {
-        await api.delete(`/v1/event-people/unregister/${event.id}`);
-      } else {
-        await api.delete(`/v1/event-people/unregister/${event.id}/family-member/${personId}`);
-      }
-      const regRes = await api.get(`/v1/events/${event.id}/registrations/summary`);
-      setSummary(regRes.data);
-      if (personId === null) setSelfSelected(false);
-      else setSelectedIds((prev) => { const n = new Set(prev); n.delete(personId); return n; });
-    } catch (error: any) {
-      console.error("Remove registration failed:", error);
-      const errorMessage = error?.response?.data?.detail || error?.message || "Unknown error occurred";
-      alert(`Failed to remove registration: ${errorMessage}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const togglePersonScope = (id: string) => {
     setPersonScopes((prev) => ({
       ...prev,
@@ -336,8 +318,15 @@ function EventRegistrationForm({
   };
 
   const createOrUpdate = async () => {
-    if (saving) return;
+    // ✅ DUPLICATE PREVENTION: Prevent concurrent registration calls
+    if (saving || registrationInProgress.current) {
+      console.log('🔄 [EVENT SECTION] Registration already in progress, skipping duplicate call');
+      return;
+    }
+    
+    registrationInProgress.current = true;
     setSaving(true);
+    
     try {
       const wantSelf = selfSelected;
       const haveSelf = selfRegistered;
@@ -362,7 +351,20 @@ function EventRegistrationForm({
           }
         }
       });
-      have.forEach((id) => !want.has(id) && toRemove.push(id));
+      
+      // FIXED: Only remove family members who are explicitly deselected
+      // Check if any registered family members are not selected (deselected by user)
+      have.forEach((id) => {
+        if (!want.has(id)) {
+          const reg = summary?.user_registrations?.find((r: any) => r.person_id === id);
+          const status = reg ? (reg.computed_payment_status || reg.payment_status) : undefined;
+          if (status === 'completed' || status === 'refund_requested') {
+            console.warn(`[REG] Preventing unregister for paid registration ${id}; request refund in My Events.`);
+            return; // skip removal
+          }
+          toRemove.push(id);
+        }
+      });
 
       // Check if self scope changed
       let selfScopeChanged = false;
@@ -478,7 +480,7 @@ function EventRegistrationForm({
 
         if (wantSelf && !haveSelf) {
           registrationPromises.push(
-            api.post(`/v1/event-people/register/${event.id}`, {
+            api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`, {
               payment_option: 'door'
             })
           );
@@ -486,7 +488,7 @@ function EventRegistrationForm({
 
         for (const id of toAdd) {
           registrationPromises.push(
-            api.post(`/v1/event-people/register/${event.id}/family-member/${id}`, {
+            api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${personScopes[id] || 'series'}`, {
               payment_option: 'door'
             })
           );
@@ -514,19 +516,21 @@ function EventRegistrationForm({
       if (wantSelf && !haveSelf) {
         await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
       } else if (!wantSelf && haveSelf) {
-        // Unregister with old scope (or null to remove all)
-        await api.delete(`/v1/event-people/unregister/${event.id}`);
+        // Check if self registration has paid status
+        const selfReg = summary?.user_registrations?.find(r => r.person_id === null);
+        const status = selfReg ? (selfReg.computed_payment_status || selfReg.payment_status) : undefined;
+        if (status === 'completed' || status === 'refund_requested') {
+          console.warn(`[REG] Preventing unregister for paid self registration; request refund in My Events.`);
+          // Do not unregister - user needs to use My Events for refunds
+        } else {
+          // Unregister with old scope (or null to remove all)
+          await api.delete(`/v1/event-people/unregister/${event.id}`);
+        }
       } else if (selfScopeChanged && wantSelf && haveSelf) {
         // Update self scope: remove old scope, add new scope
         const oldScope = summary?.user_registrations?.find(r => r.person_id === null)?.scope || "series";
         await api.delete(`/v1/event-people/unregister/${event.id}?scope=${oldScope}`);
         await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
-      }
-
-      // family
-      for (const id of toAdd) {
-        console.log(`📝 [EVENT SECTION] Registering family member: ${id}`);
-        await api.post(`/v1/event-people/register/${event.id}/family-member/${id}`);
       }
 
       // Add new registrations
@@ -561,6 +565,7 @@ function EventRegistrationForm({
       alert(`Failed to update registration: ${errorMessage}`);
     } finally {
       setSaving(false);
+      registrationInProgress.current = false; // ✅ Reset duplicate prevention flag
     }
   };
 
@@ -666,22 +671,29 @@ function EventRegistrationForm({
             </div>
           </div>
 
-          {/* Already registered */}
+          {/* Registration Management - Redirect to My Events */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium">Already Registered</h4>
+              <h4 className="font-medium">Your Registration</h4>
               {/* Payment Status Summary for paid events */}
               {summary?.user_registrations?.length && (event.price ?? 0) > 0 && (
                 <div className="text-xs text-gray-500">
                   {(() => {
                     const registrations = summary.user_registrations;
-                    const completedPayments = registrations.filter(r => r.payment_status === 'completed' || r.payment_status === 'paid').length;
-                    const doorPayments = registrations.filter(r => r.payment_status === 'pending_door').length;
-                    const pendingPayments = registrations.filter(r => !r.payment_status || r.payment_status === 'awaiting_payment').length;
+                    // Use computed_payment_status first, fallback to payment_status
+                    const getStatus = (r: any) => r.computed_payment_status || r.payment_status;
+                    
+                    const completedPayments = registrations.filter(r => getStatus(r) === 'completed').length;
+                    const doorPayments = registrations.filter(r => getStatus(r) === 'pending_door').length;
+                    const refundRequestedPayments = registrations.filter(r => getStatus(r) === 'refund_requested').length;
+                    const refundedPayments = registrations.filter(r => getStatus(r) === 'refunded').length;
+                    const pendingPayments = registrations.filter(r => !getStatus(r) || getStatus(r) === 'awaiting_payment' || getStatus(r) === 'pending').length;
 
                     const parts = [];
                     if (completedPayments > 0) parts.push(`${completedPayments} paid online`);
                     if (doorPayments > 0) parts.push(`${doorPayments} pay at door`);
+                    if (refundRequestedPayments > 0) parts.push(`${refundRequestedPayments} refund requested`);
+                    if (refundedPayments > 0) parts.push(`${refundedPayments} refunded`);
                     if (pendingPayments > 0) parts.push(`${pendingPayments} pending`);
 
                     return parts.length > 0 ? parts.join(' • ') : 'All paid';
@@ -689,55 +701,45 @@ function EventRegistrationForm({
                 </div>
               )}
             </div>
+            
             {summary?.user_registrations?.length ? (
-              <div className="space-y-2">
-                {summary.user_registrations.map((r) => (
-                  <div key={`${r.person_id ?? "__self__"}`} className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex-1">
-                      <div className="font-medium">{r.display_name}</div>
-                      <div className="text-xs text-gray-500">
-                        Registered on {new Date(r.registered_on).toLocaleString()
-                        }
-                      </div>
-                      {/* Context-aware Payment Status Display */}
-                      <div className="mt-1">
-                        {event.price === 0 ? (
-                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 inline-block">
-                            ✅ Registered (Free Event)
-                          </span>
-                        ) : r.payment_status ? (
-                          <span className={`text-xs px-2 py-1 rounded-full inline-block ${(r.payment_status === 'completed' || r.payment_status === 'paid')
-                              ? 'bg-green-100 text-green-700'
-                              : r.payment_status === 'pending_door'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : r.payment_status === 'awaiting_payment'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-red-100 text-red-700'
-                            }`}>
-                            {(r.payment_status === 'completed' || r.payment_status === 'paid')
-                              ? '✅ Paid Online'
-                              : r.payment_status === 'pending_door'
-                                ? '🚪 Pay at Door'
-                                : r.payment_status === 'awaiting_payment'
-                                  ? '⏳ PayPal Processing'
-                                  : '❌ Payment Required'}
-                          </span>
-                        ) : (
-                          <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block">
-                            ❌ Payment Required
-                          </span>
-                        )}
-                      </div>
-                    </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h5 className="font-medium text-blue-800 mb-2">You are registered for this event!</h5>
+                    <p className="text-sm text-blue-700 mb-3">
+                      You have {summary.user_registrations.length} registration{summary.user_registrations.length > 1 ? 's' : ''} for this event. 
+                      To manage your registrations, cancel RSVPs, or request refunds, please visit your My Events page.
+                    </p>
+                    {/* Note about paid registration cancellations */}
+                    {(event.price ?? 0) > 0 && (
+                      <p className="text-xs text-blue-600 mb-3 bg-blue-100 p-2 rounded">
+                        <strong>Note:</strong> Cancellations for paid registrations require a refund request through My Events. 
+                        You cannot cancel paid registrations directly from this page.
+                      </p>
+                    )}
                     <button
-                      disabled={saving}
-                      className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-                      onClick={() => removeRegistered(r.person_id)}
+                      onClick={() => {
+                        // Navigate to My Events page
+                        if (typeof window !== 'undefined') {
+                          window.location.href = '/profile/my-events';
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      Remove
+                      <ExternalLink className="h-4 w-4" />
+                      Manage in My Events
                     </button>
                   </div>
-                ))}
+                </div>
+                
+                {/* Show registration summary */}
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="text-xs text-blue-600">
+                    <strong>Registered:</strong> {summary.user_registrations.map(r => r.display_name).join(', ')}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-sm text-gray-500">No one is registered yet.</div>
@@ -897,17 +899,35 @@ function EventRegistrationForm({
           {hasSelections && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-medium text-green-900 mb-2">
-                Selected for Registration ({(selfSelected ? 1 : 0) + selectedIds.size} people)
+                {(() => {
+                  // Only count currently selected and selectable (not already registered/disabled)
+                  let count = 0;
+                  if (selfSelected && !selfRegistered) count++;
+                  count += Array.from(selectedIds).filter(id => !registeredSet.has(id)).length;
+                  return `Add Member${count === 1 ? '' : 's'} to Registration (${count} selected)`;
+                })()}
               </h4>
               <div className="text-sm text-green-800">
-                {selfSelected && <p>• You</p>}
+                {/* Only show currently selected people, not all registered */}
+                {/* Only show currently selected and selectable people (not already registered/disabled) */}
+                {selfSelected && !selfRegistered && <p>• You</p>}
                 {Array.from(selectedIds).map(personId => {
-                  const person = people.find(p => p.id === personId);
-                  return person ? <p key={personId}>• {person.first_name} {person.last_name}</p> : null;
+                  // Only show if not already registered (i.e., not disabled)
+                  if (!registeredSet.has(personId)) {
+                    const person = people.find(p => p.id === personId);
+                    return person ? <p key={personId}>• {person.first_name} {person.last_name}</p> : null;
+                  }
+                  return null;
                 })}
                 {requiresPayment(event) && (
                   <p className="font-medium mt-2">
-                    Total Cost: ${((event.price || 0) * ((selfSelected ? 1 : 0) + selectedIds.size)).toFixed(2)}
+                    {(() => {
+                      // Only count currently selected and selectable (not already registered/disabled)
+                      let count = 0;
+                      if (selfSelected && !selfRegistered) count++;
+                      count += Array.from(selectedIds).filter(id => !registeredSet.has(id)).length;
+                      return `Total Cost: $${((event.price || 0) * count).toFixed(2)}`;
+                    })()}
                   </p>
                 )}
               </div>
@@ -925,6 +945,7 @@ function EventRegistrationForm({
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
+                  disabled={!hasPayPalOption(event)}
                 >
                   <div className="text-center">
                     <CreditCard className="h-6 w-6 mx-auto mb-2" />
@@ -939,6 +960,7 @@ function EventRegistrationForm({
                       ? 'border-orange-500 bg-orange-50 text-orange-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
+                  disabled={!event.payment_options?.includes('Door')}
                 >
                   <div className="text-center">
                     <FiDollarSign className="h-6 w-6 mx-auto mb-2" />

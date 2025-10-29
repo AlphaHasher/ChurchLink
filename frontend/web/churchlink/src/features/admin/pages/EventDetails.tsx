@@ -48,11 +48,19 @@ interface EventDetails {
     person_id?: string;
     display_name: string;
     addedOn: string;
-    payment_status: string;
+    payment_status: string; // Legacy field
+    computed_payment_status?: string; // NEW: From centralized system
     transaction_id?: string;
     payment_required: boolean;
     user_email?: string;
     phone?: string;
+    transaction_details?: {
+      transaction_id: string;
+      amount: number;
+      status: string;
+      payment_method: string;
+      created_on: string;
+    }; // NEW: Enriched transaction data
   }>;
   payment_summary: {
     total_registrations: number;
@@ -156,6 +164,8 @@ const EventDetails = () => {
       completed: { variant: "default", label: "Paid" },
       pending: { variant: "outline", label: "Pending" },
       failed: { variant: "destructive", label: "Failed" },
+      refund_requested: { variant: "outline", label: "Refund Requested" },
+      refunded: { variant: "secondary", label: "Refunded" },
       not_required: { variant: "secondary", label: "Free" },
     };
     
@@ -173,7 +183,7 @@ const EventDetails = () => {
         `"${attendee.user_email || ""}"`,
         `"${attendee.phone || ""}"`,
         `"${formatSimpleDate(attendee.addedOn)}"`,
-        `"${attendee.payment_status}"`,
+        `"${attendee.computed_payment_status || attendee.payment_status || 'unknown'}"`,
         `"${attendee.payment_required ? "Yes" : "No"}"`,
         `"${attendee.transaction_id || ""}"`
       ].join(","))
@@ -466,7 +476,7 @@ const EventDetails = () => {
                         </p>
                       </td>
                       <td className="p-2">
-                        {getPaymentStatusBadge(attendee.payment_status)}
+                        {getPaymentStatusBadge(attendee.computed_payment_status || attendee.payment_status)}
                       </td>
                       <td className="p-2">
                         <p className="text-sm font-mono">

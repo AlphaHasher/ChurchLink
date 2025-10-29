@@ -5,7 +5,8 @@ from datetime import datetime
 from mongo.roles import RoleHandler
 from helpers.MongoHelper import serialize_objectid_deep
 from typing import Tuple, List, Dict
-
+from models.transaction import Transaction
+from models.event import generate_attendee_key
 
 _PERSON_ID_NOT_PROVIDED = object()
 
@@ -91,6 +92,7 @@ class UserHandler:
     @staticmethod
     def create_event_ref_schema(
         event_id: ObjectId,
+        user_uid: str,          # ADD: user_uid to generate correct key
         reason: str,            # "watch" | "rsvp"  (RSVP not implemented here, but future-proof)
         scope: str,             # "series" | "occurrence"
         series_id: ObjectId = None,   # optional: if your model separates series vs instances
@@ -104,16 +106,9 @@ class UserHandler:
 
         Uniqueness key ensures add/remove is easy and duplicates are prevented.
         """
-        # Build a stable “composite key” to enforce uniqueness inside the array
-        parts = [
-            str(event_id),
-            scope,
-            str(series_id) if series_id else "",
-            str(occurrence_id) if occurrence_id else "",
-            occurrence_start.isoformat() if occurrence_start else "",
-            reason
-        ]
-        unique_key = "|".join(parts)
+        # Build a stable "composite key" to enforce uniqueness inside the array
+        # FIXED: Use user_uid instead of event_id to generate correct attendee key
+        unique_key = generate_attendee_key(user_uid, str(person_id) if person_id else None, reason, scope)
 
         return {
             "_id": ObjectId(),          # local id of the embedded record
@@ -325,12 +320,22 @@ class UserHandler:
         """
         If expand=True, join with 'events' to return full event docs alongside refs.
         If person_id is provided, filter events for specific family member.
+        Always enriches with computed_payment_status from Transaction model.
         """
         if not expand:
             user = await DB.db["users"].find_one({"uid": uid}, {"_id": 0, "my_events": 1})
             events = (user or {}).get("my_events", [])
             if person_id:
                 events = [event for event in events if event.get("person_id") == person_id]
+            
+            # Enrich with computed payment status
+            for event in events:
+                event_id = str(event.get("event_id", ""))
+                attendee_key = event.get("key", "")
+                if event_id and attendee_key:
+                    computed_status = await Transaction.get_attendee_payment_status(event_id, attendee_key)
+                    event["computed_payment_status"] = computed_status
+            
             return events
 
         pipeline = [
@@ -358,7 +363,27 @@ class UserHandler:
             }}}
         ])
         cursor = DB.db["users"].aggregate(pipeline)
-        return [doc async for doc in cursor]
+        events = [doc async for doc in cursor]
+        
+        # Enrich with computed payment status for both event refs and attendees
+        for event in events:
+            event_id = str(event.get("event_id", ""))
+            attendee_key = event.get("key", "")
+            
+            # Add computed status to event reference
+            if event_id and attendee_key:
+                computed_status = await Transaction.get_attendee_payment_status(event_id, attendee_key)
+                event["computed_payment_status"] = computed_status
+            
+            # Enrich attendees in expanded event data
+            if "event" in event and "attendees" in event["event"]:
+                for attendee in event["event"]["attendees"]:
+                    attendee_key = attendee.get("key", "")
+                    if attendee_key:
+                        computed_status = await Transaction.get_attendee_payment_status(event_id, attendee_key)
+                        attendee["computed_payment_status"] = computed_status
+        
+        return events
 
     @staticmethod
     async def add_to_sermon_favorites(
@@ -476,8 +501,14 @@ class UserHandler:
         meta: dict | None = None,
         person_id: ObjectId = None        # optional: for family member registrations
     ):
+        """
+        Add an event to user's my_events with proper duplicate prevention.
+        Returns the event reference if added, None if already exists.
+        """
+        # Create the event reference with proper unique key
         ref = UserHandler.create_event_ref_schema(
             event_id=event_id,
+            user_uid=uid,  # FIXED: Pass user_uid to generate correct key
             reason=reason,
             scope=scope,
             series_id=series_id,
@@ -487,11 +518,15 @@ class UserHandler:
             person_id=person_id
         )
 
+        # IMPROVED: Atomic duplicate prevention to avoid race conditions
+        # Use MongoDB's filter to ensure the key doesn't exist, then push in a single operation
+        
+        # Atomically add only if the key doesn't exist
         result = await DB.db["users"].update_one(
-           {"uid": uid},
-           {"$addToSet": {"my_events": ref}}
+            {"uid": uid, "my_events.key": {"$ne": ref["key"]}},
+            {"$push": {"my_events": ref}}
         )
-        # Only return ref if we actually added it (not when it was a duplicate)
+        
         return ref if result.modified_count == 1 else None
     
     @staticmethod

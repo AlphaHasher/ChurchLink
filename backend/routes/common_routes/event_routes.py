@@ -17,6 +17,7 @@ from controllers.users_functions import resolve_user_name, resolve_family_member
 from models.event import get_event_payment_summary, get_event_registrations_by_payment_status
 from models.transaction import Transaction
 from helpers.UserResolutionHelper import UserResolutionHelper
+from helpers.MongoHelper import serialize_objectid
 from datetime import datetime, timedelta
 import random
 import logging
@@ -77,6 +78,38 @@ async def get_event_by_id_route(event_id: str):
     event = await get_event_by_id(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Enrich attendees with payment status information using Transaction model
+    try:
+        enriched_attendees = await Transaction.get_event_registrations_by_payment_status(event_id)
+        
+        # Convert enriched attendees to a dict keyed by attendee key for easy lookup
+        enriched_map = {attendee["key"]: attendee for attendee in enriched_attendees}
+        
+        # Update event attendees with computed payment status
+        if hasattr(event, 'attendees') and event.attendees:
+            updated_attendees = []
+            for attendee in event.attendees:
+                attendee_dict = attendee if isinstance(attendee, dict) else attendee.dict()
+                attendee_key = attendee_dict.get("key")
+                
+                if attendee_key and attendee_key in enriched_map:
+                    # Merge the enriched data (which includes computed_payment_status)
+                    attendee_dict.update(enriched_map[attendee_key])
+                
+                # Serialize ObjectId fields in attendee data only
+                attendee_dict = serialize_objectid(attendee_dict)
+                updated_attendees.append(attendee_dict)
+            
+            # Update the event with enriched attendees
+            event_dict = event.dict() if hasattr(event, 'dict') else event
+            event_dict['attendees'] = updated_attendees
+            return event_dict
+            
+    except Exception as e:
+        logging.error(f"Error enriching event attendees with payment status: {e}")
+        # Fall back to returning the event without enriched payment data
+    
     return event
 
 # Private Router

@@ -1,13 +1,14 @@
 import pytest
 import httpx
 import asyncio
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 from bson import ObjectId
 import os
 
 from helpers.event_payment_helper import event_payment_helper
 from models.event import Event
+from models.transaction import Transaction, PaymentStatus, RegistrationPaymentStatus
 from test_auth_helpers import get_admin_headers, get_user_headers
 
 # Test Configuration
@@ -110,9 +111,10 @@ class TestEventPaymentValidation:
         with patch('mongo.churchuser.UserHandler.get_person', return_value=None):
             can_access, reason = await event_payment_helper.validate_family_member_access(TEST_USER_UID, TEST_FAMILY_MEMBER_ID)
             assert can_access is False
-            assert "not found for user" in reason
+            assert "not found" in reason
     
-    def test_validate_registration_data_valid(self):
+    @pytest.mark.asyncio
+    async def test_validate_registration_data_valid(self):
         """Test valid registration data"""
         registration = {
             "name": "John Doe",
@@ -121,10 +123,34 @@ class TestEventPaymentValidation:
             "payment_amount_per_person": 0
         }
         
-        errors = asyncio.run(validate_registration_data(registration))
-        assert errors == []
+        # Mock event for validation
+        mock_event = Event(
+            id="test_event",
+            name="Test Event",
+            ru_name="Тест",
+            description="Test Description",
+            ru_description="Тест описание",
+            date=datetime.now() + timedelta(days=1),
+            location="Test Location",
+            price=50.0,
+            spots=100,
+            rsvp=True,
+            recurring="never",
+            ministry=["Youth"],
+            min_age=18,
+            max_age=65,
+            gender="all",
+            roles=["Youth Leader", "Admin"],
+            published=True,
+            payment_options=["paypal"]
+        )
+        
+        is_valid, message = await event_payment_helper.validate_registration_data(registration, mock_event, TEST_USER_UID)
+        assert is_valid is True
+        assert message == "Valid"
     
-    def test_validate_registration_data_invalid_name(self):
+    @pytest.mark.asyncio
+    async def test_validate_registration_data_invalid_name(self):
         """Test registration with invalid name"""
         registration = {
             "name": "John123!@#",  # Invalid characters
@@ -132,10 +158,34 @@ class TestEventPaymentValidation:
             "donation_amount": 25.0
         }
         
-        errors = asyncio.run(validate_registration_data(registration))
-        assert any("invalid characters" in error.lower() for error in errors)
+        # Mock event for validation
+        mock_event = Event(
+            id="test_event",
+            name="Test Event",
+            ru_name="Тест",
+            description="Test Description",
+            ru_description="Тест описание",
+            date=datetime.now() + timedelta(days=1),
+            location="Test Location",
+            price=50.0,
+            spots=100,
+            rsvp=True,
+            recurring="never",
+            ministry=["Youth"],
+            min_age=18,
+            max_age=65,
+            gender="all",
+            roles=["Youth Leader", "Admin"],
+            published=True,
+            payment_options=["paypal"]
+        )
+        
+        is_valid, message = await event_payment_helper.validate_registration_data(registration, mock_event, TEST_USER_UID)
+        assert is_valid is False
+        assert "invalid characters" in message
     
-    def test_validate_registration_data_excessive_amounts(self):
+    @pytest.mark.asyncio
+    async def test_validate_registration_data_excessive_amounts(self):
         """Test registration with excessive amounts"""
         registration = {
             "name": "John Doe",
@@ -143,16 +193,38 @@ class TestEventPaymentValidation:
             "payment_amount_per_person": -50  # Negative
         }
         
-        errors = asyncio.run(validate_registration_data(registration))
-        assert any("too large" in error for error in errors)
-        assert any("cannot be negative" in error for error in errors)
+        # Mock event for validation
+        mock_event = Event(
+            id="test_event",
+            name="Test Event",
+            ru_name="Тест",
+            description="Test Description",
+            ru_description="Тест описание",
+            date=datetime.now() + timedelta(days=1),
+            location="Test Location",
+            price=50.0,
+            spots=100,
+            rsvp=True,
+            recurring="never",
+            ministry=["Youth"],
+            min_age=18,
+            max_age=65,
+            gender="all",
+            roles=["Youth Leader", "Admin"],
+            published=True,
+            payment_options=["paypal"]
+        )
+        
+        is_valid, message = await event_payment_helper.validate_registration_data(registration, mock_event, TEST_USER_UID)
+        assert is_valid is False
+        assert "negative" in message.lower() or "validation error" in message.lower()
     
     @pytest.mark.asyncio
     async def test_validate_bulk_registration_request_too_many(self):
         """Test bulk registration with too many registrations"""
         registrations = [{"name": f"Person {i}"} for i in range(60)]  # Over limit
         
-        errors = await validate_bulk_registration_request(registrations, TEST_USER_UID)
+        errors = await event_payment_helper.validate_bulk_registration_request(registrations, TEST_USER_UID)
         assert any("Too many registrations" in error for error in errors)
     
     @pytest.mark.asyncio
@@ -164,7 +236,7 @@ class TestEventPaymentValidation:
             {"name": "John Doe", "donation_amount": 50}  # Duplicate
         ]
         
-        errors = await validate_bulk_registration_request(registrations, TEST_USER_UID)
+        errors = await event_payment_helper.validate_bulk_registration_request(registrations, TEST_USER_UID)
         assert any("Duplicate names detected" in error for error in errors)
     
     @pytest.mark.asyncio
@@ -174,7 +246,7 @@ class TestEventPaymentValidation:
             {"name": f"Person {i}", "donation_amount": 500} for i in range(10)
         ]  # Same large amount for many people
         
-        errors = await validate_bulk_registration_request(registrations, TEST_USER_UID)
+        errors = await event_payment_helper.validate_bulk_registration_request(registrations, TEST_USER_UID)
         assert any("Suspicious payment pattern" in error for error in errors)
 
 

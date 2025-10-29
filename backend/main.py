@@ -185,7 +185,11 @@ async def lifespan(app: FastAPI):
         logger.info("Starting background tasks")
         youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
-
+        
+        # Start event and refund cleanup scheduler
+        from helpers.event_cleanup_scheduler import event_cleanup_loop
+        eventCleanupTask = asyncio.create_task(event_cleanup_loop(DatabaseManager.db))
+        
         # Initialize Bible Plan Notification System
         logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
@@ -197,6 +201,7 @@ async def lifespan(app: FastAPI):
         logger.info("Shutting down background tasks and closing DB")
         youtubeSubscriptionCheck.cancel()
         scheduledNotifTask.cancel()
+        eventCleanupTask.cancel()
         DatabaseManager.close_db()
         logger.info("Shutdown complete")
 
@@ -343,8 +348,10 @@ finance_management_protected_router.include_router(finance_router)
 # EVENT PAYMENT ROUTES
 app.include_router(event_payment_router, prefix="/api/v1")
 
-
-
+# ADMIN REFUND MANAGEMENT ROUTES
+from routes.event_payment_routes.admin_refund_routes import admin_refund_router
+admin_refund_management_router = PermProtectedRouter(prefix="/api/v1", tags=["Admin Refund Management"], required_perms=["finance"])
+admin_refund_management_router.include_router(admin_refund_router)
 
 # MEDIA MANAGEMENT CORE
 media_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Media Protected"], required_perms=['media_management'])
@@ -363,6 +370,7 @@ app.include_router(service_editing_protected_router)
 app.include_router(permissions_management_protected_router)
 app.include_router(layout_management_protected_router)
 app.include_router(finance_management_protected_router)
+app.include_router(admin_refund_management_router)
 app.include_router(media_management_protected_router)
 
 

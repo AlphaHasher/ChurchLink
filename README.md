@@ -17,8 +17,13 @@
 - **Mobile Notifications** – Send push notifications for announcements, events, and updates.
 - **Bible on Mobile** – Access and read the Bible within the app with an admin manadged Bible reading plan and note taking/highlighting captabilties.
 - **Announcements & Bulletins** – Display church updates and messages.
-- **Donation & Payment Integration** – Support for online giving via **PayPal**.
+- **Donation & Payment Integration** – Support for online giving via **PayPal**. See [PayPal Setup Guide](PAYPAL_SETUP_GUIDE.md) for configuration.
 - **Multilingual Support** – Accessibility for diverse church communities.
+
+## 🏦 PayPal Integration Setup
+
+For detailed PayPal integration setup instructions, see our comprehensive guide:
+**[📖 PayPal Setup Guide](PAYPAL_SETUP_GUIDE.md)**
 
 
 > (some images are zoomed out a great deal to show their full features - since they didn't fit in the screenshot)
