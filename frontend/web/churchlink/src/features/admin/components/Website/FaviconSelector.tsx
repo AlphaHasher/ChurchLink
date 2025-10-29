@@ -32,6 +32,7 @@ const FaviconSelector: React.FC<FaviconSelectorProps> = ({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   // Clear messages after a delay
   useEffect(() => {
@@ -47,6 +48,11 @@ const FaviconSelector: React.FC<FaviconSelectorProps> = ({
       return () => clearTimeout(timer);
     }
   }, [success]);
+
+  // Reset image error state when favicon URL changes
+  useEffect(() => {
+    setImageError(false);
+  }, [currentFaviconUrl]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -136,19 +142,18 @@ const FaviconSelector: React.FC<FaviconSelectorProps> = ({
         <div className="shrink-0">
           {currentFaviconUrl ? (
             <div className="w-16 h-16 border rounded-lg overflow-hidden bg-background flex items-center justify-center">
+              {!imageError ? (
               <img
                 src={currentFaviconUrl}
                 alt="Current favicon"
                 className="max-w-full max-h-full object-contain"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.nextElementSibling?.classList.remove('hidden');
-                }}
+                onError={() => setImageError(true)}
               />
-              <div className="w-full h-full items-center justify-center text-muted-foreground" style={{ display: 'none' }}>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                 <ImageIcon className="w-6 h-6" />
               </div>
+            )}
             </div>
           ) : (
             <div className="w-16 h-16 border rounded-lg bg-muted flex items-center justify-center text-muted-foreground">

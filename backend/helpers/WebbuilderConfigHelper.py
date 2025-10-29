@@ -2,6 +2,7 @@ from mongo.database import DB
 from models.website_app_config import WebsiteAppConfig
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
+import logging
 
 class WebbuilderConfigHelper:
     """Helper class for web builder configuration operations using settings collection"""
@@ -42,13 +43,13 @@ class WebbuilderConfigHelper:
                 created_at=updated_at  # Use same as updated_at for compatibility
             )
             
-            return config.dict()
+            return config.model_dump()
                 
         except Exception as e:
-            print(f"Error loading website configuration: {e}")
+            logging.error(f"Error loading website configuration: {e}")
             # Return defaults from model on error
             default_config = WebsiteAppConfig()
-            return default_config.dict()
+            return default_config.model_dump()
     
     @staticmethod
     async def save_website_config(config_data: Dict[str, Any], updated_by: str = "admin") -> bool:
@@ -107,7 +108,7 @@ class WebbuilderConfigHelper:
             # Validate the complete config using the model
             config = WebsiteAppConfig(**updated_config)
             
-            current_time = datetime.utcnow().isoformat()
+            current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             success = True
             
             # Update only the provided fields

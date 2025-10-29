@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:app/models/event.dart';
@@ -67,6 +68,24 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
   bool _isLoading = false;
   late double _donationAmount;
 
+  /// Get the frontend base URL from environment variables with fallback
+  String get _frontendBaseUrl {
+    final envUrl = dotenv.env['FRONTEND_URL'];
+    if (envUrl != null && envUrl.isNotEmpty) {
+      return envUrl.replaceAll(RegExp(r'/+$'), ''); // Remove trailing slashes
+    }
+    
+    // Fallback to localhost for development
+    const fallbackUrl = 'http://localhost:3000';
+    
+    // Log warning in debug mode when using fallback
+    if (kDebugMode) {
+      log('Warning: FRONTEND_URL not configured, using fallback: $fallbackUrl');
+    }
+    
+    return fallbackUrl;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -106,8 +125,8 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
         message: widget.event.requiresPayment
             ? 'Payment for event: ${widget.event.name}'
             : 'Donation for event: ${widget.event.name}',
-        returnUrl: 'http://localhost:3000/events/${widget.event.id}/payment/success',
-        cancelUrl: 'http://localhost:3000/events/${widget.event.id}/payment/cancel',
+        returnUrl: '$_frontendBaseUrl/events/${widget.event.id}/payment/success',
+        cancelUrl: '$_frontendBaseUrl/events/${widget.event.id}/payment/cancel',
       );
 
       if (result != null && result['success'] == true) {
@@ -142,8 +161,8 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
 
   void _showPayPalWebView(String approvalUrl, String paymentId) {
     // Define success and cancel URLs that the WebView can intercept
-    final successUrl = 'http://localhost:3000/events/${widget.event.id}/payment/success';
-    final cancelUrl = 'http://localhost:3000/events/${widget.event.id}/payment/cancel';
+    final successUrl = '$_frontendBaseUrl/events/${widget.event.id}/payment/success';
+    final cancelUrl = '$_frontendBaseUrl/events/${widget.event.id}/payment/cancel';
     
     Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => Scaffold(
@@ -167,7 +186,8 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
             ..setNavigationDelegate(
               NavigationDelegate(
                 onNavigationRequest: (NavigationRequest request) async {
-                  log('WebView navigation request: ${request.url}', name: 'EventPayPalButton');
+                  final sanitizedUrl = request.url.split('?')[0];
+                  log('WebView navigation request: $sanitizedUrl', name: 'EventPayPalButton');
                   
                   // Handle success URL
                   if (request.url.startsWith(successUrl)) {
