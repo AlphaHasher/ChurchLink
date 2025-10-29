@@ -300,8 +300,9 @@ class _GivingState extends State<Giving> {
   if (_isSubscription && _startDate != null) "start_date": _startDate!.toIso8601String(),
   if (message.isNotEmpty) "message": message,
     };
-    final successUrl = 'https://yourchurch.org/donation/success';
-    final cancelUrl = 'https://yourchurch.org/donation/cancel';
+    // Use deep link URLs for mobile app callback detection
+    final successUrl = 'churchlink://paypal-success';
+    final cancelUrl = 'churchlink://paypal-cancel';
     if (_isSubscription) {
       final sub = await PaypalService.createSubscription(donation);
       if (sub != null && sub['approval_url'] != null) {

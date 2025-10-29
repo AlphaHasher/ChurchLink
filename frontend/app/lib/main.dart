@@ -119,7 +119,7 @@ class MyApp extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: c,
-      builder: (_, _) {
+      builder: (_, child) {
         return MaterialApp(
           title: 'ChurchLink',
           navigatorKey: navigatorKey,
