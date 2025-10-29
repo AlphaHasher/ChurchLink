@@ -326,6 +326,7 @@ app.include_router(event_payment_router, prefix="/api/v1")
 # MEDIA MANAGEMENT CORE
 media_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Media Protected"], required_perms=['media_management'])
 media_management_protected_router.include_router(protected_assets_router)
+# Note: Favicon management now uses the existing assets upload system
 
 
 # Include routers in main app

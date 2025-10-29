@@ -25,8 +25,8 @@ class CurrencyInputFormatter extends TextInputFormatter {
     List<String> parts = filtered.split('.');
     if (parts.length > 2) {
       filtered = '${parts[0]}.${parts.sublist(1).join('')}';
+      parts = filtered.split('.');
     }
-    
     // Limit to 2 decimal places
     if (parts.length == 2 && parts[1].length > 2) {
       filtered = '${parts[0]}.${parts[1].substring(0, 2)}';
@@ -175,18 +175,23 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
                     final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
                     final token = uri.queryParameters['token'];
                     
-                    log('Payment success detected - PayerID: $payerId, token: $token', name: 'EventPayPalButton');
+                    log('Payment success detected', name: 'EventPayPalButton');
                     
                     if (payerId != null && token != null) {
                       // Simulate deep link success handling
                       Navigator.pop(context);
                       
-                      // Trigger the event payment completion through deep linking service
-                      _triggerEventPaymentCompletion(widget.event.id, paymentId, payerId);
-                      
-                      if (widget.onPaymentSuccess != null) {
-                        widget.onPaymentSuccess!();
-                      }
+                      // Complete registration on backend before reporting success
+                      final completed = await _triggerEventPaymentCompletion(
+                        widget.event.id,
+                        paymentId,
+                        payerId,
+                      );
+                      if (completed) {
+                        widget.onPaymentSuccess?.call();
+                      } else {
+                        widget.onPaymentError?.call('Failed to complete payment on server.');
+                      } 
                     }
                     return NavigationDecision.prevent;
                   }
@@ -211,14 +216,30 @@ class _EventPayPalButtonState extends State<EventPayPalButton> {
     ));
   }
 
-  // Trigger event payment completion similar to deep link handling
-  void _triggerEventPaymentCompletion(String eventId, String paymentId, String payerId) {
-    // This simulates what the deep linking service does for event payment completion
-    // We can call the same backend endpoint that handles payment completion
-    log('Triggering event payment completion for event: $eventId, payment: $paymentId, payer: $payerId', name: 'EventPayPalButton');
-    
-    // In a real implementation, this would call the backend to complete the registration
-    // For now, we'll rely on the onPaymentSuccess callback to handle the UI update
+  Future<bool> _triggerEventPaymentCompletion(
+    String eventId,
+    String paymentId,
+    String payerId,
+  ) async {
+     // This simulates what the deep linking service does for event payment completion
+     // We can call the same backend endpoint that handles payment completionv
+    log('Triggering event payment completion', name: 'EventPayPalButton');
+    try {
+      final res = await PaypalService.completeEventPayment(
+        eventId: eventId,
+        paymentId: paymentId,
+        payerId: payerId,
+      );
+      if (res != null && res['success'] == true) {
+        return true;
+      }
+      _showErrorDialog(res?['error'] ?? 'Failed to complete registration.');
+      return false;
+    } catch (e) {
+      log('Completion error: $e', name: 'EventPayPalButton');
+      _showErrorDialog('Network error completing registration.');
+      return false;
+    }
   }
 
   void _showErrorDialog(String error) {

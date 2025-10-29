@@ -125,20 +125,42 @@ export const websiteConfigApi = {
   },
 
   // Update website configuration (admin only)
-  updateConfig: async (config: { title?: string; favicon_url?: string; meta_description?: string }) => {
+  updateConfig: async (config: { title?: string; favicon_url?: string; favicon_asset_id?: string; meta_description?: string }) => {
     const response = await api.put('/v1/website/config', config);
     return response.data;
   },
 
-  // Upload favicon file (admin only)
+  // Upload favicon file using assets upload endpoint (admin only)
   uploadFavicon: async (file: File) => {
     const formData = new FormData();
-    formData.append('favicon', file);
+    formData.append('file', file);
+    formData.append('folder', 'system/favicon');
+    formData.append('description', 'Website favicon image');
     
-    const response = await api.post('/v1/website/favicon', formData, {
+    // Use the existing assets upload system which has proper authentication
+    const response = await api.post('/v1/assets/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    });
+    return response.data; // Returns array of uploaded images
+  },
+
+  // Update favicon configuration to use specific asset (admin only)
+  setFavicon: async (assetId: string) => {
+    const faviconUrl = `/api/v1/assets/public/id/${assetId}`;
+    const response = await api.put('/v1/website/config', { 
+      favicon_asset_id: assetId,
+      favicon_url: faviconUrl 
+    });
+    return response.data;
+  },
+
+  // Remove favicon (admin only) 
+  removeFavicon: async () => {
+    const response = await api.put('/v1/website/config', { 
+      favicon_asset_id: null,
+      favicon_url: null 
     });
     return response.data;
   },

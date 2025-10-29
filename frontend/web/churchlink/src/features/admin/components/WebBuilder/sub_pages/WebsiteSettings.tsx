@@ -4,12 +4,14 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import { Upload, Save, Globe, Image } from 'lucide-react';
+import { Save, Globe, Image } from 'lucide-react';
 import { websiteConfigApi } from '@/api/api';
+import FaviconSelector from '../../../components/Website/FaviconSelector';
 
 interface WebsiteConfig {
   title: string;
-  favicon_url: string;
+  favicon_url?: string | null;
+  favicon_asset_id?: string | null;
   meta_description?: string;
   updated_by?: string;
   updated_at?: string;
@@ -18,12 +20,11 @@ interface WebsiteConfig {
 const WebsiteSettings: React.FC = () => {
   const [config, setConfig] = useState<WebsiteConfig>({
     title: 'ChurchLink',
-    favicon_url: '/dove-favicon.svg',
+    favicon_url: null,
+    favicon_asset_id: null,
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [faviconFile, setFaviconFile] = useState<File | null>(null);
-  const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
 
   useEffect(() => {
     loadConfig();
@@ -34,15 +35,16 @@ const WebsiteSettings: React.FC = () => {
       setLoading(true);
       const data = await websiteConfigApi.getAdminConfig();
       setConfig(data);
-      setMessage(null); // Clear any previous error messages
+      setMessage(null);
     } catch (error) {
       console.error('Error loading website config:', error);
       setMessage({ type: 'error', text: 'Failed to load website configuration. Please check your permissions.' });
       
-      // Fallback to defaults from model (same as backend defaults)
+      // Fallback to defaults
       setConfig({
         title: 'ChurchLink',
-        favicon_url: '/dove-favicon.svg',
+        favicon_url: null,
+        favicon_asset_id: null,
       });
     } finally {
       setLoading(false);
@@ -53,42 +55,16 @@ const WebsiteSettings: React.FC = () => {
     setConfig(prev => ({ ...prev, title: value }));
   };
 
-  const handleFaviconFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const allowedTypes = ['image/x-icon', 'image/png', 'image/svg+xml', 'image/ico'];
-      if (!allowedTypes.includes(file.type)) {
-        setMessage({ type: 'error', text: 'Invalid file type. Please upload ICO, PNG, or SVG files only.' });
-        return;
-      }
-
-      // Validate file size (max 1MB)
-      if (file.size > 1024 * 1024) {
-        setMessage({ type: 'error', text: 'File size too large. Please upload files smaller than 1MB.' });
-        return;
-      }
-
-      setFaviconFile(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFaviconPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleClearFaviconSelection = () => {
-    setFaviconFile(null);
-    setFaviconPreview(null);
-    setMessage(null);
+  const handleFaviconUpdate = (assetId: string | null, url: string | null) => {
+    setConfig(prev => ({ 
+      ...prev, 
+      favicon_asset_id: assetId,
+      favicon_url: url
+    }));
     
-    // Clear the file input
-    const fileInput = document.getElementById('favicon-upload') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
+    // Update favicon in document head
+    if (url) {
+      updateDocumentFavicon(url);
     }
   };
 
@@ -103,32 +79,6 @@ const WebsiteSettings: React.FC = () => {
     } catch (error) {
       console.error('Error updating title:', error);
       setMessage({ type: 'error', text: 'Failed to update website title' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUploadFavicon = async () => {
-    if (!faviconFile) {
-      setMessage({ type: 'error', text: 'Please select a favicon file first' });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const result = await websiteConfigApi.uploadFavicon(faviconFile);
-      
-      setConfig(prev => ({ ...prev, favicon_url: result.favicon_url }));
-      setFaviconFile(null);
-      setFaviconPreview(null);
-      
-      setMessage({ type: 'success', text: 'Favicon uploaded successfully! Refresh your browser tab to see the new favicon in action.' });
-      
-      // Update favicon in document head
-      updateDocumentFavicon(result.favicon_url);
-    } catch (error) {
-      console.error('Error uploading favicon:', error);
-      setMessage({ type: 'error', text: 'Failed to upload favicon' });
     } finally {
       setLoading(false);
     }
@@ -214,113 +164,16 @@ const WebsiteSettings: React.FC = () => {
               Website Favicon
             </CardTitle>
             <CardDescription>
-              The small icon that appears in browser tabs (ICO, PNG, or SVG)
+              The small icon that appears in browser tabs
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Current Favicon Display */}
-            <div className="flex items-center gap-4">
-              <div className="shrink-0">
-                <div className="w-12 h-12 border rounded-lg flex items-center justify-center bg-gray-50">
-                  <img 
-                    src={config.favicon_url} 
-                    alt="Current favicon" 
-                    className="w-8 h-8"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Current Favicon</p>
-                <p className="text-xs text-gray-500">{config.favicon_url}</p>
-              </div>
-            </div>
-
-            {/* File Selection */}
-            <div>
-              <Label htmlFor="favicon-upload">Choose New Favicon</Label>
-              <Input
-                id="favicon-upload"
-                type="file"
-                accept=".ico,.png,.svg,image/x-icon,image/png,image/svg+xml"
-                onChange={handleFaviconFileChange}
-                className="mt-1"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Supported: ICO, PNG, SVG (max 1MB)
-              </p>
-            </div>
-
-            {/* Preview Section - Only show when file is selected */}
-            {faviconPreview && (
-              <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
-                <div className="flex items-center gap-4">
-                  <div className="shrink-0">
-                    <div className="w-16 h-16 border-2 border-blue-300 rounded-lg flex items-center justify-center bg-white">
-                      <img 
-                        src={faviconPreview} 
-                        alt="New favicon preview" 
-                        className="w-12 h-12"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-blue-800">Preview: New Favicon</p>
-                    <p className="text-sm text-blue-600">
-                      This is how your new favicon will look. Review it before uploading.
-                    </p>
-                    {faviconFile && (
-                      <p className="text-xs text-gray-600 mt-1">
-                        File: {faviconFile.name} ({(faviconFile.size / 1024).toFixed(1)}KB)
-                      </p>
-                    )}
-                  </div>
-                  <div className="shrink-0">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleClearFaviconSelection}
-                      className="text-gray-600 hover:text-red-600"
-                    >
-                      ×
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            {faviconFile ? (
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleUploadFavicon} 
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload New Favicon
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleClearFaviconSelection}
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button 
-                disabled={true}
-                className="w-full"
-                variant="secondary"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Select a file to upload
-              </Button>
-            )}
+          <CardContent>
+            <FaviconSelector
+              currentFaviconAssetId={config.favicon_asset_id}
+              currentFaviconUrl={config.favicon_url}
+              onFaviconUpdate={handleFaviconUpdate}
+              disabled={loading}
+            />
           </CardContent>
         </Card>
       </div>
@@ -336,8 +189,13 @@ const WebsiteSettings: React.FC = () => {
               <strong>Title:</strong> {config.title}
             </div>
             <div>
-              <strong>Favicon URL:</strong> {config.favicon_url}
+              <strong>Favicon URL:</strong> {config.favicon_url || 'Default favicon'}
             </div>
+            {config.favicon_asset_id && (
+              <div>
+                <strong>Favicon Asset ID:</strong> {config.favicon_asset_id}
+              </div>
+            )}
             {config.updated_by && (
               <div>
                 <strong>Last Updated By:</strong> {config.updated_by}

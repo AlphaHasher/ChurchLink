@@ -48,6 +48,11 @@ class WebsiteAppConfig(BaseModel):
         description="URL path to the website favicon (ICO, PNG, or SVG)"
     )
     
+    favicon_asset_id: Optional[str] = Field(
+        default=None,
+        description="Media asset ID for favicon (when using media upload system)"
+    )
+    
     meta_description: Optional[str] = Field(
         default=None,
         max_length=160,
@@ -87,11 +92,20 @@ class WebsiteAppConfig(BaseModel):
     @field_validator('favicon_url')
     @classmethod
     def validate_favicon_url(cls, v):
-        """Validate favicon URL format - supports both relative and absolute URLs"""
+        """Validate favicon URL format - supports both relative and absolute URLs, including asset URLs"""
         import re
         
         # Define allowed file extensions
         allowed_extensions = ('.ico', '.png', '.svg')
+        
+        # Check if it's an asset URL (bypass extension validation for these)
+        if v.startswith('/api/v1/assets/'):
+            # Validate basic asset URL format
+            asset_url_pattern = r'^/api/v1/assets/(public/id/[a-f0-9]+|[a-zA-Z0-9_/\-]+\.(ico|png|svg))$'
+            if re.match(asset_url_pattern, v):
+                return v
+            else:
+                raise ValueError('Invalid asset URL format')
         
         # Check if it contains a protocol
         if '://' in v:
@@ -172,6 +186,11 @@ class WebsiteConfigUpdate(BaseModel):
         description="Favicon URL to update"
     )
     
+    favicon_asset_id: Optional[str] = Field(
+        None,
+        description="Media asset ID for favicon (when using media upload system)"
+    )
+    
     meta_description: Optional[str] = Field(
         None,
         max_length=160,
@@ -191,12 +210,21 @@ class WebsiteConfigUpdate(BaseModel):
     @field_validator('favicon_url')
     @classmethod
     def validate_favicon_url(cls, v):
-        """Validate favicon URL if provided - supports both relative and absolute URLs"""
+        """Validate favicon URL if provided - supports both relative and absolute URLs, including asset URLs"""
         if v is not None:
             import re
             
             # Define allowed file extensions
             allowed_extensions = ('.ico', '.png', '.svg')
+            
+            # Check if it's an asset URL (bypass extension validation for these)
+            if v.startswith('/api/v1/assets/'):
+                # Validate basic asset URL format
+                asset_url_pattern = r'^/api/v1/assets/(public/id/[a-f0-9]+|[a-zA-Z0-9_/\-]+\.(ico|png|svg))$'
+                if re.match(asset_url_pattern, v):
+                    return v
+                else:
+                    raise ValueError('Invalid asset URL format')
             
             # Check if it contains a protocol
             if '://' in v:

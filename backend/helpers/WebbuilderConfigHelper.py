@@ -1,7 +1,7 @@
 from mongo.database import DB
 from models.website_app_config import WebsiteAppConfig
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 class WebbuilderConfigHelper:
     """Helper class for web builder configuration operations using settings collection"""
@@ -22,14 +22,20 @@ class WebbuilderConfigHelper:
             # Get website settings from the settings collection with defaults from model
             title = await DB.get_setting("website_title", default_config.title)
             favicon_url = await DB.get_setting("website_favicon_url", default_config.favicon_url)
+            favicon_asset_id = await DB.get_setting("website_favicon_asset_id", default_config.favicon_asset_id)
             meta_description = await DB.get_setting("website_meta_description", default_config.meta_description)
             updated_by = await DB.get_setting("website_updated_by", default_config.updated_by)
             updated_at = await DB.get_setting("website_updated_at", default_config.updated_at)
+            
+            # If we have a favicon_asset_id, construct the URL from it
+            if favicon_asset_id:
+                favicon_url = f"/api/v1/assets/public/id/{favicon_asset_id}"
             
             # Create and return the configuration using the model
             config = WebsiteAppConfig(
                 title=title,
                 favicon_url=favicon_url,
+                favicon_asset_id=favicon_asset_id,
                 meta_description=meta_description,
                 updated_by=updated_by,
                 updated_at=updated_at,
@@ -60,12 +66,13 @@ class WebbuilderConfigHelper:
             # Validate the config data using the model
             config = WebsiteAppConfig(**config_data, updated_by=updated_by)
             
-            current_time = datetime.utcnow().isoformat()
+            current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             success = True
             
             # Save each setting individually
             success &= await DB.set_setting("website_title", config.title)
             success &= await DB.set_setting("website_favicon_url", config.favicon_url)
+            success &= await DB.set_setting("website_favicon_asset_id", config.favicon_asset_id)
             success &= await DB.set_setting("website_meta_description", config.meta_description)
             
             # Always update metadata
@@ -105,7 +112,7 @@ class WebbuilderConfigHelper:
             
             # Update only the provided fields
             for key, value in updates.items():
-                if key in ["title", "favicon_url", "meta_description"]:
+                if key in ["title", "favicon_url", "favicon_asset_id", "meta_description"]:
                     setting_key = f"website_{key}"
                     success &= await DB.set_setting(setting_key, getattr(config, key))
             
