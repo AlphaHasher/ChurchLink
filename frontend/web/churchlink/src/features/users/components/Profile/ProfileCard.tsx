@@ -1,10 +1,14 @@
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/ui/card";
 import { Separator } from "@/shared/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Button } from "@/shared/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/shared/components/ui/command";
+import { ChevronsUpDown, Check } from "lucide-react";
+import { localizationCodeToName } from "@/lib/LocalizationDicts";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { useLocalize } from "@/shared/utils/localizationUtils";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState } from "react";
 
 type ProfileCardProps = {
     firstName: string;
@@ -42,32 +46,27 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
     const initials = getInitials(firstName, lastName);
 
-    // Language selector state
-    const { locale: selectedLang, setLocale: handleLanguageChange, languages, loading: langLoading, siteLocales } = useLanguage();
-    const [langQuery, setLangQuery] = useState("");
+    const { locale: selectedLang, setLocale: handleLanguageChange, languages, loading: langLoading } = useLanguage();
     const [langOpen, setLangOpen] = useState(false);
-    const searchInputRef = useRef<HTMLInputElement | null>(null);
-    const filteredLanguages = useMemo(() => {
-        const q = langQuery.trim().toLowerCase();
-        const prioritized = new Set<string>((siteLocales && siteLocales.length ? siteLocales : ["en"]).map((c) => String(c)));
-        const base = languages.slice().sort((a, b) => {
-            const aPri = prioritized.has(a.code) ? 0 : 1;
-            const bPri = prioritized.has(b.code) ? 0 : 1;
-            if (aPri !== bPri) return aPri - bPri;
-            return a.name.localeCompare(b.name);
-        });
-        if (!q) return base;
-        return base.filter(l => l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q));
-    }, [languages, langQuery, siteLocales]);
-
-    // When dropdown opens, autofocus the search input and keep it focused
-    useEffect(() => {
-        if (!langOpen) return;
-        requestAnimationFrame(() => {
-            searchInputRef.current?.focus();
-            requestAnimationFrame(() => searchInputRef.current?.focus());
-        });
-    }, [langOpen]);
+    //pinning common languages at the top of the list
+    const pinnedCodes = useMemo(() => ["en", "ru", "es", "fr", "de", "pt", "zh", "ar"], []);
+    const orderedLanguages = useMemo(() => {
+        const byCode = new Map(languages.map((l) => [l.code, l] as const));
+        const pinned = pinnedCodes
+            .map((code) => byCode.get(code))
+            .filter((v): v is NonNullable<typeof v> => Boolean(v));
+        const pinnedSet = new Set(pinned.map((l) => l.code));
+        const rest = languages.filter((l) => !pinnedSet.has(l.code));
+        const labelFor = (code: string, fallbackName: string) => localizationCodeToName?.[code] || `${fallbackName} (${code})`;
+        rest.sort((a, b) => labelFor(a.code, a.name).localeCompare(labelFor(b.code, b.name)));
+        return [...pinned, ...rest];
+    }, [languages, pinnedCodes]);
+    const selectedLanguageLabel = useMemo(() => {
+        const mapped = localizationCodeToName?.[selectedLang];
+        if (mapped) return mapped;
+        const m = languages.find((l) => l.code === selectedLang);
+        return m ? `${m.name} (${m.code})` : selectedLang;
+    }, [languages, selectedLang]);
 
     return (
         <motion.div
@@ -104,63 +103,42 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                             <OverviewRow
                                 label={localize("Language")}
                                 value={
-                                    <Select value={selectedLang} onValueChange={handleLanguageChange} disabled={langLoading} onOpenChange={(o) => {
-                                        setLangOpen(o);
-                                        if (o) {
-                                            setLangQuery("");
-                                        }
-                                    }}>
-                                        <SelectTrigger className="w-full max-w-[240px]" aria-label={localize("Select language")}>
-                                            <SelectValue placeholder={langLoading ? localize("Loading...") : localize("Select language")} />
-                                        </SelectTrigger>
-                                        <SelectContent
-                                            className="max-h-60"
-                                            onKeyDownCapture={(e) => {
-                                                const target = e.target as HTMLElement | null;
-                                                if (target && target.tagName === 'INPUT') {
-                                                    e.stopPropagation();
-                                                }
-                                            }}
-                                            onKeyDown={(e) => {
-                                                const target = e.target as HTMLElement | null;
-                                                if (target && target.tagName === 'INPUT') {
-                                                    e.stopPropagation();
-                                                }
-                                            }}
-                                            onCloseAutoFocus={(e) => {
-                                                e.preventDefault();
-                                            }}
-                                        >
-                                            <div className="sticky top-0 z-10 bg-popover p-1">
-                                                <input
-                                                    ref={searchInputRef}
-                                                    value={langQuery}
-                                                    onChange={(e) => {
-                                                        setLangQuery(e.target.value);
-                                                        requestAnimationFrame(() => searchInputRef.current?.focus());
-                                                    }}
-                                                    placeholder={localize("Search language...")}
-                                                    className="w-full h-8 rounded-md border px-2 text-sm"
-                                                    onKeyDownCapture={(e) => e.stopPropagation()}
-                                                    onKeyDown={(e) => e.stopPropagation()}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onBlur={() => {
-                                                        if (langOpen) {
-                                                            requestAnimationFrame(() => searchInputRef.current?.focus());
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            {filteredLanguages.map((l) => (
-                                                <SelectItem key={l.code} value={l.code}>
-                                                    <span className="font-medium">{l.name}</span>
-                                                    <span className="text-xs text-muted-foreground"> ({l.code})</span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover open={langOpen} onOpenChange={setLangOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={langOpen}
+                                                className="w-full max-w-[280px] justify-between"
+                                                disabled={langLoading}
+                                                aria-label={localize("Select language")}
+                                            >
+                                                <span className="truncate">
+                                                    {langLoading ? localize("Loading...") : (selectedLanguageLabel || localize("Select language"))}
+                                                </span>
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent align="start" className="w-[300px] p-0">
+                                            <Command loop>
+                                                <CommandInput placeholder={localize("Search language...")} />
+                                                <CommandList className="max-h-60 overflow-y-auto overflow-x-hidden">
+                                                    <CommandEmpty>{localize("No language found.")}</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {orderedLanguages.map((l) => {
+                                                            const label = localizationCodeToName?.[l.code] || `${l.name} (${l.code})`;
+                                                            return (
+                                                                <CommandItem key={l.code} value={label} onSelect={() => { handleLanguageChange(l.code); setLangOpen(false); }}>
+                                                                    <Check className={`mr-2 h-4 w-4 ${selectedLang === l.code ? "opacity-100" : "opacity-0"}`} />
+                                                                    <span className="font-medium">{label}</span>
+                                                                </CommandItem>
+                                                            );
+                                                        })}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 }
                             />
                         </dl>

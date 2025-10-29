@@ -18,13 +18,13 @@ function Layout({
         } as React.CSSProperties
       }
     >
-      <div className="flex flex-col min-h-screen w-full">
+      <div className="flex flex-col min-h-screen w-full bg-background">
         <div className="flex flex-col flex-grow w-full">
           <div className="lg:hidden!">
             <AppSidebar/>
           </div>
           <NavBar />
-          <main className="flex-grow">{children}</main>
+          <main className="flex-grow bg-background">{children}</main>
         </div>
         <Footer />
       </div>

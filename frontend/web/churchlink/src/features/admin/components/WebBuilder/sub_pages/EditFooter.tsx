@@ -27,10 +27,11 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
 } from "@/shared/components/ui/Dialog";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import { useLanguage } from "@/provider/LanguageProvider";
-import { AddLocaleDialog, collectTitles, translateMissingStrings, getEnglishLabel } from "@/shared/utils/localizationUtils";
+import { AddLocaleDialog, collectTitles, translateMissingStrings } from "@/shared/utils/localizationUtils";
 import LocaleSelect from "@/shared/components/LocaleSelect";
 
 interface FooterItem {
@@ -137,6 +138,12 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const [editingSection, setEditingSection] = useState<FooterSection | null>(null);
     const [editTitle, setEditTitle] = useState("");
     const [editPlaceholder, setEditPlaceholder] = useState("");
+
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [addTitleEn, setAddTitleEn] = useState("");
+    const [addItems, setAddItems] = useState<Array<{ titleEn: string; url: string }>>([]);
+    const [addItemTitleEn, setAddItemTitleEn] = useState("");
+    const [addItemUrl, setAddItemUrl] = useState("");
 
     const sensors = useSensors(useSensor(PointerSensor));
 
@@ -257,6 +264,61 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
         }
     };
 
+    const handleAddItemToNewSection = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!addItemTitleEn) {
+            toast.error("Item title (English) is required");
+            return;
+        }
+        setAddItems((prev) => [...prev, { titleEn: addItemTitleEn, url: addItemUrl }]);
+        setAddItemTitleEn("");
+        setAddItemUrl("");
+    };
+
+    const handleRemoveAddItem = (index: number) => {
+        setAddItems((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleAddSectionSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!addTitleEn) {
+            toast.error("Section English title is required");
+            return;
+        }
+        if (!addItems.length) {
+            toast.error("Add at least one item to the section");
+            return;
+        }
+        try {
+            const payload = {
+                title: addTitleEn,
+                titles: { en: addTitleEn },
+                items: addItems.map((it) => ({
+                    title: it.titleEn,
+                    titles: { en: it.titleEn },
+                    url: it.url || null,
+                    visible: true,
+                })),
+                visible: false,
+            } as any;
+
+            const res = await api.post("/v1/footer/items", payload);
+            if (res?.data?.success) {
+                toast.success("Section added successfully");
+                setIsAddModalOpen(false);
+                setAddTitleEn("");
+                setAddItems([]);
+                await fetchFooter();
+            } else {
+                const msg = res?.data?.msg || "Failed to add section";
+                toast.error(msg);
+            }
+        } catch (err: any) {
+            const msg = err?.response?.data?.msg || err?.message || "Failed to add section";
+            toast.error(msg);
+        }
+    };
+
     const handleChangeVisibility = (title: string, currentVisibility: boolean) => {
         if (footer) {
             const newItems = footer.items.map(item =>
@@ -363,7 +425,92 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                 }
                             }}
                         />
+
+                        {/* right-side locale controls only; add button sits as sibling below */}
                     </div>
+                    {/* Add Section - aligned like header's Add button */}
+                    <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="default">
+                                Add Section
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>Add Footer Section</DialogTitle>
+                                <DialogDescription>
+                                    Create a new footer section with links. English titles are required.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleAddSectionSubmit} className="flex flex-col gap-4">
+                                <Input
+                                    type="text"
+                                    placeholder="Section Title (English)"
+                                    value={addTitleEn}
+                                    onChange={(e) => setAddTitleEn(e.target.value)}
+                                    required
+                                />
+
+                                <div className="border rounded p-4">
+                                    <h4 className="font-medium mb-2">Section Items</h4>
+
+                                    {addItems.length > 0 ? (
+                                        <ul className="mb-4 space-y-2">
+                                            {addItems.map((item, index) => (
+                                                <li key={`${item.titleEn}-${index}`} className="flex justify-between items-center p-2 bg-white border rounded">
+                                                    <div>
+                                                        <div className="font-medium">{item.titleEn}</div>
+                                                        <div className="text-sm text-blue-600">{item.url}</div>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveAddItem(index)}
+                                                        className="text-red-500 hover:text-red-700"
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-gray-500 italic mb-4">No links</p>
+                                    )}
+
+                                    <div className="border-t pt-3">
+                                        <h5 className="font-medium mb-2">Add Item to Section</h5>
+                                        <div className="flex flex-col gap-2">
+                                            <Input
+                                                type="text"
+                                                placeholder="Item Title (English)"
+                                                value={addItemTitleEn}
+                                                onChange={(e) => setAddItemTitleEn(e.target.value)}
+                                            />
+                                            <Input
+                                                type="text"
+                                                placeholder="Item URL (optional)"
+                                                value={addItemUrl}
+                                                onChange={(e) => setAddItemUrl(e.target.value)}
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={handleAddItemToNewSection}
+                                                size="sm"
+                                                className="self-start"
+                                            >
+                                                Add to Section
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <DialogFooter>
+                                    <Button type="submit" disabled={!addItems.length}>Add Section</Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </CardHeader>
 

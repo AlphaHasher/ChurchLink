@@ -191,7 +191,7 @@ const ProfilePage: React.FC = () => {
                         </motion.div>
                     </TabsContent>
 
-                    <TabsContent value="membership" className="min-h-[60vh]">
+                    <TabsContent value="membership" className="min-h-[calc(100svh-280px)] pb-8 sm:pb-12">
                         <motion.div
                             className="flex justify-center"
                             initial={{ opacity: 0 }}
