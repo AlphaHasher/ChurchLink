@@ -871,59 +871,57 @@ export function BuilderShell() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="grid grid-cols-12 gap-4 p-4">
-        <div className="col-span-12 md:col-span-2">
+      <div className="grid grid-cols-12 gap-4 p-4 overflow-hidden">
+        <div className="col-span-12 md:col-span-2 min-w-0">
           <ErrorBoundary>
             <Palette />
           </ErrorBoundary>
         </div>
-        <div className="col-span-12 md:col-span-6">
+        <div className="col-span-12 md:col-span-6 min-w-0">
           <ErrorBoundary>
             <Canvas />
           </ErrorBoundary>
         </div>
-        <div className="col-span-12 md:col-span-4">
-          <Card className="h-full">
+        <div className="col-span-12 md:col-span-4 min-w-0">
+          <Card className="h-full flex flex-col">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Live Preview</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full"
-                    onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
-                    aria-label="Expand preview"
-                    disabled={hasInvalidBounds}
-                    title={hasInvalidBounds ? 'Fix min/max conflicts to enable expanded preview' : undefined}
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                  <Select value={formWidth} onValueChange={handleFormWidthChange}>
-                    <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-                      <SelectValue placeholder="Width" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {widthOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-                    <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {availableLocales.map((l) => (
-                        <SelectItem key={l} value={l}>{l}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <CardTitle className="text-base">Live Preview</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 flex flex-col gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
+                  aria-label="Expand preview"
+                  disabled={hasInvalidBounds}
+                  title={hasInvalidBounds ? 'Fix min/max conflicts to enable expanded preview' : undefined}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+                <Select value={formWidth} onValueChange={handleFormWidthChange}>
+                  <SelectTrigger className="h-8 flex-1 min-w-[100px]" aria-label="Form width">
+                    <SelectValue placeholder="Width" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {widthOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+                  <SelectTrigger className="h-8 flex-1 min-w-[100px]" aria-label="Preview locale">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {availableLocales.map((l) => (
+                      <SelectItem key={l} value={l}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <ErrorBoundary>
                 {hasInvalidBounds ? (
                   <Alert variant="warning">
