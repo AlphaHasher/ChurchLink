@@ -52,15 +52,16 @@ async def event_cleanup_loop(db):
             refund_failed = refund_results.get('failed', 0)
             
             # Log results if any operations were performed
-            if unpublished > 0 or cleaned_recurring > 0 or refund_completed > 0 or refund_rolled_back > 0:
+            if any([unpublished, cleaned_recurring, refund_completed, refund_rolled_back, refund_failed]):
                 logger.info(
                     f"Cleanup completed: "
                     f"{unpublished} events unpublished, "
                     f"{cleaned_recurring} recurring events processed, "
                     f"{total_rsvps_removed} occurrence RSVPs removed, "
                     f"{refund_completed} refunds completed, "
-                    f"{refund_rolled_back} refunds rolled back"
-                )
+                    f"{refund_rolled_back} refunds rolled back, "
+                    f"{refund_failed} refund cleanups failed"
+                 )
             else:
                 logger.debug("Cleanup completed: no events or refunds required processing")
             

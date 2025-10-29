@@ -286,7 +286,7 @@ class Transaction(BaseModel):
             return False
     
     @staticmethod
-    async def update_transaction_refund_info(transaction_id: str, refund_type: str, refunded_on: str = None, refunded_amount: Decimal = None):
+    async def update_transaction_refund_info(transaction_id: str, refund_type: str, refunded_on: Optional[str] = None, refunded_amount: Optional[Decimal] = None):
         """
         Updates a transaction with refund information.
         
@@ -316,7 +316,7 @@ class Transaction(BaseModel):
             
             return result > 0
         except Exception as e:
-            logging.error(f"Error updating transaction {transaction_id} refund info: {e}")
+            logging.exception(f"Error updating transaction {transaction_id} refund info")
             return False
     
     @staticmethod
