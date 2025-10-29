@@ -204,8 +204,10 @@ async def process_refund_request(
         
         # Guard idempotency: only allow processing of pending requests
         # Valid transition: "pending" → process (approve/reject)
+        action = (process_data or {}).get("action")
+        action_str = action if action in {"approve","reject"} else "process"
         if refund_request.status in {RefundStatus.APPROVED, RefundStatus.PROCESSING, RefundStatus.COMPLETED, RefundStatus.REJECTED, RefundStatus.CANCELLED}:
-            raise HTTPException(status_code=409, detail=f"Cannot {action if 'action' in process_data else 'process'} a request in status '{refund_request.status}'")
+            raise HTTPException(status_code=409, detail=f"Cannot {action_str} a request in status '{refund_request.status}'")
         
         action = process_data.get("action")  # "approve" or "reject"
         admin_notes = process_data.get("admin_notes", "")

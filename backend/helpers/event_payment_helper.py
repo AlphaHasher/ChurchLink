@@ -674,10 +674,16 @@ class EventPaymentHelper:
                     registration_data["failure_reason"] = str(reg_error)
                     failed_registrations.append(registration_data)
             
+            # Initialize payment totals with default values
+            total_event_fee = 0
+            total_donation = 0
+            total_amount = 0
+            per_person_amount = 0
+            
             # Record payment transaction for successful registrations using new bulk structure
             if successful_registrations:
-                total_event_fee = bulk_registration.get("total_event_fee", 0)
-                total_donation = bulk_registration.get("total_donation", 0)
+                total_event_fee = float(bulk_registration.get("total_event_fee", 0) or 0)
+                total_donation = float(bulk_registration.get("total_donation", 0) or 0)
                 total_amount = total_event_fee + total_donation
                 per_person_amount = total_event_fee / len(successful_registrations) if successful_registrations else 0
                 
@@ -754,6 +760,12 @@ class EventPaymentHelper:
             # Extract registration details with names using helper method
             completed_people = self._extract_person_info_from_registrations(successful_registrations)
             
+            # Ensure defaults remain in place after computing completed_people
+            total_event_fee = total_event_fee or 0
+            total_donation = total_donation or 0
+            total_amount = total_amount or 0
+            per_person_amount = per_person_amount or 0
+
             return {
                 "success": True,
                 "message": "Bulk registration completed",

@@ -94,9 +94,9 @@ def validate_webhook_payload(payload: Dict[str, Any]) -> PayPalWebhookPayload:
     """
     try:
         return PayPalWebhookPayload(**payload)
-    except Exception as e:
-        logging.error(f"❌ Invalid PayPal webhook payload: {e}")
-        logging.error(f"📄 Payload: {payload}")
+    except Exception:
+        logging.exception("❌ Invalid PayPal webhook payload")
+        # Avoid logging full payload to prevent PII leakage
         raise
 
 def extract_payment_info(validated_payload: PayPalWebhookPayload) -> Dict[str, Any]:

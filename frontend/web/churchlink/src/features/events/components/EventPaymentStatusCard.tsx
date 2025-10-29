@@ -287,7 +287,9 @@ export function EventPaymentStatusCard({
             <div className="space-y-2 text-sm">
               {paymentInfo.amount && (
                 <div className="flex justify-between">
-                  <span>Refunded Amount:</span>
+                  <span>
+                    {paymentInfo.refund_type === 'partial' ? 'Original Amount:' : 'Refunded Amount:'}
+                  </span>
                   <span className="font-medium text-gray-600">
                     {formatCurrency(paymentInfo.amount)}
                   </span>

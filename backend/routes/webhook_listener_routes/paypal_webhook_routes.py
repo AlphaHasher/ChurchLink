@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from models.transaction import Transaction, PaymentStatus, RefundStatus
 from models.paypal_webhook_schemas import validate_webhook_payload, extract_payment_info
 from helpers.event_payment_helper import event_payment_helper
@@ -6,7 +7,7 @@ from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
 from mongo.database import DB
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import os
 from models.event import get_event_by_id
@@ -15,6 +16,50 @@ from bson import ObjectId
 import httpx
 
 paypal_webhook_router = APIRouter(prefix="/paypal", tags=["paypal_webhook"])
+
+async def check_and_record_transmission_id(transmission_id: str) -> bool:
+    """
+    Check if transmission ID has been processed before and record it to prevent replay attacks.
+    
+    Args:
+        transmission_id: PayPal transmission ID from webhook headers
+        
+    Returns:
+        True if this is a new transmission ID, False if already processed
+    """
+    try:
+        # Use a dedicated collection for webhook replay protection
+        webhook_replay_collection = DB.db["webhook_replay_protection"]
+        
+        # Check if transmission ID already exists
+        existing = await webhook_replay_collection.find_one({"transmission_id": transmission_id})
+        
+        if existing:
+            logging.warning(f"🔄 Replay attack detected - transmission ID {transmission_id[:10]}... already processed")
+            return False
+        
+        # Record this transmission ID with expiration (1 hour from now)
+        expiry_time = datetime.utcnow() + timedelta(hours=1)
+        await webhook_replay_collection.insert_one({
+            "transmission_id": transmission_id,
+            "processed_at": datetime.utcnow(),
+            "expires_at": expiry_time
+        })
+        
+        # Create TTL index if it doesn't exist (will be created once and ignored thereafter)
+        try:
+            await webhook_replay_collection.create_index("expires_at", expireAfterSeconds=0)
+        except Exception:
+            pass  # Index might already exist
+        
+        logging.info(f"✅ New transmission ID recorded: {transmission_id[:10]}...")
+        return True
+        
+    except Exception as e:
+        logging.error(f"❌ Error checking transmission ID replay protection: {e}")
+        # In case of error, allow processing to prevent false positives
+        # but log the issue for investigation
+        return True
 
 async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
     """
@@ -39,6 +84,12 @@ async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
             logging.error("❌ Missing required PayPal webhook signature headers")
             return False
         
+        # Check for replay attacks using transmission ID
+        is_new_transmission = await check_and_record_transmission_id(transmission_id)
+        if not is_new_transmission:
+            logging.error(f"❌ PayPal webhook replay attack detected - transmission ID: {transmission_id[:10]}...")
+            return False
+        
         # Get webhook ID from environment or database settings
         webhook_id = os.getenv("PAYPAL_WEBHOOK_ID")
         if not webhook_id:
@@ -53,8 +104,8 @@ async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
             logging.error("❌ Missing PayPal webhook ID configuration")
             return False
         
-        # Get PayPal access token
-        access_token = get_paypal_access_token()
+        # Get PayPal access token (wrapped to prevent blocking the event loop)
+        access_token = await run_in_threadpool(get_paypal_access_token)
         if not access_token:
             logging.error("❌ Failed to get PayPal access token for webhook verification")
             return False

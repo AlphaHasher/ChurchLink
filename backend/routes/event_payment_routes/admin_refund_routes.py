@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Request, Body, Query
 from typing import Optional, List, Dict, Any
 import os
 import logging
-
 from datetime import datetime
 from models.refund_request import (
     RefundRequestCreate, 
@@ -26,7 +25,6 @@ from helpers.RefundEmailHelper import (
     send_refund_completed_notification,
     send_refund_rejected_notification
 )
-import logging
 from controllers.assets_controller import get_image_by_id
 from mongo.database import DB
 from bson import ObjectId
@@ -915,6 +913,8 @@ async def create_partial_refund_request(
     try:
         # Get admin user for validation (optional - could be user-initiated)
         admin_uid = getattr(request.state, "uid", None)
+        if not admin_uid:
+            raise HTTPException(status_code=401, detail="Authentication required")
         
         # create_refund_request performs the correct validation against the located transaction.
         

@@ -1,10 +1,11 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP, getcontext
 from mongo.database import DB
 from bson import ObjectId
 from pymongo import ReturnDocument
+from pymongo.errors import OperationFailure
 import logging
 import traceback
 from helpers.MongoHelper import generate_unique_id
@@ -386,101 +387,166 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             }
         }
         
-        # Atomically reserve refunded amount on the transaction to prevent races
+        # Attempt atomic operation using MongoDB transactions first
+        transactions_col = DB.db["transactions"]
+        refund_requests_col = DB.db["refund_requests"]
+        inc_amount = float(final_refund_amount)
+        limit_amount = float(total_transaction_amount)
+        
+        # Try MongoDB session transaction first
         try:
-            transactions_col = DB.db["transactions"]
-            inc_amount = float(final_refund_amount)
-            limit_amount = float(total_transaction_amount)
-            atomic_filter = {
-                "transaction_id": transaction.get("transaction_id"),
-                "$expr": {
-                    "$lte": [
-                        {"$add": [{"$ifNull": ["$refunded_amount", 0.0]}, inc_amount]},
-                        limit_amount
-                    ]
-                }
-            }
+            async with await DB.client.start_session() as session:
+                async with session.start_transaction():
+                    # Atomic filter to ensure refund doesn't exceed transaction amount
+                    atomic_filter = {
+                        "transaction_id": transaction.get("transaction_id"),
+                        "$expr": {
+                            "$lte": [
+                                {"$add": [{"$ifNull": ["$refunded_amount", 0.0]}, inc_amount]},
+                                limit_amount
+                            ]
+                        }
+                    }
 
-            updated_tx = await transactions_col.find_one_and_update(
-                atomic_filter,
-                {"$inc": {"refunded_amount": inc_amount}},
-                return_document=ReturnDocument.AFTER
-            )
-            if not updated_tx:
-                logging.error(f"Atomic reservation failed: refund of ${final_refund_amount} would exceed transaction {transaction.get('transaction_id')} amount ${total_transaction_amount}")
-                return None
-        except Exception as e:
-            logging.error(f"Error reserving refunded_amount atomically: {e}")
-            return None
+                    # Atomically increment refunded_amount within transaction
+                    updated_tx = await transactions_col.find_one_and_update(
+                        atomic_filter,
+                        {"$inc": {"refunded_amount": inc_amount}},
+                        return_document=ReturnDocument.AFTER,
+                        session=session
+                    )
+                    
+                    if not updated_tx:
+                        logging.error(f"Atomic reservation failed: refund of ${final_refund_amount} would exceed transaction {transaction.get('transaction_id')} amount ${total_transaction_amount}")
+                        await session.abort_transaction()
+                        return None
 
-        # Insert into database
-        try:
-            result = await DB.db["refund_requests"].insert_one(refund_doc)
-        except Exception as e:
-            logging.error(f"Failed to insert refund request after reserving refunded_amount: {e}")
-            # Attempt to rollback the refunded_amount reservation
+                    # Insert refund request within the same transaction
+                    result = await refund_requests_col.insert_one(refund_doc, session=session)
+                    
+                    if not result.inserted_id:
+                        logging.error(f"Failed to insert refund request within transaction")
+                        await session.abort_transaction()
+                        return None
+                    
+                    # Transaction will auto-commit if we reach here
+                    logging.info(f"✅ Atomic refund request creation completed using MongoDB transaction")
+                    
+        except OperationFailure as e:
+            # MongoDB transactions not supported (e.g., standalone instance)
+            logging.warning(f"MongoDB transactions not available, falling back to two-phase approach: {e}")
+            
+            # Fallback: Two-phase commit approach
+            # Phase 1: Insert refund request with RESERVING status
+            refund_doc_reserving = refund_doc.copy()
+            refund_doc_reserving["status"] = "RESERVING"
+            refund_doc_reserving["_internal_phase"] = "reserving_funds"
+            
             try:
-                await transactions_col.update_one(
-                    {"transaction_id": transaction.get("transaction_id")},
-                    {"$inc": {"refunded_amount": -inc_amount}}
+                result = await refund_requests_col.insert_one(refund_doc_reserving)
+                if not result.inserted_id:
+                    logging.error(f"Failed to insert refund request in RESERVING phase")
+                    return None
+                
+                # Phase 2: Attempt to reserve funds with the request ID for rollback reference
+                atomic_filter = {
+                    "transaction_id": transaction.get("transaction_id"),
+                    "$expr": {
+                        "$lte": [
+                            {"$add": [{"$ifNull": ["$refunded_amount", 0.0]}, inc_amount]},
+                            limit_amount
+                        ]
+                    }
+                }
+
+                updated_tx = await transactions_col.find_one_and_update(
+                    atomic_filter,
+                    {
+                        "$inc": {"refunded_amount": inc_amount},
+                        "$push": {"refund_reservations": {"request_id": refund_doc["request_id"], "amount": inc_amount, "timestamp": datetime.utcnow()}}
+                    },
+                    return_document=ReturnDocument.AFTER
                 )
-                logging.info(f"Rolled back refunded_amount for transaction {transaction.get('transaction_id')}")
-            except Exception as e2:
-                logging.error(f"Failed to rollback refunded_amount for transaction {transaction.get('transaction_id')}: {e2}")
+                
+                if not updated_tx:
+                    # Rollback: Remove the RESERVING refund request
+                    await refund_requests_col.delete_one({"_id": result.inserted_id})
+                    logging.error(f"Atomic reservation failed in fallback mode: refund of ${final_refund_amount} would exceed transaction {transaction.get('transaction_id')} amount ${total_transaction_amount}")
+                    return None
+                
+                # Phase 3: Update refund request to PENDING status (completed)
+                await refund_requests_col.update_one(
+                    {"_id": result.inserted_id},
+                    {
+                        "$set": {"status": RefundStatus.PENDING, "_internal_phase": "completed"},
+                        "$unset": {"_internal_phase": ""}
+                    }
+                )
+                
+                logging.info(f"✅ Refund request creation completed using two-phase fallback approach")
+                
+            except Exception as fallback_error:
+                # Cleanup: Remove any partially created refund request
+                if 'result' in locals() and result.inserted_id:
+                    await refund_requests_col.delete_one({"_id": result.inserted_id})
+                logging.error(f"Fallback refund creation failed: {fallback_error}")
+                return None
+                
+        except Exception as e:
+            logging.error(f"Error during atomic refund creation: {e}")
             return None
 
-        if result.inserted_id:
-            # Get the created document
-            created_doc = await DB.db["refund_requests"].find_one({"_id": result.inserted_id})
-            if created_doc:
-                created_doc["id"] = str(created_doc.pop("_id"))
-                # After successfully creating a refund request, update the event attendee's payment_status
-                try:
-                    event_doc = await DB.db["events"].find_one({"_id": ObjectId(request_data.event_id)})
-                    if event_doc:
-                        attendees = event_doc.get("attendees", []) or []
-                        modified = False
-                        # Normalize person_id comparison: stored values may be ObjectId or string or None
-                        target_person_id = request_data.person_id
+        # Get the created document
+        created_doc = await refund_requests_col.find_one({"_id": result.inserted_id})
+        if created_doc:
+            created_doc["id"] = str(created_doc.pop("_id"))
+            # After successfully creating a refund request, update the event attendee's payment_status
+            try:
+                event_doc = await DB.db["events"].find_one({"_id": ObjectId(request_data.event_id)})
+                if event_doc:
+                    attendees = event_doc.get("attendees", []) or []
+                    modified = False
+                    # Normalize person_id comparison: stored values may be ObjectId or string or None
+                    target_person_id = request_data.person_id
 
-                        for attendee in attendees:
-                            # Match by user_uid first
-                            if attendee.get("user_uid") != user_uid:
-                                continue
+                    for attendee in attendees:
+                        # Match by user_uid first
+                        if attendee.get("user_uid") != user_uid:
+                            continue
 
-                            att_pid = attendee.get("person_id")
+                        att_pid = attendee.get("person_id")
+                        att_pid_str = None
+                        if att_pid is None:
                             att_pid_str = None
-                            if att_pid is None:
+                        else:
+                            try:
+                                att_pid_str = str(att_pid)
+                            except Exception:
                                 att_pid_str = None
-                            else:
-                                try:
-                                    att_pid_str = str(att_pid)
-                                except Exception:
-                                    att_pid_str = None
 
-                            # If request specified a person_id, match it; otherwise match attendee with no person_id (self)
-                            if target_person_id:
-                                if att_pid_str == target_person_id:
-                                    attendee["payment_status"] = "refund_requested"
-                                    modified = True
-                                    break
-                            else:
-                                # person_id not specified -> update the attendee record that represents the user themself
-                                if not att_pid_str:
-                                    attendee["payment_status"] = "refund_requested"
-                                    modified = True
-                                    break
+                        # If request specified a person_id, match it; otherwise match attendee with no person_id (self)
+                        if target_person_id:
+                            if att_pid_str == target_person_id:
+                                attendee["payment_status"] = "refund_requested"
+                                modified = True
+                                break
+                        else:
+                            # person_id not specified -> update the attendee record that represents the user themself
+                            if not att_pid_str:
+                                attendee["payment_status"] = "refund_requested"
+                                modified = True
+                                break
 
-                        if modified:
-                            await DB.db["events"].update_one(
-                                {"_id": ObjectId(request_data.event_id)},
-                                {"$set": {"attendees": attendees}}
-                            )
-                            logging.info(f"Updated event {request_data.event_id} attendee payment_status to 'refund_requested' for user {user_uid}")
-                except Exception as e:
-                    logging.error(f"Failed to update attendee payment_status after creating refund request: {e}")
+                    if modified:
+                        await DB.db["events"].update_one(
+                            {"_id": ObjectId(request_data.event_id)},
+                            {"$set": {"attendees": attendees}}
+                        )
+                        logging.info(f"Updated event {request_data.event_id} attendee payment_status to 'refund_requested' for user {user_uid}")
+            except Exception as e:
+                logging.error(f"Failed to update attendee payment_status after creating refund request: {e}")
 
-                return RefundRequest(**created_doc)
+            return RefundRequest(**created_doc)
         
         return None
     except Exception as e:
@@ -489,6 +555,88 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
         
         logging.error(f"Traceback: {traceback.format_exc()}")
         return None
+
+async def cleanup_stale_reserving_refunds(max_age_minutes: int = 10) -> Dict[str, int]:
+    """
+    Cleanup function to handle stale refund requests stuck in RESERVING status.
+    This reconciliation job should be run periodically to clean up any incomplete
+    two-phase refund operations.
+    
+    Args:
+        max_age_minutes: Maximum age in minutes for RESERVING records before cleanup
+        
+    Returns:
+        Dict with counts of completed, rolled_back, and failed operations
+    """
+    try:
+        cutoff_time = datetime.utcnow() - timedelta(minutes=max_age_minutes)
+        refund_requests_col = DB.db["refund_requests"]
+        transactions_col = DB.db["transactions"]
+        
+        # Find stale RESERVING refund requests
+        stale_refunds = await refund_requests_col.find({
+            "status": "RESERVING",
+            "created_at": {"$lt": cutoff_time}
+        }).to_list(length=None)
+        
+        completed_count = 0
+        rolled_back_count = 0
+        failed_count = 0
+        
+        for refund in stale_refunds:
+            try:
+                transaction_id = refund.get("transaction_id")
+                request_id = refund.get("request_id")
+                amount = refund.get("payment_amount", 0)
+                
+                # Check if the transaction has a reservation for this request
+                transaction = await transactions_col.find_one({"transaction_id": transaction_id})
+                if not transaction:
+                    # Transaction not found, remove stale refund request
+                    await refund_requests_col.delete_one({"_id": refund["_id"]})
+                    rolled_back_count += 1
+                    logging.info(f"Rolled back stale refund request {request_id} - transaction not found")
+                    continue
+                
+                reservations = transaction.get("refund_reservations", [])
+                has_reservation = any(res.get("request_id") == request_id for res in reservations)
+                
+                if has_reservation:
+                    # Reservation exists, complete the refund request
+                    await refund_requests_col.update_one(
+                        {"_id": refund["_id"]},
+                        {
+                            "$set": {"status": RefundStatus.PENDING},
+                            "$unset": {"_internal_phase": ""}
+                        }
+                    )
+                    completed_count += 1
+                    logging.info(f"Completed stale refund request {request_id}")
+                else:
+                    # No reservation, rollback by removing the refund request
+                    await refund_requests_col.delete_one({"_id": refund["_id"]})
+                    rolled_back_count += 1
+                    logging.info(f"Rolled back stale refund request {request_id} - no reservation found")
+                    
+            except Exception as cleanup_error:
+                failed_count += 1
+                logging.error(f"Failed to cleanup stale refund request {refund.get('request_id', 'unknown')}: {cleanup_error}")
+        
+        result = {
+            "completed": completed_count,
+            "rolled_back": rolled_back_count,
+            "failed": failed_count,
+            "total_processed": len(stale_refunds)
+        }
+        
+        if stale_refunds:
+            logging.info(f"Cleanup completed: {result}")
+        
+        return result
+        
+    except Exception as e:
+        logging.error(f"Error during stale refund cleanup: {e}")
+        return {"completed": 0, "rolled_back": 0, "failed": 0, "total_processed": 0}
 
 async def get_refund_request_by_id(request_id: str) -> Optional[RefundRequest]:
     """Get refund request by ID"""

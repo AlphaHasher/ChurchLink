@@ -1,17 +1,66 @@
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from models.donation_subscription import DonationSubscription
 from models.transaction import Transaction, PaymentStatus  
 import logging
 import json
+import os
+import httpx
+from datetime import datetime, timedelta
 from models.event import get_event_by_id
 from mongo.database import DB
 from bson.objectid import ObjectId
+from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
 
 paypal_subscription_webhook_router = APIRouter(prefix="/paypal/subscription", tags=["paypal_subscription_webhook"])
 
+async def check_and_record_transmission_id(transmission_id: str) -> bool:
+    """
+    Check if transmission ID has been processed before and record it to prevent replay attacks.
+    
+    Args:
+        transmission_id: PayPal transmission ID from webhook headers
+        
+    Returns:
+        True if this is a new transmission ID, False if already processed
+    """
+    try:
+        # Use a dedicated collection for webhook replay protection
+        webhook_replay_collection = DB.db["webhook_replay_protection"]
+        
+        # Check if transmission ID already exists
+        existing = await webhook_replay_collection.find_one({"transmission_id": transmission_id})
+        
+        if existing:
+            logging.warning(f"🔄 Replay attack detected - transmission ID {transmission_id[:10]}... already processed")
+            return False
+        
+        # Record this transmission ID with expiration (1 hour from now)
+        expiry_time = datetime.utcnow() + timedelta(hours=1)
+        await webhook_replay_collection.insert_one({
+            "transmission_id": transmission_id,
+            "processed_at": datetime.utcnow(),
+            "expires_at": expiry_time
+        })
+        
+        # Create TTL index if it doesn't exist (will be created once and ignored thereafter)
+        try:
+            await webhook_replay_collection.create_index("expires_at", expireAfterSeconds=0)
+        except Exception:
+            pass  # Index might already exist
+        
+        logging.info(f"✅ New transmission ID recorded: {transmission_id[:10]}...")
+        return True
+        
+    except Exception as e:
+        logging.error(f"❌ Error checking transmission ID replay protection: {e}")
+        # In case of error, allow processing to prevent false positives
+        # but log the issue for investigation
+        return True
+
 async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
     """
-    Verify PayPal webhook signature using PayPal's certificate and signature validation.
+    Verify PayPal webhook signature using PayPal's webhook verification API.
     
     Args:
         headers: Request headers (must use lowercase keys)
@@ -23,30 +72,78 @@ async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
     try:
         # Extract signature-related headers (case-insensitive, use lowercase)
         transmission_id = headers.get("paypal-transmission-id")
-        cert_id = headers.get("paypal-cert-id") 
+        cert_url = headers.get("paypal-cert-url")
         transmission_sig = headers.get("paypal-transmission-sig")
         transmission_time = headers.get("paypal-transmission-time")
         auth_algo = headers.get("paypal-auth-algo", "SHA256withRSA")
         
-        if not all([transmission_id, cert_id, transmission_sig, transmission_time]):
-            logging.error("❌ Missing required PayPal webhook signature headers")
+        if not all([transmission_id, cert_url, transmission_sig, transmission_time]):
+            logging.error("❌ Missing required PayPal subscription webhook signature headers")
             return False
-            
-        # For now, implement basic webhook ID verification
-        # In production, you should implement full certificate verification
-        # using PayPal's webhook verification API or certificate validation
         
-        # TODO: Implement full PayPal webhook signature verification
-        # This is a critical security feature that should verify:
-        # 1. Certificate authenticity from PayPal
-        # 2. Signature validation using the certificate
-        # 3. Transmission ID uniqueness to prevent replay attacks
+        # Check for replay attacks using transmission ID
+        is_new_transmission = await check_and_record_transmission_id(transmission_id)
+        if not is_new_transmission:
+            logging.error(f"❌ PayPal subscription webhook replay attack detected - transmission ID: {transmission_id[:10]}...")
+            return False
         
-        logging.info(f"🔐 PayPal subscription webhook signature validation - ID: {transmission_id[:10]}...")
+        # Get webhook ID from environment or database settings
+        webhook_id = os.getenv("PAYPAL_WEBHOOK_ID")
+        if not webhook_id:
+            try:
+                # Try to get from database settings
+                paypal_settings = await DB.get_paypal_settings() if hasattr(DB, 'get_paypal_settings') else {}
+                webhook_id = paypal_settings.get("PAYPAL_WEBHOOK_ID") if paypal_settings else None
+            except Exception:
+                pass
         
-        # For now, return True but log that verification is needed
-        logging.warning("⚠️ PayPal subscription webhook signature verification not fully implemented - this is a security risk")
-        return True
+        if not webhook_id:
+            logging.error("❌ Missing PayPal webhook ID configuration for subscription webhooks")
+            return False
+        
+        # Get PayPal access token (wrapped to prevent blocking the event loop)
+        access_token = await run_in_threadpool(get_paypal_access_token)
+        if not access_token:
+            logging.error("❌ Failed to get PayPal access token for subscription webhook verification")
+            return False
+        
+        # Prepare verification payload
+        verify_payload = {
+            "transmission_id": transmission_id,
+            "transmission_time": transmission_time,
+            "cert_url": cert_url,
+            "auth_algo": auth_algo,
+            "transmission_sig": transmission_sig,
+            "webhook_id": webhook_id,
+            "webhook_event": json.loads(body.decode("utf-8")),
+        }
+        
+        # Call PayPal's webhook verification API
+        verification_url = f"{get_paypal_base_url()}/v1/notifications/verify-webhook-signature"
+        
+        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=5.0)) as client:
+            response = await client.post(
+                verification_url,
+                json=verify_payload,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+            )
+        
+        if response.status_code != 200:
+            logging.error(f"❌ PayPal subscription webhook verification API error: {response.status_code}")
+            return False
+        
+        verification_result = response.json()
+        verification_status = verification_result.get("verification_status")
+        
+        if verification_status == "SUCCESS":
+            logging.info(f"✅ PayPal subscription webhook signature verified successfully - ID: {transmission_id[:10]}...")
+            return True
+        else:
+            logging.error(f"❌ PayPal subscription webhook signature verification failed: {verification_status}")
+            return False
         
     except Exception as e:
         logging.error(f"❌ Error verifying PayPal subscription webhook signature: {e}")
@@ -61,7 +158,7 @@ async def paypal_subscription_webhook(request: Request):
         # Get headers using lowercase names (FastAPI/Starlette normalizes to lowercase)
         headers = {
             "paypal-transmission-id": request.headers.get("paypal-transmission-id"),
-            "paypal-cert-id": request.headers.get("paypal-cert-id"),
+            "paypal-cert-url": request.headers.get("paypal-cert-url"),
             "paypal-transmission-sig": request.headers.get("paypal-transmission-sig"),
             "paypal-transmission-time": request.headers.get("paypal-transmission-time"),
             "paypal-auth-algo": request.headers.get("paypal-auth-algo")
@@ -154,7 +251,7 @@ async def paypal_money_webhook(request: Request):
         # Get headers using lowercase names (FastAPI/Starlette normalizes to lowercase)
         headers = {
             "paypal-transmission-id": request.headers.get("paypal-transmission-id"),
-            "paypal-cert-id": request.headers.get("paypal-cert-id"),
+            "paypal-cert-url": request.headers.get("paypal-cert-url"),
             "paypal-transmission-sig": request.headers.get("paypal-transmission-sig"),
             "paypal-transmission-time": request.headers.get("paypal-transmission-time"),
             "paypal-auth-algo": request.headers.get("paypal-auth-algo")

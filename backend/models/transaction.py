@@ -221,12 +221,15 @@ class Transaction(BaseModel):
                 logging.warning(f"Invalid status transition for {transaction_id}: {current_tx.status} -> {new_status}")
                 # Allow it but log the warning for now during migration
                 
-            result = await DB.update_document("transactions", {"transaction_id": transaction_id}, {"status": new_status})
-            
-            if result > 0:
+            # Update exactly one transaction
+            result = await DB.db["transactions"].update_one(
+                {"transaction_id": transaction_id},
+                {"$set": {"status": new_status}}
+            )
+            if getattr(result, "modified_count", 0) > 0:
                 logging.info(f"Transaction {transaction_id} status updated: {current_tx.status} -> {new_status}")
             
-            return result > 0
+            return getattr(result, "modified_count", 0) > 0
             
         except Exception as e:
             logging.error(f"Error updating transaction status: {e}")
