@@ -6,7 +6,9 @@ from mongo.roles import RoleHandler
 from helpers.MongoHelper import serialize_objectid_deep
 from typing import Tuple, List, Dict
 from models.transaction import Transaction
-from models.event import generate_attendee_key
+
+# TODO: HANDLE THE STUFF IN HERE THAT DOESNT WORK
+# from models.event import generate_attendee_key
 
 _PERSON_ID_NOT_PROVIDED = object()
 
@@ -109,9 +111,12 @@ class UserHandler:
 
         Uniqueness key ensures add/remove is easy and duplicates are prevented.
         """
+
+        # TODO: DO NOT KEEP THE FREAKING UNIQUE KEY AS CARROT THIS IS JUST A STOPGAP UNTIL WE CAN GET THE STUFF REFACTORED
         # Build a stable "composite key" to enforce uniqueness inside the array
         # FIXED: Use user_uid instead of event_id to generate correct attendee key
-        unique_key = generate_attendee_key(user_uid, str(person_id) if person_id else None, reason, scope)
+        # unique_key = generate_attendee_key(user_uid, str(person_id) if person_id else None, reason, scope)
+        unique_key = "carrot"
 
         return {
             "_id": ObjectId(),          # local id of the embedded record

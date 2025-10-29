@@ -13,9 +13,6 @@ from scalar_fastapi import get_scalar_api_reference
 import firebase_admin
 from firebase_admin import credentials
 
-from get_bearer_token import generate_test_token
-from add_roles import add_user_role, RoleUpdate
-
 from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
@@ -47,7 +44,7 @@ from routes.common_routes.app_config_routes import app_config_public_router, app
 from routes.common_routes.dashboard_app_config_routes import dashboard_app_config_public_router, dashboard_app_config_private_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 
-from routes.event_payment_routes.event_payment_routes import event_payment_router
+#from routes.event_payment_routes.event_payment_routes import event_payment_router
 from routes.finance_routes.finance_routes import finance_router
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
@@ -71,10 +68,8 @@ from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
 from routes.webbuilder_config_routes import webbuilder_config_public_router, webbuilder_config_private_router
 
-from pathlib import Path
-
-from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
-from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
+#from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
+#from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
 
 from dotenv import load_dotenv
@@ -269,14 +264,15 @@ public_router.include_router(app_config_public_router)
 public_router.include_router(dashboard_app_config_public_router)
 #public_router.include_router(paypal_public_router)
 #public_router.include_router(form_payment_router)
-public_router.include_router(paypal_subscription_webhook_router)
-public_router.include_router(paypal_webhook_router)
+#public_router.include_router(paypal_subscription_webhook_router)
+#public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
 public_router.include_router(public_ministry_router)
 public_router.include_router(public_event_router)
 public_router.include_router(public_forms_router)
+public_router.include_router(webbuilder_config_public_router)
 
 
 #####################################################
@@ -294,7 +290,7 @@ private_router.include_router(user_private_router)
 private_router.include_router(member_private_router)
 private_router.include_router(private_forms_router)
 private_router.include_router(private_event_router)
-public_router.include_router(webbuilder_config_public_router)
+private_router.include_router(private_bible_plan_router)
 
 
 #####################################################
@@ -360,9 +356,9 @@ finance_management_protected_router.include_router(finance_router)
 ##app.include_router(event_payment_router, prefix="/api/v1")
 
 # ADMIN REFUND MANAGEMENT ROUTES
-from routes.event_payment_routes.admin_refund_routes import admin_refund_router
+#from routes.event_payment_routes.admin_refund_routes import admin_refund_router
 admin_refund_management_router = PermProtectedRouter(prefix="/api/v1", tags=["Admin Refund Management"], required_perms=["finance"])
-admin_refund_management_router.include_router(admin_refund_router)
+#admin_refund_management_router.include_router(admin_refund_router)
 
 # MEDIA MANAGEMENT CORE
 media_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Media Protected"], required_perms=['media_management'])
