@@ -96,15 +96,25 @@ async def translate_form_content(
                 "supported_locales": form.supported_locales or []
             }
         
-        # Determine target languages
-        target_languages = body.dest_languages or form.supported_locales or None
-        
+        # Determine target languages: only use dest_languages if provided and non-empty, else supported_locales if non-empty, else error/empty
+        if body.dest_languages and len(body.dest_languages) > 0:
+            target_languages = body.dest_languages
+        elif form.supported_locales and len(form.supported_locales) > 0:
+            target_languages = form.supported_locales
+        else:
+            # No target languages specified or available
+            return {
+                "form_id": form_id,
+                "translations": {},
+                "supported_locales": form.supported_locales or []
+            }
+
         # Request translations from the translator service
         try:
             translation_result = BulkTranslator.translateFromOtherMulti(
                 translatable_texts,
                 src="en",
-                dest_languages=target_languages or []
+                dest_languages=target_languages
             )
         except Exception as e:
             error_msg = str(e)
@@ -178,15 +188,25 @@ async def translate_form_by_slug(
                 "supported_locales": form.supported_locales or []
             }
         
-        # Determine target languages
-        target_languages = body.dest_languages or form.supported_locales or None
-        
+        # Determine target languages: only use dest_languages if provided and non-empty, else supported_locales if non-empty, else error/empty
+        if body.dest_languages and len(body.dest_languages) > 0:
+            target_languages = body.dest_languages
+        elif form.supported_locales and len(form.supported_locales) > 0:
+            target_languages = form.supported_locales
+        else:
+            # No target languages specified or available
+            return {
+                "slug": slug,
+                "translations": {},
+                "supported_locales": form.supported_locales or []
+            }
+
         # Request translations from the translator service
         try:
             translation_result = BulkTranslator.translateFromOtherMulti(
                 translatable_texts,
                 src="en",
-                dest_languages=target_languages or []
+                dest_languages=target_languages
             )
         except Exception as e:
             error_msg = str(e)

@@ -204,10 +204,17 @@ export function Inspector() {
                   checked={!!((field as any).paymentMethods?.allowPayPal ?? true)}
                   onCheckedChange={(v) => {
                     const current = (field as any).paymentMethods || {};
+                    const newAllowPayPal = !!v;
+                    let newAllowInPerson = current.allowInPerson ?? true;
+                    // If toggling off and both would be false, force the other to true
+                    if (!newAllowPayPal && !newAllowInPerson) {
+                      newAllowInPerson = true;
+                    }
                     onChange({
                       paymentMethods: {
                         ...current,
-                        allowPayPal: !!v
+                        allowPayPal: newAllowPayPal,
+                        allowInPerson: newAllowInPerson,
                       }
                     } as any);
                   }}
@@ -219,10 +226,17 @@ export function Inspector() {
                   checked={!!((field as any).paymentMethods?.allowInPerson ?? true)}
                   onCheckedChange={(v) => {
                     const current = (field as any).paymentMethods || {};
+                    const newAllowInPerson = !!v;
+                    let newAllowPayPal = current.allowPayPal ?? true;
+                    // If toggling off and both would be false, force the other to true
+                    if (!newAllowInPerson && !newAllowPayPal) {
+                      newAllowPayPal = true;
+                    }
                     onChange({
                       paymentMethods: {
                         ...current,
-                        allowInPerson: !!v
+                        allowInPerson: newAllowInPerson,
+                        allowPayPal: newAllowPayPal,
                       }
                     } as any);
                   }}

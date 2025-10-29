@@ -17,7 +17,7 @@ interface LanguageOption {
   name: string;
 }
 
-type RawOption = string | { label?: string; value?: string; id?: string; [key: string]: any };
+type RawOption = string | { label?: string; value?: string; id?: string;[key: string]: any };
 
 const normalizeOption = (opt: RawOption, index: number) => {
   if (typeof opt === "string") {
@@ -129,8 +129,8 @@ export default function FormPublic() {
       } catch (err: any) {
         console.error("Failed to load public form", err);
         const status = err?.response?.status as number | undefined;
-  const detail = err?.response?.data?.detail;
-  const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
+        const detail = err?.response?.data?.detail;
+        const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
         // If not authenticated/forbidden, don't surface the error; show login prompt instead
         if (status === 401 || status === 403 || status === 419 || detailStr.includes('not authenticated') || detailStr.includes('unauthorized') || detailStr.includes('forbidden')) {
           setError(null);
