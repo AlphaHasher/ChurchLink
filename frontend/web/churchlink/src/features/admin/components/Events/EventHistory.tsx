@@ -31,7 +31,8 @@ interface Attendee {
   user_email?: string;
   phone?: string;
   addedOn: string;
-  payment_status: string;
+  payment_status: string; // Legacy field
+  computed_payment_status?: string; // NEW: From centralized transaction system
   payment_type?: string; // e.g., "card", "paypal", "cash", "free"
   transaction_id?: string;
   payment_required: boolean;
@@ -128,7 +129,7 @@ const EventOccurrenceCard: React.FC<EventOccurrenceCardProps> = ({
           attendee.user_email || '',
           attendee.phone || '',
           formatDate(attendee.addedOn),
-          attendee.payment_status,
+          attendee.computed_payment_status || attendee.payment_status,
           attendee.payment_type || 'N/A',
           attendee.transaction_id || 'N/A'
         ])
@@ -274,11 +275,14 @@ const EventOccurrenceCard: React.FC<EventOccurrenceCardProps> = ({
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge 
-                          variant={(attendee.payment_status === "completed" || attendee.payment_status === "paid") ? "default" : "secondary"}
+                          variant={(
+                            (attendee.computed_payment_status || attendee.payment_status) === "completed" || 
+                            (attendee.computed_payment_status || attendee.payment_status) === "paid"
+                          ) ? "default" : "secondary"}
                           className="text-xs"
                         >
                           <CreditCard className="h-3 w-3 mr-1" />
-                          {attendee.payment_status}
+                          {attendee.computed_payment_status || attendee.payment_status}
                         </Badge>
                       </div>
                     </div>

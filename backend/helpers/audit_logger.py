@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import json
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -46,6 +47,16 @@ class AuditEventType(Enum):
     TRANSACTION_RECORDED = "transaction_recorded"
     TRANSACTION_FAILED = "transaction_failed"
     
+    # Refund Operations
+    REFUND_REQUESTED = "refund_requested"
+    REFUND_APPROVED = "refund_approved"
+    REFUND_REJECTED = "refund_rejected"
+    REFUND_PROCESSED = "refund_processed"
+    REFUND_FAILED = "refund_failed"
+    PAYPAL_REFUND_INITIATED = "paypal_refund_initiated"
+    PAYPAL_REFUND_COMPLETED = "paypal_refund_completed"
+    PAYPAL_REFUND_FAILED = "paypal_refund_failed"
+    
     # Financial Reporting and Analytics
     TRANSACTION_QUERY = "transaction_query"
     TRANSACTION_DETAIL_ACCESS = "transaction_detail_access"
@@ -73,7 +84,7 @@ class PaymentAuditLogger:
             audit_log_file = os.path.join("logs", "payment_audit.log")
             os.makedirs(os.path.dirname(audit_log_file), exist_ok=True)
             
-            file_handler = logging.FileHandler(audit_log_file)
+            file_handler = RotatingFileHandler(audit_log_file, maxBytes=10_000_000, backupCount=5)
             file_handler.setLevel(logging.INFO)
             
             # Create console handler for immediate visibility
@@ -688,7 +699,164 @@ class PaymentAuditLogger:
             message=f"Transaction query executed by user {user_id}",
             details={
                 "query_parameters": query_params,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            request_ip=request_ip
+        )
+        self.logger.info(json.dumps(record))
+
+    # Refund Audit Logging Methods
+    def log_refund_requested(
+        self,
+        user_uid: str,
+        event_id: str,
+        request_id: str,
+        amount: float,
+        reason: str,
+        person_id: Optional[str] = None,
+        request_ip: Optional[str] = None
+    ):
+        """Log refund request submission"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.REFUND_REQUESTED,
+            user_uid=user_uid,
+            event_id=event_id,
+            severity=AuditSeverity.INFO,
+            message=f"Refund requested by user {user_uid} for event {event_id}",
+            details={
+                "request_id": request_id,
+                "amount": amount,
+                "reason": reason,
+                "person_id": person_id,
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            request_ip=request_ip
+        )
+        self.logger.info(json.dumps(record))
+
+    def log_refund_approved(
+        self,
+        admin_uid: str,
+        request_id: str,
+        event_id: str,
+        amount: float,
+        admin_notes: Optional[str] = None,
+        request_ip: Optional[str] = None
+    ):
+        """Log refund approval"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.REFUND_APPROVED,
+            user_uid=admin_uid,
+            event_id=event_id,
+            severity=AuditSeverity.INFO,
+            message=f"Refund approved by admin {admin_uid} for request {request_id}",
+            details={
+                "request_id": request_id,
+                "amount": amount,
+                "admin_notes": admin_notes,
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            request_ip=request_ip
+        )
+        self.logger.info(json.dumps(record))
+
+    def log_refund_rejected(
+        self,
+        admin_uid: str,
+        request_id: str,
+        event_id: str,
+        amount: float,
+        admin_notes: Optional[str] = None,
+        request_ip: Optional[str] = None
+    ):
+        """Log refund rejection"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.REFUND_REJECTED,
+            user_uid=admin_uid,
+            event_id=event_id,
+            severity=AuditSeverity.WARNING,
+            message=f"Refund rejected by admin {admin_uid} for request {request_id}",
+            details={
+                "request_id": request_id,
+                "amount": amount,
+                "admin_notes": admin_notes,
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            request_ip=request_ip
+        )
+        self.logger.warning(json.dumps(record))
+
+    def log_paypal_refund_initiated(
+        self,
+        transaction_id: str,
+        refund_id: str,
+        refund_amount: float,
+        reason: str,
+        request_ip: Optional[str] = None
+    ):
+        """Log PayPal refund initiation"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.PAYPAL_REFUND_INITIATED,
+            user_uid=None,
+            event_id=None,
+            severity=AuditSeverity.INFO,
+            message=f"PayPal refund initiated for transaction {transaction_id}",
+            details={
+                "transaction_id": transaction_id,
+                "refund_id": refund_id,
+                "refund_amount": refund_amount,
+                "reason": reason,
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            request_ip=request_ip
+        )
+        self.logger.info(json.dumps(record))
+
+    def log_paypal_refund_failed(
+        self,
+        transaction_id: str,
+        error_message: str,
+        response_code: Optional[int] = None,
+        request_ip: Optional[str] = None
+    ):
+        """Log PayPal refund failure"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.PAYPAL_REFUND_FAILED,
+            user_uid=None,
+            event_id=None,
+            severity=AuditSeverity.ERROR,
+            message=f"PayPal refund failed for transaction {transaction_id}",
+            details={
+                "transaction_id": transaction_id,
+                "error_message": error_message,
+                "response_code": response_code,
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            request_ip=request_ip
+        )
+        self.logger.error(json.dumps(record))
+
+    def log_refund_processed(
+        self,
+        request_id: str,
+        paypal_refund_id: str,
+        amount: float,
+        status: str,
+        request_ip: Optional[str] = None
+    ):
+        """Log successful refund processing"""
+        record = self._create_audit_record(
+            event_type=AuditEventType.REFUND_PROCESSED,
+            user_uid=None,
+            event_id=None,
+            severity=AuditSeverity.INFO,
+            message=f"Refund processed successfully for request {request_id}",
+            details={
+                "request_id": request_id,
+                "paypal_refund_id": paypal_refund_id,
+                "amount": amount,
+                "status": status,
+                "timestamp": datetime.utcnow().isoformat()
             },
             request_ip=request_ip
         )

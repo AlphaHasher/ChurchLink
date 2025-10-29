@@ -1,8 +1,8 @@
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
-import MyEventsPage from "../features/events/pages/MyEventsPage";
 
 const ProfilePage = lazy(() => import("../features/users/pages/ProfilePage"));
+const MyEventsPage = lazy(() => import("../features/events/pages/MyEventsPage"));
 
 export const ProfileRoutes = () => {
     return (

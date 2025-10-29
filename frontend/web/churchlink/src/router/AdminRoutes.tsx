@@ -26,6 +26,7 @@ const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
 const Ministries = lazy(() => import("../features/admin/pages/Ministries"));
+const RefundManagement = lazy(() => import("../features/admin/pages/RefundManagement"));
 
 const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
 const MobileUIPages = lazy(() => import("../features/admin/pages/MobileUIPages"));
@@ -45,6 +46,7 @@ export const AdminRoutes = () => {
         <Route path="/events" element={<Events />} />
         <Route path="/events/:eventId" element={<EventDetails />} />
         <Route path="/finance" element={<Finance />} />
+        <Route path="/finance/refunds" element={<RefundManagement />} />
         <Route path="/sermons" element={<Sermons />} />
         <Route path="/bible-plans/manage-plans" element={<ManageBiblePlans />} />
         <Route path="/bible-plans/plan-builder" element={<BiblePlanBuilder />} />

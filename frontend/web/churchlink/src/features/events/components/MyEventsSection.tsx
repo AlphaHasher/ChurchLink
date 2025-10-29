@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useMyEvents } from '../hooks/useMyEvents';
 import { MyEventCard } from './MyEventCard';
 import { EventFiltersComponent } from './EventFilters';
@@ -8,6 +10,16 @@ import { myEventsApi } from '@/features/events/api/myEventsApi';
 import { getMyProfileInfo } from '@/helpers/UserHelper';
 import { MyEvent, EventFilters, GroupedEvent, EventWithGroupedData } from '../types/myEvents';
 import { ProfileInfo } from '@/shared/types/ProfileInfo';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
+import { useRefundRequest } from '../hooks/useRefundRequest';
 import { useLocalize } from '@/shared/utils/localizationUtils';
 
 export function MyEventsSection() {
@@ -19,8 +31,20 @@ export function MyEventsSection() {
     showFamily: true,
     searchTerm: '',
   });
+  // State
   const [selectedEvent, setSelectedEvent] = useState<EventWithGroupedData | null>(null);
   const [, setUserProfile] = useState<ProfileInfo | null>(null);
+  
+  // Cancellation confirmation dialog state
+  const [cancelConfirmation, setCancelConfirmation] = useState<{
+    isOpen: boolean;
+    eventRef: MyEvent | null;
+    isProcessing: boolean;
+  }>({
+    isOpen: false,
+    eventRef: null,
+    isProcessing: false,
+  });
 
   // Load user profile for eligibility checking
   useEffect(() => {
@@ -55,9 +79,18 @@ export function MyEventsSection() {
         ? `${eventRef.event_id}-${eventRef.person_id}`
         : `${eventRef.event_id}-user`;
 
-      // Keep the first occurrence, ignore duplicates
+      // Keep the most recent occurrence (latest addedOn timestamp)
       if (!uniqueEventsMap.has(uniqueKey)) {
         uniqueEventsMap.set(uniqueKey, eventRef);
+      } else {
+        const existing = uniqueEventsMap.get(uniqueKey)!;
+        const existingDate = new Date(existing.addedOn);
+        const currentDate = new Date(eventRef.addedOn);
+        
+        // Replace with more recent registration
+        if (currentDate > existingDate) {
+          uniqueEventsMap.set(uniqueKey, eventRef);
+        }
       }
     });
 
@@ -146,15 +179,95 @@ export function MyEventsSection() {
   };
 
   const handleCancelRSVP = async (eventRef: MyEvent): Promise<void> => {
+    // Safety check - determine if this is a paid event that needs confirmation
+    const isPaidEvent = ((eventRef.event?.price ?? 0) > 0);
+    const hasPaidStatus = eventRef.computed_payment_status === 'completed';
+    
+    // For paid events or events with completed payments, show confirmation dialog
+    if (isPaidEvent || hasPaidStatus) {
+      setCancelConfirmation({
+        isOpen: true,
+        eventRef: eventRef,
+        isProcessing: false,
+      });
+      return; // Let the confirmation dialog handle the actual cancellation
+    }
+
+    // For free events, proceed directly with a simple confirmation
+    if (!window.confirm(`Are you sure you want to cancel your RSVP for "${eventRef.event?.name}"?`)) {
+      return;
+    }
+
+    // Execute the cancellation
     try {
       await myEventsApi.cancelRSVP(eventRef.event_id, eventRef.person_id);
       refetch(); // Refresh the events list
-      // TODO: Show success notification
-      console.log('RSVP cancelled successfully');
-    } catch (error) {
-      // TODO: Show error notification
+      
+      // Show success notification
+      const personName = eventRef.display_name ? ` for ${eventRef.display_name}` : '';
+      toast.success(`RSVP cancelled successfully${personName}`);
+      
+    } catch (error: any) {
       console.error('Failed to cancel RSVP:', error);
+      
+      // Show error notification with more details
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to cancel RSVP';
+      toast.error(`Error: ${errorMessage}`);
+      
       throw error; // Re-throw so the modal can handle it
+    }
+  };
+
+  // Handle confirmed cancellation from dialog
+  const handleConfirmedCancellation = async (): Promise<void> => {
+    const { eventRef } = cancelConfirmation;
+    if (!eventRef) return;
+
+    setCancelConfirmation(prev => ({ ...prev, isProcessing: true }));
+
+    try {
+      await myEventsApi.cancelRSVP(eventRef.event_id, eventRef.person_id);
+      refetch(); // Refresh the events list
+      
+      // Show success notification
+      const personName = eventRef.display_name ? ` for ${eventRef.display_name}` : '';
+      toast.success(`RSVP cancelled successfully${personName}`);
+      
+      // Close the confirmation dialog
+      setCancelConfirmation({
+        isOpen: false,
+        eventRef: null,
+        isProcessing: false,
+      });
+      
+    } catch (error: any) {
+      console.error('Failed to cancel RSVP:', error);
+      
+      // Show error notification with more details
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to cancel RSVP';
+      toast.error(`Error: ${errorMessage}`);
+      
+      setCancelConfirmation(prev => ({ ...prev, isProcessing: false }));
+      throw error;
+    }
+  };
+
+  const { handleRefundRequest } = useRefundRequest();
+
+  // Wrapper to handle refund success and close modal
+  const handleRefundRequestWithModalClose = async (eventRef: MyEvent) => {
+    try {
+      await handleRefundRequest(eventRef, () => {
+        // Close modal and refresh events on success
+        setSelectedEvent(null);
+        // Simple refresh after refund request
+        setTimeout(() => {
+          refetch();
+        }, 500); // Small delay to ensure backend has processed the request
+      });
+    } catch (error) {
+      // Error is already handled in the hook
+      console.error('Refund request failed:', error);
     }
   };
 
@@ -234,8 +347,90 @@ export function MyEventsSection() {
           isOpen={Boolean(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           onCancelRSVP={handleCancelRSVP}
+          onRefundRequest={handleRefundRequestWithModalClose}
         />
       )}
+
+      {/* Cancel RSVP Confirmation Dialog */}
+      <AlertDialog
+        open={cancelConfirmation.isOpen}
+        onOpenChange={(open) => {
+          if (!open && !cancelConfirmation.isProcessing) {
+            setCancelConfirmation({ isOpen: false, eventRef: null, isProcessing: false });
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Event Registration</AlertDialogTitle>
+            <div className="space-y-3">
+                {cancelConfirmation.eventRef && (
+                  <>
+                    <div>
+                      Are you sure you want to cancel your registration for{' '}
+                      <span className="font-semibold">"{cancelConfirmation.eventRef.event?.name}"</span>
+                      {cancelConfirmation.eventRef.display_name && (
+                        <span> for {cancelConfirmation.eventRef.display_name}</span>
+                      )}?
+                    </div>
+                  
+                  {/* Show payment warning for paid events */}
+                  {(cancelConfirmation.eventRef.event?.price && cancelConfirmation.eventRef.event.price > 0) && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <div className="text-yellow-800">
+                        <strong>⚠️ This is a paid event (${cancelConfirmation.eventRef.event.price})</strong>
+                        {cancelConfirmation.eventRef.computed_payment_status === 'completed' ? (
+                          <div className="mt-2 text-sm">
+                            You have already completed payment for this event. Cancelling may require a 
+                            separate refund request depending on the event's refund policy.
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm">
+                            This will cancel your registration and any pending payment.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                    {/* Event date information */}
+                    {cancelConfirmation.eventRef.event?.date && (
+                      <div className="text-sm text-gray-600">
+                        Event Date: {new Date(cancelConfirmation.eventRef.event.date).toLocaleString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={cancelConfirmation.isProcessing}
+              onClick={() => {
+                if (!cancelConfirmation.isProcessing) {
+                  setCancelConfirmation({ isOpen: false, eventRef: null, isProcessing: false });
+                }
+              }}
+            >
+              Keep Registration
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmedCancellation}
+              disabled={cancelConfirmation.isProcessing}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
+            >
+              {cancelConfirmation.isProcessing ? 'Cancelling...' : 'Yes, Cancel RSVP'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

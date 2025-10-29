@@ -1,7 +1,7 @@
 # Bulk Registration Endpoint for Events with Combined Payment
 
-from typing import List, Dict, Any
-from fastapi import APIRouter, Request, HTTPException, Body
+from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Request, HTTPException, Body, Query
 from fastapi.responses import RedirectResponse
 from bson import ObjectId
 from protected_routers.auth_protected_router import AuthProtectedRouter
@@ -10,6 +10,21 @@ from helpers.audit_logger import get_client_ip, get_user_agent
 import json
 import os
 import traceback
+
+# Import refund functionality
+from models.refund_request import (
+    RefundRequestCreate, 
+    RefundRequestUpdate, 
+    RefundRequestOut,
+    create_refund_request,
+    get_refund_request_by_id,
+    get_refund_requests_by_user,
+    get_refund_requests_by_event,
+    update_refund_request,
+    list_all_refund_requests
+)
+from helpers.paypalHelper import process_paypal_refund
+import logging
 
 
 # Create router instance
@@ -155,3 +170,155 @@ async def handle_paypal_cancel(
         # If there's an error, still redirect to cancel page but with error info
         cancel_url = f"{FRONTEND_URL}/events/{event_id}/payment/cancel?error=true"
         return RedirectResponse(url=cancel_url, status_code=302)
+
+
+# ===== REFUND ROUTES =====
+
+@event_payment_router.post("/{event_id}/refund/request")
+async def submit_refund_request(
+    event_id: str,
+    request: Request,
+    refund_data: RefundRequestCreate
+):
+    """Submit a refund request for an event registration"""
+    try:
+        user_uid = getattr(request.state, 'uid', None)
+        if not user_uid:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        logging.info(f"Refund request submitted for event {event_id} by user {user_uid}")
+        logging.info(f"Request data: {refund_data.model_dump()}")
+        
+        # Validate that the refund request is for the correct event
+        if refund_data.event_id != event_id:
+            raise HTTPException(status_code=400, detail="Event ID mismatch")
+        
+        # Create the refund request
+        refund_request = await create_refund_request(refund_data, user_uid)
+        
+        if not refund_request:
+            # Get more specific error information
+            from mongo.database import DB
+            from bson import ObjectId
+            
+            # Check if event exists
+            event = await DB.db["events"].find_one({"_id": ObjectId(event_id)})
+            if not event:
+                raise HTTPException(status_code=404, detail="Event not found")
+            
+            # Check if user has any transactions for this event
+            user_transactions = []
+            async for tx in DB.db["transactions"].find({"event_id": event_id}):
+                user_transactions.append({
+                    "transaction_id": tx.get("transaction_id"),
+                    "user_uid": tx.get("user_uid"),
+                    "user_email": tx.get("user_email"),
+                    "status": tx.get("status"),
+                    "payment_type": tx.get("payment_type")
+                })
+            
+            # Create sanitized version for logging (mask emails to protect PII)
+            sanitized_transactions = []
+            for tx in user_transactions:
+                email = tx.get("user_email")
+                if email and "@" in email:
+                    email_parts = email.split("@")
+                    masked_email = email_parts[0][:2] + "***@" + email_parts[-1]
+                else:
+                    masked_email = "***"
+                
+                sanitized_transactions.append({
+                    "transaction_id": tx.get("transaction_id"),
+                    "user_uid": tx.get("user_uid"),
+                    "user_email_masked": masked_email,
+                    "status": tx.get("status"),
+                    "payment_type": tx.get("payment_type")
+                })
+            
+            logging.error(f"Failed to create refund request. Available transactions: {sanitized_transactions}")
+            
+            error_msg = "Unable to create refund request. "
+            if not user_transactions:
+                error_msg += "No payment transactions found for this event."
+            else:
+                completed_transactions = [tx for tx in user_transactions if tx.get("status") in ["completed", "paid"]]
+                if not completed_transactions:
+                    error_msg += "No completed payment transactions found for this event."
+                else:
+                    user_completed_transactions = [tx for tx in completed_transactions if tx.get("user_uid") == user_uid]
+                    if not user_completed_transactions:
+                        error_msg += "No completed payment transactions found for your account on this event."
+                    else:
+                        error_msg += "Payment found but refund request creation failed for technical reasons."
+            
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Log the refund request
+        client_ip = get_client_ip(request)
+        logging.info(f"Refund request created successfully: {refund_request.request_id} by user {user_uid} from IP {client_ip}")
+        
+        return {
+            "success": True,
+            "request_id": refund_request.request_id,
+            "status": refund_request.status,
+            "message": "Refund request submitted successfully. You will receive email updates on the status."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error submitting refund request: {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Failed to submit refund request")
+
+@event_payment_router.get("/refund/my-requests")
+async def get_my_refund_requests(request: Request):
+    """Get all refund requests for the current user"""
+    try:
+        user_uid = getattr(request.state, 'uid', None)
+        if not user_uid:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        refund_requests = await get_refund_requests_by_user(user_uid)
+        
+        return {
+            "success": True,
+            "refund_requests": [r.model_dump() for r in refund_requests],
+            "total": len(refund_requests)
+        }
+        
+    except Exception as e:
+        logging.error(f"Error getting user refund requests: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve your refund requests")
+
+@event_payment_router.get("/refund/request/{request_id}")
+async def get_refund_request_details(
+    request_id: str,
+    request: Request
+):
+    """Get details of a specific refund request"""
+    try:
+        user_uid = getattr(request.state, 'uid', None)
+        if not user_uid:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        refund_request = await get_refund_request_by_id(request_id)
+        
+        if not refund_request:
+            raise HTTPException(status_code=404, detail="Refund request not found")
+        
+        # Users can only see their own requests
+        if refund_request.user_uid != user_uid:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        return {
+            "success": True,
+            "refund_request": refund_request.model_dump()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error getting refund request {request_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve refund request")

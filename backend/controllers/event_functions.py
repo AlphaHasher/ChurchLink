@@ -96,27 +96,43 @@ async def process_delete_event(event_id:str, request:Request):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     return {"message": "Event deleted successfully", "success": True}
 
-async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None, scope: str = "series", payment_option: Optional[str] = None):
+async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None, scope: str = "series", payment_option: Optional[str] = None, transaction_id: Optional[str] = None):
     """
-    High-level action: RSVP an event *and* reflect it in the user's my_events.
-    scope: "series" for recurring registration, "occurrence" for one-time registration
-    payment_option: "paypal", "door", "free", or None
-    Returns: (success, reason)
+    Register a user for an event and update their personal event tracking.
+    
+    This function handles event registration by adding the person to the event's 
+    participant list and reflecting the registration in the user's my_events collection
+    for personal tracking and management.
+    
+    Args:
+        event_id: The unique identifier of the event to register for
+        uid: The user ID of the person performing the registration
+        person_id: Optional person ID (ObjectId string) for registering family members.
+                  If None, registers the user themselves
+        display_name: The name to display for this registration
+        scope: Registration scope - "series" for recurring events, "occurrence" for single events
+        payment_option: Payment method indicator ("paypal", "door", "free", or None)
+        transaction_id: Payment transaction ID for linking to Transaction model records.
+                       Used for payment tracking and audit trails
+    
+    Returns:
+        tuple[bool, str]: A tuple containing:
+            - bool: True if registration successful, False otherwise
+            - str: Success message or error reason
+    
+    Example:
+        success, message = await register_rsvp(
+            event_id="event123",
+            uid="user456", 
+            display_name="John Doe",
+            scope="occurrence",
+            transaction_id="txn_789"
+        )
     """
     # Convert person_id to ObjectId if provided
     person_object_id = ObjectId(person_id) if person_id else None
     
-    # Map payment option to payment status
-    payment_status = None
-    if payment_option == "door":
-        payment_status = "pending_door"
-    elif payment_option == "paypal":
-        payment_status = "awaiting_payment"
-    elif payment_option == "free":
-        payment_status = None  # Free events don't need payment status
-    # If payment_option is None, payment_status remains None (free registration)
-    
-    ok, reason = await rsvp_add_person(event_id, uid, person_object_id, display_name, kind="rsvp", scope=scope, payment_status=payment_status)
+    ok, reason = await rsvp_add_person(event_id, uid, person_object_id, display_name, kind="rsvp", scope=scope, transaction_id=transaction_id)
     if not ok:
         return False, reason
 
@@ -171,4 +187,71 @@ async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, 
         logging.warning(f"Warning: user my_events cleanup failed: {e}")
     
     return True
+
+
+async def register_multiple_people(
+    event_id: str,
+    uid: str,
+    registrations: list,
+    *,
+    parent_transaction_id: str | None = None,
+) -> tuple[bool, str]:
+    """
+    Register multiple people for an event with proper transaction linkage.
+    
+    Args:
+        event_id: The event ID to register for
+        uid: The user ID performing the registration  
+        registrations: List of registration dicts with person_id, display_name, 
+                      and optional transaction_id
+        parent_transaction_id: Default transaction ID to use for registrations
+                              that don't specify their own transaction_id
+        
+    Returns:
+        tuple[bool, str]: (success, message)
+    
+    Note:
+        Each registration can include a 'transaction_id' field for individual
+        transaction tracking. Falls back to parent_transaction_id if not specified.
+    """
+    try:
+        successful_registrations = []
+        failed_registrations = []
+        
+        for registration in registrations:
+            person_id = registration.get('person_id')  # None for self, ObjectId string for family members
+            display_name = registration.get('display_name', registration.get('name'))
+            child_tx = registration.get('transaction_id') or parent_transaction_id
+            
+            # Register this person
+            success, reason = await register_rsvp(
+                event_id=event_id,
+                uid=uid,
+                person_id=person_id,
+                display_name=display_name,
+                scope="occurrence",  # Single event registration for bulk payments
+                transaction_id=child_tx,
+            )
+            
+            if success:
+                successful_registrations.append(display_name or f"Person {person_id}" if person_id else "Self")
+                logging.info(f"Successfully registered {display_name} for event {event_id}")
+            else:
+                failed_registrations.append(f"{display_name}: {reason}")
+                logging.error(f"Failed to register {display_name} for event {event_id}: {reason}")
+        
+        # Determine overall success
+        total_registrations = len(registrations)
+        successful_count = len(successful_registrations)
+        
+        if successful_count == total_registrations:
+            return True, f"Successfully registered all {successful_count} people"
+        elif successful_count > 0:
+            return True, f"Registered {successful_count}/{total_registrations} people. Failed: {', '.join(failed_registrations)}"
+        else:
+            return False, f"Failed to register any people: {', '.join(failed_registrations)}"
+            
+    except Exception as e:
+        logging.exception("Error in register_multiple_people")
+        return False, f"Registration failed due to error: {str(e)}"
 

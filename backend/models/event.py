@@ -5,7 +5,7 @@
 # Search
 
 from typing import Literal, Optional, List, Dict
-from http.client import HTTPException
+from fastapi import HTTPException
 from typing import Literal, Optional, List
 from datetime import datetime, time, timezone
 from mongo.database import DB
@@ -35,10 +35,10 @@ class Event(BaseModel):
     roles: List[str]
     published: bool
     seats_taken: int = 0
-    attendee_keys: List[str] = []
-    attendees: List[Dict] = []
+    attendee_keys: List[str] = Field(default_factory=list)
+    attendees: List[Dict] = Field(default_factory=list)
     # Payment processing fields
-    payment_options: List[str] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
+    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
     refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
     
     def requires_payment(self) -> bool:
@@ -77,10 +77,10 @@ class EventCreate(BaseModel):
     roles: List[str]
     published: bool
     seats_taken: Optional[int] = 0
-    attendee_keys: Optional[List[str]] = []
-    attendees: Optional[List[Dict]] = []
+    attendee_keys: Optional[List[str]] = Field(default_factory=list)
+    attendees: Optional[List[Dict]] = Field(default_factory=list)
     # Payment processing fields
-    payment_options: Optional[List[str]] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
+    payment_options: Optional[List[str]] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
     refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
 
 
@@ -368,13 +368,21 @@ async def get_all_ministries():
             detail={"error": "Failed to fetch ministries", "reason": str(exc)},
         ) from exc
 
-def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp", scope: str = "series") -> str:
-    # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
-    return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|{scope}"
+def generate_attendee_key(user_uid: str, person_id: Optional[str], kind: str = "rsvp", scope: str = "series") -> str:
+    """
+    Generate a clean, unique attendee key for event registration/payment.
+    Format: <user_uid>|<person_id or 'self'>|<kind>|<scope>
+    """
+    person_part = str(person_id) if person_id else "self"
+    return f"{user_uid}|{person_part}|{kind}|{scope}"
 
-def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", scope: str = "series", payment_status: Optional[str] = None) -> Dict:
+def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", scope: str = "series", transaction_id: Optional[str] = None) -> Dict:
+    """
+    Create attendee document structure.
+    
+    """
     attendee_doc = {
-        "key": _attendee_key(uid, person_id, kind, scope),
+        "key" : generate_attendee_key(uid, person_id, kind, scope),
         "kind": kind,  # "rsvp" | "registration"
         "scope": scope,  # "series" | "occurrence"
         "user_uid": uid,
@@ -383,9 +391,9 @@ def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optiona
         "addedOn": datetime.now(),
     }
     
-    # Add payment status if provided
-    if payment_status:
-        attendee_doc["payment_status"] = payment_status
+    # Add transaction reference if provided (new centralized approach)
+    if transaction_id:
+        attendee_doc["transaction_id"] = transaction_id
     
     return attendee_doc
 
@@ -396,15 +404,15 @@ async def rsvp_add_person(
     display_name: Optional[str] = None,
     kind: str = "rsvp",
     scope: str = "series",
-    payment_status: Optional[str] = None,
+    transaction_id: Optional[str] = None,
 ) -> tuple[bool, str]:
     """
     Add RSVP atomically. Only manages the event collection.
     Returns (success, reason) where reason explains why it failed if success is False.
     """
     ev_oid = ObjectId(event_id)
-    key = _attendee_key(uid, person_id, kind, scope)
-    attendee = _attendee_doc(uid, person_id, display_name, kind, scope, payment_status)
+    key = generate_attendee_key(uid, person_id, kind, scope)
+    attendee = _attendee_doc(uid, person_id, display_name, kind, scope, transaction_id)
 
 
     logging.info(f"[RSVP_ADD] Debug info:")
@@ -550,7 +558,7 @@ async def rsvp_remove_person(
 
     if scope is not None:
         # Remove specific scope registration
-        key = _attendee_key(uid, person_id, kind, scope)
+        key = generate_attendee_key(uid, person_id, kind, scope)
 
         try:
             result = await DB.db["events"].find_one_and_update(
@@ -568,7 +576,7 @@ async def rsvp_remove_person(
             if result is None:
                 # FALLBACK: Try the opposite scope if the requested one doesn't exist
                 opposite_scope = 'occurrence' if scope == 'series' else 'series'
-                fallback_key = _attendee_key(uid, person_id, kind, opposite_scope)
+                fallback_key = generate_attendee_key(uid, person_id, kind, opposite_scope)
 
                 result = await DB.db["events"].find_one_and_update(
                     {"_id": ev_oid, "attendee_keys": fallback_key},
@@ -667,41 +675,13 @@ async def rsvp_list(event_id: str) -> Dict:
 
 
 async def get_event_registrations_by_payment_status(event_id: str, payment_status: Optional[str] = None) -> List[Dict]:
-    """Get event registrations filtered by payment status"""
-    try:
-        event = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
-        if not event:
-            return []
-        
-        attendees = event.get("attendees", [])
-        
-        # Convert ObjectIds to strings for JSON serialization
-        def serialize_attendee(attendee):
-            serialized = attendee.copy()
-            if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
-                serialized['person_id'] = str(serialized['person_id'])
-            if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
-                serialized['_id'] = str(serialized['_id'])
-            # Convert any other ObjectId fields that might exist
-            for key, value in serialized.items():
-                if isinstance(value, ObjectId):
-                    serialized[key] = str(value)
-            return serialized
-        
-        if payment_status:
-            # Filter by specific payment status and serialize
-            filtered_attendees = [
-                serialize_attendee(attendee) for attendee in attendees 
-                if attendee.get("payment_status") == payment_status
-            ]
-            return filtered_attendees
-        else:
-            # Return all attendees with serialization
-            return [serialize_attendee(attendee) for attendee in attendees]
-            
-    except Exception as e:
-        logging.error(f"Error getting event registrations by payment status: {e}")
-        return []
+    """
+    Get event registrations filtered by payment status.
+    
+    Delegates to Transaction model for centralized payment status logic.
+    """
+    from models.transaction import Transaction
+    return await Transaction.get_event_registrations_by_payment_status(event_id, payment_status)
 
 
 async def get_event_payment_summary(event_id: str) -> Dict:
@@ -772,24 +752,153 @@ async def get_event_payment_summary(event_id: str) -> Dict:
 
 
 async def update_attendee_payment_status(event_id: str, attendee_key: str, payment_status: str, transaction_id: Optional[str] = None) -> bool:
-    """Update payment status for a specific attendee"""
+    """
+    Update payment status for a specific attendee.
+    
+    This function stores the payment_status directly on the attendee record for easy access,
+    and also stores the transaction_id reference for detailed tracking.
+    Also ensures display_name is populated properly.
+    """
     try:
-        update_data = {"attendees.$.payment_status": payment_status}
-        if transaction_id:
-            update_data["attendees.$.transaction_id"] = transaction_id
+        # First, find the attendee to get user_uid and person_id for display name lookup
+        event_doc = await DB.db["events"].find_one(
+            {"_id": ObjectId(event_id), "attendees.key": attendee_key},
+            {"attendees.$": 1}
+        )
+        
+        if not event_doc or not event_doc.get("attendees"):
+            logging.warning(f"No attendee found with key {attendee_key} in event {event_id}")
+            return False
+        
+        attendee = event_doc["attendees"][0]
+        user_uid = attendee.get("user_uid")
+        person_id = attendee.get("person_id")
+        
+        # Get or update display name if it's missing
+        display_name = attendee.get("display_name")
+        if not display_name:
+            if person_id:
+                # It's a family member - get their name
+                from helpers.UserResolutionHelper import UserResolutionHelper
+                try:
+                    display_name = await UserResolutionHelper.resolve_family_member_name(user_uid, ObjectId(str(person_id)))
+                except Exception as e:
+                    logging.warning(f"Could not get display name for person {person_id}: {e}")
+                    display_name = f"Family Member"
+            else:
+                # It's the user themselves - get their name
+                from models.user import get_user_by_uid
+                try:
+                    user_data = await get_user_by_uid(user_uid)
+                    if user_data:
+                        display_name = f"{user_data.first_name} {user_data.last_name}".strip()
+                        if not display_name:
+                            display_name = user_data.display_name or user_data.email or "User"
+                except Exception as e:
+                    logging.warning(f"Could not get display name for user {user_uid}: {e}")
+                    display_name = "You"
+            
+            # Ensure we have some display name
+            if not display_name:
+                display_name = "Family Member" if person_id else "You"
+        
+        # Update the attendee's payment status and display name directly in the event document
+        update_doc = {
+            "attendees.$.payment_status": payment_status,
+            "attendees.$.transaction_id": transaction_id,
+            "attendees.$.payment_updated_at": datetime.now(timezone.utc),
+            "attendees.$.display_name": display_name
+        }
         
         result = await DB.db["events"].update_one(
             {
                 "_id": ObjectId(event_id),
                 "attendees.key": attendee_key
             },
-            {
-                "$set": update_data
-            }
+            {"$set": update_doc}
         )
         
-        return result.modified_count > 0
-        
+        if result.modified_count > 0:
+            logging.info(f"Updated attendee {attendee_key} payment status to '{payment_status}' and display_name to '{display_name}' in event {event_id}")
+            
+            # Also update the transaction reference if provided (for detailed tracking)
+            if transaction_id:
+                from models.transaction import Transaction
+                await Transaction.update_attendee_transaction_reference(event_id, attendee_key, transaction_id)
+            
+            return True
+        else:
+            logging.warning(f"Failed to update attendee {attendee_key} in event {event_id}")
+            return False
+            
     except Exception as e:
-        logging.error(f"Error updating attendee payment status: {e}")
+        logging.error(f"Failed to update attendee payment status: {e}")
+        return False
+
+
+async def update_attendee_payment_status_simple(event_id: str, user_uid: str, person_id: Optional[str], payment_status: str) -> bool:
+    """
+    Update payment status for an attendee by user_uid and person_id.
+    
+    This is a simpler version that doesn't require the attendee_key.
+    Useful for refund processing and other cases where we match by user/person identifiers.
+    Also ensures display_name is populated properly.
+    """
+    try:
+        # Handle None person_id comparison properly - convert string to ObjectId for MongoDB query
+        person_filter = None if person_id is None else ObjectId(str(person_id))
+        
+        # Get the display name for the person
+        display_name = None
+        if person_id:
+            # It's a family member - get their name
+            from helpers.UserResolutionHelper import UserResolutionHelper
+            try:
+                display_name = await UserResolutionHelper.resolve_family_member_name(user_uid, ObjectId(str(person_id)))
+            except Exception as e:
+                logging.warning(f"Could not get display name for person {person_id}: {e}")
+                display_name = f"Family Member"
+        else:
+            # It's the user themselves - get their name
+            from models.user import get_user_by_uid
+            try:
+                user_data = await get_user_by_uid(user_uid)
+                if user_data:
+                    display_name = f"{user_data.first_name} {user_data.last_name}".strip()
+                    if not display_name:
+                        display_name = user_data.display_name or user_data.email or "User"
+            except Exception as e:
+                logging.warning(f"Could not get display name for user {user_uid}: {e}")
+                display_name = "You"
+        
+        # Ensure we have some display name
+        if not display_name:
+            display_name = "Family Member" if person_id else "You"
+        
+        # Build the update document
+        update_doc = {
+            "attendees.$.payment_status": payment_status,
+            "attendees.$.payment_updated_at": datetime.now(timezone.utc),
+            "attendees.$.display_name": display_name
+        }
+        
+        # Build the query to find the specific attendee
+        result = await DB.db["events"].update_one(
+            {
+                "_id": ObjectId(event_id),
+                "attendees.user_uid": user_uid,
+                "attendees.person_id": person_filter
+            },
+            {"$set": update_doc}
+        )
+        
+        if result.modified_count > 0:
+            logging.info(f"Updated attendee (user: {user_uid}, person: {person_id}) payment status to '{payment_status}' and display_name to '{display_name}' in event {event_id}")
+            return True
+        else:
+            logging.warning(f"No attendee found with user_uid {user_uid} and person_id {person_id} in event {event_id}")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Failed to update attendee payment status: {e}")
         return False

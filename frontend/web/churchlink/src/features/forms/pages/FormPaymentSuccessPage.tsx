@@ -20,74 +20,49 @@ export default function FormPaymentSuccessPage() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your payment...');
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  
-  // Create unique lock keys for this payment
-  const paymentLockKey = `payment_processed_${token}_${payerId}`;
-  const paymentResultKey = `${paymentLockKey}_result`;
-  
-  // Single execution lock using useRef
-  const hasProcessedRef = useRef(false);
+  const paymentProcessedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const completePayment = async () => {
-      // Check if we already have result stored (for page refreshes)
-      const storedResult = localStorage.getItem(paymentResultKey);
-      if (storedResult) {
-        try {
-          const result = JSON.parse(storedResult);
-          setStatus(result.status);
-          setMessage(result.message);
-          setTransactionId(result.transactionId);
-          hasProcessedRef.current = true;
-          return;
-        } catch (e) {
-          console.error('Failed to parse stored result:', e);
-        }
-      }
-      
-      // Prevent duplicate processing
-      if (hasProcessedRef.current || localStorage.getItem(paymentLockKey) === 'true') {
-        hasProcessedRef.current = true;
-        return;
-      }
-      
-      // Set locks immediately to prevent race conditions
-      hasProcessedRef.current = true;
-      localStorage.setItem(paymentLockKey, 'true');
-         
-      // Helper function to set error state
-      const setError = (message: string) => {
-        const errorState = { status: 'error', message, transactionId: null };
-        setStatus('error');
-        setMessage(message);
-        localStorage.setItem(paymentResultKey, JSON.stringify(errorState));
-      };
+    // Create a unique key for this payment attempt
+    const paymentKey = token && payerId ? `${token}:${payerId}` : null;
+    
+    // Prevent multiple API calls for the same payment
+    if (!paymentKey || paymentProcessedRef.current === paymentKey) {
+      return;
+    }
 
+    const completePayment = async () => {
       // Validate required parameters
       if (!token || !payerId) {
-        setError('Missing payment information. Please try again.');
+        setStatus('error');
+        setMessage('Missing payment information. Please try again.');
         return;
       }
 
       if (!user?.uid) {
-        setError('You must be logged in to complete this payment.');
+        setStatus('error');
+        setMessage('You must be logged in to complete this payment.');
         return;
       }
 
       try {
+        paymentProcessedRef.current = paymentKey; // Mark as processing to prevent duplicate calls
+        
         // Get saved form data
-        let formResponseData = {};
         const savedFormData = localStorage.getItem(`form_data_${slug}`);
+        let formResponseData = {};
+        
         if (savedFormData) {
           try {
-            const { _timestamp, ...restoredData } = JSON.parse(savedFormData);
+            const parsedData = JSON.parse(savedFormData);
+            const { _timestamp, ...restoredData } = parsedData;
             formResponseData = restoredData;
           } catch (e) {
             console.error('Failed to parse saved form data:', e);
           }
         }
-      
-        
+
+        // Complete the payment
         const response = await formPaymentApi.completeFormSubmission(slug, {
           payment_id: token,
           payer_id: payerId,
@@ -99,40 +74,31 @@ export default function FormPaymentSuccessPage() {
 
         if (response.success) {
           const realAmount = response.data?.total_amount || 0;
-          const successMessage = `Payment of $${realAmount.toFixed(2)} completed successfully! Your form submission has been recorded.`;
-          const successTransactionId = response.data?.payment_id || token;
           
           // Clean up saved form data
           localStorage.removeItem(`form_data_${slug}`);
           
           // Set success state
           setStatus('success');
-          setMessage(successMessage);
-          setTransactionId(successTransactionId);
-          
-          // Store result for future page loads
-          localStorage.setItem(paymentResultKey, JSON.stringify({
-            status: 'success',
-            message: successMessage,
-            transactionId: successTransactionId
-          }));
+          setMessage(`Payment of $${realAmount.toFixed(2)} completed successfully! Your form submission has been recorded.`);
+          setTransactionId(response.data?.payment_id || token);
         } else {
           throw new Error(response.error || 'Payment completion failed');
         }
       } catch (error) {
         console.error('Payment completion error:', error);
-        const errorMessage = error instanceof Error 
-          ? `Payment completion failed: ${error.message}` 
-          : 'Payment completion failed. Please contact support.';
-        
-        setError(errorMessage);
+        setStatus('error');
+        paymentProcessedRef.current = null; // Reset flag to allow retry if needed
+        setMessage(
+          error instanceof Error 
+            ? `Payment completion failed: ${error.message}` 
+            : 'Payment completion failed. Please contact support.'
+        );
       }
     };
-    // Only run when all required parameters are available
-    if (token && payerId && user?.uid) {
-      completePayment();
-    }
-  }, [token, payerId, slug, user?.uid, paymentLockKey, paymentResultKey]);
+
+    completePayment();
+  }, [token, payerId, slug, user]);
 
   const handleReturnToForm = () => {
     navigate(`/forms/${slug}`);
