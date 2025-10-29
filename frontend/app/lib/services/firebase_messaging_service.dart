@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:app/services/deep_linking_service.dart';
-import '../main.dart'; // Import to access the main navigatorKey
+import 'package:app/main.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -79,7 +79,7 @@ void setupFirebaseMessaging() async {
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     debugPrint("User granted permission");
     String? token = await messaging.getToken();
-    debugPrint("Firebase Token: $token");
+    debugPrint("Firebase FCM Token: $token");
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint("Foreground message received: ${message.notification?.title}");
       showLocalNotification(message);
@@ -140,3 +140,4 @@ void showLocalNotification(RemoteMessage message) async {
     payload: payload,
   );
 }
+

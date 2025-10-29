@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "@/api/api";
+import { useLanguage } from "@/provider/LanguageProvider";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 interface FooterItem {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     url: string;
     visible?: boolean;
 }
 
 interface FooterSection {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     items: FooterItem[];
     visible?: boolean;
 }
@@ -30,6 +32,8 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
     const [footerData, setFooterData] = useState<FooterData | null>(propFooterData ? { items: propFooterData } : null);
     const [loading, setLoading] = useState(!propFooterData);
     const [error, setError] = useState<string | null>(null);
+    const { locale } = useLanguage();
+    const localize = useLocalize();
 
     useEffect(() => {
         // If footerData is provided as props, use it directly
@@ -58,6 +62,24 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
         fetchFooterData();
     }, [propFooterData]);
 
+    const getLabelFromTitles = (t?: Record<string, string>, fallback?: string) => {
+
+        const direct = t?.[locale];
+        if (direct && String(direct).trim()) return direct;
+
+  
+        const base = (t?.en ?? fallback ?? "").toString();
+
+    
+        if (locale && locale !== "en" && base) {
+            const translated = localize(base);
+            if (translated && String(translated).trim()) return translated;
+        }
+
+
+        return base;
+    };
+
     if (loading) return <div className="h-24 bg-neutral-300 flex items-center justify-center text-black/60 font-[Montserrat]!">Loading footer...</div>;
     if (error) return <div className="h-24 bg-neutral-300 flex items-center justify-center text-red-600 font-[Montserrat]!">{error}</div>;
     if (!footerData || !footerData.items || footerData.items.length === 0) return null;
@@ -69,9 +91,7 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
                     {footerData.items.map((section, index) => (
                         section.visible !== false && (
                             <div key={index} className="w-full px-4 mb-8 md:w-1/2 lg:w-1/4">
-                                <h3 className="text-[21px]! font-bold mb-4 font-['Playfair_Display']">
-                                    {section.title}
-                                </h3>
+                                <h3 className="text-[21px]! font-bold mb-4 font-['Playfair_Display']">{getLabelFromTitles((section as any).titles, section.title)}</h3>
                                 <ul className="space-y-2">
                                     {section.items.map((item, itemIndex) => (
                                         item.visible !== false && (
@@ -81,12 +101,12 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
                                                         to={item.url}
                                                         className="text-neutral-800 hover:text-black transition-colors duration-200"
                                                     >
-                                                        {item.title}
+                                                        {getLabelFromTitles((item as any).titles, item.title)}
                                                     </Link>
                                                 </li>
                                             ) : (
                                                 <div key={itemIndex}>
-                                                    <span className="text-neutral-800">{item.title}</span>
+                                                    <span className="text-neutral-800">{getLabelFromTitles((item as any).titles, item.title)}</span>
                                                 </div>
                                             )
                                         )

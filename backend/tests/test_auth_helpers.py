@@ -1,7 +1,6 @@
 import os
 import requests
 import pytest
-from get_bearer_token import generate_test_token
 from dotenv import load_dotenv
 
 load_dotenv()

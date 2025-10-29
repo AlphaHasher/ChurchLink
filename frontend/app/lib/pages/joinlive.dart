@@ -1,8 +1,8 @@
 import 'package:app/components/livestreams/no_livestreams.dart';
 import 'package:app/components/livestreams/stream_viewer.dart';
 import 'package:flutter/material.dart';
-import '../helpers/youtube_helper.dart';
-import '../helpers/logger.dart';
+import 'package:app/helpers/youtube_helper.dart';
+import 'package:app/helpers/logger.dart';
 
 class JoinLive extends StatefulWidget {
   const JoinLive({super.key});
@@ -62,3 +62,4 @@ class _JoinLiveState extends State<JoinLive> {
     );
   }
 }
+

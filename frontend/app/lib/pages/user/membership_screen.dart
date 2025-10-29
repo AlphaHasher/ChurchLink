@@ -52,7 +52,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
   MembershipDetails? _details;
   bool _loading = true;
   bool _online = false;
-  String? _error;
 
   @override
   void initState() {
@@ -64,16 +63,15 @@ class _MembershipScreenState extends State<MembershipScreen> {
     if (!mounted) return;
     setState(() {
       _loading = true;
-      _error = null;
     });
 
-    Future<void> _loadCache() async {
+    Future<void> loadCache() async {
       try {
         final profile = await UserHelper.readCachedProfile();
         final isMember = (profile == null ? false : profile.membership);
         final synthesized = MembershipDetails(
           membership: isMember,
-          pending_request: null,
+          pendingRequest: null,
         );
         if (!mounted) return;
         setState(() {
@@ -85,7 +83,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
         if (!mounted) return;
         setState(() {
           _loading = false;
-          _error = 'Failed to load membership details.';
           _online = false;
         });
       }
@@ -94,7 +91,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
     try {
       final fresh = await MembershipHelper.readMembershipDetails();
       if (fresh == null) {
-        _loadCache();
+        loadCache();
         return;
       }
       if (!mounted) return;
@@ -109,7 +106,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
   Future<void> _reload() => _load();
 
   _UiPlan _deriveUi(MembershipDetails d) {
-    final pr = d.pending_request;
+    final pr = d.pendingRequest;
 
     if (d.membership == true || _online == false) {
       return _UiPlan.none;
@@ -217,7 +214,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
           break;
         }
       case _PrimaryAction.none:
-      default:
         break;
     }
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../models/bulletin.dart';
+import 'package:app/models/bulletin.dart';
 
 class BulletinCard extends StatelessWidget {
   const BulletinCard({super.key, required this.bulletin, required this.onTap});
@@ -44,7 +43,7 @@ class BulletinCard extends StatelessWidget {
                               size: 16,
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onSurface.withOpacity(0.6),
+                              ).colorScheme.onSurface.withAlpha(60),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -54,7 +53,7 @@ class BulletinCard extends StatelessWidget {
                               ).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onSurface.withOpacity(0.7),
+                                ).colorScheme.onSurface.withAlpha(70),
                               ),
                             ),
                           ],
@@ -83,7 +82,7 @@ class BulletinCard extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.1),
+                                ).colorScheme.primary.withAlpha(10),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -106,7 +105,7 @@ class BulletinCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).colorScheme.primary.withOpacity(0.1),
+                          ).colorScheme.primary.withAlpha(10),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -128,7 +127,7 @@ class BulletinCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).colorScheme.secondary.withOpacity(0.1),
+                          ).colorScheme.secondary.withAlpha(10),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(

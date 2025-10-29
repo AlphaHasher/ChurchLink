@@ -152,6 +152,36 @@ class RoleHandler:
                 role_ids.append((await RoleHandler.find_role(role))[0]["_id"])
         return role_ids
 
+    @staticmethod
+    async def ids_to_names(role_ids):
+        """Convert list of role IDs to list of role names"""
+        # Build list of valid ObjectIds, catching conversion errors
+        valid_ids = []
+        for role_id in role_ids:
+            try:
+                valid_ids.append(ObjectId(str(role_id)))
+            except Exception:
+                # Skip invalid ObjectId conversions
+                continue
+        
+        # Single batched DB query for all valid IDs
+        if not valid_ids:
+            return []
+        
+        roles = await DB.find_documents("roles", {"_id": {"$in": valid_ids}})
+        
+        # Build mapping from id->name
+        id_to_name = {str(role["_id"]): role["name"] for role in roles}
+        
+        # Produce output list preserving original order, skipping missing entries
+        role_names = []
+        for role_id in role_ids:
+            role_id_str = str(role_id)
+            if role_id_str in id_to_name:
+                role_names.append(id_to_name[role_id_str])
+        
+        return role_names
+
     ################
     ## Operations ##
     ################

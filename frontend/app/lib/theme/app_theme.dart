@@ -14,9 +14,7 @@ class AppTheme {
       tertiary:  Color(0xFF2E7D6D),
       onTertiary: Colors.white,
       tertiaryContainer:  Color(0xFFCDEAE3),
-      onTertiaryContainer:  Color(0xFF0D3B34),
-      background: Color(0xFFF5F5F7), // Light gray background
-      onBackground: Color(0xFF222222), // Main text
+      onTertiaryContainer:  Color(0xFF0D3B34), // Main text
       surface: Color(0xFFFFFFFF), // Card/input background
       onSurface: Color(0xFF222222),
       error: Color(0xFFB00020),
@@ -29,6 +27,7 @@ class AppTheme {
       border: OutlineInputBorder(),
     ),
     appBarTheme: const AppBarTheme(
+      centerTitle: true,
       backgroundColor: Color.fromARGB(255, 142, 163, 168), // was 0xFFF5F5F7
       foregroundColor: Colors.white,      // was 0xFF222222
       elevation: 0,
@@ -43,12 +42,10 @@ class AppTheme {
       onPrimary: Colors.white,
       secondary: Color(0xFF3F51B5), // Secondary accent (nav icon)
       onSecondary: Colors.white,
-      tertiary: const Color(0xFF82D1C0),
-      onTertiary: const Color(0xFF00382F),
-      tertiaryContainer: const Color(0xFF0F4A40),
-      onTertiaryContainer: const Color(0xFFBEEADF),
-      background: Color(0xFF232323), // Dark background
-      onBackground: Color(0xFFF5F5F7), // Main text
+      tertiary: Color(0xFF82D1C0),
+      onTertiary: Color(0xFF00382F),
+      tertiaryContainer: Color(0xFF0F4A40),
+      onTertiaryContainer: Color(0xFFBEEADF), // Main text
       surface: Color(0xFF2C2C2C), // Card/input background
       onSurface: Color(0xFFF5F5F7),
       error: Color(0xFFCF6679),
@@ -61,6 +58,7 @@ class AppTheme {
       border: OutlineInputBorder(),
     ),
     appBarTheme: const AppBarTheme(
+      centerTitle: true,
       backgroundColor: Color(0xFF1B1B1B), // was 0xFF232323 (now darker than page)
       foregroundColor: Color(0xFFF5F5F7),
       elevation: 0,

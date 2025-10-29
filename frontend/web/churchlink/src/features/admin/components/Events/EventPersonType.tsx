@@ -75,9 +75,9 @@ export function EventPersonType({
                             <RadioGroupItem
                                 value={g}
                                 id={g}
-                                className="!bg-white !text-black border border-gray-300 data-[state=checked]:!bg-blue-500 data-[state=checked]:!text-white"
+                                className="!text-black border border-gray-300 data-[state=checked]:!bg-blue-500 data-[state=checked]:!text-white"
                             />
-                            <Label htmlFor={g} className="capitalize !text-black text-sm">
+                            <Label htmlFor={g} className="capitalize text-foreground/90 text-sm cursor-pointer">
                                 {g}
                             </Label>
                         </div>

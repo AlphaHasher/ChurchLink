@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 
 import { readMembershipDetails } from "@/helpers/MembershipHelper";
 import type { MembershipDetails } from "@/shared/types/MembershipRequests";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type Props = {
     className?: string;
@@ -27,6 +28,7 @@ export default function MembershipCard({
     onResubmit,
     onRead,
 }: Props) {
+    const localize = useLocalize();
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [details, setDetails] = React.useState<MembershipDetails | null>(null);
@@ -50,7 +52,7 @@ export default function MembershipCard({
         };
     }, []);
 
-    const plan = React.useMemo(() => deriveUi(details), [details]);
+    const plan = React.useMemo(() => deriveUi(details, localize), [details, localize]);
 
     const handlePrimary = React.useCallback(() => {
         switch (plan.action.kind) {
@@ -75,9 +77,9 @@ export default function MembershipCard({
                 <CardHeader className="px-6 pt-6">
                     <CardTitle className="flex items-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        Loading membership…
+                        {localize("Loading membership…")}
                     </CardTitle>
-                    <CardDescription>Just a second.</CardDescription>
+                    <CardDescription>{localize("Just a second.")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 px-6 pb-6">
                     <div className="h-5 w-40 rounded bg-muted/50" />
@@ -93,12 +95,12 @@ export default function MembershipCard({
         return (
             <Card className={className}>
                 <CardHeader className="px-6 pt-6">
-                    <CardTitle>Membership</CardTitle>
-                    <CardDescription>We couldn’t load your membership info.</CardDescription>
+                    <CardTitle>{localize("Membership")}</CardTitle>
+                    <CardDescription>{localize("We couldn’t load your membership info.")}</CardDescription>
                 </CardHeader>
                 <CardContent className="px-6 pb-6">
                     <Alert variant="destructive">
-                        <AlertDescription>{error ?? "Unknown error."}</AlertDescription>
+                        <AlertDescription>{error ?? localize("Unknown error.")}</AlertDescription>
                     </Alert>
                 </CardContent>
             </Card>
@@ -107,19 +109,19 @@ export default function MembershipCard({
 
     const isMember = !!details.membership;
     const Icon = isMember ? CheckCircle2 : XCircle;
-    const title = isMember ? "Official Member" : "Not a Member";
+    const title = isMember ? localize("Official Member") : localize("Not a Member");
     const subtitle = isMember
-        ? "You are an official church member and will receive benefits exclusive to members such as:"
-        : "You’re not currently registered as an official church member. You are missing out on benefits exclusive to members such as:";
+        ? localize("You are an official church member and will receive benefits exclusive to members such as:")
+        : localize("You’re not currently registered as an official church member. You are missing out on benefits exclusive to members such as:");
 
     const iconColor = isMember ? "text-emerald-600" : "text-rose-600";
     const buttonVariant = plan.action.kind === "read" ? "secondary" : "default";
 
 
     const perks = [
-        "Lower members-only event prices",
-        "Access to members-only events",
-        "Other benefits that are undefined",
+        localize("Lower members-only event prices"),
+        localize("Access to members-only events"),
+        localize("Other benefits that are undefined"),
     ];
 
 
@@ -171,7 +173,7 @@ export default function MembershipCard({
     );
 }
 
-function deriveUi(details: MembershipDetails | null): {
+function deriveUi(details: MembershipDetails | null, localize: (s: string) => string): {
     message: string | null;
     buttonLabel: string | null;
     action: PrimaryAction;
@@ -186,13 +188,13 @@ function deriveUi(details: MembershipDetails | null): {
     if (pr && pr.muted === true) {
         if (pr.resolved === true && pr.approved === false) {
             return {
-                message: "You have been prohibited from making future membership requests.",
-                buttonLabel: "Read Request",
+                message: localize("You have been prohibited from making future membership requests."),
+                buttonLabel: localize("Read Request"),
                 action: { kind: "read", reason: pr.reason ?? undefined, muted: true },
             };
         }
         return {
-            message: "You have been prohibited from making future membership requests.",
+            message: localize("You have been prohibited from making future membership requests."),
             buttonLabel: null,
             action: { kind: "none" },
         };
@@ -200,24 +202,24 @@ function deriveUi(details: MembershipDetails | null): {
 
     if (!pr || pr.approved === true) {
         return {
-            message: "You’re not a member yet. You can submit a membership request to get started.",
-            buttonLabel: "Request Membership",
+            message: localize("You’re not a member yet. You can submit a membership request to get started."),
+            buttonLabel: localize("Request Membership"),
             action: { kind: "request" },
         };
     }
 
     if (pr.resolved === false) {
         return {
-            message: "You already have a membership request pending review. If needed, you can re-submit it.",
-            buttonLabel: "Re-Submit Request",
+            message: localize("You already have a membership request pending review. If needed, you can re-submit it."),
+            buttonLabel: localize("Re-Submit Request"),
             action: { kind: "resubmit", prefill: pr.message ?? undefined },
         };
     }
 
     if (pr.resolved === true && pr.approved === false) {
         return {
-            message: "Your previous membership request was denied. You can review the details below.",
-            buttonLabel: "Read Request",
+            message: localize("Your previous membership request was denied. You can review the details below."),
+            buttonLabel: localize("Read Request"),
             action: { kind: "read", reason: pr.reason ?? undefined, muted: pr.muted ?? undefined },
         };
     }

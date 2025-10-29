@@ -6,8 +6,7 @@ class DayPreviewCard extends StatelessWidget {
   final int day;
   final List<BiblePassage> readings;
 
-  const DayPreviewCard({Key? key, required this.day, required this.readings})
-    : super(key: key);
+  const DayPreviewCard({super.key, required this.day, required this.readings});
 
   @override
   Widget build(BuildContext context) {

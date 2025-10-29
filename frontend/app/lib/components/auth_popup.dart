@@ -1,8 +1,7 @@
 import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import '../firebase/firebase_auth_service.dart';
-import '../pages/user/use_email.dart';
+import 'package:app/firebase/firebase_auth_service.dart';
+import 'package:app/pages/user/use_email.dart';
 
 class AuthPopup extends StatelessWidget {
   AuthPopup({super.key});
@@ -22,28 +21,30 @@ class AuthPopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final List<Map<String, dynamic>> authOptions = [
       {
         'title': 'Continue with Email',
         'icon': Icons.email,
         'ontap': _continueWithEmail,
-        'backgroundColor': Colors.black,
-        'foregroundColor': Colors.white,
+        'backgroundColor': colorScheme.primary,
+        'foregroundColor': colorScheme.onPrimary,
       },
       {
         'title': 'Continue with Google',
         'icon': Icons.g_mobiledata,
         'ontap': _continueWithGoogle,
-        'backgroundColor': Colors.black,
-        'foregroundColor': Colors.white,
+        'backgroundColor': colorScheme.primary,
+        'foregroundColor': colorScheme.onPrimary,
       },
     ];
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.5,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
@@ -56,7 +57,7 @@ class AuthPopup extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: colorScheme.outline.withOpacity(0.3),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -64,9 +65,12 @@ class AuthPopup extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Title
-          const Text(
+          Text(
             'Sign in',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
           ),
 
           const SizedBox(height: 8),
@@ -77,7 +81,10 @@ class AuthPopup extends StatelessWidget {
             child: Text(
               'Choose how you want to continue',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withOpacity(0.7),
+                fontSize: 16,
+              ),
             ),
           ),
 
@@ -100,9 +107,12 @@ class AuthPopup extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(option['icon'], size: 24),
+                    Icon(option['icon'], size: 24, color: option['foregroundColor']),
                     const SizedBox(width: 12),
-                    Text(option['title'], style: const TextStyle(fontSize: 16)),
+                    Text(option['title'], style: theme.textTheme.bodyLarge?.copyWith(
+                      color: option['foregroundColor'],
+                      fontSize: 16,
+                    )),
                   ],
                 ),
               ),
@@ -117,7 +127,10 @@ class AuthPopup extends StatelessWidget {
             child: Text(
               'By continuing, you agree to our Terms of Service and Privacy Policy',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withOpacity(0.7),
+                fontSize: 12,
+              ),
             ),
           ),
         ],

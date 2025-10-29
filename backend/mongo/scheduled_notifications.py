@@ -73,7 +73,7 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                         token_query["user_id"] = {"$exists": False}
                     projection = {'_id': 0, 'token': 1}
                     batch_size = 1000
-                    tokens_cursor = db['fcm_tokens'].find(token_query, projection)
+                    tokens_cursor = db['deviceTokens'].find(token_query, projection)
                     sent_count = 0
                     while True:
                         batch = [doc['token'] for doc in await tokens_cursor.to_list(length=batch_size) if doc.get('token')]
@@ -103,7 +103,7 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                                 # If token is invalid, remove it from database
                                 if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
                                     logging.info(f"Removing invalid FCM token: {t}")
-                                    await db['fcm_tokens'].delete_many({"token": t})
+                                    await db['deviceTokens'].delete_many({"token": t})
                         sent_count += len(batch)
                         # If less than batch_size, we're done
                         if len(batch) < batch_size:
@@ -131,7 +131,7 @@ async def scheduled_notification_loop(db: AsyncIOMotorDatabase):
                         # If token is invalid, remove it from database
                         if "not found" in str(e).lower() or "invalid" in str(e).lower() or "expired" in str(e).lower():
                             logging.info(f"Removing invalid FCM token: {token}")
-                            await db['fcm_tokens'].delete_many({"token": token})
+                            await db['deviceTokens'].delete_many({"token": token})
                 # Mark as sent
                 await mark_as_sent(db, str(notif["_id"]))
             await asyncio.sleep(10)  # Check every 10 seconds

@@ -91,6 +91,7 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
                 variant="outline"
+                size="sm"
                 onClick={async () => {
                     setCheckingPerms(true)
                     try {
@@ -130,7 +131,9 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
                         <Loader2 className="animate-spin mr-2 h-4 w-4" />
                     </>
                 ) : (
-                    <Edit />
+                    <>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                    </>
                 )}
             </Button>
 

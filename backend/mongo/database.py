@@ -49,6 +49,10 @@ class DB:
             "indexes": ["title"]
         },
         {
+            "name": "localization-info",
+            "indexes": ["namespace"]
+        },
+        {
             "name": "bible_notes",
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
         },
@@ -80,6 +84,10 @@ class DB:
         {
             "name": "app_config",
             "indexes": ["config_type"]
+        },
+        {
+            "name": "deviceTokens",
+            "compound_indexes": [["userId", "token"]]
         },
     ]
 
@@ -250,14 +258,16 @@ class DB:
     async def insert_document(collection_name, document):
         """Inserts a document into the specified collection and returns the inserted document's ID."""
         if DB.db is None:
-            print("Database not initialized.")
+            logging.error("Database not initialized.")
             return None
         try:
             collection = DB.db[collection_name]
             result = await collection.insert_one(document)
             return result.inserted_id
         except Exception as e:
-            print(f"Error inserting document into {collection_name}: {e}")
+            logging.error(f"Error inserting document into {collection_name}: {e}")
+            # Also log the document for debugging (be careful with sensitive data)
+            logging.error(f"Failed document keys: {list(document.keys()) if isinstance(document, dict) else 'Not a dict'}")
             return None
 
     @staticmethod

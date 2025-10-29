@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/bible_plan.dart';
-import '../services/bible_plan_service.dart';
-import '../widgets/days_pagination_header.dart';
-import '../widgets/day_preview_card.dart';
-import '../widgets/days_window.dart';
+import 'package:app/models/bible_plan.dart';
+import 'package:app/services/bible_plan_service.dart';
+import 'package:app/helpers/bible_plan_auth_utils.dart';
+import 'package:app/widgets/days_pagination_header.dart';
+import 'package:app/widgets/day_preview_card.dart';
+import 'package:app/widgets/days_window.dart';
 
 /// Detail page for a Bible plan where users can view and subscribe
 class BiblePlanDetailPage extends StatefulWidget {
@@ -24,7 +25,7 @@ class BiblePlanDetailPage extends StatefulWidget {
 class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   final BiblePlanService _service = BiblePlanService();
   final _formKey = GlobalKey<FormState>();
-  
+
   DateTime _selectedStartDate = DateTime.now();
   TimeOfDay _selectedNotificationTime = const TimeOfDay(hour: 8, minute: 0);
   bool _notificationEnabled = true;
@@ -33,6 +34,8 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   // pagination is handled by DaysWindow widget
 
   bool get _isAlreadySubscribed => widget.existingSubscription != null;
+
+  bool get _isUserLoggedIn => BiblePlanAuthUtils.isUserLoggedIn();
 
   @override
   void initState() {
@@ -58,27 +61,24 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          widget.plan.name,
-        ),
-      ),
+      appBar: AppBar(centerTitle: true, title: Text(widget.plan.name)),
       body: SingleChildScrollView(
         child: Column(
           children: [
             // Header section
             _buildHeaderSection(),
-            
+
             // Plan details
             _buildDetailsSection(),
-            
+
             // Reading preview
             _buildReadingPreviewSection(),
-            
-            // Subscription form
+
+            // Subscription form or login reminder
             if (_isAlreadySubscribed)
               _buildAlreadySubscribedBanner()
+            else if (!_isUserLoggedIn)
+              _buildLoginReminder()
             else
               _buildSubscriptionForm(),
           ],
@@ -88,7 +88,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   }
 
   Widget _buildHeaderSection() {
-  return Container(
+    return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -155,17 +155,26 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
         children: [
           const Text(
             'Plan Overview',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          _buildDetailRow(Icons.calendar_today, 'Duration', '${widget.plan.duration} days'),
+          _buildDetailRow(
+            Icons.calendar_today,
+            'Duration',
+            '${widget.plan.duration} days',
+          ),
           const SizedBox(height: 12),
-          _buildDetailRow(Icons.menu_book, 'Total Readings', '$totalReadings passages'),
+          _buildDetailRow(
+            Icons.menu_book,
+            'Total Readings',
+            '$totalReadings passages',
+          ),
           const SizedBox(height: 12),
-          _buildDetailRow(Icons.analytics, 'Average per Day', '~$averagePerDay passages'),
+          _buildDetailRow(
+            Icons.analytics,
+            'Average per Day',
+            '~$averagePerDay passages',
+          ),
         ],
       ),
     );
@@ -176,12 +185,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       children: [
         Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
         const SizedBox(width: 12),
-        Text(
-          '$label: ',
-          style: const TextStyle(
-            fontSize: 15,
-          ),
-        ),
+        Text('$label: ', style: const TextStyle(fontSize: 15)),
         Text(
           value,
           style: const TextStyle(
@@ -204,12 +208,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                ),
-              ),
+              Text(label, style: const TextStyle(fontSize: 13)),
               const SizedBox(height: 4),
               Text(
                 value,
@@ -266,10 +265,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
             padding: EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
               'Reading Preview',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
           DaysWindow(
@@ -321,13 +317,12 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        shape: const RoundedRectangleBorder(side: BorderSide(color: Colors.transparent)),
+        shape: const RoundedRectangleBorder(
+          side: BorderSide(color: Colors.transparent),
+        ),
         title: Text(
           'Day $day',
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
         ),
         subtitle: Text(
           '${readings.length} passage${readings.length != 1 ? 's' : ''}',
@@ -338,23 +333,24 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
         ),
         iconColor: Theme.of(context).colorScheme.primary,
         collapsedIconColor: Theme.of(context).colorScheme.primary,
-        children: readings.map((passage) {
-          return ListTile(
-            dense: true,
-            leading: Icon(
-              Icons.bookmark_border,
-              color: Theme.of(context).colorScheme.primary,
-              size: 20,
-            ),
-            title: Text(
-              passage.reference,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 14,
-              ),
-            ),
-          );
-        }).toList(),
+        children:
+            readings.map((passage) {
+              return ListTile(
+                dense: true,
+                leading: Icon(
+                  Icons.bookmark_border,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+                title: Text(
+                  passage.reference,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 14,
+                  ),
+                ),
+              );
+            }).toList(),
       ),
     );
   }
@@ -374,28 +370,23 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           children: [
             const Text(
               'Start Your Journey',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
               'Choose when to start and set your daily reminder',
-              style: TextStyle(
-                fontSize: 14,
-              ),
+              style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 24),
-            
+
             // Start Date Picker
             _buildStartDatePicker(),
             const SizedBox(height: 20),
-            
+
             // Notification Settings
             _buildNotificationSettings(),
             const SizedBox(height: 24),
-            
+
             // Subscribe Button
             _buildSubscribeButton(),
           ],
@@ -406,12 +397,15 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
 
   Widget _buildAlreadySubscribedBanner() {
     final subscription = widget.existingSubscription!;
-    final formattedDate = DateFormat('EEEE, MMM d, yyyy').format(subscription.startDate);
-    final notificationInfo = subscription.notificationEnabled
-        ? (subscription.notificationTime != null
-            ? 'Daily reminder at ${subscription.notificationTime}'
-            : 'Daily reminder enabled')
-        : 'Daily reminders disabled';
+    final formattedDate = DateFormat(
+      'EEEE, MMM d, yyyy',
+    ).format(subscription.startDate);
+    final notificationInfo =
+        subscription.notificationEnabled
+            ? (subscription.notificationTime != null
+                ? 'Daily reminder at ${subscription.notificationTime}'
+                : 'Daily reminder enabled')
+            : 'Daily reminders disabled';
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -466,7 +460,11 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           const SizedBox(height: 16),
           _buildInfoRow(Icons.event_available, 'Start Date', formattedDate),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.notifications_active, 'Notifications', notificationInfo),
+          _buildInfoRow(
+            Icons.notifications_active,
+            'Notifications',
+            notificationInfo,
+          ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: () {
@@ -488,14 +486,98 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
     );
   }
 
+  Widget _buildLoginReminder() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(150, 130, 255, 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  color: Color.fromRGBO(150, 130, 255, 1),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sign In Required',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sign in to subscribe to this reading plan and track your progress.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final result = await BiblePlanAuthUtils.navigateToMyBiblePlans(
+                  context,
+                  showLoginReminder: false,
+                  allowPageAccess: false,
+                );
+                if (result && mounted) {
+                  // User successfully logged in, refresh this page
+                  setState(() {});
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.login),
+              label: const Text(
+                'Sign In to Subscribe',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStartDatePicker() {
     return InkWell(
       onTap: _selectStartDate,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
         child: Row(
           children: [
             Icon(
@@ -526,10 +608,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-            ),
+            const Icon(Icons.arrow_forward_ios, size: 16),
           ],
         ),
       ),
@@ -583,9 +662,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                       children: [
                         const Text(
                           'Reminder Time',
-                          style: TextStyle(
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(fontSize: 12),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -598,10 +675,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
                       ],
                     ),
                   ),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 16),
                 ],
               ),
             ),
@@ -625,23 +699,24 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
           ),
           elevation: 0,
         ),
-        child: _isSubscribing
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
+        child:
+            _isSubscribing
+                ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                : Text(
+                  'Start Reading Plan',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
-              )
-            : Text(
-                'Start Reading Plan',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
       ),
     );
   }
@@ -683,6 +758,12 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
   }
 
   Future<void> _handleSubscribe() async {
+    // Check authentication first
+    if (!_isUserLoggedIn) {
+      BiblePlanAuthUtils.showLoginSnackBar(context);
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -690,9 +771,10 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
     });
 
     try {
-      final notificationTime = _notificationEnabled
-          ? '${_selectedNotificationTime.hour.toString().padLeft(2, '0')}:${_selectedNotificationTime.minute.toString().padLeft(2, '0')}'
-          : null;
+      final notificationTime =
+          _notificationEnabled
+              ? '${_selectedNotificationTime.hour.toString().padLeft(2, '0')}:${_selectedNotificationTime.minute.toString().padLeft(2, '0')}'
+              : null;
 
       final success = await _service.subscribeToPlan(
         planId: widget.plan.id,
@@ -706,9 +788,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Successfully subscribed to reading plan!',
-              ),
+            content: Text('Successfully subscribed to reading plan!'),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
@@ -718,7 +798,7 @@ class _BiblePlanDetailPageState extends State<BiblePlanDetailPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),

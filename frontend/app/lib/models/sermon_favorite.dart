@@ -1,4 +1,4 @@
-import 'sermon.dart';
+import 'package:app/models/sermon.dart';
 
 class SermonFavorite {
   final String id;

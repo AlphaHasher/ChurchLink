@@ -9,6 +9,7 @@ import PaypalSection from "@sections/PaypalSection";
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
 import { defaultGridSize, unitsToPx } from "@/features/webeditor/grid/gridMath";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
@@ -139,7 +140,8 @@ const renderNode = (
   gridSize?: number,
   forceFlowLayout?: boolean,
   activeLocale?: string,
-  defaultLocale?: string
+  defaultLocale?: string,
+  localizeFn?: (text: string) => string
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyleRaw = (node as any).style || {};
@@ -153,7 +155,22 @@ const renderNode = (
 
   switch (node.type) {
     case "text": {
-      const html = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale) ?? (node as any).props?.text ?? "";
+      const directHtml = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale);
+      const baseHtmlProp = (node as any).props?.html as string | undefined;
+      const baseTextProp = (node as any).props?.text as string | undefined;
+      const isNonDefaultLocale = !!activeLocale && !!(defaultLocale || 'en') && activeLocale !== (defaultLocale || 'en');
+
+      const hasDirectHtml = !!(directHtml != null && String(directHtml).trim());
+      const canUseBaseAuthoredHtml = !!(baseHtmlProp && !isNonDefaultLocale);
+      const shouldInjectHtml = hasDirectHtml || canUseBaseAuthoredHtml;
+      const htmlToInject = hasDirectHtml ? String(directHtml) : String(baseHtmlProp ?? "");
+
+      const baseTextSource = (baseTextProp != null && String(baseTextProp).trim())
+        ? String(baseTextProp)
+        : (typeof baseHtmlProp === 'string' ? String(baseHtmlProp).replace(/<[^>]*>/g, '') : "");
+      const textToRender = (isNonDefaultLocale && baseTextSource && localizeFn)
+        ? localizeFn(String(baseTextSource))
+        : String(baseTextSource);
       const align = (node as any).props?.align ?? "left";
       const variant = (node as any).props?.variant ?? "p";
       const paddingY = nodeStyleRaw?.paddingY ?? 0;
@@ -198,28 +215,52 @@ const renderNode = (
 
       return (
         <>
-          <Tag
-            className={cn(
-              align === "center" && "text-center",
-              align === "right" && "text-right",
-              isBold && "font-bold",
-              isItalic && "italic",
-              isUnderline && "underline",
-              (node as any).style?.className,
-              !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
-              "inline-block max-w-full w-fit align-top break-words",
-              highlightClass(node, highlightNodeId)
-            )}
-            // data-node-id used by ScopedStyle; disabled
-            style={inlineStyles}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          {shouldInjectHtml ? (
+            <Tag
+              className={cn(
+                align === "center" && "text-center",
+                align === "right" && "text-right",
+                isBold && "font-bold",
+                isItalic && "italic",
+                isUnderline && "underline",
+                (node as any).style?.className,
+                !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+                "inline-block max-w-full w-fit align-top break-words",
+                highlightClass(node, highlightNodeId)
+              )}
+              style={inlineStyles}
+              dangerouslySetInnerHTML={{ __html: htmlToInject }}
+            />
+          ) : (
+            <Tag
+              className={cn(
+                align === "center" && "text-center",
+                align === "right" && "text-right",
+                isBold && "font-bold",
+                isItalic && "italic",
+                isUnderline && "underline",
+                (node as any).style?.className,
+                !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+                "inline-block max-w-full w-fit align-top break-words",
+                highlightClass(node, highlightNodeId)
+              )}
+              style={inlineStyles}
+            >
+              {textToRender}
+            </Tag>
+          )}
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
     }
     case "button": {
-      const label = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale) ?? "Button";
+      const direct = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale);
+      const baseLabel = (node as any).props?.label ?? "Button";
+      const label = (direct != null && String(direct).trim())
+        ? direct
+        : ((activeLocale && activeLocale !== defaultLocale && baseLabel && localizeFn)
+            ? localizeFn(String(baseLabel))
+            : String(baseLabel));
       const href = (node as any).props?.href;
       const className = cn(
         (node as any).style?.className ?? "px-4 py-2 bg-blue-600 text-white rounded",
@@ -415,7 +456,13 @@ const renderNode = (
     }
     case "image": {
       const src = getPublicUrl((node as any).props?.src) || "";
-      const alt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale) || "";
+      const directAlt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale);
+      const baseAlt = (node as any).props?.alt || "";
+      const alt = (directAlt != null && String(directAlt).trim())
+        ? directAlt
+        : ((activeLocale && activeLocale !== defaultLocale && baseAlt && localizeFn)
+            ? localizeFn(String(baseAlt))
+            : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || "cover";
       const inlineStyles: React.CSSProperties = {
         ...nodeStyle,
@@ -448,6 +495,7 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
   const defaultFontFamily = (page as any).styleTokens?.defaultFontFamily as string | undefined;
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
+  const localize = useLocalize();
 
   return (
     <div
@@ -485,7 +533,7 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
               {section.children.map((node) => {
                 const hasLayout = !!node.layout?.units;
                 const forceFlow = section.lockLayout === true;
-                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale));
+                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale), localize);
 
                 if (hasLayout && !forceFlow) {
                   const { xu, yu, wu, hu } = node.layout!.units;

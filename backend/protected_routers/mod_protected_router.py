@@ -1,14 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from typing import Callable, Optional
+import os
 
 from helpers.Firebase_helpers import authenticate_uid
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
 
+# Check if E2E test mode is enabled
+E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
+
 async def _attach_mod_user_to_state(
     request: Request,
     uid: str = Depends(authenticate_uid),
 ) -> str:
+    # Bypass MongoDB user check in E2E test mode
+    if E2E_TEST_MODE and uid == "e2e-test-user-id":
+        # Set minimal test user state with Administrator role only
+        request.state.uid = uid
+        request.state.user = {
+            "uid": uid,
+            "email": "e2e-test@example.com",
+            "roles": ["admin"]  # Administrator role for testing
+        }
+        request.state.roles = ["admin"]
+        request.state.perms = ["all"]  # Grant all permissions for testing
+        return uid
+    
     user = await UserHandler.find_by_uid(uid)
     if not user or user is False:
         raise HTTPException(

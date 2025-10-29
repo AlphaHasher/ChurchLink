@@ -112,12 +112,7 @@ flutter run --verbose
 
 For more details, check the Flutter documentation: [Flutter Docs](https://flutter.dev/docs).
 
-### 10. Avatar API https://api.cloudinary.com
-1/ create account, setup upload present in setting
-2/ duplicate .envexample rename it to .env
-3/ Fill in info API, Upload Present, cloud name
-
-### 11. Integrated Testing (Patrol + Flutter Integration Tests)
+### **10. Integrated Testing (Patrol + Flutter Integration Tests)**
 This project includes a fully integrated UI testing setup using
 Patrol and Flutter’s built-in integration_test framework.
 Patrol allows Flutter UI tests to interact with both Flutter widgets

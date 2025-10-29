@@ -256,7 +256,7 @@ class ElishaJsonSource {
     for (final e in tagMap.entries) {
       final src = e.key;
       final dst = e.value;
-      s = s.replaceAllMapped(RegExp('\\\\'+src+ r'\s+([\s\S]*?)\\\\'+src+ r'\*', dotAll: true), (m) => wrap(dst, m[1] ?? ''));
+      s = s.replaceAllMapped(RegExp('\\\\$src\\s+([\\s\\S]*?)\\\\$src\\*', dotAll: true), (m) => wrap(dst, m[1] ?? ''));
     }
 
     // Remove any stray opening markers like \add that did not have a closing tag

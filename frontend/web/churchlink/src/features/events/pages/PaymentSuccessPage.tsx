@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader2, ArrowLeft, Download, Users, Calendar, DollarSign, ExternalLink } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
@@ -53,8 +53,17 @@ export const PaymentSuccessPage: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [completionData, setCompletionData] = useState<CompletionData | null>(null);
+  const paymentProcessedRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Create a unique key for this payment attempt
+    const paymentKey = paymentId && payerId && token ? `${paymentId}:${payerId}:${token}` : null;
+    
+    // Prevent multiple API calls for the same payment
+    if (!paymentKey || paymentProcessedRef.current === paymentKey) {
+      return;
+    }
+
     const processPaymentSuccess = async () => {
       if (!eventId) {
         setStatus('error');
@@ -70,6 +79,7 @@ export const PaymentSuccessPage: React.FC = () => {
 
       try {
         setStatus('loading');
+        paymentProcessedRef.current = paymentKey; // Mark as processing to prevent duplicate calls
 
         // Call the backend success endpoint to complete the payment
         console.log('Completing payment via backend...', { paymentId, payerId, token });
@@ -116,6 +126,7 @@ export const PaymentSuccessPage: React.FC = () => {
       } catch (error: any) {
         console.error('Payment processing error:', error);
         setStatus('error');
+        paymentProcessedRef.current = null; // Reset flag to allow retry if needed
         
         if (error.response?.status === 404) {
           setMessage('Payment record not found. The payment may already be processed or the session may have expired. Please check your registration status or contact support.');

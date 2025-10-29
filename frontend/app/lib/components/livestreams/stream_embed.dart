@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
-import '../../helpers/logger.dart';
-import '../../helpers/youtube_helper.dart';
+import 'package:app/helpers/logger.dart';
+import 'package:app/helpers/youtube_helper.dart';
 
 class StreamEmbed extends StatefulWidget {
   const StreamEmbed({super.key, required this.streamId});
@@ -98,3 +98,4 @@ class _StreamEmbedState extends State<StreamEmbed> {
     );
   }
 }
+

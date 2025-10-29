@@ -122,10 +122,44 @@ Before running the application, you need to set up Firebase credentials:
 1. Open your [Firebase project](https://console.firebase.google.com)
 2. Generate a service account key:
    - Go to Project Settings > Service Accounts
-   - Click “Generate New Private Key” (Generating new key will NOT invalidate existing keys)
+   - Click "Generate New Private Key" (Generating new key will NOT invalidate existing keys)
    - Save the downloaded JSON file
 3. Place the JSON file in the `firebase` directory
 4. Rename the file to `firebase_credentials.json`
+
+## 💳 PayPal Payment Integration
+
+This application includes a comprehensive PayPal payment system for event registrations and donations.
+
+### Development Setup
+For local development, webhooks are not required. See the [Development PayPal Setup Guide](./docs/Development_PayPal_Setup.md) for:
+- Sandbox configuration
+- Local testing workflow  
+- What works without webhooks
+- Development best practices
+
+### Production Deployment
+For production deployments, webhook setup is required to handle external events. See the [PayPal Webhook Production Setup Guide](./docs/PayPal_Webhook_Production_Setup.md) for:
+- Webhook configuration in PayPal dashboard
+- Server requirements and SSL setup
+- Environment variable configuration
+- Testing and troubleshooting
+
+### Quick Environment Setup
+```bash
+# Development (Sandbox)
+PAYPAL_CLIENT_ID=your_sandbox_client_id
+PAYPAL_CLIENT_SECRET=your_sandbox_client_secret
+PAYPAL_MODE=sandbox
+
+# Production (Live)
+PAYPAL_CLIENT_ID=your_live_client_id
+PAYPAL_CLIENT_SECRET=your_live_client_secret
+PAYPAL_MODE=live
+PAYPAL_WEBHOOK_ID=your_webhook_id_from_dashboard
+```
+
+**Note:** Webhooks only work in production with public HTTPS URLs. Local development handles payments synchronously without webhooks.
 
 # 🛣️ Adding New Routes
 

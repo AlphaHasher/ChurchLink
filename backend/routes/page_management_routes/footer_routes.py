@@ -1,16 +1,22 @@
-from typing import Dict, Tuple, Any, List
-from fastapi import APIRouter, HTTPException, Body, Path
+from typing import Any, Dict, List, Tuple
+
+from fastapi import APIRouter, Body, HTTPException, Path
 from pydantic import BaseModel
+
 from models.footer import Footer, FooterItem, FooterSubItem
 from models.footer import (
+    add_item,
+    change_visibility,
     get_footer,
     get_footer_items,
-    change_visibility,
-    reorder_items,
-    remove_item_by_name,
-    add_item,
     get_item_by_title,
+    remove_item_by_name,
+    reorder_items,
     update_item,
+)
+from models.localization_info import (
+    add_locale as add_localization_locale,
+    get_locales as get_localization_locales,
 )
 
 public_footer_router = APIRouter(prefix="/footer", tags=["public footer"])
@@ -36,13 +42,13 @@ def validate_footer_item(item: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
     ok, msg = _nonempty("title", item.get("title"))
     if not ok:
         return False, {}, msg
-    ok, msg = _nonempty("russian_title", item.get("russian_title"))
-    if not ok:
-        return False, {}, msg
+    titles = item.get("titles")
+    if not isinstance(titles, dict) or not titles.get("en"):
+        return False, {}, "titles must be an object with at least an 'en' label"
 
     cleaned = {
         "title": _clean(item["title"]),
-        "russian_title": _clean(item["russian_title"]),
+        "titles": {k: _clean(v) for k, v in titles.items()},
         "url": _clean(item.get("url")),
         "visible": bool(item.get("visible", True)),
     }
@@ -53,9 +59,9 @@ def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[
     ok, msg = _nonempty("title", payload.get("title"))
     if not ok:
         return False, {}, msg
-    ok, msg = _nonempty("russian_title", payload.get("russian_title"))
-    if not ok:
-        return False, {}, msg
+    titles = payload.get("titles")
+    if not isinstance(titles, dict) or not titles.get("en"):
+        return False, {}, "titles must be an object with at least an 'en' label"
 
     items = payload.get("items") or []
     if not isinstance(items, list):
@@ -70,7 +76,7 @@ def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[
 
     cleaned = {
         "title": _clean(payload["title"]),
-        "russian_title": _clean(payload["russian_title"]),
+        "titles": {k: _clean(v) for k, v in titles.items()},
         "items": cleaned_items,  # keep as dicts for DB
         "visible": bool(payload.get("visible", True)),
     }
@@ -100,6 +106,22 @@ async def get_footer_items_route():
 # ------------------------
 # layout_management protected routes
 # ------------------------
+
+@mod_footer_router.get("/locales")
+async def get_footer_locales_route():
+    locales = await get_localization_locales("footer")
+    return {"locales": locales}
+
+
+class LocalePayload(BaseModel):
+    code: str
+
+
+@mod_footer_router.post("/locales", response_model=OpResult)
+async def add_footer_locale_route(payload: LocalePayload):
+    success = await add_localization_locale("footer", payload.code)
+    return OpResult(success=success, msg="" if success else "Failed to add locale.")
+
 
 @mod_footer_router.put("/{title}/visibility", response_model=OpResult)
 async def change_footer_item_visibility_route(title: str = Path(...), visible: dict = Body(...)):

@@ -52,7 +52,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
     const { openRename, openDelete } = context as GridContext;
 
     return (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center h-full gap-2">
             <Button size="sm" variant="outline" onClick={() => openRename(ministry)}>
                 <Pencil className="mr-2 h-4 w-4" /> Rename
             </Button>
@@ -141,8 +141,7 @@ const Ministries = () => {
             {
                 headerName: 'Actions',
                 cellRenderer: ActionsCellRenderer,
-                minWidth: 220,
-                maxWidth: 260,
+                minWidth: 300,
                 pinned: 'right',
             },
         ],
@@ -257,7 +256,7 @@ const Ministries = () => {
                 </Alert>
             )}
 
-            <div className="ag-theme-quartz w-full border border-border" style={{ height: 500 }}>
+            <div className="ag-theme-quartz w-full border border-border rounded-lg" style={{ height: 500 }}>
                 <AgGridReact<Ministry>
                     ref={gridRef}
                     rowData={ministries}

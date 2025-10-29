@@ -1,7 +1,7 @@
 import 'dart:developer';
 // import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import '../helpers/api_client.dart';
+import 'package:app/helpers/api_client.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -144,34 +144,33 @@ class PaypalService {
   static Future<Map<String, dynamic>?> createEventPaymentOrder({
     required String eventId,
     required String eventName,
-    required double amount,
-    required Map<String, dynamic> donation,
+    required double eventFee,
+    required double donationAmount,
     String? message,
     String? returnUrl,
     String? cancelUrl,
   }) async {
-    validateDonation(donation);
-
     final endpoint = '/v1/events/$eventId/payment/create-bulk-order';
     log('[PaypalService] Creating event payment order for event: $eventId');
+    log('[PaypalService] Event fee: $eventFee, Donation amount: $donationAmount');
 
     // Use mobile deep links if no custom URLs provided
     final successUrl = returnUrl ?? 'churchlink://paypal-success';
     final cancelUrlFinal = cancelUrl ?? 'churchlink://paypal-cancel';
 
-    // Use simplified registration format
+    // Use simplified registration format with proper amount separation
     final registrations = [
       {
         'person_id': null, // Self registration
         'name': 'Event Registration',
+        'payment_amount_per_person': eventFee,
+        'donation_amount': donationAmount,
       },
     ];
 
     final payload = {
       'registrations': registrations,
       'payment_option': 'paypal',
-      'donation_amount': amount > 0 ? amount : 0.0,
-      'total_amount': amount,
       'return_url': successUrl,
       'cancel_url': cancelUrlFinal,
     };
@@ -415,3 +414,4 @@ class PaypalService {
     }
   }
 }
+

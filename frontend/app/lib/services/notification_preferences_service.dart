@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import '../helpers/api_client.dart';
-import '../helpers/logger.dart';
-import '../models/bible_plan.dart';
+import 'package:app/helpers/api_client.dart';
+import 'package:app/helpers/logger.dart';
+import 'package:app/models/bible_plan.dart';
 
 /// Service for managing notification preferences
 class NotificationPreferencesService {

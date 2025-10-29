@@ -50,10 +50,11 @@ export function PermRoleMembersDialog({ permissions }: PermRoleMembersDialogProp
             <DialogTrigger asChild>
                 <Button
                     variant="secondary"
+                    size="sm"
                     onClick={() => setIsOpen(true)}
                     title="View members"
                 >
-                    <Users />
+                    <Users className="mr-2 h-4 w-4" /> Members
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">

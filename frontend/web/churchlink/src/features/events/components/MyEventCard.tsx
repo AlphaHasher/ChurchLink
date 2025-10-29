@@ -10,6 +10,7 @@ import {
   CardHeader,
 } from '@/shared/components/ui/card';
 import { GroupedEvent } from '../types/myEvents';
+import { groupRegistrantsByPaymentStatus } from '../utils/paymentStatusUtils';
 
 interface MyEventCardProps {
   groupedEvent: GroupedEvent;
@@ -87,46 +88,32 @@ export function MyEventCard({ groupedEvent, onClick }: MyEventCardProps) {
 
                   // Paid events - show payment status summary
                   const attendees = event.attendees as any[] | undefined;
-                  const resolveStatus = (r: any): string | undefined => {
-                    if (r.payment_status) return r.payment_status;
-                    if (!Array.isArray(attendees)) return undefined;
-                    const match = attendees.find(a => {
-                      try {
-                        if (r.key && a?.key && String(a.key) === String(r.key)) return true;
-                        if (r.person_id && a?.person_id && String(a.person_id) === String(r.person_id)) return true;
-                        if (!r.person_id && a?.user_uid && a.user_uid === (r as any).user_uid) return true;
-                      } catch (e) {}
-                      return false;
-                    });
-                    if (match && match.payment_status) return match.payment_status;
-                    // Conservative transaction id fallback - only when registrant
-                    // indicates a PayPal payment (payment_method === 'paypal' or meta has payment id)
-                    try {
-                      const registrantIndicatesPayPal = ((r as any)?.payment_method === 'paypal')
-                        || Boolean((r as any)?.meta?.payment_id) || Boolean((r as any)?.payment_id) || Boolean((r as any)?.meta?.transaction_id);
+                  const statusBuckets = groupRegistrantsByPaymentStatus(rsvpRegistrants, attendees);
 
-                      if (registrantIndicatesPayPal) {
-                        const registrantTx = (r as any)?.transaction_id || (r as any)?.meta?.transaction_id || (r as any)?.payment_id;
-                        if (registrantTx) {
-                          const txMatch = attendees.find(a => a?.transaction_id && String(a.transaction_id) === String(registrantTx));
-                          if (txMatch && txMatch.payment_status) {
-                            return txMatch.payment_status;
-                          }
-                        }
-                      }
-                    } catch (e) {}
-                    return undefined;
-                  };
-
-                  const pendingCount = rsvpRegistrants.filter(r => {
-                    const s = resolveStatus(r);
-                    return !s || s === 'awaiting_payment' || s === 'pending_door';
-                  }).length;
-
-                  if (pendingCount === 0) {
+                  // Prioritize refund statuses in display
+                  if (statusBuckets.refund_requested > 0) {
+                    if (statusBuckets.refund_requested === totalRegistered) {
+                      return `${totalRegistered} registered - refund requested`;
+                    } else {
+                      return `${totalRegistered} registered - ${statusBuckets.refund_requested} refund requested`;
+                    }
+                  } else if (statusBuckets.refunded > 0 || statusBuckets.partially_refunded > 0) {
+                    const totalRefunded = statusBuckets.refunded + statusBuckets.partially_refunded;
+                    if (totalRefunded === totalRegistered) {
+                      return `${totalRegistered} registered - refunded`;
+                    } else {
+                      return `${totalRegistered} registered - ${totalRefunded} refunded`;
+                    }
+                  } else if (statusBuckets.failed > 0) {
+                    if (statusBuckets.failed === totalRegistered) {
+                      return `${totalRegistered} registered - payment failed`;
+                    } else {
+                      return `${totalRegistered} registered - ${statusBuckets.failed} payment failed`;
+                    }
+                  } else if (statusBuckets.pending === 0) {
                     return `${totalRegistered} registered - all paid`;
                   } else {
-                    return `${totalRegistered} registered - ${pendingCount} required payment`;
+                    return `${totalRegistered} registered - ${statusBuckets.pending} required payment`;
                   }
                 } else {
                   // Show general event registration count if user not registered

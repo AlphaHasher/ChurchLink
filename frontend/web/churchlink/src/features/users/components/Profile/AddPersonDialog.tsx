@@ -12,12 +12,14 @@ import {
 } from "@/shared/components/ui/Dialog";
 import { PersonInfoInput, PersonInfo } from "./PersonInfoInput";
 import { addFamilyMember } from "@/helpers/UserHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type AddPersonDialogProps = {
     onCreated?: () => void;
 };
 
 export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) => {
+    const localize = useLocalize();
     const [info, setInfo] = React.useState<PersonInfo>({
         firstName: "",
         lastName: "",
@@ -26,6 +28,7 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
     });
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+	const [open, setOpen] = React.useState(false);
 
     const isValid =
         info.firstName.trim().length > 0 &&
@@ -70,31 +73,32 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
             if (res?.success) {
                 onCreated?.();
                 resetForm();
+				setOpen(false);
             } else {
-                setError("Failed to add family member. Please try again.");
+                setError(localize("Failed to add family member. Please try again."));
             }
         } catch (e) {
-            setError("Failed to add family member. Please try again.");
+            setError(localize("Failed to add family member. Please try again."));
         } finally {
             setSubmitting(false);
         }
     };
 
-    return (
-        <Dialog>
+	return (
+		<Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button
                     variant="outline"
                     className="!bg-blue-600 !text-white border border-blue-600 shadow-sm hover:!bg-blue-600"
                 >
-                    Add Family Member
+                    {localize("Add Family Member")}
                 </Button>
             </DialogTrigger>
 
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Add Family Member</DialogTitle>
-                    <DialogDescription>Enter the person’s details below.</DialogDescription>
+                    <DialogTitle>{localize("Add Family Member")}</DialogTitle>
+                    <DialogDescription>{localize("Enter the person’s details below.")}</DialogDescription>
                 </DialogHeader>
 
                 <PersonInfoInput value={info} onChange={setInfo} idPrefix="create" />
@@ -105,24 +109,22 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
                     </div>
                 )}
 
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button
-                            variant="outline"
-                            type="button"
-                            className="!bg-transparent !text-foreground hover:!bg-muted"
-                            disabled={submitting}
-                        >
-                            Cancel
-                        </Button>
-                    </DialogClose>
+				<DialogFooter>
+					<DialogClose asChild>
+						<Button
+							variant="outline"
+							type="button"
+							className="!bg-transparent !text-foreground hover:!bg-muted"
+							disabled={submitting}
+						>
+							{localize("Cancel")}
+						</Button>
+					</DialogClose>
 
-                    <DialogClose asChild>
-                        <Button type="button" onClick={handleCreate} disabled={!isValid || submitting}>
-                            {submitting ? "Creating..." : "Create"}
-                        </Button>
-                    </DialogClose>
-                </DialogFooter>
+					<Button type="button" onClick={handleCreate} disabled={!isValid || submitting}>
+						{submitting ? localize("Creating...") : localize("Create")}
+					</Button>
+				</DialogFooter>
             </DialogContent>
         </Dialog>
     );

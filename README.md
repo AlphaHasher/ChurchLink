@@ -9,44 +9,53 @@
 ## 🎯 Features
 
 - **Simple Page Template System** – Create and edit church pages using pre-designed templates.
-- **Headless CMS Integration** – Manage content dynamically without coding.
+- **Custom CMS System** – Manage content dynamically without coding.
 - **Event Management** – Create and promote church events.
+- **Form Builder** - Create forms and collect user submissions
 - **User Roles & Permissions** – Secure access control for admins, editors, and members.
 - **Mobile App Support** – Native mobile app built with Flutter.
 - **Mobile Notifications** – Send push notifications for announcements, events, and updates.
 - **Bible on Mobile** – Access and read the Bible within the app with an admin manadged Bible reading plan and note taking/highlighting captabilties.
-- **Announcements & Banners** – Display church updates and messages.
-- **Donation & Payment Integration** – Support for online giving via **PayPal**.
+- **Announcements & Bulletins** – Display church updates and messages.
+- **Donation & Payment Integration** – Support for online giving via **PayPal**. See [PayPal Setup Guide](PAYPAL_SETUP_GUIDE.md) for configuration.
 - **Multilingual Support** – Accessibility for diverse church communities.
+
+## 🏦 PayPal Integration Setup
+
+For detailed PayPal integration setup instructions, see our comprehensive guide:
+**[📖 PayPal Setup Guide](PAYPAL_SETUP_GUIDE.md)**
+
+
+> (some images are zoomed out a great deal to show their full features - since they didn't fit in the screenshot)
 
 ### 📋 Admin Interface, Users View
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/1faf5c88-a333-4e5e-a399-6c59dc44630e" width="600" alt="Admin UI">
+  <img width="3000" alt="image" src="https://github.com/user-attachments/assets/85cd1a2d-602b-4ec3-b4af-ea5379cfe79d" />
 </p>
 
 ### 📋 Admin Interface, Creating a new Permission Role
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/b5398827-a8da-42db-9fe7-cb64b2d797b9" width="600" alt="Role Creation">
+  <img width="3000" alt="image" src="https://github.com/user-attachments/assets/fe70bbb2-1a2b-4ff2-9ff5-6ceae76fe26c" />
 </p>
 
 ### 📋 Admin Interface, Creating a new Event
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/56fd6152-9e44-40a9-96b7-55227e41073f" width="600" alt="Event Creation">
+  <img width="1877" height="1391" alt="image" src="https://github.com/user-attachments/assets/1fca052b-49fb-4acc-acea-5f186f9adeac" />
 </p>
 
 ### 🔨 Web Builder, Page View
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/7e3bad19-1e61-4916-a851-25cb4a8dc0d6" width="600" alt="Web Builder">
+	<img width="3000" alt="image" src="https://github.com/user-attachments/assets/dd2ce3de-895a-42ae-ad16-bda6e44ac3d9" />
 </p>
 
 ### 🔨 Web Builder, Header Item Creation
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/dc50bc84-b905-4eec-a60b-77c41b9d3468" width="600" alt="Header Creation">
+	<img src="https://github.com/user-attachments/assets/a74ff99c-cc44-40e5-93e8-c90a10dc3010" width="3000" >
 </p>
 
-### 🎥 Media Library, Strapi Integration
+### 🎥 Media Library
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/b2b3b1fd-ef02-4ab1-a9de-4e696d775386" width="600" alt="Media Library">
+  <img src="https://github.com/user-attachments/assets/86f50bdd-7214-4e7a-b069-858ca33ad2c1" width="3000" >
 </p>
 
 ### 👤 Login Popup
@@ -56,49 +65,53 @@
 
 ### 💻 Web Example
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/204b81f6-7f41-4235-a692-2e4da7c36b3b" width="600" alt="Web Example">
+	<img width="3840" height="8318" alt="image" src="https://github.com/user-attachments/assets/6920316c-aa23-4fb2-b47c-4b769bd259d1" />
 </p>
 
-### 📱 Mobile App – Event View
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/cb5c3bb3-2b0b-4ab5-b5e3-2188d442e43b" width="300" alt="Mobile Event View">
-</p>
+### 📱 Mobile App
+<div style="display: flex;">
+	<p align="center">
+		<img height="600" alt="image" src="https://github.com/user-attachments/assets/d5467605-97bb-4a72-9198-785277bdef35" />
+		<img height="600" alt="image" src="https://github.com/user-attachments/assets/6a44e21f-c81a-49f1-b4b0-4bae10f58321" />
+		<img height="600" alt="image" src="https://github.com/user-attachments/assets/861c6edd-5d4f-4778-ad05-78b4283df40c" />
+		<img height="600" alt="image" src="https://github.com/user-attachments/assets/43f3fb76-5854-4e2f-9746-d4dfd48b4306" />
+	</p>
+</div>
 
 ## 🛠️ Tech Stack
 
 - **Frontend:**  
-  - **Flutter (Mobile App via the Dart Language)**  
-  - **React (Web App via the TypeScript Language)**  
+  - Flutter (Mobile App via the Dart Language)
+  - React (Vite + React + TS + Tailwind CSS)
 
-- **Backend: FaspAPI (Server via the Python Language)**
-
-- **CMS:** Strapi
+- **Backend:**
+	- FaspAPI (Server via the Python Language)
 
 - **Database:**  
-  - **MongoDB** (Main Database)  
-  - **SQLite** (For CMS)  
+  - MongoDB
 
-- **Notifications:** Firebase Cloud Messaging (FCM)
+- **Notifications:**
+	- Firebase Cloud Messaging (FCM)
 
-- **Bible Integration:** [Elisha](https://github.com/31Carlton7/elisha)
+- **Bible Integration:**
+	- [Elisha](https://github.com/31Carlton7/elisha)
 
-- **Authentication:** Firebase Auth
+- **Authentication:**
+	- Firebase Auth
 
-- **Payments:** PayPal
+- **Payments:**
+	- PayPal
 
-## 🚀 Installation
-
-### Prerequisites
 
 Ensure you have the following installed:
 
-- [Node.js](https://nodejs.org/) (v16+)
+- [Node.js](https://nodejs.org/)
 - [Yarn](https://yarnpkg.com/) or npm
 - [uv](https://docs.astral.sh/uv/)
 - [Flutter](https://flutter.dev/) (For mobile development)
 - [Docker](https://www.docker.com/) (Optional for database setup)
 
-### Steps (Just for DEMO README - NOT FINAL RELEASE)
+### Steps
 
 1. **Clone the Repository**
    ```sh
@@ -109,7 +122,6 @@ Ensure you have the following installed:
 
 2.	Install Dependencies in the followig direcotires
 	- backend/
-	- backend/strapi/churchlink
 	- frontend/web/churchlink
 	- frontend/app
 
@@ -118,7 +130,7 @@ Ensure you have the following installed:
 4.	Run the Web Frontend (React)
   ```sh
   cd frontend/web
-  yarn start
+  npm run build && npm run preview
   ```
 
 5.	Run the Mobile App (Flutter)
@@ -127,21 +139,14 @@ Ensure you have the following installed:
   flutter run
   ```
 
-6.	Run the CMS
-  ```sh
-  cd cms
-  yarn develop
-  ```
-
 7.	Run the Backend (If applicable in the future)
   ```sh
   cd backend
-  yarn dev
+  uv run main.py
   ```
 
 8.	Access the Application
 	•	Web App: http://localhost:3000
-	•	CMS Admin: http://localhost:1337/admin
 	•	Mobile App: (Run on emulator or physical device)
 
 ## 🔔 Mobile Notifications
@@ -202,20 +207,6 @@ Below is a comprehensive overview of the planned MongoDB Database integration
 
 ![image](https://github.com/user-attachments/assets/d7ac3199-7b50-4327-be05-aff06136975d)
 
-
----
-
-## ⏳ Predicted Timeline
-
-Below is a tentative idea of the kind of timeline that we plan to see for CSC-191 in the completion of this project. Subject to change pending changing conditions of decision making.
-
-Sprint 5 - Completion of Events, including the proper gathering of data for the user and EventPersons, Completing our PayPal Finances integration
-
-Sprint 6 - The Completion of a fully functional Bible Reader, including Reading plans, completing notifications hubs
-
-Sprint 7 - The Completion of Media-Watching such as with the Church's existing content, and watching YouTube livestreams. Completing integration of a simple viewer of pages for Mobile
-
-Spint 8 - PROJECT SHOULD BE DONE, Clean-up of any remaining last things we want to get fixed or implemented
 
 ---
 

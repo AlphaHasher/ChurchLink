@@ -6,16 +6,15 @@ import {
   Users, 
   DollarSign,
   User,
-  CreditCard
 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/button';
-import { EventPayPalButton } from './EventPayPalButton';
 import { EventWithGroupedData, MyEvent } from '../types/myEvents';
 import { useAuth } from '@/features/auth/hooks/auth-context';
 import { getMyFamilyMembers } from '@/helpers/UserHelper';
@@ -26,20 +25,22 @@ interface EventDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCancelRSVP: (eventRef: MyEvent) => Promise<void>;
+  onRefundRequest?: (eventRef: MyEvent) => Promise<void>;
 }
 
 // Constants
 const PAID_STATUSES = new Set<string>(['completed', 'paid']);
 const DOOR_STATUSES = new Set<string>(['pending_door']);
 const PENDING_STATUSES = new Set<string>(['awaiting_payment', 'pending']);
+const REFUND_STATUSES = new Set<string>(['refund_requested', 'refunded', 'partially_refunded']);
 
-const isNotRequired = (status?: string | null): boolean => status === 'not_required';
 
 export function EventDetailsModal({ 
   eventRef, 
   isOpen, 
   onClose, 
-  onCancelRSVP
+  onCancelRSVP,
+  onRefundRequest
 }: EventDetailsModalProps) {
   if (!eventRef || !eventRef.event) return null;
   const { user } = useAuth();
@@ -82,7 +83,6 @@ export function EventDetailsModal({
   // Event type detection
   const isPaidEvent = event.price > 0;
   const hasPaymentOptions = (event.payment_options?.length ?? 0) > 0;
-  const hasPayPalOption = () => event.payment_options?.includes('PayPal') || event.payment_options?.includes('paypal');
   const requiresPayment = () => isPaidEvent && hasPaymentOptions;
   
   // Separate user and family registrations for display
@@ -100,7 +100,7 @@ export function EventDetailsModal({
       paidOnline: rsvpRegistrants.filter(r => PAID_STATUSES.has(getRegistrantPaymentStatus(r) ?? '')).length,
       payAtDoor: rsvpRegistrants.filter(r => DOOR_STATUSES.has(getRegistrantPaymentStatus(r) ?? '')).length,
       pending: rsvpRegistrants.filter(r => PENDING_STATUSES.has(getRegistrantPaymentStatus(r) ?? '')).length,
-      notRequired: rsvpRegistrants.filter(r => isNotRequired(getRegistrantPaymentStatus(r))).length,
+      refundRelated: rsvpRegistrants.filter(r => REFUND_STATUSES.has(getRegistrantPaymentStatus(r) ?? '')).length,
     };
   };
 
@@ -108,59 +108,27 @@ export function EventDetailsModal({
   const getRegistrantDisplayName = (registrant: MyEvent): string => {
     if (!registrant.person_id) return 'You';
 
-    // Check familyMap first (this has the actual family member names)
-    if (registrant.person_id) {
-      const resolved = familyMap[registrant.person_id];
-      if (resolved) return resolved;
+    // Check familyMap first (has the actual family member names from family API)
+    const resolved = familyMap[registrant.person_id];
+    if (resolved) return resolved;
+
+    // Trust backend-populated display_name
+    const backendName = (registrant.display_name || '').trim();
+    if (backendName && backendName !== 'Family Member') {
+      return backendName;
     }
 
-    // Only check display_name if it's not the generic "Family Member"
-    const name = (registrant.display_name || '').trim();
-    if (name && name !== 'Family Member') return name;
-
-    // Check event.attendees for name information
-    const attendees = (event.attendees as any[] | undefined) ?? [];
-    if (Array.isArray(attendees) && attendees.length > 0) {
-      const match = attendees.find(a => {
-        return registrant.person_id && a?.person_id && String(a.person_id) === String(registrant.person_id);
-      });
-      
-      if (match) {
-        // Try various name fields from attendees
-        const attendeeName = match.display_name || match.name || match.full_name || match.fullName;
-        if (attendeeName && String(attendeeName).trim()) {
-          return String(attendeeName).trim();
-        }
-        
-        // Try first + last name combination
-        const first = match.first_name || match.firstName;
-        const last = match.last_name || match.lastName;
-        if (first && last) {
-          return `${first} ${last}`.trim();
-        }
-        if (first) return String(first).trim();
-        if (last) return String(last).trim();
+    // Check event.attendees for backend-populated display_name
+    const attendees = event.attendees || [];
+    const match = attendees.find(a => {
+      if (registrant.person_id === null || registrant.person_id === undefined) {
+        return false; // For display name lookup, we only care about family members with person_id
       }
-    }
-
-    // Check alternative name fields on registrant
-    const altNameFields = ['name', 'full_name', 'fullName', 'displayName'];
-    for (const field of altNameFields) {
-      const val = (registrant as any)[field];
-      if (val && String(val).trim()) return String(val).trim();
-    }
-
-    // Check meta fields
-    const meta = registrant.meta as any | undefined;
-    if (meta) {
-      const first = meta.first_name || meta.firstName || meta.given_name || meta.first;
-      const last = meta.last_name || meta.lastName || meta.family_name || meta.last;
-      if (first && last) return `${first} ${last}`.trim();
-      if (first) return String(first).trim();
-      if (last) return String(last).trim();
-      if (meta.name || meta.full_name || meta.fullName) {
-        return String(meta.name || meta.full_name || meta.fullName).trim();
-      }
+      return a?.person_id != null && String(a.person_id) === String(registrant.person_id);
+    });
+    
+    if (match?.display_name && match.display_name.trim() && match.display_name !== 'Family Member') {
+      return match.display_name.trim();
     }
 
     return 'Family Member';
@@ -168,49 +136,29 @@ export function EventDetailsModal({
 
   // Get payment status for a registrant
   const getRegistrantPaymentStatus = (registrant: MyEvent): string | undefined => {
-    // PRIORITY 1: Direct registrant payment_status
-    if (registrant.payment_status) {
-      return registrant.payment_status;
-    }
-
-    // PRIORITY 2: Check attendees array (contains the correct payment statuses)
-    const attendees = (event.attendees as any[] | undefined) ?? [];
-    if (Array.isArray(attendees) && attendees.length > 0) {
-      const match = attendees.find(a => {
-        try {
-          // For family members: match by person_id
-          if (registrant.person_id && a?.person_id && String(a.person_id) === String(registrant.person_id)) {
-            return true;
-          }
-          
-          // For self registrations: match by user_uid and null person_id
-          const currentUid = (user as any | undefined)?.uid;
-          if (!registrant.person_id && !a?.person_id && currentUid && a?.user_uid && a.user_uid === currentUid) {
-            return true;
-          }
-          
-          // Also check by scope matching (series vs occurrence) as additional validation
-          if (registrant.scope && a?.scope && registrant.scope === a.scope) {
-            // If scopes match, double-check the person matching
-            if (registrant.person_id && a?.person_id && String(a.person_id) === String(registrant.person_id)) {
-              return true;
-            }
-            if (!registrant.person_id && !a?.person_id && currentUid && a?.user_uid && a.user_uid === currentUid) {
-              return true;
-            }
-          }
-        } catch (e) {
-          // ignore matching errors
+    // Get from event's attendees array (backend stores payment_status directly)
+    const attendees = event.attendees || [];
+    const matchingAttendee = attendees.find(attendee => {
+      // Handle null/undefined person_id cases first
+      if (registrant.person_id === null || registrant.person_id === undefined) {
+        if (attendee.person_id === null || attendee.person_id === undefined) {
+          return attendee.user_uid === user?.uid;
         }
         return false;
-      });
-
-      if (match?.payment_status) {
-        return match.payment_status;
       }
-    }
-
-    return undefined;
+      
+      // Both have person_id values - normalize and compare
+      if (attendee.person_id != null) {
+        return String(attendee.person_id) === String(registrant.person_id);
+      }
+      
+      return false;
+    });
+    
+    // Use direct payment_status first, then computed as fallback
+    return matchingAttendee?.payment_status || 
+           matchingAttendee?.computed_payment_status || 
+           registrant.computed_payment_status;
   };
 
   const handleCancelRSVP = async (registrant?: MyEvent) => {
@@ -230,11 +178,78 @@ export function EventDetailsModal({
     }
   };
 
-  // Render payment status badge
-  const renderPaymentStatus = (registrant: MyEvent, isUser: boolean = false) => {
-    if (registrant.reason !== 'rsvp') return null;
+  // Handle refund request
+  const handleModalRefundRequest = async (registrant?: MyEvent) => {
+    if (!onRefundRequest) return;
+    
+    try {
+      const targetEvent = registrant || eventRef;
+      
+      if (targetEvent) {
+        await onRefundRequest(targetEvent);
+        // Don't close modal, let user see the updated status
+      }
+    } catch (error) {
+      console.error('Failed to request refund:', error);
+    }
+  };
 
-    const displayName = isUser ? 'You' : registrant.display_name || 'Family Member';
+  // Helper to determine if refund request is available
+  const canRequestRefund = (registrant: MyEvent): boolean => {
+    // Find the attendee record that matches this registrant
+    const attendees = event.attendees || [];
+    const attendee = attendees.find(att => {
+      if (registrant.person_id === null) return att.person_id === null;
+      return att.person_id != null
+        && String(att.person_id) === String(registrant.person_id);
+    });
+
+    if (!attendee) return false;
+
+    // Use direct payment status first, then computed
+    const paymentStatus = attendee.payment_status || attendee.computed_payment_status;
+    const hasPayment = paymentStatus === 'completed';
+    const notRefunded = (paymentStatus as string) !== 'failed' && (paymentStatus as string) !== 'refunded' && (paymentStatus as string) !== 'refund_requested' && (paymentStatus as string) !== 'partially_refunded';
+    const isPaidEvent = (event.price || 0) > 0;
+    
+    return hasPayment && notRefunded && isPaidEvent && Boolean(onRefundRequest);
+  };
+
+
+  // Helper to get cancellation button text and styling
+  const getCancellationInfo = (registrant: MyEvent) => {
+    const paymentStatus = getRegistrantPaymentStatus(registrant);
+    const isPaidEvent = (event.price || 0) > 0;
+
+    if (paymentStatus === 'refund_requested') {
+      return {
+        text: 'Refund Pending',
+        className: 'text-xs h-7 px-3 bg-gray-400 text-white cursor-not-allowed',
+        disabled: true,
+        tooltip: 'Cannot cancel while refund is being processed'
+      };
+    }
+
+    if (isPaidEvent && paymentStatus === 'completed') {
+      return {
+        text: 'Request Refund First',
+        className: 'text-xs h-7 px-3 bg-gray-400 text-white cursor-not-allowed',
+        disabled: true,
+        tooltip: 'Must request refund before canceling paid registration'
+      };
+    }
+
+    return {
+      text: 'Cancel',
+      className: 'text-xs h-7 px-3 bg-red-600 text-white hover:bg-red-700',
+      disabled: false,
+      tooltip: 'Cancel registration'
+    };
+  };
+
+  // Render payment status badge
+  const renderPaymentStatus = (registrant: MyEvent) => {
+    if (registrant.reason !== 'rsvp') return null;
     
     // Free events
     if (event.price === 0) {
@@ -245,59 +260,32 @@ export function EventDetailsModal({
       );
     }
 
-    // Paid events
+    // Get payment status using our centralized logic
     const status = getRegistrantPaymentStatus(registrant);
+    
     const statusConfigs = {
-      'completed': { 
-        bg: 'bg-green-100 text-green-700', 
-        text: '✅ Paid Online',
-        description: `${displayName} has completed PayPal payment`
-      },
-      'paid': { 
-        bg: 'bg-green-100 text-green-700', 
-        text: '✅ Paid Online',
-        description: `${displayName} has completed PayPal payment`
-      },
-      'pending_door': { 
-        bg: 'bg-yellow-100 text-yellow-700', 
-        text: '🚪 Pay at Door',
-        description: `${displayName} will pay $${event.price} at the door`
-      },
-      'awaiting_payment': { 
-        bg: 'bg-blue-100 text-blue-700', 
-        text: '⏳ PayPal Processing',
-        description: `${displayName}'s PayPal payment is being processed`
-      }
+      'completed': { bg: 'bg-green-100 text-green-700', text: '✅ Paid Online' },
+      'failed': { bg: 'bg-red-100 text-red-700', text: '❌ Payment Failed' },
+      'pending_door': { bg: 'bg-yellow-100 text-yellow-700', text: '🚪 Pay at Door' },
+      'pending': { bg: 'bg-blue-100 text-blue-700', text: '⏳ Payment Pending' },
+      'refund_requested': { bg: 'bg-orange-100 text-orange-700', text: '🔄 Refund Requested' },
+      'refunded': { bg: 'bg-gray-100 text-gray-700', text: '↩️ Refunded' },
+      'partially_refunded': { bg: 'bg-purple-100 text-purple-700', text: '🔄 Partially Refunded' },
+      'not_required': { bg: 'bg-green-100 text-green-700', text: '✅ Registered' }
     } as const;
 
     if (status && status in statusConfigs) {
       const config = statusConfigs[status as keyof typeof statusConfigs];
       return (
-        <span 
-          className={`text-xs px-2 py-1 rounded-full mt-1 inline-block ${config.bg}`}
-          title={config.description}
-        >
+        <span className={`text-xs px-2 py-1 rounded-full mt-1 inline-block ${config.bg}`}>
           {config.text}
         </span>
       );
     }
 
-    if (isNotRequired(status)) {
-      return (
-        <span 
-          className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 inline-block mt-1" 
-          title={`${displayName} does not require payment`}
-        >
-          ℹ️ No payment required
-        </span>
-      );
-    }
-
+    // Unrecognized status - show payment required
     return (
-      <span 
-        className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block mt-1"
-        title={`${displayName} needs to complete payment of $${event.price}`}
-      >
+      <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 inline-block mt-1">
         ❌ Payment Required
       </span>
     );
@@ -343,6 +331,9 @@ export function EventDetailsModal({
       >
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">{event.name}</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              View and manage your registration for this event
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
@@ -397,10 +388,12 @@ export function EventDetailsModal({
                   {getRSVPRegistrants().map((registrant, index) => {
                     const status = getRegistrantPaymentStatus(registrant as MyEvent);
                     const getStatusText = (status: string | undefined) => {
-                      if (status === 'completed' || status === 'paid') return '✅ Paid via PayPal';
+                      if (status === 'completed') return '✅ Paid via PayPal';
                       if (status === 'pending_door') return '🚪 Will pay at door';
                       if (status === 'awaiting_payment' || status === 'pending') return '⏳ PayPal processing';
-                      if (isNotRequired(status)) return 'ℹ️ No payment required';
+                      if (status === 'refund_requested') return '🔄 Refund requested';
+                      if (status === 'refunded') return '↩️ Refunded';
+                      if (status === 'partially_refunded') return '🔄 Partially refunded';
                       return '❌ Payment required';
                     };
 
@@ -440,7 +433,7 @@ export function EventDetailsModal({
                       if (counts.paidOnline > 0) parts.push(`${counts.paidOnline} paid online`);
                       if (counts.payAtDoor > 0) parts.push(`${counts.payAtDoor} pay at door`);
                       if (counts.pending > 0) parts.push(`${counts.pending} pending`);
-                      if (counts.notRequired > 0) parts.push(`${counts.notRequired} no payment required`);
+                      if (counts.refundRelated > 0) parts.push(`${counts.refundRelated} refund related`);
 
                       return parts.length > 0 ? parts.join(' • ') : 'All paid';
                     })()}
@@ -456,7 +449,7 @@ export function EventDetailsModal({
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-semibold text-gray-800">You</span>
-                            {renderPaymentStatus(userRegistration, true)}
+                            {renderPaymentStatus(userRegistration)}
                           </div>
                           <div className="space-y-1 text-xs text-gray-500">
                             <div>Registered: {new Date(userRegistration.addedOn).toLocaleDateString()}</div>
@@ -469,14 +462,33 @@ export function EventDetailsModal({
                           </div>
                         </div>
                       </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleCancelRSVP(userRegistration)}
-                        className="text-xs h-7 px-3 bg-red-600 text-white hover:bg-red-700"
-                      >
-                        Cancel
-                      </Button>
+                      <div className="flex gap-2">
+                        {canRequestRefund(userRegistration) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleModalRefundRequest(userRegistration)}
+                            className="text-xs h-7 px-3 border-orange-500 text-orange-600 hover:bg-orange-50"
+                          >
+                            Request Refund
+                          </Button>
+                        )}
+                        {(() => {
+                          const cancellationInfo = getCancellationInfo(userRegistration);
+                          return (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={cancellationInfo.disabled ? undefined : () => handleCancelRSVP(userRegistration)}
+                              className={cancellationInfo.className}
+                              disabled={cancellationInfo.disabled}
+                              title={cancellationInfo.tooltip}
+                            >
+                              {cancellationInfo.text}
+                            </Button>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -493,7 +505,7 @@ export function EventDetailsModal({
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-sm font-semibold text-gray-800">{memberName}</span>
-                              {renderPaymentStatus(familyReg, false)}
+                              {renderPaymentStatus(familyReg)}
                             </div>
                             <div className="space-y-1 text-xs text-gray-500">
                               <div>Registered: {new Date(familyReg.addedOn).toLocaleDateString()}</div>
@@ -509,14 +521,33 @@ export function EventDetailsModal({
                             </div>
                           </div>
                         </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleCancelRSVP(familyReg)}
-                          className="text-xs h-7 px-3 bg-red-600 text-white hover:bg-red-700"
-                        >
-                          Cancel
-                        </Button>
+                        <div className="flex gap-2">
+                          {canRequestRefund(familyReg) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleModalRefundRequest(familyReg)}
+                              className="text-xs h-7 px-3 border-orange-500 text-orange-600 hover:bg-orange-50"
+                            >
+                              Request Refund
+                            </Button>
+                          )}
+                          {(() => {
+                            const cancellationInfo = getCancellationInfo(familyReg);
+                            return (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={cancellationInfo.disabled ? undefined : () => handleCancelRSVP(familyReg)}
+                                className={cancellationInfo.className}
+                                disabled={cancellationInfo.disabled}
+                                title={cancellationInfo.tooltip}
+                              >
+                                {cancellationInfo.text}
+                              </Button>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
                   );
@@ -545,8 +576,8 @@ export function EventDetailsModal({
                               {counts.pending > 0 && (
                                 <div className="text-red-700">❌ Pending Payment: {counts.pending}</div>
                               )}
-                              {counts.notRequired > 0 && (
-                                <div className="text-blue-700">ℹ️ No Payment Required: {counts.notRequired}</div>
+                              {counts.refundRelated > 0 && (
+                                <div className="text-orange-700">🔄 Refund Related: {counts.refundRelated}</div>
                               )}
                             </div>
                           );
@@ -647,38 +678,6 @@ export function EventDetailsModal({
                   )}
                 </div>
               </div>
-
-              {/* Payment Button for events requiring payment */}
-              {event.price > 0 && requiresPayment() && hasPayPalOption() && isUpcoming && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    Payment Required
-                  </h4>
-                  <p className="text-sm text-blue-700 mb-3">
-                    You must complete payment before you can RSVP to this event.
-                  </p>
-                  <EventPayPalButton
-                    eventId={event.id}
-                    event={{
-                      name: event.name,
-                      price: event.price,
-                      requires_payment: requiresPayment(),
-                      is_free_event: event.price === 0,
-                      payment_options: event.payment_options ?? []
-                    }}
-                    onPaymentError={(error) => {
-                      console.error('Payment error:', error);
-                    }}
-                  />
-                  {event.refund_policy && (
-                    <div className="mt-3 pt-3 border-t border-blue-200">
-                      <p className="text-xs text-blue-600 font-medium">Refund Policy:</p>
-                      <p className="text-xs text-blue-700">{event.refund_policy}</p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
@@ -707,15 +706,26 @@ export function EventDetailsModal({
 
           {/* Actions */}
           <div className="flex justify-between pt-4 border-t">
-            {/* Only show main cancel button for non-grouped single registrations */}
+            {/* Only show main buttons for non-grouped single registrations */}
             {!groupedEventData && userRegistration && (
-              <Button 
-                variant="destructive" 
-                onClick={() => handleCancelRSVP()}
-                data-testid="confirm-cancel"
-              >
-                Cancel RSVP
-              </Button>
+              <div className="flex gap-3">
+                {canRequestRefund(userRegistration) && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => handleModalRefundRequest()}
+                    className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                  >
+                    Request Refund
+                  </Button>
+                )}
+                <Button 
+                  variant="destructive" 
+                  onClick={() => handleCancelRSVP()}
+                  data-testid="confirm-cancel"
+                >
+                  Cancel RSVP
+                </Button>
+              </div>
             )}
           </div>
         </div>

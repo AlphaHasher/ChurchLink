@@ -1,19 +1,25 @@
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 // import 'package:http/http.dart' as http;
-import '../helpers/api_client.dart';
+import 'package:app/helpers/api_client.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 
+const bool kTestMode = bool.fromEnvironment('TEST_MODE', defaultValue: false);
 
 class FCMTokenService {
   static bool _tokenSent = false;
 
   /// Send FCM token to backend with device info and consent
   static Future<void> registerDeviceToken({required Map<String, bool> consent, String? userId}) async {
+    if (kTestMode) {
+      log('Skip FCM token in TEST_MODE');
+      return;
+    }
+    
     if (_tokenSent) {
       log('FCM token already sent in this session, skipping...');
       return;
@@ -91,3 +97,4 @@ class FCMTokenService {
     _tokenSent = false;
   }
 }
+
