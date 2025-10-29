@@ -9,6 +9,26 @@ the website builder interface.
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 from datetime import datetime, timezone
+import re
+
+
+def _validate_asset_url(url: str) -> bool:
+    """
+    Shared helper function to validate asset URL format.
+    
+    Validates URLs in the format:
+    - /api/v1/assets/public/id/{24-char-hex-objectid}
+    - /api/v1/assets/{path}.{ico|png|svg}
+    
+    Args:
+        url: The URL to validate
+        
+    Returns:
+        bool: True if valid asset URL format, False otherwise
+    """
+    # Validate basic asset URL format with strict 24-character ObjectId
+    asset_url_pattern = r'^/api/v1/assets/(public/id/[a-f0-9]{24}|[a-zA-Z0-9_/\-]+\.(ico|png|svg))$'
+    return bool(re.match(asset_url_pattern, url))
 
 
 class WebsiteAppConfig(BaseModel):
@@ -100,9 +120,7 @@ class WebsiteAppConfig(BaseModel):
         
         # Check if it's an asset URL (bypass extension validation for these)
         if v.startswith('/api/v1/assets/'):
-            # Validate basic asset URL format
-            asset_url_pattern = r'^/api/v1/assets/(public/id/[a-f0-9]+|[a-zA-Z0-9_/\-]+\.(ico|png|svg))$'
-            if re.match(asset_url_pattern, v):
+            if _validate_asset_url(v):
                 return v
             else:
                 raise ValueError('Invalid asset URL format')
@@ -123,8 +141,10 @@ class WebsiteAppConfig(BaseModel):
             if not re.match(url_pattern, v):
                 raise ValueError('Invalid URL format for favicon')
                 
-            # Check file extension for absolute URLs
-            if not any(v.lower().endswith(ext) for ext in allowed_extensions):
+            # Check file extension for absolute URLs (ignore query/fragment)
+            from urllib.parse import urlsplit
+            path = urlsplit(v).path
+            if not any(path.lower().endswith(ext) for ext in allowed_extensions):
                 raise ValueError('Favicon URL must end with .ico, .png, or .svg')
         else:
             # For relative URLs, must start with "/" and have valid extension
@@ -135,12 +155,13 @@ class WebsiteAppConfig(BaseModel):
             if '://' in v or v.startswith('//'):
                 raise ValueError('Invalid relative URL format. Use absolute URLs with http:// or https:// for external resources')
             
-            # Check file extension for relative URLs
-            if not any(v.lower().endswith(ext) for ext in allowed_extensions):
+            # Check file extension for relative URLs (ignore query/fragment)
+            path = v.split('?', 1)[0].split('#', 1)[0]
+            if not any(path.lower().endswith(ext) for ext in allowed_extensions):
                 raise ValueError('Favicon URL must end with .ico, .png, or .svg')
             
             # Ensure it's a reasonable path (no double slashes, no weird characters, no path traversal)
-            if '//' in v or any(char in v for char in ['<', '>', '"', '|', '?', '*']) or '../' in v or '/..' in v:
+            if '//' in v or any(char in v for char in ['<', '>', '"', '|', '*']) or '../' in v or '/..' in v:
                 raise ValueError('Invalid characters or path traversal detected in favicon URL path')
         
         return v
@@ -219,9 +240,7 @@ class WebsiteConfigUpdate(BaseModel):
             
             # Check if it's an asset URL (bypass extension validation for these)
             if v.startswith('/api/v1/assets/'):
-                # Validate basic asset URL format
-                asset_url_pattern = r'^/api/v1/assets/(public/id/[a-f0-9]+|[a-zA-Z0-9_/\-]+\.(ico|png|svg))$'
-                if re.match(asset_url_pattern, v):
+                if _validate_asset_url(v):
                     return v
                 else:
                     raise ValueError('Invalid asset URL format')
@@ -242,8 +261,10 @@ class WebsiteConfigUpdate(BaseModel):
                 if not re.match(url_pattern, v):
                     raise ValueError('Invalid URL format for favicon')
                     
-                # Check file extension for absolute URLs
-                if not any(v.lower().endswith(ext) for ext in allowed_extensions):
+                # Check file extension for absolute URLs (ignore query/fragment)
+                from urllib.parse import urlsplit
+                path = urlsplit(v).path
+                if not any(path.lower().endswith(ext) for ext in allowed_extensions):
                     raise ValueError('Favicon URL must end with .ico, .png, or .svg')
             else:
                 # For relative URLs, must start with "/" and have valid extension
@@ -254,12 +275,13 @@ class WebsiteConfigUpdate(BaseModel):
                 if '://' in v or v.startswith('//'):
                     raise ValueError('Invalid relative URL format. Use absolute URLs with http:// or https:// for external resources')
                 
-                # Check file extension for relative URLs
-                if not any(v.lower().endswith(ext) for ext in allowed_extensions):
+                # Check file extension for relative URLs (ignore query/fragment)
+                path = v.split('?', 1)[0].split('#', 1)[0]
+                if not any(path.lower().endswith(ext) for ext in allowed_extensions):
                     raise ValueError('Favicon URL must end with .ico, .png, or .svg')
                 
                 # Ensure it's a reasonable path (no double slashes, no weird characters, no path traversal)
-                if '//' in v or any(char in v for char in ['<', '>', '"', '|', '?', '*']) or '../' in v or '/..' in v:
+                if '//' in v or any(char in v for char in ['<', '>', '"', '|', '*']) or '../' in v or '/..' in v:
                     raise ValueError('Invalid characters or path traversal detected in favicon URL path')
         return v
 
