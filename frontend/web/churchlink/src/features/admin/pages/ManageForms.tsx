@@ -128,7 +128,6 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
     handleExportCsv,
     setRenameTarget,
     setConfirmDeleteIds,
-    setAssignmentTarget
   } = context;
 
   return (
