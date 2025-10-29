@@ -18,11 +18,13 @@ class LoginReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
         child: Card(
-          color: const Color.fromRGBO(65, 65, 65, 1),
+          color: colorScheme.surface,
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -32,49 +34,44 @@ class LoginReminderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color.fromRGBO(150, 130, 255, 0.1),
+                    color: colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(50),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_outline,
                     size: 48,
-                    color: Color.fromRGBO(150, 130, 255, 1),
+                    color: colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 24),
-                
                 // Title
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                
                 // Description
                 Text(
                   description,
-                  style: TextStyle(
-                    color: Colors.grey[300],
-                    fontSize: 16,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.8),
                     height: 1.5,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                
                 // Sign In Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => _showLoginDialog(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
-                      foregroundColor: Colors.white,
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -83,12 +80,12 @@ class LoginReminderCard extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.login),
+                        Icon(Icons.login, color: colorScheme.onPrimary),
                         const SizedBox(width: 8),
                         Text(
                           buttonText,
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: colorScheme.onPrimary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -96,14 +93,12 @@ class LoginReminderCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                
                 const SizedBox(height: 16),
-                
                 // Benefits list
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color.fromRGBO(80, 80, 80, 1),
+                    color: colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -111,17 +106,16 @@ class LoginReminderCard extends StatelessWidget {
                     children: [
                       Text(
                         'With your account you can:',
-                        style: TextStyle(
-                          color: Colors.grey[300],
-                          fontSize: 14,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withOpacity(0.8),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      _buildBenefitItem('📖', 'Subscribe to Bible reading plans'),
-                      _buildBenefitItem('📊', 'Track your reading progress'),
-                      _buildBenefitItem('🔔', 'Get daily reminder notifications'),
-                      _buildBenefitItem('☁️', 'Sync across all your devices'),
+                      _buildBenefitItem('📖', 'Subscribe to Bible reading plans', theme, colorScheme),
+                      _buildBenefitItem('📊', 'Track your reading progress', theme, colorScheme),
+                      _buildBenefitItem('🔔', 'Get daily reminder notifications', theme, colorScheme),
+                      _buildBenefitItem('☁️', 'Sync across all your devices', theme, colorScheme),
                     ],
                   ),
                 ),
@@ -133,7 +127,7 @@ class LoginReminderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildBenefitItem(String emoji, String text) {
+  Widget _buildBenefitItem(String emoji, String text, ThemeData theme, ColorScheme colorScheme) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -143,8 +137,8 @@ class LoginReminderCard extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                color: Colors.grey[300],
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withOpacity(0.8),
                 fontSize: 14,
               ),
             ),
@@ -175,14 +169,16 @@ class CompactLoginReminder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(65, 65, 65, 1),
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color.fromRGBO(150, 130, 255, 0.3),
+          color: colorScheme.primary.withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -190,18 +186,17 @@ class CompactLoginReminder extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.info_outline,
-                color: Color.fromRGBO(150, 130, 255, 1),
+                color: colorScheme.primary,
                 size: 24,
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Sign in to access your Bible plans',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -214,14 +209,14 @@ class CompactLoginReminder extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () => _showLoginDialog(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromRGBO(150, 130, 255, 1),
-                foregroundColor: Colors.white,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text('Sign In'),
+              child: Text('Sign In', style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onPrimary)),
             ),
           ),
         ],
@@ -237,4 +232,7 @@ class CompactLoginReminder extends StatelessWidget {
     await Future.delayed(const Duration(milliseconds: 500));
     onLoginSuccess?.call();
   }
+
 }
+
+/// Compact login reminder for smaller spaces

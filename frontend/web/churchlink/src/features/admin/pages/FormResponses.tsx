@@ -112,8 +112,7 @@ const FormResponses = () => {
     title: string;
     description?: string;
     data?: any[];
-    defaultLocale?: string;
-    locales?: string[];
+    supported_locales?: string[];
   } | null>(null);
   const [userInfo, setUserInfo] = useState<Record<string, { name: string; email: string }>>({});
   const [loading, setLoading] = useState(false);
@@ -135,8 +134,7 @@ const FormResponses = () => {
           title: resp.data?.title || 'Form',
           description: resp.data?.description,
           data: resp.data?.data,
-          defaultLocale: resp.data?.defaultLocale || resp.data?.default_locale,
-          locales: resp.data?.locales,
+          supported_locales: resp.data?.supported_locales,
         };
         setFormMeta(meta);
       } catch (e) {

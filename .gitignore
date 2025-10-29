@@ -74,3 +74,4 @@ frontend/app/.env
 /venv/
 bearer.txt
 /frontend/web/churchlink/cypress/videos
+/frontend/web/churchlink/cypress/screenshots

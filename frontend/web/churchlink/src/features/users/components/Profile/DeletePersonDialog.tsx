@@ -9,6 +9,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Trash, Loader2 } from "lucide-react";
 import { PersonLite } from "@/shared/types/Person";
 import { deleteFamilyMember } from "@/helpers/UserHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type DeletePersonDialogProps = {
     person: PersonLite;
@@ -23,6 +24,7 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
     onDeleted,
     onDelete,
 }) => {
+    const localize = useLocalize();
     const [isOpen, setIsOpen] = React.useState(false);
     const [userInput, setUserInput] = React.useState("");
     const [isDeleting, setIsDeleting] = React.useState(false);
@@ -56,11 +58,11 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
                 onDeleted?.(person.id);
                 handleClose();
             } else {
-                throw new Error("Delete failed");
+                throw new Error(localize("Delete failed"));
             }
         } catch (err) {
             console.error(err);
-            alert("Could not delete this person. Please try again.");
+            alert(localize("Could not delete this person. Please try again."));
         } finally {
             setIsDeleting(false);
         }
@@ -73,7 +75,7 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
                     variant="outline"
                     size="icon"
                     className={["h-8 w-8 !bg-white border shadow-sm hover:bg-red-600/10", className].filter(Boolean).join(" ")}
-                    title="Delete person"
+                    title={localize("Delete person")}
                 >
                     <Trash className="h-4 w-4" />
                 </Button>
@@ -81,9 +83,9 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
 
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Delete Family Member</DialogTitle>
+                    <DialogTitle>{localize("Delete Family Member")}</DialogTitle>
                     <DialogDescription>
-                        This action cannot be undone. To confirm, type the full name:
+                        {localize("This action cannot be undone. To confirm, type the full name:")}
                         <br />
                         <span className="font-medium text-foreground">{fullName}</span>
                     </DialogDescription>
@@ -91,9 +93,9 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
 
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="confirm-delete">Deletion confirmation</Label>
+                        <Label htmlFor="confirm-delete">{localize("Deletion confirmation")}</Label>
                         <small className="text-gray-500 text-xs">
-                            Type <span className="font-medium">{fullName}</span> to confirm.
+                            {localize("Type")} <span className="font-medium">{fullName}</span> {localize("to confirm.")}
                         </small>
                         <Input
                             id="confirm-delete"
@@ -112,7 +114,7 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
                         onClick={handleClose}
                         disabled={isDeleting}
                     >
-                        Cancel
+                        {localize("Cancel")}
                     </Button>
 
                     <Button
@@ -124,10 +126,10 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
                         {isDeleting ? (
                             <>
                                 <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                                Deleting…
+                                {localize("Deleting…")}
                             </>
                         ) : (
-                            "Confirm Delete"
+                            localize("Confirm Delete")
                         )}
                     </Button>
                 </DialogFooter>

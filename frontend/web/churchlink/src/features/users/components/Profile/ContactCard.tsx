@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Card, CardHeader, CardContent, CardFooter } from "@/shared/components/ui/card";
 import { Separator } from "@/shared/components/ui/separator";
 import type { AddressSchema } from "@/shared/types/ProfileInfo";
+import { useLocalize, TranslationFunction } from "@/shared/utils/localizationUtils";
 
 type ContactCardProps = {
     phone: string | null;
@@ -17,9 +18,10 @@ export const ContactCard: React.FC<ContactCardProps> = ({
     className,
     footer,
 }) => {
-    const phoneDisplay = (phone ?? "").trim() || "—";
+    const localize = useLocalize();
+    const phoneDisplay = (phone ?? "").trim() || localize("—");
 
-    const addressLines = formatAddress(address);
+    const addressLines = formatAddress(address, localize);
 
     return (
         <motion.div
@@ -30,9 +32,9 @@ export const ContactCard: React.FC<ContactCardProps> = ({
             <Card className={["w-96 shadow-lg", className].filter(Boolean).join(" ")}>
                 <CardHeader className="flex flex-col items-center">
                     <h2 className="px-4 text-center text-xl font-semibold break-words">
-                        Contact Information
+                        {localize("Contact Information")}
                     </h2>
-                    <p className="text-center">If you wish, provide us with details we may contact you with.</p>
+                    <p className="text-center">{localize("If you wish, provide us with details we may contact you with.")}</p>
                 </CardHeader>
 
                 <CardContent>
@@ -41,13 +43,13 @@ export const ContactCard: React.FC<ContactCardProps> = ({
                         aria-disabled="true"
                     >
                         <dl className="cursor-not-allowed">
-                            <OverviewRow label="Phone" value={phoneDisplay} />
+                            <OverviewRow label={localize("Phone") } value={phoneDisplay} />
                             <Separator />
-                            <OverviewRow label="Address" value={addressLines[0]} />
+                            <OverviewRow label={localize("Address")} value={addressLines[0]} />
                             <Separator />
-                            <OverviewRow label="City / State" value={addressLines[1]} />
+                            <OverviewRow label={localize("City / State")} value={addressLines[1]} />
                             <Separator />
-                            <OverviewRow label="Country / Postal" value={addressLines[2]} />
+                            <OverviewRow label={localize("Country / Postal")} value={addressLines[2]} />
                         </dl>
                     </div>
                 </CardContent>
@@ -65,16 +67,17 @@ function OverviewRow({ label, value }: { label: string; value: string }) {
                 {label}
             </dt>
             <dd className="col-span-2 min-w-0 whitespace-normal break-all text-sm text-muted-foreground">
-                {value || "—"}
+                {value}
             </dd>
         </div>
     );
 }
 
-function formatAddress(addr?: AddressSchema | null): [string, string, string] {
-    if (!addr) return ["—", "—", "—"];
-    const l1 = [addr.address, addr.suite].filter(Boolean).join(", ") || "—";
-    const l2 = [addr.city, addr.state].filter(Boolean).join(", ") || "—";
-    const l3 = [addr.country, addr.postal_code].filter(Boolean).join(" ").trim() || "—";
+function formatAddress(addr: AddressSchema | null | undefined, localize: TranslationFunction): [string, string, string] {
+    const fallback = localize("—");
+    if (!addr) return [fallback, fallback, fallback];
+    const l1 = [addr.address, addr.suite].filter(Boolean).join(", ") || fallback;
+    const l2 = [addr.city, addr.state].filter(Boolean).join(", ") || fallback;
+    const l3 = [addr.country, addr.postal_code].filter(Boolean).join(" ").trim() || fallback;
     return [l1, l2, l3];
 }

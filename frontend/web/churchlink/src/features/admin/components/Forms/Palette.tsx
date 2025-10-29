@@ -22,17 +22,18 @@ const items = [
 export function Palette() {
   const addField = useBuilderStore((s) => s.addField);
   return (
-    <Card className="h-full">
+    <Card className="h-full flex flex-col">
       <CardHeader className="p-3 pb-2">
         <CardTitle>Palette</CardTitle>
       </CardHeader>
-      <CardContent className="p-3 pt-0 flex flex-col gap-2">
+      <CardContent className="p-3 pt-0 flex flex-col gap-2 flex-1 overflow-y-auto">
         {items.map((it) => (
           <Button
             key={it.type}
-            className="w-full justify-start"
+            className="w-full justify-start truncate"
             variant="secondary"
             onClick={() => addField(it.type as any)}
+            title={it.label}
           >
             {it.label}
           </Button>

@@ -10,11 +10,13 @@ import ProfileDropDown from "./ProfileDropDown";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import api from "@/api/api";
 import { ChevronDown } from "lucide-react";
+import { useLanguage } from "@/provider/LanguageProvider";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 // Define interfaces for header data types
 interface HeaderLink {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     url?: string;
     slug?: string;
     is_hardcoded_url?: boolean;
@@ -24,7 +26,7 @@ interface HeaderLink {
 
 interface HeaderDropdown {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     items: HeaderLink[];
     visible?: boolean;
     type?: string;
@@ -47,8 +49,8 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
     const { user } = useAuth();
     const navigate = useNavigate();
-
-    const is_russian = false;
+    const { locale } = useLanguage();
+    const localize = useLocalize();
 
     // Helper: normalize slug/url to a single leading slash path
     const normalizePath = (path?: string) => {
@@ -72,6 +74,23 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
         // Prefer slug when provided; otherwise fallback to url
         const target = item.slug ? normalizePath(item.slug) : (item.url ? normalizePath(item.url) : "/");
         navigate(target);
+    };
+
+    const getLabelFromTitles = (t?: Record<string, string>, fallback?: string) => {
+
+        const direct = t?.[locale];
+        if (direct && String(direct).trim()) return direct;
+
+
+        const base = (t?.en ?? fallback ?? "").toString();
+
+
+        if (locale && locale !== "en" && base) {
+            const translated = localize(base);
+            if (translated && String(translated).trim()) return translated;
+        }
+
+        return base;
     };
 
     useEffect(() => {
@@ -152,7 +171,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                                     className="text-white! font-medium text-[15px]! tracking-wide! hover:text-gray-300! transition-colors duration-200 font-[Montserrat]! bg-transparent border-none cursor-pointer"
                                     onClick={() => handleNavigation(item as HeaderLink)}
                                 >
-                                    {is_russian ? item.russian_title : item.title}
+                                    {getLabelFromTitles((item as any).titles, item.title)}
                                 </button>
                             ) : (
                                 <div
@@ -162,7 +181,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                                 >
                                     <div className="cursor-pointer flex items-center gap-1 text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! hover:text-gray-300! transition-colors duration-200">
                                         <span>
-                                            {is_russian ? item.russian_title : item.title}
+                                            {getLabelFromTitles((item as any).titles, item.title)}
                                         </span>
                                         <ChevronDown
                                             className={`h-4 w-4 transition-transform duration-200 ${activeDropdown === item.title ? "rotate-180" : ""}`}
@@ -184,7 +203,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                                                     onClick={() => handleNavigation(subItem)}
                                                     className="block w-full py-2 px-4 transition-colors duration-150 hover:bg-slate-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left whitespace-nowrap"
                                                 >
-                                                    {is_russian ? subItem.russian_title : subItem.title}
+                                                    {getLabelFromTitles((subItem as any).titles, subItem.title)}
                                                 </button>
                                             ))}
                                         </div>

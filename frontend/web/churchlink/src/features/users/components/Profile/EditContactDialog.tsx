@@ -13,6 +13,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Input } from "@/shared/components/ui/input";
 import type { ContactInfo, AddressSchema } from "@/shared/types/ProfileInfo";
 import { updateContactInfo } from "@/helpers/UserHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type EditContactDialogProps = {
     initialContact: ContactInfo;
@@ -30,6 +31,7 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
     const [open, setOpen] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+    const localize = useLocalize();
 
     const [phone, setPhone] = React.useState(safeStr(initialContact?.phone));
     const [address, setAddress] = React.useState<AddressSchema>({
@@ -89,22 +91,22 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                    {triggerLabel}
+                    {localize(triggerLabel)}
                 </Button>
             </DialogTrigger>
 
             <DialogContent className={["sm:max-w-lg", className].filter(Boolean).join(" ")}>
                 <DialogHeader>
-                    <DialogTitle>Update Contact Information</DialogTitle>
+                    <DialogTitle>{localize("Update Contact Information")}</DialogTitle>
                     <DialogDescription>
-                        All fields are optional. If you wish, provide us information to contact you with.
+                        {localize("All fields are optional. If you wish, provide us information to contact you with.")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6">
                     {/* Phone */}
                     <div className="space-y-2">
-                        <Label htmlFor="contact-phone">Phone</Label>
+                        <Label htmlFor="contact-phone">{localize("Phone")}</Label>
                         <Input
                             id="contact-phone"
                             value={phone}
@@ -112,18 +114,18 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
                             placeholder="(555) 555-1234"
                         />
                         <p className="text-sm text-muted-foreground">
-                            Provide a number we may reach you. Phone numbers are not verified for validity.
+                            {localize("Provide a number we may reach you. Phone numbers are not verified for validity.")}
                         </p>
                     </div>
 
                     {/* Address */}
                     <div className="space-y-2">
-                        <Label>Mailing Address</Label>
+                        <Label>{localize("Mailing Address")}</Label>
 
                         <div className="space-y-3">
                             <div className="space-y-1">
                                 <Label htmlFor="addr-line1" className="text-xs text-muted-foreground">
-                                    Address line
+                                    {localize("Address line")}
                                 </Label>
                                 <Input
                                     id="addr-line1"
@@ -136,7 +138,7 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div className="space-y-1 sm:col-span-1">
                                     <Label htmlFor="addr-suite" className="text-xs text-muted-foreground">
-                                        Apt / Suite
+                                        {localize("Apt / Suite")}
                                     </Label>
                                     <Input
                                         id="addr-suite"
@@ -147,7 +149,7 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
                                 </div>
                                 <div className="space-y-1 sm:col-span-1">
                                     <Label htmlFor="addr-city" className="text-xs text-muted-foreground">
-                                        City
+                                        {localize("City")}
                                     </Label>
                                     <Input
                                         id="addr-city"
@@ -158,7 +160,7 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
                                 </div>
                                 <div className="space-y-1 sm:col-span-1">
                                     <Label htmlFor="addr-state" className="text-xs text-muted-foreground">
-                                        State / Region
+                                        {localize("State / Region")}
                                     </Label>
                                     <Input
                                         id="addr-state"
@@ -172,7 +174,7 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div className="space-y-1 sm:col-span-1">
                                     <Label htmlFor="addr-country" className="text-xs text-muted-foreground">
-                                        Country
+                                        {localize("Country")}
                                     </Label>
                                     <Input
                                         id="addr-country"
@@ -183,7 +185,7 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
                                 </div>
                                 <div className="space-y-1 sm:col-span-1">
                                     <Label htmlFor="addr-postal" className="text-xs text-muted-foreground">
-                                        Postal code
+                                        {localize("Postal code")}
                                     </Label>
                                     <Input
                                         id="addr-postal"
@@ -207,7 +209,7 @@ export const EditContactDialog: React.FC<EditContactDialogProps> = ({
 
                 <DialogFooter>
                     <Button type="button" onClick={handleSave} disabled={saving}>
-                        {saving ? "Saving..." : "Save changes"}
+                        {saving ? localize("Saving...") : localize("Save changes")}
                     </Button>
                 </DialogFooter>
             </DialogContent>

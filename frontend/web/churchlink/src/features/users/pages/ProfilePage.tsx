@@ -25,6 +25,7 @@ import MembershipCard from "../components/Profile/MembershipCard";
 import MembershipRequestDialog from "../components/Profile/MembershipRequestDialog";
 import { readMembershipDetails } from "@/helpers/MembershipHelper";
 import type { MembershipDetails } from "@/shared/types/MembershipRequests";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
@@ -40,6 +41,7 @@ const toPersonInfo = (p: ProfileInfo): EditPersonInfo => ({
 });
 
 const ProfilePage: React.FC = () => {
+    const localize = useLocalize();
     const [loading, setLoading] = React.useState(true);
     const [profile, setProfile] = React.useState<ProfileInfo | null>(null);
     const [contact, setContact] = React.useState<ContactInfo | null>(null);
@@ -128,21 +130,21 @@ const ProfilePage: React.FC = () => {
                                     className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
                                     <UserCog className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    Profile
+                                    {localize("Profile")}
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="membership"
                                     className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
                                     <IdCard className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    Membership
+                                    {localize("Membership")}
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="events"
                                     className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
                                 >
                                     <CalendarDays className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    My Events
+                                    {localize("My Events")}
                                 </TabsTrigger>
                             </TabsList>
                         </motion.div>
@@ -189,7 +191,7 @@ const ProfilePage: React.FC = () => {
                         </motion.div>
                     </TabsContent>
 
-                    <TabsContent value="membership" className="min-h-[60vh]">
+                    <TabsContent value="membership" className="min-h-[calc(100svh-280px)] pb-8 sm:pb-12">
                         <motion.div
                             className="flex justify-center"
                             initial={{ opacity: 0 }}

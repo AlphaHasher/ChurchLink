@@ -23,9 +23,6 @@ from mongo.scheduled_notifications import scheduled_notification_loop
 
 from helpers.youtubeHelper import YoutubeHelper
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
-import asyncio
-import os
-import logging
 
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
@@ -61,11 +58,10 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
+from routes.form_routes.form_translations_routes import form_translations_router
 from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
@@ -80,6 +76,22 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+def validate_e2e_mode():
+    if not E2E_TEST_MODE:
+        return
+    logger.warning("E2E_TEST_MODE enabled")
+    
+    # This is a big no-no if test mode + production
+    if ENVIRONMENT == "production":
+        logger.critical("FATAL: E2E_TEST_MODE enabled in production - authentication bypassed!")
+        logger.critical("Set E2E_TEST_MODE=false and restart immediately.")
+        sys.exit(1)
+    
+validate_e2e_mode()
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
@@ -128,6 +140,31 @@ async def lifespan(app: FastAPI):
         logger.info("Connecting to MongoDB...")
         await DatabaseManager.init_db()
         logger.info("MongoDB connected")
+
+        # Run one-time migration to update header/footer items titles
+        try:
+            from datetime import datetime, timezone
+            from scripts.header_footer_titles_migration import run_header_footer_titles_migration
+
+            migrations_coll = DatabaseManager.db["migrations"]
+            existing = await migrations_coll.find_one({
+                "name": "header_footer_titles",
+                "completed_at": {"$exists": True}
+            })
+
+            if existing:
+                logger.info("Skipping header/footer titles migration; already completed previously")
+            else:
+                logger.info("Running header/footer titles migration (non-blocking for startup)")
+                await run_header_footer_titles_migration()
+                await migrations_coll.update_one(
+                    {"name": "header_footer_titles"},
+                    {"$set": {"name": "header_footer_titles", "completed_at": datetime.now(timezone.utc).isoformat()}},
+                    upsert=True,
+                )
+                logger.info("Header/footer titles migration completed and recorded")
+        except Exception as e:
+            logger.error(f"Header/footer titles migration failed; will retry next startup. Error: {e}")
 
         if not BYPASS_FIREBASE_SYNC:
             logger.info("Running initial Firebase -> Mongo sync")
@@ -246,6 +283,7 @@ mod_router = ModProtectedRouter(prefix="/api/v1")
 
 mod_router.include_router(mod_bible_plan_router)
 mod_router.include_router(mod_forms_router)
+mod_router.include_router(form_translations_router)
 mod_router.include_router(mod_ministry_router)
 mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)
@@ -256,7 +294,6 @@ mod_router.include_router(app_config_private_router)
 mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
-mod_router.include_router(mod_ministry_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions

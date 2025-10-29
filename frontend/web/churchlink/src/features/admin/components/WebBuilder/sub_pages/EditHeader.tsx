@@ -1,5 +1,5 @@
 // EditHeader.tsx - Updated to batch changes
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -44,10 +44,14 @@ import {
 } from "@/shared/components/ui/alert-dialog";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import { ExternalLink } from "lucide-react";
+import { useLanguage } from "@/provider/LanguageProvider";
+import { AddLocaleDialog, collectTitles, translateMissingStrings } from "@/shared/utils/localizationUtils";
+import LocaleSelect from "@/shared/components/LocaleSelect";
+
 
 interface HeaderLink {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     url?: string;
     slug?: string;
     is_hardcoded_url?: boolean;
@@ -56,7 +60,7 @@ interface HeaderLink {
 
 interface HeaderDropdown {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     items: HeaderLink[];
     visible?: boolean;
 }
@@ -157,6 +161,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [originalHeader, setOriginalHeader] = useState<Header | null>(null);
     const [header, setHeader] = useState<Header | null>(null);
     const [loading, setLoading] = useState(true);
+    const [translationLoading, setTranslationLoading] = useState(false);
     const [pendingChanges, setPendingChanges] = useState<PendingChanges>({
         visibility: {}
     });
@@ -171,17 +176,14 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
     // For simple links
     const [newLinkTitle, setNewLinkTitle] = useState("");
-    const [newLinkRussianTitle, setNewLinkRussianTitle] = useState("");
     const [newLinkSlug, setNewLinkSlug] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
     const [newLinkIsHardcoded, setNewLinkIsHardcoded] = useState(false);
 
     // For dropdowns
     const [newDropdownTitle, setNewDropdownTitle] = useState("");
-    const [newDropdownRussianTitle, setNewDropdownRussianTitle] = useState("");
     const [dropdownLinks, setDropdownLinks] = useState<HeaderLink[]>([]);
     const [tempLinkTitle, setTempLinkTitle] = useState("");
-    const [tempLinkRussianTitle, setTempLinkRussianTitle] = useState("");
     const [tempLinkSlug, setTempLinkSlug] = useState("");
     const [tempLinkUrl, setTempLinkUrl] = useState("");
     const [tempLinkIsHardcoded, setTempLinkIsHardcoded] = useState(false);
@@ -189,13 +191,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     // For editing
     const [editingItem, setEditingItem] = useState<HeaderItem | null>(null);
     const [editTitle, setEditTitle] = useState("");
-    const [editRussianTitle, setEditRussianTitle] = useState("");
+    const [editPlaceholder, setEditPlaceholder] = useState("");
     const [editSlug, setEditSlug] = useState("");
     const [editUrl, setEditUrl] = useState("");
     const [editIsHardcoded, setEditIsHardcoded] = useState(false);
     const [editDropdownItems, setEditDropdownItems] = useState<LinkItem[]>([]);
     const [editTempLinkTitle, setEditTempLinkTitle] = useState("");
-    const [editTempLinkRussianTitle, setEditTempLinkRussianTitle] = useState("");
     const [editTempLinkSlug, setEditTempLinkSlug] = useState("");
     const [editTempLinkUrl, setEditTempLinkUrl] = useState("");
     const [editTempLinkIsHardcoded, setEditTempLinkIsHardcoded] = useState(false);
@@ -204,12 +205,121 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     // Pages for dropdown
     const [pages, setPages] = useState<Page[]>([]);
 
+    // Locales management for header labels
+    const { languages, setLocale } = useLanguage();
+    const [addLocaleOpen, setAddLocaleOpen] = useState(false);
+    const [headerLocale, setHeaderLocale] = useState<string>('en');
+    const [availableLocales, setAvailableLocales] = useState<string[]>(['en']);
+    const [translationCache, setTranslationCache] = useState<Record<string, Record<string, string>>>({});
+
     const sensors = useSensors(useSensor(PointerSensor));
 
+
+    const localeOptions = useMemo(() => {
+        const localeSet = new Set<string>(availableLocales && availableLocales.length ? availableLocales : ['en']);
+        if (header?.items) {
+            header.items.forEach(item => {
+                if (item.titles) {
+                    Object.keys(item.titles).forEach(code => localeSet.add(code));
+                }
+                if ('items' in item && Array.isArray(item.items)) {
+                    item.items.forEach((subItem: any) => {
+                        if (subItem.titles) {
+                            Object.keys(subItem.titles).forEach(code => localeSet.add(code));
+                        }
+                    });
+                }
+            });
+        }
+        return Array.from(localeSet);
+    }, [availableLocales, header]);
+
+    // Default static public routes (no wildcard params)
+    const defaultPublicRoutes = useMemo(
+        () => [
+            { slug: "live", title: "Live" },
+            { slug: "thank-you", title: "Thank You" },
+            { slug: "sermons", title: "Sermons" },
+            { slug: "weekly-bulletin", title: "Weekly Bulletin" },
+        ],
+        []
+    );
+
+    // Combine static routes with CMS pages; exclude any routes with wildcard params
+    const combinedPageOptions = useMemo(() => {
+        const options: { slug: string; title: string }[] = [];
+        const seen = new Set<string>();
+
+        // Add defaults first
+        for (const r of defaultPublicRoutes) {
+            if (!r.slug.includes(":")) {
+                options.push({ slug: r.slug, title: r.title });
+                seen.add(r.slug);
+            }
+        }
+
+        // Add default pages
+        for (const p of pages) {
+            if (p?.slug && !p.slug.includes(":")) {
+                if (!seen.has(p.slug)) {
+                    options.push({ slug: p.slug, title: p.title });
+                    seen.add(p.slug);
+                }
+            }
+        }
+
+        return options;
+    }, [pages, defaultPublicRoutes]);
+
     useEffect(() => {
-        fetchHeader();
-        fetchPages();
+        void fetchHeader();
+        void fetchLocales();
+        void fetchPages();
     }, []);
+
+    const fetchLocales = async () => {
+        try {
+            const response = await api.get("/v1/header/locales");
+            const locales = response?.data?.locales;
+            if (Array.isArray(locales) && locales.length) {
+                setAvailableLocales(locales);
+                if (!locales.includes(headerLocale)) {
+                    setHeaderLocale(locales[0] || 'en');
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching header locales:", error);
+        }
+    };
+
+    const ensureLocaleTranslations = useCallback(async (localeCode: string) => {
+        if (!localeCode || localeCode === 'en') return;
+        if (!header?.items?.length) return;
+
+        const englishStrings = collectTitles(header.items as any);
+        const cached = translationCache[localeCode] || {};
+        const translated = await translateMissingStrings(englishStrings, localeCode, cached);
+        if (translated === cached) return;
+        setTranslationCache((prev) => ({
+            ...prev,
+            [localeCode]: translated,
+        }));
+    }, [header?.items, translationCache]);
+
+    useEffect(() => {
+        if (!header?.items?.length) return;
+        if (headerLocale === 'en') return;
+        void ensureLocaleTranslations(headerLocale);
+    }, [headerLocale, header?.items, ensureLocaleTranslations]);
+
+    const getDisplayTitle = useCallback((item: HeaderItem): string => {
+        const english = item.titles?.en || item.title;
+        if (headerLocale === 'en') return english || item.title;
+        const saved = item.titles?.[headerLocale];
+        if (saved) return saved;
+        if (!english) return item.title;
+        return translationCache[headerLocale]?.[english] || english;
+    }, [headerLocale, translationCache]);
 
     const fetchPages = async () => {
         try {
@@ -337,8 +447,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     // Modal functions
     const handleAddLink = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newLinkTitle || !newLinkRussianTitle) {
-            toast.error("Title and Russian title are required");
+        if (!newLinkTitle) {
+            toast.error("Title is required");
             return;
         }
 
@@ -355,7 +465,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         try {
             const linkData: any = {
                 "title": newLinkTitle,
-                "russian_title": newLinkRussianTitle,
+                "titles": { en: newLinkTitle },
                 "is_hardcoded_url": newLinkIsHardcoded,
                 "visible": false,
             };
@@ -373,7 +483,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 toast.success("Link added successfully!");
                 // Reset form
                 setNewLinkTitle("");
-                setNewLinkRussianTitle("");
                 setNewLinkSlug("");
                 setNewLinkUrl("");
                 setNewLinkIsHardcoded(false);
@@ -404,16 +513,19 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             return;
         }
 
-        if (!newDropdownRussianTitle) {
-            toast.error("Dropdown russian title is required");
-            return;
-        }
-
         try {
+            const processedLinks = dropdownLinks.map((l) => ({
+                title: l.title,
+                titles: l.titles && l.titles.en ? l.titles : { en: l.title },
+                is_hardcoded_url: !!l.is_hardcoded_url,
+                url: l.is_hardcoded_url ? l.url : undefined,
+                slug: l.is_hardcoded_url ? undefined : l.slug,
+                visible: l.visible !== false,
+            }));
             const res = await api.post("/v1/header/items/dropdowns", {
                 "title": newDropdownTitle,
-                "russian_title": newDropdownRussianTitle,
-                "items": dropdownLinks,
+                "titles": { en: newDropdownTitle },
+                "items": processedLinks,
                 "visible": false,
             });
             
@@ -422,7 +534,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 toast.success("Dropdown added successfully!");
                 // Reset form
                 setNewDropdownTitle("");
-                setNewDropdownRussianTitle("");
                 setDropdownLinks([]);
                 setIsAddModalOpen(false);
                 // Refresh header data
@@ -446,8 +557,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
     const handleAddDropdownLink = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!tempLinkTitle || !tempLinkRussianTitle) {
-            toast.error("Link title and Russian title are required");
+        if (!tempLinkTitle) {
+            toast.error("Link title is required");
             return;
         }
 
@@ -463,7 +574,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
         const linkData: HeaderLink = {
             title: tempLinkTitle,
-            russian_title: tempLinkRussianTitle,
+            titles: { en: tempLinkTitle },
             is_hardcoded_url: tempLinkIsHardcoded,
             visible: true,
         };
@@ -476,7 +587,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
         setDropdownLinks([...dropdownLinks, linkData]);
         setTempLinkTitle("");
-        setTempLinkRussianTitle("");
         setTempLinkSlug("");
         setTempLinkUrl("");
         setTempLinkIsHardcoded(false);
@@ -489,8 +599,18 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     // Edit functions
     const handleEditItem = (item: HeaderItem) => {
         setEditingItem(item);
-        setEditTitle(item.title);
-        setEditRussianTitle(item.russian_title);
+        const english = (item as any)?.titles?.en || item.title;
+        const savedLocaleValue = (item as any)?.titles?.[headerLocale];
+        if (headerLocale === 'en') {
+            setEditTitle(english || item.title);
+            setEditPlaceholder(english || item.title);
+        } else if (savedLocaleValue && String(savedLocaleValue).trim()) {
+            setEditTitle(savedLocaleValue);
+            setEditPlaceholder(savedLocaleValue);
+        } else {
+            setEditTitle("");
+            setEditPlaceholder(translationCache[headerLocale]?.[english] || english || item.title);
+        }
 
         if ('url' in item) {
             setEditSlug(item.slug || "");
@@ -512,15 +632,20 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
         if (!editingItem) return;
 
-        if (!editTitle || !editRussianTitle) {
-            toast.error("Title and Russian title are required");
+        if (!editTitle) {
+            toast.error("Title is required");
             return;
         }
 
         try {
+            const existingTitles = ((editingItem as any)?.titles || {}) as Record<string, string>;
+            const nextTitles: Record<string, string> = { ...existingTitles };
+            const localeKey = headerLocale === 'en' ? 'en' : headerLocale;
+            nextTitles[localeKey] = editTitle;
+
             const updatedItem: any = {
-                title: editTitle,
-                russian_title: editRussianTitle,
+                title: headerLocale === 'en' ? editTitle : editingItem.title,
+                titles: nextTitles,
             };
 
             if ('url' in editingItem) {
@@ -539,7 +664,22 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                     updatedItem.slug = editSlug;
                 }
             } else if ('items' in editingItem) {
-                updatedItem.items = editDropdownItems;
+                updatedItem.items = editDropdownItems.map((sub, idx) => {
+                    const original = (editingItem as any).items?.[idx];
+                    const baseTitles = ((original?.titles || (sub as any).titles) || {}) as Record<string, string>;
+                    const newTitles: Record<string, string> = { ...baseTitles };
+                    const subLocaleKey = headerLocale === 'en' ? 'en' : headerLocale;
+                    newTitles[subLocaleKey] = sub.title;
+                    return {
+                        title: headerLocale === 'en' ? sub.title : (original?.title ?? sub.title),
+                        titles: newTitles,
+                        is_hardcoded_url: !!(sub as any).is_hardcoded_url,
+                        url: (sub as any).is_hardcoded_url ? (sub as any).url : undefined,
+                        slug: (sub as any).is_hardcoded_url ? undefined : (sub as any).slug,
+                        visible: (sub as any).visible !== false,
+                        type: "link",
+                    } as any;
+                });
             }
 
             const response = await api.put(`/v1/header/items/edit/${editingItem.title}`, updatedItem);
@@ -570,8 +710,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const handleEditAddDropdownItem = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!editTempLinkTitle || !editTempLinkRussianTitle) {
-            toast.error("Link title and Russian title are required");
+        if (!editTempLinkTitle) {
+            toast.error("Link title is required");
             return;
         }
 
@@ -587,7 +727,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
         const linkData: any = {
             title: editTempLinkTitle,
-            russian_title: editTempLinkRussianTitle,
+            titles: { en: editTempLinkTitle },
             is_hardcoded_url: editTempLinkIsHardcoded,
             visible: true,
             type: "link"
@@ -612,7 +752,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
         // Reset form fields
         setEditTempLinkTitle("");
-        setEditTempLinkRussianTitle("");
         setEditTempLinkSlug("");
         setEditTempLinkUrl("");
         setEditTempLinkIsHardcoded(false);
@@ -621,7 +760,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const handleEditDropdownItem = (index: number) => {
         const item = editDropdownItems[index];
         setEditTempLinkTitle(item.title);
-        setEditTempLinkRussianTitle(item.russian_title);
         setEditTempLinkSlug(item.slug || "");
         setEditTempLinkUrl(item.url || "");
         setEditTempLinkIsHardcoded(item.is_hardcoded_url || false);
@@ -633,7 +771,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         // If we were editing this item, reset the form
         if (editingDropdownIndex === index) {
             setEditTempLinkTitle("");
-            setEditTempLinkRussianTitle("");
             setEditTempLinkUrl("");
             setEditingDropdownIndex(null);
         }
@@ -641,7 +778,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
     const cancelEditingDropdownItem = () => {
         setEditTempLinkTitle("");
-        setEditTempLinkRussianTitle("");
         setEditTempLinkSlug("");
         setEditTempLinkUrl("");
         setEditTempLinkIsHardcoded(false);
@@ -655,6 +791,46 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle>Edit Header Navigation</CardTitle>
+                    <div className="flex items-center gap-2">
+                        <LocaleSelect
+                            value={headerLocale}
+                            locales={localeOptions}
+                            languages={languages}
+                            isBusy={translationLoading}
+                            onChange={async (val) => {
+                                if (val === headerLocale) return;
+                                setTranslationLoading(true);
+                                try {
+                                    await ensureLocaleTranslations(val);
+                                    setHeaderLocale(val);
+                                    setLocale(val);
+                                } finally {
+                                    setTranslationLoading(false);
+                                }
+                            }}
+                        />
+                        <AddLocaleDialog
+                            open={addLocaleOpen}
+                            onOpenChange={setAddLocaleOpen}
+                            siteLocales={localeOptions || ['en']}
+                            onAddLocale={async (code: string) => {
+                                setTranslationLoading(true);
+                                try {
+                                    await api.post("/v1/header/locales", { code });
+                                    await fetchLocales();
+                                    await ensureLocaleTranslations(code);
+                                    setHeaderLocale(code);
+                                    setLocale(code);
+                                    toast.success(`Locale "${code}" added for header`);
+                                } catch (error) {
+                                    console.error('Error adding locale:', error);
+                                    toast.error(`Failed to add locale "${code}"`);
+                                } finally {
+                                    setTranslationLoading(false);
+                                }
+                            }}
+                        />
+                    </div>
                     <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                         <DialogTrigger asChild>
                             <Button variant="default">
@@ -706,14 +882,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                             onChange={(e) => setNewLinkTitle(e.target.value)}
                                             required
                                         />
-                                        <Input
-                                            type="text"
-                                            placeholder="Russian Title"
-                                            className="placeholder:text-muted-foreground/70"
-                                            value={newLinkRussianTitle}
-                                            onChange={(e) => setNewLinkRussianTitle(e.target.value)}
-                                            required
-                                        />
                                         <div className="space-y-4">
                                             <div className="flex items-center space-x-2">
                                                 <Checkbox
@@ -743,9 +911,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                         <SelectValue placeholder="Select a page" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {pages.map((page) => (
-                                                            <SelectItem key={page._id} value={page.slug}>
-                                                                {page.title}
+                                                        {combinedPageOptions.map((opt) => (
+                                                            <SelectItem key={`opt-${opt.slug}`} value={opt.slug}>
+                                                                {opt.title.charAt(0).toUpperCase() + opt.title.slice(1)}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -766,14 +934,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                             className="placeholder:text-muted-foreground/70"
                                             value={newDropdownTitle}
                                             onChange={(e) => setNewDropdownTitle(e.target.value)}
-                                            required
-                                        />
-                                        <Input
-                                            type="text"
-                                            placeholder="Russian Title"
-                                            className="placeholder:text-muted-foreground/70"
-                                            value={newDropdownRussianTitle}
-                                            onChange={(e) => setNewDropdownRussianTitle(e.target.value)}
                                             required
                                         />
                                         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -826,13 +986,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                         value={tempLinkTitle}
                                                         onChange={(e) => setTempLinkTitle(e.target.value)}
                                                     />
-                                                    <Input
-                                                        type="text"
-                                                        placeholder="Russian Title"
-                                                        className="placeholder:text-muted-foreground/70"
-                                                        value={tempLinkRussianTitle}
-                                                        onChange={(e) => setTempLinkRussianTitle(e.target.value)}
-                                                    />
                                                     <div className="space-y-2">
                                                         <div className="flex items-center space-x-2">
                                                             <Checkbox
@@ -861,9 +1014,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                                     <SelectValue placeholder="Select a page" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {pages.map((page) => (
-                                                                        <SelectItem key={page._id} value={page.slug}>
-                                                                            {page.title}
+                                                                    {combinedPageOptions.map((opt) => (
+                                                                        <SelectItem key={`opt-${opt.slug}`} value={opt.slug}>
+                                                                            {opt.title.charAt(0).toUpperCase() + opt.title.slice(1)}
                                                                         </SelectItem>
                                                                     ))}
                                                                 </SelectContent>
@@ -905,18 +1058,10 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                             <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
                                 <Input
                                     type="text"
-                                    placeholder="Title"
+                                    placeholder={editPlaceholder || "Title"}
                                     className="placeholder:text-muted-foreground/70"
                                     value={editTitle}
                                     onChange={(e) => setEditTitle(e.target.value)}
-                                    required
-                                />
-                                <Input
-                                    type="text"
-                                    placeholder="Russian Title"
-                                    className="placeholder:text-muted-foreground/70"
-                                    value={editRussianTitle}
-                                    onChange={(e) => setEditRussianTitle(e.target.value)}
                                     required
                                 />
 
@@ -950,9 +1095,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     <SelectValue placeholder="Select a page" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {pages.map((page) => (
-                                                        <SelectItem key={page._id} value={page.slug}>
-                                                            {page.title}
+                                                    {combinedPageOptions.map((opt) => (
+                                                        <SelectItem key={`opt-${opt.slug}`} value={opt.slug}>
+                                                            {opt.title.charAt(0).toUpperCase() + opt.title.slice(1)}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -1024,12 +1169,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     value={editTempLinkTitle}
                                                     onChange={(e) => setEditTempLinkTitle(e.target.value)}
                                                 />
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Russian Title"
-                                                    value={editTempLinkRussianTitle}
-                                                    onChange={(e) => setEditTempLinkRussianTitle(e.target.value)}
-                                                />
                                                 <div className="space-y-2">
                                                     <div className="flex items-center space-x-2">
                                                         <Checkbox
@@ -1058,9 +1197,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                                 <SelectValue placeholder="Select a page" />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                {pages.map((page) => (
-                                                                    <SelectItem key={page._id} value={page.slug}>
-                                                                        {page.title}
+                                                                {combinedPageOptions.map((opt) => (
+                                                                    <SelectItem key={`opt-${opt.slug}`} value={opt.slug}>
+                                                                        {opt.title.charAt(0).toUpperCase() + opt.title.slice(1)}
                                                                     </SelectItem>
                                                                 ))}
                                                             </SelectContent>
@@ -1142,7 +1281,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                         <li className="flex justify-between items-center p-2">
                                             <div className="flex flex-1">
                                                 <div>
-                                                    <span className="font-medium">{item.title}</span>
+                                                    <span className="font-medium">
+                                                        {getDisplayTitle(item as HeaderItem)}
+                                                    </span>
                                                     {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
@@ -1159,7 +1300,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                             href = link.url as string;
                                                         } else if (link.slug) {
                                                             let p = link.slug as string;
-                                                            if (p === "home" || p === "") p = "/";
+                                                            if (p === "Home" || p === "") p = "/";
                                                             if (!p.startsWith("/")) p = `/${p}`;
                                                             p = p.replace(/^\/+/, "/");
                                                             href = p;
