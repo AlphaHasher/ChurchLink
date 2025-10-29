@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP, getcontext
 from mongo.database import DB
 from bson import ObjectId
 from pymongo import ReturnDocument
@@ -8,6 +9,9 @@ import logging
 import traceback
 from helpers.MongoHelper import generate_unique_id
 from .transaction import RefundStatus, PaymentStatus
+
+# Set decimal precision for financial calculations
+getcontext().prec = 28
 
 # Note: RefundRequestStatus is deprecated - use RefundStatus directly
 
@@ -24,11 +28,11 @@ class RefundRequest(BaseModel):
     
     # Payment details
     transaction_id: Optional[str] = Field(None, description="Original PayPal transaction ID")
-    payment_amount: float = Field(..., description="Amount to be refunded")
-    original_amount: Optional[float] = Field(None, description="Original payment amount for reference")
+    payment_amount: Decimal = Field(..., description="Amount to be refunded")
+    original_amount: Optional[Decimal] = Field(None, description="Original payment amount for reference")
     refund_type: str = Field(default="full", description="Type of refund: 'full', 'partial', 'per_person'")
-    requested_amount: Optional[float] = Field(None, description="Specific amount requested for partial refunds")
-    maximum_refundable: Optional[float] = Field(None, description="Maximum amount that can be refunded")
+    requested_amount: Optional[Decimal] = Field(None, description="Specific amount requested for partial refunds")
+    maximum_refundable: Optional[Decimal] = Field(None, description="Maximum amount that can be refunded")
     payment_method: str = Field(default="paypal", description="Original payment method")
     
     # Request details
@@ -56,6 +60,31 @@ class RefundRequest(BaseModel):
     # Additional metadata
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional request metadata")
     
+    @field_validator('payment_amount', 'original_amount', 'requested_amount', 'maximum_refundable')
+    @classmethod
+    def validate_amounts(cls, v):
+        """Ensure amounts are properly converted to Decimal with currency precision"""
+        if v is None:
+            return None
+        if isinstance(v, (int, float, str)):
+            try:
+                # Convert to Decimal with 2 decimal places for currency
+                decimal_value = Decimal(str(v)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                # Ensure non-negative for financial amounts
+                if decimal_value < 0:
+                    raise ValueError(f"Amount cannot be negative: {v}")
+                return decimal_value
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid amount: {v}. Must be a valid non-negative number")
+        elif isinstance(v, Decimal):
+            # Ensure 2 decimal places for currency and non-negative
+            quantized = v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if quantized < 0:
+                raise ValueError(f"Amount cannot be negative: {v}")
+            return quantized
+        else:
+            raise ValueError(f"Invalid amount type: {type(v)}. Must be numeric")
+    
     def get_proof_image_id(self) -> Optional[str]:
         """Get the proof image ID for asset lookup"""
         return self.manual_refund_proof_image_id
@@ -67,19 +96,63 @@ class RefundRequestCreate(BaseModel):
     reason: str
     user_notes: Optional[str] = None
     refund_type: str = Field(default="full", description="Type of refund: 'full', 'partial', 'per_person'")
-    requested_amount: Optional[float] = Field(None, description="Specific amount for partial refunds")
+    requested_amount: Optional[Decimal] = Field(None, description="Specific amount for partial refunds")
+    
+    @field_validator('requested_amount')
+    @classmethod
+    def validate_requested_amount(cls, v):
+        """Ensure requested amount is properly converted to Decimal"""
+        if v is None:
+            return None
+        if isinstance(v, (int, float, str)):
+            try:
+                decimal_value = Decimal(str(v)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                if decimal_value < 0:
+                    raise ValueError(f"Requested amount cannot be negative: {v}")
+                return decimal_value
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid requested amount: {v}")
+        elif isinstance(v, Decimal):
+            quantized = v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if quantized < 0:
+                raise ValueError(f"Requested amount cannot be negative: {v}")
+            return quantized
+        else:
+            raise ValueError(f"Invalid requested amount type: {type(v)}")
 
 class RefundRequestUpdate(BaseModel):
     status: Optional[str] = None
     admin_notes: Optional[str] = None
-    payment_amount: Optional[float] = None  # For updating to partial refund amount
-    original_amount: Optional[float] = None  # Store original amount for reference
+    payment_amount: Optional[Decimal] = None  # For updating to partial refund amount
+    original_amount: Optional[Decimal] = None  # Store original amount for reference
     refund_type: Optional[str] = None  # Update refund type (full/partial)
     paypal_refund_id: Optional[str] = None
     paypal_refund_status: Optional[str] = None
     processed_by: Optional[str] = None
     manual_refund_method: Optional[str] = None
     manual_refund_proof_image_id: Optional[str] = None
+    
+    @field_validator('payment_amount', 'original_amount')
+    @classmethod
+    def validate_update_amounts(cls, v):
+        """Ensure update amounts are properly converted to Decimal"""
+        if v is None:
+            return None
+        if isinstance(v, (int, float, str)):
+            try:
+                decimal_value = Decimal(str(v)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                if decimal_value < 0:
+                    raise ValueError(f"Amount cannot be negative: {v}")
+                return decimal_value
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid amount: {v}")
+        elif isinstance(v, Decimal):
+            quantized = v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if quantized < 0:
+                raise ValueError(f"Amount cannot be negative: {v}")
+            return quantized
+        else:
+            raise ValueError(f"Invalid amount type: {type(v)}")
 
 class RefundRequestOut(RefundRequest):
     proof_url: Optional[str] = Field(None, description="Public URL for proof image if available")
@@ -163,8 +236,8 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
         
         
         
-        # Calculate refund amount based on refund type
-        total_transaction_amount = transaction.get("amount", 0.0)
+        # Calculate refund amount based on refund type using Decimal for precision
+        total_transaction_amount = Decimal(str(transaction.get("amount", 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         per_person_amount = total_transaction_amount
         requested_refund_amount = request_data.requested_amount
         maximum_refundable = total_transaction_amount
@@ -175,7 +248,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             # Use registration_count from metadata if available
             registration_count = metadata.get("registration_count")
             if registration_count and registration_count > 0:
-                per_person_amount = total_transaction_amount / registration_count
+                per_person_amount = (total_transaction_amount / Decimal(str(registration_count))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 maximum_refundable = per_person_amount  # For bulk, max is per-person amount
                 logging.info(f"Bulk registration detected. Total: ${total_transaction_amount}, Count: {registration_count}, Per person: ${per_person_amount}")
             else:
@@ -187,13 +260,14 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                         user_attendees = [att for att in attendees if att.get("user_uid") == user_uid]
                     
                     if len(user_attendees) > 0:
-                        per_person_amount = total_transaction_amount / len(user_attendees)
+                        per_person_amount = (total_transaction_amount / Decimal(str(len(user_attendees)))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                         maximum_refundable = per_person_amount
                         logging.info(f"Using attendee count fallback. Total: ${total_transaction_amount}, Attendees: {len(user_attendees)}, Per person: ${per_person_amount}")
                 except Exception as e:
                     logging.error(f"Failed to calculate per-person amount using attendee count: {e}")
                     # Use event price as final fallback
-                    per_person_amount = event.get("price", total_transaction_amount)
+                    event_price = Decimal(str(event.get("price", total_transaction_amount))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    per_person_amount = event_price
                     maximum_refundable = per_person_amount
                     logging.info(f"Using event price as fallback: ${per_person_amount}")
 
@@ -230,11 +304,15 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                 "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
             }).to_list(length=None)
             
-            total_existing_refund_amount = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
+            total_existing_refund_amount = sum(
+                Decimal(str(refund.get("payment_amount", 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) 
+                for refund in existing_refunds
+            )
             logging.info(f"Transaction {transaction.get('transaction_id')}: Found {len(existing_refunds)} existing refunds totaling ${total_existing_refund_amount}")
             
             if total_existing_refund_amount + final_refund_amount > total_transaction_amount:
-                logging.error(f"Refund validation failed for transaction {transaction.get('transaction_id')}: Total refunds (${total_existing_refund_amount} + ${final_refund_amount} = ${total_existing_refund_amount + final_refund_amount}) would exceed transaction amount (${total_transaction_amount})")
+                total_attempted = total_existing_refund_amount + final_refund_amount
+                logging.error(f"Refund validation failed for transaction {transaction.get('transaction_id')}: Total refunds (${total_existing_refund_amount} + ${final_refund_amount} = ${total_attempted}) would exceed transaction amount (${total_transaction_amount})")
                 return None
         else:
             # For individual registrations OR parent-child system (bulk_child), validate per-transaction
@@ -245,11 +323,15 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                 "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
             }).to_list(length=None)
             
-            total_existing_refund_amount = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
+            total_existing_refund_amount = sum(
+                Decimal(str(refund.get("payment_amount", 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) 
+                for refund in existing_refunds
+            )
             logging.info(f"Transaction {transaction.get('transaction_id')}: Found {len(existing_refunds)} existing refunds totaling ${total_existing_refund_amount}")
             
             if total_existing_refund_amount + final_refund_amount > total_transaction_amount:
-                logging.error(f"Refund validation failed for transaction {transaction.get('transaction_id')}: Refunds (${total_existing_refund_amount} + ${final_refund_amount} = ${total_existing_refund_amount + final_refund_amount}) would exceed transaction amount (${total_transaction_amount})")
+                total_attempted = total_existing_refund_amount + final_refund_amount
+                logging.error(f"Refund validation failed for transaction {transaction.get('transaction_id')}: Refunds (${total_existing_refund_amount} + ${final_refund_amount} = ${total_attempted}) would exceed transaction amount (${total_transaction_amount})")
                 return None
         
         # Check for duplicate refund requests for the same person
@@ -277,7 +359,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
                 logging.error(f"Duplicate refund request: User {user_uid} already has a pending/approved refund for display_name '{request_data.display_name}'")
                 return None
 
-        # Create refund request document
+        # Create refund request document (convert Decimal to float for MongoDB storage)
         refund_doc = {
             "request_id": request_id,
             "event_id": request_data.event_id,
@@ -286,11 +368,11 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             "person_id": request_data.person_id,
             "display_name": request_data.display_name,
             "transaction_id": transaction.get("transaction_id"),
-            "payment_amount": final_refund_amount,
-            "original_amount": total_transaction_amount,
+            "payment_amount": float(final_refund_amount),
+            "original_amount": float(total_transaction_amount),
             "refund_type": request_data.refund_type,
-            "requested_amount": requested_refund_amount,
-            "maximum_refundable": maximum_refundable,
+            "requested_amount": float(requested_refund_amount) if requested_refund_amount is not None else None,
+            "maximum_refundable": float(maximum_refundable),
             "payment_method": transaction.get("payment_method", "paypal"),
             "reason": request_data.reason,
             "user_notes": request_data.user_notes,
@@ -298,7 +380,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
             "metadata": {
-                "per_person_amount": per_person_amount,
+                "per_person_amount": float(per_person_amount),
                 "is_bulk_registration": metadata.get("bulk_registration", False),
                 "registration_count": metadata.get("registration_count", 1)
             }
@@ -597,13 +679,13 @@ async def calculate_refund_options(transaction_id: str, user_uid: str) -> Dict[s
         if not transaction:
             return {"error": "Transaction not found"}
         
-        total_amount = transaction.get("amount", 0.0)
+        total_amount = Decimal(str(transaction.get("amount", 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         metadata = transaction.get("metadata", {})
         is_bulk = metadata.get("bulk_registration", False)
         registration_count = metadata.get("registration_count", 1)
         
-        # Calculate per-person amount
-        per_person_amount = total_amount / registration_count if is_bulk else total_amount
+        # Calculate per-person amount with precise decimal arithmetic
+        per_person_amount = (total_amount / Decimal(str(registration_count))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if is_bulk else total_amount
         
         # Get existing refunds
         existing_refunds = await DB.db["refund_requests"].find({
@@ -612,37 +694,40 @@ async def calculate_refund_options(transaction_id: str, user_uid: str) -> Dict[s
             "status": {"$nin": [RefundStatus.REJECTED, RefundStatus.CANCELLED]}
         }).to_list(length=None)
         
-        total_refunded = sum(refund.get("payment_amount", 0) for refund in existing_refunds)
-        remaining_amount = total_amount - total_refunded
-        remaining_per_person = per_person_amount if total_refunded == 0 else max(0, per_person_amount - total_refunded)
+        total_refunded = sum(
+            Decimal(str(refund.get("payment_amount", 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) 
+            for refund in existing_refunds
+        )
+        remaining_amount = (total_amount - total_refunded).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        remaining_per_person = per_person_amount if total_refunded == 0 else max(Decimal("0.00"), (per_person_amount - total_refunded).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
         
         return {
             "transaction_id": transaction_id,
-            "original_amount": total_amount,
-            "per_person_amount": per_person_amount,
+            "original_amount": float(total_amount),
+            "per_person_amount": float(per_person_amount),
             "is_bulk_registration": is_bulk,
             "registration_count": registration_count,
-            "total_refunded": total_refunded,
-            "remaining_amount": remaining_amount,
-            "remaining_per_person": remaining_per_person,
+            "total_refunded": float(total_refunded),
+            "remaining_amount": float(remaining_amount),
+            "remaining_per_person": float(remaining_per_person),
             "can_refund_full": remaining_amount > 0,
             "can_refund_partial": remaining_amount > 0,
             "can_refund_per_person": remaining_per_person > 0,
             "existing_refunds": len(existing_refunds),
             "refund_options": {
                 "full": {
-                    "amount": remaining_amount,
+                    "amount": float(remaining_amount),
                     "description": f"Full remaining amount (${remaining_amount:.2f})",
                     "available": remaining_amount > 0
                 },
                 "per_person": {
-                    "amount": remaining_per_person,
+                    "amount": float(remaining_per_person),
                     "description": f"Per-person amount (${remaining_per_person:.2f})",
                     "available": remaining_per_person > 0
                 },
                 "partial": {
                     "min_amount": 0.01,
-                    "max_amount": remaining_amount,
+                    "max_amount": float(remaining_amount),
                     "description": f"Custom amount (up to ${remaining_amount:.2f})",
                     "available": remaining_amount > 0
                 }
@@ -652,7 +737,7 @@ async def calculate_refund_options(transaction_id: str, user_uid: str) -> Dict[s
         logging.error(f"Error calculating refund options: {e}")
         return {"error": str(e)}
 
-async def validate_refund_amount(transaction_id: str, user_uid: str, requested_amount: float, refund_type: str) -> Dict[str, Any]:
+async def validate_refund_amount(transaction_id: str, user_uid: str, requested_amount: Decimal, refund_type: str) -> Dict[str, Any]:
     """Validate if a refund amount is allowed"""
     try:
         refund_options = await calculate_refund_options(transaction_id, user_uid)
@@ -712,34 +797,38 @@ async def get_refund_summary(transaction_id: str) -> Dict[str, Any]:
             "transaction_id": transaction_id
         }).to_list(length=None)
         
-        # Categorize refunds by status
+        # Categorize refunds by status with precise Decimal calculations
+        transaction_amount = Decimal(str(transaction.get("amount", 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         refund_summary = {
-            "transaction_amount": transaction.get("amount", 0.0),
+            "transaction_amount": float(transaction_amount),  # Convert to float for JSON
             "total_refunds": len(refunds),
             "refunds_by_status": {},
             "total_refunded": 0.0,
             "pending_refunds": 0.0,
             "refund_details": []
         }
+        # Initialize Decimal totals for precise calculation
+        total_refunded = Decimal("0.00")
+        pending_refunds = Decimal("0.00")
         
         for refund in refunds:
             status = refund.get("status", "unknown")
-            amount = refund.get("payment_amount", 0.0)
+            amount = Decimal(str(refund.get("payment_amount", 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             
             if status not in refund_summary["refunds_by_status"]:
                 refund_summary["refunds_by_status"][status] = {"count": 0, "amount": 0.0}
             
             refund_summary["refunds_by_status"][status]["count"] += 1
-            refund_summary["refunds_by_status"][status]["amount"] += amount
+            refund_summary["refunds_by_status"][status]["amount"] += float(amount)
             
             if status in [RefundStatus.COMPLETED]:
-                refund_summary["total_refunded"] += amount
+                total_refunded += amount
             elif status in [RefundStatus.PENDING, RefundStatus.APPROVED, RefundStatus.PROCESSING]:
-                refund_summary["pending_refunds"] += amount
+                pending_refunds += amount
             
             refund_summary["refund_details"].append({
                 "request_id": refund.get("request_id"),
-                "amount": amount,
+                "amount": float(amount),
                 "status": status,
                 "refund_type": refund.get("refund_type", "per_person"),
                 "created_at": refund.get("created_at"),
@@ -747,7 +836,10 @@ async def get_refund_summary(transaction_id: str) -> Dict[str, Any]:
                 "display_name": refund.get("display_name")
             })
         
-        refund_summary["remaining_amount"] = refund_summary["transaction_amount"] - refund_summary["total_refunded"] - refund_summary["pending_refunds"]
+        # Set final totals with Decimal precision
+        refund_summary["total_refunded"] = float(total_refunded)
+        refund_summary["pending_refunds"] = float(pending_refunds)
+        refund_summary["remaining_amount"] = float(transaction_amount - total_refunded - pending_refunds)
         
         return refund_summary
     except Exception as e:

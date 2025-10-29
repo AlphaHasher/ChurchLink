@@ -24,6 +24,8 @@ interface PaymentInfo {
     email?: string;
   };
   created_on?: string;
+  refunded_on?: string; // Timestamp when refund was processed
+  refund_type?: 'partial' | 'full'; // Type of refund for conditional messaging
   // Support for computed status from centralized system
   computed_payment_status?: 'completed' | 'pending' | 'failed' | 'not_required' | 'refund_requested' | 'refunded';
   transaction_details?: {
@@ -32,6 +34,7 @@ interface PaymentInfo {
     status: 'completed' | 'pending' | 'failed' | 'not_required' | 'refund_requested' | 'refunded';
     payment_method: 'paypal' | 'door' | 'free';
     created_on: string;
+    refunded_on?: string; // Timestamp when refund was processed
   };
 }
 
@@ -300,16 +303,28 @@ export function EventPaymentStatusCard({
                   <span className="font-mono text-xs">{paymentInfo.transaction_id}</span>
                 </div>
               )}
-              {paymentInfo.created_on && (
+              {(paymentInfo.refunded_on || paymentInfo.transaction_details?.refunded_on || paymentInfo.created_on) && (
                 <div className="flex justify-between">
-                  <span>Refunded On:</span>
-                  <span>{formatDate(paymentInfo.created_on)}</span>
+                  <span>
+                    {paymentInfo.refunded_on || paymentInfo.transaction_details?.refunded_on 
+                      ? 'Refunded On:' 
+                      : 'Originally Paid On:'}
+                  </span>
+                  <span>
+                    {formatDate(
+                      paymentInfo.refunded_on || 
+                      paymentInfo.transaction_details?.refunded_on || 
+                      paymentInfo.created_on!
+                    )}
+                  </span>
                 </div>
               )}
               <Alert variant="default" className="mt-2">
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Payment has been refunded. You are no longer registered for this event.
+                  {paymentInfo.refund_type === 'partial' 
+                    ? "Payment has been partially refunded. You remain registered for this event."
+                    : "Payment has been refunded. You are no longer registered for this event."}
                 </AlertDescription>
               </Alert>
             </div>

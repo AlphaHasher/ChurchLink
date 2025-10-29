@@ -85,25 +85,93 @@ def validate_webhook_payload(payload: Dict[str, Any]) -> PayPalWebhookPayload:
 def extract_payment_info(validated_payload: PayPalWebhookPayload) -> Dict[str, Any]:
     """
     Extract standardized payment information from validated webhook.
+    Version-tolerant for both PayPal v1 and v2 webhook formats.
     
     Returns:
         Dictionary with normalized payment data
     """
     resource = validated_payload.resource
-    payer_info = resource.payer.payer_info
+    
+    # Extract transaction_id with fallbacks (v1/v2 compatibility)
+    transaction_id = getattr(resource, 'parent_payment', None)
+    if not transaction_id:
+        # v2 format: check related_ids.order_id or first related id
+        related_ids = getattr(resource, 'related_ids', None)
+        if related_ids:
+            if hasattr(related_ids, 'order_id'):
+                transaction_id = related_ids.order_id
+            elif isinstance(related_ids, (list, tuple)) and len(related_ids) > 0:
+                transaction_id = related_ids[0]
+    
+    # Extract sale_id with fallbacks
+    sale_id = getattr(resource, 'id', None) or getattr(resource, 'sale_id', None)
+    
+    # Extract amount with v1/v2 fallbacks
+    amount_value = 0.0
+    currency = "USD"  # Default currency
+    
+    if hasattr(resource, 'amount'):
+        amount_obj = resource.amount
+        # v1 format: amount.total, v2 format: amount.value
+        amount_str = getattr(amount_obj, 'total', None) or getattr(amount_obj, 'value', None)
+        if amount_str:
+            try:
+                amount_value = float(amount_str)
+            except (ValueError, TypeError):
+                amount_value = 0.0
+        
+        # v1 format: amount.currency, v2 format: amount.currency_code
+        currency = getattr(amount_obj, 'currency', None) or getattr(amount_obj, 'currency_code', None) or "USD"
+    
+    # Extract payer information with v1/v2 fallbacks
+    payer_email = None
+    payer_name = "Anonymous"
+    payer_id = None
+    
+    if hasattr(resource, 'payer'):
+        payer = resource.payer
+        
+        # v1 format: payer.payer_info
+        if hasattr(payer, 'payer_info'):
+            payer_info = payer.payer_info
+            payer_email = getattr(payer_info, 'email', None)
+            payer_id = getattr(payer_info, 'payer_id', None)
+            
+            # Construct name from first_name/last_name
+            first_name = getattr(payer_info, 'first_name', '') or ''
+            last_name = getattr(payer_info, 'last_name', '') or ''
+            constructed_name = f"{first_name} {last_name}".strip()
+            if constructed_name:
+                payer_name = constructed_name
+        
+        # v2 format: payer.name and payer.email_address
+        if not payer_email:
+            payer_email = getattr(payer, 'email_address', None) or getattr(payer, 'email', None)
+        
+        if payer_name == "Anonymous" and hasattr(payer, 'name'):
+            name_obj = payer.name
+            # v2 format: name.full_name or name.given_name/family_name
+            if hasattr(name_obj, 'full_name'):
+                payer_name = name_obj.full_name or "Anonymous"
+            else:
+                given_name = getattr(name_obj, 'given_name', '') or ''
+                family_name = getattr(name_obj, 'family_name', '') or ''
+                constructed_name = f"{given_name} {family_name}".strip()
+                if constructed_name:
+                    payer_name = constructed_name
     
     return {
         "webhook_id": validated_payload.id,
         "event_type": validated_payload.event_type,
-        "transaction_id": resource.parent_payment,
-        "sale_id": resource.id,
-        "amount": float(resource.amount.total),
-        "currency": resource.amount.currency,
-        "state": resource.state,
-        "create_time": resource.create_time,
-        "payer_email": payer_info.email,
-        "payer_name": f"{payer_info.first_name or ''} {payer_info.last_name or ''}".strip() or "Anonymous",
-        "payer_id": payer_info.payer_id
+        "transaction_id": transaction_id,
+        "sale_id": sale_id,
+        "amount": amount_value,
+        "currency": currency,
+        "state": getattr(resource, 'state', None),
+        "create_time": getattr(resource, 'create_time', None),
+        "payer_email": payer_email,
+        "payer_name": payer_name,
+        "payer_id": payer_id
     }
 
 # Example test payloads for validation

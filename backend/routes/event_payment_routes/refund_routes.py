@@ -202,6 +202,11 @@ async def process_refund_request(
         if not refund_request:
             raise HTTPException(status_code=404, detail="Refund request not found")
         
+        # Guard idempotency: only allow processing of pending requests
+        # Valid transition: "pending" → process (approve/reject)
+        if refund_request.status in {RefundStatus.APPROVED, RefundStatus.PROCESSING, RefundStatus.COMPLETED, RefundStatus.REJECTED, RefundStatus.CANCELLED}:
+            raise HTTPException(status_code=409, detail=f"Cannot {action if 'action' in process_data else 'process'} a request in status '{refund_request.status}'")
+        
         action = process_data.get("action")  # "approve" or "reject"
         admin_notes = process_data.get("admin_notes", "")
         

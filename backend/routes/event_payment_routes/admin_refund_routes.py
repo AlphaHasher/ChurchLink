@@ -838,18 +838,7 @@ async def create_partial_refund_request(
         # Get admin user for validation (optional - could be user-initiated)
         admin_uid = getattr(request.state, "uid", None)
         
-        # Validate refund type and amount if provided
-        if refund_data.refund_type == "partial" and refund_data.requested_amount is not None:
-            
-            validation_result = await validate_refund_amount(
-                "",  # Will be validated in create_refund_request
-                admin_uid or "admin",
-                refund_data.requested_amount,
-                refund_data.refund_type
-            )
-            
-            if "error" in validation_result:
-                raise HTTPException(status_code=400, detail=validation_result["error"])
+        # create_refund_request performs the correct validation against the located transaction.
         
         # Create the refund request
         refund_request = await create_refund_request(refund_data, admin_uid or "admin")

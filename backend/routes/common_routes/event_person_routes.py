@@ -220,7 +220,16 @@ async def get_my_events(request: Request, include_family: bool = True, expand: b
         # when family members overlap or user appears in multiple contexts
         unique_events = {}
         for event in events:
-            key = event.get("key", "")
+            key = event.get("key")
+            if not key:
+                # Build fallback composite key for events lacking a key
+                parts = [
+                    str(event.get("event_id") or event.get("_id") or ""),
+                    str(event.get("person_id") or ""),
+                    event.get("kind", "") or "",
+                    event.get("scope", "") or "",
+                ]
+                key = "|".join(parts)
             if key and key not in unique_events:
                 unique_events[key] = event
         

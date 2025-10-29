@@ -355,9 +355,13 @@ function EventRegistrationForm({
       // FIXED: Only remove family members who are explicitly deselected
       // Check if any registered family members are not selected (deselected by user)
       have.forEach((id) => {
-        // Only add to remove list if the person is registered but NOT selected
-        // AND they are not in the selectedIds (meaning user unchecked them)
         if (!want.has(id)) {
+          const reg = summary?.user_registrations?.find((r: any) => r.person_id === id);
+          const status = reg ? (reg.computed_payment_status || reg.payment_status) : undefined;
+          if (status === 'completed' || status === 'refund_requested') {
+            console.warn(`[REG] Preventing unregister for paid registration ${id}; request refund in My Events.`);
+            return; // skip removal
+          }
           toRemove.push(id);
         }
       });
@@ -512,8 +516,16 @@ function EventRegistrationForm({
       if (wantSelf && !haveSelf) {
         await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
       } else if (!wantSelf && haveSelf) {
-        // Unregister with old scope (or null to remove all)
-        await api.delete(`/v1/event-people/unregister/${event.id}`);
+        // Check if self registration has paid status
+        const selfReg = summary?.user_registrations?.find(r => r.person_id === null);
+        const status = selfReg ? (selfReg.computed_payment_status || selfReg.payment_status) : undefined;
+        if (status === 'completed' || status === 'refund_requested') {
+          console.warn(`[REG] Preventing unregister for paid self registration; request refund in My Events.`);
+          // Do not unregister - user needs to use My Events for refunds
+        } else {
+          // Unregister with old scope (or null to remove all)
+          await api.delete(`/v1/event-people/unregister/${event.id}`);
+        }
       } else if (selfScopeChanged && wantSelf && haveSelf) {
         // Update self scope: remove old scope, add new scope
         const oldScope = summary?.user_registrations?.find(r => r.person_id === null)?.scope || "series";
@@ -700,6 +712,13 @@ function EventRegistrationForm({
                       You have {summary.user_registrations.length} registration{summary.user_registrations.length > 1 ? 's' : ''} for this event. 
                       To manage your registrations, cancel RSVPs, or request refunds, please visit your My Events page.
                     </p>
+                    {/* Note about paid registration cancellations */}
+                    {(event.price ?? 0) > 0 && (
+                      <p className="text-xs text-blue-600 mb-3 bg-blue-100 p-2 rounded">
+                        <strong>Note:</strong> Cancellations for paid registrations require a refund request through My Events. 
+                        You cannot cancel paid registrations directly from this page.
+                      </p>
+                    )}
                     <button
                       onClick={() => {
                         // Navigate to My Events page

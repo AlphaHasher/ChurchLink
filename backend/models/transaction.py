@@ -1,6 +1,7 @@
 from pydantic import BaseModel, field_validator
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+from decimal import Decimal
 from bson import ObjectId
 from mongo.database import DB
 import logging
@@ -57,7 +58,7 @@ class Transaction(BaseModel):
     id: Optional[str] = None
     transaction_id: str  # Unique for each payment event
     user_email: str
-    amount: float
+    amount: Decimal  # Use Decimal for precise financial calculations
     status: str = PaymentStatus.PENDING  # Use constants with default
     type: str  # 'one-time' or 'subscription'
     order_id: Optional[str] = None  # For one-time payments
@@ -88,6 +89,24 @@ class Transaction(BaseModel):
     # Additional metadata for detailed transaction information
     metadata: Optional[Dict[str, Any]] = None  # Store additional transaction details
 
+    @field_validator('amount')
+    @classmethod
+    def validate_amount(cls, v):
+        """Ensure amount is properly converted to Decimal"""
+        if v is None:
+            return Decimal('0.00')
+        if isinstance(v, (int, float, str)):
+            try:
+                # Convert to Decimal with 2 decimal places for currency
+                return Decimal(str(v)).quantize(Decimal('0.01'))
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid amount: {v}. Must be a valid number")
+        elif isinstance(v, Decimal):
+            # Ensure 2 decimal places for currency
+            return v.quantize(Decimal('0.01'))
+        else:
+            raise ValueError(f"Invalid amount type: {type(v)}. Must be numeric")
+
     @field_validator('status')
     @classmethod
     def validate_status(cls, v):
@@ -113,6 +132,10 @@ class Transaction(BaseModel):
             # Ensure _id is not in the document
             if '_id' in doc:
                 del doc['_id']
+            
+            # Convert Decimal amount to float for MongoDB storage
+            if 'amount' in doc and isinstance(doc['amount'], Decimal):
+                doc['amount'] = float(doc['amount'])
                 
             doc["created_on"] = transaction.created_on or datetime.now().isoformat()
             
@@ -123,6 +146,9 @@ class Transaction(BaseModel):
                 tx_data = await DB.db["transactions"].find_one({"_id": inserted_id})
                 if tx_data is not None:
                     tx_data["id"] = str(tx_data.pop("_id"))
+                    # Convert amount back to Decimal when loading
+                    if 'amount' in tx_data:
+                        tx_data['amount'] = Decimal(str(tx_data['amount']))
                     return Transaction(**tx_data)
                 else:
                     logging.error(f"Transaction inserted but not found: {inserted_id}")
@@ -141,6 +167,9 @@ class Transaction(BaseModel):
         tx_doc = await DB.db["transactions"].find_one({"transaction_id": transaction_id})
         if tx_doc is not None:
             tx_doc["id"] = str(tx_doc.pop("_id"))
+            # Convert amount back to Decimal when loading from MongoDB
+            if 'amount' in tx_doc:
+                tx_doc['amount'] = Decimal(str(tx_doc['amount']))
             return Transaction(**tx_doc)
         return None
 
@@ -152,6 +181,9 @@ class Transaction(BaseModel):
         tx_docs = await DB.find_documents("transactions", query, limit=limit)
         for tx in tx_docs:
             tx["id"] = str(tx.pop("_id"))
+            # Convert amount back to Decimal when loading from MongoDB
+            if 'amount' in tx:
+                tx['amount'] = Decimal(str(tx['amount']))
         return [Transaction(**tx) for tx in tx_docs]
 
     async def update_transaction_status(transaction_id: str, new_status: str):
@@ -241,6 +273,9 @@ class Transaction(BaseModel):
             tx_docs = await DB.find_documents("transactions", {"event_id": event_id})
             for tx in tx_docs:
                 tx["id"] = str(tx.pop("_id"))
+                # Convert amount back to Decimal when loading from MongoDB
+                if 'amount' in tx:
+                    tx['amount'] = Decimal(str(tx['amount']))
             return [Transaction(**tx) for tx in tx_docs]
         except Exception as e:
             logging.error(f"Error getting transactions for event {event_id}: {e}")
@@ -255,6 +290,9 @@ class Transaction(BaseModel):
             tx_doc = await DB.db["transactions"].find_one({"registration_key": registration_key})
             if tx_doc:
                 tx_doc["id"] = str(tx_doc.pop("_id"))
+                # Convert amount back to Decimal when loading from MongoDB
+                if 'amount' in tx_doc:
+                    tx_doc['amount'] = Decimal(str(tx_doc['amount']))
                 return Transaction(**tx_doc)
             return None
         except Exception as e:
@@ -276,7 +314,14 @@ class Transaction(BaseModel):
                 }}
             ]
             result = await DB.db["transactions"].aggregate(pipeline).to_list(None)
-            return {item["_id"]: {"count": item["count"], "total_amount": item["total_amount"]} for item in result}
+            # Convert amounts back to Decimal for consistency
+            summary = {}
+            for item in result:
+                summary[item["_id"]] = {
+                    "count": item["count"], 
+                    "total_amount": Decimal(str(item["total_amount"]))
+                }
+            return summary
         except Exception as e:
             logging.error(f"Error getting payment summary for event {event_id}: {e}")
             return {}
@@ -290,6 +335,9 @@ class Transaction(BaseModel):
             tx_docs = await DB.find_documents("transactions", {"form_id": form_id})
             for tx in tx_docs:
                 tx["id"] = str(tx.pop("_id"))
+                # Convert amount back to Decimal when loading from MongoDB
+                if 'amount' in tx:
+                    tx['amount'] = Decimal(str(tx['amount']))
             return [Transaction(**tx) for tx in tx_docs]
         except Exception as e:
             logging.error(f"Error getting transactions for form {form_id}: {e}")
@@ -310,7 +358,14 @@ class Transaction(BaseModel):
                 }}
             ]
             result = await DB.db["transactions"].aggregate(pipeline).to_list(None)
-            return {item["_id"]: {"count": item["count"], "total_amount": item["total_amount"]} for item in result}
+            # Convert amounts back to Decimal for consistency
+            summary = {}
+            for item in result:
+                summary[item["_id"]] = {
+                    "count": item["count"], 
+                    "total_amount": Decimal(str(item["total_amount"]))
+                }
+            return summary
         except Exception as e:
             logging.error(f"Error getting payment summary for form {form_id}: {e}")
             return {}
@@ -528,7 +583,7 @@ class Transaction(BaseModel):
                     if transaction:
                         enriched_attendee["transaction_details"] = {
                             "transaction_id": transaction.transaction_id,
-                            "amount": transaction.amount,
+                            "amount": float(transaction.amount),  # Convert Decimal to float for JSON serialization
                             "status": transaction.status,
                             "payment_method": transaction.payment_method,
                             "created_on": transaction.created_on

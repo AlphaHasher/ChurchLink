@@ -120,9 +120,12 @@ export function EventDetailsModal({
 
     // Check event.attendees for backend-populated display_name
     const attendees = event.attendees || [];
-    const match = attendees.find(a => 
-      a?.person_id && String(a.person_id) === String(registrant.person_id)
-    );
+    const match = attendees.find(a => {
+      if (registrant.person_id === null || registrant.person_id === undefined) {
+        return false; // For display name lookup, we only care about family members with person_id
+      }
+      return a?.person_id != null && String(a.person_id) === String(registrant.person_id);
+    });
     
     if (match?.display_name && match.display_name.trim() && match.display_name !== 'Family Member') {
       return match.display_name.trim();
@@ -136,12 +139,19 @@ export function EventDetailsModal({
     // Get from event's attendees array (backend stores payment_status directly)
     const attendees = event.attendees || [];
     const matchingAttendee = attendees.find(attendee => {
-      if (registrant.person_id && attendee.person_id) {
+      // Handle null/undefined person_id cases first
+      if (registrant.person_id === null || registrant.person_id === undefined) {
+        if (attendee.person_id === null || attendee.person_id === undefined) {
+          return attendee.user_uid === user?.uid;
+        }
+        return false;
+      }
+      
+      // Both have person_id values - normalize and compare
+      if (attendee.person_id != null) {
         return String(attendee.person_id) === String(registrant.person_id);
       }
-      if (!registrant.person_id && !attendee.person_id) {
-        return attendee.user_uid === user?.uid;
-      }
+      
       return false;
     });
     
@@ -189,11 +199,9 @@ export function EventDetailsModal({
     // Find the attendee record that matches this registrant
     const attendees = event.attendees || [];
     const attendee = attendees.find(att => {
-      if (registrant.person_id === null) {
-        return att.person_id === null;
-      } else {
-        return att.person_id === registrant.person_id;
-      }
+      if (registrant.person_id === null) return att.person_id === null;
+      return att.person_id != null
+        && String(att.person_id) === String(registrant.person_id);
     });
 
     if (!attendee) return false;
@@ -318,7 +326,7 @@ export function EventDetailsModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
-        className="max-w-2xl max-h-[80vh] overflow-y-auto pr-4 sm:pr-6 z-9999"
+        className="max-w-2xl max-h-[80vh] overflow-y-auto pr-4 sm:pr-6 z-[9999]"
         style={{ zIndex: 9999 }}
       >
           <DialogHeader>

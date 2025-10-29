@@ -53,11 +53,14 @@ export const PaymentSuccessPage: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [completionData, setCompletionData] = useState<CompletionData | null>(null);
-  const paymentProcessedRef = useRef<boolean>(false);
+  const paymentProcessedRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Create a unique key for this payment attempt
+    const paymentKey = paymentId && payerId && token ? `${paymentId}:${payerId}:${token}` : null;
+    
     // Prevent multiple API calls for the same payment
-    if (paymentProcessedRef.current) {
+    if (!paymentKey || paymentProcessedRef.current === paymentKey) {
       return;
     }
 
@@ -76,7 +79,7 @@ export const PaymentSuccessPage: React.FC = () => {
 
       try {
         setStatus('loading');
-        paymentProcessedRef.current = true; // Mark as processing to prevent duplicate calls
+        paymentProcessedRef.current = paymentKey; // Mark as processing to prevent duplicate calls
 
         // Call the backend success endpoint to complete the payment
         console.log('Completing payment via backend...', { paymentId, payerId, token });
@@ -123,7 +126,7 @@ export const PaymentSuccessPage: React.FC = () => {
       } catch (error: any) {
         console.error('Payment processing error:', error);
         setStatus('error');
-        paymentProcessedRef.current = false; // Reset flag to allow retry if needed
+        paymentProcessedRef.current = null; // Reset flag to allow retry if needed
         
         if (error.response?.status === 404) {
           setMessage('Payment record not found. The payment may already be processed or the session may have expired. Please check your registration status or contact support.');

@@ -409,7 +409,14 @@ export function MyEventsSection() {
               </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelConfirmation.isProcessing}>
+            <AlertDialogCancel 
+              disabled={cancelConfirmation.isProcessing}
+              onClick={() => {
+                if (!cancelConfirmation.isProcessing) {
+                  setCancelConfirmation({ isOpen: false, eventRef: null, isProcessing: false });
+                }
+              }}
+            >
               Keep Registration
             </AlertDialogCancel>
             <AlertDialogAction

@@ -1,3 +1,5 @@
+import { BackendPaymentStatus } from '../utils/paymentStatusUtils';
+
 export interface MyEvent {
   // Event reference schema fields (from my_events array)
   _id: string;                    // Local event reference ID
@@ -14,7 +16,7 @@ export interface MyEvent {
   
   // Payment tracking fields (for RSVP events with payments)
   payment_method?: "paypal" | "door";  // Payment method used
-  computed_payment_status?: "not_required" | "pending" | "completed" | "failed" | "refund_requested" | "refunded"; // Centralized from Transaction model
+  computed_payment_status?: BackendPaymentStatus; // Centralized from Transaction model
   transaction_id?: string; // Reference to Transaction record
 
   // Full event details (when expand=True used)
@@ -47,8 +49,8 @@ export interface MyEvent {
       person_id: string | null;
       display_name: string;
       addedOn: string;
-      payment_status?: "not_required" | "pending" | "completed" | "failed" | "refund_requested" | "refunded"; // Direct payment status stored on attendee
-      computed_payment_status?: "not_required" | "pending" | "completed" | "failed" | "refund_requested" | "refunded"; // Centralized from Transaction model (legacy)
+      payment_status?: BackendPaymentStatus; // Direct payment status stored on attendee
+      computed_payment_status?: BackendPaymentStatus; // Centralized from Transaction model (legacy)
       transaction_id?: string; // Transaction reference
       transaction_details?: {
         transaction_id: string;
