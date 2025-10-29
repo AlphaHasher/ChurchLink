@@ -30,6 +30,10 @@ def generate_test_token(save_to_file=False, custom_credentials=False):
     if custom_credentials:
         email = os.getenv("BEARER_CUSTOM_EMAIL")
         password = os.getenv("BEARER_CUSTOM_PASSWORD")
+        if not email:
+            raise ValueError("BEARER_CUSTOM_EMAIL not found in .env file when using custom credentials")
+        if not password:
+            raise ValueError("BEARER_CUSTOM_PASSWORD not found in .env file when using custom credentials")
 
     try:
         # Sign in with email/password

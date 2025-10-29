@@ -243,18 +243,14 @@ export function FieldRenderer({ field, control, error }: Props) {
       color: f.color || undefined,
       fontWeight: f.bold ? 600 : undefined,
     };
-  const textStyle: CSSProperties = {
-      ...baseStyle,
-      textDecoration: f.underline ? "underline" : undefined,
-    };
     const staticText = t('content', f.content) || "Modify Me!";
-    const lines = staticText.split('\n');
     return (
       <div className={cn("flex flex-col gap-2", colClass)}>
-        <Tag className={cn(sizeClass, "whitespace-pre-wrap")} style={baseStyle}>
-          {lines.map((line: string, idx: number) => (
-            <div key={idx} style={line ? textStyle : undefined}>{line || '\u00A0'}</div>
-          ))}
+        <Tag
+          className={cn(sizeClass, "whitespace-pre-wrap")}
+          style={{ ...baseStyle, whiteSpace: 'pre-wrap' }}
+        >
+          {staticText}
         </Tag>
         {localizedHelp && (
           <p className="text-sm text-muted-foreground">{localizedHelp}</p>

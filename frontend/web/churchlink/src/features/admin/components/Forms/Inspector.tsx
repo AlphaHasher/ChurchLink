@@ -7,7 +7,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-grou
 import { Textarea } from "@/shared/components/ui/textarea";
 import { useBuilderStore } from "./store";
 import type { AnyField, SelectField } from "./types";
-import { format } from "date-fns";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/shared/components/ui/hover-card";
 import { CircleHelp } from "lucide-react";
 import { Table, TableBody, TableHead, TableRow, TableCell, TableHeader } from "@/shared/components/ui/DataTable";
@@ -341,16 +340,16 @@ export function Inspector() {
                   <Label>Min date</Label>
                   <Input
                     type="date"
-                    value={(field as any).minDate ? format(new Date((field as any).minDate), "yyyy-MM-dd") : ""}
-                    onChange={(e) => onChange({ minDate: e.target.value ? new Date(e.target.value) : undefined } as any)}
+                    value={(field as any).minDate || ""}
+                    onChange={(e) => onChange({ minDate: e.target.value || undefined } as any)}
                   />
                 </div>
                 <div>
                   <Label>Max date</Label>
                   <Input
                     type="date"
-                    value={(field as any).maxDate ? format(new Date((field as any).maxDate), "yyyy-MM-dd") : ""}
-                    onChange={(e) => onChange({ maxDate: e.target.value ? new Date(e.target.value) : undefined } as any)} />
+                    value={(field as any).maxDate || ""}
+                    onChange={(e) => onChange({ maxDate: e.target.value || undefined } as any)} />
                 </div>
               </div>
               <div className="space-y-1">

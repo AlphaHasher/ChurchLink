@@ -274,7 +274,6 @@ mod_router.include_router(app_config_private_router)
 mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
-mod_router.include_router(mod_ministry_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions

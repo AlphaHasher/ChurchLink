@@ -415,13 +415,20 @@ export function BuilderShell() {
   };
 
   const onExport = () => {
+    const dataWithTranslations = ((schema as any)?.data || []).map((field: any) => {
+      const fieldTranslations = translations[field.id];
+      return fieldTranslations && Object.keys(fieldTranslations).length > 0
+        ? { ...field, translations: fieldTranslations }
+        : field;
+    });
+
     const exportObj: any = {
       title: formName || (schema as any)?.title || 'Untitled Form',
       description: description || (schema as any)?.description || '',
       ministries: (schema as any)?.ministries || [],
       supported_locales: supportedLocales,
       formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH),
-      data: ((schema as any)?.data || []),
+      data: dataWithTranslations,
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);

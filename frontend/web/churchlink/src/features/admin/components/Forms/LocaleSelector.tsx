@@ -56,12 +56,16 @@ export function LocaleSelector({
   }, []);
 
   const handleLanguageSelect = (selectedCodes: string[]) => {
+    // Ignore 'en' for add/remove logic
+    const filteredSelected = selectedCodes.filter(code => code !== 'en');
+    const filteredSupported = supportedLocales.filter(code => code !== 'en');
+
     // Find newly added locales
-    const newLocales = selectedCodes.filter(code => !supportedLocales.includes(code));
+    const newLocales = filteredSelected.filter(code => !filteredSupported.includes(code));
     newLocales.forEach(code => onAddLocale(code));
 
     // Find removed locales
-    const removedLocales = supportedLocales.filter(code => !selectedCodes.includes(code));
+    const removedLocales = filteredSupported.filter(code => !filteredSelected.includes(code));
     removedLocales.forEach(code => onRemoveLocale(code));
   };
 

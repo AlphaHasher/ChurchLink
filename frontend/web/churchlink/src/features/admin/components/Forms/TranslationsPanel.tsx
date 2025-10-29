@@ -44,22 +44,22 @@ export function TranslationsPanel({ field }: TranslationsPanelProps) {
   const handleTranslateLocale = async (locale: string) => {
     setError(null);
     const result = await translateField(field, [locale]);
-    if (result && result[locale]) {
-      // Apply translations to store
+    if (result === null) {
+      setError('Failed to translate. Please try again.');
+      return;
+    }
+    if (result[locale]) {
       Object.keys(result[locale]).forEach(property => {
         setTranslation(locale, property, result[locale][property]);
       });
-      // Remove from custom locales since it's now auto-translated
       clearCustomLocales([locale]);
-    } else {
-      setError('Failed to translate. Please try again.');
     }
   };
   
   const handleTranslateAll = async () => {
     setError(null);
     const result = await translateField(field, supportedLocales);
-    if (result) {
+    if (result != null) {
       // Apply all translations to store
       supportedLocales.forEach(locale => {
         if (result[locale]) {

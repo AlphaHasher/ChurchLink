@@ -5,11 +5,12 @@ Forms support multiple locales and use the translator endpoint to generate
 translations on-demand rather than storing them inline.
 """
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from models.form import get_form_by_id_unrestricted, get_form_by_slug
-from routes.translator_routes import translator_router, BulkTranslator
+from routes.translator_routes import BulkTranslator
+from protected_routers.mod_protected_router import _attach_mod_user_to_state
 import logging
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ def extract_translatable_text(form_data: List[Dict[str, Any]]) -> List[str]:
     return texts
 
 
-@form_translations_router.post("/{form_id}/translate")
+@form_translations_router.post("/{form_id}/translate", dependencies=[Depends(_attach_mod_user_to_state)])
 async def translate_form_content(
     form_id: str,
     body: TranslationRequest
@@ -140,7 +141,7 @@ async def translate_form_content(
         )
 
 
-@form_translations_router.post("/slug/{slug}/translate")
+@form_translations_router.post("/slug/{slug}/translate", dependencies=[Depends(_attach_mod_user_to_state)])
 async def translate_form_by_slug(
     slug: str,
     body: TranslationRequest

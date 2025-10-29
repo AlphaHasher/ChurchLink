@@ -9,7 +9,15 @@ export type BuilderState = {
   schema: FormSchema;
   selectedId?: string;
   activeLocale: string; // current preview/edit locale
-  translations: { [fieldId: string]: { [locale: string]: { label?: string; placeholder?: string; options?: { [optionIdx: number]: string } } } }; // field translations by field ID, locale, and property
+  translations: {
+    [fieldId: string]: {
+      [locale: string]: {
+        label?: string;
+        placeholder?: string;
+        options?: { [optionIdx: number]: string };
+      };
+    };
+  };
   customLocales: Set<string>; // Track manually-entered locales (excluded from bulk translate)
   modifiedFields: Set<string>; // Track field IDs that have been modified since last translation
   select: (id?: string) => void;
@@ -24,7 +32,15 @@ export type BuilderState = {
   removeLocale: (locale: string) => void;
   updateSchemaMeta: (patch: Partial<FormSchema>) => void;
   setTranslations: (fieldId: string, locale: string, property: string, value: string) => void;
-  loadTranslations: (allTranslations: { [fieldId: string]: { [locale: string]: { label?: string; placeholder?: string; options?: { [optionIdx: number]: string } } } }) => void;
+  loadTranslations: (allTranslations: {
+    [fieldId: string]: {
+      [locale: string]: {
+        label?: string;
+        placeholder?: string;
+        options?: { [optionIdx: number]: string };
+      };
+    };
+  }) => void;
   addCustomLocale: (locale: string) => void;
   removeCustomLocale: (locale: string) => void;
   clearCustomLocales: (locales: string[]) => void;
@@ -159,18 +175,57 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   setTranslations: (fieldId: string, locale: string, property: string, value: string) => set((s) => {
     const fieldTrans = s.translations[fieldId] || {};
     const localeTrans = fieldTrans[locale] || {};
-    return {
-      translations: {
-        ...s.translations,
-        [fieldId]: {
-          ...fieldTrans,
-          [locale]: {
-            ...localeTrans,
-            [property]: value,
+
+    // If property is option_N, store in options object
+    const optionMatch = property.match(/^option_(\d+)$/);
+    if (optionMatch) {
+      const idx = Number(optionMatch[1]);
+      const options = { ...(localeTrans.options || {}) };
+      // Only set if missing or empty
+      if (!options.hasOwnProperty(idx) || !options[idx]) {
+        options[idx] = value;
+        return {
+          translations: {
+            ...s.translations,
+            [fieldId]: {
+              ...fieldTrans,
+              [locale]: {
+                ...localeTrans,
+                options,
+              },
+            },
           },
-        },
-      },
-    };
+        };
+      } else {
+        // No change if already set
+        return {};
+      }
+    } else {
+      // Only set label/placeholder directly
+      if ((property === 'label' || property === 'placeholder')) {
+        const localeTransAny = localeTrans as Record<string, any>;
+        if (!localeTransAny[property] || String(localeTransAny[property]).trim().length === 0) {
+          return {
+            translations: {
+              ...s.translations,
+              [fieldId]: {
+                ...fieldTrans,
+                [locale]: {
+                  ...localeTrans,
+                  [property]: value,
+                },
+              },
+            },
+          };
+        } else {
+          // No change if already set
+          return {};
+        }
+      } else {
+        // Ignore other properties
+        return {};
+      }
+    }
   }),
   loadTranslations: (allTranslations) => set({ translations: allTranslations }),
   addCustomLocale: (locale: string) => set((s) => {
