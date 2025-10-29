@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger 
 } from '@/shared/components/ui/dropdown-menu';
 import { EventFilters } from '../types/myEvents';
+import { useLocalize } from '@/shared/utils/localizationUtils';
 
 interface EventFiltersProps {
   filters: EventFilters;
@@ -16,6 +17,7 @@ interface EventFiltersProps {
 }
 
 export function EventFiltersComponent({ filters, onFiltersChange, onRefresh }: EventFiltersProps) {
+  const localize = useLocalize();
   const updateFilter = (key: keyof EventFilters, value: boolean | string) => {
     onFiltersChange({
       ...filters,
@@ -29,7 +31,7 @@ export function EventFiltersComponent({ filters, onFiltersChange, onRefresh }: E
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
         <Input
-          placeholder="Search events..."
+          placeholder={localize("Search events...")}
           value={filters.searchTerm}
           onChange={(e) => updateFilter('searchTerm', e.target.value)}
           className="pl-10"
@@ -41,7 +43,7 @@ export function EventFiltersComponent({ filters, onFiltersChange, onRefresh }: E
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
-            Filters
+            {localize('Filters')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -49,19 +51,19 @@ export function EventFiltersComponent({ filters, onFiltersChange, onRefresh }: E
             checked={filters.showUpcoming}
             onCheckedChange={(checked) => updateFilter('showUpcoming', checked)}
           >
-            Show Upcoming Events
+            {localize('Show Upcoming Events')}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={filters.showPast}
             onCheckedChange={(checked) => updateFilter('showPast', checked)}
           >
-            Show Past Events
+            {localize('Show Past Events')}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={filters.showFamily}
             onCheckedChange={(checked) => updateFilter('showFamily', checked)}
           >
-            Include Family Events
+            {localize('Include Family Events')}
           </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -76,7 +78,7 @@ export function EventFiltersComponent({ filters, onFiltersChange, onRefresh }: E
             className="flex items-center gap-2"
           >
             <RefreshCw className="h-4 w-4" />
-            Refresh
+            {localize('Refresh')}
           </Button>
         )}
       </div>

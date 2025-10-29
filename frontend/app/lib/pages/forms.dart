@@ -138,12 +138,11 @@ class _FormsState extends State<Forms> {
                                         child: Text('No forms available.')),
                                   ],
                                 )
-                              : ListView.separated(
+                              : ListView.builder(
                                   physics:
                                       const AlwaysScrollableScrollPhysics(),
                                   itemCount: _forms.length,
-                                  separatorBuilder: (_, __) =>
-                                      const Divider(),
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
                                   itemBuilder: (context, index) {
                                     final f = _forms[index]
                                         as Map<String, dynamic>;
@@ -152,28 +151,51 @@ class _FormsState extends State<Forms> {
                                     final slug = f['slug'] ?? '';
                                     final createdAt =
                                         f['created_at'] ?? '';
-                                    return ListTile(
-                                      title: Text(title),
-                                      subtitle:
-                                          Text(desc.isNotEmpty ? desc : slug),
-                                      trailing: createdAt is String
-                                          ? Text(createdAt.split('T').first)
-                                          : const SizedBox.shrink(),
-                                      onTap: () async {
-                                        // Open the form submission page
-                                        final result =
-                                            await Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                FormSubmitPage(form: f),
-                                          ),
-                                        );
-                                        // If the user returned from the form page (submission or server-side state change),
-                                        // reload the list so expired / hidden forms are removed.
-                                        if (result != null) {
-                                          _loadForms();
-                                        }
-                                      },
+                                    return Card(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 8.0, horizontal: 0),
+                                      child: ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.all(16.0),
+                                        title: Text(
+                                          title,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                  fontWeight:
+                                                      FontWeight.bold),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (desc.isNotEmpty)
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.only(
+                                                        top: 8.0),
+                                                child: Text(desc),
+                                              ),
+                                          ],
+                                        ),
+                                        onTap: () async {
+                                          // Open the form submission page
+                                          final result =
+                                              await Navigator.of(context)
+                                                  .push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  FormSubmitPage(form: f),
+                                            ),
+                                          );
+                                          // If the user returned from the form page (submission or server-side state change),
+                                          // reload the list so expired / hidden forms are removed.
+                                          if (result != null) {
+                                            _loadForms();
+                                          }
+                                        },
+                                      ),
                                     );
                                   },
                                 ),

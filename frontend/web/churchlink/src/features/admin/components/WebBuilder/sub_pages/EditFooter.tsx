@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/api/api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -29,41 +29,29 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/shared/components/ui/Dialog";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/shared/components/ui/alert-dialog";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
+import { useLanguage } from "@/provider/LanguageProvider";
+import { AddLocaleDialog, collectTitles, translateMissingStrings } from "@/shared/utils/localizationUtils";
+import LocaleSelect from "@/shared/components/LocaleSelect";
 
 interface FooterItem {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     url: string | null;
     visible?: boolean;
 }
 
 interface FooterSection {
     title: string;
-    russian_title: string;
+    titles?: Record<string, string>;
     items: FooterItem[];
     visible?: boolean;
-}
-
-interface LinkItem extends FooterItem {
-    type?: "link";
 }
 
 interface Footer {
     items: FooterSection[];
 }
 
-// Visibility toggle component using MultiStateBadge
 const FooterVisibilityToggle: React.FC<{ section: FooterSection; onToggle: (title: string, currentVisibility: boolean) => void }> = ({ section, onToggle }) => {
     const [badgeState, setBadgeState] = useState<"custom" | "processing" | "success" | "error">("custom");
 
@@ -137,39 +125,94 @@ interface EditFooterProps {
 const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const [footer, setFooter] = useState<Footer | null>(null);
     const [loading, setLoading] = useState(true);
+    const [translationLoading, setTranslationLoading] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    // Modal states
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const { languages, setLocale } = useLanguage();
+    const [addLocaleOpen, setAddLocaleOpen] = useState(false);
+    const [footerLocale, setFooterLocale] = useState<string>('en');
+    const [availableLocales, setAvailableLocales] = useState<string[]>(['en']);
+    const [translationCache, setTranslationCache] = useState<Record<string, Record<string, string>>>({});
+
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
-    // Add section form state
-    const [newSectionTitle, setNewSectionTitle] = useState("");
-    const [newSectionRussianTitle, setNewSectionRussianTitle] = useState("");
-    const [sectionItems, setSectionItems] = useState<FooterItem[]>([]);
-    const [tempItemTitle, setTempItemTitle] = useState("");
-    const [tempItemRussianTitle, setTempItemRussianTitle] = useState("");
-    const [tempItemUrl, setTempItemUrl] = useState("");
-
-    // Edit section form state
     const [editingSection, setEditingSection] = useState<FooterSection | null>(null);
-    const [editSectionTitle, setEditSectionTitle] = useState("");
-    const [editSectionRussianTitle, setEditSectionRussianTitle] = useState("");
-    const [editSectionItems, setEditSectionItems] = useState<LinkItem[]>([]);
-    const [editTempItemTitle, setEditTempItemTitle] = useState("");
-    const [editTempItemRussianTitle, setEditTempItemRussianTitle] = useState("");
-    const [editTempItemUrl, setEditTempItemUrl] = useState("");
-    const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+    const [editPlaceholder, setEditPlaceholder] = useState("");
+
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [addTitleEn, setAddTitleEn] = useState("");
+    const [addItems, setAddItems] = useState<Array<{ titleEn: string; url: string }>>([]);
+    const [addItemTitleEn, setAddItemTitleEn] = useState("");
+    const [addItemUrl, setAddItemUrl] = useState("");
 
     const sensors = useSensors(useSensor(PointerSensor));
 
+    const localeOptions = useMemo(() => {
+        const localeSet = new Set<string>(availableLocales && availableLocales.length ? availableLocales : ['en']);
+        if (footer?.items) {
+            footer.items.forEach(section => {
+                if (section.titles) {
+                    Object.keys(section.titles).forEach(code => localeSet.add(code));
+                }
+                section.items.forEach(item => {
+                    if (item.titles) {
+                        Object.keys(item.titles).forEach(code => localeSet.add(code));
+                    }
+                });
+            });
+        }
+        return Array.from(localeSet);
+    }, [availableLocales, footer]);
+
     useEffect(() => {
-        fetchFooter();
+        void fetchFooter();
+        void fetchLocales();
     }, []);
 
-    // Call onFooterDataChange whenever footer data changes
+    const fetchLocales = async () => {
+        try {
+            const response = await api.get("/v1/footer/locales");
+            const locales = response?.data?.locales;
+            if (Array.isArray(locales) && locales.length) {
+                setAvailableLocales(locales);
+                if (!locales.includes(footerLocale)) {
+                    setFooterLocale(locales[0] || 'en');
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching footer locales:", error);
+        }
+    };
+
+    const ensureLocaleTranslations = useCallback(async (localeCode: string) => {
+        if (!localeCode || localeCode === 'en') return;
+        if (!footer?.items?.length) return;
+
+        const englishStrings = collectTitles(footer.items as any);
+        const cached = translationCache[localeCode] || {};
+        const translated = await translateMissingStrings(englishStrings, localeCode, cached);
+        if (translated === cached) return;
+        setTranslationCache((prev) => ({
+            ...prev,
+            [localeCode]: translated,
+        }));
+    }, [footer?.items, translationCache]);
+
+    useEffect(() => {
+        if (!footer?.items?.length) return;
+        if (footerLocale === 'en') return;
+        void ensureLocaleTranslations(footerLocale);
+    }, [footerLocale, footer?.items, ensureLocaleTranslations]);
+
+    const getDisplayTitle = useCallback((section: FooterSection): string => {
+        const english = section.titles?.en || section.title;
+        if (footerLocale === 'en') return english || section.title;
+        const saved = section.titles?.[footerLocale];
+        if (saved) return saved;
+        if (!english) return section.title;
+        return translationCache[footerLocale]?.[english] || english;
+    }, [footerLocale, translationCache]);
+
     useEffect(() => {
         if (footer?.items && onFooterDataChange) {
             onFooterDataChange(footer.items);
@@ -210,207 +253,129 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
         if (!footer) return;
 
         try {
-            // Save reordering
             const currentTitles = footer.items.map(item => item.title);
             await api.put("/v1/footer/reorder", { titles: currentTitles });
             toast.success("Footer changes saved successfully");
-
-            // Refresh data from server
             await fetchFooter();
         } catch (err) {
             console.error("Failed to save footer changes:", err);
             toast.error("Failed to save changes");
-            await fetchFooter(); // Revert to server state on failure
+            await fetchFooter();
         }
     };
 
-    // Modal handlers
-    const handleAddSection = async (e: React.FormEvent) => {
+    const handleAddItemToNewSection = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!addItemTitleEn) {
+            toast.error("Item title (English) is required");
+            return;
+        }
+        setAddItems((prev) => [...prev, { titleEn: addItemTitleEn, url: addItemUrl }]);
+        setAddItemTitleEn("");
+        setAddItemUrl("");
+    };
+
+    const handleRemoveAddItem = (index: number) => {
+        setAddItems((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleAddSectionSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newSectionTitle) {
-            toast.error("Section title is required");
+        if (!addTitleEn) {
+            toast.error("Section English title is required");
             return;
         }
-
-        if (!newSectionRussianTitle) {
-            toast.error("Section russian title is required");
+        if (!addItems.length) {
+            toast.error("Add at least one item to the section");
             return;
         }
-
         try {
-            const res = await api.post("/v1/footer/items", {
-                "title": newSectionTitle,
-                "russian_title": newSectionRussianTitle,
-                "items": sectionItems,
-                "visible": false,
-            });
-            if (res) {
-                toast.success("Section added successfully!");
-                // Reset form
-                setNewSectionTitle("");
-                setNewSectionRussianTitle("");
-                setSectionItems([]);
+            const payload = {
+                title: addTitleEn,
+                titles: { en: addTitleEn },
+                items: addItems.map((it) => ({
+                    title: it.titleEn,
+                    titles: { en: it.titleEn },
+                    url: it.url || null,
+                    visible: true,
+                })),
+                visible: false,
+            } as any;
+
+            const res = await api.post("/v1/footer/items", payload);
+            if (res?.data?.success) {
+                toast.success("Section added successfully");
                 setIsAddModalOpen(false);
-                // Refresh footer data
+                setAddTitleEn("");
+                setAddItems([]);
                 await fetchFooter();
+            } else {
+                const msg = res?.data?.msg || "Failed to add section";
+                toast.error(msg);
             }
-        } catch (err) {
-            console.error("Failed to add section:", err);
-            toast.error("Failed to add section");
-        }
-    };
-
-    const handleAddSectionItem = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!tempItemTitle || !tempItemRussianTitle) {
-            toast.error("Item title and Russian title are required");
-            return;
-        }
-        setSectionItems([...sectionItems, { title: tempItemTitle, russian_title: tempItemRussianTitle, url: tempItemUrl || null }]);
-        setTempItemTitle("");
-        setTempItemRussianTitle("");
-        setTempItemUrl("");
-    };
-
-    const handleRemoveSectionItem = (index: number) => {
-        setSectionItems(sectionItems.filter((_, i) => i !== index));
-    };
-
-    const handleEditSection = (section: FooterSection) => {
-        setEditingSection(section);
-        setEditSectionTitle(section.title);
-        setEditSectionRussianTitle(section.russian_title);
-        setEditSectionItems(section.items);
-        setIsEditModalOpen(true);
-    };
-
-    const handleEditSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!editingSection) return;
-
-        try {
-            const updatedSection = {
-                title: editSectionTitle,
-                russian_title: editSectionRussianTitle,
-                items: editSectionItems,
-            };
-
-            const response = await api.put(`/v1/footer/items/edit/${editingSection.title}`, updatedSection);
-
-            if (response.data) {
-                toast.success("Section updated successfully");
-                setIsEditModalOpen(false);
-                setEditingSection(null);
-                await fetchFooter();
-            }
-        } catch (err) {
-            console.error("Failed to update section:", err);
-            toast.error("Failed to update section");
-        }
-    };
-
-    const handleEditAddItem = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!editTempItemTitle || !editTempItemRussianTitle) {
-            toast.error("Item title and Russian title are required");
-            return;
-        }
-
-        if (editingItemIndex !== null) {
-            // Update existing item
-            const updatedItems = [...editSectionItems];
-            updatedItems[editingItemIndex] = {
-                title: editTempItemTitle,
-                russian_title: editTempItemRussianTitle,
-                url: editTempItemUrl || null,
-                visible: true,
-                type: "link"
-            };
-            setEditSectionItems(updatedItems);
-            setEditingItemIndex(null);
-        } else {
-            // Add new item
-            setEditSectionItems([...editSectionItems, {
-                title: editTempItemTitle,
-                russian_title: editTempItemRussianTitle,
-                url: editTempItemUrl || null,
-                visible: true,
-                type: "link"
-            }]);
-        }
-
-        // Reset form fields
-        setEditTempItemTitle("");
-        setEditTempItemRussianTitle("");
-        setEditTempItemUrl("");
-    };
-
-    const handleEditItem = (index: number) => {
-        const item = editSectionItems[index];
-        setEditTempItemTitle(item.title);
-        setEditTempItemRussianTitle(item.russian_title);
-        setEditTempItemUrl(item.url || "");
-        setEditingItemIndex(index);
-    };
-
-    const handleRemoveEditItem = (index: number) => {
-        setEditSectionItems(editSectionItems.filter((_, i) => i !== index));
-        // If we were editing this item, reset the form
-        if (editingItemIndex === index) {
-            setEditTempItemTitle("");
-            setEditTempItemRussianTitle("");
-            setEditTempItemUrl("");
-            setEditingItemIndex(null);
-        }
-    };
-
-    const cancelEditingItem = () => {
-        setEditTempItemTitle("");
-        setEditTempItemRussianTitle("");
-        setEditTempItemUrl("");
-        setEditingItemIndex(null);
-    };
-
-    const handleRemoveSection = (title: string) => {
-        setItemToDelete(title);
-        setIsDeleteModalOpen(true);
-    };
-
-    const confirmDeleteSection = async () => {
-        if (!itemToDelete) return;
-
-        try {
-            await api.delete(`/v1/footer/${itemToDelete}`);
-            toast.success(`"${itemToDelete}" removed successfully`);
-
-            if (footer) {
-                // Update UI after successful deletion
-                const newItems = footer.items.filter(item => item.title !== itemToDelete);
-                setFooter({ ...footer, items: newItems });
-            }
-
-            // Refresh data from server to ensure consistency
-            await fetchFooter();
-        } catch (err) {
-            console.error("Failed to remove section:", err);
-            toast.error(`Failed to remove "${itemToDelete}"`);
-            // Refresh to revert any optimistic UI updates
-            await fetchFooter();
-        } finally {
-            setIsDeleteModalOpen(false);
-            setItemToDelete(null);
+        } catch (err: any) {
+            const msg = err?.response?.data?.msg || err?.message || "Failed to add section";
+            toast.error(msg);
         }
     };
 
     const handleChangeVisibility = (title: string, currentVisibility: boolean) => {
-        // Update local state after successful API call from FooterVisibilityToggle
         if (footer) {
             const newItems = footer.items.map(item =>
                 item.title === title ? { ...item, visible: !currentVisibility } : item
             );
             setFooter({ ...footer, items: newItems });
+        }
+    };
+
+    const handleEditSection = (section: FooterSection) => {
+        setEditingSection(section);
+        const english = section.titles?.en || section.title;
+        const savedLocale = section.titles?.[footerLocale];
+        if (footerLocale === 'en') {
+            setEditTitle(english || section.title);
+            setEditPlaceholder(english || section.title);
+        } else if (savedLocale && String(savedLocale).trim()) {
+            setEditTitle(savedLocale);
+            setEditPlaceholder(savedLocale);
+        } else {
+            setEditTitle("");
+            setEditPlaceholder(translationCache[footerLocale]?.[english] || english || section.title);
+        }
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingSection) return;
+        if (!editTitle) {
+            toast.error("Title is required");
+            return;
+        }
+        try {
+            const existingTitles = (editingSection.titles || {}) as Record<string, string>;
+            const nextTitles: Record<string, string> = { ...existingTitles };
+            const localeKey = footerLocale === 'en' ? 'en' : footerLocale;
+            nextTitles[localeKey] = editTitle;
+
+            const updatedSection: any = {
+                title: footerLocale === 'en' ? editTitle : editingSection.title,
+                titles: nextTitles,
+            };
+
+            const response = await api.put(`/v1/footer/items/edit/${editingSection.title}`, updatedSection);
+            if (response?.data?.success) {
+                toast.success("Footer section updated successfully");
+                setIsEditModalOpen(false);
+                setEditingSection(null);
+                await fetchFooter();
+            } else {
+                const errorMsg = response?.data?.msg || "Failed to update footer section";
+                toast.error(errorMsg);
+            }
+        } catch (err: any) {
+            const errorMsg = err?.response?.data?.msg || err?.response?.data?.message || err?.message || "Failed to update footer section";
+            toast.error(errorMsg);
         }
     };
 
@@ -421,6 +386,49 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle>Edit Footer Sections</CardTitle>
+                    <div className="flex items-center gap-2">
+                        <LocaleSelect
+                            value={footerLocale}
+                            locales={localeOptions}
+                            languages={languages}
+                            isBusy={translationLoading}
+                            onChange={async (val) => {
+                                if (val === footerLocale) return;
+                                setTranslationLoading(true);
+                                try {
+                                    await ensureLocaleTranslations(val);
+                                    setFooterLocale(val);
+                                    setLocale(val);
+                                } finally {
+                                    setTranslationLoading(false);
+                                }
+                            }}
+                        />
+                        <AddLocaleDialog
+                            open={addLocaleOpen}
+                            onOpenChange={setAddLocaleOpen}
+                            siteLocales={localeOptions || ['en']}
+                            onAddLocale={async (code: string) => {
+                                setTranslationLoading(true);
+                                try {
+                                    await api.post("/v1/footer/locales", { code });
+                                    await fetchLocales();
+                                    await ensureLocaleTranslations(code);
+                                    setFooterLocale(code);
+                                    setLocale(code);
+                                    toast.success(`Locale "${code}" added for footer`);
+                                } catch (error) {
+                                    console.error('Error adding locale:', error);
+                                    toast.error(`Failed to add locale "${code}"`);
+                                } finally {
+                                    setTranslationLoading(false);
+                                }
+                            }}
+                        />
+
+                        {/* right-side locale controls only; add button sits as sibling below */}
+                    </div>
+                    {/* Add Section - aligned like header's Add button */}
                     <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                         <DialogTrigger asChild>
                             <Button variant="default">
@@ -431,60 +439,41 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                             <DialogHeader>
                                 <DialogTitle>Add Footer Section</DialogTitle>
                                 <DialogDescription>
-                                    Create a new footer section with items.
+                                    Create a new footer section with links. English titles are required.
                                 </DialogDescription>
                             </DialogHeader>
-                            <form onSubmit={handleAddSection} className="flex flex-col gap-4">
+                            <form onSubmit={handleAddSectionSubmit} className="flex flex-col gap-4">
                                 <Input
                                     type="text"
-                                    placeholder="Section Title"
-                                    value={newSectionTitle}
-                                    onChange={(e) => setNewSectionTitle(e.target.value)}
+                                    placeholder="Section Title (English)"
+                                    value={addTitleEn}
+                                    onChange={(e) => setAddTitleEn(e.target.value)}
                                     required
                                 />
-                                <Input
-                                    type="text"
-                                    placeholder="Russian Title"
-                                    value={newSectionRussianTitle}
-                                    onChange={(e) => setNewSectionRussianTitle(e.target.value)}
-                                    required
-                                />
+
                                 <div className="border rounded p-4">
                                     <h4 className="font-medium mb-2">Section Items</h4>
 
-                                    {sectionItems.length > 0 ? (
-                                        <DndContext
-                                            sensors={sensors}
-                                            collisionDetection={closestCenter}
-                                            onDragEnd={handleDragEnd}
-                                        >
-                                            <SortableContext
-                                                items={sectionItems.map((item) => `${item.title}-${item.url}`)}
-                                                strategy={verticalListSortingStrategy}
-                                            >
-                                                <ul className="mb-4">
-                                                    {sectionItems.map((item, index) => (
-                                                        <SortableItem key={`${item.title}-${item.url}`} id={`${item.title}-${item.url}`}>
-                                                            <li className="flex justify-between items-center p-2 bg-white border rounded">
-                                                                <div>
-                                                                    <div className="font-medium">{item.title}</div>
-                                                                    <div className="text-sm text-blue-600">{item.url}</div>
-                                                                </div>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => handleRemoveSectionItem(index)}
-                                                                    className="text-red-500 hover:text-red-700"
-                                                                >
-                                                                    Remove
-                                                                </Button>
-                                                            </li>
-                                                        </SortableItem>
-                                                    ))}
-                                                </ul>
-                                            </SortableContext>
-                                        </DndContext>
+                                    {addItems.length > 0 ? (
+                                        <ul className="mb-4 space-y-2">
+                                            {addItems.map((item, index) => (
+                                                <li key={`${item.titleEn}-${index}`} className="flex justify-between items-center p-2 bg-white border rounded">
+                                                    <div>
+                                                        <div className="font-medium">{item.titleEn}</div>
+                                                        <div className="text-sm text-blue-600">{item.url}</div>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveAddItem(index)}
+                                                        className="text-red-500 hover:text-red-700"
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                        </ul>
                                     ) : (
                                         <p className="text-gray-500 italic mb-4">No links</p>
                                     )}
@@ -494,25 +483,19 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                         <div className="flex flex-col gap-2">
                                             <Input
                                                 type="text"
-                                                placeholder="Title"
-                                                value={tempItemTitle}
-                                                onChange={(e) => setTempItemTitle(e.target.value)}
+                                                placeholder="Item Title (English)"
+                                                value={addItemTitleEn}
+                                                onChange={(e) => setAddItemTitleEn(e.target.value)}
                                             />
                                             <Input
                                                 type="text"
-                                                placeholder="Russian Title"
-                                                value={tempItemRussianTitle}
-                                                onChange={(e) => setTempItemRussianTitle(e.target.value)}
-                                            />
-                                            <Input
-                                                type="text"
-                                                placeholder="Item URL"
-                                                value={tempItemUrl}
-                                                onChange={(e) => setTempItemUrl(e.target.value)}
+                                                placeholder="Item URL (optional)"
+                                                value={addItemUrl}
+                                                onChange={(e) => setAddItemUrl(e.target.value)}
                                             />
                                             <Button
                                                 type="button"
-                                                onClick={handleAddSectionItem}
+                                                onClick={handleAddItemToNewSection}
                                                 size="sm"
                                                 className="self-start"
                                             >
@@ -523,172 +506,15 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                 </div>
 
                                 <DialogFooter>
-                                    <Button type="submit" disabled={sectionItems.length === 0}>
-                                        Add Section
-                                    </Button>
+                                    <Button type="submit" disabled={!addItems.length}>Add Section</Button>
                                 </DialogFooter>
                             </form>
                         </DialogContent>
                     </Dialog>
-
-                    {/* Edit Section Dialog */}
-                    <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                        <DialogContent className="sm:max-w-[600px]">
-                            <DialogHeader>
-                                <DialogTitle>Edit Footer Section</DialogTitle>
-                                <DialogDescription>
-                                    Update the section details and items.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
-                                <Input
-                                    type="text"
-                                    placeholder="Section Title"
-                                    value={editSectionTitle}
-                                    onChange={(e) => setEditSectionTitle(e.target.value)}
-                                    required
-                                />
-                                <Input
-                                    type="text"
-                                    placeholder="Russian Title"
-                                    value={editSectionRussianTitle}
-                                    onChange={(e) => setEditSectionRussianTitle(e.target.value)}
-                                    required
-                                />
-
-                                <div className="border rounded p-4">
-                                    <h4 className="font-medium mb-2">Section Items</h4>
-
-                                    {editSectionItems.length > 0 ? (
-                                        <DndContext
-                                            sensors={sensors}
-                                            collisionDetection={closestCenter}
-                                            onDragEnd={handleDragEnd}
-                                        >
-                                            <SortableContext
-                                                items={editSectionItems.map((link) => `${link.title}-${link.url}`)}
-                                                strategy={verticalListSortingStrategy}
-                                            >
-                                                <ul className="mb-4">
-                                                    {editSectionItems.map((link, index) => (
-                                                        <SortableItem
-                                                            key={`${link.title}-${link.url}`}
-                                                            id={`${link.title}-${link.url}`}
-                                                        >
-                                                            <li className="flex justify-between items-center p-2 border rounded">
-                                                                <div>
-                                                                    <div className="font-medium">{link.title}</div>
-                                                                    <div className="text-sm text-blue-600">{link.url}</div>
-                                                                </div>
-                                                                <div className="flex gap-2">
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleEditItem(index)}
-                                                                        className="text-blue-500 hover:text-blue-700"
-                                                                    >
-                                                                        Edit
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleRemoveEditItem(index)}
-                                                                        className="text-red-500 hover:text-red-700"
-                                                                    >
-                                                                        Remove
-                                                                    </Button>
-                                                                </div>
-                                                            </li>
-                                                        </SortableItem>
-                                                    ))}
-                                                </ul>
-                                            </SortableContext>
-                                        </DndContext>
-                                    ) : (
-                                        <p className="text-gray-500 italic mb-4">No items</p>
-                                    )}
-
-                                    <div className="border-t pt-3">
-                                        <h5 className="font-medium mb-2">
-                                            {editingItemIndex !== null ? 'Edit Item' : 'Add Item to Section'}
-                                        </h5>
-                                        <div className="flex flex-col gap-2">
-                                            <Input
-                                                type="text"
-                                                placeholder="Title"
-                                                value={editTempItemTitle}
-                                                onChange={(e) => setEditTempItemTitle(e.target.value)}
-                                            />
-                                            <Input
-                                                type="text"
-                                                placeholder="Russian Title"
-                                                value={editTempItemRussianTitle}
-                                                onChange={(e) => setEditTempItemRussianTitle(e.target.value)}
-                                            />
-                                            <Input
-                                                type="text"
-                                                placeholder="Optional URL"
-                                                value={editTempItemUrl}
-                                                onChange={(e) => setEditTempItemUrl(e.target.value)}
-                                            />
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    type="button"
-                                                    onClick={handleEditAddItem}
-                                                    size="sm"
-                                                    className="self-start"
-                                                >
-                                                    {editingItemIndex !== null ? 'Update Item' : 'Add Item'}
-                                                </Button>
-                                                {editingItemIndex !== null && (
-                                                    <Button
-                                                        type="button"
-                                                        onClick={cancelEditingItem}
-                                                        size="sm"
-                                                        variant="outline"
-                                                    >
-                                                        Cancel
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <DialogFooter>
-                                    <Button type="submit">
-                                        Save Changes
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
-
-                    {/* Delete Confirmation Dialog */}
-                    <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently remove the footer section "{itemToDelete}" and all its items.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={confirmDeleteSection} className="bg-red-600 hover:bg-red-700">
-                                    Delete
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
                 </div>
             </CardHeader>
 
             <CardContent>
-
-            {/* Current footer items */}
             <div className="mb-6">
                 <h3 className="text-lg font-medium mb-2">Current Sections</h3>
                 {footer && footer.items.length > 0 ? (
@@ -707,7 +533,9 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                         <li className="flex justify-between items-center p-2">
                                             <div className="flex flex-1">
                                                 <div>
-                                                    <span className="font-medium">{item.title}</span>
+                                                    <span className="font-medium">
+                                                        {getDisplayTitle(item)}
+                                                    </span>
                                                     {('url' in item) && <span className="ml-2 text-sm text-gray-500">{(item as FooterItem).url}</span>}
                                                     {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
@@ -718,17 +546,9 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleEditSection(item)}
-                                                    className="text-blue-600 hover:text-blue-700"
+                                                    className="text-primary hover:text-primary/80"
                                                 >
                                                     Edit
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleRemoveSection(item.title)}
-                                                    className="text-red-600 hover:text-red-700"
-                                                >
-                                                    Remove
                                                 </Button>
                                             </div>
                                         </li>
@@ -741,6 +561,31 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                     <p className="text-gray-500">No sections yet. Click "Add Section" to create one.</p>
                 )}
             </div>
+
+            {/* Edit Section Dialog */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit Footer Section</DialogTitle>
+                        <DialogDescription>
+                            Update the section title. Only the current locale will be changed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+                        <Input
+                            type="text"
+                            placeholder={editPlaceholder || "Title"}
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="placeholder:text-muted-foreground/70"
+                            required
+                        />
+                        <DialogFooter>
+                            <Button type="submit">Save Changes</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {footer && footer.items.length > 0 && (
                 <div className="flex gap-4 justify-start mt-6">

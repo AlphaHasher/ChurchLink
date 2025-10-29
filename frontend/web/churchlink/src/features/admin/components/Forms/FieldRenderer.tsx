@@ -62,7 +62,7 @@ export function FieldRenderer({ field, control, error }: Props) {
     const paymentMethods = priceField.paymentMethods || {};
     const allowPayPal = paymentMethods.allowPayPal !== false; // default true
     const allowInPerson = paymentMethods.allowInPerson !== false; // default true
-    const localizedLabel = (priceField.i18n?.[activeLocale]?.label ?? priceField.label);
+    const localizedLabel = priceField.label;
     
     // Determine UI behavior based on enabled payment methods
     const paypalOnly = allowPayPal && !allowInPerson;
@@ -189,11 +189,33 @@ export function FieldRenderer({ field, control, error }: Props) {
     );
   }
   
+  const translations = useBuilderStore((s) => s.translations);
+  
   const t = (key: 'label'|'placeholder'|'helpText'|'content', base?: string) => {
-    const map = (field as any).i18n as Record<string, any> | undefined;
-    const val = map?.[activeLocale]?.[key];
+    // If no active locale or it's English, return base
+    if (!activeLocale || activeLocale === 'en') return base;
+    
+    // Get translations for this field
+    const fieldTranslations = translations[field.id]?.[activeLocale];
+    if (!fieldTranslations) return base;
+    
+    // For helpText and content, check if it exists in the translations
+    const val = (fieldTranslations as any)[key];
     return (val != null && val !== '') ? val : base;
   };
+  
+  const tOption = (optionIdx: number, base: string) => {
+    // If no active locale or it's English, return base
+    if (!activeLocale || activeLocale === 'en') return base;
+    
+    // Get translations for this field's options
+    const fieldTranslations = translations[field.id]?.[activeLocale];
+    if (!fieldTranslations) return base;
+    
+    const val = (fieldTranslations as any)[`option_${optionIdx}`];
+    return (val != null && val !== '') ? val : base;
+  };
+  
   const localizedLabel = t('label', field.label);
   const localizedPlaceholder = t('placeholder', (field as any).placeholder);
   const localizedHelp = t('helpText', (field as any).helpText);
@@ -217,15 +239,19 @@ export function FieldRenderer({ field, control, error }: Props) {
           return "text-base";
       }
     })();
-  const style: CSSProperties = {
+  const baseStyle: CSSProperties = {
       color: f.color || undefined,
       fontWeight: f.bold ? 600 : undefined,
-      textDecoration: f.underline ? "underline" : undefined,
     };
-    const staticText = localizedLabel || f.label || field.name;
+    const staticText = t('content', f.content) || "Modify Me!";
     return (
       <div className={cn("flex flex-col gap-2", colClass)}>
-        <Tag className={sizeClass} style={style}>{staticText}</Tag>
+        <Tag
+          className={cn(sizeClass, "whitespace-pre-wrap")}
+          style={{ ...baseStyle, whiteSpace: 'pre-wrap' }}
+        >
+          {staticText}
+        </Tag>
         {localizedHelp && (
           <p className="text-sm text-muted-foreground">{localizedHelp}</p>
         )}
@@ -310,11 +336,9 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <div className="flex items-center gap-2">
                   <Switch checked={!!rhf.value} onCheckedChange={rhf.onChange} id={field.name} />
-                  {localizedPlaceholder && (
-                    <Label htmlFor={field.name} className="text-sm text-muted-foreground">
-                      {localizedPlaceholder}
-                    </Label>
-                  )}
+                  <Label htmlFor={field.name} className="text-sm text-muted-foreground">
+                    {rhf.value ? ((field as any).onText || localizedPlaceholder) : ((field as any).offText || localizedPlaceholder)}
+                  </Label>
                 </div>
               );
             case "select": {
@@ -328,13 +352,13 @@ export function FieldRenderer({ field, control, error }: Props) {
                 };
                 return (
                   <div className="flex flex-col gap-2">
-                    {opts.map((o: any) => (
+                    {opts.map((o: any, idx: number) => (
                       <label key={o.value} className="flex items-center gap-2">
                         <Checkbox
                           checked={current.includes(o.value)}
                           onCheckedChange={(v) => toggle(o.value, !!v)}
                         />
-                        <span>{(o.i18n?.[activeLocale]?.label ?? o.label)}</span>
+                        <span>{tOption(idx, o.label)}</span>
                       </label>
                     ))}
                   </div>
@@ -346,9 +370,9 @@ export function FieldRenderer({ field, control, error }: Props) {
                     <SelectValue placeholder={localizedPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
-                    {opts.map((o: any) => (
+                    {opts.map((o: any, idx: number) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {(o.i18n?.[activeLocale]?.label ?? o.label)}
+                        {tOption(idx, o.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -359,10 +383,10 @@ export function FieldRenderer({ field, control, error }: Props) {
               const opts = (field as any).options || [];
               return (
                 <RadioGroup value={rhf.value} onValueChange={rhf.onChange}>
-                  {opts.map((o: any) => (
+                  {opts.map((o: any, idx: number) => (
                     <div className="flex items-center space-x-2" key={o.value}>
                       <RadioGroupItem id={`${field.name}-${o.value}`} value={o.value} />
-                      <Label htmlFor={`${field.name}-${o.value}`}>{(o.i18n?.[activeLocale]?.label ?? o.label)}</Label>
+                      <Label htmlFor={`${field.name}-${o.value}`}>{tOption(idx, o.label)}</Label>
                     </div>
                   ))}
                 </RadioGroup>

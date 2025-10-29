@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import List, Optional, Final, Union
+from typing import List, Optional, Final, Union, Dict
 from pydantic import BaseModel
 from mongo.database import DB
 from typing import ClassVar
 
 class HeaderLink(BaseModel):
     title: str
-    russian_title: str
+    titles: Dict[str, str]
     url: Optional[str] = None  # For backward compatibility and hardcoded URLs
     slug: Optional[str] = None  # For linking to pages by slug
     is_hardcoded_url: bool = False  # Flag to indicate if URL is hardcoded or should use slug navigation
@@ -15,7 +15,7 @@ class HeaderLink(BaseModel):
 
 class HeaderDropdown(BaseModel):
     title: str
-    russian_title: str
+    titles: Dict[str, str]
     items: List[HeaderLink]
     type: ClassVar[str] = "dropdown"
     visible: Optional[bool] = True
@@ -47,14 +47,14 @@ async def get_header() -> Optional[Header]:
                 if item["type"] == "dropdown":
                     header_items[item["index"]] = HeaderDropdown(
                         title=item["title"],
-                        russian_title=item["russian_title"],
+                        titles=item.get("titles") or {},
                         items=item["items"],
                         visible=item["visible"]
                     )
                 elif item["type"] == "link":
                     header_items[item["index"]] = HeaderLink(
                         title=item["title"],
-                        russian_title=item["russian_title"],
+                        titles=item.get("titles") or {},
                         url=item.get("url"),
                         slug=item.get("slug"),
                         is_hardcoded_url=item.get("is_hardcoded_url", False),
@@ -85,14 +85,14 @@ async def get_header_items() -> Optional[Header]:
             if item["type"] == "dropdown":
                 header_items[item["index"]] = HeaderDropdown(
                     title=item["title"],
-                    russian_title=item["russian_title"],
+                    titles=item.get("titles") or {},
                     items=item["items"],
                     visible=item["visible"]
                 )
             elif item["type"] == "link":
                 header_items[item["index"]] = HeaderLink(
                     title=item["title"],
-                    russian_title=item["russian_title"],
+                    titles=item.get("titles") or {},
                     url=item.get("url"),
                     slug=item.get("slug"),
                     is_hardcoded_url=item.get("is_hardcoded_url", False),
@@ -120,15 +120,9 @@ async def get_item_by_title(title: str) -> Optional[Union[HeaderLink, HeaderDrop
 
         # Convert the MongoDB document into the appropriate HeaderItem type
         if item["type"] == "dropdown":
-            return HeaderDropdown(title=item["title"], russian_title=item["russian_title"], items=item["items"])
+            return HeaderDropdown(title=item["title"], titles=item.get("titles") or {}, items=item["items"])
         elif item["type"] == "link":
-            return HeaderLink(
-                title=item["title"],
-                russian_title=item["russian_title"],
-                url=item.get("url"),
-                slug=item.get("slug"),
-                is_hardcoded_url=item.get("is_hardcoded_url", False)
-            )
+            return HeaderLink(title=item["title"], titles=item.get("titles") or {}, url=item.get("url"), slug=item.get("slug"), is_hardcoded_url=item.get("is_hardcoded_url", False))
 
         return None
     except Exception as e:
@@ -147,16 +141,9 @@ async def get_item_by_index(index: int) -> Optional[Union[HeaderLink, HeaderDrop
 
         # Convert the MongoDB document into the appropriate HeaderItem type
         if item["type"] == "dropdown":
-            return HeaderDropdown(title=item["title"], russian_title=item["russian_title"], items=item["items"], visible=item.get("visible", True))
+            return HeaderDropdown(title=item["title"], titles=item.get("titles") or {}, items=item["items"], visible=item.get("visible", True))
         elif item["type"] == "link":
-            return HeaderLink(
-                title=item["title"],
-                russian_title=item["russian_title"],
-                url=item.get("url"),
-                slug=item.get("slug"),
-                is_hardcoded_url=item.get("is_hardcoded_url", False),
-                visible=item.get("visible", True)
-            )
+            return HeaderLink(title=item["title"], titles=item.get("titles") or {}, url=item.get("url"), slug=item.get("slug"), is_hardcoded_url=item.get("is_hardcoded_url", False), visible=item.get("visible", True))
         return None
     except Exception as e:
         print(f"Error getting header item by index: {e}")
@@ -169,7 +156,7 @@ async def add_link(item: dict) -> bool:
     try:
         item_input = {
             "title": item["title"],
-            "russian_title": item["russian_title"],
+            "titles": item.get("titles") or {},
             "type": "link",
             "index": len(await DB.find_documents(db_path, {})),
             "visible": item.get("visible", True),
@@ -200,7 +187,7 @@ async def add_dropdown(item: dict) -> bool:
         for subitem in item["items"]:
             processed_item = {
                 "title": subitem.get("title"),
-                "russian_title": subitem.get("russian_title"),
+                "titles": subitem.get("titles") or {},
                 "visible": bool(subitem.get("visible", True))
             }
 
@@ -216,7 +203,7 @@ async def add_dropdown(item: dict) -> bool:
 
         res = await DB.insert_document(db_path, {
             "title": item["title"],
-            "russian_title": item["russian_title"],
+            "titles": item.get("titles") or {},
             "items": processed_items,
             "visible": item.get("visible", True),
             "type": "dropdown",

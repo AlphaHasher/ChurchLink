@@ -13,6 +13,7 @@ import PaypalSection from '@sections/PaypalSection';
 // import ScopedStyle from '@/shared/components/ScopedStyle';
 import { ActivePaddingOverlay, BuilderState } from '@/features/webeditor/state/BuilderState';
 import { getPublicUrl } from '@/helpers/MediaInteraction';
+import { useLocalize } from '@/shared/utils/localizationUtils';
 
 const PADDING_COLORS = {
   top: 'rgba(239,68,68,0.28)',
@@ -143,6 +144,7 @@ const renderNode = (
   forceFlowLayout?: boolean,
   activeLocale?: string,
   defaultLocale?: string,
+  localizeFn?: (text: string) => string,
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyle = nodeFontFamily ? { fontFamily: nodeFontFamily } : undefined;
@@ -186,7 +188,13 @@ const renderNode = (
 
   switch (node.type) {
     case 'text': {
-      const html = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale) ?? (node as any).props?.text ?? '';
+      const directHtml = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale);
+      const baseHtml = (node as any).props?.html ?? (node as any).props?.text ?? '';
+      const html = (directHtml != null && String(directHtml).trim())
+        ? directHtml
+        : ((activeLocale && activeLocale !== 'en' && baseHtml && localizeFn)
+            ? localizeFn(String(baseHtml))
+            : String(baseHtml));
       const align = (node as any).props?.align ?? 'left';
       const variant = (node as any).props?.variant ?? 'p';
       const nodeStyleRaw = (node as any).style || {};
@@ -279,7 +287,13 @@ const renderNode = (
     case 'image': {
       const nodeStyleRaw = (node as any).style || {};
       const src = (node as any).props?.src || '';
-      const alt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale) || '';
+      const directAlt = resolveLocalizedProp(node, 'alt', activeLocale, defaultLocale);
+      const baseAlt = (node as any).props?.alt || '';
+      const alt = (directAlt != null && String(directAlt).trim())
+        ? directAlt
+        : ((activeLocale && activeLocale !== 'en' && baseAlt && localizeFn)
+            ? localizeFn(String(baseAlt))
+            : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || 'cover';
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
@@ -320,7 +334,13 @@ const renderNode = (
     }
     case 'button': {
       const nodeStyleRaw = (node as any).style || {};
-      const label = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale) ?? 'Button';
+      const direct = resolveLocalizedProp(node, 'label', activeLocale, defaultLocale);
+      const baseLabel = (node as any).props?.label ?? 'Button';
+      const label = (direct != null && String(direct).trim())
+        ? direct
+        : ((activeLocale && activeLocale !== 'en' && baseLabel && localizeFn)
+            ? localizeFn(String(baseLabel))
+            : String(baseLabel));
       const href = (node as any).props?.href;
       const className = cn(
         (node as any).style?.className ?? 'px-4 py-2 bg-blue-600 text-white rounded text-center',
@@ -573,6 +593,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
   const defaultFontFamily = (page as any).styleTokens?.defaultFontFamily as string | undefined;
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
+  const localize = useLocalize();
 
   const [isInteracting, setIsInteracting] = useState<boolean>(
     Boolean(BuilderState.draggingNodeId || BuilderState.resizing || BuilderState.gridAdjustingSectionId)
@@ -651,7 +672,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                   const y = hasCustomPx ? cachedPx!.y : unitsToPx(node.layout!.units.yu, gridSize);
                   const w = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (node.layout?.units.wu ? unitsToPx(node.layout!.units.wu!, gridSize) : undefined);
                   const h = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (node.layout?.units.hu ? unitsToPx(node.layout!.units.hu!, gridSize) : undefined);
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, false, activeLocale, defaultLocale);
+                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
 
                   const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
                     if (node.type !== 'container') {
@@ -695,7 +716,7 @@ export const DynamicPageV2RendererBuilder: React.FC<{
                   );
                 } else {
                   // Flow layout for locked sections or nodes without layout
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, locked, activeLocale, defaultLocale);
+                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
                   return <div key={node.id} className="relative">{rendered}</div>;
                 }
               })}

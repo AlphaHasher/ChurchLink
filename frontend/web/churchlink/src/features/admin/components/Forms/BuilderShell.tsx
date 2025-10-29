@@ -34,6 +34,8 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import api from '@/api/api';
+import { useFormTranslator } from './useFormTranslator';
+import { LocaleSelector } from './LocaleSelector';
 
 
 
@@ -42,6 +44,11 @@ export function BuilderShell() {
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const setActiveLocale = useBuilderStore((s) => s.setActiveLocale);
   const updateSchemaMeta = useBuilderStore((s) => s.updateSchemaMeta);
+  const modifiedFields = useBuilderStore((s) => s.modifiedFields);
+  const clearModifiedFields = useBuilderStore((s) => s.clearModifiedFields);
+  const translations = useBuilderStore((s) => s.translations);
+  const setTranslations = useBuilderStore((s) => s.setTranslations);
+  const customLocales = useBuilderStore((s) => s.customLocales);
   const formWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
   const availableLocales = useMemo(() => collectAvailableLocales(schema as any), [schema]);
   const setSchema = useBuilderStore((s) => s.setSchema);
@@ -71,7 +78,60 @@ export function BuilderShell() {
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [previewExpanded, setPreviewExpanded] = useState(false);
-  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
+  const [supportedLocales, setSupportedLocales] = useState<string[]>((schema as any)?.supported_locales ?? []);
+  const lastSavedSnapshotRef = useRef<string>(JSON.stringify({ title: '', description: '', ministries: [], supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] }));
+  const { loading: translating, error: translationError } = useFormTranslator();
+  const loadTranslations = useBuilderStore((s) => s.loadTranslations);
+
+  // Helper to extract translatable texts in same order as backend
+  // onlyModified: if true, only extract from fields in modifiedFields set
+  const extractTranslatableTexts = (formData: any[], onlyModified: boolean = false): { texts: string[], fieldMap: Array<{ fieldId: string, property: string, optionIdx?: number }> } => {
+    const texts: string[] = [];
+    const fieldMap: Array<{ fieldId: string, property: string, optionIdx?: number }> = [];
+
+    for (const field of formData) {
+      // Skip if onlyModified and this field isn't modified
+      if (onlyModified && !modifiedFields.has(field.id)) {
+        continue;
+      }
+
+      // Add label
+      if (field.label) {
+        texts.push(field.label);
+        fieldMap.push({ fieldId: field.id, property: 'label' });
+      }
+
+      // Add placeholder
+      if (field.placeholder) {
+        texts.push(field.placeholder);
+        fieldMap.push({ fieldId: field.id, property: 'placeholder' });
+      }
+
+      // Add helpText (kept to preserve index parity with backend extractor)
+      if (field.helpText) {
+        texts.push(field.helpText);
+        fieldMap.push({ fieldId: field.id, property: 'helpText' });
+      }
+
+      // Add option labels
+      if (field.options) {
+        field.options.forEach((option: any, idx: number) => {
+          if (option.label) {
+            texts.push(option.label);
+            fieldMap.push({ fieldId: field.id, property: 'option', optionIdx: idx });
+          }
+        });
+      }
+
+      // Add content for static fields
+      if (field.type === 'static' && field.content) {
+        texts.push(field.content);
+        fieldMap.push({ fieldId: field.id, property: 'content' });
+      }
+    }
+
+    return { texts, fieldMap };
+  };
   const widthOptions = FORM_WIDTH_VALUES.map((value) => ({ value, label: `${value}%` }));
   const handleFormWidthChange = (value: string) => {
     updateSchemaMeta({ formWidth: normalizeFormWidth(value) });
@@ -144,18 +204,31 @@ export function BuilderShell() {
         if (form && form.data) {
           const dataArray = Array.isArray(form.data) ? form.data : (form.data?.data || []);
           const formWidthValue = normalizeFormWidth(form.formWidth ?? form.form_width ?? DEFAULT_FORM_WIDTH);
+
+          const translations: { [fieldId: string]: { [locale: string]: any } } = {};
+          for (const field of dataArray) {
+            if (field.translations) {
+              translations[field.id] = field.translations;
+            }
+          }
+
           setSchema({
             title: form.title || '',
             description: form.description || '',
             ministries: form.ministries || [],
-            defaultLocale: form.defaultLocale || 'en',
-            locales: form.locales || [],
+            supported_locales: form.supported_locales || [],
             formWidth: formWidthValue,
             data: dataArray,
           } as any);
+
+          if (Object.keys(translations).length > 0) {
+            loadTranslations(translations);
+          }
+
           setFormName(form.title || '');
           setDescription(form.description || '');
           setMinistries(form.ministries || []);
+          setSupportedLocales(form.supported_locales || []);
           setExpiresAt(form.expires_at ? (() => {
             try {
               const d = new Date(form.expires_at);
@@ -164,7 +237,7 @@ export function BuilderShell() {
             } catch (e) { return null; }
           })() : null);
           setStatus(null);
-          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', ministries: form.ministries || [], defaultLocale: form.defaultLocale || 'en', locales: form.locales || [], formWidth: formWidthValue, data: dataArray });
+          lastSavedSnapshotRef.current = JSON.stringify({ title: form.title || '', description: form.description || '', ministries: form.ministries || [], supported_locales: form.supported_locales || [], formWidth: formWidthValue, data: dataArray });
         }
       } catch (err) {
         console.error('Failed to load form', err);
@@ -172,7 +245,7 @@ export function BuilderShell() {
       }
     })();
     return () => { mounted = false; };
-  }, [setSchema]);
+  }, [setSchema, loadTranslations]);
 
   // Handle New Form flow via ?new=1 param
   useEffect(() => {
@@ -187,19 +260,20 @@ export function BuilderShell() {
       return;
     }
     const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: dataArray });
-    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] });
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], supported_locales: supportedLocales, formWidth: currentWidth, data: dataArray });
+    const isDirty = snapshot !== lastSavedSnapshotRef.current && snapshot !== JSON.stringify({ title: '', description: '', ministries: [], supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] });
     if (isDirty) setShowDiscardDialog(true);
     else resetToBlank();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetToBlank = () => {
-    const blank: any = { title: '', description: '', ministries: [], defaultLocale: 'en', locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
+    const blank: any = { title: '', description: '', ministries: [], supported_locales: [], formWidth: DEFAULT_FORM_WIDTH, data: [] };
     setSchema(blank);
     setFormName('');
     setDescription('');
     setMinistries([]);
+    setSupportedLocales([]);
     setExpiresAt(null);
     lastSavedSnapshotRef.current = JSON.stringify(blank);
   };
@@ -207,54 +281,25 @@ export function BuilderShell() {
   // Track dirty state and expose it for manager page via localStorage
   useEffect(() => {
     const currentWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: currentWidth, data: (schema as any)?.data || [] });
+    const dataWithTranslations = ((schema as any)?.data || []).map((field: any) => {
+      const fieldTranslations = translations[field.id];
+      if (fieldTranslations && Object.keys(fieldTranslations).length > 0) {
+        return { ...field, translations: fieldTranslations };
+      }
+      return field;
+    });
+    const snapshot = JSON.stringify({ title: formName || '', description: description || '', ministries: ministries || [], supported_locales: supportedLocales, formWidth: currentWidth, data: dataWithTranslations });
     const isDirtyNow = snapshot !== lastSavedSnapshotRef.current;
     try { localStorage.setItem('formBuilderDirty', isDirtyNow ? '1' : '0'); } catch { }
-  }, [schema, formName, description, ministries]);
-
-  const sanitizeFieldForLocale = (field: any, defaultLocale: string): any => {
-    const clone: any = { ...field };
-    if (field.i18n) {
-      clone.i18n = { ...field.i18n };
-      const localeEntry = clone.i18n?.[defaultLocale];
-      if (localeEntry?.label && String(localeEntry.label).trim().length > 0) {
-        delete clone.label;
-      }
-      if (localeEntry?.placeholder && String(localeEntry.placeholder).trim().length > 0) {
-        delete clone.placeholder;
-      }
-      if (localeEntry?.helpText && String(localeEntry.helpText).trim().length > 0) {
-        delete clone.helpText;
-      }
-    }
-    if ((field.type === 'select' || field.type === 'radio') && Array.isArray(field.options)) {
-      clone.options = field.options.map((opt: any) => {
-        const optClone: any = { ...opt };
-        if (opt.i18n) {
-          optClone.i18n = { ...opt.i18n };
-          const optLocale = optClone.i18n?.[defaultLocale];
-          if (optLocale?.label && String(optLocale.label).trim().length > 0) {
-            delete optClone.label;
-          }
-        }
-        return optClone;
-      });
-    }
-    return clone;
-  };
-
-  const sanitizeSchemaData = (data: any[], defaultLocale: string): any[] => {
-    if (!Array.isArray(data)) return [];
-    return data.map((field) => sanitizeFieldForLocale(field, defaultLocale));
-  };
+  }, [schema, formName, description, ministries, supportedLocales, translations]);
 
   const handleSave = async (): Promise<boolean> => {
     if (hasInvalidBounds) {
       setStatus({ type: 'error', title: 'Invalid field bounds', message: invalidBoundsMessage });
       return false;
     }
-    // Persist name, ministries and description into top-level schema so it stays with exported JSON
-    const newSchema = { ...(schema || { data: [] }), title: formName, ministries, description };
+    // Persist name, ministries, description, and supported_locales into top-level schema so it stays with exported JSON
+    const newSchema = { ...(schema || { data: [] }), title: formName, ministries, description, supported_locales: supportedLocales };
     setSchema(newSchema as any);
 
     if (!ministries || ministries.length === 0) {
@@ -265,8 +310,16 @@ export function BuilderShell() {
     // Perform the actual save
     const currentFormId = getCurrentFormId();
     const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-    const defaultLocale = (schema as any)?.defaultLocale || 'en';
-    const cleanedData = sanitizeSchemaData(((schema as any)?.data || []), defaultLocale);
+    const cleanedData = ((schema as any)?.data || []);
+
+    // Embed translations into each field for persistence
+    const dataWithTranslations = cleanedData.map((field: any) => {
+      const fieldTranslations = translations[field.id];
+      if (fieldTranslations && Object.keys(fieldTranslations).length > 0) {
+        return { ...field, translations: fieldTranslations };
+      }
+      return field;
+    });
 
     try {
       setStatus({ type: 'info', title: 'Saving', message: 'Saving to server...' });
@@ -274,9 +327,10 @@ export function BuilderShell() {
         title: formName,
         description: description,
         ministries,
+        supported_locales: supportedLocales,
         expires_at: expiresAt ? `${expiresAt}:00` : null,
         form_width: normalizedWidth,
-        data: cleanedData,
+        data: dataWithTranslations,
       };
 
       if (currentFormId) {
@@ -285,12 +339,17 @@ export function BuilderShell() {
         setStatus({ type: 'success', title: 'Updated', message: 'Form updated successfully' });
       } else {
         // Create new form - default to not visible
-        await api.post('/v1/forms/', { ...payload, visible: false });
+        const response = await api.post('/v1/forms/', { ...payload, visible: false });
+        const newFormId = response.data?.id;
+        if (newFormId) {
+          const newUrl = `${window.location.pathname}?load=${newFormId}`;
+          window.history.replaceState({ path: newUrl }, '', newUrl);
+        }
         setStatus({ type: 'success', title: 'Saved', message: 'Saved to server' });
       }
 
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, supported_locales: supportedLocales, formWidth: snapshotWidth, data: dataWithTranslations });
       return true;
     } catch (err: any) {
       console.error('Failed to save form to server', err);
@@ -317,22 +376,32 @@ export function BuilderShell() {
     try {
       setStatus({ type: 'info', title: 'Overriding', message: 'Overriding existing form...' });
       const normalizedWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      const defaultLocale = (schema as any)?.defaultLocale || 'en';
-      const cleanedData = sanitizeSchemaData(((schema as any)?.data || []), defaultLocale);
+      const cleanedData = (((schema as any)?.data || []));
+
+      // Embed translations into each field for persistence
+      const dataWithTranslations = cleanedData.map((field: any) => {
+        const fieldTranslations = translations[field.id];
+        if (fieldTranslations && Object.keys(fieldTranslations).length > 0) {
+          return { ...field, translations: fieldTranslations };
+        }
+        return field;
+      });
+
       const updatePayload = {
         title: formName,
         description,
         ministries,
+        supported_locales: supportedLocales,
         // Send local naive datetime string (no timezone conversion) so DB stores the selected local time
         expires_at: expiresAt ? `${expiresAt}:00` : null,
         visible: true,
         form_width: normalizedWidth,
-        data: cleanedData,
+        data: dataWithTranslations,
       };
       await api.put(`/v1/forms/${overrideTargetId}`, updatePayload);
       setStatus({ type: 'success', message: 'Form overridden' });
       const snapshotWidth = normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH);
-      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, defaultLocale: (schema as any)?.defaultLocale || 'en', locales: (schema as any)?.locales || [], formWidth: snapshotWidth, data: cleanedData });
+      lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, supported_locales: supportedLocales, formWidth: snapshotWidth, data: dataWithTranslations });
       // Refresh ministries list just in case
       const ministriesResp = await api.get('/v1/ministries');
       setAvailableMinistries(ministriesResp.data || []);
@@ -346,15 +415,20 @@ export function BuilderShell() {
   };
 
   const onExport = () => {
-    const defaultLocale = (schema as any)?.defaultLocale || 'en';
+    const dataWithTranslations = ((schema as any)?.data || []).map((field: any) => {
+      const fieldTranslations = translations[field.id];
+      return fieldTranslations && Object.keys(fieldTranslations).length > 0
+        ? { ...field, translations: fieldTranslations }
+        : field;
+    });
+
     const exportObj: any = {
       title: formName || (schema as any)?.title || 'Untitled Form',
       description: description || (schema as any)?.description || '',
       ministries: (schema as any)?.ministries || [],
-      defaultLocale: (schema as any)?.defaultLocale || 'en',
-      locales: (schema as any)?.locales || [],
+      supported_locales: supportedLocales,
       formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width ?? DEFAULT_FORM_WIDTH),
-      data: sanitizeSchemaData(((schema as any)?.data || []), defaultLocale),
+      data: dataWithTranslations,
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -379,14 +453,14 @@ export function BuilderShell() {
             title: parsed.title || '',
             description: parsed.description || '',
             ministries: parsed.ministries || [],
-            defaultLocale: parsed.defaultLocale || 'en',
-            locales: parsed.locales || [],
+            supported_locales: parsed.supported_locales || [],
             formWidth: normalizeFormWidth(parsed.formWidth ?? parsed.form_width ?? DEFAULT_FORM_WIDTH),
             data: parsed.data,
           });
           if (parsed.title) setFormName(parsed.title);
           if (parsed.description) setDescription(parsed.description);
           if (parsed.ministries) setMinistries(parsed.ministries);
+          if (parsed.supported_locales) setSupportedLocales(parsed.supported_locales);
           setStatus({ type: 'success', title: 'Imported', message: 'Form imported' });
         } else {
           setStatus({ type: 'error', title: 'Invalid JSON', message: 'Expected top-level "data" array' });
@@ -402,77 +476,77 @@ export function BuilderShell() {
 
   const previewOverlay = previewExpanded
     ? createPortal(
-        <div className="fixed inset-0 z-[100] bg-background">
-          <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
-            {/* Width and locale selectors in overlay so changes are visible live when maximized */}
-            <Select value={formWidth} onValueChange={handleFormWidthChange}>
-              <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-                <SelectValue placeholder="Width" />
-              </SelectTrigger>
-              <SelectContent align="end" className="z-[200]">
-                {widthOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-              <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end" className="z-[200]">
-                {availableLocales.map((l) => (
-                  <SelectItem key={l} value={l}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              className="rounded-full shadow-lg"
-              onClick={() => setPreviewExpanded(false)}
-              aria-label="Collapse preview"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
+      <div className="fixed inset-0 z-[100] bg-background">
+        <div className="absolute right-4 top-4 z-[110] flex items-center gap-2">
+          {/* Width and locale selectors in overlay so changes are visible live when maximized */}
+          <Select value={formWidth} onValueChange={handleFormWidthChange}>
+            <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
+              <SelectValue placeholder="Width" />
+            </SelectTrigger>
+            <SelectContent align="end" className="z-[200]">
+              {widthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+            <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end" className="z-[200]">
+              {availableLocales.map((l) => (
+                <SelectItem key={l} value={l}>{l}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="rounded-full shadow-lg"
+            onClick={() => setPreviewExpanded(false)}
+            aria-label="Collapse preview"
+          >
+            <Minimize2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex h-full w-full flex-col overflow-auto p-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <ErrorBoundary>
+              <PreviewRendererClient applyFormWidth={true} />
+            </ErrorBoundary>
           </div>
-          <div className="flex h-full w-full flex-col overflow-auto p-6">
-            <div className="mx-auto w-full max-w-6xl">
-              <ErrorBoundary>
-                <PreviewRendererClient applyFormWidth={true} />
-              </ErrorBoundary>
-            </div>
-            <div className="mx-auto w-full max-w-6xl">
-              <ErrorBoundary>
-                <PreviewRendererClient instanceId="expanded" />
-              </ErrorBoundary>
-            </div>
+          <div className="mx-auto w-full max-w-6xl">
+            <ErrorBoundary>
+              <PreviewRendererClient instanceId="expanded" />
+            </ErrorBoundary>
           </div>
-        </div>,
-        document.body
-      )
+        </div>
+      </div>,
+      document.body
+    )
     : null;
 
   return (
     <ErrorBoundary>
       <div className="p-2">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
+        <div className="flex items-center justify-between mb-3 gap-4">
+          <div className="flex-1">
             <div className="text-xl font-semibold">{formName || 'Untitled Form'}</div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Status Alert to the left of Save button */}
-            {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
-              <div className="hidden md:block max-w-xs">
-                <Alert
-                  variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
-                  className="h-10 inline-flex items-center px-3 py-1"
-                >
-                  <span className="text-sm truncate">{status.message ?? status.title}</span>
-                </Alert>
-              </div>
-            )}
+          {/* Status Alert - wraps text and right-aligned */}
+          {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
+            <div className="hidden md:block">
+              <Alert
+                variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
+                className="inline-flex items-start px-3 py-2"
+              >
+                <span className="text-sm line-clamp-2">{status.message ?? status.title}</span>
+              </Alert>
+            </div>
+          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button variant="outline" onClick={() => setShowClearConfirm(true)} title="Clear form (start fresh)">
               <Trash className="h-4 w-4 mr-2" /> Clear
             </Button>
@@ -499,14 +573,130 @@ export function BuilderShell() {
             </DropdownMenu>
           </div>
         </div>
+
+        {/* Locale Selector */}
+        <div className="mb-3 p-3 border rounded bg-muted/50">
+          <LocaleSelector
+            supportedLocales={supportedLocales}
+            onAddLocale={(locale) => {
+              if (!supportedLocales.includes(locale)) {
+                const newLocales = [...supportedLocales, locale];
+                setSupportedLocales(newLocales);
+                // Immediately update schema so Inspector shows translation tabs
+                updateSchemaMeta({ supported_locales: newLocales });
+              }
+            }}
+            onRemoveLocale={(locale) => {
+              const newLocales = supportedLocales.filter((l) => l !== locale);
+              setSupportedLocales(newLocales);
+              // Update schema to reflect removed locale
+              updateSchemaMeta({ supported_locales: newLocales });
+            }}
+            onRequestTranslations={async () => {
+              const formId = getCurrentFormId();
+              if (!formId) {
+                setStatus({ type: 'error', title: 'Error', message: 'Form must be saved before requesting translations' });
+                return;
+              }
+
+              // Always translate all supported locales (except 'en' which is the base)
+              // Skip locales marked as custom (user-managed) to avoid overwriting
+              const localesToTranslate = supportedLocales.filter(locale => locale !== 'en' && !customLocales?.has(locale));
+
+              if (localesToTranslate.length === 0) {
+                setStatus({ type: 'info', title: 'No locales to translate', message: 'All selected languages are custom-managed or none selected.' });
+                return;
+              }
+
+              const formData = (schema as any)?.data || [];
+              // Extract all translatable texts (we'll apply selectively per-locale/property below)
+              const { texts, fieldMap } = extractTranslatableTexts(formData, false);
+
+              // Check if there are any fields to translate
+              if (texts.length === 0) {
+                setStatus({ type: 'info', title: 'No fields to translate', message: 'There are no translatable texts in this form.' });
+                return;
+              }
+
+              let translationsByText: { [text: string]: { [locale: string]: string } } | null = null;
+              try {
+                const resp = await api.post('/v1/translator/translate-multi', {
+                  items: texts,
+                  src: 'en',
+                  dest_languages: localesToTranslate,
+                });
+                translationsByText = resp.data?.translations || {};
+              } catch (e: any) {
+                setStatus({ type: 'error', title: 'Error', message: e?.response?.data?.detail || 'Failed to generate translations' });
+                return;
+              }
+
+              if (translationsByText) {
+                // Update schema with supported locales so Inspector can display translations
+                updateSchemaMeta({ supported_locales: supportedLocales });
+
+                const translatedFieldIds = new Set<string>();
+                let applied = 0;
+                const dataArray: any[] = (schema as any)?.data || [];
+                const fieldById = new Map<string, any>(dataArray.map((f: any) => [f.id, f]));
+
+                // Iterate texts by index and map using per-text translation results
+                texts.forEach((text, index) => {
+                  const mapping = fieldMap[index];
+                  if (!mapping) return;
+
+                  const { fieldId, property, optionIdx } = mapping;
+                  // Never apply translations to price fields
+                  const fieldMeta = fieldById.get(fieldId);
+                  if (fieldMeta && fieldMeta.type === 'price') return;
+                  const perTextLocales = translationsByText![text] || {};
+
+                  Object.keys(perTextLocales).forEach((locale) => {
+                    if (customLocales?.has(locale)) return;
+
+                    // Determine the property key we'll set
+                    const propKey = property === 'option' && optionIdx !== undefined ? `option_${optionIdx}` : property;
+                    const existing = (translations as any)?.[fieldId]?.[locale]?.[propKey];
+
+                    // Only set when missing to avoid overwriting manual or existing translations
+                    if (existing && String(existing).trim().length > 0) return;
+
+                    const value = perTextLocales[locale];
+                    if (typeof value === 'string' && value.trim().length > 0) {
+                      setTranslations(fieldId, locale, propKey, value);
+                      translatedFieldIds.add(fieldId);
+                      applied += 1;
+                    }
+                  });
+                });
+
+                // Clear modified markers for fields we touched
+                if (translatedFieldIds.size > 0) {
+                  clearModifiedFields(Array.from(translatedFieldIds));
+                }
+
+                if (applied > 0) {
+                  setStatus({ type: 'success', title: 'Success', message: `Applied ${applied} new translation${applied === 1 ? '' : 's'} for ${localesToTranslate.join(', ')}.` });
+                } else {
+                  setStatus({ type: 'info', title: 'Nothing to translate', message: 'All selected languages already have translations or are marked custom.' });
+                }
+              } else {
+                setStatus({ type: 'error', title: 'Error', message: translationError || 'Failed to generate translations' });
+              }
+            }}
+            isTranslating={translating}
+            translationError={translationError}
+          />
+        </div>
+
         {/* Fallback status below header for smaller screens (hidden when dialog open) */}
         {status?.type && !saveDialogOpen && !showNameConflictDialog && !showDiscardDialog && !showClearConfirm && (
           <div className="md:hidden mb-2">
             <Alert
               variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'}
-              className="h-10 inline-flex items-center px-3 py-1"
+              className="inline-flex items-start px-3 py-2"
             >
-              <span className="text-sm truncate">{status.message ?? status.title}</span>
+              <span className="text-sm line-clamp-2">{status.message ?? status.title}</span>
             </Alert>
           </div>
         )}
@@ -681,59 +871,57 @@ export function BuilderShell() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="grid grid-cols-12 gap-4 p-4">
-        <div className="col-span-12 md:col-span-2">
+      <div className="grid grid-cols-12 gap-4 p-4 overflow-hidden">
+        <div className="col-span-12 md:col-span-2 min-w-0">
           <ErrorBoundary>
             <Palette />
           </ErrorBoundary>
         </div>
-        <div className="col-span-12 md:col-span-6">
+        <div className="col-span-12 md:col-span-6 min-w-0">
           <ErrorBoundary>
             <Canvas />
           </ErrorBoundary>
         </div>
-        <div className="col-span-12 md:col-span-4">
-          <Card className="h-full">
+        <div className="col-span-12 md:col-span-4 min-w-0">
+          <Card className="h-full flex flex-col">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Live Preview</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full"
-                    onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
-                    aria-label="Expand preview"
-                    disabled={hasInvalidBounds}
-                    title={hasInvalidBounds ? 'Fix min/max conflicts to enable expanded preview' : undefined}
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                  <Select value={formWidth} onValueChange={handleFormWidthChange}>
-                    <SelectTrigger className="h-8 w-[120px]" aria-label="Form width">
-                      <SelectValue placeholder="Width" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {widthOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
-                    <SelectTrigger className="h-8 w-[120px]" aria-label="Preview locale">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {availableLocales.map((l) => (
-                        <SelectItem key={l} value={l}>{l}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <CardTitle className="text-base">Live Preview</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 flex flex-col gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
+                  aria-label="Expand preview"
+                  disabled={hasInvalidBounds}
+                  title={hasInvalidBounds ? 'Fix min/max conflicts to enable expanded preview' : undefined}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+                <Select value={formWidth} onValueChange={handleFormWidthChange}>
+                  <SelectTrigger className="h-8 flex-1 min-w-[100px]" aria-label="Form width">
+                    <SelectValue placeholder="Width" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {widthOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={activeLocale} onValueChange={(v) => setActiveLocale(v)}>
+                  <SelectTrigger className="h-8 flex-1 min-w-[100px]" aria-label="Preview locale">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {availableLocales.map((l) => (
+                      <SelectItem key={l} value={l}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <ErrorBoundary>
                 {hasInvalidBounds ? (
                   <Alert variant="warning">
@@ -758,7 +946,7 @@ export function BuilderShell() {
                     <Skeleton className="h-8 w-full mt-2" />
                   </div>
                 ) : (
-                  <PreviewRendererClient instanceId="card" />
+                  <PreviewRendererClient instanceId="card" applyFormWidth={false} />
                 )}
               </ErrorBoundary>
             </CardContent>

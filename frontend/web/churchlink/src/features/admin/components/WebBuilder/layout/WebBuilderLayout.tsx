@@ -26,14 +26,14 @@ type HeaderItem = HeaderLink | HeaderDropdown;
 
 interface FooterItem {
   title: string;
-  russian_title: string;
+  titles?: Record<string, string>;
   url: string;
   visible?: boolean;
 }
 
 interface FooterSection {
   title: string;
-  russian_title: string;
+  titles?: Record<string, string>;
   items: FooterItem[];
   visible?: boolean;
 }
