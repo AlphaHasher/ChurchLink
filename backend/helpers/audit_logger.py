@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import json
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -83,7 +84,7 @@ class PaymentAuditLogger:
             audit_log_file = os.path.join("logs", "payment_audit.log")
             os.makedirs(os.path.dirname(audit_log_file), exist_ok=True)
             
-            file_handler = logging.FileHandler(audit_log_file)
+            file_handler = RotatingFileHandler(audit_log_file, maxBytes=10_000_000, backupCount=5)
             file_handler.setLevel(logging.INFO)
             
             # Create console handler for immediate visibility

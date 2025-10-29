@@ -5,7 +5,7 @@
 # Search
 
 from typing import Literal, Optional, List, Dict
-from http.client import HTTPException
+from fastapi import HTTPException
 from typing import Literal, Optional, List
 from datetime import datetime, time, timezone
 from mongo.database import DB
@@ -35,10 +35,10 @@ class Event(BaseModel):
     roles: List[str]
     published: bool
     seats_taken: int = 0
-    attendee_keys: List[str] = []
-    attendees: List[Dict] = []
+    attendee_keys: List[str] = Field(default_factory=list)
+    attendees: List[Dict] = Field(default_factory=list)
     # Payment processing fields
-    payment_options: List[str] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
+    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
     refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
     
     def requires_payment(self) -> bool:
@@ -77,10 +77,10 @@ class EventCreate(BaseModel):
     roles: List[str]
     published: bool
     seats_taken: Optional[int] = 0
-    attendee_keys: Optional[List[str]] = []
-    attendees: Optional[List[Dict]] = []
+    attendee_keys: Optional[List[str]] = Field(default_factory=list)
+    attendees: Optional[List[Dict]] = Field(default_factory=list)
     # Payment processing fields
-    payment_options: Optional[List[str]] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
+    payment_options: Optional[List[str]] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
     refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
 
 

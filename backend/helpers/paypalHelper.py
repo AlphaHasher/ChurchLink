@@ -598,8 +598,7 @@ async def capture_order(payment_id: str, payer_id: str = Query(...)):
             if fund_name.startswith("Event:"):
                 event_name = fund_name.replace("Event:", "").strip()
                 transaction_data["event_name"] = event_name
-            else:
-                transaction_data["payment_type"] = "donation"
+           
             
             # Add metadata
             transaction_data["metadata"] = {

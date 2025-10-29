@@ -476,7 +476,7 @@ function EventRegistrationForm({
 
         if (wantSelf && !haveSelf) {
           registrationPromises.push(
-            api.post(`/v1/event-people/register/${event.id}`, {
+            api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`, {
               payment_option: 'door'
             })
           );
@@ -484,7 +484,7 @@ function EventRegistrationForm({
 
         for (const id of toAdd) {
           registrationPromises.push(
-            api.post(`/v1/event-people/register/${event.id}/family-member/${id}`, {
+            api.post(`/v1/event-people/register/${event.id}/family-member/${id}?scope=${personScopes[id] || 'series'}`, {
               payment_option: 'door'
             })
           );
@@ -519,12 +519,6 @@ function EventRegistrationForm({
         const oldScope = summary?.user_registrations?.find(r => r.person_id === null)?.scope || "series";
         await api.delete(`/v1/event-people/unregister/${event.id}?scope=${oldScope}`);
         await api.post(`/v1/event-people/register/${event.id}?scope=${selfScope}`);
-      }
-
-      // family
-      for (const id of toAdd) {
-        console.log(`📝 [EVENT SECTION] Registering family member: ${id}`);
-        await api.post(`/v1/event-people/register/${event.id}/family-member/${id}`);
       }
 
       // Add new registrations
@@ -932,6 +926,7 @@ function EventRegistrationForm({
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
+                  disabled={!hasPayPalOption(event)}
                 >
                   <div className="text-center">
                     <CreditCard className="h-6 w-6 mx-auto mb-2" />
@@ -946,6 +941,7 @@ function EventRegistrationForm({
                       ? 'border-orange-500 bg-orange-50 text-orange-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
+                  disabled={!event.payment_options?.includes('Door')}
                 >
                   <div className="text-center">
                     <FiDollarSign className="h-6 w-6 mx-auto mb-2" />

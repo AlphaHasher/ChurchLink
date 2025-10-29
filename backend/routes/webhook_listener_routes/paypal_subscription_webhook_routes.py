@@ -38,26 +38,30 @@ async def paypal_subscription_webhook(request: Request):
     if event_type == "BILLING.SUBSCRIPTION.ACTIVATED":
         payer_info = resource.get("subscriber", {}).get("name", {})
         payer_name = f"{payer_info.get('given_name', '')} {payer_info.get('surname', '')}".strip()
-        subscriptions = await DonationSubscription.get_donation_subscriptions_by_email("")
-        # Try to match by subscription_id first
+        payer_email = resource.get("subscriber", {}).get("email_address", "")
+        
+        # Query by subscription_id directly instead of empty email
+        subscription = await DonationSubscription.get_donation_subscription_by_id(subscription_id)
+        if subscription:
+            await DonationSubscription.update_donation_subscription_field(subscription.id, "user_email", payer_email)
+            await DonationSubscription.update_donation_subscription_field(subscription.id, "name", payer_name)
+            return {"success": True, "subscription_id": subscription.id, "donor_name": payer_name}
+        
+        # Fallback: try to match by user_email and status (pending) and update subscription_id
+        subscriptions = await DonationSubscription.get_donation_subscriptions_by_email(payer_email)
         for sub in subscriptions:
-            if sub.subscription_id == subscription_id:
-                await DonationSubscription.update_donation_subscription_field(sub.id, "user_email", payer_name)
-                return {"success": True, "subscription_id": sub.id, "donor_name": payer_name}
-        # If not found, try to match by user_email and status (pending) and update subscription_id
-        for sub in subscriptions:
-            if not sub.subscription_id and sub.user_email == payer_name and sub.status == "pending":
+            if not sub.subscription_id and sub.status == "pending":
                 await DonationSubscription.update_donation_subscription_field(sub.id, "subscription_id", subscription_id)
-                await DonationSubscription.update_donation_subscription_field(sub.id, "user_email", payer_name)
-                return {"success": True, "subscription_id": sub.id, "donor_name": payer_name, "subscription_id": subscription_id}
+                await DonationSubscription.update_donation_subscription_field(sub.id, "user_email", payer_email)
+                await DonationSubscription.update_donation_subscription_field(sub.id, "name", payer_name)
+                return {"success": True, "subscription_id": sub.id, "donor_name": payer_name}
         return {"success": False, "message": "Subscription not found for subscription_id"}
     elif event_type == "BILLING.SUBSCRIPTION.PAYMENT.SUCCEEDED":
         next_billing_time = resource.get("next_billing_time")
-        subscriptions = await DonationSubscription.get_donation_subscriptions_by_email("")
-        for sub in subscriptions:
-            if sub.subscription_id == subscription_id:
-                await DonationSubscription.update_donation_subscription_field(sub.id, "next_billing_time", next_billing_time)
-                return {"success": True, "subscription_id": sub.id, "next_billing_time": next_billing_time}
+        sub = await DB.db["donation_subscriptions"].find_one({"subscription_id": subscription_id})
+        if sub:
+            await DonationSubscription.update_donation_subscription_field(str(sub["_id"]), "next_billing_time", next_billing_time)
+            return {"success": True, "subscription_id": str(sub["_id"]), "next_billing_time": next_billing_time}
         return {"success": False, "message": "Subscription not found for subscription_id"}
     return {"success": True, "message": "Event logged for audit"}
 

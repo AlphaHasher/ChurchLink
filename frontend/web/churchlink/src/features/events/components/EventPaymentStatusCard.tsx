@@ -14,7 +14,7 @@ import {
 import api from '@/api/api';
 
 interface PaymentInfo {
-  status: 'completed' | 'pending' | 'failed' | 'not_required'; // UPDATED: Standardized status values
+  status: 'completed' | 'pending' | 'failed' | 'not_required' | 'refund_requested' | 'refunded';
   amount?: number;
   method?: 'paypal' | 'door' | 'free';
   transaction_id?: string;
@@ -24,13 +24,13 @@ interface PaymentInfo {
     email?: string;
   };
   created_on?: string;
-  // NEW: Support for computed status from centralized system
-  computed_payment_status?: 'completed' | 'pending' | 'failed' | 'not_required';
+  // Support for computed status from centralized system
+  computed_payment_status?: 'completed' | 'pending' | 'failed' | 'not_required' | 'refund_requested' | 'refunded';
   transaction_details?: {
     transaction_id: string;
     amount: number;
-    status: string;
-    payment_method: string;
+    status: 'completed' | 'pending' | 'failed' | 'not_required' | 'refund_requested' | 'refunded';
+    payment_method: 'paypal' | 'door' | 'free';
     created_on: string;
   };
 }
@@ -111,6 +111,10 @@ export function EventPaymentStatusCard({
         return { variant: 'destructive' as const, label: 'Payment Failed', icon: AlertTriangle, color: 'text-red-600' };
       case 'not_required':
         return { variant: 'secondary' as const, label: 'Free Event', icon: CheckCircle, color: 'text-blue-600' };
+      case 'refund_requested':
+        return { variant: 'outline' as const, label: 'Refund Requested', icon: Clock, color: 'text-orange-600' };
+      case 'refunded':
+        return { variant: 'secondary' as const, label: 'Refunded', icon: RefreshCw, color: 'text-gray-600' };
       default:
         return { variant: 'outline' as const, label: 'Unknown', icon: AlertTriangle, color: 'text-gray-600' };
     }
@@ -238,6 +242,76 @@ export function EventPaymentStatusCard({
                   <span>{formatDate(paymentInfo.created_on)}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Refund Requested Details */}
+          {paymentInfo.status === 'refund_requested' && (
+            <div className="space-y-2 text-sm">
+              {paymentInfo.amount && (
+                <div className="flex justify-between">
+                  <span>Original Amount:</span>
+                  <span className="font-medium">
+                    {formatCurrency(paymentInfo.amount)}
+                  </span>
+                </div>
+              )}
+              {paymentInfo.method && (
+                <div className="flex justify-between">
+                  <span>Payment Method:</span>
+                  <span className="capitalize">{paymentInfo.method}</span>
+                </div>
+              )}
+              {paymentInfo.transaction_id && (
+                <div className="flex justify-between">
+                  <span>Transaction:</span>
+                  <span className="font-mono text-xs">{paymentInfo.transaction_id}</span>
+                </div>
+              )}
+              <Alert variant="default" className="mt-2">
+                <Clock className="h-4 w-4" />
+                <AlertDescription>
+                  Refund request is being processed. You will be notified when completed.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          {/* Refunded Details */}
+          {paymentInfo.status === 'refunded' && (
+            <div className="space-y-2 text-sm">
+              {paymentInfo.amount && (
+                <div className="flex justify-between">
+                  <span>Refunded Amount:</span>
+                  <span className="font-medium text-gray-600">
+                    {formatCurrency(paymentInfo.amount)}
+                  </span>
+                </div>
+              )}
+              {paymentInfo.method && (
+                <div className="flex justify-between">
+                  <span>Original Method:</span>
+                  <span className="capitalize">{paymentInfo.method}</span>
+                </div>
+              )}
+              {paymentInfo.transaction_id && (
+                <div className="flex justify-between">
+                  <span>Transaction:</span>
+                  <span className="font-mono text-xs">{paymentInfo.transaction_id}</span>
+                </div>
+              )}
+              {paymentInfo.created_on && (
+                <div className="flex justify-between">
+                  <span>Refunded On:</span>
+                  <span>{formatDate(paymentInfo.created_on)}</span>
+                </div>
+              )}
+              <Alert variant="default" className="mt-2">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Payment has been refunded. You are no longer registered for this event.
+                </AlertDescription>
+              </Alert>
             </div>
           )}
 
