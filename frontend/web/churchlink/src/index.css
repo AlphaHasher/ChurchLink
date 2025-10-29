@@ -441,38 +441,7 @@ h1 {
   --ag-tooltip-border-color: rgb(55, 65, 81);
 }
 
-
-/* Center AG Grid permission cells and allow badge overflow */
-.perm-cell {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: visible !important;
-}
-
-/* AG Grid Dark Mode Support */
-.dark .ag-theme-quartz {
-  --ag-background-color: rgb(31, 41, 55);
-  --ag-foreground-color: rgb(255, 255, 255);
-  --ag-secondary-foreground-color: rgb(156, 163, 175);
-  --ag-border-color: rgb(55, 65, 81);
-  --ag-header-background-color: rgb(31, 41, 55);
-  --ag-header-foreground-color: rgb(255, 255, 255);
-  --ag-odd-row-background-color: rgb(31, 41, 55);
-  --ag-row-hover-color: rgb(55, 65, 81);
-  --ag-selected-row-background-color: rgb(55, 65, 81);
-  --ag-range-selection-background-color: rgba(59, 130, 246, 0.1);
-  --ag-input-background-color: rgb(55, 65, 81);
-  --ag-input-foreground-color: rgb(255, 255, 255);
-  --ag-input-border-color: rgb(75, 85, 99);
-  --ag-input-focus-border-color: rgb(59, 130, 246);
-  --ag-checkbox-background-color: rgb(55, 65, 81);
-  --ag-checkbox-border-color: rgb(75, 85, 99);
-  --ag-checkbox-checked-color: rgb(59, 130, 246);
-  --ag-menu-background-color: rgb(31, 41, 55);
-  --ag-menu-foreground-color: rgb(255, 255, 255);
-  --ag-menu-border-color: rgb(55, 65, 81);
-  --ag-tooltip-background-color: rgb(31, 41, 55);
-  --ag-tooltip-foreground-color: rgb(255, 255, 255);
-  --ag-tooltip-border-color: rgb(55, 65, 81);
+.dark * {
+  outline-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.1);
 }

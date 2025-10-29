@@ -20,8 +20,10 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import { useRefundRequest } from '../hooks/useRefundRequest';
+import { useLocalize } from '@/shared/utils/localizationUtils';
 
 export function MyEventsSection() {
+  const localize = useLocalize();
   // State management
   const [filters, setFilters] = useState<EventFilters>({
     showUpcoming: true,
@@ -273,7 +275,7 @@ export function MyEventsSection() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <p>Loading events...</p>
+        <p>{localize('Loading events...')}</p>
       </div>
     );
   }
@@ -283,12 +285,12 @@ export function MyEventsSection() {
     return (
       <div className="space-y-4">
         <div className="text-center py-8">
-          <p className="text-red-600 mb-4">Error: {error}</p>
+          <p className="text-red-600 mb-4">{localize('Error')}: {error}</p>
           <button
             onClick={refetch}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Try Again
+            {localize('Try Again')}
           </button>
         </div>
       </div>
@@ -309,8 +311,8 @@ export function MyEventsSection() {
         <div className="text-center py-12">
           <div className="text-gray-500">
             {events.length === 0
-              ? "You haven't registered for any events yet."
-              : "No events match your current filters."
+              ? localize("You haven't registered for any events yet.")
+              : localize('No events match your current filters.')
             }
           </div>
         </div>

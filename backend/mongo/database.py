@@ -50,6 +50,10 @@ class DB:
             "indexes": ["title"]
         },
         {
+            "name": "localization-info",
+            "indexes": ["namespace"]
+        },
+        {
             "name": "bible_notes",
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
         },

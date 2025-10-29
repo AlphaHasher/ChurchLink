@@ -14,6 +14,7 @@ import InConstructionPage from "@/shared/components/InConstructionPage";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import DynamicPageV2Renderer from "@/shared/components/DynamicPageV2Renderer";
 import { PageV2 } from "@/shared/types/pageV2";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 export interface SectionSettings {
   showFilters?: boolean;
@@ -69,6 +70,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
 }) => {
   const { slug: paramSlug } = useParams();
   const location = useLocation();
+  const { locale: ctxLocale } = useLanguage();
 
   const slug = useMemo(() => {
     // If previewSlug is provided (preview mode), use it directly
@@ -169,7 +171,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     const searchParams = new URLSearchParams(location.search);
     const localeParam = searchParams.get('locale') || undefined;
     return (
-      <DynamicPageV2Renderer page={pageData as unknown as PageV2} activeLocale={localeParam} defaultLocale={(pageData as any)?.defaultLocale}
+      <DynamicPageV2Renderer page={pageData as unknown as PageV2} activeLocale={localeParam || ctxLocale} defaultLocale={(pageData as any)?.defaultLocale}
       />
     );
   }

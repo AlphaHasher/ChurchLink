@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { PageV2, SectionV2 } from "@/shared/types/pageV2";
 import api, { pageApi } from "@/api/api";
 import { defaultSection } from "../utils/sectionHelpers";
@@ -14,6 +15,14 @@ export function usePageManager(slug: string) {
   const [saveState, setSaveState] = useState<"custom" | "processing" | "success" | "error">("custom");
   const [livePage, setLivePage] = useState<PageV2 | null>(null);
   const [inSyncWithLive, setInSyncWithLive] = useState<boolean>(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+
+  const reportError = (
+    error: any,
+    context: { operation: string; destLanguages?: string[]; pageSlug?: string; activeLocale?: string }
+  ) => {
+      console.error(`[Translation] ${context.operation} failed`, { ...context, error });
+  };
 
   // Load staging or seed default
   useEffect(() => {
@@ -165,6 +174,78 @@ export function usePageManager(slug: string) {
       setPublishState("processing");
       await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections });
       await pageApi.publish(slug);
+      try {
+        const localesSet = new Set<string>();
+        const dl = String((page as any)?.defaultLocale || 'en');
+        if (dl) localesSet.add(dl);
+        for (const l of ((page as any)?.locales || [])) if (l) localesSet.add(String(l));
+        const dest = Array.from(localesSet).filter((l) => l && l !== dl);
+        if (dest.length) {
+          console.log(`[Translation] Translating header/footer to: ${dest.join(', ')}`);
+          // Header
+          try {
+            const hres = await api.get('/v1/header/items');
+            const hitems: any[] = (hres?.data?.items || []) as any[];
+            const collectHeaderTitles = (items: any[]): string[] => {
+              const set = new Set<string>();
+              for (const it of items) {
+                if (it?.title) set.add(String(it.title));
+                if (Array.isArray((it as any)?.items)) {
+                  for (const sub of (it as any).items) if (sub?.title) set.add(String(sub.title));
+                }
+              }
+              return Array.from(set);
+            };
+            const items = collectHeaderTitles(hitems);
+            if (items.length) {
+              await api.post('/v1/translator/translate-multi', { items, dest_languages: dest, src: dl });
+            }
+          } catch (err: any) {
+            reportError(err, {
+              operation: 'Header translation',
+              destLanguages: dest,
+              pageSlug: slug,
+              activeLocale,
+            });
+            setTranslationError('header');
+            try { toast.error('Header translation failed'); } catch {}
+          }
+          // Footer
+          try {
+            const fres = await api.get('/v1/footer/items');
+            const fitems: any[] = (fres?.data?.items || []) as any[];
+            const collectFooterTitles = (sections: any[]): string[] => {
+              const set = new Set<string>();
+              for (const sec of sections) {
+                if (sec?.title) set.add(String(sec.title));
+                for (const it of (sec?.items || [])) if (it?.title) set.add(String(it.title));
+              }
+              return Array.from(set);
+            };
+            const items = collectFooterTitles(fitems);
+            if (items.length) {
+              await api.post('/v1/translator/translate-multi', { items, dest_languages: dest, src: dl });
+            }
+          } catch (err: any) {
+            reportError(err, {
+              operation: 'Footer translation',
+              destLanguages: dest,
+              pageSlug: slug,
+              activeLocale,
+            });
+            setTranslationError('footer');
+            try { toast.error('Footer translation failed'); } catch {}
+          }
+        }
+      } catch (err: any) {
+        reportError(err, {
+          operation: 'Translation flow',
+          pageSlug: slug,
+          activeLocale,
+        });
+        if (!translationError) setTranslationError('general');
+        try { toast.error('Some translations failed'); } catch {}
+      }
       // Refresh live visibility after publish
       try {
         const res = await api.get(`/v1/pages/slug/${encodeURIComponent(slug)}`);
@@ -201,6 +282,8 @@ export function usePageManager(slug: string) {
     saveState,
     publishState,
     publish,
+    translationError,
+    setTranslationError,
     // helpers for locales
     addLocale: (code: string) => {
       if (!code) return;
