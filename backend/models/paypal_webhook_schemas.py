@@ -31,24 +31,31 @@ class PayPalSaleResource(BaseModel):
 class PayPalWebhookPayload(BaseModel):
     """
     Complete PayPal webhook payload structure.
+    Supports both PayPal v1 (SALE) and v2 (CAPTURE) webhook event types.
     Based on: https://developer.paypal.com/docs/api/webhooks/v1/
     """
     id: str = Field(..., description="Webhook event ID")
-    event_type: str = Field(..., description="Event type (e.g., PAYMENT.SALE.COMPLETED)")
+    event_type: str = Field(..., description="Event type (e.g., PAYMENT.SALE.COMPLETED, PAYMENT.CAPTURE.COMPLETED)")
     create_time: str = Field(..., description="ISO 8601 event creation timestamp")
-    resource_type: str = Field(..., description="Resource type (e.g., sale)")
+    resource_type: str = Field(..., description="Resource type (e.g., sale, capture)")
     resource: PayPalSaleResource = Field(..., description="Event resource data")
     event_version: Optional[str] = "1.0"
     summary: Optional[str] = None
     
     @validator('event_type')
     def validate_event_type(cls, v):
-        """Validate supported event types"""
+        """Validate supported event types for both PayPal v1 (SALE) and v2 (CAPTURE) APIs"""
         supported_events = [
+            # PayPal v1 API events (intent: "sale")
             "PAYMENT.SALE.COMPLETED",
             "PAYMENT.SALE.DENIED", 
             "PAYMENT.SALE.REFUNDED",
-            "PAYMENT.SALE.REVERSED"
+            "PAYMENT.SALE.REVERSED",
+            # PayPal v2 API events (intent: "CAPTURE")
+            "PAYMENT.CAPTURE.COMPLETED",
+            "PAYMENT.CAPTURE.DECLINED",
+            "PAYMENT.CAPTURE.REFUNDED",
+            "PAYMENT.CAPTURE.PENDING"
         ]
         if v not in supported_events:
             logging.warning(f"Unsupported webhook event type: {v}")
@@ -56,10 +63,18 @@ class PayPalWebhookPayload(BaseModel):
     
     @validator('resource')
     def validate_resource_state(cls, v, values):
-        """Validate resource state matches event type"""
+        """Validate resource state matches event type for both v1 (SALE) and v2 (CAPTURE) events"""
         event_type = values.get('event_type')
-        if event_type == "PAYMENT.SALE.COMPLETED" and v.state != "completed":
-            raise ValueError(f"Invalid state '{v.state}' for PAYMENT.SALE.COMPLETED event")
+        resource_state = getattr(v, 'state', None)
+        
+        # v1 SALE events validation
+        if event_type == "PAYMENT.SALE.COMPLETED" and resource_state != "completed":
+            raise ValueError(f"Invalid state '{resource_state}' for PAYMENT.SALE.COMPLETED event")
+        
+        # v2 CAPTURE events validation
+        if event_type == "PAYMENT.CAPTURE.COMPLETED" and resource_state not in ["completed", "COMPLETED"]:
+            raise ValueError(f"Invalid state '{resource_state}' for PAYMENT.CAPTURE.COMPLETED event")
+        
         return v
 
 def validate_webhook_payload(payload: Dict[str, Any]) -> PayPalWebhookPayload:

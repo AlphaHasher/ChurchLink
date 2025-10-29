@@ -576,7 +576,7 @@ async def rsvp_remove_person(
             if result is None:
                 # FALLBACK: Try the opposite scope if the requested one doesn't exist
                 opposite_scope = 'occurrence' if scope == 'series' else 'series'
-                fallback_key = key = generate_attendee_key(uid, person_id, kind, opposite_scope)
+                fallback_key = generate_attendee_key(uid, person_id, kind, opposite_scope)
 
                 result = await DB.db["events"].find_one_and_update(
                     {"_id": ev_oid, "attendee_keys": fallback_key},

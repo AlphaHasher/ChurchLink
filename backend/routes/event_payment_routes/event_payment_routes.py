@@ -217,7 +217,25 @@ async def submit_refund_request(
                     "payment_type": tx.get("payment_type")
                 })
             
-            logging.error(f"Failed to create refund request. Available transactions: {user_transactions}")
+            # Create sanitized version for logging (mask emails to protect PII)
+            sanitized_transactions = []
+            for tx in user_transactions:
+                email = tx.get("user_email")
+                if email and "@" in email:
+                    email_parts = email.split("@")
+                    masked_email = email_parts[0][:2] + "***@" + email_parts[-1]
+                else:
+                    masked_email = "***"
+                
+                sanitized_transactions.append({
+                    "transaction_id": tx.get("transaction_id"),
+                    "user_uid": tx.get("user_uid"),
+                    "user_email_masked": masked_email,
+                    "status": tx.get("status"),
+                    "payment_type": tx.get("payment_type")
+                })
+            
+            logging.error(f"Failed to create refund request. Available transactions: {sanitized_transactions}")
             
             error_msg = "Unable to create refund request. "
             if not user_transactions:

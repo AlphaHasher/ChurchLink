@@ -16,6 +16,7 @@ class PaymentStatus:
     COMPLETED = "completed"     # Payment successful  
     FAILED = "failed"          # Payment failed/declined
     REFUNDED = "refunded"      # Payment refunded
+    PARTIALLY_REFUNDED = "partially_refunded"  # Payment partially refunded
     CANCELLED = "cancelled"    # Payment cancelled by user
 
 class RefundStatus:
@@ -40,9 +41,10 @@ class RegistrationPaymentStatus:
 # Valid status transitions
 VALID_PAYMENT_TRANSITIONS = {
     PaymentStatus.PENDING: [PaymentStatus.COMPLETED, PaymentStatus.FAILED, PaymentStatus.CANCELLED],
-    PaymentStatus.COMPLETED: [PaymentStatus.REFUNDED],
+    PaymentStatus.COMPLETED: [PaymentStatus.REFUNDED, PaymentStatus.PARTIALLY_REFUNDED],
     PaymentStatus.FAILED: [PaymentStatus.PENDING],  # Retry allowed
     PaymentStatus.CANCELLED: [PaymentStatus.PENDING],  # Retry allowed
+    PaymentStatus.PARTIALLY_REFUNDED: [PaymentStatus.REFUNDED],  # Can refund remaining amount
     PaymentStatus.REFUNDED: []  # Terminal state
 }
 

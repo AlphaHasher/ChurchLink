@@ -845,4 +845,3 @@ async def get_refund_summary(transaction_id: str) -> Dict[str, Any]:
     except Exception as e:
         logging.error(f"Error getting refund summary: {e}")
         return {"error": str(e)}
-        return 0

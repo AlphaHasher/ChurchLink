@@ -9,6 +9,7 @@ import json
 import hashlib
 import base64
 import requests
+import os
 from models.event import get_event_by_id
 from models.event import update_attendee_payment_status
 from bson import ObjectId
@@ -17,7 +18,7 @@ paypal_webhook_router = APIRouter(prefix="/paypal", tags=["paypal_webhook"])
 
 async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
     """
-    Verify PayPal webhook signature using PayPal's certificate and signature validation.
+    Verify PayPal webhook signature using PayPal's webhook verification API.
     
     Args:
         headers: Request headers (must use lowercase keys)
@@ -29,30 +30,72 @@ async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
     try:
         # Extract signature-related headers (case-insensitive, use lowercase)
         transmission_id = headers.get("paypal-transmission-id")
-        cert_id = headers.get("paypal-cert-id") 
+        cert_url = headers.get("paypal-cert-url")
         transmission_sig = headers.get("paypal-transmission-sig")
         transmission_time = headers.get("paypal-transmission-time")
         auth_algo = headers.get("paypal-auth-algo", "SHA256withRSA")
         
-        if not all([transmission_id, cert_id, transmission_sig, transmission_time]):
+        if not all([transmission_id, cert_url, transmission_sig, transmission_time]):
             logging.error("❌ Missing required PayPal webhook signature headers")
             return False
-            
-        # For now, implement basic webhook ID verification
-        # In production, you should implement full certificate verification
-        # using PayPal's webhook verification API or certificate validation
         
-        # TODO: Implement full PayPal webhook signature verification
-        # This is a critical security feature that should verify:
-        # 1. Certificate authenticity from PayPal
-        # 2. Signature validation using the certificate
-        # 3. Transmission ID uniqueness to prevent replay attacks
+        # Get webhook ID from environment or database settings
+        webhook_id = os.getenv("PAYPAL_WEBHOOK_ID")
+        if not webhook_id:
+            try:
+                # Try to get from database settings
+                paypal_settings = await DB.get_paypal_settings() if hasattr(DB, 'get_paypal_settings') else {}
+                webhook_id = paypal_settings.get("PAYPAL_WEBHOOK_ID") if paypal_settings else None
+            except Exception:
+                pass
         
-        logging.info(f"🔐 PayPal webhook signature validation - ID: {transmission_id[:10]}...")
+        if not webhook_id:
+            logging.error("❌ Missing PayPal webhook ID configuration")
+            return False
         
-        # For now, return True but log that verification is needed
-        logging.warning("⚠️ PayPal webhook signature verification not fully implemented - this is a security risk")
-        return True
+        # Get PayPal access token
+        access_token = get_paypal_access_token()
+        if not access_token:
+            logging.error("❌ Failed to get PayPal access token for webhook verification")
+            return False
+        
+        # Prepare verification payload
+        verify_payload = {
+            "transmission_id": transmission_id,
+            "transmission_time": transmission_time,
+            "cert_url": cert_url,
+            "auth_algo": auth_algo,
+            "transmission_sig": transmission_sig,
+            "webhook_id": webhook_id,
+            "webhook_event": json.loads(body.decode("utf-8")),
+        }
+        
+        # Call PayPal's webhook verification API
+        verification_url = f"{get_paypal_base_url()}/v1/notifications/verify-webhook-signature"
+        
+        response = requests.post(
+            verification_url,
+            json=verify_payload,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            },
+            timeout=(5, 20)
+        )
+        
+        if response.status_code != 200:
+            logging.error(f"❌ PayPal webhook verification API error: {response.status_code}")
+            return False
+        
+        verification_result = response.json()
+        verification_status = verification_result.get("verification_status")
+        
+        if verification_status == "SUCCESS":
+            logging.info(f"✅ PayPal webhook signature verified successfully - ID: {transmission_id[:10]}...")
+            return True
+        else:
+            logging.error(f"❌ PayPal webhook signature verification failed: {verification_status}")
+            return False
         
     except Exception as e:
         logging.error(f"❌ Error verifying PayPal webhook signature: {e}")
@@ -158,7 +201,7 @@ async def paypal_webhook(request: Request):
         # Get headers using lowercase names (FastAPI/Starlette normalizes to lowercase)
         headers = {
             "paypal-transmission-id": request.headers.get("paypal-transmission-id"),
-            "paypal-cert-id": request.headers.get("paypal-cert-id"),
+            "paypal-cert-url": request.headers.get("paypal-cert-url"),
             "paypal-transmission-sig": request.headers.get("paypal-transmission-sig"),
             "paypal-transmission-time": request.headers.get("paypal-transmission-time"),
             "paypal-auth-algo": request.headers.get("paypal-auth-algo")

@@ -8,6 +8,7 @@ from email import encoders
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import httpx
+import anyio
 
 # Configuration
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -24,6 +25,24 @@ SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 CHURCH_NAME = os.getenv("CHURCH_NAME", "Your Church")
 CHURCH_WEBSITE = os.getenv("CHURCH_WEBSITE", "https://yourchurch.com")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@yourchurch.com")
+
+def mask_email_for_logging(email: str) -> str:
+    """
+    Mask email address for logging to protect PII.
+    Returns masked format: first 2 chars + *** + @ + domain
+    """
+    if not email or "@" not in email:
+        return "***"
+    
+    try:
+        local, domain = email.split("@", 1)
+        if len(local) >= 2:
+            masked_local = local[:2] + "***"
+        else:
+            masked_local = "***"
+        return f"{masked_local}@{domain}"
+    except Exception:
+        return "***"
 
 class RefundEmailTemplates:
     """Email templates for different refund scenarios"""
@@ -562,26 +581,26 @@ async def send_email_smtp(to_email: str, subject: str, html_body: str, text_body
             logging.warning("SMTP credentials not configured")
             return {"success": False, "error": "SMTP not configured"}
         
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f"{FROM_NAME} <{FROM_EMAIL}>"
-        msg['To'] = to_email
+        def _send():
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = f"{FROM_NAME} <{FROM_EMAIL}>"
+            msg['To'] = to_email
+            
+            # Add text and HTML parts
+            msg.attach(MIMEText(text_body, 'plain'))
+            msg.attach(MIMEText(html_body, 'html'))
+            
+            # Send email using context manager for proper cleanup
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(msg)
         
-        # Add text and HTML parts
-        text_part = MIMEText(text_body, 'plain')
-        html_part = MIMEText(html_body, 'html')
+        # Offload blocking SMTP operations to thread
+        await anyio.to_thread.run_sync(_send)
         
-        msg.attach(text_part)
-        msg.attach(html_part)
-        
-        # Send email
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        
-        logging.info(f"Email sent successfully to {to_email}")
+        logging.info(f"Email sent successfully to {mask_email_for_logging(to_email)}")
         return {"success": True, "message": "Email sent successfully"}
         
     except Exception as e:
@@ -623,7 +642,7 @@ async def send_email_sendgrid(to_email: str, subject: str, html_body: str, text_
             )
         
         if response.status_code == 202:
-            logging.info(f"Email sent successfully via SendGrid to {to_email}")
+            logging.info(f"Email sent successfully via SendGrid to {mask_email_for_logging(to_email)}")
             return {"success": True, "message": "Email sent successfully"}
         else:
             logging.error(f"SendGrid error: {response.status_code} - {response.text}")
@@ -660,7 +679,7 @@ async def send_refund_email(to_email: str, template_data: Dict[str, str], use_se
             )
             
     except Exception as e:
-        logging.error(f"Failed to send refund email to {to_email}: {e}")
+        logging.error(f"Failed to send refund email to {mask_email_for_logging(to_email)}: {e}")
         return {"success": False, "error": str(e)}
 
 
