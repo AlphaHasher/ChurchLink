@@ -570,7 +570,7 @@ async def paypal_webhook(request: Request):
                 return {"success": False, "message": "Transaction not found for refund"}
             
             # Idempotency guard: only process if not already refunded
-            if existing_transaction.status == PaymentStatus.REFUNDED:
+            if existing_transaction.status in [PaymentStatus.REFUNDED, PaymentStatus.PARTIALLY_REFUNDED]:
                 logging.info(f"✅ Transaction {parent_payment} already refunded - skipping duplicate refund webhook")
                 return {
                     "success": True, 
@@ -579,15 +579,52 @@ async def paypal_webhook(request: Request):
                     "sale_id": sale_id
                 }
             
-            # Process refund - update transaction status
-            await Transaction.update_transaction_status(parent_payment, PaymentStatus.REFUNDED)
-            logging.info(f"🔄 Webhook updated transaction {parent_payment} status to {PaymentStatus.REFUNDED}")
+            # Determine partial vs full refund by comparing amounts
+            from decimal import Decimal, InvalidOperation
+            try:
+                refunded_amount = Decimal(str(amount or 0))
+                original_amount = Decimal(str(existing_transaction.amount)) if existing_transaction.amount else Decimal('0')
+            except (InvalidOperation, ValueError, TypeError) as e:
+                logging.error(f"❌ Invalid amount in refund webhook for {parent_payment}: refund={amount}, original={existing_transaction.amount}, error={e}")
+                # Default to treating as full refund if we can't parse amounts
+                refunded_amount = Decimal('0')
+                original_amount = Decimal('0')
             
-            # Update transaction with refund information (assume full refund from webhook)
-            await Transaction.update_transaction_refund_info(parent_payment, "full")
-            logging.info(f"🔄 Webhook updated transaction {parent_payment} refund info: type=full")
+            # Check for currency mismatch
+            transaction_currency = getattr(existing_transaction, 'currency', 'USD')
+            webhook_currency = currency or 'USD'
+            if transaction_currency != webhook_currency:
+                logging.warning(f"Currency mismatch for transaction {parent_payment}: transaction={transaction_currency}, webhook={webhook_currency}")
+            
+            # Determine if this is a partial refund (allowing for small rounding differences)
+            # If we can't determine amounts, default to full refund (safer assumption)
+            is_partial = False
+            if original_amount > 0 and refunded_amount > 0:
+                is_partial = refunded_amount < (original_amount - Decimal('0.01'))
+            elif original_amount <= 0:
+                logging.warning(f"⚠️ Original transaction amount is zero or invalid for {parent_payment}, assuming full refund")
+            
+            # Update transaction status based on refund type
+            new_status = PaymentStatus.PARTIALLY_REFUNDED if is_partial else PaymentStatus.REFUNDED
+            await Transaction.update_transaction_status(parent_payment, new_status)
+            logging.info(
+                f"🔄 Webhook updated transaction {parent_payment} status to {new_status} "
+                f"(refunded=${refunded_amount} of ${original_amount})"
+            )
+            
+            # Update transaction with refund information
+            refund_type = "partial" if is_partial else "full"
+            await Transaction.update_transaction_refund_info(
+                parent_payment, 
+                refund_type, 
+                refunded_on=create_time or None,
+                refunded_amount=refunded_amount if refunded_amount > 0 else None
+            )
+            logging.info(f"🔄 Webhook updated transaction {parent_payment} refund info: type={refund_type}")
             
             # Update Event attendees' payment status for refunded transactions
+            # For partial refunds, we don't automatically change attendee status
+            # since they may still have an active registration
             try:
                 # Check if this is an event registration by looking for session data
                 payment_session = await DB.db["payment_sessions"].find_one({"payment_id": parent_payment})
@@ -601,59 +638,64 @@ async def paypal_webhook(request: Request):
                     form_slug = session.get("form_slug")
                     
                     if event_id and user_uid and registrations:
-                        # Handle event registration payment status updates to REFUNDED
-                        updated_count = 0
-                        for registration in registrations:
-                            person_id = registration.get("person_id")
-                            
-                            # Generate attendee key - try both series and occurrence scopes
-                            person_object_id = ObjectId(person_id) if person_id else None
-                            person_id_str = str(person_object_id) if person_object_id else 'self'
-                            
-                            # Try series scope first (default registration scope)
-                            attendee_key_series = f"{user_uid}|{person_id_str}|rsvp|series"
-                            update_success = await update_attendee_payment_status(
-                                event_id=event_id,
-                                attendee_key=attendee_key_series,
-                                payment_status=PaymentStatus.REFUNDED,
-                                transaction_id=parent_payment
-                            )
-                            
-                            if not update_success:
-                                # Try occurrence scope as fallback
-                                attendee_key_occurrence = f"{user_uid}|{person_id_str}|rsvp|occurrence"
+                        # Only update attendee status for full refunds
+                        # For partial refunds, transaction metadata is updated but attendees remain active
+                        if not is_partial:
+                            # Handle event registration payment status updates to REFUNDED
+                            updated_count = 0
+                            for registration in registrations:
+                                person_id = registration.get("person_id")
+                                
+                                # Generate attendee key - try both series and occurrence scopes
+                                person_object_id = ObjectId(person_id) if person_id else None
+                                person_id_str = str(person_object_id) if person_object_id else 'self'
+                                
+                                # Try series scope first (default registration scope)
+                                attendee_key_series = f"{user_uid}|{person_id_str}|rsvp|series"
                                 update_success = await update_attendee_payment_status(
                                     event_id=event_id,
-                                    attendee_key=attendee_key_occurrence,
+                                    attendee_key=attendee_key_series,
                                     payment_status=PaymentStatus.REFUNDED,
                                     transaction_id=parent_payment
                                 )
-                                logging.info(f"🔄 Refund webhook used occurrence scope for person {person_id}")
-                            else:
-                                logging.info(f"🔄 Refund webhook used series scope for person {person_id}")
+                                
+                                if not update_success:
+                                    # Try occurrence scope as fallback
+                                    attendee_key_occurrence = f"{user_uid}|{person_id_str}|rsvp|occurrence"
+                                    update_success = await update_attendee_payment_status(
+                                        event_id=event_id,
+                                        attendee_key=attendee_key_occurrence,
+                                        payment_status=PaymentStatus.REFUNDED,
+                                        transaction_id=parent_payment
+                                    )
+                                    logging.info(f"🔄 Refund webhook used occurrence scope for person {person_id}")
+                                else:
+                                    logging.info(f"🔄 Refund webhook used series scope for person {person_id}")
+                                
+                                if update_success:
+                                    updated_count += 1
+                                    logging.info(f"💸 Refund webhook updated attendee payment status to REFUNDED for person {person_id}")
+                                else:
+                                    logging.error(f"❌ Refund webhook failed to update attendee payment status for person {person_id} (tried both scopes)")
                             
-                            if update_success:
-                                updated_count += 1
-                                logging.info(f"💸 Refund webhook updated attendee payment status to REFUNDED for person {person_id}")
-                            else:
-                                logging.error(f"❌ Refund webhook failed to update attendee payment status for person {person_id} (tried both scopes)")
-                        
-                        logging.info(f"✅ Refund webhook updated {updated_count}/{len(registrations)} attendee payment statuses to REFUNDED")
+                            logging.info(f"✅ Full refund webhook updated {updated_count}/{len(registrations)} attendee payment statuses to REFUNDED")
+                        else:
+                            logging.info(f"📝 Partial refund webhook for transaction {parent_payment} - attendee statuses remain unchanged (${refunded_amount} of ${original_amount} refunded)")
                         
                         # TODO: Add additional refund side effects here as needed:
-                        # - Release event seats/capacity if applicable
+                        # - For full refunds: Release event seats/capacity if applicable
                         # - Send refund notification emails
-                        # - Update attendee status (e.g., remove from event, mark as refunded)
-                        # - Record refund metadata for audit trails
+                        # - For partial refunds: Record partial refund metadata for audit trails
+                        # - Update attendee status (e.g., remove from event for full refund, mark as partially refunded)
                         
                     elif form_slug:
                         # Handle form payment refund - log the refund
-                        logging.info(f"💸 Refund webhook processed form payment refund - Form: {form_slug}, User: {user_uid}")
+                        logging.info(f"💸 Refund webhook processed {refund_type} form payment refund - Form: {form_slug}, User: {user_uid}")
                         # TODO: Add form-specific refund processing if needed
                         
                 else:
                     # No session found - general payment refund
-                    logging.info(f"💸 Refund webhook processed general payment refund - no session data found")
+                    logging.info(f"💸 Refund webhook processed {refund_type} general payment refund - no session data found")
                     
             except Exception as payment_update_error:
                 logging.error(f"❌ Refund webhook error updating payment status: {payment_update_error}")
@@ -663,6 +705,10 @@ async def paypal_webhook(request: Request):
             try:
                 # Use the webhook timestamp or current time as fallback
                 completion_time = create_time or datetime.utcnow().isoformat()
+                
+                # Update refund request status with appropriate PayPal status
+                paypal_refund_status = "completed" if not is_partial else "partial_completed"
+                
                 result = await DB.db["refund_requests"].update_many(
                     {
                         "transaction_id": parent_payment,
@@ -671,15 +717,16 @@ async def paypal_webhook(request: Request):
                     {
                         "$set": {
                             "status": RefundStatus.COMPLETED,
-                            "paypal_refund_status": "completed",
+                            "paypal_refund_status": paypal_refund_status,
+                            "refund_type": refund_type,
                             "updated_at": completion_time,
                             "processed_at": completion_time,
                         }
                     },
                 )
-                logging.info(f"✅ Completed {result.modified_count} refund request(s) for transaction {parent_payment}")
-            except Exception:
-                logging.exception(f"Failed to complete refund_requests for {parent_payment}")
+                logging.info(f"✅ Completed {result.modified_count} refund request(s) for transaction {parent_payment} (type: {refund_type})")
+            except Exception as e:
+                logging.exception(f"Failed to complete refund_requests for {parent_payment}: {e}")
             
             return {
                 "success": True, 

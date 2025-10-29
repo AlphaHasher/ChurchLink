@@ -630,7 +630,15 @@ class EventPaymentHelper:
                     # Register for the event - handle both person_id and family_member_id
                     # Mark as PayPal payment since this is bulk payment completion
                     person_id = registration_data.get("person_id") or registration_data.get("family_member_id")
-                    result, reason = await register_rsvp(event_id, user_uid, person_id, payment_option="paypal", transaction_id=payment_id)
+                    scope = "series" if getattr(event, "is_recurring", False) else "occurrence"
+                    result, reason = await register_rsvp(
+                        event_id,
+                        user_uid,
+                        person_id,
+                        scope=scope,
+                        payment_option="paypal",
+                        transaction_id=payment_id
+                    )
                     
                     if result:
                         registration_data["registration_status"] = "success"

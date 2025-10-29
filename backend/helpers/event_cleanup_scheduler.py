@@ -1,9 +1,10 @@
 """
 Event Cleanup Scheduler
 
-Background task that manages the lifecycle of events:
+Background task that manages the lifecycle of events and refunds:
 1. Unpublishes non-recurring events 1 day after their date
 2. Removes occurrence-scope RSVPs from recurring events 1 day after each occurrence
+3. Cleans up stale RESERVING refund requests
 
 This module follows the same pattern as scheduled_notifications.py
 """
@@ -39,19 +40,29 @@ async def event_cleanup_loop(db):
             # Perform cleanup operations
             results = await _cleanup_expired_events(db)
             
+            # Perform refund cleanup operations
+            refund_results = await _cleanup_stale_refunds(db)
+            
             unpublished = results.get('unpublished', 0)
             cleaned_recurring = results.get('cleaned_recurring', 0)
             total_rsvps_removed = results.get('total_rsvps_removed', 0)
             
-            if unpublished > 0 or cleaned_recurring > 0:
+            refund_completed = refund_results.get('completed', 0)
+            refund_rolled_back = refund_results.get('rolled_back', 0)
+            refund_failed = refund_results.get('failed', 0)
+            
+            # Log results if any operations were performed
+            if unpublished > 0 or cleaned_recurring > 0 or refund_completed > 0 or refund_rolled_back > 0:
                 logger.info(
-                    f"Event cleanup completed: "
+                    f"Cleanup completed: "
                     f"{unpublished} events unpublished, "
                     f"{cleaned_recurring} recurring events processed, "
-                    f"{total_rsvps_removed} occurrence RSVPs removed"
+                    f"{total_rsvps_removed} occurrence RSVPs removed, "
+                    f"{refund_completed} refunds completed, "
+                    f"{refund_rolled_back} refunds rolled back"
                 )
             else:
-                logger.debug("Event cleanup completed: no events required processing")
+                logger.debug("Cleanup completed: no events or refunds required processing")
             
             # Sleep until next check
             await asyncio.sleep(CHECK_INTERVAL)
@@ -322,3 +333,28 @@ async def _cleanup_user_my_events(event_id: ObjectId, removed_attendees: list) -
         
     except Exception as e:
         logger.error(f"Error cleaning up user my_events: {e}", exc_info=True)
+
+
+async def _cleanup_stale_refunds(db) -> dict:
+    """
+    Wrapper function to call the refund cleanup from models.refund_request.
+    
+    Returns:
+        dict: Statistics about refund cleanup operations
+            - completed: Number of stale refunds completed
+            - rolled_back: Number of stale refunds rolled back
+            - failed: Number of cleanup operations that failed
+    """
+    try:
+        # Import here to avoid circular imports
+        from models.refund_request import cleanup_stale_reserving_refunds
+        
+        # Call the refund cleanup function with default 10-minute timeout
+        results = await cleanup_stale_reserving_refunds(max_age_minutes=10)
+        
+        logger.debug(f"Refund cleanup results: {results}")
+        return results
+        
+    except Exception as e:
+        logger.error(f"Error in refund cleanup wrapper: {e}", exc_info=True)
+        return {"completed": 0, "rolled_back": 0, "failed": 1}

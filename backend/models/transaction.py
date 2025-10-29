@@ -91,9 +91,28 @@ class Transaction(BaseModel):
     # Refund-specific fields
     refund_type: Optional[str] = None  # "full", "partial", or None for non-refunded transactions
     refunded_on: Optional[str] = None  # ISO timestamp when refund was processed
+    refunded_amount: Optional[Decimal] = None  # Amount that was refunded
     
     # Additional metadata for detailed transaction information
     metadata: Optional[Dict[str, Any]] = None  # Store additional transaction details
+
+    @field_validator('refunded_amount')
+    @classmethod
+    def validate_refunded_amount(cls, v):
+        """Ensure refunded_amount is properly converted to Decimal"""
+        if v is None:
+            return None
+        if isinstance(v, (int, float, str)):
+            try:
+                # Convert to Decimal with 2 decimal places for currency
+                return Decimal(str(v)).quantize(Decimal('0.01'))
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid refunded_amount: {v}. Must be a valid number")
+        elif isinstance(v, Decimal):
+            # Ensure 2 decimal places for currency
+            return v.quantize(Decimal('0.01'))
+        else:
+            raise ValueError(f"Invalid refunded_amount type: {type(v)}. Must be numeric")
 
     @field_validator('refund_type')
     @classmethod
@@ -267,7 +286,7 @@ class Transaction(BaseModel):
             return False
     
     @staticmethod
-    async def update_transaction_refund_info(transaction_id: str, refund_type: str, refunded_on: str = None):
+    async def update_transaction_refund_info(transaction_id: str, refund_type: str, refunded_on: str = None, refunded_amount: Decimal = None):
         """
         Updates a transaction with refund information.
         
@@ -275,6 +294,7 @@ class Transaction(BaseModel):
             transaction_id: Transaction ID to update
             refund_type: Type of refund ("full" or "partial")
             refunded_on: ISO timestamp when refund was processed (defaults to current time)
+            refunded_amount: Amount that was refunded (optional)
         """
         try:
             if refunded_on is None:
@@ -284,11 +304,15 @@ class Transaction(BaseModel):
                 "refund_type": refund_type,
                 "refunded_on": refunded_on
             }
+            
+            # Store refunded amount for tracking, especially useful for partial refunds
+            if refunded_amount is not None:
+                update_data["refunded_amount"] = float(refunded_amount)
                 
             result = await DB.update_document("transactions", {"transaction_id": transaction_id}, update_data)
             
             if result > 0:
-                logging.info(f"Transaction {transaction_id} refund info updated: type={refund_type}, date={refunded_on}")
+                logging.info(f"Transaction {transaction_id} refund info updated: type={refund_type}, date={refunded_on}, amount={refunded_amount}")
             
             return result > 0
         except Exception as e:
@@ -493,6 +517,8 @@ class Transaction(BaseModel):
                 # Map transaction status to registration status
                 if transaction.status == PaymentStatus.COMPLETED:
                     return RegistrationPaymentStatus.COMPLETED
+                elif transaction.status == PaymentStatus.PARTIALLY_REFUNDED:
+                    return RegistrationPaymentStatus.PARTIALLY_REFUNDED
                 elif transaction.status == PaymentStatus.REFUNDED:
                     return RegistrationPaymentStatus.REFUNDED
                 else:
@@ -508,6 +534,8 @@ class Transaction(BaseModel):
                     return RegistrationPaymentStatus.COMPLETED
                 elif transaction.status == PaymentStatus.FAILED:
                     return RegistrationPaymentStatus.FAILED
+                elif transaction.status == PaymentStatus.PARTIALLY_REFUNDED:
+                    return RegistrationPaymentStatus.PARTIALLY_REFUNDED
                 elif transaction.status == PaymentStatus.REFUNDED:
                     return RegistrationPaymentStatus.REFUNDED
                 else:

@@ -899,28 +899,54 @@ async def validate_refund_amount(transaction_id: str, user_uid: str, requested_a
         
         # Validate amount based on refund type
         if refund_type == "full":
-            if requested_amount != refund_options["remaining_amount"]:
+            # Convert float to Decimal for precise comparison
+            try:
+                remaining_amount_value = refund_options["remaining_amount"]
+                if remaining_amount_value is None:
+                    return {"error": "Invalid remaining amount: None"}
+                expected_amount = Decimal(str(remaining_amount_value))
+            except (ValueError, TypeError, KeyError) as e:
+                return {"error": f"Invalid remaining amount for conversion: {e}"}
+                
+            if requested_amount != expected_amount:
                 return {
                     "error": "Full refund amount mismatch",
                     "expected": refund_options["remaining_amount"],
-                    "provided": requested_amount
+                    "provided": float(requested_amount)
                 }
         elif refund_type == "per_person":
-            if requested_amount != refund_options["remaining_per_person"]:
+            # Convert float to Decimal for precise comparison
+            try:
+                remaining_per_person_value = refund_options["remaining_per_person"]
+                if remaining_per_person_value is None:
+                    return {"error": "Invalid remaining per person amount: None"}
+                expected_amount = Decimal(str(remaining_per_person_value))
+            except (ValueError, TypeError, KeyError) as e:
+                return {"error": f"Invalid remaining per person amount for conversion: {e}"}
+                
+            if requested_amount != expected_amount:
                 return {
                     "error": "Per-person refund amount mismatch",
                     "expected": refund_options["remaining_per_person"], 
-                    "provided": requested_amount
+                    "provided": float(requested_amount)
                 }
         elif refund_type == "partial":
-            min_amount = 0.01
-            max_amount = refund_options["remaining_amount"]
+            # Use Decimal for precise range comparisons
+            min_amount = Decimal("0.01")
+            try:
+                remaining_amount_value = refund_options["remaining_amount"]
+                if remaining_amount_value is None:
+                    return {"error": "Invalid remaining amount for partial refund: None"}
+                max_amount = Decimal(str(remaining_amount_value))
+            except (ValueError, TypeError, KeyError) as e:
+                return {"error": f"Invalid remaining amount for partial refund conversion: {e}"}
+                
             if requested_amount < min_amount or requested_amount > max_amount:
                 return {
                     "error": "Partial refund amount out of range",
-                    "min_amount": min_amount,
-                    "max_amount": max_amount,
-                    "provided": requested_amount
+                    "min_amount": float(min_amount),
+                    "max_amount": float(max_amount),
+                    "provided": float(requested_amount)
                 }
         
         return {

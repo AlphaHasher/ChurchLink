@@ -160,6 +160,10 @@ async def lifespan(app: FastAPI):
         youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
         
+        # Start event and refund cleanup scheduler
+        from helpers.event_cleanup_scheduler import event_cleanup_loop
+        eventCleanupTask = asyncio.create_task(event_cleanup_loop(DatabaseManager.db))
+        
         # Initialize Bible Plan Notification System
         logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
@@ -171,6 +175,7 @@ async def lifespan(app: FastAPI):
         logger.info("Shutting down background tasks and closing DB")
         youtubeSubscriptionCheck.cancel()
         scheduledNotifTask.cancel()
+        eventCleanupTask.cancel()
         DatabaseManager.close_db()
         logger.info("Shutdown complete")
 
