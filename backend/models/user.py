@@ -32,7 +32,8 @@ class UserBase(BaseModel):
     birthday: Optional[datetime] = None
     address: AddressSchema = Field(default_factory=AddressSchema)
     roles: List[PydanticObjectId] = Field(default_factory=list)
-    bible_notes: List[str] = Field(default_factory=list)
+    ministries: List[str]
+    favorite_events: List[str]
     createdOn: datetime = Field(default_factory=datetime.now)
     notification_preferences: Optional[dict] = Field(default_factory=dict, description="User notification opt-out settings")
 

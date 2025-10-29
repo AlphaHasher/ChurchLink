@@ -110,8 +110,8 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
         const url = useStaging
           ? `/v1/pages/staging/${encodeURIComponent(slug)}`
           : (isPreviewMode
-              ? `/v1/pages/preview/${encodeURIComponent(slug)}`
-              : `/v1/pages/slug/${encodeURIComponent(slug)}`);
+            ? `/v1/pages/preview/${encodeURIComponent(slug)}`
+            : `/v1/pages/slug/${encodeURIComponent(slug)}`);
         console.log("DynamicPage: Fetching from:", url);
         const res = await api.get(url, {
           signal: ctrl.signal,
@@ -268,7 +268,6 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
                 {section.type === "event" && (
                   <EventSection
                     showFilters={section.settings?.showFilters !== false}
-                    eventName={section.settings?.eventName}
                     lockedFilters={section.settings?.lockedFilters}
                     title={section.settings?.title}
                     showTitle={section.settings?.showTitle !== false}

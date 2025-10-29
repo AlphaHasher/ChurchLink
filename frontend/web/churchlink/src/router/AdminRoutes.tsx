@@ -16,8 +16,10 @@ const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/su
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
 const Users = lazy(() => import("../features/admin/pages/Users"));
 const MembershipRequests = lazy(() => import("../features/admin/pages/ManageMemberships"));
-const Events = lazy(() => import("../features/admin/pages/Events"));
-const EventDetails = lazy(() => import("../features/admin/pages/EventDetails"));
+const Events = lazy(() => import("../features/admin/pages/EventsV2"));
+const EventInstances = lazy(() => import("../features/admin/pages/EventInstances"));
+/// TODO: REPLACE EVENT DETAILS SLUG
+//const EventDetails = lazy(() => import("../features/admin/pages/EventDetails"));
 const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
 const Bulletins = lazy(() => import("../features/admin/pages/Bulletins"));
 const BiblePlanBuilder = lazy(() => import("../features/admin/pages/BiblePlanBuilder"));
@@ -42,7 +44,7 @@ export const AdminRoutes = () => {
         <Route path="/notifications" element={<Notification />} />
         <Route path="/ministries" element={<Ministries />} />
         <Route path="/events" element={<Events />} />
-        <Route path="/events/:eventId" element={<EventDetails />} />
+        <Route path="/events/:eventId" element={<EventInstances />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/sermons" element={<Sermons />} />
         <Route path="/bible-plans/manage-plans" element={<ManageBiblePlans />} />

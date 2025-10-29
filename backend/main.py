@@ -22,6 +22,7 @@ from mongo.roles import RoleHandler
 from mongo.scheduled_notifications import scheduled_notification_loop
 
 from helpers.youtubeHelper import YoutubeHelper
+from helpers.EventPublisherLoop import EventPublisher
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
 import asyncio
 import os
@@ -37,7 +38,6 @@ from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
 from routes.bible_routes.bible_plan_notification_routes import bible_notification_router
 
 from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
-from routes.common_routes.event_routes import event_editing_router, private_event_router, public_event_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
 from routes.common_routes.bulletin_routes import public_bulletin_router,bulletin_editing_router,public_service_router,service_bulletin_editing_router
@@ -52,15 +52,19 @@ from routes.page_management_routes.footer_routes import public_footer_router, mo
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
 from routes.page_management_routes.page_routes import mod_page_router, public_page_router
 
-from routes.paypal_routes.paypal_adminsetting import paypal_admin_router
-from routes.paypal_routes.paypal_routes import paypal_public_router
+#from routes.paypal_routes.paypal_adminsetting import paypal_admin_router
+#from routes.paypal_routes.paypal_routes import paypal_public_router
 
 from routes.permissions_routes.permissions_routes import permissions_protected_router, permissions_view_router
+
+from routes.event_routes.admin_panel_event_routes import event_editing_router, mod_event_router
+from routes.event_routes.user_event_routes import public_event_router, private_event_router
 
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
-from routes.form_payment_routes import form_payment_router
+
+#from routes.form_payment_routes import form_payment_router
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
 from fastapi.staticfiles import StaticFiles
@@ -141,6 +145,7 @@ async def lifespan(app: FastAPI):
         # Background tasks
         logger.info("Starting background tasks")
         youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
+        eventPublishingLoop = asyncio.create_task(EventPublisher.runEventPublishLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
 
         # Initialize Bible Plan Notification System
@@ -153,6 +158,7 @@ async def lifespan(app: FastAPI):
         # Cleanup
         logger.info("Shutting down background tasks and closing DB")
         youtubeSubscriptionCheck.cancel()
+        eventPublishingLoop.cancel()
         scheduledNotifTask.cancel()
         DatabaseManager.close_db()
         logger.info("Shutdown complete")
@@ -193,12 +199,14 @@ class LoginCredentials(BaseModel):
     password: str
 
 
+# TODO: UNCOMMENT ROUTERS
+
+
 #####################################################
 # Public Routers - No Auth
 #####################################################
 public_router = APIRouter(prefix="/api/v1")
 
-public_router.include_router(public_event_router)
 public_router.include_router(public_sermon_router)
 public_router.include_router(public_bulletin_router)
 public_router.include_router(public_service_router)
@@ -210,14 +218,16 @@ public_router.include_router(public_page_router)
 public_router.include_router(youtube_listener_router)
 public_router.include_router(public_notification_router)
 public_router.include_router(app_config_public_router)
-public_router.include_router(paypal_public_router)
-public_router.include_router(form_payment_router)
+#public_router.include_router(paypal_public_router)
+#public_router.include_router(form_payment_router)
 public_router.include_router(paypal_subscription_webhook_router)
 public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
 public_router.include_router(public_ministry_router)
+public_router.include_router(public_event_router)
+public_router.include_router(public_forms_router)
 
 
 #####################################################
@@ -231,12 +241,12 @@ private_router.include_router(private_bible_plan_router)
 private_router.include_router(bible_notification_router)
 private_router.include_router(event_person_registration_router)
 private_router.include_router(event_person_management_router)
-private_router.include_router(private_event_router)
 private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
 private_router.include_router(member_private_router)
 private_router.include_router(private_forms_router)
-public_router.include_router(public_forms_router)
+private_router.include_router(private_event_router)
+
 
 #####################################################
 # Mod Routers - Requires at least 1 perm role, agnostic to specific permissions
@@ -250,11 +260,12 @@ mod_router.include_router(user_mod_router)
 mod_router.include_router(mod_page_router)
 mod_router.include_router(permissions_view_router)
 mod_router.include_router(private_notification_router)
-mod_router.include_router(paypal_admin_router)
+#mod_router.include_router(paypal_admin_router)
 mod_router.include_router(app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
 mod_router.include_router(mod_ministry_router)
+mod_router.include_router(mod_event_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
@@ -296,8 +307,8 @@ finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags
 finance_management_protected_router.include_router(finance_router)
 
 # EVENT PAYMENT ROUTES
-from routes.event_payment_routes.event_payment_routes import event_payment_router
-app.include_router(event_payment_router, prefix="/api/v1")
+#from routes.event_payment_routes.event_payment_routes import event_payment_router
+#app.include_router(event_payment_router, prefix="/api/v1")
 
 
 

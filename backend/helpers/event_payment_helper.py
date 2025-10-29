@@ -1,4 +1,6 @@
-import logging
+#TODO: ACTUALLY UNCOMMENT AND HANDLE THIS STUFF
+
+'''import logging
 import os
 import json
 import traceback
@@ -1380,4 +1382,4 @@ class EventPaymentHelper:
 
 
 # Create singleton instance for easy import
-event_payment_helper = EventPaymentHelper()
+event_payment_helper = EventPaymentHelper()'''

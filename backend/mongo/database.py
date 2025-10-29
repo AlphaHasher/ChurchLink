@@ -25,8 +25,7 @@ class DB:
         },
         {
             "name": "events",
-            # Reverting indexes back to original based on user feedback
-            "indexes": ["name"]
+            "indexes": []
         },
         {
             "name": "ministries",

@@ -1,4 +1,6 @@
-import os
+# TODO: THIS
+
+'''import os
 import logging
 from fastapi import APIRouter, Request, Query, Body, Depends, HTTPException
 from typing import Optional, Dict, List, Any
@@ -56,3 +58,4 @@ async def get_fund_purposes():
     # Use built-in default instead of environment variable
     default_funds = ["General", "Building", "Missions", "Youth", "Other"]
     return default_funds
+    '''

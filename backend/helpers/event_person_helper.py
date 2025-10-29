@@ -6,7 +6,7 @@ from datetime import datetime
 
 from models.user import get_family_member_by_id
 from helpers.MongoHelper import serialize_objectid
-from controllers.event_functions import cancel_rsvp, register_rsvp
+from backend.controllers.event_controllers.admin_event_controller import cancel_rsvp, register_rsvp
 from mongo.churchuser import UserHandler
 from models.event import rsvp_list
 

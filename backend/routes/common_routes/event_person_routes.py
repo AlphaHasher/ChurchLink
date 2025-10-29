@@ -140,7 +140,7 @@ async def get_registration_status_route(event_id: str, request: Request):
 @event_person_registration_router.post("/register/{event_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_user_for_event(event_id: str, request: Request):
     try:
-        from controllers.event_functions import register_rsvp
+        from backend.controllers.event_controllers.admin_event_controller import register_rsvp
 
         # Get request body to extract payment option
         body = {}
@@ -167,7 +167,7 @@ async def register_user_for_event(event_id: str, request: Request):
 @event_person_registration_router.delete("/unregister/{event_id}", response_model=dict)
 async def unregister_user_from_event(event_id: str, request: Request):
     try:
-        from controllers.event_functions import cancel_rsvp
+        from backend.controllers.event_controllers.admin_event_controller import cancel_rsvp
 
         result = await cancel_rsvp(event_id, request.state.uid)
         if not result:
@@ -237,7 +237,7 @@ async def get_my_events(request: Request, include_family: bool = True, expand: b
 @event_person_registration_router.post("/register/{event_id}/family-member/{family_member_id}", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_family_member_for_event(event_id: str, family_member_id: str, request: Request):
     try:
-        from controllers.event_functions import register_rsvp
+        from backend.controllers.event_controllers.admin_event_controller import register_rsvp
 
         # Validate family member ownership
         member = await get_family_member_by_id(request.state.uid, family_member_id)
@@ -270,7 +270,7 @@ async def register_family_member_for_event(event_id: str, family_member_id: str,
 @event_person_registration_router.delete("/unregister/{event_id}/family-member/{family_member_id}", response_model=dict)
 async def unregister_family_member_from_event(event_id: str, family_member_id: str, request: Request):
     try:
-        from controllers.event_functions import cancel_rsvp
+        from backend.controllers.event_controllers.admin_event_controller import cancel_rsvp
 
         # Validate family member ownership
         member = await get_family_member_by_id(request.state.uid, family_member_id)

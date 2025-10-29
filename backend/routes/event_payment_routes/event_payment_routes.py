@@ -1,4 +1,6 @@
-# Bulk Registration Endpoint for Events with Combined Payment
+#TODO: THIS STUFF
+
+'''# Bulk Registration Endpoint for Events with Combined Payment
 
 from typing import List, Dict, Any
 from fastapi import APIRouter, Request, HTTPException, Body
@@ -154,4 +156,4 @@ async def handle_paypal_cancel(
     except Exception as e:
         # If there's an error, still redirect to cancel page but with error info
         cancel_url = f"{FRONTEND_URL}/events/{event_id}/payment/cancel?error=true"
-        return RedirectResponse(url=cancel_url, status_code=302)
+        return RedirectResponse(url=cancel_url, status_code=302)'''

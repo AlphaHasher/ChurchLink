@@ -1,117 +1,391 @@
-# Ministry selection
-# Age Range
-# Gender (Male/Female/Both)
-# Free/Paid
-# Search
+from __future__ import annotations
 
-from typing import Literal, Optional, List, Dict
-from http.client import HTTPException
-from typing import Literal, Optional, List
-from datetime import datetime, time, timezone
-from mongo.database import DB
-from pydantic import BaseModel, Field
+from typing import Literal, Optional, List, Dict, Annotated, Any
+from datetime import datetime, timezone
 from bson.objectid import ObjectId
-from helpers.MongoHelper import serialize_objectid_deep
+from pydantic import BaseModel, Field
 import logging
-from models.ministry import list_ministries
 
-class Event(BaseModel):
-    id: str
-    name: str
-    ru_name: str
+from mongo.database import DB
+from helpers.MongoHelper import serialize_objectid_deep
+
+# ------------------------------
+# Models
+# ------------------------------
+
+class EventLocalization(BaseModel):
+    title: str
     description: str
-    ru_description: str
+    location_info: str
+
+class EventCore(BaseModel):
+    """
+    This is the class that defines the core of events.
+
+    It includes specifically the minimal information that is common for the average person to read in an EventInstance AND an Admin to read in the Event admin panel
+    """
+    # A dictionary that has lang --> Localization info. Example: {"en":{"title":"An Event", "description":"A Riveting Description", "location_info":"The Spooky Haunted House across the Block"}}
+    localizations: Dict[str, EventLocalization]
+    # Event Context:
+    # This is the origin date that all other events are based off of. If it is not a recurring event, it's the only date
+    # If it is a recurring event, say, "weekly" it is the date that all other dates are based off. For instance, 3rd event in series with "Weekly" recurrence = origin_date + 2 weeks
+    # EventInstance Context:
+    # This is the date the event will physically take place on.
     date: datetime
-    location: str
-    price: float
-    spots: int
-    rsvp: bool
+
+    # Defines how often the event recurs, if ever. Follows pattern previously stated in origin_date for creating event instance dates
     recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
-    ministry: List[str]
-    min_age: int = Field(default=1, ge=0)
-    max_age: int = Field(default=100, ge=0)
+
+    # Event Context:
+    # This is a bool that globally defines if registration is allowed for any of these particular events
+    # If set to True, events will be conditionally able to be registered depending if occurence conditions are met
+    # If set to False, events will be forbidden from being registered regardless.
+    # Should be noted that event visibility and registration status are distinctly different.
+    # EventInstance Context:
+    # This is a simple bool that defines if registration is allowed or not for this particular event instance
+    registration_allowed: bool
+
+    # Event Context:
+    # This is a boolean that will immediately hide all events regardless of status, if it is set to True, the user won't be able to find them
+    # EventInstanceContext:
+    # This is a boolean that will hide this particular instance from being fetched/shown
+    hidden: bool
+
+    # The datetime where registration is allowed to be opened
+    # Optional: If no specification, it is assumed that registration is always open
+    # Event Context:
+    # If the event is a recurrence, the delta will be taken into account for opens and deadline
+    # Take example of origin_date is December 25th, recurrence = Monthly, and registration_opens = December 15th
+    # Next event in series will have date January 25th, with Registration opening January 15th
+    # EventInstance Context:
+    # Actual date for registration open of EventInstance
+    registration_opens: Optional[datetime] = None
+
+    # The datetime where registration is closed
+    # Same logic and optionality as previous
+    registration_deadline: Optional[datetime] = None
+
+    # A list of strings as ObjectID regarding the associated ministries for this event
+    ministries: List[str]
+
+    # Defines if only members are allowed to register for the event
+    members_only: bool
+
+    # Defines if RSVP is required for event
+    rsvp_required: bool
+
+    # Defines the maximum event spots available (occupancy)
+    max_spots: Optional[Annotated[int, Field(gt=0)]]
+
+    # Defines the price of the event
+    price: Annotated[float, Field(ge=0.0)]
+
+    # Defines optional age ranges for who is allowed to attend the event
+    min_age: Optional[int] = None
+    max_age: Optional[int] = None
+
+    # Defines who is allowed to attend the event in regards to gender
     gender: Literal["all", "male", "female"]
-    image_url: Optional[str] = None  # Add optional image URL
-    roles: List[str]
-    published: bool
-    seats_taken: int = 0
-    attendee_keys: List[str] = []
-    attendees: List[Dict] = []
-    # Payment processing fields
-    payment_options: List[str] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
-    refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
-    
-    def requires_payment(self) -> bool:
-        """Check if this event requires payment"""
-        return self.price > 0 and len(self.payment_options) > 0
-    
-    def is_free_event(self) -> bool:
-        """Check if this event is free"""
-        return self.price == 0
-    
-    def has_paypal_option(self) -> bool:
-        """Check if PayPal payment is available"""
-        return 'paypal' in self.payment_options
-    
-    def has_door_payment_option(self) -> bool:
-        """Check if pay-at-door option is available"""
-        return 'door' in self.payment_options
 
+    # Optional location_url, supposed to point to a maps url so the user can find the event location on maps
+    location_url: Optional[str] = None
 
-class EventCreate(BaseModel):
-    name: str
-    ru_name: str
-    description: str
-    ru_description: str
-    date: datetime
-    location: str
-    price: float
-    spots: int
-    rsvp: bool
-    recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
-    ministry: List[str]
-    min_age: int = Field(default=1, ge=0)
-    max_age: int = Field(default=100, ge=0)
-    gender: Literal["all", "male", "female"]
-    image_url: Optional[str] = None
-    roles: List[str]
-    published: bool
-    seats_taken: Optional[int] = 0
-    attendee_keys: Optional[List[str]] = []
-    attendees: Optional[List[Dict]] = []
+    # image_id the object id of image_data that is attched to this event
+    image_id: str
+
     # Payment processing fields
-    payment_options: Optional[List[str]] = Field(default=[], description="Available payment methods: ['paypal', 'door']")
+    # Note: keep string values but validate against the fixed set in do_event_validation
+    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
     refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
 
+    # Optionally define a members only price
+    member_price: Optional[Annotated[float, Field(ge=0.0)]] = None
 
-class EventOut(Event):
+
+class Event(EventCore):
+    """
+    This is the class that defines the origin structure of the event
+
+    It is NOT an event instance, i.e. a representative of a physical event that takes place
+
+    This is now its own model, EventInstance, and EventInstance has its own registration data
+
+    Event is merely a blueprint that defines how EventInstance is constructed
+
+    """
+    # ObjectID of the event
     id: str
-    roles: List[str]
+    # Defines how many recurrences are published/visible at a time. Defaults to 1 if no recurrences
+    # If recurring is weekly and max_published is 3, for example, then the event for this week, next week, and the week after will be visible
+    max_published: int
+    # Defines if the events will continue to publish.
+    # If a user wants to discontinue an event, but keep all events that have been already published ongoing, they can set this to False
+    # The events will stop publishing in the future, but all current events will be allowed to play out as usual
+    currently_publishing: bool
+    # Define a list of object ID as str of discount codes applicable to this event
+    discount_codes: List[str]
+    # Datetime event was last updated on
+    updated_on: datetime = Field(default_factory=datetime.now)
+
+    # ONLY for database purposes
+    # Suppose that a user changes a recurrence or origin date, they will also be forced to choose a new origin date
+    # But, we need to be able to still do our instance date = date + interval * (series-1) type math
+    # Therefore, anchor_index will represent the series_index that a new origin date and occurrence interval begins for set of EventInstances
+    # This will always be set to the first valid index of the new date creation methods
+    anchor_index: int
 
 
+class EventUpdate(BaseModel):
+    """
+    This is the class that defines how you can create and update events
+
+    """
+    # A dictionary that has lang --> Localization info. Example: {"en":{"title":"An Event", "description":"A Riveting Description", "location_info":"The Spooky Haunted House across the Block"}}
+    localizations: Dict[str, EventLocalization]
+    # This is the origin date that all other events are based off of. If it is not a recurring event, it's the only date
+    # If it is a recurring event, say, "weekly" it is the date that all other dates are based off. For instance, 3rd event in series with "Weekly" recurrence = origin_date + 2 weeks
+    date: datetime
+    # Defines how often the event recurs, if ever. Follows pattern previously stated in origin_date for creating event instance dates
+    recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
+    # Defines how many recurrences are published/visible at a time. Defaults to 1 if no recurrences
+    # If recurring is weekly and max_published is 3, for example, then the event for this week, next week, and the week after will be visible
+    max_published: int
+    # Defines if the events will continue to publish.
+    # If a user wants to discontinue an event, but keep all events that have been already published ongoing, they can set this to False
+    # The events will stop publishing in the future, but all current events will be allowed to play out as usual
+    currently_publishing: bool
+    # This is a boolean that will immediately hide all events regardless of status, if it is set to True, the user won't be able to find them
+    hidden: bool
+    # This is a bool that globally defines if registration is allowed for any of these particular events
+    # If set to True, events will be conditionally able to be registered depending if occurence conditions are met
+    # If set to False, events will be forbidden from being registered regardless.
+    # Should be noted that event visibility and registration status are distinctly different.
+    registration_allowed: bool
+    # The datetime where registration is allowed to be opened
+    # Optional: If no specification, it is assumed that registration is always open
+    # If the event is a recurrence, the delta will be taken into account for opens and deadline
+    # Take example of origin_date is December 25th, recurrence = Monthly, and registration_opens = December 15th
+    # Next event in series will have date January 25th, with Registration opening January 15th
+    registration_opens: Optional[datetime] = None
+    # The datetime where registration is closed
+    # Same logic and optionality as previous
+    registration_deadline: Optional[datetime] = None
+    # A list of strings as ObjectID regarding the associated ministries for this event
+    ministries: List[str]
+    # Defines if only members are allowed to register for the event
+    members_only: bool
+    # Defines if RSVP is required for event
+    rsvp_required: bool
+    # Defines the maximum event spots available (occupancy)
+    max_spots: Optional[Annotated[int, Field(gt=0)]]
+    # Defines the price of the event
+    price: Annotated[float, Field(ge=0.0)]
+    # Optionally define a members only price
+    member_price: Optional[Annotated[float, Field(ge=0.0)]] = None
+    # Define a list of object ID as str of discount codes applicable to this event
+    discount_codes: List[str]
+    # Defines optional age ranges for who is allowed to attend the event
+    min_age: Optional[int] = None
+    max_age: Optional[int] = None
+    # Defines who is allowed to attend the event in regards to gender
+    gender: Literal["all", "male", "female"]
+    # Optional location_url, supposed to point to a maps url so the user can find the event location on maps
+    location_url: Optional[str] = None
+    # image_id the object id of image_data that is attched to this event
+    image_id: str
+    # Payment processing fields
+    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
+    refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
+
+
+class ReadModEvent(Event):
+    """
+    The Event info that gets displayed when getting events in admin panel
+
+    Requires extra defaults for displays
+
+    Just gets a default localization with default title + description + location_info
+
+    Default data is defined by priorities:
+
+    Highest - Check if language arg applied
+
+    Then - Check if English localization
+
+    Finally - Check first defined localization in dict
+    """
+    default_title: str
+    default_description: str
+    default_location_info: str
+    default_localization: str
+
+
+# ------------------------------
+# Validation
+# ------------------------------
+
+def _coerce_to_aware_utc(dt_val):
+    # Accept ISO-8601 strings (e.g., "2025-10-16T21:41:00Z" or with offsets)
+    if isinstance(dt_val, str):
+        # Handle trailing Z for UTC
+        dt_val = dt_val.replace("Z", "+00:00")
+        try:
+            dt_val = datetime.fromisoformat(dt_val)
+        except ValueError:
+            return None, "Invalid date format; expected ISO-8601."
+
+    if not isinstance(dt_val, datetime):
+        return None, "Invalid date value; expected datetime or ISO-8601 string."
+
+    # Make it timezone-aware in UTC
+    if dt_val.tzinfo is None:
+        dt_val = dt_val.replace(tzinfo=timezone.utc)
+
+    else:
+        dt_val = dt_val.astimezone(timezone.utc)
+
+    return dt_val, None
+
+def datetimes_equal_in_utc(a: datetime, b: datetime) -> bool:
+    """
+    Return True if `a` and `b` represent the exact same instant when compared in UTC.
+    Naive datetimes are assumed to already be UTC.
+    """
+    aware_a, err_a = _coerce_to_aware_utc(a)
+    if err_a:
+        return False
+    aware_b, err_b = _coerce_to_aware_utc(b)
+    if err_b:
+        return False
+    return aware_a == aware_b
+
+def validate_event_date_in_future(event_data, *, validate_date: bool = True):
+    if not validate_date:
+        return {'success': True, 'msg':'Date validation skipped...'}
+
+    dt_val = event_data.get("date")
+    event_dt_utc, err = _coerce_to_aware_utc(dt_val)
+    if err:
+        return {'success': False, 'msg': err}
+
+    now_utc = datetime.now(timezone.utc)
+
+    if event_dt_utc <= (now_utc):
+        return {
+            'success': False,
+            'msg': "You must set the event date to take place after the current date and time."
+        }
+
+    return {'success': True}
+
+def do_event_validation(event_data: dict, validate_date=True):
+    """
+    Has validation logic for event creation or update
+    Takes the model_dump as an arg
+    """
+    try:
+        # Validate payment options for paid events
+        price = float(event_data.get("price", 0) or 0)
+        payment_options = event_data.get("payment_options", []) or []
+        if price > 0 and not payment_options:
+            return {"success": False, "msg": "Events with price > 0 must have at least one payment option"}
+
+        # Validate payment options are from the allowed set
+        valid_options = {"paypal", "door"}
+        for option in payment_options:
+            if option not in valid_options:
+                return {"success": False, "msg": f"Invalid payment option: {option}. Valid options are: {sorted(valid_options)}"}
+
+        # Validate localizations if provided
+        localizations = event_data.get("localizations")
+        if localizations is not None:
+            if not isinstance(localizations, dict) or len(localizations.values()) < 1:
+                return {"success": False, "msg": "Error: At least one localization for event title/description is required!"}
+            for lang, locale in localizations.items():
+                title = (locale.get("title") or "").strip()
+                description = (locale.get("description") or "").strip()
+                location_info = (locale.get("location_info") or "").strip()
+                if not title or not description or not location_info:
+                    return {"success": False, "msg": f"Error for localization {lang}: In each pre-set localization, a valid title, description, and location info must be set!"}
+
+        # Optional: enforce future date
+        result = validate_event_date_in_future(event_data, validate_date=validate_date)
+        if not result["success"]:
+            return result
+
+        # Age checks (fixed parentheses)
+        min_age = event_data.get("min_age")
+        max_age = event_data.get("max_age")
+        if min_age is not None and (min_age < 0 or min_age > 100):
+            return {"success": False, "msg": "min_age must be between 0-100 (inclusive)"}
+        if max_age is not None and (max_age < 0 or max_age > 100):
+            return {"success": False, "msg": "max_age must be between 0-100 (inclusive)"}
+        if min_age is not None and max_age is not None and min_age > max_age:
+            return {"success": False, "msg": "min_age cannot be greater than max_age."}
+
+        # Member price sanity
+        member_price = event_data.get("member_price")
+        if member_price is not None and price is not None and member_price > price:
+            return {"success": False, "msg": "member_price cannot exceed price."}
+
+        # Temporal ordering of registration windows
+        date = event_data.get("date")
+        registration_opens = event_data.get("registration_opens")
+        registration_deadline = event_data.get("registration_deadline")
+        if registration_opens and registration_deadline and registration_opens >= registration_deadline:
+            return {"success": False, "msg": "registration_opens must be before registration_deadline."}
+        if date and registration_deadline and registration_deadline > date:
+            return {"success": False, "msg": "registration_deadline must be on or before the event date."}
+        if registration_opens and date and registration_opens > date:
+            return {"success": False, "msg": "registration_opens must be on or before the event date."}
+
+        # max_spots
+        max_spots = event_data.get("max_spots")
+        if max_spots is not None and max_spots <= 0:
+            return {"success": False, "msg": "max_spots must be > 0."}
+
+        # Ministries shape
+        ministries = event_data.get("ministries")
+        if ministries is not None:
+            if not isinstance(ministries, list) or any(not isinstance(x, str) for x in ministries):
+                return {"success": False, "msg": "ministry must be a list of strings (ObjectId hex)."}
+
+        # Valid max_published
+        max_published = event_data.get("max_published", 1)
+        if max_published < 1 or max_published > 7:
+            return {"success": False, "msg": "Max events published has to be between 1 and 7 inclusive!"}
+
+        # Validate that if an event is hidden it cant be registered for
+        hidden = event_data.get("hidden")
+        registration_allowed = event_data.get("registration_allowed")
+        if hidden and registration_allowed:
+            return {'success':False, 'msg':'An event cannot be hidden and allow registration!'}
+
+        return {"success": True, "msg": "Event input successfully validated."}
+    except Exception as e:
+        logging.exception("Unexpected validation error during do_event_validation")
+        return {"success": False, "msg": f"Unexpected validation error: {e}"}
+
+
+# ------------------------------
 # CRUD Operations
-async def create_event(event: EventCreate) -> Optional[EventOut]:
+# ------------------------------
+
+async def create_event(event: EventUpdate) -> Optional[Event]:
     """
     Creates a new event using DB.insert_document.
     If event has price > 0, payment_options must contain at least one option.
     """
     try:
-        # Convert to dict for processing
+        # Validate Event
         event_data = event.model_dump()
-        
-        # Validate payment options for paid events
-        price = event_data.get("price", 0)
-        payment_options = event_data.get("payment_options", [])
-        
-        if price > 0 and not payment_options:
-            raise ValueError("Events with price > 0 must have at least one payment option")
-        
-        # Validate payment options contain only valid values
-        valid_options = ['paypal', 'door']
-        for option in payment_options:
-            if option not in valid_options:
-                raise ValueError(f"Invalid payment option: {option}. Valid options are: {valid_options}")
-        
+        event_data['updated_on'] = datetime.now(timezone.utc)
+        event_data['anchor_index'] = 1
+
+        validation = do_event_validation(event_data)
+        if validation['success'] is False:
+            return {"success": False, "msg": validation['msg']}
+
         # Use the helper method to insert
         inserted_id = await DB.insert_document("events", event_data)
         if inserted_id is not None:
@@ -121,15 +395,31 @@ async def create_event(event: EventCreate) -> Optional[EventOut]:
                 event_data["id"] = str(event_data.pop("_id"))
                 # Ensure all ObjectIds are serialized to strings
                 event_data = serialize_objectid_deep(event_data)
-                return EventOut(**event_data)
+                return {"success": True, "msg":"Event succesfully created!", "event":Event(**event_data)}
+
         # Return None if insertion or fetching failed
         return None
     except Exception as e:
-        print(f"An error occurred during event creation: {e}")
+        logging.exception("An error occurred during event creation")
         return None
 
 
-async def get_event_by_id(event_id: str) -> Optional[EventOut]:
+
+async def get_event_doc_by_id(event_id: str):
+    """
+    Retrieves an event document by its ID.
+    (Uses find_one directly to target specific _id)
+    """
+    try:
+        event_doc = await DB.db["events"].find_one({"_id": ObjectId(event_id)})
+        if event_doc is not None:
+            return event_doc
+        return None
+    except Exception as e:
+        logging.exception(f"Error fetching event by ID {event_id}")
+        return None
+    
+async def get_event_by_id(event_id: str) -> Optional[Event]:
     """
     Retrieves an event by its ID.
     (Uses find_one directly to target specific _id)
@@ -140,35 +430,65 @@ async def get_event_by_id(event_id: str) -> Optional[EventOut]:
             event_doc["id"] = str(event_doc.pop("_id"))
             # Ensure all ObjectIds are serialized to strings
             event_doc = serialize_objectid_deep(event_doc)
-            return EventOut(**event_doc)
+            return Event(**event_doc)
         return None
     except Exception as e:
-        print(f"Error fetching event by ID {event_id}: {e}")
+        logging.exception(f"Error fetching event by ID {event_id}")
         return None
+    
+async def get_publishing_events() -> List[Event]:
+    """
+    Gets all events that are currently publishing new events as docs
+    """
+    try:
+        cursor = DB.db["events"].find({"currently_publishing": True})
+        docs: List[dict] = await cursor.to_list(length=None)
+        return docs
+    except Exception:
+        logging.exception("Error fetching publishing events")
+        return []
 
 
-async def update_event(event_id: str, event: EventCreate) -> bool:
+async def update_event(event_id: str, event: EventUpdate) -> bool:
     """
     Updates an event by its ID.
     Implements Option 2: Any event with price > 0 requires payment.
+    Uses PATCH semantics via EventUpdate (all fields optional).
     """
     try:
         # Convert to dict for processing
-        event_data = event.model_dump(exclude_unset=True)
+        event_data = event.model_dump()
+        if not event_data:
+            return {'success':False, 'msg':'Failed to dump event update to model!'}
         
-        # Note: Payment options are now handled by the payment_options field
-        # No automatic setting of payment fields needed
-        
+        event_data['updated_on'] = datetime.now(timezone.utc)
+
+        # Check 
+        needs_date_validation = False
+        old_event = await get_event_doc_by_id(event_id)
+        if not old_event:
+            return {'success':False, 'msg':'Could not find old event!'}
+
+
+        if old_event.get("recurring") != event.recurring or not datetimes_equal_in_utc(event.date, old_event.get("date")):
+            needs_date_validation = True
+
+        # Validate Event (partial payload)
+        validation = do_event_validation(event_data, needs_date_validation)
+        if validation['success'] is False:
+            return {'success':False, 'msg':validation['msg']}
+
         result = await DB.db["events"].update_one(
             {"_id": ObjectId(event_id)},
-            {
-                "$set": event_data
-            },  # exclude_unset for partial updates
+            {"$set": event_data},
         )
-        return result.modified_count > 0
+        if result.modified_count > 0:
+            return {'success':True, 'msg':'Event update success!'}
+        else:
+            return {'success':False, 'msg':'Event update failed!: Failure on event update'}
     except Exception as e:
-        print(f"Error updating event {event_id}: {e}")
-        return False
+        logging.exception(f"Error updating event {event_id}")
+        return {'success':False, 'msg':f'Error updating event! Exception {e}'}
 
 
 async def delete_event(event_id: str) -> bool:
@@ -178,618 +498,272 @@ async def delete_event(event_id: str) -> bool:
     """
     try:
         result = await DB.db["events"].delete_one({"_id": ObjectId(event_id)})
-        return result.deleted_count > 0
+        if result.deleted_count > 0:
+            return {'success':True, 'msg':"Successfully deleted event!"}
+        else:
+            return {'success':False, 'msg':'Failed to delete event due to an unknown error!'}
     except Exception as e:
-        print(f"Error deleting event {event_id}: {e}")
-        return False
+        logging.exception(f"Error deleting event {event_id}")
+        return {'success':False, 'msg':f'Failed to delete event! Exception {e}'}
 
 
-async def delete_events(filter_query: dict) -> int:
-    """
-    Deletes multiple events matching the filter query using the DB.delete_documents helper.
-    Returns the number of documents deleted.
+# ------------------------------
+# Powerful Search/Fetch
+# ------------------------------
 
-    Args:
-        filter_query (dict): The MongoDB filter query to select documents for deletion.
-
-    Returns:
-        int: The number of events deleted.
-    """
-    logging.info(
-        f"Attempting to delete events with filter: {filter_query}"
-    )  # Log the filter being used
-    deleted_count = await DB.delete_documents("events", filter_query)
-    logging.info(f"Deleted {deleted_count} events.")
-    return deleted_count
-
-
-##search and filter function with sane defaults
 async def search_events(
-    query_text: str,
-    skip: int = 0,
-    limit: int = 100,
-    ministry: str = None,
-    age: Optional[int] = None,
-    gender: Literal["male", "female", "all"] = "all",
-    is_free: Optional[bool] = None,
-    sort: Literal["asc", "desc"] = "asc",
-    sort_by: Literal[
-        "date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"
-    ] = "date",
-):
-    query = {"$text": {"$search": query_text}}
-
-    # Apply filters
-    if ministry:
-        query["ministry"] = {"$in": [ministry]}
-
-    age_filter = {}
-    if age is not None:
-        query["min_age"] = {"$lte": age}
-        query["max_age"] = {"$gte": age}
-
-    if gender != "all":
-        query["gender"] = gender
-    if is_free is not None:
-        query["price"] = 0.0 if is_free else {"$gt": 0.0}
-
-    # Get total count matching search and filters
-    total = await DB.db["events"].count_documents(query)
-
-    # Get events with sorting and pagination
-    sort_direction = 1 if sort == "asc" else -1
-    cursor = (
-        DB.db["events"]
-        .find(query)
-        .sort(sort_by, sort_direction)
-        .skip(skip)
-        .limit(limit)
-    )
-    events = await cursor.to_list(length=limit)
-
-    # Convert MongoDB documents to EventOut objects
-    events_out = []
-    for event in events:
-        event["id"] = str(event.pop("_id"))
-        # Ensure all ObjectIds are serialized to strings
-        event = serialize_objectid_deep(event)
-        events_out.append(EventOut(**event))
-    return events_out
-
-
-# sort and filter with limit no search
-async def sort_events(
-    skip: int = 0,
-    limit: int = 100,
-    ministry: str = None,
-    age: Optional[int] = None,
-    gender: Literal["male", "female", "all"] = "all",
-    is_free: Optional[bool] = None,
-    sort: Literal["asc", "desc"] = "asc",
-    sort_by: Literal[
-        "date", "name", "location", "price", "ministry", "min_age", "max_age", "gender"
-    ] = "date",
-    name: Optional[str] = None,
-    max_price: Optional[float] = None,
-    date_after: Optional[datetime] = None,
-    date_before: Optional[datetime] = None,
-):
+    *,
+    page: int = 1,
+    limit: int = 20,
+    query: Optional[str] = None,
+    ministries: Optional[List[str]] = None,
+    registration_allowed: Optional[bool] = None,
+    hidden: Optional[bool] = None,
+    members_only: Optional[bool] = None,
+    rsvp_required: Optional[bool] = None,
+    min_age: Optional[int] = None,
+    max_age: Optional[int] = None,
+    gender: Optional[Literal["all", "male", "female"]] = None,
+    preferred_lang: Optional[str] = None,  # used for BOTH default locale and search
+    sort_by_date_asc: bool = True,
+) -> Dict[str, Any]:
     """
-    Get events with optional filters and sorting.
+    Powerful event search with pagination & filters.
 
-    Args:
-        skip (int): Number of events to skip
-        limit (int): Maximum number of events to return
-        ministry (str): Filter by ministry (must be in the event's list)
-        min_age (int): Filter by minimum attendee age
-        max_age (int): Filter by maximum attendee age
-        gender (str): Filter by gender
-        is_free (bool): Filter by free status (price == 0)
-        sort (str): Sort direction ("asc" or "desc")
-        sort_by (str): Field to sort by
+    Search behavior:
+    - Search is performed ONLY within the chosen default locale fields:
+      `preferred_lang` -> "en" -> first defined locale (if any).
+    - It checks `title` and `description` for a case-insensitive
+      regex match of `query`.
 
-    Returns:
-        list: List of events matching the filters
+    Filters:
+    - ministries: at least one overlap
+    - registration_allowed, hidden, members_only, rsvp_required: exact match when provided
+    - gender: event.gender == 'all' or equals the requested gender
+    - age overlap: event [min_age, max_age] intersects with requested [min_age, max_age],
+      with missing event bounds treated as open-ended.
     """
-    query = {}
+    page = max(1, int(page))
+    limit = max(1, min(int(limit), 200))
+    skip = (page - 1) * limit
 
-    # Apply filters
-    if ministry:
-        query["ministry"] = {"$in": [ministry]}
+    base_match: Dict[str, Any] = {}
 
-    if age is not None:
-        query["min_age"] = {"$lte": age}
-        query["max_age"] = {"$gte": age}
+    if registration_allowed is not None:
+        base_match["registration_allowed"] = registration_allowed
+    if hidden is not None:
+        base_match["hidden"] = hidden
+    if members_only is not None:
+        base_match["members_only"] = members_only
+    if rsvp_required is not None:
+        base_match["rsvp_required"] = rsvp_required
 
-    if gender and gender in ("male", "female"):
-        query["gender"] = {"$in": ["all", gender]}
+    if ministries:
+        base_match["ministries"] = {"$in": ministries}
 
-    if is_free is not None and is_free:
-        # Only free events
-        query["price"] = 0.0
-    elif max_price is not None:
-        # Paid events
-        query["price"] = {"$lte": max_price}
+    # Gender: include 'all' as wildcard or exact gender match
+    if gender is not None:
+        base_match["$or"] = [{"gender": "all"}, {"gender": gender}]
 
-    if name:
-        query["name"] = {"$regex": name, "$options": "i"}  # Case-insensitive name search
-
-    if date_after is not None:
-        query.setdefault("date", {})
-        query["date"]["$gte"] = datetime.combine(date_after, time.min)
-
-    if date_before is not None:
-        query.setdefault("date", {})
-        query["date"]["$lte"] = datetime.combine(date_before, time.max)
-
-    # Get events with sorting
-    sort_direction = 1 if sort == "asc" else -1
-    cursor = (
-        DB.db["events"]
-        .find(query)
-        .sort(sort_by, sort_direction)
-        .skip(skip)
-        .limit(limit)
-    )
-    events = await cursor.to_list(length=limit)
-
-    # Convert MongoDB documents to EventOut objects
-    events_out = []
-    for event in events:
-        # Convert _id to id string first
-        event["id"] = str(event.pop("_id"))
-        # Then serialize any remaining ObjectIds in nested structures
-        event_clean = serialize_objectid_deep(event)
-        events_out.append(
-            EventOut(**event_clean)
-        )  # Create EventOut by unpacking the modified dict
-    return events_out
-
-
-##get event amount
-async def get_event_amount() -> int:
-    """Gets the total number of events in the collection."""
-    try:
-        # count_documents is a direct method, no specific helper for this
-        count = await DB.db["events"].count_documents({})
-        return count
-    except Exception as e:
-        logging.error(f"Error counting events: {e}")
-        return 0
-
-
-async def get_all_ministries():
-    try:
-        ministries = await list_ministries()
-        return [m.name for m in ministries]
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail={"error": "Failed to fetch ministries", "reason": str(exc)},
-        ) from exc
-
-def _attendee_key(uid: str, person_id: Optional[ObjectId], kind: str = "rsvp", scope: str = "series") -> str:
-    # “kind” allows extension (e.g., "registration") while keeping uniqueness separate
-    return f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|{scope}"
-
-def _attendee_doc(uid: str, person_id: Optional[ObjectId], display_name: Optional[str], kind: str = "rsvp", scope: str = "series", payment_status: Optional[str] = None) -> Dict:
-    attendee_doc = {
-        "key": _attendee_key(uid, person_id, kind, scope),
-        "kind": kind,  # "rsvp" | "registration"
-        "scope": scope,  # "series" | "occurrence"
-        "user_uid": uid,
-        "person_id": person_id,
-        "display_name": display_name,
-        "addedOn": datetime.now(),
-    }
-    
-    # Add payment status if provided
-    if payment_status:
-        attendee_doc["payment_status"] = payment_status
-    
-    return attendee_doc
-
-async def rsvp_add_person(
-    event_id: str,
-    uid: str,
-    person_id: Optional[ObjectId] = None,
-    display_name: Optional[str] = None,
-    kind: str = "rsvp",
-    scope: str = "series",
-    payment_status: Optional[str] = None,
-) -> tuple[bool, str]:
-    """
-    Add RSVP atomically. Only manages the event collection.
-    Returns (success, reason) where reason explains why it failed if success is False.
-    """
-    ev_oid = ObjectId(event_id)
-    key = _attendee_key(uid, person_id, kind, scope)
-    attendee = _attendee_doc(uid, person_id, display_name, kind, scope, payment_status)
-
-
-    logging.info(f"[RSVP_ADD] Debug info:")
-    logging.info(f"  - Event ID: {event_id}")
-    logging.info(f"  - User ID: {uid}")
-    logging.info(f"  - Person ID: {person_id}")
-    logging.info(f"  - Attendee Key: {key}")
-    logging.info(f"  - Kind: {kind}")
-
-    # First, let's check if the person is already registered
-    existing_event = await DB.db["events"].find_one(
-        {"_id": ev_oid},
-        {"attendee_keys": 1, "seats_taken": 1, "spots": 1}
-    )
-    
-    if not existing_event:
-        return False, "Event not found"
-    
-    attendee_keys = existing_event.get('attendee_keys', [])
-    seats_taken = existing_event.get('seats_taken', 0)
-    total_spots = existing_event.get('spots', 0)
-    key_exists = key in attendee_keys
-
-    logging.info(f"[RSVP_ADD] Event check:")
-    logging.info(f"  - Current attendee keys: {attendee_keys}")
-    logging.info(f"  - Seats taken: {seats_taken}")
-    logging.info(f"  - Total spots: {total_spots}")
-    logging.info(f"  - Key already exists: {key_exists}")
-
-    # Check specific failure conditions
-    if key_exists:
-        logging.info(f"[RSVP_ADD] Key already present, treating as idempotent success: {key}")
-        return True, "already_registered"
-    
-    if total_spots > 0 and seats_taken >= total_spots:
-        return False, "event_full"
-    
-    # Build the query conditions
-    query_conditions = {
-        "_id": ev_oid,
-        "attendee_keys": {"$ne": key},
-    }
-    
-    # Only add capacity constraint if event has limited spots
-    if total_spots > 0:
-        query_conditions["$expr"] = {"$lte": [{"$add": ["$seats_taken", 1]}, "$spots"]}
-        logging.info(f"[RSVP_ADD] Adding capacity constraint for {total_spots} spots")
-    else:
-        logging.info(f"[RSVP_ADD] No capacity constraint (unlimited spots)")
-
-    logging.info(f"[RSVP_ADD] Query conditions: {query_conditions}")
-
-    result = await DB.db["events"].find_one_and_update(
-        query_conditions,
-        {
-            "$inc": {"seats_taken": 1},
-            "$addToSet": {"attendee_keys": key},
-            "$push": {"attendees": attendee},
-        },
-        return_document=False,
-    )
-    
-    success = result is not None
-    logging.info(f"[RSVP_ADD] Database update result: {result}")
-    logging.info(f"[RSVP_ADD] Success: {'SUCCESS' if success else 'FAILED'}")
-
-    if not success:
-        # If the update failed, let's check why with more detailed debugging
-        logging.info(f"[RSVP_ADD] Update failed, investigating...")
-
-        # Check if event exists
-        event_check = await DB.db["events"].find_one({"_id": ev_oid}, {"_id": 1, "name": 1, "seats_taken": 1, "spots": 1})
-        if not event_check:
-            logging.warning(f"[RSVP_ADD] Event not found with ID: {ev_oid}")
-            return False, "event_not_found"
-        else:
-            logging.info(f"[RSVP_ADD] Event exists: {event_check.get('name', 'No name')}, seats_taken: {event_check.get('seats_taken', 0)}, spots: {event_check.get('spots', 0)}")
-
-        # Check if key already exists
-        key_check = await DB.db["events"].find_one(
-            {"_id": ev_oid, "attendee_keys": key}, 
-            {"attendee_keys": 1}
-        )
-        if key_check:
-            logging.info(f"[RSVP_ADD] Key already exists in attendee_keys: {key}")
-            # If another concurrent request added the key between our
-            # find_one_and_update attempt and this check, treat this as a
-            # successful (idempotent) registration.
-            return True, "already_registered"
-        else:
-            logging.info(f"[RSVP_ADD] Key does not exist in attendee_keys: {key}")
-
-        # Check capacity constraint manually
-        current_event = await DB.db["events"].find_one(
-            {"_id": ev_oid}, 
-            {"seats_taken": 1, "spots": 1}
-        )
-        if current_event:
-            seats_taken = current_event.get("seats_taken", 0)
-            spots = current_event.get("spots", 0)
-            logging.info(f"[RSVP_ADD] Final capacity check - seats_taken: {seats_taken}, spots: {spots}")
-            if spots > 0 and seats_taken >= spots:
-                logging.warning(f"[RSVP_ADD] Event is full")
-                return False, "event_full"
-        
-        # Try a simpler update to see if there's a validation error
-        try:
-            simple_test = await DB.db["events"].find_one_and_update(
-                {"_id": ev_oid},
-                {"$set": {"test_field": "test"}},
-                return_document=False,
-            )
-            if simple_test:
-                logging.info(f"[RSVP_ADD] Simple update works, issue is with query conditions")
-                # Remove test field
-                await DB.db["events"].update_one({"_id": ev_oid}, {"$unset": {"test_field": 1}})
-            else:
-                logging.warning(f"[RSVP_ADD] Simple update also fails, event may be locked or have other issues")
-        except Exception as e:
-            logging.error(f"[RSVP_ADD] Exception during simple test: {e}")
-
-        logging.error(f"[RSVP_ADD] Unknown reason for update failure")
-        return False, "update_failed"
-    
-    if success:
-        return True, "success"
-    else:
-        return False, "unknown_error"
-
-async def rsvp_remove_person(
-    event_id: str,
-    uid: str,
-    person_id: Optional[ObjectId] = None,
-    kind: str = "rsvp",
-    scope: Optional[str] = None,
-) -> bool:
-    """
-    Remove RSVP atomically. Only manages the event collection.
-    If scope is None, removes all registrations for this person (both occurrence and series).
-    If scope is specified, only removes that specific scope registration.
-    """
-    ev_oid = ObjectId(event_id)
-
-    if scope is not None:
-        # Remove specific scope registration
-        key = _attendee_key(uid, person_id, kind, scope)
-
-        try:
-            result = await DB.db["events"].find_one_and_update(
-                {"_id": ev_oid, "attendee_keys": key},
-                {
-                    "$inc": {"seats_taken": -1},
-                    "$pull": {
-                        "attendees": {"key": key},
-                        "attendee_keys": key
-                    },
-                },
-                return_document=False,
-            )
-
-            if result is None:
-                # FALLBACK: Try the opposite scope if the requested one doesn't exist
-                opposite_scope = 'occurrence' if scope == 'series' else 'series'
-                fallback_key = _attendee_key(uid, person_id, kind, opposite_scope)
-
-                result = await DB.db["events"].find_one_and_update(
-                    {"_id": ev_oid, "attendee_keys": fallback_key},
-                    {
-                        "$inc": {"seats_taken": -1},
-                        "$pull": {
-                            "attendees": {"key": fallback_key},
-                            "attendee_keys": fallback_key
-                        },
-                    },
-                    return_document=False,
-                )
-
-            return result is not None
-        except Exception as e:
-            logging.error(f"Error in rsvp_remove_person: {e}")
-            return False
-    else:
-        # Remove all registrations for this person (both scopes if they exist)
-        try:
-            # First, find how many registrations exist
-            event = await DB.db["events"].find_one({"_id": ev_oid})
-            if not event:
-                return False
-
-            # Count matching attendees
-            user_key_prefix = f"{uid}|{str(person_id) if person_id else 'self'}|{kind}|"
-            matching_keys = [k for k in event.get("attendee_keys", []) if k.startswith(user_key_prefix)]
-            count_to_remove = len(matching_keys)
-
-            if count_to_remove == 0:
-                return False
-
-            # Remove all matching registrations
-            result = await DB.db["events"].update_one(
-                {"_id": ev_oid},
-                {
-                    "$inc": {"seats_taken": -count_to_remove},
-                    "$pull": {
-                        "attendees": {"user_uid": uid, "person_id": person_id, "kind": kind},
-                        "attendee_keys": {"$in": matching_keys}
-                    },
-                },
-            )
-
-            return result.modified_count > 0
-        except Exception as e:
-            logging.error(f"Error in rsvp_remove_person: {e}")
-            return False
-
-async def rsvp_add_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:
-    added: List[Optional[ObjectId]] = []
-    for pid in person_ids:
-        ok = await rsvp_add_person(event_id, uid, pid, None, kind)
-        if not ok:
-            break
-        added.append(pid)
-    return added
-
-async def rsvp_remove_many(event_id: str, uid: str, person_ids: List[Optional[ObjectId]], kind: str = "rsvp") -> List[Optional[ObjectId]]:
-    removed: List[Optional[ObjectId]] = []
-    for pid in person_ids:
-        if await rsvp_remove_person(event_id, uid, pid, kind):
-            removed.append(pid)
-    return removed
-
-async def rsvp_list(event_id: str) -> Dict:
-    ev = await DB.db["events"].find_one(
-        {"_id": ObjectId(event_id)}, {"attendees": 1, "seats_taken": 1, "spots": 1}
-    )
-    
-    if not ev:
-        return {"attendees": [], "seats_taken": 0, "spots": 0}
-    
-    # Serialize ObjectIds in attendees
-    attendees = ev.get("attendees", [])
-    serialized_attendees = []
-    
-    for attendee in attendees:
-        serialized = attendee.copy()
-        if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
-            serialized['person_id'] = str(serialized['person_id'])
-        if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
-            serialized['_id'] = str(serialized['_id'])
-        # Convert any other ObjectId fields that might exist
-        for key, value in serialized.items():
-            if isinstance(value, ObjectId):
-                serialized[key] = str(value)
-        serialized_attendees.append(serialized)
-    
-    return {
-        "attendees": serialized_attendees,
-        "seats_taken": ev.get("seats_taken", 0),
-        "spots": ev.get("spots", 0)
-    }
-
-
-async def get_event_registrations_by_payment_status(event_id: str, payment_status: Optional[str] = None) -> List[Dict]:
-    """Get event registrations filtered by payment status"""
-    try:
-        event = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
-        if not event:
-            return []
-        
-        attendees = event.get("attendees", [])
-        
-        # Convert ObjectIds to strings for JSON serialization
-        def serialize_attendee(attendee):
-            serialized = attendee.copy()
-            if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
-                serialized['person_id'] = str(serialized['person_id'])
-            if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
-                serialized['_id'] = str(serialized['_id'])
-            # Convert any other ObjectId fields that might exist
-            for key, value in serialized.items():
-                if isinstance(value, ObjectId):
-                    serialized[key] = str(value)
-            return serialized
-        
-        if payment_status:
-            # Filter by specific payment status and serialize
-            filtered_attendees = [
-                serialize_attendee(attendee) for attendee in attendees 
-                if attendee.get("payment_status") == payment_status
-            ]
-            return filtered_attendees
-        else:
-            # Return all attendees with serialization
-            return [serialize_attendee(attendee) for attendee in attendees]
-            
-    except Exception as e:
-        logging.error(f"Error getting event registrations by payment status: {e}")
-        return []
-
-
-async def get_event_payment_summary(event_id: str) -> Dict:
-    """Get payment summary for an event including counts by status"""
-    try:
-        event = await DB.db["events"].find_one({"_id": ObjectId(event_id)}, {"attendees": 1})
-        if not event:
-            return {
-                "total_registrations": 0,
-                "paid_count": 0,
-                "pending_count": 0,
-                "not_required_count": 0,
-                "failed_count": 0,
-                "by_status": {}
-            }
-        
-        attendees = event.get("attendees", [])
-        
-        # Helper function to serialize ObjectIds
-        def serialize_attendee(attendee):
-            serialized = attendee.copy()
-            if 'person_id' in serialized and isinstance(serialized['person_id'], ObjectId):
-                serialized['person_id'] = str(serialized['person_id'])
-            if '_id' in serialized and isinstance(serialized['_id'], ObjectId):
-                serialized['_id'] = str(serialized['_id'])
-            # Convert any other ObjectId fields that might exist
-            for key, value in serialized.items():
-                if isinstance(value, ObjectId):
-                    serialized[key] = str(value)
-            return serialized
-        
-        # Count by payment status
-        status_counts = {}
-        for attendee in attendees:
-            status = attendee.get("payment_status", "not_required")
-            status_counts[status] = status_counts.get(status, 0) + 1
-        
-        # Create detailed breakdown with serialized attendees
-        by_status = {}
-        for status, count in status_counts.items():
-            by_status[status] = {
-                "count": count,
-                "attendees": [
-                    serialize_attendee(attendee) for attendee in attendees 
-                    if attendee.get("payment_status") == status
+    # Age overlap filter ($expr); only added when caller supplies at least one bound
+    age_expr = None
+    if min_age is not None or max_age is not None:
+        req_min = min_age if min_age is not None else 0
+        req_max = max_age if max_age is not None else 200
+        age_expr = {
+            "$expr": {
+                "$and": [
+                    {"$lte": [{"$ifNull": ["$min_age", 0]}, req_max]},
+                    {"$gte": [{"$ifNull": ["$max_age", 200]}, req_min]},
                 ]
             }
-        
-        return {
-            "total_registrations": len(attendees),
-            "paid_count": status_counts.get("completed", 0),
-            "pending_count": status_counts.get("pending", 0),
-            "not_required_count": status_counts.get("not_required", 0),
-            "failed_count": status_counts.get("failed", 0),
-            "by_status": by_status
-        }
-        
-    except Exception as e:
-        logging.error(f"Error getting event payment summary: {e}")
-        return {
-            "total_registrations": 0,
-            "paid_count": 0,
-            "pending_count": 0,
-            "not_required_count": 0,
-            "failed_count": 0,
-            "by_status": {}
         }
 
+    pipeline: List[Dict[str, Any]] = []
 
-async def update_attendee_payment_status(event_id: str, attendee_key: str, payment_status: str, transaction_id: Optional[str] = None) -> bool:
-    """Update payment status for a specific attendee"""
-    try:
-        update_data = {"attendees.$.payment_status": payment_status}
-        if transaction_id:
-            update_data["attendees.$.transaction_id"] = transaction_id
-        
-        result = await DB.db["events"].update_one(
-            {
-                "_id": ObjectId(event_id),
-                "attendees.key": attendee_key
-            },
-            {
-                "$set": update_data
+    if base_match:
+        pipeline.append({"$match": base_match})
+    if age_expr:
+        pipeline.append({"$match": age_expr})
+
+    # Compute the default locale key up-front:
+    # preferred_lang -> "en" -> first available locale (if any).
+    # Note: localizations may be an empty dict; guard for that.
+    pipeline += [
+        {
+            "$addFields": {
+                "_loc_kv": {"$objectToArray": {"$ifNull": ["$localizations", {}]}}
             }
-        )
-        
-        return result.modified_count > 0
-        
-    except Exception as e:
-        logging.error(f"Error updating attendee payment status: {e}")
-        return False
+        },
+        {"$addFields": {"_locale_keys": {"$map": {"input": "$_loc_kv", "as": "p", "in": "$$p.k"}}}},
+        {
+            "$addFields": {
+                "_has_keys": {"$gt": [{"$size": "$_locale_keys"}, 0]}
+            }
+        },
+        {
+            "$addFields": {
+                "_default_key": {
+                    "$cond": [
+                        {
+                            "$and": [
+                                {"$ne": [preferred_lang, None]},
+                                {"$in": [preferred_lang, "$_locale_keys"]},
+                            ]
+                        },
+                        preferred_lang,
+                        {
+                            "$cond": [
+                                {"$in": ["en", "$_locale_keys"]},
+                                "en",
+                                {
+                                    "$cond": [
+                                        {"$eq": ["$_has_keys", True]},
+                                        {"$arrayElemAt": ["$_locale_keys", 0]},
+                                        None,
+                                    ]
+                                },
+                            ]
+                        },
+                    ]
+                }
+            }
+        },
+        # Instead of $getField (which rejects dynamic field paths on some Mongo versions),
+        # pick the matching key from _loc_kv and extract its .v
+        {
+            "$addFields": {
+                "_default_pair": {
+                    "$first": {
+                        "$filter": {
+                            "input": "$_loc_kv",
+                            "as": "p",
+                            "cond": {"$eq": ["$$p.k", "$_default_key"]},
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "$addFields": {
+                "_default_locale": {"$ifNull": ["$_default_pair.v", {}]}
+            }
+        },
+    ]
+
+    # Search ONLY within the chosen default locale's fields (title/description)
+    if query:
+        pipeline.append({
+            "$match": {
+                "$expr": {
+                    "$or": [
+                        {
+                            "$regexMatch": {
+                                "input": {"$ifNull": ["$_default_locale.title", ""]},
+                                "regex": query,
+                                "options": "i",
+                            }
+                        },
+                        {
+                            "$regexMatch": {
+                                "input": {"$ifNull": ["$_default_locale.description", ""]},
+                                "regex": query,
+                                "options": "i",
+                            }
+                        },
+                    ]
+                }
+            }
+        })
+
+    # Project ReadModEvent-compatible defaults and paginate
+    pipeline += [
+    {
+        "$set": {
+            "default_title": {"$ifNull": ["$_default_locale.title", ""]},
+            "default_description": {"$ifNull": ["$_default_locale.description", ""]},
+            "default_location_info": {"$ifNull": ["$_default_locale.location_info", ""]},
+            "default_localization": {"$ifNull": ["$_default_key", ""]},
+        }
+    },
+    {
+        "$unset": [
+            "_search_blob",
+            "_loc_kv",
+            "_locale_keys",
+            "_has_keys",
+            "_default_pair",
+        ]
+    },
+    {"$sort": {"updated_on": 1 if sort_by_date_asc else -1}},
+    {
+        "$facet": {
+            "data": [
+                {"$skip": skip},
+                {"$limit": limit},
+                {"$addFields": {"id": {"$toString": "$_id"}}},
+            ],
+            "meta": [{"$count": "total"}],
+        }
+    },
+]
+
+    agg = await DB.db["events"].aggregate(pipeline).to_list(length=1)
+    if not agg:
+        return {"items": [], "page": page, "limit": limit, "total": 0, "pages": 0}
+
+    facet = agg[0]
+    data = facet.get("data", [])
+    total = (facet.get("meta") or [{}])[0].get("total", 0)
+    pages = (total + limit - 1) // limit if total else 0
+
+    for d in data:
+        d.pop("_id", None)
+
+    items = [ReadModEvent(**serialize_objectid_deep(d)) for d in data]
+
+    return {
+        "items": items,  # List[ReadModEvent]
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "pages": pages,
+    }
+
+# Simple fetch-by-id that returns a ReadModEvent with default localization resolved.
+# preferred_lang -> "en" -> first available locale (if any).
+async def get_readmod_event_by_id(
+    event_id: str,
+    preferred_lang: Optional[str] = None,
+) -> Optional[ReadModEvent]:
+    try:
+        doc = await DB.db["events"].find_one({"_id": ObjectId(event_id)})
+        if not doc:
+            return None
+
+        # Resolve default localization key
+        locs: Dict[str, Dict[str, Any]] = doc.get("localizations") or {}
+        locale_keys = list(locs.keys())
+        if preferred_lang and preferred_lang in locs:
+            default_key = preferred_lang
+        elif "en" in locs:
+            default_key = "en"
+        else:
+            default_key = locale_keys[0] if locale_keys else None
+
+        default_locale = locs.get(default_key or "", {}) or {}
+
+        # Shape into ReadModEvent
+        doc["id"] = str(doc.pop("_id"))
+        doc = serialize_objectid_deep(doc)
+
+        doc["default_title"] = (default_locale.get("title") or "")
+        doc["default_description"] = (default_locale.get("description") or "")
+        doc["default_location_info"] = (default_locale.get("location_info") or "")
+        doc["default_localization"] = default_key or ""
+
+        return ReadModEvent(**doc)
+    except Exception:
+        logging.exception(f"Error building ReadModEvent for id={event_id}")
+        return None
+

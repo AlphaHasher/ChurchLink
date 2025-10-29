@@ -18,6 +18,28 @@ public_ministry_router = APIRouter(prefix="/ministries", tags=["Ministries"])
 mod_ministry_router = APIRouter(prefix="/ministries", tags=["Ministries"])
 
 
+@public_ministry_router.get("/ministry-names", summary="Get all unique ministry names")
+async def get_ministries_route():
+    try:
+        ministries = await list_ministries()
+        return [m.name for m in ministries]
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to fetch ministries", "reason": str(exc)},
+        ) from exc
+    
+@public_ministry_router.get("/ministries", summary="Get all unique ministries")
+async def get_ministries_route():
+    try:
+        ministries = await list_ministries()
+        return ministries
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to fetch ministries", "reason": str(exc)},
+        ) from exc
+
 @public_ministry_router.get("", response_model=List[MinistryOut])
 async def get_ministries(skip: int = 0, limit: int | None = None) -> List[MinistryOut]:
     return await list_ministries(skip=skip, limit=limit)

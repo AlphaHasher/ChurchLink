@@ -4,7 +4,7 @@ import { GridOverlay } from './GridOverlay';
 import { DraggableNode } from './DraggableNode';
 import { defaultGridSize, unitsToPx } from './gridMath';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
-import EventSection from '@sections/EventSection';
+import EventSection from '@/features/admin/components/WebBuilder/sections/EventSection';
 import MapSection from '@sections/MapSection';
 // import ServiceTimesSection from '@sections/ServiceTimesSection';
 // import MenuSection from '@sections/MenuSection';
@@ -407,7 +407,6 @@ const renderNode = (
           >
             <EventSection
               showFilters={(node as any).props?.showFilters !== false}
-              eventName={(node as any).props?.eventName}
               lockedFilters={(node as any).props?.lockedFilters}
               title={(node as any).props?.title}
               showTitle={(node as any).props?.showTitle !== false}
