@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Request, HTTPException
-from models.transaction import Transaction, PaymentStatus
+from models.transaction import Transaction, PaymentStatus, RefundStatus
 from models.paypal_webhook_schemas import validate_webhook_payload, extract_payment_info
 from helpers.event_payment_helper import event_payment_helper
 from helpers.paypalHelper import get_paypal_access_token, get_paypal_base_url
 from mongo.database import DB
 import logging
 import json
-import hashlib
-import base64
-import requests
+from datetime import datetime
+
 import os
 from models.event import get_event_by_id
 from models.event import update_attendee_payment_status
 from bson import ObjectId
+import httpx
 
 paypal_webhook_router = APIRouter(prefix="/paypal", tags=["paypal_webhook"])
 
@@ -73,15 +73,15 @@ async def verify_paypal_webhook_signature(headers: dict, body: bytes) -> bool:
         # Call PayPal's webhook verification API
         verification_url = f"{get_paypal_base_url()}/v1/notifications/verify-webhook-signature"
         
-        response = requests.post(
-            verification_url,
-            json=verify_payload,
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json"
-            },
-            timeout=(5, 20)
-        )
+        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=5.0)) as client:
+            response = await client.post(
+                verification_url,
+                json=verify_payload,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+            )
         
         if response.status_code != 200:
             logging.error(f"❌ PayPal webhook verification API error: {response.status_code}")
@@ -188,9 +188,9 @@ async def paypal_webhook(request: Request):
     
     Normal payment flow (user-initiated) is handled synchronously in the success callback.
     Webhooks are reserved for:
-    - PAYMENT.SALE.COMPLETED (delayed/missed transactions)
-    - PAYMENT.SALE.REFUNDED (refunds from PayPal website)
-    - PAYMENT.SALE.DENIED (failed payments)
+    - PAYMENT.SALE.COMPLETED / PAYMENT.CAPTURE.COMPLETED (delayed/missed transactions)
+    - PAYMENT.SALE.REFUNDED / PAYMENT.CAPTURE.REFUNDED (refunds from PayPal website)
+    - PAYMENT.SALE.DENIED / PAYMENT.CAPTURE.DECLINED (failed payments)
     - BILLING.SUBSCRIPTION.CANCELLED (subscription cancellations from PayPal)
     - Disputes, chargebacks, and other external events
     """
@@ -273,7 +273,7 @@ async def paypal_webhook(request: Request):
         payer_name = payment_info["payer_name"]
         
         # Handle different event types
-        if event_type == "PAYMENT.SALE.COMPLETED":
+        if event_type in ("PAYMENT.SALE.COMPLETED", "PAYMENT.CAPTURE.COMPLETED"):
             logging.info(f"💰 Payment completed webhook - Sale ID: {sale_id}, Parent: {parent_payment}, Amount: ${amount}")
             
             # NOTE: Normal payment flow is handled synchronously in success callback
@@ -510,7 +510,7 @@ async def paypal_webhook(request: Request):
                         "sale_id": sale_id
                     }
         
-        elif event_type == "PAYMENT.SALE.REFUNDED":
+        elif event_type in ("PAYMENT.SALE.REFUNDED", "PAYMENT.CAPTURE.REFUNDED"):
             # Handle refunds - check for idempotency first
             existing_transaction = await Transaction.get_transaction_by_id(parent_payment)
             
@@ -531,6 +531,10 @@ async def paypal_webhook(request: Request):
             # Process refund - update transaction status
             await Transaction.update_transaction_status(parent_payment, PaymentStatus.REFUNDED)
             logging.info(f"🔄 Webhook updated transaction {parent_payment} status to {PaymentStatus.REFUNDED}")
+            
+            # Update transaction with refund information (assume full refund from webhook)
+            await Transaction.update_transaction_refund_info(parent_payment, "full")
+            logging.info(f"🔄 Webhook updated transaction {parent_payment} refund info: type=full")
             
             # Update Event attendees' payment status for refunded transactions
             try:
@@ -604,6 +608,28 @@ async def paypal_webhook(request: Request):
                 logging.error(f"❌ Refund webhook error updating payment status: {payment_update_error}")
                 # Don't fail the webhook if payment status update fails
             
+            # ✅ Also complete any matching refund requests
+            try:
+                # Use the webhook timestamp or current time as fallback
+                completion_time = create_time or datetime.utcnow().isoformat()
+                result = await DB.db["refund_requests"].update_many(
+                    {
+                        "transaction_id": parent_payment,
+                        "status": {"$in": [RefundStatus.PROCESSING, RefundStatus.APPROVED, RefundStatus.PENDING]},
+                    },
+                    {
+                        "$set": {
+                            "status": RefundStatus.COMPLETED,
+                            "paypal_refund_status": "completed",
+                            "updated_at": completion_time,
+                            "processed_at": completion_time,
+                        }
+                    },
+                )
+                logging.info(f"✅ Completed {result.modified_count} refund request(s) for transaction {parent_payment}")
+            except Exception:
+                logging.exception(f"Failed to complete refund_requests for {parent_payment}")
+            
             return {
                 "success": True, 
                 "action": "refund_processed",
@@ -612,7 +638,7 @@ async def paypal_webhook(request: Request):
                 "amount": amount
             }
         
-        elif event_type == "PAYMENT.SALE.DENIED":
+        elif event_type in ("PAYMENT.SALE.DENIED", "PAYMENT.CAPTURE.DECLINED"):
             # Handle denied payments
             await Transaction.update_transaction_status(parent_payment, PaymentStatus.FAILED)
             logging.info(f"🔄 Webhook updated transaction {parent_payment} status to {PaymentStatus.FAILED}")

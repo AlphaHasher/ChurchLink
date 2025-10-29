@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, validator
 import logging
 
@@ -38,7 +38,8 @@ class PayPalWebhookPayload(BaseModel):
     event_type: str = Field(..., description="Event type (e.g., PAYMENT.SALE.COMPLETED, PAYMENT.CAPTURE.COMPLETED)")
     create_time: str = Field(..., description="ISO 8601 event creation timestamp")
     resource_type: str = Field(..., description="Resource type (e.g., sale, capture)")
-    resource: PayPalSaleResource = Field(..., description="Event resource data")
+    # Accept both v1 (SALE) and v2 (CAPTURE) payload shapes
+    resource: Dict[str, Any] = Field(..., description="Event resource data")
     event_version: Optional[str] = "1.0"
     summary: Optional[str] = None
     
@@ -65,14 +66,15 @@ class PayPalWebhookPayload(BaseModel):
     def validate_resource_state(cls, v, values):
         """Validate resource state matches event type for both v1 (SALE) and v2 (CAPTURE) events"""
         event_type = values.get('event_type')
-        resource_state = getattr(v, 'state', None)
+        # v1 uses "state", v2 uses "status"
+        resource_state = (v or {}).get('state') or (v or {}).get('status')
         
         # v1 SALE events validation
-        if event_type == "PAYMENT.SALE.COMPLETED" and resource_state != "completed":
+        if event_type == "PAYMENT.SALE.COMPLETED" and str(resource_state).lower() != "completed":
             raise ValueError(f"Invalid state '{resource_state}' for PAYMENT.SALE.COMPLETED event")
         
         # v2 CAPTURE events validation
-        if event_type == "PAYMENT.CAPTURE.COMPLETED" and resource_state not in ["completed", "COMPLETED"]:
+        if event_type == "PAYMENT.CAPTURE.COMPLETED" and str(resource_state).lower() != "completed":
             raise ValueError(f"Invalid state '{resource_state}' for PAYMENT.CAPTURE.COMPLETED event")
         
         return v
@@ -105,30 +107,31 @@ def extract_payment_info(validated_payload: PayPalWebhookPayload) -> Dict[str, A
     Returns:
         Dictionary with normalized payment data
     """
-    resource = validated_payload.resource
+    resource = validated_payload.resource or {}
     
     # Extract transaction_id with fallbacks (v1/v2 compatibility)
-    transaction_id = getattr(resource, 'parent_payment', None)
+    transaction_id = resource.get('parent_payment')
     if not transaction_id:
-        # v2 format: check related_ids.order_id or first related id
-        related_ids = getattr(resource, 'related_ids', None)
+        # v2 format: check supplementary_data.related_ids or related_ids
+        supp = (resource.get('supplementary_data') or {})
+        related_ids = supp.get('related_ids')
         if related_ids:
-            if hasattr(related_ids, 'order_id'):
-                transaction_id = related_ids.order_id
-            elif isinstance(related_ids, (list, tuple)) and len(related_ids) > 0:
+            if isinstance(related_ids, dict) and related_ids.get('order_id'):
+                transaction_id = related_ids.get('order_id')
+            elif isinstance(related_ids, (list, tuple)) and related_ids:
                 transaction_id = related_ids[0]
     
     # Extract sale_id with fallbacks
-    sale_id = getattr(resource, 'id', None) or getattr(resource, 'sale_id', None)
+    sale_id = resource.get('id') or resource.get('sale_id')
     
     # Extract amount with v1/v2 fallbacks
     amount_value = 0.0
     currency = "USD"  # Default currency
     
-    if hasattr(resource, 'amount'):
-        amount_obj = resource.amount
+    if 'amount' in resource:
+        amount_obj = resource['amount']
         # v1 format: amount.total, v2 format: amount.value
-        amount_str = getattr(amount_obj, 'total', None) or getattr(amount_obj, 'value', None)
+        amount_str = amount_obj.get('total') or amount_obj.get('value')
         if amount_str:
             try:
                 amount_value = float(amount_str)
@@ -136,41 +139,40 @@ def extract_payment_info(validated_payload: PayPalWebhookPayload) -> Dict[str, A
                 amount_value = 0.0
         
         # v1 format: amount.currency, v2 format: amount.currency_code
-        currency = getattr(amount_obj, 'currency', None) or getattr(amount_obj, 'currency_code', None) or "USD"
+        currency = amount_obj.get('currency') or amount_obj.get('currency_code') or "USD"
     
     # Extract payer information with v1/v2 fallbacks
     payer_email = None
     payer_name = "Anonymous"
     payer_id = None
     
-    if hasattr(resource, 'payer'):
-        payer = resource.payer
-        
+    payer = resource.get('payer') or {}
+    if payer:
         # v1 format: payer.payer_info
-        if hasattr(payer, 'payer_info'):
-            payer_info = payer.payer_info
-            payer_email = getattr(payer_info, 'email', None)
-            payer_id = getattr(payer_info, 'payer_id', None)
+        payer_info = payer.get('payer_info') or {}
+        if payer_info:
+            payer_email = payer_info.get('email')
+            payer_id = payer_info.get('payer_id')
             
             # Construct name from first_name/last_name
-            first_name = getattr(payer_info, 'first_name', '') or ''
-            last_name = getattr(payer_info, 'last_name', '') or ''
+            first_name = payer_info.get('first_name') or ''
+            last_name = payer_info.get('last_name') or ''
             constructed_name = f"{first_name} {last_name}".strip()
             if constructed_name:
                 payer_name = constructed_name
         
         # v2 format: payer.name and payer.email_address
         if not payer_email:
-            payer_email = getattr(payer, 'email_address', None) or getattr(payer, 'email', None)
+            payer_email = payer.get('email_address') or payer.get('email')
         
-        if payer_name == "Anonymous" and hasattr(payer, 'name'):
-            name_obj = payer.name
+        if payer_name == "Anonymous" and payer.get('name'):
+            name_obj = payer['name']
             # v2 format: name.full_name or name.given_name/family_name
-            if hasattr(name_obj, 'full_name'):
-                payer_name = name_obj.full_name or "Anonymous"
+            if 'full_name' in name_obj:
+                payer_name = name_obj.get('full_name') or "Anonymous"
             else:
-                given_name = getattr(name_obj, 'given_name', '') or ''
-                family_name = getattr(name_obj, 'family_name', '') or ''
+                given_name = name_obj.get('given_name') or ''
+                family_name = name_obj.get('family_name') or name_obj.get('surname') or ''
                 constructed_name = f"{given_name} {family_name}".strip()
                 if constructed_name:
                     payer_name = constructed_name
@@ -182,15 +184,15 @@ def extract_payment_info(validated_payload: PayPalWebhookPayload) -> Dict[str, A
         "sale_id": sale_id,
         "amount": amount_value,
         "currency": currency,
-        "state": getattr(resource, 'state', None),
-        "create_time": getattr(resource, 'create_time', None),
+        "state": resource.get('state') or resource.get('status'),
+        "create_time": resource.get('create_time'),
         "payer_email": payer_email,
         "payer_name": payer_name,
         "payer_id": payer_id
     }
 
 # Example test payloads for validation
-VALID_WEBHOOK_PAYLOAD = {
+VALID_WEBHOOK_PAYLOAD_V1 = {
     "id": "WH-1AB23456CD789-012345678",
     "event_type": "PAYMENT.SALE.COMPLETED",
     "create_time": "2024-01-15T10:30:00Z",
@@ -218,12 +220,51 @@ VALID_WEBHOOK_PAYLOAD = {
     }
 }
 
+VALID_WEBHOOK_PAYLOAD_V2 = {
+    "id": "WH-2BA34567DE890-123456789",
+    "event_type": "PAYMENT.CAPTURE.COMPLETED",
+    "create_time": "2024-01-15T10:30:00Z",
+    "resource_type": "capture",
+    "event_version": "2.0",
+    "summary": "Payment captured for $30.00 USD",
+    "resource": {
+        "id": "9Y103481D92095551",
+        "amount": {
+            "value": "30.00",
+            "currency_code": "USD"
+        },
+        "status": "COMPLETED",
+        "create_time": "2024-01-15T10:30:00Z",
+        "update_time": "2024-01-15T10:30:05Z",
+        "supplementary_data": {
+            "related_ids": {
+                "order_id": "PAYID-ND6FK5I08A4595089705973J"
+            }
+        },
+        "payer": {
+            "name": {
+                "given_name": "John",
+                "surname": "Doe"
+            },
+            "email_address": "user@example.com",
+            "payer_id": "ABC123XYZ"
+        }
+    }
+}
+
 if __name__ == "__main__":
-    # Test payload validation
+    # Test payload validation for both v1 and v2
     try:
-        validated = validate_webhook_payload(VALID_WEBHOOK_PAYLOAD)
-        payment_info = extract_payment_info(validated)
-        print("✅ Payload validation successful")
-        print(f"📋 Payment info: {payment_info}")
+        # Test v1 SALE payload
+        validated_v1 = validate_webhook_payload(VALID_WEBHOOK_PAYLOAD_V1)
+        payment_info_v1 = extract_payment_info(validated_v1)
+        print("✅ v1 SALE payload validation successful")
+        print(f"📋 v1 Payment info: {payment_info_v1}")
+        
+        # Test v2 CAPTURE payload  
+        validated_v2 = validate_webhook_payload(VALID_WEBHOOK_PAYLOAD_V2)
+        payment_info_v2 = extract_payment_info(validated_v2)
+        print("✅ v2 CAPTURE payload validation successful")
+        print(f"📋 v2 Payment info: {payment_info_v2}")
     except Exception as e:
-        print(f"❌ Validation failed: {e}")
+        print(f"❌ Payload validation failed: {e}")

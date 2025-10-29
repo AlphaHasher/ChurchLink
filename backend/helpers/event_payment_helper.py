@@ -802,32 +802,82 @@ class EventPaymentHelper:
         event_id: str,
         user_uid: str
     ) -> Dict[str, Any]:
-        """Get payment status for an event"""
+        """Get user-specific payment status for an event"""
         try:
             # Get the event
             event = await get_event_by_id(event_id)
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
             
-            # Get payment summary
-            payment_summary = await get_event_payment_summary(event_id)
+            # Check if the event requires payment
+            event_price = getattr(event, 'price', 0)
+            if event_price == 0:
+                return {
+                    "success": True,
+                    "event_id": event_id,
+                    "event_name": event.name,
+                    "payment_status": "not_required",
+                    "computed_payment_status": "not_required"
+                }
             
-            # Get transaction details for paid registrations
-            transactions = await Transaction.get_transactions_by_event(event_id)
+            # Find user's attendee record in the event
+            attendee_record = None
+            if hasattr(event, 'attendees') and event.attendees:
+                # Look for user's attendee record (user|self|individual|event or user|person_id|individual|event)
+                for attendee in event.attendees:
+                    attendee_key = attendee.get("key", "")
+                    if attendee_key.startswith(f"{user_uid}|"):
+                        attendee_record = attendee
+                        break
+            
+            if not attendee_record:
+                return {
+                    "success": True,
+                    "event_id": event_id,
+                    "event_name": event.name,
+                    "payment_status": "pending",
+                    "computed_payment_status": "pending"
+                }
+            
+            # Get the computed payment status using existing logic
+            attendee_key = attendee_record.get("key", "")
+            computed_status = await Transaction.get_attendee_payment_status(event_id, attendee_key)
+            
+            # Get transaction details if available
+            transaction_id = attendee_record.get("transaction_id")
+            transaction_details = None
+            if transaction_id:
+                transaction = await Transaction.get_transaction_by_id(transaction_id)
+                if transaction:
+                    transaction_details = {
+                        "transaction_id": transaction.transaction_id,
+                        "amount": float(transaction.amount),
+                        "status": transaction.status,
+                        "payment_method": transaction.payment_method,
+                        "created_on": transaction.created_on,
+                        "refund_type": transaction.refund_type,
+                        "refunded_on": transaction.refunded_on
+                    }
             
             return {
                 "success": True,
                 "event_id": event_id,
                 "event_name": event.name,
-                "payment_summary": payment_summary,
-                "transactions": [tx.model_dump() for tx in transactions],
-                "total_transactions": len(transactions)
+                "payment_status": computed_status,
+                "computed_payment_status": computed_status,
+                "payment_amount": event_price,
+                "payment_method": transaction_details.get("payment_method") if transaction_details else None,
+                "transaction_id": transaction_details.get("transaction_id") if transaction_details else None,
+                "payment_date": transaction_details.get("created_on") if transaction_details else None,
+                "refund_type": transaction_details.get("refund_type") if transaction_details else None,
+                "refunded_on": transaction_details.get("refunded_on") if transaction_details else None,
+                "transaction_details": transaction_details
             }
             
         except HTTPException:
             raise
         except Exception as e:
-            self.logger.error(f"Error getting payment status for event {event_id}: {str(e)}")
+            self.logger.error(f"Error getting payment status for event {event_id}, user {user_uid}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to get payment status: {str(e)}")
 
     async def get_registrations_by_payment_status(

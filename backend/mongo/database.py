@@ -82,6 +82,10 @@ class DB:
             "name": "app_config",
             "indexes": ["config_type"]
         },
+        {
+            "name": "deviceTokens",
+            "compound_indexes": [["userId", "token"]]
+        },
     ]
 
     ###########

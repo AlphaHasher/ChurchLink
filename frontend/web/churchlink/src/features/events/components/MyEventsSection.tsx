@@ -178,7 +178,7 @@ export function MyEventsSection() {
 
   const handleCancelRSVP = async (eventRef: MyEvent): Promise<void> => {
     // Safety check - determine if this is a paid event that needs confirmation
-    const isPaidEvent = eventRef.event?.price && eventRef.event.price > 0;
+    const isPaidEvent = ((eventRef.event?.price ?? 0) > 0);
     const hasPaidStatus = eventRef.computed_payment_status === 'completed';
     
     // For paid events or events with completed payments, show confirmation dialog

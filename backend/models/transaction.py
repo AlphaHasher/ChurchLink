@@ -88,8 +88,20 @@ class Transaction(BaseModel):
     form_id: Optional[str] = None  # Link to specific form
     form_slug: Optional[str] = None  # Form slug for easy reference
     
+    # Refund-specific fields
+    refund_type: Optional[str] = None  # "full", "partial", or None for non-refunded transactions
+    refunded_on: Optional[str] = None  # ISO timestamp when refund was processed
+    
     # Additional metadata for detailed transaction information
     metadata: Optional[Dict[str, Any]] = None  # Store additional transaction details
+
+    @field_validator('refund_type')
+    @classmethod
+    def validate_refund_type(cls, v):
+        """Ensure refund_type is valid"""
+        if v is not None and v not in ["full", "partial"]:
+            raise ValueError(f"Invalid refund_type: {v}. Must be 'full', 'partial', or None")
+        return v
 
     @field_validator('amount')
     @classmethod
@@ -115,8 +127,10 @@ class Transaction(BaseModel):
         """Ensure status is always lowercase and valid"""
         if v:
             v = v.lower()
-            valid_statuses = [PaymentStatus.PENDING, PaymentStatus.COMPLETED, PaymentStatus.FAILED, 
-                            PaymentStatus.REFUNDED, PaymentStatus.CANCELLED]
+            valid_statuses = [
+                PaymentStatus.PENDING, PaymentStatus.COMPLETED, PaymentStatus.FAILED,
+                PaymentStatus.REFUNDED, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.CANCELLED
+            ]
             if v not in valid_statuses:
                 raise ValueError(f"Invalid status: {v}. Must be one of: {valid_statuses}")
         return v
@@ -247,6 +261,35 @@ class Transaction(BaseModel):
             return result > 0
         except Exception as e:
             logging.error(f"Error updating transaction {transaction_id} with event info: {e}")
+            return False
+    
+    @staticmethod
+    async def update_transaction_refund_info(transaction_id: str, refund_type: str, refunded_on: str = None):
+        """
+        Updates a transaction with refund information.
+        
+        Args:
+            transaction_id: Transaction ID to update
+            refund_type: Type of refund ("full" or "partial")
+            refunded_on: ISO timestamp when refund was processed (defaults to current time)
+        """
+        try:
+            if refunded_on is None:
+                refunded_on = datetime.now().isoformat()
+                
+            update_data = {
+                "refund_type": refund_type,
+                "refunded_on": refunded_on
+            }
+                
+            result = await DB.update_document("transactions", {"transaction_id": transaction_id}, update_data)
+            
+            if result > 0:
+                logging.info(f"Transaction {transaction_id} refund info updated: type={refund_type}, date={refunded_on}")
+            
+            return result > 0
+        except Exception as e:
+            logging.error(f"Error updating transaction {transaction_id} refund info: {e}")
             return False
     
     @staticmethod

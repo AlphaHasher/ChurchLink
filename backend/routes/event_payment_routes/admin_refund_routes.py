@@ -117,6 +117,11 @@ async def get_event_refund_requests(
 ):
     """Get all refund requests for an event (admin only)"""
     try:
+
+        admin_uid = getattr(request.state, "uid", None)
+        if not admin_uid:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
         refund_requests = await get_refund_requests_by_event(event_id)
         
         # Filter by status if provided
@@ -311,11 +316,20 @@ async def process_refund_request(
                         # Determine if this is a partial or full refund for transaction status
                         if custom_refund_amount is not None and actual_refund_amount < refund_request.payment_amount:
                             tx_status = PaymentStatus.PARTIALLY_REFUNDED
+                            refund_type = "partial"
                         else:
                             tx_status = PaymentStatus.REFUNDED
+                            refund_type = "full"
                         
                         await Transaction.update_transaction_status(refund_request.transaction_id, tx_status)
                         logging.info(f"Updated transaction {refund_request.transaction_id} status to '{tx_status}'")
+                        
+                        # Update transaction with refund information
+                        await Transaction.update_transaction_refund_info(
+                            refund_request.transaction_id, 
+                            refund_type
+                        )
+                        logging.info(f"Updated transaction {refund_request.transaction_id} refund info: type={refund_type}")
                     except Exception as e:
                         logging.error(f"Failed to update transaction status after refund: {e}")
                         
@@ -493,11 +507,20 @@ async def manually_complete_refund(
             # Determine if this is a partial or full refund for transaction status
             if refund_request.refund_type == "partial":
                 tx_status = PaymentStatus.PARTIALLY_REFUNDED
+                refund_type = "partial"
             else:
                 tx_status = PaymentStatus.REFUNDED
+                refund_type = "full"
             
             await Transaction.update_transaction_status(refund_request.transaction_id, tx_status)
             logging.info(f"Updated transaction {refund_request.transaction_id} status to '{tx_status}' for manual completion")
+            
+            # Update transaction with refund information
+            await Transaction.update_transaction_refund_info(
+                refund_request.transaction_id, 
+                refund_type
+            )
+            logging.info(f"Updated transaction {refund_request.transaction_id} refund info: type={refund_type}")
         except Exception as e:
             logging.error(f"Failed to update transaction status after manual refund completion: {e}")
         
@@ -573,9 +596,9 @@ async def retry_paypal_refund(
                 # Update attendee payment status consistently
                 try:
                     new_payment_status = (
-                        RegistrationPaymentStatus.PARTIALLY_REFUNDED.value
+                        RegistrationPaymentStatus.PARTIALLY_REFUNDED
                         if getattr(refund_request, "refund_type", "") == "partial"
-                        else RegistrationPaymentStatus.REFUNDED.value
+                        else RegistrationPaymentStatus.REFUNDED
                     )
                     
                     success = await update_attendee_payment_status_simple(
@@ -591,6 +614,27 @@ async def retry_paypal_refund(
                         logging.warning(f"Failed to find/update attendee for retry of refund {request_id}")
                 except Exception as e:
                     logging.error(f"Failed to update attendee status after retry refund: {e}")
+                
+                # Update transaction status and refund info
+                try:
+                    # Determine if this is a partial or full refund for transaction status
+                    refund_type = getattr(refund_request, 'refund_type', 'full')
+                    if refund_type == "partial":
+                        tx_status = PaymentStatus.PARTIALLY_REFUNDED
+                    else:
+                        tx_status = PaymentStatus.REFUNDED
+                    
+                    await Transaction.update_transaction_status(refund_request.transaction_id, tx_status)
+                    logging.info(f"Updated transaction {refund_request.transaction_id} status to '{tx_status}' for retry")
+                    
+                    # Update transaction with refund information
+                    await Transaction.update_transaction_refund_info(
+                        refund_request.transaction_id, 
+                        refund_type
+                    )
+                    logging.info(f"Updated transaction {refund_request.transaction_id} refund info: type={refund_type}")
+                except Exception as e:
+                    logging.error(f"Failed to update transaction status after retry refund: {e}")
                 
                 return {
                     "success": True,

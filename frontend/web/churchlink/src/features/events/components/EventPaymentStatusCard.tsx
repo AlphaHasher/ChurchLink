@@ -80,6 +80,8 @@ export function EventPaymentStatusCard({
           transaction_id: data.transaction_id || data.transaction_details?.transaction_id,
           payer_info: data.payer_info,
           created_on: data.payment_date || data.transaction_details?.created_on,
+          refunded_on: data.refunded_on || data.transaction_details?.refunded_on,
+          refund_type: data.refund_type,
           transaction_details: data.transaction_details
         });
       } else {

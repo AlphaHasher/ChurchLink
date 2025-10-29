@@ -389,19 +389,21 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
         # Atomically reserve refunded amount on the transaction to prevent races
         try:
             transactions_col = DB.db["transactions"]
+            inc_amount = float(final_refund_amount)
+            limit_amount = float(total_transaction_amount)
             atomic_filter = {
                 "transaction_id": transaction.get("transaction_id"),
                 "$expr": {
                     "$lte": [
-                        {"$add": [{"$ifNull": ["$refunded_amount", 0]}, final_refund_amount]},
-                        total_transaction_amount
+                        {"$add": [{"$ifNull": ["$refunded_amount", 0.0]}, inc_amount]},
+                        limit_amount
                     ]
                 }
             }
 
             updated_tx = await transactions_col.find_one_and_update(
                 atomic_filter,
-                {"$inc": {"refunded_amount": final_refund_amount}},
+                {"$inc": {"refunded_amount": inc_amount}},
                 return_document=ReturnDocument.AFTER
             )
             if not updated_tx:
@@ -420,7 +422,7 @@ async def create_refund_request(request_data: RefundRequestCreate, user_uid: str
             try:
                 await transactions_col.update_one(
                     {"transaction_id": transaction.get("transaction_id")},
-                    {"$inc": {"refunded_amount": -final_refund_amount}}
+                    {"$inc": {"refunded_amount": -inc_amount}}
                 )
                 logging.info(f"Rolled back refunded_amount for transaction {transaction.get('transaction_id')}")
             except Exception as e2:
@@ -550,7 +552,6 @@ async def update_refund_request(request_id: str, updates: RefundRequestUpdate) -
         
         # If status is being updated to processed states, add processed timestamp
         if "status" in update_data and update_data["status"] in [
-            RefundStatus.APPROVED, 
             RefundStatus.REJECTED, 
             RefundStatus.COMPLETED
         ]:
