@@ -47,7 +47,7 @@ async def update_website_config(
     """
     try:
         # Convert to dict and remove None values
-        updates = {k: v for k, v in config_update.dict().items() if v is not None}
+        updates = {k: v for k, v in config_update.model_dump().items() if v is not None}
         
         if not updates:
             raise HTTPException(status_code=400, detail="No valid updates provided")
