@@ -16,6 +16,9 @@ import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/my_events_page.dart';
 import 'package:app/theme/theme_controller.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/helpers/backend_helper.dart';
+
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
 
@@ -115,8 +118,6 @@ class _UserSettingsState extends State<UserSettings> {
     }
   }
 
-
-
   // Show the theme selection bottom sheet
   void _showThemeSheet() {
     final current = ThemeController.instance.mode;
@@ -174,6 +175,10 @@ class _UserSettingsState extends State<UserSettings> {
         );
       },
     );
+  }
+  
+  class _ChangeEmailSheet {
+
   }
 
   // Show language selection bottom sheet
@@ -335,6 +340,17 @@ class _UserSettingsState extends State<UserSettings> {
                 );
               }
             },
+          },
+          {
+            'icon': Icons.alternate_email,
+            'title': 'Change Email',
+            'subtitle': 'Send confirmation to a new address',
+            'ontap': () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (_) => const _ChangeEmailSheet(),
+            ),
           },
           {
             'icon': Icons.card_membership,
