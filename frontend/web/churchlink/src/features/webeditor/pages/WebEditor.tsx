@@ -76,6 +76,7 @@ const WebEditor: React.FC = () => {
     copySelected,
     pasteClipboard,
     deleteSelectedNode,
+    reorderSections,
   } = useSectionManager();
 
   // Font management
@@ -135,15 +136,15 @@ const WebEditor: React.FC = () => {
 
 
 
-  const handleFocusSection = (id: string) => {
+  // Single click from sidebar: open section inspector immediately
+  const handleSidebarSectionFocus = React.useCallback((id: string) => {
     const el = document.getElementById(`section-${id}`) as HTMLElement | null;
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setSelectedSectionId(id);
     setSelection(null);
-    // Focus does not open inspector; open on double click instead
-    setOpenInspector(false);
+    setOpenInspector(true);
     setOpenElementInspector(false);
-  };
+  }, [setSelectedSectionId, setSelection]);
 
   // Single click on canvas: select only; do not open element inspector
   const handleNodeClick = React.useCallback((sectionId: string, nodeId: string) => {
@@ -555,9 +556,10 @@ const WebEditor: React.FC = () => {
         sectionPresets={SECTION_PRESETS}
         onAddSectionPreset={addSectionPreset}
         currentSections={managedSections.map((section, index) => buildSidebarTree(section, index))}
-        onFocusSection={handleFocusSection}
+        onFocusSection={handleSidebarSectionFocus}
         onFocusNode={handleSidebarNodeFocus}
         onDeleteSection={(id) => setDeleteSectionId(id)}
+        onReorderSections={reorderSections}
         pageTitle={page.title}
         slug={slug}
       />
@@ -577,8 +579,7 @@ const WebEditor: React.FC = () => {
               id={`section-${s.id}`}
               key={s.id}
               data-section-id={s.id}
-              className={"border-b group/section relative h-full"}
-              style={{ minHeight: `${(s.heightPercent ?? 100)}vh` }}
+              className={"border-b group/section relative"}
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 setSelectedSectionId(s.id);

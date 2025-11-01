@@ -12,6 +12,7 @@ import ElementTree from "./ElementTree";
 import FontPicker from "./FontPicker";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
 import { Button } from "@/shared/components/ui/button";
+import { unitsToPx, pxToUnits } from "@/features/webeditor/grid/gridMath";
 
 interface InspectorPanelProps {
   open: boolean;
@@ -43,6 +44,62 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
   fontManager,
   onRequestDeleteSection,
 }) => {
+
+  const oldGridSizeRef = React.useRef<number | null>(null);
+
+  
+  const capturePixelPositions = React.useCallback((section: SectionV2, oldGridSize: number) => {
+    const walk = (nodes: Node[], sectionId: string) => {
+      nodes.forEach((node) => {
+        if (node.layout?.units) {
+          const { xu, yu, wu, hu } = node.layout.units;
+          const px = {
+            x: unitsToPx(xu ?? 0, oldGridSize),
+            y: unitsToPx(yu ?? 0, oldGridSize),
+            ...(typeof wu === 'number' ? { w: unitsToPx(wu, oldGridSize) } : {}),
+            ...(typeof hu === 'number' ? { h: unitsToPx(hu, oldGridSize) } : {}),
+          };
+          BuilderState.setNodePixelLayout(sectionId, node.id, px);
+        }
+        if (node.children && node.children.length > 0) {
+          walk(node.children, sectionId);
+        }
+      });
+    };
+    walk(section.children || [], section.id);
+  }, []);
+
+  // Helper function to convert pixel positions back to grid units (returns updated sections)
+  const convertPixelsToUnits = React.useCallback((sectionId: string, newGridSize: number, prevSections: SectionV2[]): SectionV2[] => {
+    return prevSections.map((s) => {
+      if (s.id !== sectionId) return s;
+      const walk = (nodes: Node[]): Node[] =>
+        nodes.map((n): Node => {
+          const cachedPx = BuilderState.getNodePixelLayout(n.id);
+          if (cachedPx && cachedPx.sectionId === sectionId && n.layout?.units) {
+            // Convert cached pixels to new grid units
+            const newUnits = {
+              xu: pxToUnits(cachedPx.x, newGridSize),
+              yu: pxToUnits(cachedPx.y, newGridSize),
+              wu: typeof cachedPx.w === 'number' ? pxToUnits(cachedPx.w, newGridSize) : n.layout.units.wu,
+              hu: typeof cachedPx.h === 'number' ? pxToUnits(cachedPx.h, newGridSize) : n.layout.units.hu,
+            };
+            // Clear pixel cache
+            BuilderState.clearNodePixelLayout(sectionId, n.id);
+            return {
+              ...n,
+              layout: { units: newUnits },
+            } as Node;
+          }
+          if (n.children && n.children.length > 0) {
+            return { ...n, children: walk(n.children) } as Node;
+          }
+          return n;
+        });
+      return { ...s, children: walk(s.children || []) };
+    });
+  }, []);
+
   // Handle font selection for sections - save to section styleTokens
   const handleSectionFontSelect = React.useCallback((fontFamily: string) => {
     if (!selectedSectionId) return;
@@ -580,8 +637,26 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         max={64}
                         step={4}
                         value={sections.find((s) => s.id === selectedSectionId)?.builderGrid?.gridSize ?? 16}
-                        onFocus={() => selectedSectionId && BuilderState.startAdjustingGrid(selectedSectionId)}
-                        onMouseDown={() => selectedSectionId && BuilderState.startAdjustingGrid(selectedSectionId)}
+                        onFocus={() => {
+                          if (!selectedSectionId) return;
+                          const section = sections.find((s) => s.id === selectedSectionId);
+                          if (section) {
+                            const oldGridSize = section.builderGrid?.gridSize ?? 16;
+                            oldGridSizeRef.current = oldGridSize;
+                            capturePixelPositions(section, oldGridSize);
+                            BuilderState.startAdjustingGrid(selectedSectionId);
+                          }
+                        }}
+                        onMouseDown={() => {
+                          if (!selectedSectionId) return;
+                          const section = sections.find((s) => s.id === selectedSectionId);
+                          if (section) {
+                            const oldGridSize = section.builderGrid?.gridSize ?? 16;
+                            oldGridSizeRef.current = oldGridSize;
+                            capturePixelPositions(section, oldGridSize);
+                            BuilderState.startAdjustingGrid(selectedSectionId);
+                          }
+                        }}
                         onChange={(val) => {
                           setSections((prev) =>
                             prev.map((s) =>
@@ -591,10 +666,55 @@ const InspectorPanel: React.FC<InspectorPanelProps> = ({
                             )
                           );
                         }}
-                        onBlur={() => selectedSectionId && BuilderState.stopAdjustingGrid(selectedSectionId)}
-                        onMouseUp={() => selectedSectionId && BuilderState.stopAdjustingGrid(selectedSectionId)}
-                        onTouchStart={() => selectedSectionId && BuilderState.startAdjustingGrid(selectedSectionId)}
-                        onTouchEnd={() => selectedSectionId && BuilderState.stopAdjustingGrid(selectedSectionId)}
+                        onBlur={() => {
+                          if (!selectedSectionId || oldGridSizeRef.current === null) return;
+                          setSections((prev) => {
+                            const section = prev.find((s) => s.id === selectedSectionId);
+                            if (section) {
+                              const newGridSize = section.builderGrid?.gridSize ?? 16;
+                              oldGridSizeRef.current = null;
+                              BuilderState.stopAdjustingGrid(selectedSectionId);
+                              return convertPixelsToUnits(selectedSectionId, newGridSize, prev);
+                            }
+                            return prev;
+                          });
+                        }}
+                        onMouseUp={() => {
+                          if (!selectedSectionId || oldGridSizeRef.current === null) return;
+                          setSections((prev) => {
+                            const section = prev.find((s) => s.id === selectedSectionId);
+                            if (section) {
+                              const newGridSize = section.builderGrid?.gridSize ?? 16;
+                              oldGridSizeRef.current = null;
+                              BuilderState.stopAdjustingGrid(selectedSectionId);
+                              return convertPixelsToUnits(selectedSectionId, newGridSize, prev);
+                            }
+                            return prev;
+                          });
+                        }}
+                        onTouchStart={() => {
+                          if (!selectedSectionId) return;
+                          const section = sections.find((s) => s.id === selectedSectionId);
+                          if (section) {
+                            const oldGridSize = section.builderGrid?.gridSize ?? 16;
+                            oldGridSizeRef.current = oldGridSize;
+                            capturePixelPositions(section, oldGridSize);
+                            BuilderState.startAdjustingGrid(selectedSectionId);
+                          }
+                        }}
+                        onTouchEnd={() => {
+                          if (!selectedSectionId || oldGridSizeRef.current === null) return;
+                          setSections((prev) => {
+                            const section = prev.find((s) => s.id === selectedSectionId);
+                            if (section) {
+                              const newGridSize = section.builderGrid?.gridSize ?? 16;
+                              oldGridSizeRef.current = null;
+                              BuilderState.stopAdjustingGrid(selectedSectionId);
+                              return convertPixelsToUnits(selectedSectionId, newGridSize, prev);
+                            }
+                            return prev;
+                          });
+                        }}
                         className="w-full"
                       />
                       <div className="text-xs text-muted-foreground mt-1">Grid cell size in pixels (8-64)</div>

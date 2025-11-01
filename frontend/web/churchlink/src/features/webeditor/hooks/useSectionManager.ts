@@ -12,7 +12,7 @@ const initializeLayouts = (nodes: Node[], parentYu = 0, isNested = false): Node[
     const newNode = { ...node };
     if (!newNode.layout) {
       newNode.layout = { units: { xu: 0, yu: currentYu } };
-      currentYu += isNested ? 1 : 2;  // Tighter spacing for nested, looser for top-level
+      currentYu += isNested ? 1 : 2; 
     } else if (!newNode.layout.units) {
       newNode.layout.units = { xu: 0, yu: currentYu };
       currentYu += isNested ? 1 : 2;
@@ -56,6 +56,41 @@ export function useSectionManager() {
   const addSectionPreset = useCallback((key: string) => {
     const newSection = createPresetSection(key);
     if (newSection) {
+
+      const keyToName: Record<string, string> = {
+        hero: "hero",
+        events: "events",
+        map: "map",
+        paypal: "paypal",
+        serviceTimes: "service times",
+        menu: "menu",
+        contactInfo: "contact info",
+      };
+      
+      const baseName = keyToName[key] || key;
+      
+      const existingNames = sections
+        .map((s) => (s.styleTokens as any)?.name as string | undefined)
+        .filter((name): name is string => typeof name === 'string' && name.trim() !== '');
+      
+      let uniqueName = baseName;
+      let counter = 0;
+      
+      if (existingNames.includes(baseName)) {
+        counter = 1;
+        uniqueName = `${baseName} ${counter}`;
+        
+        while (existingNames.includes(uniqueName)) {
+          counter++;
+          uniqueName = `${baseName} ${counter}`;
+        }
+      }
+      
+      newSection.styleTokens = {
+        ...newSection.styleTokens,
+        name: uniqueName,
+      };
+      
       const prev = sections;
       const next = [...sections, newSection];
       BuilderState.pushSections(prev, next);
@@ -315,6 +350,21 @@ export function useSectionManager() {
     [setSectionsWithLayouts]
   );
 
+  const reorderSections = useCallback((activeId: string, overId: string) => {
+    const prev = sections;
+    const activeIndex = prev.findIndex((s) => s.id === activeId);
+    const overIndex = prev.findIndex((s) => s.id === overId);
+    
+    if (activeIndex === -1 || overIndex === -1 || activeIndex === overIndex) return;
+    
+    const next = [...prev];
+    const [removed] = next.splice(activeIndex, 1);
+    next.splice(overIndex, 0, removed);
+    
+    BuilderState.pushSections(prev, next);
+    setSectionsWithLayouts(next);
+  }, [sections, setSectionsWithLayouts]);
+
   return {
     sections,
     setSections: setSectionsWithLayouts,
@@ -341,5 +391,6 @@ export function useSectionManager() {
     deleteSection,
     updateNodeLayout,
     deleteSelectedNode,
+    reorderSections,
   };
 }
