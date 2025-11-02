@@ -88,11 +88,18 @@ class _ChangeEmailSheetState extends State<ChangeEmailSheet> {
                           isEmailPasswordUser ? _currentPassword.text : null,
                     );
 
-                    if (!mounted) return;
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Check your new email to confirm the change.')),
-                    );
+
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text(
+                        'Verification link sent to new email address. '
+                        'Click the verification link first before signing back in with the new address.',
+                      ),
+                    ));
+
+                    await FirebaseAuthService().signOut();
+                    if (!mounted) return;
+                    Navigator.of(context).pushNamedAndRemoveUntil('/signin', (_) => false);
                   } on FirebaseAuthException catch (e) {
                     final msg = switch (e.code) {
                       'email-already-exists' => 'That email is already in use.',
