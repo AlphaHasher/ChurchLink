@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:app/services/fcm_token_service.dart';
+import 'package:app/helpers/backend_helper.dart';
 
 class FirebaseAuthService {
   static final FirebaseAuthService _instance = FirebaseAuthService._internal();
@@ -16,6 +17,12 @@ class FirebaseAuthService {
 
   factory FirebaseAuthService() {
     return _instance;
+  }
+
+  // Calls the sync function to make MongoDB email match Firebase
+  Future<void> _postSignInSync() async {
+    await BackendHelper().verifyAndSyncUser((msg) {
+    });
   }
 
   Future<void> initializeGoogleSignIn({
@@ -109,6 +116,10 @@ class FirebaseAuthService {
         debugPrint("❌ Email not verified. Please verify your email.");
         return "Email not verified. Please check your inbox.";
       }
+
+      // Sync Firebase email with MongoDB
+      // Needed for when user changes email
+      await _postSignInSync();
 
       final String? idToken = await user.getIdToken(true);
       if (idToken == null) {
