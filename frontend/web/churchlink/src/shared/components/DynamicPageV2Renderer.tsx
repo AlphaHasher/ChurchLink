@@ -5,9 +5,7 @@ import MapSection from "@sections/MapSection";
 // import MenuSection from "@sections/MenuSection";
 // import ContactInfoSection from "@sections/ContactInfoSection";
 import PaypalSection from "@sections/PaypalSection";
-// ScopedStyle temporarily disabled due to drag measurement regressions
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
-import { defaultGridSize, unitsToPx } from "@/features/webeditor/grid/gridMath";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { useLocalize } from "@/shared/utils/localizationUtils";
 
@@ -19,6 +17,11 @@ function mergeClassNames(
   ...classes: Array<string | undefined | null | false>
 ) {
   return classes.filter(Boolean).join(" ");
+}
+
+const defaultGridSize = 16;
+function unitsToPx(units: number, gridSize: number): number {
+  return Math.round(units * gridSize);
 }
 
 // Match builder padding conversion: Tailwind spacing unit -> rem (n * 0.25rem)
@@ -510,7 +513,7 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
         const gridClasses = cn(gridClass, !hasWidthClass && "w-full");
 
         const sectionFontFamily = (section.styleTokens as any)?.fontFamily || fontFamily;
-        const gridSize = section.builderGrid?.gridSize ?? defaultGridSize;
+        const gridSize = defaultGridSize;
 
         return (
           <section

@@ -2,11 +2,19 @@
 import { useEffect, useMemo, useState } from 'react';
 
 export function GridOverlay({
-  gridSize,
+  cols,
+  rows,
+  cellPx,
+  offsetX,
+  offsetY,
   opacity = 0.12,
   active = true,
 }: {
-  gridSize: number;
+  cols: number;
+  rows: number;
+  cellPx: number;
+  offsetX: number;
+  offsetY: number;
   opacity?: number;
   active?: boolean;
 }) {
@@ -18,12 +26,12 @@ export function GridOverlay({
   }, []);
 
   const dataUrl = useMemo(() => {
-    const squareSize = gridSize * 0.72;
-    const gap = gridSize - squareSize;
-    const borderRadius = Math.min(8, gridSize * 0.45);
+    const squareSize = cellPx * 0.72;
+    const gap = cellPx - squareSize;
+    const borderRadius = Math.min(8, cellPx * 0.45);
 
     const svgPattern = `
-      <svg width="${gridSize}" height="${gridSize}" xmlns="http://www.w3.org/2000/svg">
+      <svg width="${cellPx}" height="${cellPx}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
             <feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="rgba(15,23,42,0.38)" />
@@ -45,7 +53,7 @@ export function GridOverlay({
     `;
 
     return `data:image/svg+xml;base64,${btoa(svgPattern)}`;
-  }, [gridSize, opacity]);
+  }, [cellPx, opacity]);
 
   const targetOpacity = active ? 1 : 0;
   const opacityValue = hasMounted ? targetOpacity : active ? 0 : 0;
@@ -56,7 +64,8 @@ export function GridOverlay({
       className="absolute inset-0 w-full h-full"
       style={{
         backgroundImage: `url("${dataUrl}")`,
-        backgroundSize: `${gridSize}px ${gridSize}px`,
+        backgroundSize: `${cellPx}px ${cellPx}px`,
+        backgroundPosition: `${offsetX}px ${offsetY}px`,
         backgroundRepeat: 'repeat',
         opacity: opacityValue,
         transition: 'opacity 300ms ease-in-out',

@@ -14,6 +14,11 @@ export const defaultSection = (): SectionV2 => ({
   },
   grid: { className: "w-full" },
   styleTokens: {},
+  builderGrid: {
+    cols: 64,
+    aspect: { num: 16, den: 9 },
+    showGrid: true,
+  },
   children: [
     { 
       id: `${newId()}-c0`, 
@@ -42,6 +47,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       grid: { className: "w-full" },
       styleTokens: {
         fontFamily: "Inter, sans-serif",
+      },
+      builderGrid: {
+        cols: 64,
+        aspect: { num: 16, den: 9 },
+        showGrid: true,
       },
       children: [
         {
@@ -135,6 +145,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "bg-gradient-to-b from-slate-50 to-white" },
       grid: { className: "w-full" },
       styleTokens: {},
+      builderGrid: {
+        cols: 64,
+        aspect: { num: 16, den: 9 },
+        showGrid: true,
+      },
       lockLayout: true,
       children: [
         { 
@@ -157,6 +172,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "bg-gradient-to-b from-slate-50 via-white to-slate-100" },
       grid: { className: "w-full" },
       styleTokens: {},
+      builderGrid: {
+        cols: 64,
+        aspect: { num: 16, den: 9 },
+        showGrid: true,
+      },
       lockLayout: true,
       children: [
         {
@@ -190,6 +210,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "bg-gradient-to-b from-slate-50 via-white to-slate-100" },
       grid: { className: "w-full" },
       styleTokens: {},
+      builderGrid: {
+        cols: 64,
+        aspect: { num: 16, den: 9 },
+        showGrid: true,
+      },
       lockLayout: true,
       children: [
         {
@@ -220,6 +245,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "", style: { backgroundColor: "#92a2c4" } },
       grid: { className: "w-full" },
       styleTokens: { fontFamily: "Lato, sans-serif" },
+      builderGrid: {
+        cols: 64,
+        aspect: { num: 16, den: 9 },
+        showGrid: true,
+      },
       children: [
         {
           id: `${newId()}-c-service`,
@@ -275,6 +305,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "bg-gradient-to-b from-white to-slate-50" },
       grid: { className: "w-full" },
       styleTokens: {},
+      builderGrid: {
+        cols: 64,
+        aspect: { num: 16, den: 9 },
+        showGrid: true,
+      },
       children: [
         {
           id: `${newId()}-c-menu`,
@@ -306,6 +341,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "bg-white" },
       grid: { className: "w-full" },
       styleTokens: {},
+      builderGrid: {
+        cols: 64,
+        aspect: { num: 16, den: 9 },
+        showGrid: true,
+      },
       lockLayout: true,
       children: [
         {

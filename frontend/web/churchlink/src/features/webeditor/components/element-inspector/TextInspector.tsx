@@ -28,7 +28,6 @@ type TextInspectorProps = {
   node: TextNode;
   onUpdate: (updater: (node: Node) => Node) => void;
   fontManager?: any;
-  gridSize?: number;
   activeLocale?: string;
   defaultLocale?: string;
 };
@@ -40,7 +39,7 @@ function resolveLocalized(node: Node, key: string, activeLocale?: string, defaul
   return (node as any).props?.[key];
 }
 
-export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fontManager, gridSize, activeLocale, defaultLocale }) => {
+export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fontManager, activeLocale, defaultLocale }) => {
   const [customFontActive, setCustomFontActive] = React.useState<boolean>(false);
   const [localHtml, setLocalHtml] = React.useState(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
   const prevRef = React.useRef<Node | null>(null);
@@ -499,7 +498,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
 
       <Separator />
 
-      <PaddingControls node={node} onUpdate={onUpdate} gridSize={gridSize} />
+      <PaddingControls node={node} onUpdate={onUpdate} />
 
       <Separator />
 

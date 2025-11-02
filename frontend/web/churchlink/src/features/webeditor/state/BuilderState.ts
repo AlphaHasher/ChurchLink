@@ -36,7 +36,6 @@ class BuilderStateClass {
   private _redoStack: Action[] = [];
   private _suppressHistory = false;
   private listeners: Set<() => void> = new Set();
-  private _nodePxCache: Map<string, { sectionId: string; x: number; y: number; w?: number; h?: number }> = new Map();
   private _paddingOverlay: ActivePaddingOverlay | null = null;
   private _paddingOverlayListeners: Set<(payload: ActivePaddingOverlay | null) => void> = new Set();
   private _edgeContactByContainer: Map<string, { top: boolean; right: boolean; bottom: boolean; left: boolean }> = new Map();
@@ -151,16 +150,8 @@ class BuilderStateClass {
     }
   }
 
-  setNodePixelLayout(sectionId: string, nodeId: string, px: { x: number; y: number; w?: number; h?: number }) {
-    this._nodePxCache.set(nodeId, { sectionId, ...px });
-  }
 
-  clearNodePixelLayout(sectionId: string, nodeId: string) {
-    const entry = this._nodePxCache.get(nodeId);
-    if (entry && entry.sectionId === sectionId) {
-      this._nodePxCache.delete(nodeId);
-    }
-  }
+
 
   showPaddingOverlay(sectionId: string, nodeId: string, values: [number, number, number, number]) {
     this._paddingOverlay = { sectionId, nodeId, values };
@@ -221,9 +212,6 @@ class BuilderStateClass {
     };
   }
 
-  getNodePixelLayout(nodeId: string) {
-    return this._nodePxCache.get(nodeId) ?? null;
-  }
 
   undo() {
     const action = this._undoStack.pop();

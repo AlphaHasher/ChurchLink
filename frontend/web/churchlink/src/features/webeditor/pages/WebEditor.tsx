@@ -235,7 +235,6 @@ const WebEditor: React.FC = () => {
 
   const selectedNode = selection?.nodeId ? findNode(selection.nodeId) : null;
   const selectedSectionForNode = selection?.sectionId ? managedSections.find(s => s.id === selection.sectionId) : undefined;
-  const selectedGridSize = selectedSectionForNode?.builderGrid?.gridSize ?? 16;
 
   // Global keyboard shortcuts for copy/paste selected element
   React.useEffect(() => {
@@ -657,7 +656,7 @@ const WebEditor: React.FC = () => {
         activeLocale={activeLocale}
         defaultLocale={(page as any)?.defaultLocale || 'en'}
         fontManager={fontManager}
-        gridSize={selectedGridSize}
+        section={selectedSectionForNode}
         onRequestDeleteNode={() => {
           if (selection?.sectionId && selection?.nodeId) {
             setDeleteNodeId({ sectionId: selection.sectionId, nodeId: selection.nodeId });

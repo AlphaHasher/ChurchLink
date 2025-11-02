@@ -10,47 +10,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { Node } from '@/shared/types/pageV2';
+import { Node, SectionV2 } from '@/shared/types/pageV2';
 import { BuilderState } from '@/features/webeditor/state/BuilderState';
-import { unitsToPx, pxToUnits } from '@/features/webeditor/grid/gridMath';
+import { makeVirtualTransform } from '@/features/webeditor/grid/virtualGrid';
 
 type PositionControlsProps = {
   node: Node;
   onUpdateNode: (updater: (node: Node) => Node) => void;
-  gridSize?: number;
+  section?: SectionV2;
   sectionId?: string;
 };
 
 const REM_STEP = 0.1;
 
-export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpdateNode, gridSize, sectionId: explicitSectionId }) => {
-  const grid = gridSize ?? 16;
+export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpdateNode, section, sectionId: explicitSectionId }) => {
   const xu = node.layout?.units?.xu ?? 0;
   const yu = node.layout?.units?.yu ?? 0;
+  
+  const cols = section?.builderGrid?.cols ?? 64;
+  const aspect = section?.builderGrid?.aspect ?? { num: 16, den: 9 };
+  const typicalContainerWidth = 1200; 
+  const typicalContainerHeight = typicalContainerWidth * aspect.den / aspect.num;
+  const approximateTransform = makeVirtualTransform(
+    { width: typicalContainerWidth, height: typicalContainerHeight },
+    cols,
+    aspect
+  );
+  const cellPx = approximateTransform.cellPx;
 
   const prevUnitsRef = React.useRef<null | { xu?: number; yu?: number; wu?: number; hu?: number }>(null);
 
-  const [xUnit, setXUnit] = React.useState<'units' | 'px' | 'rem'>('px');
-  const [yUnit, setYUnit] = React.useState<'units' | 'px' | 'rem'>('px');
-  const [xVal, setXVal] = React.useState<number>(xu * grid);
-  const [yVal, setYVal] = React.useState<number>(yu * grid);
+  const [xUnit, setXUnit] = React.useState<'units' | 'px' | 'rem'>('units');
+  const [yUnit, setYUnit] = React.useState<'units' | 'px' | 'rem'>('units');
+  const [xVal, setXVal] = React.useState<number>(xu);
+  const [yVal, setYVal] = React.useState<number>(yu);
 
   React.useEffect(() => {
-    const pxX = xu * grid;
-    const pxY = yu * grid;
+    const pxX = xu * cellPx;
+    const pxY = yu * cellPx;
     const formatUnits = (val: number) => Number(val.toFixed(2));
     const formatPx = (val: number) => Math.round(val);
     const formatRem = (px: number) => Number((px / 16).toFixed(2));
     setXVal(xUnit === 'units' ? formatUnits(xu) : xUnit === 'px' ? formatPx(pxX) : formatRem(pxX));
     setYVal(yUnit === 'units' ? formatUnits(yu) : yUnit === 'px' ? formatPx(pxY) : formatRem(pxY));
-  }, [xu, yu, grid, xUnit, yUnit]);
+  }, [xu, yu, cellPx, xUnit, yUnit]);
 
   const commitX = (val: number) => {
     if (!prevUnitsRef.current) {
       prevUnitsRef.current = { ...(node.layout?.units || {}) };
     }
-    const px = xUnit === 'units' ? val * grid : xUnit === 'px' ? val : val * 16;
-    const nextXu = Math.max(0, Math.round(px / grid));
+    const nextXu = xUnit === 'units' 
+      ? Math.max(0, Math.round(val))
+      : xUnit === 'px'
+      ? Math.max(0, Math.round(val / cellPx))
+      : Math.max(0, Math.round((val * 16) / cellPx));
     onUpdateNode((n) => ({
       ...n,
       layout: {
@@ -69,8 +82,11 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
     if (!prevUnitsRef.current) {
       prevUnitsRef.current = { ...(node.layout?.units || {}) };
     }
-    const px = yUnit === 'units' ? val * grid : yUnit === 'px' ? val : val * 16;
-    const nextYu = Math.max(0, Math.round(px / grid));
+    const nextYu = yUnit === 'units'
+      ? Math.max(0, Math.round(val))
+      : yUnit === 'px'
+      ? Math.max(0, Math.round(val / cellPx))
+      : Math.max(0, Math.round((val * 16) / cellPx));
     onUpdateNode((n) => ({
       ...n,
       layout: {
@@ -141,19 +157,45 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
     }
     console.log('[CenterH] parentEl', parentEl, 'parentWidth', parentWidth);
 
+    const contentEl = document.getElementById(`section-content-${explicitSectionId}`) as HTMLElement | null;
+    if (!contentEl) {
+      console.warn('[CenterH] Could not find section content element');
+      return;
+    }
+    const contentRect = contentEl.getBoundingClientRect();
+    const parentRect = parentEl.getBoundingClientRect();
+    const parentPx = {
+      x: parentRect.left - contentRect.left,
+      y: parentRect.top - contentRect.top,
+      w: parentRect.width,
+      h: parentRect.height,
+    };
+    const actualTransform = makeVirtualTransform(
+      { width: contentRect.width, height: contentRect.height },
+      cols,
+      aspect
+    );
+    const parentUnits = actualTransform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
+    
     const elementWu = node.layout?.units?.wu;
-    let elementWidthPx: number;
+    let wu: number;
     if (elementWu) {
-      elementWidthPx = unitsToPx(elementWu, grid);
+      wu = elementWu;
     } else {
       const wrapperRect = wrapperEl.getBoundingClientRect();
-      elementWidthPx = wrapperRect.width;
+      const wrapperPx = {
+        x: wrapperRect.left - contentRect.left,
+        y: wrapperRect.top - contentRect.top,
+        w: wrapperRect.width,
+        h: wrapperRect.height,
+      };
+      const wrapperUnits = actualTransform.toUnits({ ...wrapperPx, w: wrapperPx.w, h: wrapperPx.h });
+      wu = wrapperUnits.wu;
     }
-    console.log('[CenterH] elementWidthPx', elementWidthPx, 'grid', grid, 'wu', node.layout?.units?.wu);
+    console.log('[CenterH] parentUnitsW', parentUnits.wu, 'wu', wu);
 
-    const centerX = (parentWidth - elementWidthPx) / 2;
-    const centerXu = pxToUnits(Math.max(0, centerX), grid);
-    console.log('[CenterH] centerX(px)', centerX, 'centerXu(units)', centerXu);
+    const centerXu = Math.max(0, Math.round((parentUnits.wu - wu) / 2));
+    console.log('[CenterH] centerXu(units)', centerXu);
 
     if (!prevUnitsRef.current) {
       prevUnitsRef.current = { ...(node.layout?.units || {}) };
@@ -182,10 +224,9 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
     if (secId) {
       console.log('[CenterH] pushLayout', { secId, nodeId, prevUnits, nextUnits });
       BuilderState.pushLayout(secId, nodeId, prevUnits, nextUnits);
-      BuilderState.clearNodePixelLayout(secId, nodeId);
     }
     prevUnitsRef.current = null;
-  }, [node, grid, onUpdateNode, explicitSectionId]);
+  }, [node, cols, aspect, onUpdateNode, explicitSectionId]);
 
   const centerVertically = React.useCallback(() => {
     const nodeId = node.id;
@@ -240,19 +281,46 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
     }
     console.log('[CenterV] parentEl', parentEl, 'parentHeight', parentHeight);
 
+    // Compute parent bounds in virtual units
+    const contentEl = document.getElementById(`section-content-${explicitSectionId}`) as HTMLElement | null;
+    if (!contentEl) {
+      console.warn('[CenterV] Could not find section content element');
+      return;
+    }
+    const contentRect = contentEl.getBoundingClientRect();
+    const parentRect = parentEl.getBoundingClientRect();
+    const parentPx = {
+      x: parentRect.left - contentRect.left,
+      y: parentRect.top - contentRect.top,
+      w: parentRect.width,
+      h: parentRect.height,
+    };
+    const actualTransform = makeVirtualTransform(
+      { width: contentRect.width, height: contentRect.height },
+      cols,
+      aspect
+    );
+    const parentUnits = actualTransform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
+    
     const elementHu = node.layout?.units?.hu;
-    let elementHeightPx: number;
+    let hu: number;
     if (elementHu) {
-      elementHeightPx = unitsToPx(elementHu, grid);
+      hu = elementHu;
     } else {
       const wrapperRect = wrapperEl.getBoundingClientRect();
-      elementHeightPx = wrapperRect.height;
+      const wrapperPx = {
+        x: wrapperRect.left - contentRect.left,
+        y: wrapperRect.top - contentRect.top,
+        w: wrapperRect.width,
+        h: wrapperRect.height,
+      };
+      const wrapperUnits = actualTransform.toUnits({ ...wrapperPx, w: wrapperPx.w, h: wrapperPx.h });
+      hu = wrapperUnits.hu;
     }
-    console.log('[CenterV] elementHeightPx', elementHeightPx, 'grid', grid, 'hu', node.layout?.units?.hu);
+    console.log('[CenterV] parentUnitsH', parentUnits.hu, 'hu', hu);
 
-    const centerY = (parentHeight - elementHeightPx) / 2;
-    const centerYu = pxToUnits(Math.max(0, centerY), grid);
-    console.log('[CenterV] centerY(px)', centerY, 'centerYu(units)', centerYu);
+    const centerYu = Math.max(0, Math.round((parentUnits.hu - hu) / 2));
+    console.log('[CenterV] centerYu(units)', centerYu);
 
     if (!prevUnitsRef.current) {
       prevUnitsRef.current = { ...(node.layout?.units || {}) };
@@ -281,10 +349,9 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
     if (secId) {
       console.log('[CenterV] pushLayout', { secId, nodeId, prevUnits, nextUnits });
       BuilderState.pushLayout(secId, nodeId, prevUnits, nextUnits);
-      BuilderState.clearNodePixelLayout(secId, nodeId);
     }
     prevUnitsRef.current = null;
-  }, [node, grid, onUpdateNode, explicitSectionId]);
+  }, [node, cols, aspect, onUpdateNode, explicitSectionId]);
 
   return (
     <div className="rounded-lg border p-3 bg-muted/40">
@@ -306,8 +373,11 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const px = xUnit === 'units' ? xVal * grid : xUnit === 'px' ? xVal : xVal * 16;
-                const nextXu = Math.max(0, Math.round(px / grid));
+                const nextXu = xUnit === 'units'
+                  ? Math.max(0, Math.round(xVal))
+                  : xUnit === 'px'
+                  ? Math.max(0, Math.round(xVal / cellPx))
+                  : Math.max(0, Math.round((xVal * 16) / cellPx));
                 const nextUnits = {
                   xu: nextXu,
                   yu: node.layout?.units?.yu ?? 0,
@@ -323,8 +393,11 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const px = xUnit === 'units' ? xVal * grid : xUnit === 'px' ? xVal : xVal * 16;
-                const nextXu = Math.max(0, Math.round(px / grid));
+                const nextXu = xUnit === 'units'
+                  ? Math.max(0, Math.round(xVal))
+                  : xUnit === 'px'
+                  ? Math.max(0, Math.round(xVal / cellPx))
+                  : Math.max(0, Math.round((xVal * 16) / cellPx));
                 const nextUnits = {
                   xu: nextXu,
                   yu: node.layout?.units?.yu ?? 0,
@@ -362,8 +435,11 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const px = yUnit === 'units' ? yVal * grid : yUnit === 'px' ? yVal : yVal * 16;
-                const nextYu = Math.max(0, Math.round(px / grid));
+                const nextYu = yUnit === 'units'
+                  ? Math.max(0, Math.round(yVal))
+                  : yUnit === 'px'
+                  ? Math.max(0, Math.round(yVal / cellPx))
+                  : Math.max(0, Math.round((yVal * 16) / cellPx));
                 const nextUnits = {
                   xu: node.layout?.units?.xu ?? 0,
                   yu: nextYu,
@@ -379,8 +455,11 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const px = yUnit === 'units' ? yVal * grid : yUnit === 'px' ? yVal : yVal * 16;
-                const nextYu = Math.max(0, Math.round(px / grid));
+                const nextYu = yUnit === 'units'
+                  ? Math.max(0, Math.round(yVal))
+                  : yUnit === 'px'
+                  ? Math.max(0, Math.round(yVal / cellPx))
+                  : Math.max(0, Math.round((yVal * 16) / cellPx));
                 const nextUnits = {
                   xu: node.layout?.units?.xu ?? 0,
                   yu: nextYu,
@@ -421,7 +500,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
           Center Vertically
         </Button>
       </div>
-      <div className="text-xs text-muted-foreground mt-1">Grid size: {grid}px per unit</div>
+      <div className="text-xs text-muted-foreground mt-1">Virtual grid: {cols} cols @ {aspect.num}:{aspect.den}</div>
     </div>
   );
 };

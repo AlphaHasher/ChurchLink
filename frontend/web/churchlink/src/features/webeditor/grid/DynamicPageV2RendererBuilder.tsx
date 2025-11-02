@@ -1,8 +1,8 @@
 // DynamicPageV2RendererBuilder.tsx - Builder-specific renderer with grid and draggable support
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { GridOverlay } from './GridOverlay';
 import { DraggableNode } from './DraggableNode';
-import { defaultGridSize, unitsToPx } from './gridMath';
+import { makeVirtualTransform, VirtualTransform } from './virtualGrid';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
 import EventSection from '@sections/EventSection';
 import MapSection from '@sections/MapSection';
@@ -39,9 +39,11 @@ function tailwindSpacingToRem(value?: number | null) {
 
 type PaddingOverlayProps = {
   layer: ActivePaddingOverlay | null;
+  transform: VirtualTransform | null;
+  node: Node | null;
 };
 
-const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer }) => {
+const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, transform, node }) => {
   const [overlay, setOverlay] = React.useState<ActivePaddingOverlay | null>(layer ?? BuilderState.paddingOverlay);
 
   React.useEffect(() => {
@@ -50,21 +52,20 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer }) => {
   }, []);
 
   const data = overlay ?? layer;
-  if (!data) return null;
+  if (!data || !transform || !node || !node.layout?.units) return null;
   const { nodeId, sectionId, values } = data;
-  const cache = BuilderState.getNodePixelLayout(nodeId);
-  if (!cache || cache.sectionId !== sectionId) return null;
   const [top, right, bottom, left] = values;
+  const { x, y, w, h } = transform.toPx(node.layout.units);
 
   return (
     <div className="absolute inset-0 pointer-events-none">
       <div
         className="absolute"
         style={{
-          left: cache.x,
-          top: cache.y,
-          width: cache.w,
-          height: cache.h,
+          left: x,
+          top: y,
+          width: w,
+          height: h,
           pointerEvents: 'none',
         }}
       >
@@ -139,7 +140,7 @@ const renderNode = (
   onNodeDoubleClick?: (sectionId: string, nodeId: string) => void,
   hoveredNodeId?: string | null,
   selectedNodeId?: string | null,
-  gridSize?: number,  // Added for nested positioning
+  transform?: VirtualTransform,  
   onUpdateNodeLayout?: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void,  // Added for nested commits
   forceFlowLayout?: boolean,
   activeLocale?: string,
@@ -499,23 +500,18 @@ const renderNode = (
       // Render container div with nested children wrapped in DraggableNode for absolute positioning
       const containerContent = (node.children ?? []).map((c) => {
         const childHasLayout = !!c.layout?.units;
-        if (childHasLayout && gridSize && onUpdateNodeLayout && sectionId && !forceFlowLayout) {
-          const cachedPx = BuilderState.getNodePixelLayout(c.id);
-          const hasCustomPx = cachedPx && cachedPx.sectionId === sectionId;
-          const cx = hasCustomPx ? cachedPx!.x : unitsToPx(c.layout!.units.xu, gridSize);
-          const cy = hasCustomPx ? cachedPx!.y : unitsToPx(c.layout!.units.yu, gridSize);
-          const cw = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (c.layout?.units.wu ? unitsToPx(c.layout!.units.wu!, gridSize) : undefined);
-          const ch = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (c.layout?.units.hu ? unitsToPx(c.layout!.units.hu!, gridSize) : undefined);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
+        if (childHasLayout && transform && onUpdateNodeLayout && sectionId && !forceFlowLayout) {
+          const { x: cx, y: cy, w: cw, h: ch } = transform.toPx(c.layout!.units);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
           return (
             <DraggableNode
               key={c.id}
               sectionId={sectionId}
               node={{
                 ...c,
-                layout: { units: c.layout!.units, px: { x: cx, y: cy, w: cw, h: ch } },
+                layout: { units: c.layout!.units },
               }}
-              gridSize={gridSize}
+              transform={transform}
               defaultSize={{ w: cw, h: ch }}
               selected={selectedNodeId === c.id}
               onCommitLayout={(nodeId, units) => onUpdateNodeLayout(sectionId, nodeId, units)}
@@ -530,7 +526,7 @@ const renderNode = (
         } else {
           // Fallback for missing layout or params - render without wrapper
           if (!childHasLayout) console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
           return <div key={c.id} className="relative">{childRendered}</div>;
         }
       });
@@ -628,106 +624,208 @@ export const DynamicPageV2RendererBuilder: React.FC<{
         const hasWidthClass = /(^|\s)w-/.test(gridClass);
         const gridClasses = cn(gridClass, !hasWidthClass && 'w-full');
 
-        const gridSize = section.builderGrid?.gridSize ?? defaultGridSize;
         const gridEnabled = section.builderGrid?.showGrid ?? true;
         const shouldShowGrid = gridEnabled && isInteracting;
 
         // Get section-level font from styleTokens or page default
         const sectionFontFamily = (section.styleTokens as any)?.fontFamily || fontFamily;
 
+        const cols = section.builderGrid?.cols ?? 64;
+        const aspect = section.builderGrid?.aspect ?? { num: 16, den: 9 };
+
         return (
-          <section
+          <SectionWithVirtualGrid
             key={section.id}
-            className={cn(
-              'w-full relative',
-              bg,
-              sectionFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
-            )}
-            style={{
-              ...(section.background?.style as React.CSSProperties),
-              ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
-              minHeight: `${(section.heightPercent ?? 100)}vh`,
-            }}
-          >
-            {gridEnabled && (
-              <div className="pointer-events-none absolute inset-0">
-                <GridOverlay gridSize={gridSize} active={shouldShowGrid} />
-              </div>
-            )}
-
-            {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
-            <div
-              className={cn(gridClasses, 'relative h-full min-h-full')}
-              id={`section-content-${section.id}`}
-              style={{ minHeight: 'inherit', position: 'relative' }}
-            >
-              {section.children.map((node) => {
-                const hasLayout = !!node.layout?.units;
-                const locked = section.lockLayout === true;
-                let rendered: React.ReactNode;
-                if (hasLayout && !locked) {
-                  const cachedPx = BuilderState.getNodePixelLayout(node.id);
-                  const hasCustomPx = cachedPx && cachedPx.sectionId === section.id;
-                  const x = hasCustomPx ? cachedPx!.x : unitsToPx(node.layout!.units.xu, gridSize);
-                  const y = hasCustomPx ? cachedPx!.y : unitsToPx(node.layout!.units.yu, gridSize);
-                  const w = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (node.layout?.units.wu ? unitsToPx(node.layout!.units.wu!, gridSize) : undefined);
-                  const h = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (node.layout?.units.hu ? unitsToPx(node.layout!.units.hu!, gridSize) : undefined);
-                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
-
-                  const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
-                    if (node.type !== 'container') {
-                      onUpdateNodeLayout(section.id, nodeId, units as any);
-                      return;
-                    }
-
-                    // Removed unused prevPx to satisfy linter after child delta removal
-                    const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
-
-                    const nextUnits = {
-                      xu: units.xu ?? prevUnits.xu ?? 0,
-                      yu: units.yu ?? prevUnits.yu ?? 0,
-                      wu: units.wu ?? prevUnits.wu,
-                      hu: units.hu ?? prevUnits.hu,
-                    };
-
-                    onUpdateNodeLayout(section.id, nodeId, nextUnits);
-                  };
-
-                  return (
-                    <DraggableNode
-                      key={node.id}
-                      sectionId={section.id}
-                      node={{
-                        ...node,
-                        layout: { units: node.layout!.units, px: { x, y, w, h } },
-                      }}
-                      gridSize={gridSize}
-                      defaultSize={{ w, h }}
-                      selected={node.id === selectedNodeId}
-                      onCommitLayout={handleCommitLayout}
-                      onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
-                      onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
-                      render={() => rendered}
-                      containerId={`section-content-${section.id}`}
-                      enforceChildFullSize={node.type === 'container' || node.type === 'button' || node.type === 'text'}
-                      allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
-                      disabled={locked}
-                    />
-                  );
-                } else {
-                  // Flow layout for locked sections or nodes without layout
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
-                  return <div key={node.id} className="relative">{rendered}</div>;
-                }
-              })}
-
-              {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && (
-                <PaddingOverlay layer={activePaddingOverlay} />
-              )}
-            </div>
-          </section>
+            section={section}
+            bg={bg}
+            gridClasses={gridClasses}
+            sectionFontFamily={sectionFontFamily}
+            gridEnabled={gridEnabled}
+            shouldShowGrid={shouldShowGrid}
+            cols={cols}
+            aspect={aspect}
+            highlightNodeId={highlightNodeId}
+            hoveredNodeId={hoveredNodeId}
+            selectedNodeId={selectedNodeId}
+            onNodeHover={onNodeHover}
+            onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
+            onUpdateNodeLayout={onUpdateNodeLayout}
+            activeLocale={activeLocale}
+            defaultLocale={defaultLocale}
+            localize={localize}
+            activePaddingOverlay={activePaddingOverlay}
+          />
         );
       })}
     </div>
+  );
+};
+
+// Component that measures container and computes virtual transform
+const SectionWithVirtualGrid: React.FC<{
+  section: SectionV2;
+  bg?: string;
+  gridClasses: string;
+  sectionFontFamily?: string;
+  gridEnabled: boolean;
+  shouldShowGrid: boolean;
+  cols: number;
+  aspect: { num: number; den: number };
+  highlightNodeId?: string;
+  hoveredNodeId?: string | null;
+  selectedNodeId?: string | null;
+  onNodeHover?: (nodeId: string | null) => void;
+  onNodeClick?: (sectionId: string, nodeId: string) => void;
+  onNodeDoubleClick?: (sectionId: string, nodeId: string) => void;
+  onUpdateNodeLayout: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void;
+  activeLocale?: string;
+  defaultLocale?: string;
+  localize?: (text: string) => string;
+  activePaddingOverlay: ActivePaddingOverlay | null;
+}> = ({
+  section,
+  bg,
+  gridClasses,
+  sectionFontFamily,
+  gridEnabled,
+  shouldShowGrid,
+  cols,
+  aspect,
+  highlightNodeId,
+  hoveredNodeId,
+  selectedNodeId,
+  onNodeHover,
+  onNodeClick,
+  onNodeDoubleClick,
+  onUpdateNodeLayout,
+  activeLocale,
+  defaultLocale,
+  localize,
+  activePaddingOverlay,
+}) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState<VirtualTransform | null>(null);
+
+  const updateTransform = useCallback(() => {
+    if (!contentRef.current) return;
+    const rect = contentRef.current.getBoundingClientRect();
+    const newTransform = makeVirtualTransform(
+      { width: rect.width, height: rect.height },
+      cols,
+      aspect
+    );
+    setTransform(newTransform);
+  }, [cols, aspect]);
+
+  useEffect(() => {
+    updateTransform();
+    const resizeObserver = new ResizeObserver(() => {
+      updateTransform();
+    });
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [updateTransform]);
+
+  const locked = section.lockLayout === true;
+
+  return (
+    <section
+      className={cn(
+        'w-full relative',
+        bg,
+        sectionFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
+      )}
+      style={{
+        ...(section.background?.style as React.CSSProperties),
+        ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
+        minHeight: `${(section.heightPercent ?? 100)}vh`,
+      }}
+    >
+      {gridEnabled && transform && (
+        <div className="pointer-events-none absolute inset-0">
+          <GridOverlay
+            cols={transform.cols}
+            rows={transform.rows}
+            cellPx={transform.cellPx}
+            offsetX={transform.offsetX}
+            offsetY={transform.offsetY}
+            active={shouldShowGrid}
+          />
+        </div>
+      )}
+
+      {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
+      <div
+        ref={contentRef}
+        className={cn(gridClasses, 'relative h-full min-h-full')}
+        id={`section-content-${section.id}`}
+        style={{ minHeight: 'inherit', position: 'relative' }}
+      >
+        {transform && section.children.map((node) => {
+          const hasLayout = !!node.layout?.units;
+          let rendered: React.ReactNode;
+          if (hasLayout && !locked) {
+            const { x, y, w, h } = transform.toPx(node.layout!.units);
+            rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
+
+            const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
+              if (node.type !== 'container') {
+                onUpdateNodeLayout(section.id, nodeId, units as any);
+                return;
+              }
+
+              const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
+
+              const nextUnits = {
+                xu: units.xu ?? prevUnits.xu ?? 0,
+                yu: units.yu ?? prevUnits.yu ?? 0,
+                wu: units.wu ?? prevUnits.wu,
+                hu: units.hu ?? prevUnits.hu,
+              };
+
+              onUpdateNodeLayout(section.id, nodeId, nextUnits);
+            };
+
+            return (
+              <DraggableNode
+                key={node.id}
+                sectionId={section.id}
+                node={{
+                  ...node,
+                  layout: { units: node.layout!.units },
+                }}
+                transform={transform}
+                defaultSize={{ w, h }}
+                selected={node.id === selectedNodeId}
+                onCommitLayout={handleCommitLayout}
+                onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
+                onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
+                render={() => rendered}
+                containerId={`section-content-${section.id}`}
+                enforceChildFullSize={node.type === 'container' || node.type === 'button' || node.type === 'text'}
+                allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
+                disabled={locked}
+              />
+            );
+          } else {
+            rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
+            return <div key={node.id} className="relative">{rendered}</div>;
+          }
+        })}
+
+        {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && transform && (
+          <PaddingOverlay
+            layer={activePaddingOverlay}
+            transform={transform}
+            node={section.children.find((n) => n.id === activePaddingOverlay.nodeId) ?? null}
+          />
+        )}
+      </div>
+    </section>
   );
 };

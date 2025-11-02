@@ -7,7 +7,7 @@ import { ColorPicker, ColorPickerAlpha, ColorPickerHue, ColorPickerOutput, Color
 import { Label } from "@/shared/components/ui/label";
 import { NumericDragInput } from "@/shared/components/NumericDragInput";
 import { Separator } from "@/shared/components/ui/separator";
-import { Node, TextNode } from "@/shared/types/pageV2";
+import { Node, TextNode, SectionV2 } from "@/shared/types/pageV2";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 
@@ -27,8 +27,8 @@ interface ElementInspectorProps {
   sectionId?: string;
   activeLocale?: string;
   defaultLocale?: string;
-  fontManager?: any; // Font manager from useFontManager hook
-  gridSize?: number; // px per grid unit for converting wu/hu ⇄ px/rem
+  fontManager?: any; 
+  section?: SectionV2; 
   onRequestDeleteNode?: () => void;
 }
 
@@ -41,7 +41,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   activeLocale,
   defaultLocale,
   fontManager,
-  gridSize,
+  section,
   onRequestDeleteNode,
 }) => {
   const [bgOpen, setBgOpen] = React.useState(false);
@@ -532,8 +532,8 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             />
           </div>
 
-          <PositionControls node={selectedNode} onUpdateNode={onUpdateNode} gridSize={gridSize} sectionId={sectionId} />
-          <LayoutSizeControls node={selectedNode} onUpdateNode={onUpdateNode} gridSize={gridSize} />
+          <PositionControls node={selectedNode} onUpdateNode={onUpdateNode} section={section} sectionId={sectionId} />
+          <LayoutSizeControls node={selectedNode} onUpdateNode={onUpdateNode} section={section} />
 
           {/* Custom CSS for any element */}
           <div className="space-y-2">
@@ -613,7 +613,6 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
               activeLocale={activeLocale}
               defaultLocale={defaultLocale}
               fontManager={fontManager}
-              gridSize={gridSize}
             />
           )}
 

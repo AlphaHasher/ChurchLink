@@ -112,10 +112,12 @@ export interface SectionV2 {
   background?: Record<string, any>;
   grid?: Record<string, any>;
   styleTokens?: Record<string, any>;
-  // section-level grid config (override defaults)
+  
   builderGrid?: {
     gridSize?: number; // px per cell (e.g., 16)
     showGrid?: boolean;
+    cols?: number; 
+    aspect?: { num: number; den: number }; 
   };
   // When true, disables drag & resize of child nodes in the builder, but style editing remains
   lockLayout?: boolean;
