@@ -2,14 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 
-class _ChangeEmailSheet extends StatefulWidget {
-  const _ChangeEmailSheet();
+class ChangeEmailSheet extends StatefulWidget {
+  const ChangeEmailSheet({super.key});
+
+  static Future<T?> show<T>(BuildContext context) {
+    return showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const ChangeEmailSheet(),
+    );
+  }
 
   @override
-  State<_ChangeEmailSheet> createState() => _ChangeEmailSheetState();
+  State<ChangeEmailSheet> createState() => _ChangeEmailSheetState();
 }
 
-class _ChangeEmailSheetState extends State<_ChangeEmailSheet> {
+class _ChangeEmailSheetState extends State<ChangeEmailSheet> {
   final _form = GlobalKey<FormState>();
   final _newEmail = TextEditingController();
   final _currentPassword = TextEditingController();
