@@ -239,26 +239,6 @@ async def add_person_alias(request: Request, family_member_data: PersonCreate = 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error adding person: {str(e)}")
 
-@user_private_router.post("/me/sync-email")
-async def sync_email(request: Request):
-    """ After a change, syncs the email from Firebase to MongoDB """
-    uid = getattr(request.state, "uid", None)
-    if not uid:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    rec = fb_auth.get_user(uid)
-    if not rec.email:
-        raise HTTPException(status_code=400, detail="No email on Firebase record")
-    if not rec.email_verified:
-        raise HTTPException(status_code=400, detail="Email not verified yet")
-
-    await DB.users.update_one(
-        {"uid": uid},
-        {"$set": {"email": rec.email, "verified": True}},
-        upsert=False,
-    )
-    return {"ok": True, "email": rec.email, "verified": True}
-
 # Private Router
 @user_private_router.delete("/delete-account", response_model=dict)
 async def delete_account_route(request: Request):
