@@ -287,15 +287,19 @@ async def update_user_roles(payload: UserRoleUpdateInput, request:Request):
     if payload.role_ids is None:
         return {"success": False, "msg": "Role IDs list cannot be null"}
 
-    # Check if user is trying to modify their own admin permissions
-    if user['uid'] == payload.uid:
-        would_lose_admin = await user_would_lose_admin_permissions(payload.uid, payload.role_ids)
-        if would_lose_admin:
-            admin_count = await count_admin_users()
+    # Check if the target user would lose admin permissions
+    would_lose_admin = await user_would_lose_admin_permissions(payload.uid, payload.role_ids)
+    if would_lose_admin:
+        admin_count = await count_admin_users()
+        if payload.uid == user['uid']:
+            # User is modifying their own admin permissions
             if admin_count <= 1:
                 return {"success": False, "msg": "You cannot remove your own admin permissions because you are the only administrator. Please assign admin permissions to another user first."}
-            else:
-                return {"success": False, "msg": "You cannot remove your own admin permissions. Please have another administrator modify your roles if needed."}
+            return {"success": False, "msg": "You cannot remove your own admin permissions. Please have another administrator modify your roles if needed."}
+        else:
+            # User is modifying another user's admin permissions
+            if admin_count <= 1:
+                return {"success": False, "msg": "You cannot remove admin permissions because this is the last administrator in the system."}
 
     try:
         roles = await RoleHandler.get_user_assignable_roles(user_perms)

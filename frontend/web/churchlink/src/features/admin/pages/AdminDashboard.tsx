@@ -146,7 +146,7 @@ const tiles: Tile[] = [
 ];
 
 const AdminDashboard: React.FC = () => {
-  const { permissions, loading } = useUserPermissions();
+  const { permissions, loading, error } = useUserPermissions();
   const [allRoles, setAllRoles] = useState<AccountPermissions[]>([]);
   const [unassignedFeatures, setUnassignedFeatures] = useState<string[]>([]);
 
@@ -239,6 +239,88 @@ const AdminDashboard: React.FC = () => {
 
   // Filter tiles to only show those with full access
   const visibleTiles = tiles.filter(tile => hasFullAccess(tile.requiresPermission));
+
+  // Handle permission load failures with explicit error
+  if (!loading && !permissions && error) {
+    return (
+      <div className="mx-auto max-w-7xl px-6 py-10">
+        <Alert className="border-red-200 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-800 font-medium">
+            Permission Load Failed
+          </AlertTitle>
+          <AlertDescription className="text-red-700">
+            Unable to load your permissions. This may be due to a network issue or server problem.
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200 border border-red-300"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => window.location.href = '/admin'}
+                className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200 border border-gray-300"
+              >
+                Go to Admin Home
+              </button>
+            </div>
+            <div className="mt-2 text-xs text-red-600">
+              Error: {error}
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Handle case where loading finished but permissions is null (silent failure)
+  if (!loading && !permissions) {
+    return (
+      <div className="mx-auto max-w-7xl px-6 py-10">
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 font-medium">
+            Permission Data Missing
+          </AlertTitle>
+          <AlertDescription className="text-amber-700">
+            Your permission data could not be loaded. This may be a temporary issue.
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 bg-amber-100 text-amber-800 rounded text-sm hover:bg-amber-200 border border-amber-300"
+              >
+                Refresh Page
+              </button>
+              <button
+                onClick={() => window.location.href = '/logout'}
+                className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200 border border-gray-300"
+              >
+                Sign Out & Back In
+              </button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Show loading skeleton while permissions are loading
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-2/3 mb-8"></div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10">

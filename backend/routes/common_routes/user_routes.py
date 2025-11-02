@@ -141,11 +141,13 @@ async def check_page_permissions(request: Request, page_name: str):
                 break
         
         is_admin = user_perms.get('admin', False)
+        can_view = True
         
         if required_permission is None:
-            # No permission mapping - treat as public
-            access_level = 'full'
-            can_edit = True
+            # No permission mapping - deny by default for security
+            access_level = 'none'
+            can_edit = False
+            can_view = False
         elif is_admin:
             # Admin has full access to everything
             access_level = 'full'
@@ -155,16 +157,17 @@ async def check_page_permissions(request: Request, page_name: str):
             access_level = 'full'
             can_edit = True
         else:
-            # User doesn't have permission - view only
-            access_level = 'view-only'
+            # User doesn't have permission - deny access
+            access_level = 'none'
             can_edit = False
+            can_view = False
         
         return {
             'success': True,
             'page': page_name,
             'accessLevel': access_level,
             'canEdit': can_edit,
-            'canView': True,
+            'canView': can_view,
             'requiredPermission': required_permission,
             'userPermissions': user_perms
         }
