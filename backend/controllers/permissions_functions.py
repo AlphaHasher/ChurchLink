@@ -84,6 +84,50 @@ async def update_role(payload: RoleUpdateInput, request:Request):
     # If perm has permissions_management and editor not an admin, refuse
     if not user_perms['admin'] and payload.permissions_management:
         return {"success":False, "msg":"Only Administrators may edit roles granting permissions management!"}
+    
+    # Check if this role currently has admin permissions and the update would remove them
+    current_admin_perm = role.get('permissions', {}).get('admin', False)
+    new_admin_perm = getattr(payload, 'admin', False)
+    
+    if current_admin_perm and not new_admin_perm:
+        # Role is losing admin permissions, check if this affects any users
+        users_with_this_role = await UserHandler.find_users_with_role_id(payload.id)
+        
+        for user_with_role in users_with_this_role:
+            # Simulate what permissions would be after the role update
+            current_role_ids = user_with_role.get('roles', [])
+            # We need to check what permissions they'd have with the updated role
+            updated_role_permissions = {}
+            for key in RoleHandler.permission_template:
+                updated_role_permissions[key] = getattr(payload, key, False)
+            
+            # Check if user would lose admin permissions
+            temp_perms = await RoleHandler.infer_permissions(current_role_ids)
+            # Manually override the admin permission for this role
+            if str(payload.id) in [str(rid) for rid in current_role_ids]:
+                # This user has the role being updated, check if they'd lose admin
+                other_roles_admin = False
+                for rid in current_role_ids:
+                    if str(rid) != payload.id:
+                        other_role = await RoleHandler.find_role_by_id(str(rid))
+                        if other_role and other_role.get('permissions', {}).get('admin', False):
+                            other_roles_admin = True
+                            break
+                
+                if not other_roles_admin:
+                    # This user would lose admin permissions
+                    if user['uid'] == user_with_role['uid']:
+                        admin_count = await count_admin_users()
+                        if admin_count <= 1:
+                            return {"success": False, "msg": "You cannot remove admin permissions from this role because you are the only administrator and this would remove your admin permissions."}
+                        else:
+                            return {"success": False, "msg": "You cannot remove admin permissions from this role because it would remove your own admin permissions."}
+                    else:
+                        # Check if this would be the last admin
+                        admin_count = await count_admin_users()
+                        if admin_count <= 1:
+                            return {"success": False, "msg": f"You cannot remove admin permissions from this role because it would remove admin permissions from the only administrator ({user_with_role.get('first_name', '')} {user_with_role.get('last_name', '')})."}
+
     #Verify no illegal perms are attempted to be modified
     for key, value in user_perms.items():
         # Strictly refuse if role has Admin or Permissions Management
@@ -119,6 +163,37 @@ async def delete_role(payload: RoleUpdateInput, request:Request):
     # If user is not an Admin or Permissions manager, refuse
     if not user_perms['admin'] and not user_perms['permissions_management']:
         return {"success":False, "msg":"You do not have the necessary permissions to delete roles!"}
+    
+    # Find the role to be deleted
+    role_to_delete = await RoleHandler.find_role_by_id(payload.id)
+    if not role_to_delete:
+        return {"success": False, "msg":"Role not found!"}
+    
+    # Check if this role has admin permissions
+    if role_to_delete.get('permissions', {}).get('admin', False):
+        # Check if deleting this role would leave any admins without admin permissions
+        users_with_this_role = await UserHandler.find_users_with_role_id(payload.id)
+        
+        for user_with_role in users_with_this_role:
+            # Check if this user would lose admin permissions
+            current_role_ids = user_with_role.get('roles', [])
+            new_role_ids = [rid for rid in current_role_ids if str(rid) != payload.id]
+            
+            would_lose_admin = await user_would_lose_admin_permissions(user_with_role['uid'], [str(rid) for rid in new_role_ids])
+            if would_lose_admin:
+                # If it's the current user trying to delete their own admin role
+                if user['uid'] == user_with_role['uid']:
+                    admin_count = await count_admin_users()
+                    if admin_count <= 1:
+                        return {"success": False, "msg": "You cannot delete this admin role because you are the only administrator and this would remove your admin permissions."}
+                    else:
+                        return {"success": False, "msg": "You cannot delete this admin role because it would remove your own admin permissions."}
+                else:
+                    # Check if this would be the last admin
+                    admin_count = await count_admin_users()
+                    if admin_count <= 1:
+                        return {"success": False, "msg": f"You cannot delete this admin role because it would remove admin permissions from the only administrator ({user_with_role.get('first_name', '')} {user_with_role.get('last_name', '')})."}
+
     #Verify no illegal perms are present
     for key, value in user_perms.items():
         if key in ['admin', 'permissions_management']:
@@ -154,6 +229,46 @@ async def strip_users_of_role(id: str):
         print(f"Error stripping users of role {id}: {str(e)}")
         raise  # Re-raise so calling function knows there was an error
 
+async def count_admin_users():
+    """
+    Count the total number of users with admin permissions.
+    Returns the count of users who have roles with admin permissions.
+    """
+    try:
+        admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])
+        if not admin_roles:
+            return 0
+        
+        admin_role_ids = [str(role['_id']) for role in admin_roles]
+        admin_users = await UserHandler.find_users_with_permissions(['admin'])
+        return len(admin_users)
+    except Exception as e:
+        print(f"Error counting admin users: {str(e)}")
+        return 0
+
+async def user_would_lose_admin_permissions(uid: str, new_role_ids: list[str]):
+    """
+    Check if updating a user's roles would result in them losing admin permissions.
+    Returns True if they would lose admin permissions, False otherwise.
+    """
+    try:
+        # Get current user
+        current_user = await UserHandler.find_by_uid(uid)
+        if not current_user:
+            return False
+        
+        # Check if user currently has admin permissions
+        current_perms = await RoleHandler.infer_permissions(current_user.get('roles', []))
+        if not current_perms.get('admin', False):
+            return False  # User doesn't currently have admin permissions
+        
+        # Check if new roles would still grant admin permissions
+        new_perms = await RoleHandler.infer_permissions(new_role_ids)
+        return not new_perms.get('admin', False)  # True if they would lose admin permissions
+    except Exception as e:
+        print(f"Error checking if user would lose admin permissions: {str(e)}")
+        return False
+
 async def update_user_roles(payload: UserRoleUpdateInput, request:Request):
     user = request.state.user
     user_perms = request.state.perms
@@ -171,6 +286,16 @@ async def update_user_roles(payload: UserRoleUpdateInput, request:Request):
     
     if payload.role_ids is None:
         return {"success": False, "msg": "Role IDs list cannot be null"}
+
+    # Check if user is trying to modify their own admin permissions
+    if user['uid'] == payload.uid:
+        would_lose_admin = await user_would_lose_admin_permissions(payload.uid, payload.role_ids)
+        if would_lose_admin:
+            admin_count = await count_admin_users()
+            if admin_count <= 1:
+                return {"success": False, "msg": "You cannot remove your own admin permissions because you are the only administrator. Please assign admin permissions to another user first."}
+            else:
+                return {"success": False, "msg": "You cannot remove your own admin permissions. Please have another administrator modify your roles if needed."}
 
     try:
         roles = await RoleHandler.get_user_assignable_roles(user_perms)
