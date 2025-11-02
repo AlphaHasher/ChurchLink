@@ -11,12 +11,38 @@ import { EditPermDialog } from "@/features/admin/components/Permissions/RoleTabl
 import { DeletePermDialog } from "@/features/admin/components/Permissions/RoleTable/DeletePermDialog"
 
 import {
-  AccountPermissions
+  AccountPermissions,
+  permissionLabels
 } from "@/shared/types/AccountPermissions"
 import { PermRoleMembersDialog } from "./PermRoleMembersDialog"
 
 import { getDisplayValue } from "@/helpers/DataFunctions"
 import { useState, useRef } from "react"
+
+// Helper function to get accessible permissions for a role
+const getAccessiblePermissions = (permissions: AccountPermissions): string => {
+  const accessiblePerms: string[] = [];
+  
+  // Check each permission field and add to list if true
+  Object.entries(permissions).forEach(([key, value]) => {
+    if (key !== '_id' && key !== 'name' && value === true) {
+      // Convert snake_case to readable format
+      const label = permissionLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      accessiblePerms.push(label);
+    }
+  });
+  
+  if (accessiblePerms.length === 0) {
+    return "No permissions";
+  }
+  
+  // Show first few permissions and indicate if there are more
+  if (accessiblePerms.length <= 3) {
+    return accessiblePerms.join(', ');
+  } else {
+    return `${accessiblePerms.slice(0, 3).join(', ')} +${accessiblePerms.length - 3} more`;
+  }
+};
 
 interface PermissionsTableProps {
   data: AccountPermissions[];
@@ -59,12 +85,36 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
       cellClass: "font-medium",
     },
     {
+      headerName: "Accessible Pages/Permissions",
+      sortable: false,
+      filter: true,
+      flex: 3,
+      minWidth: 300,
+      valueGetter: (params) => {
+        if (!params.data) return "";
+        return getAccessiblePermissions(params.data);
+      },
+      cellClass: "text-sm text-gray-600",
+      tooltipValueGetter: (params) => {
+        if (!params.data) return "";
+        // Show full list in tooltip
+        const accessiblePerms: string[] = [];
+        Object.entries(params.data).forEach(([key, value]) => {
+          if (key !== '_id' && key !== 'name' && value === true) {
+            const label = permissionLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            accessiblePerms.push(label);
+          }
+        });
+        return accessiblePerms.length > 0 ? accessiblePerms.join(', ') : "No permissions";
+      },
+    },
+    {
       headerName: 'Actions',
       cellRenderer: ActionsCellRenderer,
       sortable: false,
       filter: false,
-      flex: 3,
-      minWidth: 400,
+      flex: 2,
+      minWidth: 300,
       suppressSizeToFit: true,
       pinned: 'right',
     },
@@ -76,7 +126,7 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
     <div className="container mx-auto">
       <div className="flex items-center py-4">
         <Input
-          placeholder="Search Permission Name..."
+          placeholder="Search Permission Name or Accessible Pages..."
           value={quickFilterText}
           onChange={(event) => setQuickFilterText(event.target.value)}
           className="max-w-sm"
@@ -100,6 +150,7 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
           animateRows={true}
           enableCellTextSelection={true}
           quickFilterText={quickFilterText}
+          tooltipShowDelay={500}
         />
       </div>
     </div>
