@@ -469,6 +469,7 @@ class UserHandler:
             await DB.update_document("users", {"uid": uid}, {
                     "roles": roles
             })
+            return True  # Return True on successful update
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False

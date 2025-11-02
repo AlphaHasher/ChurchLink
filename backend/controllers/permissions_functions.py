@@ -11,24 +11,27 @@ PermissionsMixin = create_model(
 )
 
 class RoleCreateInput(PermissionsMixin):
-    name: str
+    name: str = Field(..., min_length=1, max_length=100, description="Role name")
 
 class RoleUpdateInput(PermissionsMixin):
-    id: str = Field(alias="_id")
-    name: str
+    id: str = Field(alias="_id", min_length=1, description="Role ID")
+    name: str = Field(..., min_length=1, max_length=100, description="Role name")
 
 class UserRoleUpdateInput(BaseModel):
-    uid: str
-    role_ids: list
+    uid: str = Field(..., min_length=1, description="User ID")
+    role_ids: list[str] = Field(..., description="List of role IDs")
 
 async def fetch_perms():
-    perms = await RoleHandler.find_all_roles()
+    try:
+        perms = await RoleHandler.find_all_roles()
 
-    for role in perms:
-        if "_id" in role:
-            role["_id"] = str(role["_id"])
+        for role in perms:
+            if "_id" in role:
+                role["_id"] = str(role["_id"])
 
-    return {"Success":True, "permissions": perms}
+        return {"Success": True, "permissions": perms}
+    except Exception as e:
+        return {"Success": False, "msg": f"Failed to fetch permissions: {str(e)}", "permissions": []}
 
 async def create_role(payload: RoleCreateInput, request: Request):
     user = request.state.user
@@ -60,8 +63,8 @@ async def create_role(payload: RoleCreateInput, request: Request):
             return {"success": True, "msg":"Your role has been created."}
         else:
             return {"success": False, "msg":"Your role could not be created. Did you try to use a duplicate role name?"}
-    except:
-        return {"success": False, "msg":"Your role could not be created due to an unknown critical error!"}
+    except Exception as e:
+        return {"success": False, "msg": f"Your role could not be created due to an error: {str(e)}"}
     
 async def update_role(payload: RoleUpdateInput, request:Request):
     user = request.state.user
@@ -104,7 +107,7 @@ async def update_role(payload: RoleUpdateInput, request:Request):
             return {"success": False, "msg":"Your role could not be updated. Did you try to use a duplicate role name?"}
     except Exception as e:
         print(e)
-        return {"success": False, "msg":"Your role could not be updated due to an unknown critical error!"}
+        return {"success": False, "msg": f"Your role could not be updated due to an error: {str(e)}"}
     
 async def delete_role(payload: RoleUpdateInput, request:Request):
     user = request.state.user
@@ -129,20 +132,27 @@ async def delete_role(payload: RoleUpdateInput, request:Request):
         if await RoleHandler.delete_role(payload.id):
             return {"success": True, "msg":"Your role has been deleted successfully."}
         else:
-            return {"success": False, "msg":"Your role could not be deleted due to an unknown critical error!"}
-    except:
-        return {"success": False, "msg":"Your role could not be deleted due to an unknown critical error!"}
+            return {"success": False, "msg":"Role could not be deleted. The role may not exist or be in use."}
+    except Exception as e:
+        return {"success": False, "msg": f"Your role could not be deleted due to an error: {str(e)}"}
     
-async def update_users_with_role(id:str):
-    users_with_role = await UserHandler.find_users_with_role_id(id)
-    for user in users_with_role:
-        await UserHandler.update_roles(user['uid'], user['roles'])
+async def update_users_with_role(id: str):
+    try:
+        users_with_role = await UserHandler.find_users_with_role_id(id)
+        for user in users_with_role:
+            await UserHandler.update_roles(user['uid'], user['roles'])
+    except Exception as e:
+        print(f"Error updating users with role {id}: {str(e)}")
     
 async def strip_users_of_role(id: str):
-    users_with_role = await UserHandler.find_users_with_role_id(id)
-    for user in users_with_role:
-        updated_roles = [rid for rid in user.get("roles", []) if rid != id]
-        await UserHandler.update_roles(user['uid'], updated_roles)
+    try:
+        users_with_role = await UserHandler.find_users_with_role_id(id)
+        for user in users_with_role:
+            updated_roles = [rid for rid in user.get("roles", []) if rid != id]
+            await UserHandler.update_roles(user['uid'], updated_roles)
+    except Exception as e:
+        print(f"Error stripping users of role {id}: {str(e)}")
+        raise  # Re-raise so calling function knows there was an error
 
 async def update_user_roles(payload: UserRoleUpdateInput, request:Request):
     user = request.state.user
@@ -155,19 +165,37 @@ async def update_user_roles(payload: UserRoleUpdateInput, request:Request):
     if not user_perms['admin'] and not user_perms['permissions_management']:
         return {"success":False, "msg":"You do not have the necessary permissions to assign roles!"}
 
-    roles = await RoleHandler.get_user_assignable_roles(user_perms)
-    valid_ids = []
-    for role in roles:
-        valid_ids.append(str(role['_id']))
-    for id in payload.role_ids:
-        if id not in valid_ids:
-            return {"success":False, "msg":f"You do not have the necessary permissions to assign role with ID: {id}"}
+    # Validate payload
+    if not payload.uid or not payload.uid.strip():
+        return {"success": False, "msg": "Invalid user ID provided"}
+    
+    if payload.role_ids is None:
+        return {"success": False, "msg": "Role IDs list cannot be null"}
+
     try:
-        if await UserHandler.update_roles(payload.uid, payload.role_ids):
+        roles = await RoleHandler.get_user_assignable_roles(user_perms)
+        if not roles:
+            return {"success": False, "msg": "No assignable roles found for your permission level"}
+            
+        valid_ids = []
+        for role in roles:
+            valid_ids.append(str(role['_id']))
+        
+        # Validate each role ID
+        for role_id in payload.role_ids:
+            if not role_id or not role_id.strip():
+                return {"success": False, "msg": "Invalid role ID in the list"}
+            if role_id not in valid_ids:
+                return {"success": False, "msg": f"You do not have the necessary permissions to assign role with ID: {role_id}"}
+    except Exception as e:
+        return {"success": False, "msg": f"Error validating roles: {str(e)}"}
+    try:
+        result = await UserHandler.update_roles(payload.uid, payload.role_ids)
+        if result:
             return {"success": True, "msg":"Your user roles have been updated successfully."}
         else:
-            return {"success": False, "msg":"Your user roles could not be updated due to an unknown critical error!"}
-    except:
-        return {"success": False, "msg":"Your user roles could not be updated due to an unknown critical error!"}
+            return {"success": False, "msg":"User not found or role update failed. Please verify the user exists."}
+    except Exception as e:
+        return {"success": False, "msg": f"Your user roles could not be updated due to an error: {str(e)}"}
 
 
