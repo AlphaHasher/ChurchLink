@@ -24,6 +24,7 @@ interface ElementInspectorProps {
   onOpenChange: (open: boolean) => void;
   selectedNode: Node | null;
   onUpdateNode: (updater: (node: Node) => Node) => void;
+  sectionId?: string;
   activeLocale?: string;
   defaultLocale?: string;
   fontManager?: any; // Font manager from useFontManager hook
@@ -36,6 +37,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   onOpenChange,
   selectedNode,
   onUpdateNode,
+  sectionId,
   activeLocale,
   defaultLocale,
   fontManager,
@@ -530,7 +532,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             />
           </div>
 
-          <PositionControls node={selectedNode} onUpdateNode={onUpdateNode} gridSize={gridSize} />
+          <PositionControls node={selectedNode} onUpdateNode={onUpdateNode} gridSize={gridSize} sectionId={sectionId} />
           <LayoutSizeControls node={selectedNode} onUpdateNode={onUpdateNode} gridSize={gridSize} />
 
           {/* Custom CSS for any element */}

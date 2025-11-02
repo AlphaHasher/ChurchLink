@@ -653,6 +653,7 @@ const WebEditor: React.FC = () => {
         }}
         selectedNode={selectedNode}
         onUpdateNode={updateSelectedNode}
+        sectionId={selection?.sectionId}
         activeLocale={activeLocale}
         defaultLocale={(page as any)?.defaultLocale || 'en'}
         fontManager={fontManager}
