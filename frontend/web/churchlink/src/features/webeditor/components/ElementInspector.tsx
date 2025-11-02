@@ -71,8 +71,10 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   const BackgroundEditor: React.FC<{ node: Node; open: boolean; onUpdateNode: (updater: (node: Node) => Node) => void }> = React.useCallback(({ node, open, onUpdateNode }) => {
     const style = (node as any)?.style || {};
     const bgString = String((style.background ?? style.backgroundImage ?? '') as string).trim();
+    const bgColor = String((style.backgroundColor ?? '') as string).trim();
     const hasBackground = bgString.length > 0;
     const isLinear = /linear-gradient\(/i.test(bgString);
+    const isTransparent = bgColor === 'transparent' || (!bgColor && !hasBackground);
 
     const extractColorOnly = React.useCallback((input: string | undefined): string => {
       if (!input) return '#4f46e5';
@@ -146,11 +148,14 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
 
     const { angle: parsedAngle, c1: parsedC1, c2: parsedC2 } = React.useMemo(() => parseLinearGradient(), [parseLinearGradient]);
 
-    const [mode, setMode] = React.useState<string>(hasBackground ? (isLinear ? 'gradient' : 'custom') : 'solid');
+    const [mode, setMode] = React.useState<string>(
+      hasBackground ? (isLinear ? 'gradient' : 'custom') : (isTransparent ? 'transparent' : 'solid')
+    );
     const [angle, setAngle] = React.useState<number>(parsedAngle);
     const [c1, setC1] = React.useState<string>(parsedC1);
     const [c2, setC2] = React.useState<string>(parsedC2);
     const [custom, setCustom] = React.useState<string>(hasBackground ? bgString : '');
+    const userInitiatedModeChangeRef = React.useRef(false);
 
     const scheduleRef = React.useRef<number | null>(null);
     const scheduleUpdate = React.useCallback((updater: (node: Node) => Node) => {
@@ -163,6 +168,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
 
     // Clear any pending scheduled update if the target node changes or unmounts
     React.useEffect(() => {
+      userInitiatedModeChangeRef.current = false;
       return () => {
         if (scheduleRef.current) {
           window.clearTimeout(scheduleRef.current);
@@ -171,7 +177,30 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
       };
     }, [node.id]);
 
-    // Place change handlers after apply* definitions
+    React.useEffect(() => {
+      if (userInitiatedModeChangeRef.current) {
+        userInitiatedModeChangeRef.current = false;
+        return;
+      }
+      
+      const currentBgColor = String((node as any)?.style?.backgroundColor ?? '').trim();
+      const currentBg = String((node as any)?.style?.background ?? '').trim();
+      const currentIsLinear = /linear-gradient\(/i.test(currentBg);
+      const currentHasBackground = currentBg.length > 0;
+      const currentIsTransparent = currentBgColor === 'transparent' || (!currentBgColor && !currentHasBackground);
+      
+      if (currentHasBackground) {
+        if (currentIsLinear && mode !== 'gradient') {
+          setMode('gradient');
+        } else if (!currentIsLinear && mode !== 'custom') {
+          setMode('custom');
+        }
+      } else if (currentIsTransparent && mode !== 'transparent') {
+        setMode('transparent');
+      } else if (!currentIsTransparent && mode === 'transparent' && currentBgColor && currentBgColor !== 'transparent') {
+        setMode('solid');
+      }
+    }, [node.id]);
 
     const applyGradient = React.useCallback((nextAngle: number, nextC1: string, nextC2: string) => {
       const gradient = `linear-gradient(${Math.round(nextAngle)}deg, ${nextC1}, ${nextC2})`;
@@ -189,6 +218,21 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             ...(n as any).style,
             className: stripBgUtilityClasses((n as any).style?.className),
             backgroundColor: css,
+            background: undefined,
+          },
+        } as Node;
+        return next;
+      });
+    }, [onUpdateNode, node.id, stripBgUtilityClasses]);
+
+    const applyTransparent = React.useCallback(() => {
+      onUpdateNode((n) => {
+        const next = {
+          ...n,
+          style: {
+            ...(n as any).style,
+            className: stripBgUtilityClasses((n as any).style?.className),
+            backgroundColor: 'transparent',
             background: undefined,
           },
         } as Node;
@@ -228,21 +272,40 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Label className="min-w-24">Mode</Label>
-          <Select value={mode} onValueChange={(v) => setMode(v)}>
+          <Select value={mode} onValueChange={(v) => {
+            userInitiatedModeChangeRef.current = true;
+            setMode(v);
+            if (v === 'transparent') {
+              applyTransparent();
+            } else if (v === 'solid') {
+              const currentBgColor = String((node as any)?.style?.backgroundColor ?? '').trim();
+              const solidValue = currentBgColor && currentBgColor !== 'transparent' ? currentBgColor : '#ffffff';
+              applySolid(solidValue);
+            } else if (v === 'gradient') {
+              applyGradient(angle, c1, c2);
+            }
+          }}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Mode" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="solid">Solid</SelectItem>
+              <SelectItem value="transparent">Transparent</SelectItem>
               <SelectItem value="gradient">Gradient</SelectItem>
               <SelectItem value="custom">Custom CSS</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
+        {mode === 'transparent' && (
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground">Background is transparent</div>
+          </div>
+        )}
+
         {mode === 'solid' && (
           <div className="space-y-2">
             {(() => {
               const raw = (node as any)?.style?.backgroundColor as string | undefined;
-              const solidValue = raw && raw.trim().length ? raw : '#ffffff';
+              const solidValue = raw && raw.trim().length && raw !== 'transparent' ? raw : '#ffffff';
               return (
                 <ColorPicker
                   value={solidValue}
