@@ -338,17 +338,6 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
-            'icon': Icons.alternate_email,
-            'title': 'Change Email',
-            'subtitle': 'Send confirmation to a new address',
-            'ontap': () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              useSafeArea: true,
-              builder: (_) => const _ChangeEmailSheet(),
-            ),
-          },
-          {
             'icon': Icons.card_membership,
             'title': 'View Membership Status',
             'subtitle': 'View your Church Membership Status',
@@ -384,6 +373,17 @@ class _UserSettingsState extends State<UserSettings> {
                 MaterialPageRoute(builder: (context) => const MyEventsPage()),
               );
             },
+          },
+          {
+            'icon': Icons.alternate_email,
+            'title': 'Change Email',
+            'subtitle': 'Send confirmation to a new address',
+            'ontap': () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (_) => const _ChangeEmailSheet(),
+            ),
           },
           {
             'icon': Icons.password,
