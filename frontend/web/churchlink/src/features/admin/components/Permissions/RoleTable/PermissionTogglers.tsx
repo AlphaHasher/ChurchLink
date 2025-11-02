@@ -74,12 +74,20 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
                 disabled={!editor_permissions.admin}
             />
             <RadioToggler
-                name="layout_management"
-                label="Site Layout Manager"
-                description="This option grants the user the ability to manage the header and footer of the site, the basic navigational layout."
-                value={permissions.layout_management}
-                onChange={handleChange("layout_management")}
-                disabled={!editor_permissions.admin && !editor_permissions.layout_management}
+                name="web_builder_management"
+                label="Web Builder Management"
+                description="This option grants the user the ability to manage the header and footer of the site, the basic navigational layout, and web builder features."
+                value={permissions.web_builder_management}
+                onChange={handleChange("web_builder_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.web_builder_management}
+            />
+            <RadioToggler
+                name="mobile_ui_management"
+                label="Mobile UI Management"
+                description="This option grants the user the ability to manage mobile-specific user interface features and configurations."
+                value={permissions.mobile_ui_management}
+                onChange={handleChange("mobile_ui_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.mobile_ui_management}
             />
             <RadioToggler
                 name="event_editing"
@@ -128,6 +136,38 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
                 value={permissions.finance}
                 onChange={handleChange("finance")}
                 disabled={!editor_permissions.admin && !editor_permissions.finance}
+            />
+            <RadioToggler
+                name="ministries_management"
+                label="Ministries Manager"
+                description="This option grants the user the ability to create and manage ministry categorizations that can be applied to events, forms, sermons, and other content."
+                value={permissions.ministries_management}
+                onChange={handleChange("ministries_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.ministries_management}
+            />
+            <RadioToggler
+                name="forms_management"
+                label="Forms Manager"
+                description="This option grants the user the ability to build forms, collect submissions, and manage form-related functionality."
+                value={permissions.forms_management}
+                onChange={handleChange("forms_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.forms_management}
+            />
+            <RadioToggler
+                name="bible_plan_management"
+                label="Bible Plan Manager"
+                description="This option grants the user the ability to create, edit, and publish Bible reading plans for the community."
+                value={permissions.bible_plan_management}
+                onChange={handleChange("bible_plan_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.bible_plan_management}
+            />
+            <RadioToggler
+                name="notification_management"
+                label="Notification Manager"
+                description="This option grants the user the ability to send and manage notifications and announcements to users."
+                value={permissions.notification_management}
+                onChange={handleChange("notification_management")}
+                disabled={!editor_permissions.admin && !editor_permissions.notification_management}
             />
 
         </div>

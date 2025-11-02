@@ -7,6 +7,7 @@ from models.user import ( PersonCreate, PersonUpdateRequest,
 )
 from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id, delete_user_account, check_if_user_is_admin
 from mongo.database import DB
+from mongo.roles import RoleHandler
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
 user_mod_router = APIRouter(prefix="/users", tags=["Users"])
@@ -43,6 +44,140 @@ async def process_check_mod(request:Request):
         return {'success':True}
     else:
         return {'success':False}
+
+# Private Router - Get current user's permissions
+@user_private_router.get("/permissions")
+async def get_user_permissions(request: Request):
+    """Get the current user's computed permissions"""
+    try:
+        # Get user from request state (set by AuthProtectedRouter)
+        user = getattr(request.state, 'user', None)
+        if not user:
+            return {'success': False, 'permissions': {}, 'msg': 'User not found in request state'}
+        
+        # Get user roles and compute permissions
+        user_roles = user.get('roles', [])
+        if not user_roles:
+            # User has no roles - return empty permissions
+            user_perms = RoleHandler.permission_template.copy()
+        else:
+            # Compute permissions from roles
+            user_perms = await RoleHandler.infer_permissions(user_roles)
+        
+        return {'success': True, 'permissions': user_perms}
+    except Exception as e:
+        return {'success': False, 'permissions': {}, 'msg': f'Error fetching permissions: {str(e)}'}
+
+# Private Router - Check if user can edit a specific page
+@user_private_router.get("/permissions/page/{page_name}")
+async def check_page_permissions(request: Request, page_name: str):
+    """Check user's permission level for a specific dashboard page"""
+    try:
+        # Get user from request state (set by AuthProtectedRouter)
+        user = getattr(request.state, 'user', None)
+        if not user:
+            return {
+                'success': False,
+                'page': page_name,
+                'accessLevel': 'none',
+                'canEdit': False,
+                'canView': False,
+                'msg': 'User not found in request state'
+            }
+        
+        # Get user roles and compute permissions
+        user_roles = user.get('roles', [])
+        if not user_roles:
+            # User has no roles - return empty permissions
+            user_perms = RoleHandler.permission_template.copy()
+        else:
+            # Compute permissions from roles
+            user_perms = await RoleHandler.infer_permissions(user_roles)
+        
+        # Permission mapping (same as dashboard config)
+        permission_mapping = {
+            'finance': 'finance',
+            'giving': 'finance',
+            'weekly-bulletin': 'bulletin_editing',
+            'bulletins': 'bulletin_editing',
+            'sermons': 'sermon_editing',
+            'events': 'event_editing',
+            'permissions': 'permissions_management',
+            'users': 'permissions_management',
+            'admin': 'admin',
+            'webbuilder': 'web_builder_management',
+            'mobile-ui-tab': 'mobile_ui_management',
+            'mobile-ui-pages': 'mobile_ui_management',
+            'mobile-ui': 'mobile_ui_management',
+            'media': 'media_management',
+            'notifications': 'notification_management',
+            'ministries': 'ministries_management',
+            'bible-plans': 'bible_plan_management',
+            'bible-plan': 'bible_plan_management',
+        }
+        
+        # Public pages (always editable)
+        public_pages = ['profile', 'home', 'join-live', 'forms', 'bible']
+        
+        # Normalize page name
+        normalized_page = page_name.lower().replace(' ', '-').replace('_', '-')
+        
+        # Check if it's a public page
+        if any(public_page in normalized_page for public_page in public_pages):
+            return {
+                'success': True,
+                'page': page_name,
+                'accessLevel': 'full',
+                'canEdit': True,
+                'canView': True,
+                'requiredPermission': None
+            }
+        
+        # Find required permission
+        required_permission = None
+        for key in permission_mapping:
+            if key in normalized_page:
+                required_permission = permission_mapping[key]
+                break
+        
+        is_admin = user_perms.get('admin', False)
+        
+        if required_permission is None:
+            # No permission mapping - treat as public
+            access_level = 'full'
+            can_edit = True
+        elif is_admin:
+            # Admin has full access to everything
+            access_level = 'full'
+            can_edit = True
+        elif user_perms.get(required_permission, False):
+            # User has required permission
+            access_level = 'full'
+            can_edit = True
+        else:
+            # User doesn't have permission - view only
+            access_level = 'view-only'
+            can_edit = False
+        
+        return {
+            'success': True,
+            'page': page_name,
+            'accessLevel': access_level,
+            'canEdit': can_edit,
+            'canView': True,
+            'requiredPermission': required_permission,
+            'userPermissions': user_perms
+        }
+        
+    except Exception as e:
+        return {
+            'success': False, 
+            'page': page_name,
+            'accessLevel': 'none',
+            'canEdit': False,
+            'canView': False,
+            'msg': f'Error checking page permissions: {str(e)}'
+        }
 
 # Mod Router
 @user_mod_router.get("/get-users")

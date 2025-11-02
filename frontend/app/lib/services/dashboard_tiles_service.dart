@@ -63,12 +63,14 @@ class DashboardTilesService {
   }
 
   /// Fetch image URLs from FastAPI:
-  /// GET {baseUrl}/api/v1/app/dashboard/pages
-  Future<Map<String, String>> fetchImageUrls({bool forceRefresh = false}) async {
+  /// GET {baseUrl}/api/v1/app/dashboard/pages (public, shows all pages)
+  /// GET {baseUrl}/api/v1/app/dashboard/pages/user (private, filtered by permissions)
+  Future<Map<String, String>> fetchImageUrls({bool forceRefresh = false, bool useUserFilter = false}) async {
     if (!forceRefresh && _isFresh()) return _cache!;
 
-    // Return the base URL with the path appended
-    final uri = _u('/app/dashboard/pages');
+    // Choose endpoint based on whether to use user-specific filtering
+    final endpoint = useUserFilter ? '/app/dashboard/pages/user' : '/app/dashboard/pages';
+    final uri = _u(endpoint);
     debugPrint('Dashboard GET => $uri');
 
     final res = await http.get(uri).timeout(const Duration(seconds: 8));
@@ -108,15 +110,16 @@ class DashboardTilesService {
 
   /// Returns a list of the enabled pages in order
   /// Functions similarly to the previously used fetchImageUrls
-  Future<List<String>> fetchOrderedSlugs({bool forceRefresh = false}) async {
+  Future<List<String>> fetchOrderedSlugs({bool forceRefresh = false, bool useUserFilter = false}) async {
     // Use the cache if still new
     final fresh = _orderCache != null &&
         _cacheAt != null &&
         DateTime.now().difference(_cacheAt!) < _ttl;
     if (!forceRefresh && fresh) return _orderCache!;
 
-    // Return the base URL with the path appended
-    final uri = _u('/app/dashboard/pages');
+    // Choose endpoint based on whether to use user-specific filtering
+    final endpoint = useUserFilter ? '/app/dashboard/pages/user' : '/app/dashboard/pages';
+    final uri = _u(endpoint);
     debugPrint('Dashboard GET => $uri');
 
     final res = await http.get(uri).timeout(const Duration(seconds: 8));
@@ -156,13 +159,15 @@ class DashboardTilesService {
   }
 
   /// Return slug and display name pairings
-  Future<Map<String, String>> fetchDisplayNames({bool forceRefresh = false}) async {
+  Future<Map<String, String>> fetchDisplayNames({bool forceRefresh = false, bool useUserFilter = false}) async {
     final fresh = _namesCache != null &&
         _cacheAt != null &&
         DateTime.now().difference(_cacheAt!) < _ttl;
     if (!forceRefresh && fresh) return _namesCache!;
 
-    final uri = _u('/app/dashboard/pages');
+    // Choose endpoint based on whether to use user-specific filtering
+    final endpoint = useUserFilter ? '/app/dashboard/pages/user' : '/app/dashboard/pages';
+    final uri = _u(endpoint);
     debugPrint('Dashboard GET => $uri');
 
     final res = await http.get(uri).timeout(const Duration(seconds: 8));

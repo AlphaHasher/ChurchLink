@@ -252,7 +252,7 @@ class UserHandler:
     @staticmethod
     async def find_users_with_permissions(permission_names):
         roles_with_permissions = await RoleHandler.find_roles_with_permissions(permission_names)
-        role_ids = [role["_id"] for role in roles_with_permissions]
+        role_ids = [str(role["_id"]) for role in roles_with_permissions]
         return await DB.find_documents("users", {"roles": {"$in": role_ids}}) if role_ids else []
 
     @staticmethod
