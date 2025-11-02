@@ -69,12 +69,12 @@ export const AdminRoutes = () => {
           </PermissionGuard>
         } />
         <Route path="/events" element={
-          <PermissionGuard requiredPermission="event_management">
+          <PermissionGuard requiredPermission={["event_management", "event_editing"]}>
             <Events />
           </PermissionGuard>
         } />
         <Route path="/events/:eventId" element={
-          <PermissionGuard requiredPermission="event_management">
+          <PermissionGuard requiredPermission={["event_management", "event_editing"]}>
             <EventDetails />
           </PermissionGuard>
         } />
