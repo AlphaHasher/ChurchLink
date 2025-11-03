@@ -239,7 +239,6 @@ async def count_admin_users():
         if not admin_roles:
             return 0
         
-        admin_role_ids = [str(role['_id']) for role in admin_roles]
         admin_users = await UserHandler.find_users_with_permissions(['admin'])
         return len(admin_users)
     except Exception as e:

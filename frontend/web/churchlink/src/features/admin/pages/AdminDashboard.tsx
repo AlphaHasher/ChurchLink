@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import {
   Card,
@@ -175,7 +175,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   // Helper function to check if a permission is assigned to any role and get role names
-  const getPermissionAssignments = (requiredPermission: string | string[]): { isAssigned: boolean; assignedRoles: string[] } => {
+  const getPermissionAssignments = useCallback((requiredPermission: string | string[]): { isAssigned: boolean; assignedRoles: string[] } => {
     if (!requiredPermission) return { isAssigned: true, assignedRoles: [] };
 
     const permissionsToCheck = Array.isArray(requiredPermission) 
@@ -201,7 +201,7 @@ const AdminDashboard: React.FC = () => {
       isAssigned: assignedRoles.length > 0,
       assignedRoles
     };
-  };
+  }, [allRoles]);
 
   // Check for unassigned features when roles data changes
   useEffect(() => {
@@ -219,7 +219,7 @@ const AdminDashboard: React.FC = () => {
       
       setUnassignedFeatures(unassigned);
     }
-  }, [allRoles]);
+  }, [allRoles, getPermissionAssignments]);
 
   // Fetch permissions data when component mounts (only for admins)
   useEffect(() => {
@@ -382,28 +382,7 @@ const AdminDashboard: React.FC = () => {
 
       {/* Action grid */}
       <section className="mt-8">
-        {loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Loading skeleton */}
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Card key={index} className="animate-pulse">
-                <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-md bg-muted h-9 w-9" />
-                    <div className="h-4 bg-muted rounded w-24" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-muted rounded w-full" />
-                    <div className="h-3 bg-muted rounded w-3/4" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visibleTiles.map(({ title, description, icon: Icon, to, requiresPermission }) => {
               const permissionInfo = permissions?.admin && requiresPermission 
                 ? getPermissionAssignments(requiresPermission)
@@ -471,7 +450,6 @@ const AdminDashboard: React.FC = () => {
               );
             })}
           </div>
-        )}
       </section>
     </div>
   );
