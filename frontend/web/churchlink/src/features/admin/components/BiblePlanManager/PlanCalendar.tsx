@@ -182,8 +182,8 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
   }, [showDayOverlay, showCalendarPicker]);
 
   return (
-    <div className={cn('relative', className)}>
-      <div className="mb-4 flex items-start justify-between gap-4 px-1">
+    <div className={cn('relative flex flex-col h-full', className)}>
+      <div className="mb-4 flex items-start justify-between gap-4 px-1 flex-shrink-0">
         <h2 className="text-lg font-semibold text-foreground">
           {plan.duration}-Day Reading Plan
         </h2>
@@ -214,26 +214,29 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
         </div>
       )}
 
-      <div
-        className="grid gap-3"
-        style={{
-          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))'
-        }}
-      >
-        {days.map((day) => (
-          <CalendarDay
-            key={day.dayNumber}
-            dayNumber={day.dayNumber}
-            passages={day.passages}
-            isSelected={selectedDay === day.dayNumber}
-            onSelect={onSelectDay}
-            dateLabel={dateLabels[day.dayNumber]}
-          />
-        ))}
+      {/* Scrollable Calendar Grid */}
+      <div className="flex-1 overflow-y-auto">
+        <div
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))'
+          }}
+        >
+          {days.map((day) => (
+            <CalendarDay
+              key={day.dayNumber}
+              dayNumber={day.dayNumber}
+              passages={day.passages}
+              isSelected={selectedDay === day.dayNumber}
+              onSelect={onSelectDay}
+              dateLabel={dateLabels[day.dayNumber]}
+            />
+          ))}
+        </div>
       </div>
       
       {plan.duration > daysPerPage && (
-        <div className="mt-6 flex flex-col items-center gap-2">
+        <div className="mt-6 flex flex-col items-center gap-2 flex-shrink-0 border-t border-border pt-6 px-1">
           <Pagination className="w-full">
             <PaginationContent>
               <PaginationItem>
