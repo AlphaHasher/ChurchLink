@@ -379,7 +379,7 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.alternate_email,
             'title': 'Change Email',
-            'subtitle': 'Send confirmation to a new address',
+            'subtitle': 'Request an email to change your address',
             'ontap': () => ChangeEmailSheet.show(context),
           },
           {
