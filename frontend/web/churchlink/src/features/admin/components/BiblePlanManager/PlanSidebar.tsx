@@ -313,8 +313,10 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
   };
 
   return (
-    <div className="w-80 border-r border-border bg-card p-6 overflow-y-auto">
-      <div className="space-y-6">
+    <div className="w-80 h-full bg-card flex flex-col flex-shrink-0 rounded-lg border border-border">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="space-y-6">
         {/* Plan Name */}
         <div className="space-y-2">
           <Label htmlFor="plan-name">Plan Name</Label>
@@ -381,27 +383,28 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
             {status.message && <AlertDescription>{status.message}</AlertDescription>}
           </Alert>
         )}
+      </div>
 
-        {/* Action Buttons */}
-  <div className="space-y-3 border-t border-border pt-6">
-          <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileSelected} />
-          <Button onClick={handleSavePlan} className="w-full">
-            <Save className="w-4 h-4 mr-2" />
-            Save Plan
+      {/* Action Buttons - Sticky at Bottom */}
+      <div className="border-t border-border bg-card p-6 space-y-3 flex-shrink-0">
+        <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileSelected} />
+        <Button onClick={handleSavePlan} className="w-full">
+          <Save className="w-4 h-4 mr-2" />
+          Save Plan
+        </Button>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleImportPlan} className="flex-1">
+            <Download className="w-4 h-4 mr-2" />
+            Import
           </Button>
-
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleImportPlan} className="flex-1">
-              <Download className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-            <Button variant="outline" onClick={handleExportPlan} className="flex-1">
-              <Upload className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handleExportPlan} className="flex-1">
+            <Upload className="w-4 h-4 mr-2" />
+            Export
+          </Button>
         </div>
       </div>
+    </div>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

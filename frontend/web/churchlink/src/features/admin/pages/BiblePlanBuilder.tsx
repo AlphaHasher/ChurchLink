@@ -125,16 +125,18 @@ const BiblePlanBuilder = () => {
           />
 
         {/* Main Content Area */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 flex flex-col p-6">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground">Bible Plan Builder</h1>
           </div>
 
-          <PlanCalendar
-            plan={plan}
-            selectedDay={selectedDay}
-            onSelectDay={(d) => setSelectedDay(d)}
-          />
+          <div className="flex-1 overflow-hidden">
+            <PlanCalendar
+              plan={plan}
+              selectedDay={selectedDay}
+              onSelectDay={(d) => setSelectedDay(d)}
+            />
+          </div>
         </div>
 
         {/* Drag Overlay */}
