@@ -10,14 +10,14 @@ import api from '@/api/api';
 const BiblePlanBuilder = () => {
   const [searchParams] = useSearchParams();
   const planIdFromUrl = searchParams.get('id');
-  
+
   const [plan, setPlan] = useState<ReadingPlan>({
     name: '',
     duration: 30,
     readings: {}
   });
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
-  
+
   // Load plan from URL parameter if provided
   useEffect(() => {
     if (planIdFromUrl) {
@@ -39,7 +39,7 @@ const BiblePlanBuilder = () => {
         });
     }
   }, [planIdFromUrl]);
-  
+
   const [activePassage, setActivePassage] = useState<BiblePassage | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
@@ -108,8 +108,8 @@ const BiblePlanBuilder = () => {
       ) : (
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           {/* Sidebar */}
-          <PlanSidebar 
-            plan={plan} 
+          <PlanSidebar
+            plan={plan}
             setPlan={setPlan}
             selectedDay={selectedDay}
             initialPlanId={planIdFromUrl}
@@ -123,16 +123,15 @@ const BiblePlanBuilder = () => {
               }));
             }}
           />
-        
+
         {/* Main Content Area */}
         <div className="flex-1 p-6">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">Bible Plan Manager</h1>
-            <p className="mt-2 text-muted-foreground">Create and manage Bible reading plans for your congregation</p>
+            <h1 className="text-2xl font-bold text-foreground">Bible Plan Builder</h1>
           </div>
-          
-          <PlanCalendar 
-            plan={plan} 
+
+          <PlanCalendar
+            plan={plan}
             selectedDay={selectedDay}
             onSelectDay={(d) => setSelectedDay(d)}
           />
