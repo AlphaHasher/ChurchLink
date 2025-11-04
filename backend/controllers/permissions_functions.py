@@ -174,6 +174,10 @@ async def delete_role(payload: RoleUpdateInput, request:Request):
         # Check if deleting this role would leave any admins without admin permissions
         users_with_this_role = await UserHandler.find_users_with_role_id(payload.id)
         
+        admin_count = await count_admin_users()
+        admins_losing = []
+        current_user_losing_admin = False
+        
         for user_with_role in users_with_this_role:
             # Check if this user would lose admin permissions
             current_role_ids = user_with_role.get('roles', [])
@@ -181,18 +185,22 @@ async def delete_role(payload: RoleUpdateInput, request:Request):
             
             would_lose_admin = await user_would_lose_admin_permissions(user_with_role['uid'], [str(rid) for rid in new_role_ids])
             if would_lose_admin:
-                # If it's the current user trying to delete their own admin role
+                admins_losing.append(user_with_role)
+                # Track if current user is losing admin permissions
                 if user['uid'] == user_with_role['uid']:
-                    admin_count = await count_admin_users()
-                    if admin_count <= 1:
-                        return {"success": False, "msg": "You cannot delete this admin role because you are the only administrator and this would remove your admin permissions."}
-                    else:
-                        return {"success": False, "msg": "You cannot delete this admin role because it would remove your own admin permissions."}
-                else:
-                    # Check if this would be the last admin
-                    admin_count = await count_admin_users()
-                    if admin_count <= 1:
-                        return {"success": False, "msg": f"You cannot delete this admin role because it would remove admin permissions from the only administrator ({user_with_role.get('first_name', '')} {user_with_role.get('last_name', '')})."}
+                    current_user_losing_admin = True
+        
+        # Check if removing this role would drain admin coverage to zero
+        if admins_losing and admin_count - len(admins_losing) <= 0:
+            losing_names = ", ".join(
+                (f"{u.get('first_name', '')} {u.get('last_name', '')}".strip() or u.get('uid', ''))
+                for u in admins_losing
+            )
+            return {"success": False, "msg": f"You cannot delete this admin role because it would remove admin permissions from every remaining administrator ({losing_names})."}
+        
+        # Check for special case where current user is losing their own admin permissions
+        if current_user_losing_admin:
+            return {"success": False, "msg": "You cannot delete this admin role because it would remove your own admin permissions."}
 
     #Verify no illegal perms are present
     for key, value in user_perms.items():
