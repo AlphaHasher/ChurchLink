@@ -19,6 +19,7 @@ export default function ChangeEmailDialog() {
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
+  const passwordRequired = (getAuth().currentUser?.providerData ?? []).some(p => p.providerId === "password");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +27,13 @@ export default function ChangeEmailDialog() {
     const auth = getAuth();
     const user = auth.currentUser;
     if (!user) { setErr("Not signed in."); return; }
+
+    // Tell SSO accounts without a password to create a password first
+    if (!passwordRequired) {
+      setErr("Account requires a password before email can be changed.");
+      setBusy(false);
+      return;
+    }
 
     try {
       setBusy(true);
@@ -69,12 +77,24 @@ export default function ChangeEmailDialog() {
           </div>
           <div className="space-y-1">
             <Label>Current password</Label>
-            <Input type="password" value={password} onChange={e => setPassword(e.target.value)}/>
+            <Input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder={
+                passwordRequired
+                  ? "Enter your current password"
+                  : "Set a password first before changing emails."
+              }
+              disabled={!passwordRequired}
+              aria-disabled={!passwordRequired}
+              required={passwordRequired}
+            />
           </div>
           {err && <p className="text-sm text-destructive">{err}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
-            <Button type="submit" disabled={busy || !password.trim()}>Send Link & Sign Out</Button>
+            <Button type="submit" disabled={busy || !newEmail.trim() || (passwordRequired && !password.trim())}>Send Link & Sign Out</Button>
           </DialogFooter>
         </form>
       </DialogContent>
