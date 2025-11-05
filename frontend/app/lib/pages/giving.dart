@@ -115,7 +115,6 @@ class _GivingState extends State<Giving> {
                       content: Text(
                         '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
                       ),
-                      backgroundColor: Colors.green,
                       duration: Duration(seconds: 4),
                     ),
                   );
@@ -159,7 +158,6 @@ class _GivingState extends State<Giving> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('✅ Event payment completed successfully!'),
-                      backgroundColor: Colors.green,
                       duration: Duration(seconds: 4),
                     ),
                   );
@@ -447,15 +445,14 @@ class _GivingState extends State<Giving> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: Theme.of(context),
+      darkTheme: Theme.of(context),
       title: 'Church Giving',
       debugShowCheckedModeBanner: false,
       home: Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(159, 144, 79, 230),
-        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'Church Giving',
-          style: TextStyle(color: Colors.white),
         ),
         centerTitle: true,
         leading: IconButton(
@@ -463,7 +460,6 @@ class _GivingState extends State<Giving> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-        backgroundColor: const Color.fromARGB(246, 244, 236, 255),
         body: SafeArea(
           minimum: const EdgeInsets.symmetric(horizontal: 10),
           child: Center(
