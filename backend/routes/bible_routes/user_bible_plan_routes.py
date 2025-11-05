@@ -70,7 +70,12 @@ def _next_sequential_day(
 
 @auth_bible_plan_router.get("/", response_model=List[UserBiblePlanSubscription])
 async def get_my_bible_plans(request: Request) -> List[UserBiblePlanSubscription]:
-    """Get all Bible plans the current user is subscribed to"""
+    """
+    Retrieve the current user's Bible plan subscriptions.
+    
+    Returns:
+        List[UserBiblePlanSubscription]: The user's subscribed Bible plans.
+    """
     uid = request.state.uid
     subscriptions = await get_user_bible_plans(uid)
     return subscriptions
@@ -83,7 +88,14 @@ class _UserPlanWithDetails(BaseModel):
 
 @auth_bible_plan_router.get("/with-details", response_model=List[_UserPlanWithDetails])
 async def get_my_bible_plans_with_details(request: Request) -> List[_UserPlanWithDetails]:
-    """Return only accessible plans (owner or visible) with embedded details to avoid 404s per plan."""
+    """
+    List the current user's subscribed Bible plans that are accessible to them, with each subscription paired with its plan details.
+    
+    Subscriptions with invalid plan IDs, missing plan documents, or other per-plan errors are skipped. A plan is included only if the requesting user is the plan owner or the plan is marked visible.
+    
+    Returns:
+        List[_UserPlanWithDetails]: A list of objects combining the plan's output representation and the user's subscription data.
+    """
     uid = request.state.uid
     subscriptions = await get_user_bible_plans(uid)
 
@@ -120,7 +132,28 @@ async def subscribe_to_bible_plan(
     notification_time: Optional[str] = Body(None),
     notification_enabled: bool = Body(True)
 ):
-    """Subscribe the current user to a Bible plan"""
+    """
+    Subscribe the current authenticated user to a Bible reading plan.
+    
+    Validates the provided plan ID and published status, prevents duplicate subscriptions,
+    creates a new subscription record with the provided start date and notification settings,
+    and schedules notifications if a notification time is supplied.
+    
+    Parameters:
+        plan_id (str): The string ID of the Bible plan to subscribe to.
+        start_date (datetime): The date when the subscription should begin.
+        notification_time (Optional[str]): Local time string for daily notifications (e.g., "08:00"), or None to disable scheduling.
+        notification_enabled (bool): Whether notifications are enabled for this subscription.
+    
+    Returns:
+        dict: {"success": True, "message": "Successfully subscribed to Bible plan"} on success.
+    
+    Raises:
+        HTTPException: with status 400 if the plan_id is not a valid ObjectId.
+        HTTPException: with status 404 if the plan does not exist or is not published.
+        HTTPException: with status 409 if the user is already subscribed to the plan.
+        HTTPException: with status 500 if creating the subscription (or persisting related updates) fails.
+    """
     uid = request.state.uid
     # Check if plan exists
     try:
@@ -181,7 +214,25 @@ async def update_plan_progress(
     completed_passages: List[str] = Body(...),
     is_completed: bool = Body(False)
 ):
-    """Update progress for a specific day in a Bible plan"""
+    """
+    Update the user's progress for a specific day of a Bible reading plan.
+    
+    Updates or inserts the progress entry for the given day, enforcing allowed sequential advancement and plan boundaries.
+    
+    Parameters:
+        plan_id (str): ID of the Bible plan to update.
+        day (int): Day number in the plan to update; must be 1 or greater.
+        completed_passages (List[str]): List of passage identifiers marked completed for the day.
+        is_completed (bool): Whether the day's readings are marked fully completed.
+    
+    Returns:
+        dict: {"success": True, "message": "Progress updated successfully"} on success.
+    
+    Raises:
+        HTTPException: 404 if the user is not subscribed to the plan or the plan does not exist.
+        HTTPException: 400 if `plan_id` is invalid, `day` is less than 1, or the requested day exceeds the next allowed day.
+        HTTPException: 500 if persisting the updated progress fails.
+    """
     uid = request.state.uid
     existing = await find_user_plan(uid, plan_id)
     if not existing:
@@ -244,17 +295,25 @@ async def update_plan_progress_batch(
     day_updates: List[Dict[str, Any]] = Body(..., embed=True)
 ):
     """
-    Update progress for multiple days in a Bible plan in a single batch operation.
+    Apply multiple daily progress updates to the user's subscribed Bible plan.
     
-    Expected format for day_updates:
-    [
-        {
-            "day": 1,
-            "completed_passages": ["passage_id_1", "passage_id_2"],
-            "is_completed": true
-        },
-        ...
-    ]
+    Validates each update entry, enforces the sequential update constraint, persists the combined progress list, and returns a success message on completion.
+    
+    Parameters:
+        request (Request): FastAPI request with authenticated user in request.state.uid.
+        plan_id (str): ID of the Bible plan to update.
+        day_updates (List[Dict[str, Any]]): List of day update objects. Each object must include:
+            - "day" (int): Day number (integer >= 1).
+            - "completed_passages" (List[str], optional): List of completed passage identifiers.
+            - "is_completed" (bool, optional): Whether the day is marked complete.
+    
+    Returns:
+        dict: {"success": True, "message": "<human-readable message>"} on successful update.
+    
+    Raises:
+        HTTPException: For authentication/subscription issues, invalid plan ID, missing plan,
+                       invalid update payloads, attempts to update days beyond the allowed next day,
+                       or internal persistence errors.
     """
     try:
         uid = request.state.uid
@@ -343,7 +402,19 @@ async def update_notification_settings(
     notification_time: Optional[str] = Body(None),
     notification_enabled: bool = Body(True)
 ):
-    """Update notification settings for a Bible plan subscription"""
+    """
+    Update notification time and enablement for the current user's subscription to the specified reading plan.
+    
+    Uses the LOCAL_TIMEZONE environment variable (default "America/Los_Angeles") to interpret the provided notification_time.
+    
+    Parameters:
+        plan_id (str): Identifier of the reading plan subscription to update.
+        notification_time (Optional[str]): Local time string for daily notifications (e.g., "07:30"), or None to clear the time.
+        notification_enabled (bool): Whether notifications should be enabled for the subscription.
+    
+    Returns:
+        dict: {"success": True, "message": "Notification settings updated successfully"} on success.
+    """
     uid = request.state.uid
     existing = await find_user_plan(uid, plan_id)
     if not existing:
