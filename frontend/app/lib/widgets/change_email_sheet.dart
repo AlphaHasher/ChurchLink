@@ -102,7 +102,7 @@ class _ChangeEmailSheetState extends State<ChangeEmailSheet> {
                     Navigator.of(context).pushNamedAndRemoveUntil('/signin', (_) => false);
                   } on FirebaseAuthException catch (e) {
                     final msg = switch (e.code) {
-                      'email-already-exists' => 'That email is already in use.',
+                      'email-already-in-use' => 'That email is already in use.',
                       'invalid-email' => 'Invalid email format.',
                       // 'requires-recent-login' => 'Please re-authenticate and try again.',
                       _ => e.message ?? 'Email change failed.'
