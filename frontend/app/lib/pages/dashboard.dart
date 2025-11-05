@@ -146,7 +146,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Builder(
                 builder: (ctx) {
                   Widget buildCard(
-                    String? title,
+                    String title,
                     VoidCallback onTap,
                     Color background, {
                     String? imageUrl,
@@ -198,7 +198,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                                   ),
                                 ),
-                              if (title != null && title.isNotEmpty)
+                              if (title.isNotEmpty)
                                 Center(
                                   child: Text(
                                     title,
