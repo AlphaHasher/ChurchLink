@@ -360,17 +360,23 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage>
 class _PassageUpdate {
   final int day;
   final String passageId;
+  final bool completed; // intended final state for this passage after toggle
+  final List<String> baseCompleted; // snapshot of completed set BEFORE this toggle
   final int attempts;
 
   _PassageUpdate({
     required this.day,
     required this.passageId,
+    required this.completed,
+    required this.baseCompleted,
     this.attempts = 0,
   });
 
   _PassageUpdate copyWith({int? attempts}) => _PassageUpdate(
     day: day,
     passageId: passageId,
+    completed: completed,
+    baseCompleted: List<String>.from(baseCompleted),
     attempts: attempts ?? this.attempts,
   );
 }
@@ -886,7 +892,15 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       _localPlanDetails = updatedDetails;
     });
 
-    _updateDebouncer.add(_PassageUpdate(day: day, passageId: passageId));
+    final bool intendedCompleted = !currentCompleted.contains(passageId);
+    _updateDebouncer.add(
+      _PassageUpdate(
+        day: day,
+        passageId: passageId,
+        completed: intendedCompleted,
+        baseCompleted: List<String>.from(currentCompleted),
+      ),
+    );
   }
 
   Future<void> _processBatchUpdates(
@@ -898,25 +912,31 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     if (!mounted && !silent) return;
 
     try {
-      // Build updates based on the final local state per day to avoid losing
-      // previously completed passages. Collect unique days from the updates list,
-      // then read the current snapshot from _localPlanDetails.
-      final uniqueDays = updates.map((u) => u.day).toSet().toList()..sort();
+      // Rebuild day updates by replaying queued user intents over the captured base
+      // snapshots, avoiding reliance on _localPlanDetails which may change due to refreshes.
+      // Group updates by day preserving their original order.
+      final Map<int, List<_PassageUpdate>> byDay = {};
+      for (final u in updates) {
+        (byDay[u.day] ??= <_PassageUpdate>[]).add(u);
+      }
 
       final dayUpdates = <Map<String, dynamic>>[];
-      for (final day in uniqueDays) {
-        final dayProgress = _localPlanDetails.subscription.getProgressForDay(
-          day,
-        );
-        final completedPassages = List<String>.from(
-          dayProgress?.completedPassages ?? const <String>[],
-        );
-        final totalPassages =
-            _localPlanDetails.plan.getReadingsForDay(day).length;
+      final daysSorted = byDay.keys.toList()..sort();
+      for (final day in daysSorted) {
+        final actions = byDay[day]!;
+        final Set<String> completed = actions.first.baseCompleted.toSet();
+        for (final a in actions) {
+          if (a.completed) {
+            completed.add(a.passageId);
+          } else {
+            completed.remove(a.passageId);
+          }
+        }
+        final totalPassages = _localPlanDetails.plan.getReadingsForDay(day).length;
         dayUpdates.add({
           'day': day,
-          'completed_passages': completedPassages,
-          'is_completed': completedPassages.length == totalPassages,
+          'completed_passages': completed.toList(),
+          'is_completed': completed.length == totalPassages,
         });
       }
 
