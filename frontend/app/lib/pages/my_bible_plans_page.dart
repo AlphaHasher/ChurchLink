@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 import 'package:app/models/bible_plan.dart';
 import 'package:app/services/bible_plan_service.dart';
 import 'package:app/widgets/days_window.dart';
@@ -19,7 +20,8 @@ class MyBiblePlansPage extends StatefulWidget {
   State<MyBiblePlansPage> createState() => _MyBiblePlansPageState();
 }
 
-class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBindingObserver {
+class _MyBiblePlansPageState extends State<MyBiblePlansPage>
+    with WidgetsBindingObserver {
   final BiblePlanService _service = BiblePlanService();
   final FirebaseAuthService _authService = FirebaseAuthService();
   List<UserBiblePlanWithDetails>? _plans;
@@ -127,16 +129,17 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       centerTitle: true,
-      title: const Text(
-        'My Reading Plans',
-      ),
-      actions: _isUserLoggedIn() ? [
-        IconButton(
-          icon: const Icon(Icons.add),
-          onPressed: _navigateToAddPlan,
-          tooltip: 'Add New Plan',
-        ),
-      ] : [],
+      title: const Text('My Reading Plans'),
+      actions:
+          _isUserLoggedIn()
+              ? [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _navigateToAddPlan,
+                  tooltip: 'Add New Plan',
+                ),
+              ]
+              : [],
     );
   }
 
@@ -159,10 +162,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
     if (_errorMessage != null && (_plans == null || _plans!.isEmpty)) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          const SizedBox(height: 120),
-          _buildErrorState(),
-        ],
+        children: [const SizedBox(height: 120), _buildErrorState()],
       );
     }
 
@@ -188,7 +188,8 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
           key: ValueKey(planWithDetails.subscription.planId),
           planWithDetails: planWithDetails,
           onProgressUpdate: () => _refreshPlans(showLoader: false),
-          onDelete: () => _handleDeletePlan(planWithDetails.subscription.planId),
+          onDelete:
+              () => _handleDeletePlan(planWithDetails.subscription.planId),
         );
       },
     );
@@ -201,7 +202,11 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 16),
             Text(
               'Error loading your plans',
@@ -230,10 +235,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             const SizedBox(height: 24),
             const Text(
               'No Active Reading Plans',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
@@ -249,7 +251,10 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -270,9 +275,7 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
             children: [
               Icon(Icons.lock_outline, color: Colors.white),
               SizedBox(width: 12),
-              Expanded(
-                child: Text('Please sign in to add new reading plans'),
-              ),
+              Expanded(child: Text('Please sign in to add new reading plans')),
             ],
           ),
           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -295,11 +298,9 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
 
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const BiblePlansListPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const BiblePlansListPage()),
     );
-    
+
     if (result == true) {
       await _refreshPlans(showLoader: false);
     }
@@ -309,25 +310,24 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
     final cs = Theme.of(context).colorScheme;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Unsubscribe from Plan?',
-        ),
-        content: const Text(
-          'Your progress will be lost. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Unsubscribe from Plan?'),
+            content: const Text(
+              'Your progress will be lost. This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: cs.error),
+                child: const Text('Unsubscribe'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: cs.error),
-            child: const Text('Unsubscribe'),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -360,15 +360,19 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
 class _PassageUpdate {
   final int day;
   final String passageId;
-  final List<String> currentCompleted;
-  final int totalPassages;
+  final int attempts;
 
   _PassageUpdate({
     required this.day,
     required this.passageId,
-    required this.currentCompleted,
-    required this.totalPassages,
+    this.attempts = 0,
   });
+
+  _PassageUpdate copyWith({int? attempts}) => _PassageUpdate(
+    day: day,
+    passageId: passageId,
+    attempts: attempts ?? this.attempts,
+  );
 }
 
 /// Card widget showing a plan with accordion-style progress
@@ -398,6 +402,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   double _previousProgressPercent = 0;
   double _currentProgressPercent = 0;
   late BatchUpdateDebouncer<_PassageUpdate> _updateDebouncer;
+  static const int _maxRetries = 3;
 
   @override
   void initState() {
@@ -452,7 +457,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     final subscription = _localPlanDetails.subscription;
     final progressPercent = _currentProgressPercent;
     final displayDay = _localPlanDetails.displayCurrentDay;
-  final isComplete = _localPlanDetails.isComplete;
+    final isComplete = _localPlanDetails.isComplete;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -501,9 +506,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                             const SizedBox(height: 4),
                             Text(
                               'Day $displayDay of ${plan.duration}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                              ),
+                              style: const TextStyle(fontSize: 14),
                             ),
                           ],
                         ),
@@ -515,7 +518,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Progress bar
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,9 +528,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                         children: [
                           const Text(
                             'Overall Progress',
-                            style: TextStyle(
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(fontSize: 13),
                           ),
                           Text(
                             '${progressPercent.toStringAsFixed(0)}%',
@@ -555,7 +556,12 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                             borderRadius: BorderRadius.circular(10),
                             child: LinearProgressIndicator(
                               value: value / 100,
-                              backgroundColor: const Color.fromRGBO(80, 80, 80, 1),
+                              backgroundColor: const Color.fromRGBO(
+                                80,
+                                80,
+                                80,
+                                1,
+                              ),
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 Theme.of(context).colorScheme.primary,
                               ),
@@ -567,13 +573,16 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 350),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
                     transitionBuilder: (child, animation) {
-                      final curved = CurvedAnimation(parent: animation, curve: Curves.easeInOut);
+                      final curved = CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeInOut,
+                      );
                       return FadeTransition(
                         opacity: curved,
                         child: SizeTransition(
@@ -583,73 +592,108 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                         ),
                       );
                     },
-                    child: isComplete
-                        ? Column(
-                            key: const ValueKey('complete_banner'),
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: _isRestarting ? null : _promptRestartPlan,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
+                    child:
+                        isComplete
+                            ? Column(
+                              key: const ValueKey('complete_banner'),
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed:
+                                            _isRestarting
+                                                ? null
+                                                : _promptRestartPlan,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        icon:
+                                            _isRestarting
+                                                ? SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                          Color
+                                                        >(Colors.white),
+                                                  ),
+                                                )
+                                                : const Icon(Icons.refresh),
+                                        label: Text(
+                                          _isRestarting
+                                              ? 'Restarting…'
+                                              : 'Restart Plan',
                                         ),
                                       ),
-                                      icon: _isRestarting
-                                          ? SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                valueColor: AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
-                                              ),
-                                            )
-                                          : const Icon(Icons.refresh),
-                                      label: Text(_isRestarting ? 'Restarting…' : 'Restart Plan'),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: _isCompleting ? null : _confirmCompletePlan,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color.fromRGBO(50, 205, 50, 1),
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed:
+                                            _isCompleting
+                                                ? null
+                                                : _confirmCompletePlan,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color.fromRGBO(
+                                            50,
+                                            205,
+                                            50,
+                                            1,
+                                          ),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      icon: _isCompleting
-                                          ? SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                valueColor: AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
+                                        icon:
+                                            _isCompleting
+                                                ? SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                          Color
+                                                        >(Colors.white),
+                                                  ),
+                                                )
+                                                : const Icon(
+                                                  Icons.check_circle_outline,
                                                 ),
-                                              ),
-                                            )
-                                          : const Icon(Icons.check_circle_outline),
-                                      label: const Text('Complete Plan'),
+                                        label: const Text('Complete Plan'),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                          )
-                        : const SizedBox.shrink(key: ValueKey('complete_banner_hidden')),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                            )
+                            : const SizedBox.shrink(
+                              key: ValueKey('complete_banner_hidden'),
+                            ),
                   ),
 
                   // Expand/Collapse indicator
@@ -693,11 +737,14 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     );
   }
 
-  Widget _buildDaysList(BiblePlan plan, UserBiblePlanSubscription subscription) {
+  Widget _buildDaysList(
+    BiblePlan plan,
+    UserBiblePlanSubscription subscription,
+  ) {
     final total = plan.duration;
 
-  // If plan is short, show the full list without pagination header
-  if (total <= 5) {
+    // If plan is short, show the full list without pagination header
+    if (total <= 5) {
       return ListView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -711,7 +758,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           final isRestDay = readings.isEmpty;
 
           return _DayExpansionTile(
-            key: ValueKey('${widget.planWithDetails.subscription.planId}_day_$day'),
+            key: ValueKey(
+              '${widget.planWithDetails.subscription.planId}_day_$day',
+            ),
             day: day,
             readings: readings,
             progress: dayProgress,
@@ -734,8 +783,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Column(
-                children: [
+              child: Column(children: [
                 ],
               ),
             ),
@@ -762,7 +810,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                 final isRestDay = readings.isEmpty;
 
                 return _DayExpansionTile(
-                  key: ValueKey('${widget.planWithDetails.subscription.planId}_day_$day'),
+                  key: ValueKey(
+                    '${widget.planWithDetails.subscription.planId}_day_$day',
+                  ),
                   day: day,
                   readings: readings,
                   progress: dayProgress,
@@ -794,13 +844,15 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       } else {
         updatedCompleted.add(passageId);
       }
-      
+
       final isCompleted = updatedCompleted.length == totalPassages;
-      
+
       // Find and update the day progress in local state
-      final progressList = List<DayProgress>.from(_localPlanDetails.subscription.progress);
+      final progressList = List<DayProgress>.from(
+        _localPlanDetails.subscription.progress,
+      );
       final dayIndex = progressList.indexWhere((p) => p.day == day);
-      
+
       if (dayIndex >= 0) {
         progressList[dayIndex] = DayProgress(
           day: day,
@@ -808,13 +860,15 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           isCompleted: isCompleted,
         );
       } else {
-        progressList.add(DayProgress(
-          day: day,
-          completedPassages: updatedCompleted,
-          isCompleted: isCompleted,
-        ));
+        progressList.add(
+          DayProgress(
+            day: day,
+            completedPassages: updatedCompleted,
+            isCompleted: isCompleted,
+          ),
+        );
       }
-      
+
       // Update local subscription
       final updatedDetails = UserBiblePlanWithDetails(
         plan: _localPlanDetails.plan,
@@ -831,18 +885,14 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
 
       _localPlanDetails = updatedDetails;
     });
-    
-    _updateDebouncer.add(
-      _PassageUpdate(
-        day: day,
-        passageId: passageId,
-        currentCompleted: currentCompleted,
-        totalPassages: totalPassages,
-      ),
-    );
+
+    _updateDebouncer.add(_PassageUpdate(day: day, passageId: passageId));
   }
 
-  Future<void> _processBatchUpdates(List<_PassageUpdate> updates, {bool silent = false}) async {
+  Future<void> _processBatchUpdates(
+    List<_PassageUpdate> updates, {
+    bool silent = false,
+  }) async {
     if (updates.isEmpty) return;
     // When silent (e.g., during lifecycle flush), allow processing even if unmounted
     if (!mounted && !silent) return;
@@ -855,9 +905,14 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
 
       final dayUpdates = <Map<String, dynamic>>[];
       for (final day in uniqueDays) {
-        final dayProgress = _localPlanDetails.subscription.getProgressForDay(day);
-        final completedPassages = List<String>.from(dayProgress?.completedPassages ?? const <String>[]);
-        final totalPassages = _localPlanDetails.plan.getReadingsForDay(day).length;
+        final dayProgress = _localPlanDetails.subscription.getProgressForDay(
+          day,
+        );
+        final completedPassages = List<String>.from(
+          dayProgress?.completedPassages ?? const <String>[],
+        );
+        final totalPassages =
+            _localPlanDetails.plan.getReadingsForDay(day).length;
         dayUpdates.add({
           'day': day,
           'completed_passages': completedPassages,
@@ -876,8 +931,21 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         });
       }
     } catch (e) {
+      bool isPermanentClientError = false;
+      if (e is DioException) {
+        final code = e.response?.statusCode ?? 0;
+        if (code >= 400 && code < 500 && code != 408 && code != 429) {
+          isPermanentClientError = true;
+        }
+      }
+
       for (final u in updates) {
-        _updateDebouncer.add(u);
+        if (isPermanentClientError) {
+          continue;
+        }
+        if (u.attempts < _maxRetries) {
+          _updateDebouncer.add(u.copyWith(attempts: u.attempts + 1));
+        }
       }
       if (!silent) {
         if (!mounted) return;
@@ -890,7 +958,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Could not save changes. They will sync when you reconnect.'),
+                content: Text(
+                  'Could not save changes. They will sync when you reconnect.',
+                ),
                 backgroundColor: Theme.of(context).colorScheme.error,
               ),
             );
@@ -913,30 +983,31 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   Future<void> _promptRestartPlan() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: const Text(
-          'Restart Plan?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: const Text(
-          'Restarting will reset your progress and set your start date to today. Are you sure you want to restart? ',
-          style: TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.primary,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            title: const Text(
+              'Restart Plan?',
+              style: TextStyle(color: Colors.white),
             ),
-            child: const Text('Restart'),
+            content: const Text(
+              'Restarting will reset your progress and set your start date to today. Are you sure you want to restart? ',
+              style: TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                ),
+                child: const Text('Restart'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -1005,26 +1076,25 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   Future<void> _confirmCompletePlan() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
-        title: const Text(
-          'Complete Plan?',
-        ),
-        content: const Text(
-          'Marking the plan as complete will unsubscribe you from the plan. Your progress will be kept in case you re-subscribe later. Continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
+            title: const Text('Complete Plan?'),
+            content: const Text(
+              'Marking the plan as complete will unsubscribe you from the plan. Your progress will be kept in case you re-subscribe later. Continue?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                child: const Text('Complete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Complete'),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -1040,7 +1110,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     });
 
     try {
-      await _service.unsubscribeFromPlan(widget.planWithDetails.subscription.planId);
+      await _service.unsubscribeFromPlan(
+        widget.planWithDetails.subscription.planId,
+      );
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1050,10 +1122,10 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         ),
       );
 
-  // Refresh parent list after completion (don't call the parent's onDelete
-  // because that shows an unsubscribe confirmation menu). This was interesting
-  await Future.delayed(const Duration(milliseconds: 200));
-  widget.onProgressUpdate();
+      // Refresh parent list after completion (don't call the parent's onDelete
+      // because that shows an unsubscribe confirmation menu). This was interesting
+      await Future.delayed(const Duration(milliseconds: 200));
+      widget.onProgressUpdate();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1085,9 +1157,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
             children: [
               ListTile(
                 leading: const Icon(Icons.notifications),
-                title: const Text(
-                  'Notification Settings',
-                ),
+                title: const Text('Notification Settings'),
                 onTap: () {
                   Navigator.pop(context);
                   _showNotificationSettings();
@@ -1113,39 +1183,40 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
 
   void _showNotificationSettings() {
     final subscription = widget.planWithDetails.subscription;
-    
+
     showDialog(
       context: context,
-      builder: (context) => _NotificationSettingsDialog(
-        subscription: subscription,
-        onSave: (time, enabled) async {
-          try {
-            await _service.updateNotificationSettings(
-              planId: subscription.planId,
-              notificationTime: time,
-              notificationEnabled: enabled,
-            );
-            widget.onProgressUpdate();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notification settings updated'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Error: ${e.toString()}'),
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                ),
-              );
-            }
-          }
-        },
-      ),
+      builder:
+          (context) => _NotificationSettingsDialog(
+            subscription: subscription,
+            onSave: (time, enabled) async {
+              try {
+                await _service.updateNotificationSettings(
+                  planId: subscription.planId,
+                  notificationTime: time,
+                  notificationEnabled: enabled,
+                );
+                widget.onProgressUpdate();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Notification settings updated'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
     );
   }
 
@@ -1158,8 +1229,10 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       return false;
     }
 
-    final sortedA = [...a]..sort((first, second) => first.day.compareTo(second.day));
-    final sortedB = [...b]..sort((first, second) => first.day.compareTo(second.day));
+    final sortedA = [...a]
+      ..sort((first, second) => first.day.compareTo(second.day));
+    final sortedB = [...b]
+      ..sort((first, second) => first.day.compareTo(second.day));
 
     for (var i = 0; i < sortedA.length; i++) {
       final aProgress = sortedA[i];
@@ -1173,7 +1246,10 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         return false;
       }
 
-      if (!listEquals(aProgress.completedPassages, bProgress.completedPassages)) {
+      if (!listEquals(
+        aProgress.completedPassages,
+        bProgress.completedPassages,
+      )) {
         return false;
       }
     }
@@ -1193,10 +1269,12 @@ class _NotificationSettingsDialog extends StatefulWidget {
   });
 
   @override
-  State<_NotificationSettingsDialog> createState() => _NotificationSettingsDialogState();
+  State<_NotificationSettingsDialog> createState() =>
+      _NotificationSettingsDialogState();
 }
 
-class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog> {
+class _NotificationSettingsDialogState
+    extends State<_NotificationSettingsDialog> {
   late bool _enabled;
   late TimeOfDay _time;
 
@@ -1204,14 +1282,11 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
   void initState() {
     super.initState();
     _enabled = widget.subscription.notificationEnabled;
-    
+
     // Parse notification time or default to 8:00 AM
     if (widget.subscription.notificationTime != null) {
       final parts = widget.subscription.notificationTime!.split(':');
-      _time = TimeOfDay(
-        hour: int.parse(parts[0]),
-        minute: int.parse(parts[1]),
-      );
+      _time = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
     } else {
       _time = const TimeOfDay(hour: 8, minute: 0);
     }
@@ -1220,25 +1295,19 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(
-        'Notification Settings',
-      ),
+      title: const Text('Notification Settings'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SwitchListTile(
             value: _enabled,
             onChanged: (value) => setState(() => _enabled = value),
-            title: const Text(
-              'Daily Reminder',
-            ),
+            title: const Text('Daily Reminder'),
           ),
           if (_enabled) ...[
             const SizedBox(height: 16),
             ListTile(
-              title: const Text(
-                'Reminder Time',
-              ),
+              title: const Text('Reminder Time'),
               subtitle: Text(
                 _time.format(context),
                 style: const TextStyle(color: Color.fromRGBO(180, 180, 180, 1)),
@@ -1256,9 +1325,10 @@ class _NotificationSettingsDialogState extends State<_NotificationSettingsDialog
         ),
         TextButton(
           onPressed: () {
-            final timeString = _enabled 
-                ? '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}'
-                : null;
+            final timeString =
+                _enabled
+                    ? '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}'
+                    : null;
             widget.onSave(timeString, _enabled);
             Navigator.pop(context);
           },
@@ -1293,7 +1363,13 @@ class _DayExpansionTile extends StatefulWidget {
   final String dateLabel;
   final bool isRestDay;
   final bool isUnlocked;
-  final Future<void> Function(int day, String passageId, List<String> currentCompleted, int totalPassages) onPassageToggle;
+  final Future<void> Function(
+    int day,
+    String passageId,
+    List<String> currentCompleted,
+    int totalPassages,
+  )
+  onPassageToggle;
 
   const _DayExpansionTile({
     super.key,
@@ -1350,13 +1426,14 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
                 : (isCompleted
                     ? Icons.check_circle
                     : Icons.radio_button_unchecked),
-            color: isRestDay
-                ? const Color.fromRGBO(255, 193, 7, 1)
-                : (isCompleted
-                    ? const Color.fromRGBO(120, 200, 150, 1)
-                    : (isLocked
-                        ? const Color.fromRGBO(90, 90, 90, 1)
-                        : const Color.fromRGBO(120, 120, 120, 1))),
+            color:
+                isRestDay
+                    ? const Color.fromRGBO(255, 193, 7, 1)
+                    : (isCompleted
+                        ? const Color.fromRGBO(120, 200, 150, 1)
+                        : (isLocked
+                            ? const Color.fromRGBO(90, 90, 90, 1)
+                            : const Color.fromRGBO(120, 120, 120, 1))),
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -1364,16 +1441,18 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
             child: Text(
               'Day ${widget.day}, ${widget.dateLabel}',
               style: TextStyle(
-                color: isRestDay
-                    ? Theme.of(context).colorScheme.onSurface
-                    : (isLocked
-                        ?  const Color(0xFF9E9E9E)
-                        : (isCompleted
-                            ? cs.onSurfaceVariant
-                            : cs.onSurface)),
-                fontWeight: isCompleted && !isLocked && !isRestDay
-                    ? FontWeight.w600
-                    : FontWeight.w500,
+                color:
+                    isRestDay
+                        ? Theme.of(context).colorScheme.onSurface
+                        : (isLocked
+                            ? const Color(0xFF9E9E9E)
+                            : (isCompleted
+                                ? cs.onSurfaceVariant
+                                : cs.onSurface)),
+                fontWeight:
+                    isCompleted && !isLocked && !isRestDay
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                 fontSize: 15,
               ),
             ),
@@ -1381,9 +1460,10 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
           Text(
             '${completedPassages.length}/${widget.readings.length}',
             style: TextStyle(
-            color: isLocked
-                ? const Color(0xFF9E9E9E)
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+              color:
+                  isLocked
+                      ? const Color(0xFF9E9E9E)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           if (isLocked)
@@ -1432,7 +1512,11 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
     );
   }
 
-  List<Widget> _buildChildren(bool isLocked, List<String> completedPassages, bool isRestDay) {
+  List<Widget> _buildChildren(
+    bool isLocked,
+    List<String> completedPassages,
+    bool isRestDay,
+  ) {
     final items = <Widget>[];
 
     if (isRestDay) {
@@ -1461,9 +1545,10 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
               'Complete previous days to unlock Day ${widget.day}.',
               style: TextStyle(
                 fontSize: 13,
-                color: isLocked
-                  ? const Color(0xFF9E9E9E)
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                color:
+                    isLocked
+                        ? const Color(0xFF9E9E9E)
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -1471,15 +1556,17 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
       );
     }
 
-    items.addAll(widget.readings.map((passage) {
-      final isPassageCompleted = completedPassages.contains(passage.id);
-      return _buildPassageTile(
-        passage,
-        isPassageCompleted,
-        completedPassages,
-        isLocked,
-      );
-    }));
+    items.addAll(
+      widget.readings.map((passage) {
+        final isPassageCompleted = completedPassages.contains(passage.id);
+        return _buildPassageTile(
+          passage,
+          isPassageCompleted,
+          completedPassages,
+          isLocked,
+        );
+      }),
+    );
 
     return items;
   }
@@ -1493,19 +1580,20 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
     return CheckboxListTile(
       dense: true,
       value: isCompleted,
-      onChanged: isLocked
-          ? null
-          : (value) => _handlePassageToggle(
-                passage.id,
-                currentCompletedPassages,
-              ),
+      onChanged:
+          isLocked
+              ? null
+              : (value) =>
+                  _handlePassageToggle(passage.id, currentCompletedPassages),
       title: Text(
         passage.reference,
         style: TextStyle(
-          color: isLocked
-            ? const Color(0xFF9E9E9E)
-            : Theme.of(context).colorScheme.onSurfaceVariant,
-          decoration: isCompleted && !isLocked ? TextDecoration.lineThrough : null,
+          color:
+              isLocked
+                  ? const Color(0xFF9E9E9E)
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+          decoration:
+              isCompleted && !isLocked ? TextDecoration.lineThrough : null,
           fontSize: 14,
         ),
       ),
@@ -1532,16 +1620,16 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
       } else {
         updatedCompleted.add(passageId);
       }
-      
+
       final isCompleted = updatedCompleted.length == widget.readings.length;
-      
+
       _localProgress = DayProgress(
         day: widget.day,
         completedPassages: updatedCompleted,
         isCompleted: isCompleted,
       );
     });
-    
+
     try {
       // Send update to backend
       await widget.onPassageToggle(
@@ -1555,7 +1643,7 @@ class _DayExpansionTileState extends State<_DayExpansionTile> {
       setState(() {
         _localProgress = widget.progress;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
