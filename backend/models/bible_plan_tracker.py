@@ -65,7 +65,7 @@ async def update_user_bible_plan_progress(uid: str, plan_id: str, progress: List
         {"uid": uid, "plan_id": plan_id},
         {"$set": {"progress": progress}},
     )
-    return result.modified_count > 0
+    return result.matched_count > 0
 
 
 async def update_user_bible_plan_notifications(

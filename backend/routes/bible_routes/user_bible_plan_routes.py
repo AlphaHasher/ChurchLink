@@ -17,6 +17,8 @@ from models.bible_plan_tracker import (
     find_user_plan,
     reset_user_bible_plan,
 )
+from models.bible_plan import _convert_plan_doc_to_out, ReadingPlanOut
+from pydantic import BaseModel
 
 # Auth-protected router for user Bible plan operations
 auth_bible_plan_router = APIRouter(prefix="/my-bible-plans", tags=["User Bible Plans"])
@@ -72,6 +74,42 @@ async def get_my_bible_plans(request: Request) -> List[UserBiblePlanSubscription
     uid = request.state.uid
     subscriptions = await get_user_bible_plans(uid)
     return subscriptions
+
+
+class _UserPlanWithDetails(BaseModel):
+    plan: ReadingPlanOut
+    subscription: UserBiblePlanSubscription
+
+
+@auth_bible_plan_router.get("/with-details", response_model=List[_UserPlanWithDetails])
+async def get_my_bible_plans_with_details(request: Request) -> List[_UserPlanWithDetails]:
+    """Return only accessible plans (owner or visible) with embedded details to avoid 404s per plan."""
+    uid = request.state.uid
+    subscriptions = await get_user_bible_plans(uid)
+
+    results: List[_UserPlanWithDetails] = []
+    for sub in subscriptions:
+        try:
+            try:
+                plan_object_id = ObjectId(sub.plan_id)
+            except InvalidId:
+                # Skip invalid ids silently
+                continue
+
+            doc = await DB.db.bible_plans.find_one({"_id": plan_object_id})
+            if not doc:
+                # Skip missing plans silently
+                continue
+
+            # Allow if owner or visible (published)
+            if doc.get("user_id") == uid or doc.get("visible", False):
+                plan_out = _convert_plan_doc_to_out(doc)
+                results.append(_UserPlanWithDetails(plan=plan_out, subscription=sub))
+        except Exception:
+            # Skip any problematic plan records without failing the whole list
+            continue
+
+    return results
 
 
 @auth_bible_plan_router.post("/subscribe")
@@ -185,10 +223,8 @@ async def update_plan_progress(
     )
     
     if day_progress_index is not None:
-        # Update existing progress
         progress[day_progress_index] = new_progress.model_dump()
     else:
-        # Add new progress
         progress.append(new_progress.model_dump())
 
     progress.sort(key=lambda entry: entry.get("day", 0))
@@ -199,6 +235,105 @@ async def update_plan_progress(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update progress")
     
     return {"success": True, "message": "Progress updated successfully"}
+
+
+@auth_bible_plan_router.put("/progress-batch/{plan_id}")
+async def update_plan_progress_batch(
+    request: Request,
+    plan_id: str,
+    day_updates: List[Dict[str, Any]] = Body(..., embed=True)
+):
+    """
+    Update progress for multiple days in a Bible plan in a single batch operation.
+    
+    Expected format for day_updates:
+    [
+        {
+            "day": 1,
+            "completed_passages": ["passage_id_1", "passage_id_2"],
+            "is_completed": true
+        },
+        ...
+    ]
+    """
+    try:
+        uid = request.state.uid
+        existing = await find_user_plan(uid, plan_id)
+        if not existing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not subscribed to this plan")
+        
+        try:
+            plan_object_id = ObjectId(plan_id)
+        except InvalidId:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Bible plan ID")
+
+        plan_doc = await DB.db.bible_plans.find_one({"_id": plan_object_id})
+        if not plan_doc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bible plan not found")
+
+        progress = existing.get("progress", [])
+        readings_by_day = plan_doc.get("readings", {})
+        plan_duration = plan_doc.get("duration", 0) or len(readings_by_day)
+
+        progress_by_day = {entry.get("day"): i for i, entry in enumerate(progress)}
+
+        for update in day_updates:
+            day = update.get("day")
+            if not isinstance(day, int) or day < 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Each update must have a valid day (integer >= 1)"
+                )
+
+            allowed_day = _next_sequential_day(progress, readings_by_day, plan_duration)
+            if day > allowed_day:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot update day {day}. Complete previous days first."
+                )
+
+            completed_passages = update.get("completed_passages", [])
+            if not isinstance(completed_passages, list):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="completed_passages must be a list of strings"
+                )
+
+            is_completed = update.get("is_completed", False)
+            if not isinstance(is_completed, bool):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="is_completed must be a boolean"
+                )
+
+            new_progress = UserBiblePlanProgress(
+                day=day,
+                completed_passages=completed_passages,
+                is_completed=is_completed
+            )
+
+            if day in progress_by_day:
+                idx = progress_by_day[day]
+                progress[idx] = new_progress.model_dump()
+            else:
+                progress.append(new_progress.model_dump())
+                progress_by_day[day] = len(progress) - 1
+
+        progress.sort(key=lambda entry: entry.get("day", 0))
+        
+        updated = await update_user_bible_plan_progress(uid, plan_id, progress)
+
+        if not updated:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update progress")
+        
+        return {"success": True, "message": "Batch progress updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing batch update: {str(e)}"
+        )
 
 
 @auth_bible_plan_router.put("/notification-settings/{plan_id}")

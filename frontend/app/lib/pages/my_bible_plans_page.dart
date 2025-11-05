@@ -9,6 +9,7 @@ import 'package:app/widgets/days_pagination_header.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:app/widgets/login_reminder.dart';
 import 'package:app/components/auth_popup.dart';
+import 'package:app/helpers/batch_update_debouncer.dart';
 
 /// Main page showing user's subscribed Bible plans with progress tracking
 class MyBiblePlansPage extends StatefulWidget {
@@ -355,6 +356,21 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage> with WidgetsBinding
   }
 }
 
+/// Model for a single passage update in the batch
+class _PassageUpdate {
+  final int day;
+  final String passageId;
+  final List<String> currentCompleted;
+  final int totalPassages;
+
+  _PassageUpdate({
+    required this.day,
+    required this.passageId,
+    required this.currentCompleted,
+    required this.totalPassages,
+  });
+}
+
 /// Card widget showing a plan with accordion-style progress
 class _PlanProgressCard extends StatefulWidget {
   final UserBiblePlanWithDetails planWithDetails;
@@ -381,6 +397,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   bool _isCompleting = false;
   double _previousProgressPercent = 0;
   double _currentProgressPercent = 0;
+  late BatchUpdateDebouncer<_PassageUpdate> _updateDebouncer;
 
   @override
   void initState() {
@@ -388,6 +405,19 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     _localPlanDetails = widget.planWithDetails;
     _currentProgressPercent = _localPlanDetails.progressPercentage;
     _previousProgressPercent = _currentProgressPercent;
+    _initializeDebouncer();
+  }
+
+  void _initializeDebouncer() {
+    _updateDebouncer = BatchUpdateDebouncer<_PassageUpdate>(
+      onBatchReady: _processBatchUpdates,
+    );
+  }
+
+  @override
+  void dispose() {
+    _updateDebouncer.dispose();
+    super.dispose();
   }
 
   @override
@@ -802,44 +832,79 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       _localPlanDetails = updatedDetails;
     });
     
-    try {
-      // Send update to backend
-      await _service.togglePassageCompletion(
-        planId: widget.planWithDetails.subscription.planId,
+    _updateDebouncer.add(
+      _PassageUpdate(
         day: day,
         passageId: passageId,
-        currentCompletedPassages: currentCompleted,
-        totalPassagesForDay: totalPassages,
-      );
-      
-      // Refresh parent data in background without affecting our expanded state
-      widget.onProgressUpdate();
-    } catch (e) {
-      // Revert on error
-      setState(() {
-        final revertPercent = widget.planWithDetails.progressPercentage;
-        if (revertPercent != _currentProgressPercent) {
-          _previousProgressPercent = _currentProgressPercent;
-          _currentProgressPercent = revertPercent;
-        }
-        _localPlanDetails = widget.planWithDetails;
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating progress: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        currentCompleted: currentCompleted,
+        totalPassages: totalPassages,
+      ),
+    );
+  }
+
+  Future<void> _processBatchUpdates(List<_PassageUpdate> updates, {bool silent = false}) async {
+    if (updates.isEmpty) return;
+    // When silent (e.g., during lifecycle flush), allow processing even if unmounted
+    if (!mounted && !silent) return;
+
+    try {
+      // Build updates based on the final local state per day to avoid losing
+      // previously completed passages. Collect unique days from the updates list,
+      // then read the current snapshot from _localPlanDetails.
+      final uniqueDays = updates.map((u) => u.day).toSet().toList()..sort();
+
+      final dayUpdates = <Map<String, dynamic>>[];
+      for (final day in uniqueDays) {
+        final dayProgress = _localPlanDetails.subscription.getProgressForDay(day);
+        final completedPassages = List<String>.from(dayProgress?.completedPassages ?? const <String>[]);
+        final totalPassages = _localPlanDetails.plan.getReadingsForDay(day).length;
+        dayUpdates.add({
+          'day': day,
+          'completed_passages': completedPassages,
+          'is_completed': completedPassages.length == totalPassages,
+        });
       }
-    } finally {
-      if (mounted) {
+
+      await _service.updatePlanProgressBatch(
+        planId: widget.planWithDetails.subscription.planId,
+        dayUpdates: dayUpdates,
+      );
+
+      if (!silent && mounted) {
         setState(() {
           _isUpdating = false;
         });
       }
+    } catch (e) {
+      if (!silent) {
+        if (!mounted) return;
+        setState(() {
+          _isUpdating = false;
+          // Do not revert local state; keep optimistic progress and inform the user.
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Could not save changes. They will sync when you reconnect.'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+        });
+      }
     }
+  }
+
+  @override
+  void deactivate() {
+    // Flush any pending updates when this card leaves the tree (e.g., user navigates away)
+    // Avoid UI updates during this lifecycle callback
+    try {
+      _updateDebouncer.flush();
+    } catch (_) {}
+    super.deactivate();
   }
 
   Future<void> _promptRestartPlan() async {
