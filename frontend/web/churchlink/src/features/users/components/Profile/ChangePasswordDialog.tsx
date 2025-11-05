@@ -1,5 +1,5 @@
 import * as React from "react";
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { getAuth, sendPasswordResetEmail, signOut } from "firebase/auth";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -11,57 +11,85 @@ import {
 
 export default function ChangePasswordDialog() {
   const [open, setOpen] = React.useState(false);
-  const [current, setCurrent] = React.useState("");
-  const [next, setNext] = React.useState("");
-  const [confirm, setConfirm] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
+
+  const auth = getAuth();
+  const [email, setEmail] = React.useState(auth.currentUser?.email ?? "");
+
+  React.useEffect(() => {
+    if (open) setEmail(getAuth().currentUser?.email ?? "");
+  }, [open]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
-    if (next !== confirm) { setErr("Passwords do not match."); return; }
 
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user || !user.email) { setErr("Not signed in."); return; }
+    const a = getAuth();
+    const targetEmail = a.currentUser?.email ?? email.trim();
+    if (!targetEmail) {
+      setErr("Enter your email.");
+      return;
+    }
 
     try {
       setBusy(true);
-      const cred = EmailAuthProvider.credential(user.email, current);
-      await reauthenticateWithCredential(user, cred);
-      await updatePassword(user, next);
+      await sendPasswordResetEmail(a, targetEmail);
+
+      if (a.currentUser?.email?.toLowerCase() === targetEmail.toLowerCase()) {
+        await signOut(a);
+      }
+
       setOpen(false);
-      alert("Password updated.");
+      alert(`A password reset link has been sent to ${targetEmail}.`);
     } catch (e: any) {
-      setErr(e?.message || "Update failed.");
+      setErr(e?.message || "Failed to send reset email.");
     } finally {
       setBusy(false);
     }
   }
 
+  const emailLocked = Boolean(auth.currentUser?.email);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="secondary">Change Password</Button></DialogTrigger>
+      <DialogTrigger asChild>
+        <Button variant="secondary">Change Password</Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Change Password</DialogTitle>
+        </DialogHeader>
+
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1">
-            <Label>Current password</Label>
-            <Input type="password" value={current} onChange={e => setCurrent(e.target.value)} required />
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={emailLocked}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              We’ll send a reset link to {emailLocked ? "your current email" : "this address"}.
+            </p>
           </div>
-          <div className="space-y-1">
-            <Label>New password</Label>
-            <Input type="password" value={next} onChange={e => setNext(e.target.value)} required />
-          </div>
-          <div className="space-y-1">
-            <Label>Confirm new password</Label>
-            <Input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
-          </div>
+
           {err && <p className="text-sm text-destructive">{err}</p>}
+
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
-            <Button type="submit" disabled={busy}>Update Password</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy}>
+              Send Reset Email
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
