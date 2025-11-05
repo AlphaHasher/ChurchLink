@@ -25,14 +25,29 @@ class _PageSpec {
 
 // Defines expected Pages and their fallback default colors
 final Map<String, _PageSpec> _kDashboardPages = {
-  'join-live': _PageSpec('Join Live', Colors.indigo.shade600, (c) => const JoinLive()),
-  'weekly-bulletin': _PageSpec('Weekly Bulletin', Colors.teal.shade600, (c) => const BulletinsPage()),
-  'sermons': _PageSpec('Sermons', Colors.deepPurple.shade600, (c) => const SermonsPage()),
-  'events': _PageSpec('Events', Colors.orange.shade600, (c) => const EventsPage()),
+  'join-live': _PageSpec(
+    'Join Live',
+    Colors.indigo.shade600,
+    (c) => const JoinLive(),
+  ),
+  'weekly-bulletin': _PageSpec(
+    'Weekly Bulletin',
+    Colors.teal.shade600,
+    (c) => const BulletinsPage(),
+  ),
+  'sermons': _PageSpec(
+    'Sermons',
+    Colors.deepPurple.shade600,
+    (c) => const SermonsPage(),
+  ),
+  'events': _PageSpec(
+    'Events',
+    Colors.orange.shade600,
+    (c) => const EventsPage(),
+  ),
   'giving': _PageSpec('Giving', Colors.green.shade600, (c) => const Giving()),
-  'forms':_PageSpec('Forms', Colors.brown.shade600, (c) => const Forms()),
+  'forms': _PageSpec('Forms', Colors.brown.shade600, (c) => const Forms()),
 };
-
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -85,37 +100,37 @@ class _DashboardPageState extends State<DashboardPage> {
     });
 
     _orderFuture = DashboardTilesService(_apiBaseUrl)
-      .fetchOrderedSlugs()
-      .then((slugs) async {
-        // If it loads then cache the list order
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setStringList('dashboard_order', slugs);
-        return slugs;
-      })
-      .catchError((_) async {
-        // If offline, use the last cached order
-        final prefs = await SharedPreferences.getInstance();
-        final stored = prefs.getStringList('dashboard_order');
-        if (stored != null && stored.isNotEmpty) return stored;
-        return <String>[];
-      });
+        .fetchOrderedSlugs()
+        .then((slugs) async {
+          // If it loads then cache the list order
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setStringList('dashboard_order', slugs);
+          return slugs;
+        })
+        .catchError((_) async {
+          // If offline, use the last cached order
+          final prefs = await SharedPreferences.getInstance();
+          final stored = prefs.getStringList('dashboard_order');
+          if (stored != null && stored.isNotEmpty) return stored;
+          return <String>[];
+        });
 
     _namesFuture = DashboardTilesService(_apiBaseUrl)
-    .fetchDisplayNames()
-    .then((names) async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('dashboard_names', json.encode(names));
-      return names;
-    })
-    .catchError((_) async {
-      final prefs = await SharedPreferences.getInstance();
-      final s = prefs.getString('dashboard_names');
-      if (s != null) {
-        final Map<String, dynamic> raw = json.decode(s);
-        return raw.map((k, v) => MapEntry(k, v as String));
-      }
-      return <String, String>{};
-    });
+        .fetchDisplayNames()
+        .then((names) async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('dashboard_names', json.encode(names));
+          return names;
+        })
+        .catchError((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          final s = prefs.getString('dashboard_names');
+          if (s != null) {
+            final Map<String, dynamic> raw = json.decode(s);
+            return raw.map((k, v) => MapEntry(k, v as String));
+          }
+          return <String, String>{};
+        });
   }
 
   @override
@@ -131,7 +146,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Builder(
                 builder: (ctx) {
                   Widget buildCard(
-                    String title,
+                    String? title,
                     VoidCallback onTap,
                     Color background, {
                     String? imageUrl,
@@ -183,27 +198,28 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                                   ),
                                 ),
-                              Center(
-                                child: Text(
-                                  title,
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(
-                                    ctx,
-                                  ).textTheme.titleLarge?.copyWith(
-                                    color: textColor,
-                                    // small shadow helps on busy photos
-                                    shadows:
-                                        imageUrl != null
-                                            ? const [
-                                              Shadow(
-                                                blurRadius: 2,
-                                                color: Colors.black45,
-                                              ),
-                                            ]
-                                            : null,
+                              if (title != null && title.isNotEmpty)
+                                Center(
+                                  child: Text(
+                                    title,
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(
+                                      ctx,
+                                    ).textTheme.titleLarge?.copyWith(
+                                      color: textColor,
+                                      // small shadow helps on busy photos
+                                      shadows:
+                                          imageUrl != null
+                                              ? const [
+                                                Shadow(
+                                                  blurRadius: 2,
+                                                  color: Colors.black45,
+                                                ),
+                                              ]
+                                              : null,
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -219,7 +235,8 @@ class _DashboardPageState extends State<DashboardPage> {
                       return FutureBuilder<Map<String, String>>(
                         future: _namesFuture, // Display Names
                         builder: (context, namesSnap) {
-                          final names = namesSnap.data ?? const <String, String>{};
+                          final names =
+                              namesSnap.data ?? const <String, String>{};
 
                           return FutureBuilder<List<String>>(
                             future: _orderFuture, // Sorting order
@@ -231,15 +248,15 @@ class _DashboardPageState extends State<DashboardPage> {
                                 final spec = _kDashboardPages[slug];
                                 if (spec == null) continue;
 
-                                // Prefer backend display name, else fall back to spec.title
-                                final title = (names[slug]?.trim().isNotEmpty == true)
-                                    ? names[slug]!
-                                    : spec.title;
+                                final String title = (names[slug] ?? '');
 
                                 tiles.add(
                                   buildCard(
                                     title,
-                                    () => Navigator.push(ctx, CupertinoPageRoute(builder: spec.to)),
+                                    () => Navigator.push(
+                                      ctx,
+                                      CupertinoPageRoute(builder: spec.to),
+                                    ),
                                     spec.color,
                                     imageUrl: images[slug],
                                   ),

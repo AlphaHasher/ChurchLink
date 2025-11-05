@@ -64,7 +64,9 @@ class DashboardTilesService {
 
   /// Fetch image URLs from FastAPI:
   /// GET {baseUrl}/api/v1/app/dashboard/pages
-  Future<Map<String, String>> fetchImageUrls({bool forceRefresh = false}) async {
+  Future<Map<String, String>> fetchImageUrls({
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh && _isFresh()) return _cache!;
 
     // Return the base URL with the path appended
@@ -74,7 +76,9 @@ class DashboardTilesService {
     final res = await http.get(uri).timeout(const Duration(seconds: 8));
     if (res.statusCode != 200) {
       if (_cache != null) return _cache!;
-      throw Exception('Tiles fetch failed: ${res.statusCode} (${res.request?.url})');
+      throw Exception(
+        'Tiles fetch failed: ${res.statusCode} (${res.request?.url})',
+      );
     }
 
     final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
@@ -87,7 +91,8 @@ class DashboardTilesService {
       if (!enabled) continue;
 
       // Prefer pageName; fall back to displayName
-      final rawName = (m['pageName'] as String?) ?? (m['displayName'] as String?) ?? '';
+      final rawName =
+          (m['pageName'] as String?) ?? (m['displayName'] as String?) ?? '';
       final name = rawName.trim();
       if (name.isEmpty) continue;
 
@@ -96,9 +101,10 @@ class DashboardTilesService {
 
       // Builds a URL with the matching Image ID of the provided page
       final imageId = (m['imageId'] as String?)?.trim();
-      map[key] = (imageId != null && imageId.isNotEmpty)
-          ? _img(imageId, thumbnail: true)
-          : '';
+      map[key] =
+          (imageId != null && imageId.isNotEmpty)
+              ? _img(imageId, thumbnail: true)
+              : '';
     }
 
     _cache = map;
@@ -110,7 +116,8 @@ class DashboardTilesService {
   /// Functions similarly to the previously used fetchImageUrls
   Future<List<String>> fetchOrderedSlugs({bool forceRefresh = false}) async {
     // Use the cache if still new
-    final fresh = _orderCache != null &&
+    final fresh =
+        _orderCache != null &&
         _cacheAt != null &&
         DateTime.now().difference(_cacheAt!) < _ttl;
     if (!forceRefresh && fresh) return _orderCache!;
@@ -122,7 +129,9 @@ class DashboardTilesService {
     final res = await http.get(uri).timeout(const Duration(seconds: 8));
     if (res.statusCode != 200) {
       if (_orderCache != null) return _orderCache!;
-      throw Exception('Order fetch failed: ${res.statusCode} (${res.request?.url})');
+      throw Exception(
+        'Order fetch failed: ${res.statusCode} (${res.request?.url})',
+      );
     }
 
     // List of the pages
@@ -135,13 +144,13 @@ class DashboardTilesService {
       if (!enabled) continue;
 
       final pageName = (m['pageName'] as String?) ?? '';
-      final display  = (m['displayName'] as String?) ?? '';
-      final rawName  = (pageName.isNotEmpty ? pageName : display).trim();
+      final display = (m['displayName'] as String?) ?? '';
+      final rawName = (pageName.isNotEmpty ? pageName : display).trim();
       if (rawName.isEmpty) continue;
 
       rows.add({
         'slug': _norm(rawName),
-        'index': m['index'] is int ? m['index'] : 0
+        'index': m['index'] is int ? m['index'] : 0,
       });
     }
 
@@ -156,8 +165,11 @@ class DashboardTilesService {
   }
 
   /// Return slug and display name pairings
-  Future<Map<String, String>> fetchDisplayNames({bool forceRefresh = false}) async {
-    final fresh = _namesCache != null &&
+  Future<Map<String, String>> fetchDisplayNames({
+    bool forceRefresh = false,
+  }) async {
+    final fresh =
+        _namesCache != null &&
         _cacheAt != null &&
         DateTime.now().difference(_cacheAt!) < _ttl;
     if (!forceRefresh && fresh) return _namesCache!;
@@ -168,7 +180,9 @@ class DashboardTilesService {
     final res = await http.get(uri).timeout(const Duration(seconds: 8));
     if (res.statusCode != 200) {
       if (_namesCache != null) return _namesCache!;
-      throw Exception('Names fetch failed: ${res.statusCode} (${res.request?.url})');
+      throw Exception(
+        'Names fetch failed: ${res.statusCode} (${res.request?.url})',
+      );
     }
 
     final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
@@ -178,13 +192,17 @@ class DashboardTilesService {
       final enabled = m['enabled'] is bool ? m['enabled'] as bool : true;
       if (!enabled) continue;
 
-      final pageName   = (m['pageName'] as String?)?.trim() ?? '';
-      final display    = (m['displayName'] as String?)?.trim() ?? '';
-      final chosen     = display.isNotEmpty ? display : pageName;
-      if (chosen.isEmpty) continue;
+      final pageName = (m['pageName'] as String?)?.trim() ?? '';
+      final display = (m['displayName'] as String?)?.trim() ?? '';
 
-      final slug = _norm(pageName.isNotEmpty ? pageName : chosen);
-      map[slug] = chosen;
+      // If both are empty, skip the entry entirely
+      if (pageName.isEmpty && display.isEmpty) continue;
+
+      // Slug is based on pageName when available (stable), else display
+      final slug = _norm(pageName.isNotEmpty ? pageName : display);
+
+      // Store the display text as-is (may be empty) so the app can intentionally show no title
+      map[slug] = display;
     }
 
     _namesCache = map;
