@@ -22,7 +22,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
 import BiblePassageSelector from './BiblePassageSelector';
-import { Download, Upload, Save, ChevronDown, Trash2 } from 'lucide-react';
+import { Download, Upload, Save, ChevronDown } from 'lucide-react';
 
 interface PlanSidebarProps {
   plan: ReadingPlan;
@@ -37,8 +37,6 @@ type ReadingPlanWithId = ReadingPlan & { id: string };
 // Module-level caches
 let templatesCache: ReadingPlanWithId[] | null = null;
 let templatesInFlight: Promise<ReadingPlanWithId[]> | null = null;
-let userPlansCache: ReadingPlanWithId[] | null = null;
-let userPlansInFlight: Promise<ReadingPlanWithId[]> | null = null;
 
 const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initialPlanId }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
@@ -48,12 +46,9 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
   const [templates, setTemplates] = useState<ReadingPlanWithId[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [userPlans, setUserPlans] = useState<ReadingPlanWithId[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<{ plan: ReadingPlanWithId; type: 'template' | 'userPlan' } | null>(null);
   const [showNameConflictDialog, setShowNameConflictDialog] = useState(false);
   const [overrideTargetId, setOverrideTargetId] = useState<string | null>(null);
-  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
-  const [planToDelete, setPlanToDelete] = useState<ReadingPlanWithId | null>(null);
 
   useEffect(() => {
     setPlanName(plan.name);
@@ -112,24 +107,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
     return () => { cancelled = true; };
   }, []);
 
-  // Load user plans using cache/in-flight promise
-  useEffect(() => {
-    let cancelled = false;
-    if (userPlansCache) {
-      setUserPlans(userPlansCache || []);
-      return;
-    }
-    if (!userPlansInFlight) {
-      userPlansInFlight = api.get('/v1/bible-plans/')
-        .then(r => r.data as ReadingPlanWithId[])
-        .then(data => { userPlansCache = data || []; return userPlansCache; })
-        .finally(() => { userPlansInFlight = null; });
-    }
-    userPlansInFlight
-      .then(data => { if (!cancelled) setUserPlans(data || []); })
-      .catch(() => { });
-    return () => { cancelled = true; };
-  }, []);
 
   // Check if plan has any readings
   const planHasReadings = useMemo(() => {
@@ -176,51 +153,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
     });
   };
 
-  const handleDeletePlan = async (planToDelete: ReadingPlanWithId, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent triggering the dropdown item click
-    setPlanToDelete(planToDelete);
-    setShowDeleteConfirmDialog(true);
-  };
-
-  const confirmDeletePlan = async () => {
-    if (!planToDelete) return;
-
-    try {
-      await api.delete(`/v1/bible-plans/${planToDelete.id}`);
-
-      // Update the user plans list + cache
-      const { data: refreshedPlans } = await api.get('/v1/bible-plans/');
-      userPlansCache = refreshedPlans || [];
-      setUserPlans(userPlansCache || []);
-
-      // If the deleted plan is currently loaded, clear the current plan
-      if (planId === planToDelete.id) {
-        setPlanId(null);
-        setPlan({
-          name: '',
-          duration: 1,
-          readings: {},
-        });
-        setPlanName('');
-      }
-
-      setStatus({
-        type: 'success',
-        title: 'Plan Deleted',
-        message: `Successfully deleted "${planToDelete.name}" plan.`
-      });
-    } catch (error) {
-      console.error('Failed to delete plan:', error);
-      setStatus({
-        type: 'error',
-        title: 'Delete Failed',
-        message: 'Could not delete the plan. Please try again.'
-      });
-    } finally {
-      setShowDeleteConfirmDialog(false);
-      setPlanToDelete(null);
-    }
-  };
 
   const renderPlanDropdown = (
     label: string,
@@ -253,16 +185,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
                 <div className="font-medium">{planItem.name}</div>
                 <div className="text-xs text-muted-foreground">{planItem.duration} days</div>
               </div>
-              {type === 'userPlan' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => handleDeletePlan(planItem, e)}
-                  className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              )}
             </DropdownMenuItem>
           ))}
           {plans.length === 0 && !isLoading && (
@@ -284,11 +206,10 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
       setStatus({ type: 'warning' as any, title: 'No passages', message: 'Add at least one passage to save this plan.' });
       return;
     }
-    let currentPlans = userPlans;
+    let currentPlans: ReadingPlanWithId[] = [];
     try {
       const { data } = await api.get('/v1/bible-plans/');
       currentPlans = data || [];
-      setUserPlans(currentPlans);
     } catch { }
 
     // Check for duplicate names
@@ -327,13 +248,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
       const data = resp.data;
       if (data?.id) setPlanId(data.id);
 
-      // Refresh the user plans list
-      try {
-        const { data: refreshedPlans } = await api.get('/v1/bible-plans/');
-        userPlansCache = refreshedPlans || [];
-        setUserPlans(userPlansCache || []);
-      } catch (e) { }
-
       setStatus({ type: 'success', title: shouldUpdate ? 'Updated' : 'Saved', message: `Reading plan ${shouldUpdate ? 'updated' : 'saved'} successfully.` });
     } catch (err) {
       console.error('Failed to save/update plan', err);
@@ -355,11 +269,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
       setPlan(prev => ({ ...prev, name: data.name }));
       setStatus({ type: 'success', title: 'Overridden', message: 'Existing plan overridden.' });
 
-      try {
-        const { data: refreshed } = await api.get('/v1/bible-plans/');
-        userPlansCache = refreshed || [];
-        setUserPlans(userPlansCache || []);
-      } catch { }
     } catch (e) {
       setStatus({ type: 'error', title: 'Override failed', message: 'Could not override existing plan.' });
     } finally {
@@ -404,8 +313,10 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
   };
 
   return (
-    <div className="w-80 border-r border-border bg-card p-6 overflow-y-auto">
-      <div className="space-y-6">
+    <div className="w-80 h-full bg-card flex flex-col flex-shrink-0 rounded-lg border border-border">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="space-y-6">
         {/* Plan Name */}
         <div className="space-y-2">
           <Label htmlFor="plan-name">Plan Name</Label>
@@ -433,14 +344,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
           />
         </div>
 
-        {/* User Plans Selector */}
-        {renderPlanDropdown(
-          'My Reading Plans',
-          userPlans,
-          'userPlan',
-          false,
-          'No saved plans'
-        )}
 
         {/* Template Selector */}
         {renderPlanDropdown(
@@ -480,27 +383,28 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
             {status.message && <AlertDescription>{status.message}</AlertDescription>}
           </Alert>
         )}
+      </div>
 
-        {/* Action Buttons */}
-  <div className="space-y-3 border-t border-border pt-6">
-          <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileSelected} />
-          <Button onClick={handleSavePlan} className="w-full">
-            <Save className="w-4 h-4 mr-2" />
-            Save Plan
+      {/* Action Buttons - Sticky at Bottom */}
+      <div className="border-t border-border bg-card p-6 space-y-3 flex-shrink-0">
+        <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileSelected} />
+        <Button onClick={handleSavePlan} className="w-full">
+          <Save className="w-4 h-4 mr-2" />
+          Save Plan
+        </Button>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleImportPlan} className="flex-1">
+            <Download className="w-4 h-4 mr-2" />
+            Import
           </Button>
-
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleImportPlan} className="flex-1">
-              <Download className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-            <Button variant="outline" onClick={handleExportPlan} className="flex-1">
-              <Upload className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handleExportPlan} className="flex-1">
+            <Upload className="w-4 h-4 mr-2" />
+            Export
+          </Button>
         </div>
       </div>
+    </div>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
@@ -550,20 +454,6 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Reading Plan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{planToDelete?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setPlanToDelete(null); }}>Cancel</AlertDialogCancel>
-    <AlertDialogAction onClick={confirmDeletePlan} variant="destructive">Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

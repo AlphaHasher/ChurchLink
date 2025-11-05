@@ -113,6 +113,30 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     return { type: 'multi', book, range } as const;
   })();
 
+  const computeVerseContext = () => {
+    const meta = multiChapterSelectionMeta;
+    const useMulti = !!(meta && meta.type === 'multi' && meta.range.start !== meta.range.end);
+    const sTxt = verseRange.start.trim();
+    const eTxt = verseRange.end.trim();
+    const hasStart = sTxt !== '';
+    const hasEnd = eTxt !== '';
+    let startNum: number | undefined;
+    let endNum: number | undefined;
+    if (hasStart) {
+      startNum = parseInt(sTxt, 10);
+    }
+    if (hasEnd) {
+      endNum = parseInt(eTxt, 10);
+    }
+    // Validation
+    const invalid = (
+      (hasStart && (Number.isNaN(startNum as number) || (startNum as number) < 1)) ||
+      (hasEnd && (Number.isNaN(endNum as number) || (endNum as number) < 1)) ||
+      (!useMulti && hasStart && hasEnd && (startNum as number) >= (endNum as number))
+    );
+    return { useMulti, hasStart, hasEnd, startNum, endNum, invalid };
+  };
+
   const addWholeChapter = (book: BibleBook, chapter: number) => {
     if (!selectedDay) return; // Must have a day selected
     const passage: BiblePassage = {
@@ -124,58 +148,41 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
     onCreatePassage?.(passage);
   };
 
-  const isInvalidVerseRange = false;
+  const isInvalidVerseRange = computeVerseContext().invalid;
 
   const addVerseRange = () => {
     if (!selectedDay) return;
     const meta = multiChapterSelectionMeta;
     if (!selectedChapter && !meta) return;
-    const useMulti = !!(meta && meta.type === 'multi' && meta.range.start !== meta.range.end);
+    const { useMulti, hasStart, hasEnd, startNum, endNum, invalid } = computeVerseContext();
     const book = useMulti ? meta!.book : (selectedChapter?.book || meta?.book as BibleBook);
     const baseChapter = useMulti ? meta!.range.start : (selectedChapter?.chapter || meta?.range.start || 1);
     const endChapter = useMulti ? meta!.range.end : undefined;
-
-    const startTxt = verseRange.start.trim();
-    const endTxt = verseRange.end.trim();
-    const hasStart = startTxt !== '';
-    const hasEnd = endTxt !== '';
-    let startVerseNum: number | undefined = undefined;
-    let endVerseNum: number | undefined = undefined;
-    if (hasStart) {
-      startVerseNum = parseInt(startTxt, 10);
-      if (Number.isNaN(startVerseNum) || startVerseNum < 1) return;
-    }
-    if (hasEnd) {
-      endVerseNum = parseInt(endTxt, 10);
-      if (Number.isNaN(endVerseNum) || endVerseNum < 1) return;
-    }
-    // Only enforce ordering if both verses are in SAME chapter context
-    if (!useMulti && hasStart && hasEnd && startVerseNum! >= endVerseNum!) return;
-    if (isInvalidVerseRange) return;
+    if (invalid) return;
 
     // Build reference with new formatting rules
     let reference: string;
     if (useMulti) {
       if (!hasStart && !hasEnd) reference = `${book.name} ${baseChapter}-${endChapter}`;
-      else if (hasStart && !hasEnd) reference = `${book.name} ${baseChapter}:${startVerseNum}-${endChapter}`;
-      else if (!hasStart && hasEnd) reference = `${book.name} ${baseChapter}-${endChapter}:${endVerseNum}`;
-      else reference = `${book.name} ${baseChapter}:${startVerseNum}-${endChapter}:${endVerseNum}`;
+      else if (hasStart && !hasEnd) reference = `${book.name} ${baseChapter}:${startNum}-${endChapter}`;
+      else if (!hasStart && hasEnd) reference = `${book.name} ${baseChapter}-${endChapter}:${endNum}`;
+      else reference = `${book.name} ${baseChapter}:${startNum}-${endChapter}:${endNum}`;
     } else { // single chapter
       if (!hasStart && !hasEnd) reference = `${book.name} ${baseChapter}`;
-      else if (hasStart && !hasEnd) reference = `${book.name} ${baseChapter}:${startVerseNum}`;
-      else if (!hasStart && hasEnd) reference = `${book.name} ${baseChapter}:${endVerseNum}`;
-      else reference = startVerseNum === endVerseNum
-        ? `${book.name} ${baseChapter}:${startVerseNum}`
-        : `${book.name} ${baseChapter}:${startVerseNum}-${endVerseNum}`;
+      else if (hasStart && !hasEnd) reference = `${book.name} ${baseChapter}:${startNum}`;
+      else if (!hasStart && hasEnd) reference = `${book.name} ${baseChapter}:${endNum}`;
+      else reference = startNum === endNum
+        ? `${book.name} ${baseChapter}:${startNum}`
+        : `${book.name} ${baseChapter}:${startNum}-${endNum}`;
     }
 
     const passage: BiblePassage = {
-      id: `${book.id}-${baseChapter}-${endChapter ?? baseChapter}-${startVerseNum ?? 'x'}-${endVerseNum ?? 'x'}-${Date.now()}`,
+      id: `${book.id}-${baseChapter}-${endChapter ?? baseChapter}-${(hasStart ? startNum : 'x') as any}-${(hasEnd ? endNum : 'x') as any}-${Date.now()}`,
       book: book.name,
       chapter: baseChapter,
       endChapter,
-      startVerse: hasStart ? startVerseNum : undefined,
-      endVerse: hasEnd ? (hasStart ? endVerseNum : endVerseNum) : (hasStart ? startVerseNum : undefined),
+      startVerse: hasStart ? startNum : undefined,
+      endVerse: hasEnd ? (hasStart ? endNum : endNum) : (hasStart ? startNum : undefined),
       reference
     };
     onCreatePassage?.(passage);
@@ -310,7 +317,7 @@ const BiblePassageSelector = ({ selectedDay, onCreatePassage }: BiblePassageSele
               })()}
             </div>
           </div>
-          {multiChapterSelectionMeta && multiChapterSelectionMeta.type === 'multi' && !selectedDay && (
+          {(!!selectedChapter || selectedChaptersSet.size > 0) && !selectedDay && (
             <div className="text-xs text-destructive">Select a day to add passages.</div>
           )}
           {/* Warning for non-contiguous multi-book or multi-range selection */}
