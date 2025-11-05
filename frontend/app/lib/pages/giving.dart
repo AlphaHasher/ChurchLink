@@ -474,7 +474,7 @@ class _GivingState extends State<Giving> {
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Text(
                       'Enter your name and donation details below. Payment will be processed securely through PayPal.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                      style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -482,7 +482,6 @@ class _GivingState extends State<Giving> {
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    color: Colors.white,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
                       child: Column(
@@ -492,7 +491,6 @@ class _GivingState extends State<Giving> {
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -500,24 +498,23 @@ class _GivingState extends State<Giving> {
                             controller: _amountController,
                             keyboardType: TextInputType.numberWithOptions(decimal: true),
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.2,
-                              color: Colors.black,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                             decoration: InputDecoration(
                               prefixIcon: Padding(
                                 padding: const EdgeInsets.only(left: 16, right: 8),
                                 child: Text('\$',
-                                  style: TextStyle(fontSize: 32, color: Colors.green)),
+                                  style: TextStyle(fontSize: 32, color: const Color.fromARGB(255, 50, 143, 53))),
                               ),
                               prefixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
                               hintText: '0.00',
-                              hintStyle: TextStyle(fontSize: 32, color: Colors.grey),
-                              border: InputBorder.none,
+                              hintStyle: TextStyle(fontSize: 32, color: Theme.of(context).hintColor),
+                              border: const OutlineInputBorder(),
                               filled: true,
-                              fillColor: Colors.grey[100],
                               contentPadding: EdgeInsets.symmetric(vertical: 16),
                             ),
                           ),
@@ -694,9 +691,9 @@ class _GivingState extends State<Giving> {
                               _startDate != null
                                   ? '${_startDate!.month}/${_startDate!.day}/${_startDate!.year}'
                                   : 'Choose date',
-                              style: TextStyle(
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 fontSize: 16,
-                                color: _startDate != null ? Colors.black : Colors.grey[600],
+                                color: _startDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
                               ),
                             ),
                           ),
@@ -710,13 +707,14 @@ class _GivingState extends State<Giving> {
                   if (_message != null)
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Text(_message!, style: const TextStyle(fontSize: 16, color: Colors.green)),
+                      child: Text(_message!, style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.error)),
                     ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.volunteer_activism),
                     label: const Text('Give with PayPal'),
                     onPressed: _loading ? null : _give,
                     style: ElevatedButton.styleFrom(
+                      // Leave PayPal button hard coded blue, matches their branding
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -742,7 +740,7 @@ class _GivingState extends State<Giving> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error, color: Colors.red, size: 48),
+            Icon(Icons.error, color: Theme.of(context).colorScheme.error, size: 48),
             const SizedBox(height: 16),
             Text(
               'Event payment failed: $error',
