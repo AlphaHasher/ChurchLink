@@ -94,7 +94,7 @@ export default function ChangeEmailDialog() {
           {err && <p className="text-sm text-destructive">{err}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
-            <Button type="submit" disabled={busy || !newEmail.trim() || (passwordRequired && !password.trim())}>Send Link & Sign Out</Button>
+            <Button type="submit" disabled={busy || !newEmail.trim() || !passwordRequired || (passwordRequired && !password.trim())}>Send Link & Sign Out</Button>
           </DialogFooter>
         </form>
       </DialogContent>
