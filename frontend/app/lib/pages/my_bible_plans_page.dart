@@ -876,6 +876,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
         });
       }
     } catch (e) {
+      for (final u in updates) {
+        _updateDebouncer.add(u);
+      }
       if (!silent) {
         if (!mounted) return;
         setState(() {
