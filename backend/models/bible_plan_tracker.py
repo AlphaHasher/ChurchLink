@@ -31,14 +31,19 @@ _COLLECTION_NAME = "bible_plan_tracker"
 
 
 def _subscription_from_doc(doc: dict) -> UserBiblePlanSubscription:
-    payload = {k: v for k, v in doc.items() if k in {
-        "plan_id",
-        "start_date",
-        "notification_time",
-        "notification_enabled",
-        "progress",
-        "subscribed_at",
-    }}
+    payload = {
+        k: v
+        for k, v in doc.items()
+        if k
+        in {
+            "plan_id",
+            "start_date",
+            "notification_time",
+            "notification_enabled",
+            "progress",
+            "subscribed_at",
+        }
+    }
     return UserBiblePlanSubscription(**payload)
 
 
@@ -48,7 +53,9 @@ async def get_user_bible_plans(uid: str) -> List[UserBiblePlanSubscription]:
     return [_subscription_from_doc(doc) for doc in docs]
 
 
-async def insert_user_bible_plan(uid: str, subscription: UserBiblePlanSubscription) -> bool:
+async def insert_user_bible_plan(
+    uid: str, subscription: UserBiblePlanSubscription
+) -> bool:
     doc = subscription.model_dump()
     doc["uid"] = uid
     result = await DB.db[_COLLECTION_NAME].insert_one(doc)
@@ -60,17 +67,19 @@ async def delete_user_bible_plan(uid: str, plan_id: str) -> bool:
     return result.deleted_count > 0
 
 
-async def update_user_bible_plan_progress(uid: str, plan_id: str, progress: List[dict]) -> bool:
+async def update_user_bible_plan_progress(
+    uid: str, plan_id: str, progress: List[dict]
+) -> bool:
     """
     Update the stored progress entries for a user's Bible plan.
-    
+
     Replaces the plan's `progress` array with the provided list of progress entries.
-    
+
     Parameters:
         uid (str): User identifier owning the plan.
         plan_id (str): Identifier of the Bible plan to update.
         progress (List[dict]): List of progress objects for the plan (each entry represents a day's progress).
-    
+
     Returns:
         bool: `True` if a document matching `uid` and `plan_id` was found, `False` otherwise.
     """
@@ -90,12 +99,12 @@ async def update_user_bible_plan_notifications(
 ) -> bool:
     """
     Update notification settings for a user's Bible plan.
-    
+
     Parameters:
         notification_time (Optional[str]): Time of day for notifications (string) or `None` to clear the time.
         notification_enabled (bool): Whether plan notifications are enabled.
         user_timezone (Optional[str]): Timezone identifier to apply to the notification time; only included in the update if provided.
-    
+
     Returns:
         `true` if a document was modified, `false` otherwise.
     """
@@ -103,11 +112,11 @@ async def update_user_bible_plan_notifications(
         "notification_time": notification_time,
         "notification_enabled": notification_enabled,
     }
-    
+
     # Only update user_timezone if provided
     if user_timezone is not None:
         update_data["user_timezone"] = user_timezone
-    
+
     result = await DB.db[_COLLECTION_NAME].update_one(
         {"uid": uid, "plan_id": plan_id},
         {"$set": update_data},

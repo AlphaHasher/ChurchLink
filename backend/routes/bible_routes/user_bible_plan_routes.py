@@ -334,22 +334,31 @@ async def update_plan_progress_batch(
         readings_by_day = plan_doc.get("readings", {})
         plan_duration = plan_doc.get("duration", 0) or len(readings_by_day)
 
-        progress_by_day = {entry.get("day"): i for i, entry in enumerate(progress)}
-
-        for update in day_updates:
-            day = update.get("day")
-            if not isinstance(day, int) or day < 1:
+        # Combine duplicate day updates so the last provided entry for a given day wins,
+        # then process in ascending day order.
+        combined_updates: Dict[int, Dict[str, Any]] = {}
+        for upd in day_updates:
+            day_val = upd.get("day")
+            if not isinstance(day_val, int) or day_val < 1:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Each update must have a valid day (integer >= 1)"
                 )
+            combined_updates[day_val] = upd
+
+        days_sorted = sorted(combined_updates.keys())
+
+        progress_by_day = {entry.get("day"): i for i, entry in enumerate(progress)}
+        applied_days: List[int] = []
+        skipped_days: List[int] = []
+
+        for day in days_sorted:
+            update = combined_updates[day]
 
             allowed_day = _next_sequential_day(progress, readings_by_day, plan_duration)
             if day > allowed_day:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Cannot update day {day}. Complete previous days first."
-                )
+                skipped_days.append(day)
+                continue
 
             completed_passages = update.get("completed_passages", [])
             if not isinstance(completed_passages, list):
@@ -378,6 +387,8 @@ async def update_plan_progress_batch(
                 progress.append(new_progress.model_dump())
                 progress_by_day[day] = len(progress) - 1
 
+            applied_days.append(day)
+
         progress.sort(key=lambda entry: entry.get("day", 0))
         
         updated = await update_user_bible_plan_progress(uid, plan_id, progress)
@@ -385,7 +396,13 @@ async def update_plan_progress_batch(
         if not updated:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update progress")
         
-        return {"success": True, "message": "Batch progress updated successfully"}
+        # Return details so clients can optionally reconcile if needed
+        return {
+            "success": True,
+            "message": "Batch progress updated",
+            "applied_days": applied_days,
+            "skipped_days": skipped_days,
+        }
     except HTTPException:
         raise
     except Exception as e:
