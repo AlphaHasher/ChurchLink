@@ -264,18 +264,20 @@ export function Inspector() {
               </SelectContent>
             </Select>
           </div>
-          <ToggleGroup
-            type="single"
-            value={field.required ? "required" : ""}
-            onValueChange={(value) => {
-              onChange({ required: value === "required" });
-            }}
-            className="w-full justify-start"
-          >
-            <ToggleGroupItem value="required" aria-label="Required" size="sm">
-              Required
-            </ToggleGroupItem>
-          </ToggleGroup>
+          {field.type !== 'static' && (
+            <ToggleGroup
+              type="single"
+              value={field.required ? "required" : ""}
+              onValueChange={(value) => {
+                onChange({ required: value === "required" });
+              }}
+              className="w-full justify-start"
+            >
+              <ToggleGroupItem value="required" aria-label="Required" size="sm">
+                Required
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
           {(field.type === "checkbox" || field.type === "switch") && (
             <div className="space-y-1">
               <Label>Price when selected</Label>
