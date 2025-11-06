@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:app/models/bible_plan.dart';
 import 'package:app/services/bible_plan_service.dart';
 import 'package:app/widgets/days_window.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/pages/bible_plans_list_page.dart';
 import 'package:app/widgets/days_pagination_header.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
@@ -75,6 +76,15 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage>
 
     try {
       final plans = await _service.getMyPlansWithDetails();
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        for (final p in plans) {
+          if (p.subscription.progress.isEmpty) {
+            await prefs.remove('plan_window_${p.subscription.planId}');
+          }
+        }
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _plans = plans;
@@ -86,12 +96,14 @@ class _MyBiblePlansPageState extends State<MyBiblePlansPage>
         _errorMessage = 'Failed to load plans. Please try again.';
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading plans: ${e.toString()}'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading plans: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
@@ -361,7 +373,8 @@ class _PassageUpdate {
   final int day;
   final String passageId;
   final bool completed; // intended final state for this passage after toggle
-  final List<String> baseCompleted; // snapshot of completed set BEFORE this toggle
+  final List<String>
+  baseCompleted; // snapshot of completed set BEFORE this toggle
   final int attempts;
 
   _PassageUpdate({
@@ -405,6 +418,8 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
   bool _isUpdating = false;
   bool _isRestarting = false;
   bool _isCompleting = false;
+  bool _suppressFlush =
+      false; // avoid flushing pending updates when removing/unsubscribing
   double _previousProgressPercent = 0;
   double _currentProgressPercent = 0;
   late BatchUpdateDebouncer<_PassageUpdate> _updateDebouncer;
@@ -748,6 +763,8 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     UserBiblePlanSubscription subscription,
   ) {
     final total = plan.duration;
+    final String daysWindowKeyToken =
+        subscription.progress.isEmpty ? 'reset' : 'keep';
 
     // If plan is short, show the full list without pagination header
     if (total <= 5) {
@@ -780,6 +797,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     }
 
     return DaysWindow(
+      key: ValueKey('dw_${subscription.planId}_$daysWindowKeyToken'),
       storageKey: 'plan_window_${widget.planWithDetails.subscription.planId}',
       totalDays: total,
       pageSize: 5,
@@ -932,7 +950,8 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
             completed.remove(a.passageId);
           }
         }
-        final totalPassages = _localPlanDetails.plan.getReadingsForDay(day).length;
+        final totalPassages =
+            _localPlanDetails.plan.getReadingsForDay(day).length;
         dayUpdates.add({
           'day': day,
           'completed_passages': completed.toList(),
@@ -992,10 +1011,14 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
 
   @override
   void deactivate() {
-    // Flush any pending updates when this card leaves the tree (e.g., user navigates away)
-    // Avoid UI updates during this lifecycle callback
+    // If we're unsubscribing or completing, do not attempt to send queued updates
+    // (the server may return 404 Not subscribed). Otherwise, flush normally.
     try {
-      _updateDebouncer.flush();
+      if (_suppressFlush) {
+        _updateDebouncer.clear();
+      } else {
+        _updateDebouncer.flush();
+      }
     } catch (_) {}
     super.deactivate();
   }
@@ -1043,6 +1066,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     });
 
     try {
+      // Avoid flushing any queued updates during restart teardown
+      _suppressFlush = true;
+      _updateDebouncer.clear();
       final requestedStart = DateTime.now();
       final effectiveStart = await _service.restartPlan(
         planId: widget.planWithDetails.subscription.planId,
@@ -1052,6 +1078,31 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       if (!mounted) {
         return;
       }
+
+      try {
+        final totalDays = _localPlanDetails.plan.duration;
+        final dayUpdates = List.generate(
+          totalDays,
+          (i) => {
+            'day': i + 1,
+            'completed_passages': <String>[],
+            'is_completed': false,
+          },
+        );
+        await _service.updatePlanProgressBatch(
+          planId: widget.planWithDetails.subscription.planId,
+          dayUpdates: dayUpdates,
+        );
+      } catch (_) {
+        // Non-fatal: backend restart should already reset; continue UI reset
+      }
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(
+          'plan_window_${widget.planWithDetails.subscription.planId}',
+        );
+      } catch (_) {}
 
       setState(() {
         final updatedSubscription = _localPlanDetails.subscription.copyWith(
@@ -1069,12 +1120,14 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
 
       widget.onProgressUpdate();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Plan restarted from day 1'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Plan restarted'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) {
         return;
@@ -1101,7 +1154,7 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
             backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
             title: const Text('Complete Plan?'),
             content: const Text(
-              'Marking the plan as complete will unsubscribe you from the plan. Your progress will be kept in case you re-subscribe later. Continue?',
+              'Marking the plan as complete will unsubscribe you from the plan and erase your progress. Are you sure you want to complete the plan?',
             ),
             actions: [
               TextButton(
@@ -1130,6 +1183,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
     });
 
     try {
+      // Prevent any pending debounced updates from attempting to sync after unsubscribe
+      _suppressFlush = true;
+      _updateDebouncer.clear();
       await _service.unsubscribeFromPlan(
         widget.planWithDetails.subscription.planId,
       );
@@ -1191,6 +1247,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
                 ),
                 onTap: () {
                   Navigator.pop(context);
+                  // Ensure we don't flush queued updates after unsubscribing
+                  _suppressFlush = true;
+                  _updateDebouncer.clear();
                   widget.onDelete();
                 },
               ),

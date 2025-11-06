@@ -15,8 +15,8 @@ class BatchUpdateDebouncer<T> {
   BatchUpdateDebouncer({
     required Future<void> Function(List<T>) onBatchReady,
     Duration? delayDuration,
-  })  : _onBatchReady = onBatchReady,
-        delayDuration = delayDuration ?? _updateDelayDuration;
+  }) : _onBatchReady = onBatchReady,
+       delayDuration = delayDuration ?? _updateDelayDuration;
 
   /// Add an update to the batch queue and start/restart the debounce timer
   void add(T update) {
@@ -51,6 +51,13 @@ class BatchUpdateDebouncer<T> {
   void dispose() {
     _debounceTimer?.cancel();
   }
+
+  void clear() {
+    _debounceTimer?.cancel();
+    _pendingUpdates.clear();
+  }
+
+  bool get hasPending => _pendingUpdates.isNotEmpty;
 
   /// Immediately process any pending updates, canceling any existing timer.
   /// Safe to call from lifecycle methods; the provided callback decides how

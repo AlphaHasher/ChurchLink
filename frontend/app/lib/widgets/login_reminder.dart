@@ -34,7 +34,7 @@ class LoginReminderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.1),
+                    color: colorScheme.primary.withAlpha(10),
                     borderRadius: BorderRadius.circular(50),
                   ),
                   child: Icon(
@@ -58,7 +58,7 @@ class LoginReminderCard extends StatelessWidget {
                 Text(
                   description,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withOpacity(0.8),
+                    color: colorScheme.onSurface.withAlpha(80),
                     height: 1.5,
                   ),
                   textAlign: TextAlign.center,
@@ -98,7 +98,7 @@ class LoginReminderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceVariant,
+                    color: colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -107,7 +107,7 @@ class LoginReminderCard extends StatelessWidget {
                       Text(
                         'With your account you can:',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.8),
+                          color: colorScheme.onSurface.withAlpha(80),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -138,7 +138,7 @@ class LoginReminderCard extends StatelessWidget {
             child: Text(
               text,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.8),
+                color: colorScheme.onSurface.withAlpha(80),
                 fontSize: 14,
               ),
             ),
@@ -178,7 +178,7 @@ class CompactLoginReminder extends StatelessWidget {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colorScheme.primary.withOpacity(0.3),
+          color: colorScheme.primary.withAlpha(30),
         ),
       ),
       child: Column(

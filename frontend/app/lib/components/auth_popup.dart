@@ -57,7 +57,7 @@ class AuthPopup extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: colorScheme.outline.withOpacity(0.3),
+              color: colorScheme.outline.withAlpha(30),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -82,7 +82,7 @@ class AuthPopup extends StatelessWidget {
               'Choose how you want to continue',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.7),
+                color: colorScheme.onSurface.withAlpha(70),
                 fontSize: 16,
               ),
             ),
@@ -128,7 +128,7 @@ class AuthPopup extends StatelessWidget {
               'By continuing, you agree to our Terms of Service and Privacy Policy',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.7),
+                color: colorScheme.onSurface.withAlpha(70),
                 fontSize: 12,
               ),
             ),

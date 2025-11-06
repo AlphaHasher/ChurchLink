@@ -148,9 +148,6 @@ class _FormsState extends State<Forms> {
                                         as Map<String, dynamic>;
                                     final title = f['title'] ?? 'Untitled';
                                     final desc = f['description'] ?? '';
-                                    final slug = f['slug'] ?? '';
-                                    final createdAt =
-                                        f['created_at'] ?? '';
                                     return Card(
                                       margin: const EdgeInsets.symmetric(
                                           vertical: 8.0, horizontal: 0),
