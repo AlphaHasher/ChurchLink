@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { schemaToZodObject } from "./schemaGen";
+import { evaluateVisibility } from "./visibilityUtils";
 import { FieldRenderer } from "./FieldRenderer";
 import { useBuilderStore } from "./store";
 import { Button } from "@/shared/components/ui/button";
@@ -23,24 +24,24 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} }); // always init form hook
   const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
-  
+
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [paymentConfig, setPaymentConfig] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'in-person' | null>(null);
-  
+
   // Create a unique instance identifier for duplicate prevention
   const formInstanceId = useMemo(() => instanceId || `form_${Date.now()}_${Math.random()}`, [instanceId]);
 
-      // Check if form requires payment when slug is available
+  // Check if form requires payment when slug is available
   useEffect(() => {
     if (slug) {
       checkPaymentRequirement();
-      
+
       // Try to restore form data from localStorage on page load
       const savedFormDataKey = `form_data_${slug}`;
       const savedFormData = localStorage.getItem(savedFormDataKey);
-      
+
       if (savedFormData) {
         try {
           const parsedData = JSON.parse(savedFormData);
@@ -53,7 +54,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           localStorage.removeItem(savedFormDataKey);
         }
       }
-      
+
       // Clean up old form data entries (older than 1 hour)
       try {
         const oneHourAgo = Date.now() - (60 * 60 * 1000);
@@ -83,7 +84,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
 
   const checkPaymentRequirement = async () => {
     if (!slug) return;
-    
+
     try {
       // Check if form requires payment by trying to get payment config
       const response = await api.get(`/v1/forms/slug/${slug}/payment-config`);
@@ -100,7 +101,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const initiatePayPalPayment = async () => {
     try {
       const formTotal = computeTotal();
-      
+
       // Check if the form actually has price fields that would require payment
       const priceFields = schema.data.filter(field => field.type === 'price');
       if (priceFields.length === 0) {
@@ -108,13 +109,13 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         alert('This form does not have any payment fields configured.');
         return;
       }
-      
+
       if (formTotal <= 0) {
         console.error('Payment amount must be greater than zero.');
         alert('Payment amount must be greater than zero.');
         return;
       }
-      
+
       // Save form data to localStorage before PayPal redirect
       const formData = form.getValues();
       const formDataWithTimestamp = {
@@ -123,7 +124,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
       };
       localStorage.setItem(`form_data_${slug}`, JSON.stringify(formDataWithTimestamp));
       console.log('Saved form data to localStorage:', formData);
-      
+
       // Include additional payment context for the backend
       const paymentData = {
         payment_amount: formTotal,
@@ -139,11 +140,11 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           paymentMethods: (field as any).paymentMethods
         }))
       };
-      
+
       console.log('Sending payment data to backend:', paymentData);
-      
+
       const response = await formPaymentApi.createFormPaymentOrder(slug!, paymentData);
-      
+
       if (response.success && response.approval_url) {
         // Redirect to PayPal for payment
         window.location.href = response.approval_url;
@@ -162,7 +163,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token'); // PayPal Orders API v2 returns 'token' (order ID)
     const payerId = urlParams.get('PayerID');
-    
+
     console.log('PayPal return URL params:', {
       token,
       payerId,
@@ -170,14 +171,14 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
       search: window.location.search,
       allParams: Object.fromEntries(urlParams.entries())
     });
-    
+
     // If we have PayPal return parameters, we should be on the success page
     // The backend redirects to /forms/:slug/payment/success, but sometimes 
     // the redirect might not work, so we'll ensure we go to the correct page
     if (token && payerId && slug) {
       const currentPath = window.location.pathname;
       const expectedSuccessPath = `/forms/${slug}/payment/success`;
-      
+
       if (currentPath !== expectedSuccessPath) {
         console.log('PayPal return detected, redirecting to success page:', {
           currentPath,
@@ -185,7 +186,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           token,
           payerId
         });
-        
+
         // Preserve the PayPal return parameters in the redirect
         const successUrl = `${expectedSuccessPath}${window.location.search}`;
         window.location.replace(successUrl);
@@ -198,25 +199,25 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const getAvailablePaymentMethods = () => {
     const methods = { allowPayPal: false, allowInPerson: false };
     let foundPriceFields = false;
-    
+
     // Check price fields for payment method configurations
     for (const f of schema.data as AnyField[]) {
-      if (f.type === "price" && isVisible((f as any).visibleIf)) {
+      if (f.type === "price" && evaluateVisibility((f as any).visibleIf, values)) {
         foundPriceFields = true;
         const priceField = f as any;
-        
+
         // Check for PayPal (treat undefined as enabled for backward compatibility)
         if (priceField.paymentMethods?.allowPayPal !== false) {
           methods.allowPayPal = true;
         }
-        
+
         // Check for in-person
         if (priceField.paymentMethods?.allowInPerson) {
           methods.allowInPerson = true;
         }
       }
     }
-    
+
     // If we found price fields but no specific methods configured
     if (foundPriceFields && !methods.allowPayPal && !methods.allowInPerson) {
       // For Form Builder preview (no slug), default to PayPal only to showcase UI
@@ -228,7 +229,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         methods.allowInPerson = true;
       }
     }
-    
+
     return methods;
   };
   const [pageError, setPageError] = useState<string | null>(null);
@@ -252,27 +253,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
       </div>
     );
   }
-
-  const isVisible = (visibleIf?: string): boolean => {
-    if (!visibleIf) return true;
-    const m = visibleIf.match(/^\s*(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*$/);
-    if (!m) return true;
-    const [, name, op, rhsRaw] = m;
-    const lhs = (values as any)?.[name];
-    let rhs: any = rhsRaw;
-    if (/^['"].*['"]$/.test(rhsRaw)) rhs = rhsRaw.slice(1, -1);
-    else if (/^(true|false)$/i.test(rhsRaw)) rhs = rhsRaw.toLowerCase() === "true";
-    else if (!Number.isNaN(Number(rhsRaw))) rhs = Number(rhsRaw);
-    switch (op) {
-      case "==": return lhs == rhs;
-      case "!=": return lhs != rhs;
-      case ">=": return lhs >= rhs;
-      case "<=": return lhs <= rhs;
-      case ">": return lhs > rhs;
-      case "<": return lhs < rhs;
-      default: return true;
-    }
-  };
 
   const onSubmit = form.handleSubmit(async (data: any) => {
     // Prevent duplicate submissions from multiple form instances, with timestamp-based expiration
@@ -299,30 +279,30 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         sessionStorage.removeItem(globalSubmitKey);
       }
     }
-    
+
     console.log(`[${formInstanceId}] Starting form submission...`);
     sessionStorage.setItem(globalSubmitKey, JSON.stringify({ submitting: true, setAt: Date.now() }));
     console.log("Preview submit", data);
-    
+
     // If a slug prop is provided, submit to public endpoint
     if (slug) {
       try {
         setSubmitState('submitting');
         setSubmitMessage('Submitting...');
-        
+
         // Check if form has pricing and requires payment
         const formTotal = computeTotal();
         const hasPaymentRequired = paymentConfig?.requires_payment || formTotal > 0;
-        
+
         if (hasPaymentRequired) {
           const availableMethods = getAvailablePaymentMethods();
           const paypalOnly = availableMethods.allowPayPal && !availableMethods.allowInPerson;
           const inPersonOnly = !availableMethods.allowPayPal && availableMethods.allowInPerson;
           const bothEnabled = availableMethods.allowPayPal && availableMethods.allowInPerson;
-          
+
           // Auto-determine payment method based on configuration
           let selectedPaymentMethod = paymentMethod;
-          
+
           // Scenario 1: PayPal Only - auto-select PayPal
           if (paypalOnly) {
             selectedPaymentMethod = 'paypal';
@@ -335,7 +315,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           else if (bothEnabled) {
             if (!selectedPaymentMethod) {
               // Check form data for payment method selection
-              const formPaymentMethod = Object.keys(data).find(key => 
+              const formPaymentMethod = Object.keys(data).find(key =>
                 key.includes('_payment_method')
               );
               if (formPaymentMethod) {
@@ -347,13 +327,13 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
               }
             }
           }
-          
+
           // Handle PayPal payment flow
           if (selectedPaymentMethod === 'paypal') {
             // Initiate PayPal payment via backend
             setSubmitState('submitting');
             setSubmitMessage('Redirecting to PayPal...');
-            
+
             try {
               await initiatePayPalPayment();
               // Don't remove lock here - PayPal will redirect and come back
@@ -362,10 +342,10 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
               // Remove lock on PayPal error
               sessionStorage.removeItem(globalSubmitKey);
             }
-            
+
             return;
           }
-          
+
           // If in-person payment selected, submit normally with note
           if (selectedPaymentMethod === 'in-person') {
             await api.post(`/v1/forms/slug/${slug}/responses`, {
@@ -381,7 +361,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
             return;
           }
         }
-        
+
         // Regular form submission (no payment required)
         await api.post(`/v1/forms/slug/${slug}/responses`, data);
         setSubmitState('success');
@@ -426,7 +406,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const computeTotal = (): number => {
     let total = 0;
     for (const f of schema.data as AnyField[]) {
-      if (!isVisible((f as any).visibleIf)) continue;
+      if (!evaluateVisibility((f as any).visibleIf, values)) continue;
       const val = (values as any)?.[f.name];
       if (f.type === "price") {
         const amt = (f as any).amount;
@@ -456,7 +436,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         if (!cfg?.enabled) continue;
         const weekdayPrice = (d: Date): number => {
           const dow = d.getDay();
-          const override = cfg.weekdayOverrides?.[dow as 0|1|2|3|4|5|6];
+          const override = cfg.weekdayOverrides?.[dow as 0 | 1 | 2 | 3 | 4 | 5 | 6];
           const specific = cfg.specificDates?.find((x) => x.date === format(d, "yyyy-MM-dd"))?.price;
           if (specific != null) return specific;
           if (override != null) return override;
@@ -482,25 +462,8 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
     }
     return total;
   };
-
   const total = computeTotal();
-  
-  // Collect errors for fields that are currently hidden, so they still surface
-  const hiddenErrors: string[] = useMemo(() => {
-    const msgs: string[] = [];
-    const errs: Record<string, any> = (form.formState.errors as any) || {};
-    const byName: Record<string, any> = errs;
-    for (const f of schema.data as AnyField[]) {
-      const e = byName[f.name];
-      if (!e) continue;
-      const currentlyVisible = isVisible((f as any).visibleIf);
-      if (!currentlyVisible) {
-        const msg = e?.message as string | undefined;
-        if (msg) msgs.push(msg);
-      }
-    }
-    return msgs;
-  }, [form.formState.errors, schema.data, values]);
+
   const hasPricing = (): boolean => {
     for (const f of schema.data as AnyField[]) {
       if (f.type === "price") {
@@ -554,132 +517,72 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const isSubmitting = submitState === 'submitting' || form.formState.isSubmitting;
 
   return (
-  <div className={cn("mx-auto w-full", formWidthClass)}>
-  <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
-      {/* Show errors for hidden required fields too */}
-      {hiddenErrors.length > 0 && (
-        <div className="col-span-12">
-          <Alert variant="destructive">
-            <AlertTitle>Some required fields are missing</AlertTitle>
-            <AlertDescription>
-              <ul className="list-disc pl-5">
-                {hiddenErrors.map((m, i) => (
-                  <li key={i}>{m}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
+    <div className={cn("mx-auto w-full", formWidthClass)}>
+      <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
+        {schema.data.filter((f) => evaluateVisibility(f.visibleIf, values)).map((f) => (
+          <FieldRenderer
+            key={f.id}
+            field={f}
+            control={form.control}
+            error={(form.formState.errors as any)?.[f.name]?.message as string | undefined}
+          />
+        ))}
 
-      {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
-        <FieldRenderer
-          key={f.id}
-          field={f}
-          control={form.control}
-          error={(form.formState.errors as any)?.[f.name]?.message as string | undefined}
-        />
-      ))}
-      
-      {/* Payment section - show if form has pricing */}
-      {slug && (showPricingBar || paymentConfig?.requires_payment) && (
-        <div className="col-span-12 space-y-4">
-          <Alert className="border-blue-200 bg-blue-50">
-            <CreditCard className="h-4 w-4" />
-            <AlertTitle>Payment Required</AlertTitle>
-            <AlertDescription>
-              <div className="space-y-3">
-                {showPricingBar && (
-                  <div className="text-lg font-semibold">
-                    Total: ${computeTotal().toFixed(2)}
+        {/* Payment section - show if form has pricing */}
+        {slug && (showPricingBar || paymentConfig?.requires_payment) && (
+          <div className="col-span-12 space-y-4">
+            <Alert className="border-blue-200 bg-blue-50">
+              <CreditCard className="h-4 w-4" />
+              <AlertTitle>Payment Required</AlertTitle>
+              <AlertDescription>
+                <div className="space-y-3">
+                  {showPricingBar && (
+                    <div className="text-lg font-semibold">
+                      Total: ${computeTotal().toFixed(2)}
+                    </div>
+                  )}
+
+                  {paymentConfig?.payment_description && (
+                    <div className="text-sm">{paymentConfig.payment_description}</div>
+                  )}
+
+                  {/* Payment methods are now handled by price fields directly */}
+                  <div className="text-sm text-muted-foreground">
+                    Choose your payment method in the form above.
                   </div>
-                )}
-                
-                {paymentConfig?.payment_description && (
-                  <div className="text-sm">{paymentConfig.payment_description}</div>
-                )}
-                
-                {/* Payment methods are now handled by price fields directly */}
-                <div className="text-sm text-muted-foreground">
-                  Choose your payment method in the form above.
+
+                  {/* Payment status messages */}
+                  {submitMessage && submitState !== 'success' && (
+                    <div className={`text-sm mt-2 ${submitState === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
+                      {submitMessage}
+                    </div>
+                  )}
+
                 </div>
-                
-                {/* Payment status messages */}
-                {submitMessage && submitState !== 'success' && (
-                  <div className={`text-sm mt-2 ${submitState === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
-                    {submitMessage}
-                  </div>
-                )}
-                
-              </div>
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-      
-      <div className="col-span-12">
-        {(() => {
-          const availableMethods = getAvailablePaymentMethods();
-          const paypalOnly = availableMethods.allowPayPal && !availableMethods.allowInPerson;
-          const inPersonOnly = !availableMethods.allowPayPal && availableMethods.allowInPerson;
-          const bothEnabled = availableMethods.allowPayPal && availableMethods.allowInPerson;
-          const hasPayment = total > 0;
-          
-          // Check if form has price fields (for Form Builder preview experience)
-          const hasPriceFields = schema.data.some(field => field.type === 'price');
-          
-          // For forms with payment (both preview and public forms)
-          // Show PayPal UI if has payment OR if has price fields (for Form Builder preview)
-          if (hasPayment || (!slug && hasPriceFields)) {
-            // Scenario 1: PayPal Only
-            if (paypalOnly) {
-              return (
-                <Button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
-                      <span className="text-blue-600 text-xs font-bold">P</span>
-                    </div>
-                    {isSubmitting ? 'Processing...' : 'Pay with PayPal & Submit'}
-                  </span>
-                </Button>
-              );
-            }
-            
-            // Scenario 2: In-Person Only
-            if (inPersonOnly) {
-              return (
-                <Button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
-                      <span className="text-green-600 text-xs">💵</span>
-                    </div>
-                    {isSubmitting ? 'Submitting...' : 'Submit Form (Pay In-Person Later)'}
-                  </span>
-                </Button>
-              );
-            }
-            
-            // Scenario 3: Both Enabled - Dynamic button based on selection
-            if (bothEnabled) {
-              // Find the payment method field and get its current value
-              const paymentMethodField = Object.keys(values).find(key => 
-                key.includes('_payment_method')
-              );
-              const currentMethod = paymentMethodField ? 
-                values[paymentMethodField] as 'paypal' | 'in-person' : 'paypal';
-              
-              if (currentMethod === 'paypal') {
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        <div className="col-span-12">
+          {(() => {
+            const availableMethods = getAvailablePaymentMethods();
+            const paypalOnly = availableMethods.allowPayPal && !availableMethods.allowInPerson;
+            const inPersonOnly = !availableMethods.allowPayPal && availableMethods.allowInPerson;
+            const bothEnabled = availableMethods.allowPayPal && availableMethods.allowInPerson;
+            const hasPayment = total > 0;
+
+            // Check if form has price fields (for Form Builder preview experience)
+            const hasPriceFields = schema.data.some(field => field.type === 'price');
+
+            // For forms with payment (both preview and public forms)
+            // Show PayPal UI if has payment OR if has price fields (for Form Builder preview)
+            if (hasPayment || (!slug && hasPriceFields)) {
+              // Scenario 1: PayPal Only
+              if (paypalOnly) {
                 return (
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isSubmitting}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   >
@@ -691,10 +594,13 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                     </span>
                   </Button>
                 );
-              } else {
+              }
+
+              // Scenario 2: In-Person Only
+              if (inPersonOnly) {
                 return (
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isSubmitting}
                     className="w-full bg-green-600 hover:bg-green-700 text-white"
                   >
@@ -707,39 +613,80 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                   </Button>
                 );
               }
+
+              // Scenario 3: Both Enabled - Dynamic button based on selection
+              if (bothEnabled) {
+                // Find the payment method field and get its current value
+                const paymentMethodField = Object.keys(values).find(key =>
+                  key.includes('_payment_method')
+                );
+                const currentMethod = paymentMethodField ?
+                  values[paymentMethodField] as 'paypal' | 'in-person' : 'paypal';
+
+                if (currentMethod === 'paypal') {
+                  return (
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
+                          <span className="text-blue-600 text-xs font-bold">P</span>
+                        </div>
+                        {isSubmitting ? 'Processing...' : 'Pay with PayPal & Submit'}
+                      </span>
+                    </Button>
+                  );
+                } else {
+                  return (
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
+                          <span className="text-green-600 text-xs">💵</span>
+                        </div>
+                        {isSubmitting ? 'Submitting...' : 'Submit Form (Pay In-Person Later)'}
+                      </span>
+                    </Button>
+                  );
+                }
+              }
             }
-          }
-          
-          // Default submit button for non-payment forms or admin preview
-          return (
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
+
+            // Default submit button for non-payment forms or admin preview
+            return (
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit'}
+              </Button>
+            );
+          })()}
+
+          {submitMessage && submitState !== 'success' && (
+            <div
+              className={`text-sm mt-2 ${submitState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
             >
-              {isSubmitting ? 'Submitting...' : 'Submit'}
-            </Button>
-          );
-        })()}
-        
-        {submitMessage && submitState !== 'success' && (
-          <div
-            className={`text-sm mt-2 ${submitState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
-          >
-            {submitMessage}
-          </div>
-        )}
-      </div>
-      {showPricingBar && (
-        <div className="col-span-12">
-          <div className="mt-2 border-t pt-2 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Pricing summary</div>
-            <div className="text-base">
-              <span className="font-medium">Estimated Total: </span>${total.toFixed(2)}
+              {submitMessage}
+            </div>
+          )}
+        </div>
+        {showPricingBar && (
+          <div className="col-span-12">
+            <div className="mt-2 border-t pt-2 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Pricing summary</div>
+              <div className="text-base">
+                <span className="font-medium">Estimated Total: </span>${total.toFixed(2)}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </form>
+        )}
+      </form>
     </div>
   );
 }
