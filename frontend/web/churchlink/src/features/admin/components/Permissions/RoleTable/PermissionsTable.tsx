@@ -113,8 +113,8 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
       cellRenderer: ActionsCellRenderer,
       sortable: false,
       filter: false,
-      flex: 2,
-      minWidth: 300,
+      flex: 2.5,
+      minWidth: 420,
       suppressSizeToFit: true,
       pinned: 'right',
     },
@@ -123,7 +123,7 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
   const defaultColDef: ColDef = { resizable: true };
 
   return (
-    <div className="container mx-auto">
+    <div className="w-full">
       <div className="flex items-center py-4">
         <Input
           placeholder="Search Permission Name or Accessible Pages..."
@@ -137,8 +137,9 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
         </div>
       </div>
 
-      <div className="ag-theme-quartz" style={{ height: 400, width: '100%' }}>
-        <AgGridReact
+      <div className="w-full overflow-x-auto">
+        <div className="ag-theme-quartz w-full" style={{ height: 400, width: '100%', minWidth: 700 }}>
+          <AgGridReact
           ref={gridRef}
           rowData={data}
           columnDefs={columnDefs}
@@ -152,6 +153,7 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
           quickFilterText={quickFilterText}
           tooltipShowDelay={500}
         />
+        </div>
       </div>
     </div>
   );

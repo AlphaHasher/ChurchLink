@@ -244,28 +244,28 @@ const AdminDashboard: React.FC = () => {
   if (!loading && !permissions && error) {
     return (
       <div className="mx-auto max-w-7xl px-6 py-10">
-        <Alert className="border-red-200 bg-red-50">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertTitle className="text-red-800 font-medium">
+        <Alert className="border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900/20">
+          <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-300" />
+          <AlertTitle className="text-red-800 font-medium dark:text-red-200">
             Permission Load Failed
           </AlertTitle>
-          <AlertDescription className="text-red-700">
+          <AlertDescription className="text-red-700 dark:text-red-300">
             Unable to load your permissions. This may be due to a network issue or server problem.
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => window.location.reload()}
-                className="px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200 border border-red-300"
+                className="px-3 py-1 bg-destructive/10 text-destructive rounded text-sm hover:bg-destructive/20 border border-destructive/20 dark:bg-destructive/20 dark:text-destructive-foreground"
               >
                 Retry
               </button>
               <button
                 onClick={() => window.location.href = '/admin'}
-                className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200 border border-gray-300"
+                className="px-3 py-1 bg-muted text-muted-foreground rounded text-sm hover:bg-muted/80 border border-input dark:bg-muted/30"
               >
                 Go to Admin Home
               </button>
             </div>
-            <div className="mt-2 text-xs text-red-600">
+            <div className="mt-2 text-xs text-red-600 dark:text-red-300">
               Error: {error}
             </div>
           </AlertDescription>
@@ -278,23 +278,23 @@ const AdminDashboard: React.FC = () => {
   if (!loading && !permissions) {
     return (
       <div className="mx-auto max-w-7xl px-6 py-10">
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800 font-medium">
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+          <AlertTitle className="text-amber-800 font-medium dark:text-amber-200">
             Permission Data Missing
           </AlertTitle>
-          <AlertDescription className="text-amber-700">
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
             Your permission data could not be loaded. This may be a temporary issue.
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => window.location.reload()}
-                className="px-3 py-1 bg-amber-100 text-amber-800 rounded text-sm hover:bg-amber-200 border border-amber-300"
+                className="px-3 py-1 bg-amber-100 text-amber-800 rounded text-sm hover:bg-amber-200 border border-amber-300 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-800/30 dark:border-amber-700"
               >
                 Refresh Page
               </button>
               <button
                 onClick={() => window.location.href = '/logout'}
-                className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200 border border-gray-300"
+                className="px-3 py-1 bg-muted text-muted-foreground rounded text-sm hover:bg-muted/80 border border-input dark:bg-muted/30"
               >
                 Sign Out & Back In
               </button>
@@ -310,11 +310,11 @@ const AdminDashboard: React.FC = () => {
     return (
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-2/3 mb-8"></div>
+          <div className="h-8 bg-muted/60 dark:bg-muted/30 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-muted/60 dark:bg-muted/30 rounded w-2/3 mb-8"></div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+              <div key={i} className="h-32 bg-muted/60 dark:bg-muted/30 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -327,7 +327,7 @@ const AdminDashboard: React.FC = () => {
       {/* Hero */}
       <div className="relative overflow-hidden rounded-xl border bg-gradient-to-b from-muted/50 to-background p-6 md:p-10">
         <div className="flex items-start gap-4">
-          <div className="rounded-lg bg-primary/10 p-3">
+          <div className="rounded-lg bg-primary/10 p-3 dark:bg-primary/20">
             <ShieldCheck className="h-6 w-6 text-primary" />
           </div>
           <div className="space-y-2">
@@ -349,7 +349,7 @@ const AdminDashboard: React.FC = () => {
         {/* Subtle gradient flourish */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 dark:bg-primary/20 blur-3xl"
         />
       </div>
 
@@ -366,12 +366,12 @@ const AdminDashboard: React.FC = () => {
 
         {/* Unassigned Features Warning - Only show for admins */}
         {permissions?.admin && unassignedFeatures.length > 0 && (
-          <Alert className="border-amber-200 bg-amber-50 text-amber-800">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle className="font-medium text-amber-800">
+          <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+            <AlertTitle className="font-medium text-amber-800 dark:text-amber-200">
               Permission Assignment Needed
             </AlertTitle>
-            <AlertDescription className="text-amber-700">
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
               The following features don't have any roles assigned yet: <strong>{unassignedFeatures.join(', ')}</strong>.
               Consider <Link to="/admin/permissions" className="underline hover:no-underline">creating roles</Link> with 
               appropriate permissions so staff can access these features.
@@ -395,8 +395,8 @@ const AdminDashboard: React.FC = () => {
                 <Card
                   key={title}
                   className={`group transition-colors hover:border-primary/40 relative ${
-                    hasNoRoleAssigned ? 'border-amber-200 bg-amber-50/50' : 
-                    hasLimitedRoles ? 'border-blue-200 bg-blue-50/30' : ''
+                    hasNoRoleAssigned ? 'border-amber-200 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200' : 
+                    hasLimitedRoles ? 'border-blue-200 bg-blue-50/30 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : ''
                   }`}
                 >
                   {/* Invisible overlay link that makes the entire card clickable */}
@@ -414,13 +414,13 @@ const AdminDashboard: React.FC = () => {
                         <div className="flex items-center gap-2 flex-wrap">
                           <CardTitle className="text-base">{title}</CardTitle>
                           {hasNoRoleAssigned && (
-                            <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300">
+                            <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-700">
                               <AlertTriangle className="w-3 h-3 mr-1" />
                               No Role
                             </Badge>
                           )}
                           {hasLimitedRoles && (
-                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-700">
                               {permissionInfo.assignedRoles.length === 1 ? '1 Role' : `${permissionInfo.assignedRoles.length} Roles`}
                             </Badge>
                           )}
@@ -432,15 +432,15 @@ const AdminDashboard: React.FC = () => {
                     <CardDescription className="mb-4">
                       {description}
                       {hasNoRoleAssigned && (
-                        <span className="block mt-2 text-xs text-amber-600 font-medium">
+                        <span className="block mt-2 text-xs text-amber-600 dark:text-amber-300 font-medium">
                           ⚠️ This feature has no assigned roles. Staff cannot access it yet.
                         </span>
                       )}
                       {hasLimitedRoles && (
-                        <span className="block mt-2 text-xs text-blue-600 font-medium">
+                        <span className="block mt-2 text-xs text-blue-600 dark:text-blue-300 font-medium">
                           📋 Available to: <strong>{permissionInfo.assignedRoles.join(', ')}</strong>
                           {permissionInfo.assignedRoles.length === 1 && (
-                            <span className="text-blue-500"> (only this role has access)</span>
+                            <span className="text-blue-500 dark:text-blue-300"> (only this role has access)</span>
                           )}
                         </span>
                       )}
