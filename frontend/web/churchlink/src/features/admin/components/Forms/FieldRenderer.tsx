@@ -54,11 +54,22 @@ type Props = {
 export function FieldRenderer({ field, control, error }: Props) {
   const colClass = cn("col-span-12", widthToCols(field.width));
   const activeLocale = useBuilderStore((s) => s.activeLocale);
+  const allFields = useBuilderStore((s) => s.schema.data);
   
   // Handle price field separately to avoid double layout
   if (field.type === "price") {
     const priceField = field as any;
-    const amount = priceField.amount || 0;
+    let amount = priceField.amount || 0;
+    
+    // Calculate total from pricelabel fields if they exist
+    const pricelabelFields = allFields.filter(f => f.type === 'pricelabel') as any[];
+    const calculatedTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
+    
+    // Use calculated total if pricelabel fields exist, otherwise use manual amount
+    if (pricelabelFields.length > 0) {
+      amount = calculatedTotal;
+    }
+    
     const paymentMethods = priceField.paymentMethods || {};
     const allowPayPal = paymentMethods.allowPayPal !== false; // default true
     const allowInPerson = paymentMethods.allowInPerson !== false; // default true
@@ -185,6 +196,40 @@ export function FieldRenderer({ field, control, error }: Props) {
         )}
         
         {error && <p className="text-xs text-destructive">{String(error)}</p>}
+      </div>
+    );
+  }
+  
+  // Handle pricelabel field separately for display
+  if (field.type === "pricelabel") {
+    const pricelabelField = field as any;
+    const amount = pricelabelField.amount || 0;
+    
+    // Use translation system for the label
+    const translations = useBuilderStore((s) => s.translations);
+    const t = (key: 'label', base?: string) => {
+      // If no active locale or it's English, return base
+      if (!activeLocale || activeLocale === 'en') return base;
+      
+      // Get translations for this field
+      const fieldTranslations = translations[field.id]?.[activeLocale];
+      if (!fieldTranslations) return base;
+      
+      // Check if translation exists
+      const val = (fieldTranslations as any)[key];
+      return (val != null && val !== '') ? val : base;
+    };
+    
+    const localizedLabel = t('label', pricelabelField.label);
+    
+    return (
+      <div className={cn("flex items-center justify-between py-2", colClass)}>
+        <Label className="text-sm font-medium">
+          {localizedLabel || "Price Component"}
+        </Label>
+        <span className="text-lg font-semibold text-primary">
+          ${amount.toFixed(2)}
+        </span>
       </div>
     );
   }

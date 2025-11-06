@@ -17,6 +17,7 @@ export type FieldType =
   | "radio"
   | "date"
   | "static"
+  | "pricelabel"
   | "price";
 
 export type Width = "full" | "half" | "third" | "quarter";
@@ -164,6 +165,11 @@ export interface StaticTextField extends BaseField {
   underline?: boolean;
 }
 
+export interface PriceLabelField extends BaseField {
+  type: "pricelabel";
+  amount: number; // individual price component amount
+}
+
 export interface PriceField extends BaseField {
   type: "price";
   amount: number; // flat amount to add to total when visible
@@ -187,6 +193,7 @@ export type AnyField =
   | TimeField
   | ColorField
   | StaticTextField
+  | PriceLabelField
   | PriceField;
 
 export interface FormSchemaMeta {

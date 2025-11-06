@@ -90,8 +90,10 @@ const newField = (type: FieldType): AnyField => {
       return { ...base, type: "time", placeholder: "HH:MM" } as any;
     case "static":
       return { ...base, type: "static", name: `static_${id}`, label: "Static Text", as: "p" } as any;
+    case "pricelabel":
+      return { ...base, type: "pricelabel", label: "Price Item", amount: 5 } as any;
     case "price":
-      return { ...base, type: "price", label: "Price", amount: 10 } as any;
+      return { ...base, type: "price", label: "Total Price", amount: 0 } as any;
     default:
       return { ...base, type: "text", placeholder: "Enter text" };
   }
@@ -105,11 +107,66 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   customLocales: new Set(),
   modifiedFields: new Set(),
   select: (id?: string) => set({ selectedId: id }),
-  addField: (type: FieldType) => set((s) => ({ schema: { ...s.schema, data: [...s.schema.data, newField(type)] } })),
-  removeField: (id: string) => set((s) => ({
-    schema: { ...s.schema, data: s.schema.data.filter((f) => f.id !== id) },
-    selectedId: s.selectedId === id ? undefined : s.selectedId,
-  })),
+  addField: (type: FieldType) => set((s) => {
+    // Prevent adding multiple price fields - only one price field allowed per form
+    if (type === 'price') {
+      const hasPriceField = s.schema.data.some(field => field.type === 'price');
+      if (hasPriceField) {
+        return s; // Don't add another price field if one already exists
+      }
+    }
+    
+    const newFieldData = newField(type);
+    const newData = [...s.schema.data, newFieldData];
+    
+    // If we're adding a pricelabel field, update price field totals
+    if (type === 'pricelabel') {
+      // Calculate total from all pricelabel fields (including the new one)
+      const pricelabelFields = newData.filter(f => f.type === 'pricelabel') as any[];
+      const newTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
+      
+      // Update all price fields with the calculated total
+      const finalData = newData.map(f => {
+        if (f.type === 'price') {
+          return { ...f, amount: newTotal } as AnyField;
+        }
+        return f;
+      });
+      
+      return { schema: { ...s.schema, data: finalData } };
+    }
+    
+    return { schema: { ...s.schema, data: newData } };
+  }),
+  removeField: (id: string) => set((s) => {
+    const fieldToRemove = s.schema.data.find(f => f.id === id);
+    const newData = s.schema.data.filter((f) => f.id !== id);
+    
+    // If we're removing a pricelabel field, update price field totals
+    if (fieldToRemove?.type === 'pricelabel') {
+      // Calculate new total from remaining pricelabel fields
+      const remainingPricelabelFields = newData.filter(f => f.type === 'pricelabel') as any[];
+      const newTotal = remainingPricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
+      
+      // Update all price fields with the new calculated total
+      const finalData = newData.map(f => {
+        if (f.type === 'price') {
+          return { ...f, amount: newTotal } as AnyField;
+        }
+        return f;
+      });
+      
+      return {
+        schema: { ...s.schema, data: finalData },
+        selectedId: s.selectedId === id ? undefined : s.selectedId,
+      };
+    }
+    
+    return {
+      schema: { ...s.schema, data: newData },
+      selectedId: s.selectedId === id ? undefined : s.selectedId,
+    };
+  }),
   reorder: (from: number, to: number) => set((s) => {
     const arr = [...s.schema.data];
     const [moved] = arr.splice(from, 1);
@@ -122,19 +179,44 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     if (field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined)) {
       const newModified = new Set(s.modifiedFields);
       newModified.add(id);
+    }
+
+    // Update the field with the patch
+    const updatedData = s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[];
+    
+    // If this is a pricelabel field and its amount changed, auto-update price fields
+    if (field?.type === 'pricelabel' && patch.hasOwnProperty('amount')) {
+      // Calculate new total from all pricelabel fields
+      const pricelabelFields = updatedData.filter(f => f.type === 'pricelabel') as any[];
+      const newTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
+      
+      // Update all price fields with the calculated total
+      const finalData = updatedData.map(f => {
+        if (f.type === 'price') {
+          return { ...f, amount: newTotal } as AnyField;
+        }
+        return f;
+      });
+      
       return {
         schema: {
           ...s.schema,
-          data: s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[],
+          data: finalData,
         },
-        modifiedFields: newModified,
+        modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined) 
+          ? new Set([...s.modifiedFields, id])
+          : s.modifiedFields,
       };
     }
+
     return {
       schema: {
         ...s.schema,
-        data: s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[],
+        data: updatedData,
       },
+      modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined) 
+        ? new Set([...s.modifiedFields, id])
+        : s.modifiedFields,
     };
   }),
   updateOptions: (id: string, options: OptionItem[]) => set((s) => {
@@ -149,14 +231,33 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       modifiedFields: newModified,
     };
   }),
-  setSchema: (schema) => set({
-    schema: {
-      ...schema,
-      supported_locales: schema.supported_locales || [],
-      formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width),
-    },
-    activeLocale: 'en',
-  }),
+  setSchema: (schema) => {
+    // Remove duplicate price fields if any exist (keep only the first one)
+    const cleanedData = [];
+    let hasPriceField = false;
+    
+    for (const field of schema.data) {
+      if (field.type === 'price') {
+        if (!hasPriceField) {
+          cleanedData.push(field);
+          hasPriceField = true;
+        }
+        // Skip additional price fields
+      } else {
+        cleanedData.push(field);
+      }
+    }
+    
+    return set({
+      schema: {
+        ...schema,
+        data: cleanedData,
+        supported_locales: schema.supported_locales || [],
+        formWidth: normalizeFormWidth((schema as any)?.formWidth ?? (schema as any)?.form_width),
+      },
+      activeLocale: 'en',
+    });
+  },
   setActiveLocale: (locale: string) => set({ activeLocale: locale }),
   updateSchemaMeta: (patch) => set((s) => {
     const next: Partial<FormSchema> = { ...patch };

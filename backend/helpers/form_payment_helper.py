@@ -23,6 +23,68 @@ class FormPaymentHelper:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
+    def calculate_total_amount(self, form_schema: Dict[str, Any], form_response: Dict[str, Any]) -> float:
+        """
+        Calculate the total payment amount from form schema and user responses.
+        Looks at all price fields in the form and sums them up.
+        
+        Args:
+            form_schema: The form schema containing field definitions
+            form_response: User's form responses
+            
+        Returns:
+            float: Total amount to be charged
+            
+        Raises:
+            ValueError: If price calculation fails or results in invalid amount
+        """
+        try:
+            total_amount = 0.0
+            
+            # Get form data fields
+            schema_data = form_schema.get('data', [])
+            if not isinstance(schema_data, list):
+                self.logger.warning("Form schema data is not a list")
+                return 0.0
+            
+            # Find all price fields and sum their amounts
+            for field in schema_data:
+                if not isinstance(field, dict):
+                    continue
+                    
+                if field.get('type') == 'price':
+                    field_id = field.get('id')
+                    if not field_id:
+                        continue
+                    
+                    # Get the price from the field definition (not from user input for security)
+                    price = field.get('price', 0)
+                    
+                    # Check if user selected this field (for optional price fields)
+                    # If the field is in the response, it means the user selected it
+                    if field_id in form_response:
+                        try:
+                            amount = float(price)
+                            if amount > 0:
+                                total_amount += amount
+                                self.logger.debug(f"Added price field {field_id}: ${amount:.2f}")
+                        except (ValueError, TypeError) as e:
+                            self.logger.warning(f"Invalid price value for field {field_id}: {price}")
+                            continue
+            
+            # Validate final amount
+            if total_amount < 0:
+                raise ValueError("Total amount cannot be negative")
+            if total_amount > 10000:  # Security limit
+                raise ValueError("Total amount exceeds maximum limit of $10,000")
+                
+            self.logger.info(f"Calculated total amount: ${total_amount:.2f}")
+            return total_amount
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating total amount: {str(e)}")
+            raise ValueError(f"Failed to calculate payment amount: {str(e)}")
+
     async def create_form_payment_order(
         self,
         slug: str,
@@ -37,16 +99,20 @@ class FormPaymentHelper:
             
             self.logger.info(f"Creating form payment order for slug: {slug}")
             
+            # Get form response for amount calculation
+            form_response = payment_data.get("form_response", {})
+            
             # Log payment initiation
             payment_audit_logger.log_form_payment_started(
                 user_id=user_id,
                 form_slug=slug,
-                amount=payment_amount,
+                amount=payment_amount,  # This is the frontend amount for audit comparison
                 client_ip=client_ip,
                 user_agent=user_agent,
                 metadata={
-                    "form_response_fields": list(payment_data.get("form_response", {}).keys()),
-                    "initiation_phase": "form_validation"
+                    "form_response_fields": list(form_response.keys()),
+                    "initiation_phase": "form_validation",
+                    "frontend_amount": payment_amount
                 }
             )
             
@@ -83,8 +149,16 @@ class FormPaymentHelper:
                     detail="This form does not require payment"
                 )
             
-            # Validate payment amount
-            validated_amount = await self._validate_payment_amount(payment_amount, form, user_id, client_ip)
+            # Calculate payment amount from form schema and user responses (ignore frontend-provided amount)
+            calculated_amount = self.calculate_total_amount(form.form_schema, form_response)
+            
+            # Log amount calculation for security audit
+            self.logger.info(f"Amount calculation - Frontend: ${payment_amount:.2f}, Calculated: ${calculated_amount:.2f}")
+            if abs(payment_amount - calculated_amount) > 0.01:  # Allow for small float differences
+                self.logger.warning(f"Payment amount mismatch detected - using calculated amount for security")
+            
+            # Validate the calculated amount
+            validated_amount = await self._validate_payment_amount(calculated_amount, form, user_id, client_ip)
             
             # Check PayPal configuration
             if not self._check_paypal_config():

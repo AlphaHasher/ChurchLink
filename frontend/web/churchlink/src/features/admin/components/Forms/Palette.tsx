@@ -16,7 +16,8 @@ const items = [
   { type: "radio", label: "Radio" },
   { type: "switch", label: "Switch" },
   { type: "time", label: "Time" },
-  { type: "price", label: "Price (total only)" },
+  { type: "pricelabel", label: "Price (for label purpose)" },
+  { type: "price", label: "Payment Method" },
 ] as const;
 
 export function Palette() {

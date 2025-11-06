@@ -15,6 +15,7 @@ import { TranslationsPanel } from "./TranslationsPanel";
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
   const field = useBuilderStore((s) => s.schema.data.find((f) => f.id === s.selectedId));
+  const allFields = useBuilderStore((s) => s.schema.data);
   const update = useBuilderStore((s) => s.updateField);
   const updateOptions = useBuilderStore((s) => s.updateOptions);
 
@@ -181,7 +182,7 @@ export function Inspector() {
             <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} placeholder="Enter placeholder text" />
           </div>
         )}
-      {field.type !== 'price' && (
+      {field.type !== 'price' && field.type !== 'pricelabel' && (
         <div className="space-y-1">
           <Label>Component Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
@@ -191,9 +192,60 @@ export function Inspector() {
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Amount</Label>
-            <Input type="number" value={(field as any).amount ?? 0}
-              onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
-            <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
+            {(() => {
+              // Calculate total from pricelabel fields
+              const pricelabelFields = allFields.filter(f => f.type === 'pricelabel') as any[];
+              const calculatedTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
+              const hasPricelabelFields = pricelabelFields.length > 0;
+              
+              if (hasPricelabelFields) {
+                return (
+                  <div className="space-y-2">
+                    <div className="p-3 bg-muted rounded-md">
+                      <div className="text-sm font-medium text-muted-foreground mb-2">
+                        Calculated from price components:
+                      </div>
+                      <div className="text-2xl font-bold text-primary">
+                        ${calculatedTotal.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                        <div>{pricelabelFields.length} price component{pricelabelFields.length === 1 ? '' : 's'} found:</div>
+                        {pricelabelFields.map((pf, idx) => (
+                          <div key={pf.id} className="flex justify-between text-xs">
+                            <span>• {pf.label || `Component ${idx + 1}`}</span>
+                            <span>${(pf.amount || 0).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        onChange({ amount: calculatedTotal } as any);
+                      }}
+                    >
+                      Apply Calculated Total (${calculatedTotal.toFixed(2)})
+                    </Button>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="space-y-2">
+                    <Input 
+                      type="number" 
+                      value={(field as any).amount ?? 0}
+                      onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} 
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Manual entry mode - no price components found. Add price components for automatic calculation.
+                    </p>
+                  </div>
+                );
+              }
+            })()}
           </div>
 
           <div className="space-y-2">
@@ -250,7 +302,19 @@ export function Inspector() {
           </div>
         </div>
       )}
-      {field.type !== 'price' && (
+
+      {field.type === "pricelabel" && (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Amount</Label>
+            <Input type="number" value={(field as any).amount ?? 0}
+              onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
+            <p className="text-xs text-muted-foreground">This is a display field that shows an individual price component.</p>
+          </div>
+        </div>
+      )}
+
+      {field.type !== 'price' && field.type !== 'pricelabel' && (
         <>
           <div className="space-y-1">
             <Label>Width</Label>

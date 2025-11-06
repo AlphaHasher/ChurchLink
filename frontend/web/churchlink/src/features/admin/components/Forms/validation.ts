@@ -40,6 +40,7 @@ const pushViolation = (
 export const getBoundsViolations = (schema: FormSchema | undefined | null): BoundsViolation[] => {
   if (!schema || !Array.isArray(schema.data)) return [];
   const violations: BoundsViolation[] = [];
+  
   for (const field of schema.data) {
     switch (field.type) {
       case "number": {
