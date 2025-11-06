@@ -439,9 +439,9 @@ export function Inspector() {
                     <CircleHelp className="h-4 w-4" />
                   </button>
                 </HoverCardTrigger>
-                <HoverCardContent className="w-96" align="start">
+                <HoverCardContent className="w-[420px] max-w-[90vw]" align="start">
                   <div className="space-y-2 text-sm">
-                    <p>Show this field only when a simple condition on another field is true.</p>
+                    <p>Show this field only when conditions on other fields are true. Chain as many conditions as needed.</p>
                     <p>Syntax: <code>Component Name op value</code></p>
                     <ul className="list-disc pl-5 space-y-1">
                       <li><strong>Component Name</strong>: another field's name</li>
@@ -449,21 +449,23 @@ export function Inspector() {
                       <li><strong>value</strong>: number, boolean (<code>true</code>/<code>false</code>), or string (wrap in quotes)</li>
                     </ul>
                     <div className="space-y-1">
-                      <p className="font-medium">Examples</p>
-                      <pre className="rounded bg-muted p-2 text-xs">staff == true</pre>
-                      <pre className="rounded bg-muted p-2 text-xs">age &gt;= 12</pre>
-                      <pre className="rounded bg-muted p-2 text-xs">country == "US"</pre>
+                      <p className="font-medium">Single condition examples</p>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">staff == true</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">age &gt;= 18</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">country == "USA"</pre>
                     </div>
                     <div className="space-y-1">
-                      <p className="font-medium">Multiple conditions</p>
-                      <p>Chain with <code>&amp;&amp;</code> (AND) or <code>||</code> (OR). Only first condition is parsed today; support for chaining is planned. For now, prefer one condition per field.</p>
-                      <pre className="rounded bg-muted p-2 text-xs">subscribe == true &amp;&amp; age &gt;= 18</pre>
+                      <p className="font-medium">Multiple conditions (unlimited chaining)</p>
+                      <p>Chain with <code>&amp;&amp;</code> (AND) or <code>||</code> (OR). AND has higher precedence:</p>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">age &gt;= 18 &amp;&amp; subscribe == true</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">country == "USA" || country == "Canada" || country == "Mexico"</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">age &gt;= 18 &amp;&amp; member == true || admin == true</pre>
                     </div>
                   </div>
                 </HoverCardContent>
               </HoverCard>
             </div>
-            <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
+            <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age >= 18 && subscribe == true' />
           </div>
         </>
       )}

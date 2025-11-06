@@ -76,8 +76,10 @@ class StaticFormComponent extends StatelessWidget {
         (labelOverride ??
                 field['label'] ??
                 field['content'] ??
+                field['text'] ??
+                field['value'] ??
                 field['name'] ??
-                '')
+                'Static Text')
             .toString();
     final helper =
         (helperOverride ??
