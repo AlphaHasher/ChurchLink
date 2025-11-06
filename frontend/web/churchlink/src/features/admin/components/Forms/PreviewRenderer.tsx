@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { schemaToZodObject } from "./schemaGen";
+import { evaluateVisibility } from "./visibilityUtils";
 import { FieldRenderer } from "./FieldRenderer";
 import { useBuilderStore, type BuilderState } from "./store";
 import { Button } from "@/shared/components/ui/button";
@@ -12,7 +13,7 @@ export function PreviewRenderer() {
   const schema = useBuilderStore((s: BuilderState) => s.schema);
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const zodSchema = schemaToZodObject(schema);
-  
+
   // Set default values for payment method fields
   const getDefaultValues = () => {
     const defaults: Record<string, any> = {};
@@ -21,7 +22,7 @@ export function PreviewRenderer() {
         const priceField = f as any;
         const allowPayPal = priceField.paymentMethods?.allowPayPal !== false;
         const allowInPerson = priceField.paymentMethods?.allowInPerson !== false;
-        
+
         // Set default payment method for fields that allow both
         if (allowPayPal && allowInPerson) {
           defaults[`${f.name}_payment_method`] = 'paypal';
@@ -30,9 +31,9 @@ export function PreviewRenderer() {
     }
     return defaults;
   };
-  
-  const form = useForm({ 
-    resolver: zodResolver(zodSchema), 
+
+  const form = useForm({
+    resolver: zodResolver(zodSchema),
     defaultValues: getDefaultValues()
   });
   const values = form.watch();
@@ -59,10 +60,10 @@ export function PreviewRenderer() {
   // Get available payment methods from price fields
   const getAvailablePaymentMethods = () => {
     const methods = { allowPayPal: false, allowInPerson: false };
-    
+
     // Check price fields for payment method configurations
     for (const f of schema.data as AnyField[]) {
-      if (f.type === "price" && isVisible((f as any).visibleIf)) {
+      if (f.type === "price" && evaluateVisibility((f as any).visibleIf, values)) {
         const priceField = f as any;
         if (priceField.paymentMethods?.allowPayPal) {
           methods.allowPayPal = true;
@@ -72,13 +73,13 @@ export function PreviewRenderer() {
         }
       }
     }
-    
+
     // If no price fields specify methods, default to both (backward compatibility)
     if (!methods.allowPayPal && !methods.allowInPerson) {
       methods.allowPayPal = true;
       methods.allowInPerson = true;
     }
-    
+
     return methods;
   };
 
@@ -86,35 +87,12 @@ export function PreviewRenderer() {
   const computeTotal = () => {
     let total = 0;
     for (const f of schema.data as AnyField[]) {
-      if (f.type === "price" && isVisible((f as any).visibleIf)) {
+      if (f.type === "price" && evaluateVisibility((f as any).visibleIf, values)) {
         const priceField = f as any;
         total += priceField.amount || 0;
       }
     }
     return total;
-  };
-
-  const isVisible = (visibleIf?: string): boolean => {
-    if (!visibleIf) return true;
-    // Parser: "name op literal" where op in == != >= <= > <
-    const m = visibleIf.match(/^\s*(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*$/);
-    if (!m) return true;
-    const [, name, op, rhsRaw] = m;
-    const lhs = (values as any)?.[name];
-    let rhs: any = rhsRaw;
-  // normalize rhs: strip quotes, parse number/boolean
-    if ((/^['"].*['"]$/).test(rhsRaw)) rhs = rhsRaw.slice(1, -1);
-    else if (/^(true|false)$/i.test(rhsRaw)) rhs = rhsRaw.toLowerCase() === "true";
-    else if (!Number.isNaN(Number(rhsRaw))) rhs = Number(rhsRaw);
-    switch (op) {
-      case "==": return lhs == rhs;
-      case "!=": return lhs != rhs;
-      case ">=": return lhs >= rhs;
-      case "<=": return lhs <= rhs;
-      case ">": return lhs > rhs;
-      case "<": return lhs < rhs;
-      default: return true;
-    }
   };
 
   const onSubmit = form.handleSubmit(async (data: any) => {
@@ -131,33 +109,7 @@ export function PreviewRenderer() {
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-12 gap-4">
       {/* Language selector removed here; kept in Live Preview card header */}
-      {/* Hidden required fields errors */}
-      {(() => {
-        const errs: Record<string, any> = (form.formState.errors as any) || {};
-        const msgs: string[] = [];
-        for (const f of schema.data) {
-          const e = errs?.[f.name];
-          if (!e) continue;
-          const vis = isVisible((f as any).visibleIf);
-          if (!vis && e?.message) msgs.push(e.message as string);
-        }
-        return msgs.length > 0 ? (
-          <div className="col-span-12">
-            <Alert variant="destructive">
-              <AlertTitle>Some required fields are missing</AlertTitle>
-              <AlertDescription>
-                <ul className="list-disc pl-5">
-                  {msgs.map((m, i) => (
-                    <li key={i}>{m}</li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
-          </div>
-        ) : null;
-      })()}
-
-      {schema.data.filter((f) => isVisible(f.visibleIf)).map((f) => (
+      {schema.data.filter((f) => evaluateVisibility(f.visibleIf, values)).map((f) => (
         <FieldRenderer
           key={f.id}
           field={f}
@@ -173,13 +125,13 @@ export function PreviewRenderer() {
           const bothEnabled = availableMethods.allowPayPal && availableMethods.allowInPerson;
           const total = computeTotal();
           const hasPayment = total > 0;
-          
+
           // For forms with payment (preview mode)
           if (hasPayment) {
             // Scenario 1: PayPal Only
             if (paypalOnly) {
               return (
-                <Button 
+                <Button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 >
@@ -192,11 +144,11 @@ export function PreviewRenderer() {
                 </Button>
               );
             }
-            
+
             // Scenario 2: In-Person Only
             if (inPersonOnly) {
               return (
-                <Button 
+                <Button
                   type="submit"
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
@@ -209,19 +161,19 @@ export function PreviewRenderer() {
                 </Button>
               );
             }
-            
+
             // Scenario 3: Both Enabled - Dynamic button based on selection
             if (bothEnabled) {
               // Check form data for payment method selection
-              const paymentMethodField = Object.keys(values).find(key => 
+              const paymentMethodField = Object.keys(values).find(key =>
                 key.includes('_payment_method')
               );
-              const selectedMethod = paymentMethodField ? 
+              const selectedMethod = paymentMethodField ?
                 values[paymentMethodField] as 'paypal' | 'in-person' : 'paypal';
-              
+
               if (selectedMethod === 'paypal') {
                 return (
-                  <Button 
+                  <Button
                     type="submit"
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   >
@@ -235,7 +187,7 @@ export function PreviewRenderer() {
                 );
               } else {
                 return (
-                  <Button 
+                  <Button
                     type="submit"
                     className="w-full bg-green-600 hover:bg-green-700 text-white"
                   >
@@ -250,7 +202,7 @@ export function PreviewRenderer() {
               }
             }
           }
-          
+
           // Default submit button for non-payment forms
           return (
             <Button type="submit">Submit</Button>

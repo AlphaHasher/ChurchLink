@@ -23,6 +23,7 @@ FORM_WIDTH_ALLOWED = {"100", "85", "70", "55", "40", "25", "15"}
 FORM_WIDTH_ALLOWED_LIST = sorted(FORM_WIDTH_ALLOWED, key=int, reverse=False)
 FORM_WIDTH_ALLOWED_MESSAGE = ", ".join(FORM_WIDTH_ALLOWED_LIST)
 
+
 def _validate_slug(v: Optional[str], allow_none: bool = True) -> Optional[str]:
     if v is None:
         return None
@@ -31,7 +32,9 @@ def _validate_slug(v: Optional[str], allow_none: bool = True) -> Optional[str]:
         return None
     # only allow lowercase letters, numbers and dashes
     if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", s):
-        raise ValueError("Invalid slug format: only lowercase letters, numbers and dashes allowed")
+        raise ValueError(
+            "Invalid slug format: only lowercase letters, numbers and dashes allowed"
+        )
     if len(s) > 200:
         raise ValueError("Slug too long")
     return s
@@ -53,7 +56,9 @@ def _normalize_form_width_value(v: Optional[str]) -> Optional[str]:
         return None
     if raw in FORM_WIDTH_ALLOWED:
         return raw
-    raise ValueError(f"Invalid form width value. Allowed values: {FORM_WIDTH_ALLOWED_MESSAGE}")
+    raise ValueError(
+        f"Invalid form width value. Allowed values: {FORM_WIDTH_ALLOWED_MESSAGE}"
+    )
 
 
 def _validate_form_width(v: Optional[str]) -> Optional[str]:
@@ -61,8 +66,11 @@ def _validate_form_width(v: Optional[str]) -> Optional[str]:
     if normalized is None:
         return None
     if normalized not in FORM_WIDTH_ALLOWED:
-        raise ValueError(f"Invalid form width value. Allowed values: {FORM_WIDTH_ALLOWED_MESSAGE}")
+        raise ValueError(
+            f"Invalid form width value. Allowed values: {FORM_WIDTH_ALLOWED_MESSAGE}"
+        )
     return normalized
+
 
 class FormBase(BaseModel):
     title: str = Field(...)
@@ -72,9 +80,9 @@ class FormBase(BaseModel):
     slug: Optional[str] = Field(None)
     expires_at: Optional[datetime] = Field(None)
     form_width: Optional[str] = Field(None)
-   
+
     supported_locales: List[str] = Field(default_factory=list)
-    
+
     # Payment configuration fields
     requires_payment: bool = Field(False)
     payment_amount: Optional[float] = Field(None)
@@ -127,7 +135,7 @@ class FormUpdate(BaseModel):
     data: Optional[Any] = None
     form_width: Optional[str] = None
     supported_locales: Optional[List[str]] = None
-    
+
     # Payment configuration fields
     requires_payment: Optional[bool] = None
     payment_amount: Optional[float] = None
@@ -172,7 +180,7 @@ class Form(MongoBaseModel, FormBase):
     slug: Optional[str]
     form_width: Optional[str]
     supported_locales: List[str] = Field(default_factory=list)
-    
+
     # Payment configuration fields
     requires_payment: bool = Field(False)
     payment_amount: Optional[float] = Field(None)
@@ -197,7 +205,7 @@ class FormOut(BaseModel):
     updated_at: datetime
     form_width: Optional[str]
     supported_locales: List[str] = Field(default_factory=list)
-    
+
     # Payment configuration fields
     requires_payment: bool = Field(False)
     payment_amount: Optional[float] = Field(None)
@@ -256,18 +264,23 @@ def _doc_to_out(doc: dict) -> FormOut:
 
 async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
     try:
-        width = _normalize_form_width_value(getattr(form, "form_width", None)) or DEFAULT_FORM_WIDTH
+        width = (
+            _normalize_form_width_value(getattr(form, "form_width", None))
+            or DEFAULT_FORM_WIDTH
+        )
         # Normalize expires_at: if provided and tz-aware, convert to local naive datetime
-        expires_val = getattr(form, 'expires_at', None)
+        expires_val = getattr(form, "expires_at", None)
         if isinstance(expires_val, datetime) and expires_val.tzinfo is not None:
             try:
                 expires_val = expires_val.astimezone().replace(tzinfo=None)
             except Exception:
                 # fallback to the original value
-                expires_val = getattr(form, 'expires_at', None)
+                expires_val = getattr(form, "expires_at", None)
 
         try:
-            ministries_list = await canonicalize_ministry_names(getattr(form, "ministries", []))
+            ministries_list = await canonicalize_ministry_names(
+                getattr(form, "ministries", [])
+            )
         except MinistryNotFoundError as exc:
             logger.warning("Form creation failed: %s", exc)
             return None
@@ -306,7 +319,12 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
 
 async def list_forms(user_id: str, skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
-        cursor = DB.db.forms.find({"user_id": user_id}).skip(skip).limit(limit).sort([("created_at", -1)])
+        cursor = (
+            DB.db.forms.find({"user_id": user_id})
+            .skip(skip)
+            .limit(limit)
+            .sort([("created_at", -1)])
+        )
         docs = await cursor.to_list(length=limit)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
@@ -324,7 +342,13 @@ async def list_all_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
         return []
 
 
-async def search_forms(user_id: str, name: Optional[str] = None, ministry: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
+async def search_forms(
+    user_id: str,
+    name: Optional[str] = None,
+    ministry: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> List[FormOut]:
     try:
         query: dict = {"user_id": user_id}
         if name:
@@ -336,7 +360,9 @@ async def search_forms(user_id: str, name: Optional[str] = None, ministry: Optio
                 return []
             query["ministries"] = resolved
 
-        cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
+        cursor = (
+            DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
+        )
         docs = await cursor.to_list(length=limit)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
@@ -344,7 +370,12 @@ async def search_forms(user_id: str, name: Optional[str] = None, ministry: Optio
         return []
 
 
-async def search_all_forms(name: Optional[str] = None, ministry: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[FormOut]:
+async def search_all_forms(
+    name: Optional[str] = None,
+    ministry: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> List[FormOut]:
     try:
         query: dict = {}
         if name:
@@ -355,7 +386,9 @@ async def search_all_forms(name: Optional[str] = None, ministry: Optional[str] =
                 return []
             query["ministries"] = resolved
 
-        cursor = DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
+        cursor = (
+            DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
+        )
         docs = await cursor.to_list(length=limit)
         return [_doc_to_out(d) for d in docs]
     except Exception as e:
@@ -367,7 +400,16 @@ async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
         now = datetime.now()
         cursor = (
-            DB.db.forms.find({"visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
+            DB.db.forms.find(
+                {
+                    "visible": True,
+                    "$or": [
+                        {"expires_at": {"$exists": False}},
+                        {"expires_at": None},
+                        {"expires_at": {"$gt": now}},
+                    ],
+                }
+            )
             .skip(skip)
             .limit(limit)
             .sort([("created_at", -1)])
@@ -387,7 +429,14 @@ async def search_visible_forms(
 ) -> List[FormOut]:
     try:
         now = datetime.now()
-        query: dict = {"visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]}
+        query: dict = {
+            "visible": True,
+            "$or": [
+                {"expires_at": {"$exists": False}},
+                {"expires_at": None},
+                {"expires_at": {"$gt": now}},
+            ],
+        }
         if name:
             query["title"] = {"$regex": name, "$options": "i"}
         if ministry:
@@ -397,10 +446,7 @@ async def search_visible_forms(
             query["ministries"] = resolved
 
         cursor = (
-            DB.db.forms.find(query)
-            .skip(skip)
-            .limit(limit)
-            .sort([("created_at", -1)])
+            DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
         )
         docs = await cursor.to_list(length=limit)
         return [_doc_to_out(d) for d in docs]
@@ -423,7 +469,17 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
 async def get_form_by_slug(slug: str) -> Optional[FormOut]:
     try:
         now = datetime.now()
-        doc = await DB.db.forms.find_one({"slug": slug, "visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
+        doc = await DB.db.forms.find_one(
+            {
+                "slug": slug,
+                "visible": True,
+                "$or": [
+                    {"expires_at": {"$exists": False}},
+                    {"expires_at": None},
+                    {"expires_at": {"$gt": now}},
+                ],
+            }
+        )
         if not doc:
             return None
         return _doc_to_out(doc)
@@ -434,10 +490,10 @@ async def get_form_by_slug(slug: str) -> Optional[FormOut]:
 
 async def check_form_slug_status(slug: str) -> Tuple[str, Optional[dict]]:
     """Return a tuple (status, doc) where status is one of:
-       - 'ok' : visible and not expired (doc returned)
-       - 'not_found' : no form with that slug
-       - 'expired' : form exists but has expired or is not currently visible
-       - 'not_visible' : form exists but visible flag is False
+    - 'ok' : visible and not expired (doc returned)
+    - 'not_found' : no form with that slug
+    - 'expired' : form exists but has expired or is not currently visible
+    - 'not_visible' : form exists but visible flag is False
     """
     try:
         # Try to find any form with the slug regardless of visibility/expiry
@@ -482,7 +538,17 @@ async def get_form_by_id_unrestricted(form_id: str) -> Optional[FormOut]:
 async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
     try:
         now = datetime.now()
-        doc = await DB.db.forms.find_one({"_id": ObjectId(form_id), "visible": True, "$or": [{"expires_at": {"$exists": False}}, {"expires_at": None}, {"expires_at": {"$gt": now}}]})
+        doc = await DB.db.forms.find_one(
+            {
+                "_id": ObjectId(form_id),
+                "visible": True,
+                "$or": [
+                    {"expires_at": {"$exists": False}},
+                    {"expires_at": None},
+                    {"expires_at": {"$gt": now}},
+                ],
+            }
+        )
         if not doc:
             return None
         return _doc_to_out(doc)
@@ -501,6 +567,72 @@ def _is_present(value: Any) -> bool:
     return value is not None and value != ""
 
 
+def _evaluate_visibility(visible_if: Optional[str], values: dict) -> bool:
+    """
+    Evaluate visibility condition for a form field.
+
+    Syntax: "fieldName operator value"
+    Operators: ==, !=, >=, <=, >, <
+
+    Examples:
+    - "age >= 18"
+    - "subscribe == true"
+    - "country != \"USA\""
+
+    Returns True if field should be visible, False otherwise.
+    If no condition is specified, field is always visible.
+    """
+    if not visible_if:
+        return True
+
+    # Parse: "name op literal" where op in == != >= <= > <
+    match = re.match(r"^\s*(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*$", visible_if)
+    if not match:
+        return True  # Invalid condition syntax, default to visible
+
+    name, op, rhs_raw = match.groups()
+    lhs = values.get(name)
+
+    # Normalize rhs: strip quotes, parse number/boolean
+    rhs = rhs_raw.strip()
+    if (rhs.startswith('"') and rhs.endswith('"')) or (
+        rhs.startswith("'") and rhs.endswith("'")
+    ):
+        rhs = rhs[1:-1]
+    elif rhs.lower() == "true":
+        rhs = True
+    elif rhs.lower() == "false":
+        rhs = False
+    else:
+        try:
+            rhs = float(rhs)
+            # Convert to int if it's a whole number
+            if rhs.is_integer():
+                rhs = int(rhs)
+        except ValueError:
+            pass  # Keep as string
+
+    # Evaluate condition
+    try:
+        if op == "==":
+            return lhs == rhs
+        elif op == "!=":
+            return lhs != rhs
+        elif op == ">=":
+            return lhs >= rhs
+        elif op == "<=":
+            return lhs <= rhs
+        elif op == ">":
+            return lhs > rhs
+        elif op == "<":
+            return lhs < rhs
+    except (TypeError, ValueError):
+        # Comparison failed, default to visible
+        return True
+
+    return True
+
+
 def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
     t = field.get("type")
     component_name = field.get("label") or field.get("component_name")
@@ -513,9 +645,15 @@ def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
         if not isinstance(value, str):
             return False, f"{component_name} must be a string"
         if field.get("minLength") is not None and len(value) < field.get("minLength"):
-            return False, f"{component_name} must be at least {field.get('minLength')} characters"
+            return (
+                False,
+                f"{component_name} must be at least {field.get('minLength')} characters",
+            )
         if field.get("maxLength") is not None and len(value) > field.get("maxLength"):
-            return False, f"{component_name} must be at most {field.get('maxLength')} characters"
+            return (
+                False,
+                f"{component_name} must be at most {field.get('maxLength')} characters",
+            )
         if field.get("pattern"):
             if not re.match(field.get("pattern"), value):
                 return False, f"{component_name} is invalid"
@@ -547,9 +685,16 @@ def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
         # allowedValues CSV
         if field.get("allowedValues"):
             try:
-                allowed = [float(x.strip()) for x in field.get("allowedValues").split(",") if x.strip()]
+                allowed = [
+                    float(x.strip())
+                    for x in field.get("allowedValues").split(",")
+                    if x.strip()
+                ]
                 if allowed and n not in allowed:
-                    return False, f"{component_name} must be one of: {', '.join(str(int(x)) if x.is_integer() else str(x) for x in allowed)}"
+                    return (
+                        False,
+                        f"{component_name} must be one of: {', '.join(str(int(x)) if x.is_integer() else str(x) for x in allowed)}",
+                    )
             except Exception:
                 pass
         return True, None
@@ -572,6 +717,7 @@ def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
     if t == "date":
         # expect ISO date strings for single date, or {from,to} for range
         from datetime import datetime as _dt
+
         fcfg = field
         if fcfg.get("mode") == "range":
             if fcfg.get("required"):
@@ -585,19 +731,36 @@ def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
             except Exception:
                 return False, f"{component_name} has invalid date format"
             if fr and to and to < fr:
-                return False, f"{component_name} end date must be on or after start date"
+                return (
+                    False,
+                    f"{component_name} end date must be on or after start date",
+                )
             if fcfg.get("minDate"):
                 try:
-                    minD = _dt.fromisoformat(fcfg.get("minDate")) if isinstance(fcfg.get("minDate"), str) else fcfg.get("minDate")
+                    minD = (
+                        _dt.fromisoformat(fcfg.get("minDate"))
+                        if isinstance(fcfg.get("minDate"), str)
+                        else fcfg.get("minDate")
+                    )
                     if fr and fr < minD:
-                        return False, f"{component_name} must be on or after {minD.date()}"
+                        return (
+                            False,
+                            f"{component_name} must be on or after {minD.date()}",
+                        )
                 except Exception:
                     pass
             if fcfg.get("maxDate"):
                 try:
-                    maxD = _dt.fromisoformat(fcfg.get("maxDate")) if isinstance(fcfg.get("maxDate"), str) else fcfg.get("maxDate")
+                    maxD = (
+                        _dt.fromisoformat(fcfg.get("maxDate"))
+                        if isinstance(fcfg.get("maxDate"), str)
+                        else fcfg.get("maxDate")
+                    )
                     if to and to > maxD:
-                        return False, f"{component_name} must be on or before {maxD.date()}"
+                        return (
+                            False,
+                            f"{component_name} must be on or before {maxD.date()}",
+                        )
                 except Exception:
                     pass
             return True, None
@@ -665,7 +828,9 @@ def _canonicalize_response(resp: Any) -> Any:
     return canonical
 
 
-async def add_response_by_slug(slug: str, response: Any, user_id: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+async def add_response_by_slug(
+    slug: str, response: Any, user_id: Optional[str] = None
+) -> Tuple[bool, Optional[str]]:
     """Validate the response against the stored form schema and append it to a single
     aggregated response document for the form (one document per form_id) in the
     form_responses collection under the `responses` array.
@@ -694,8 +859,18 @@ async def add_response_by_slug(slug: str, response: Any, user_id: Optional[str] 
         response_canon = _canonicalize_response(response or {})
 
         # Validate each declared field against the provided response payload
+        # Only validate fields that are visible based on their visibility conditions
         for f in schema_fields:
             name = f.get("name")
+
+            # Check if field is visible based on conditional visibility
+            visible_if = f.get("visibleIf")
+            is_visible = _evaluate_visibility(visible_if, response_canon)
+
+            # Only validate if field is visible
+            if not is_visible:
+                continue
+
             # value may be under exact name or localized variants; response_canon already collapsed
             value = response_canon.get(name)
             valid, err = _validate_field(f, value)
@@ -728,7 +903,9 @@ async def add_response_by_slug(slug: str, response: Any, user_id: Optional[str] 
         return False, "Server error"
 
 
-async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optional[FormOut]:
+async def update_form(
+    form_id: str, user_id: str, update: FormUpdate
+) -> Optional[FormOut]:
     try:
         update_doc = {"updated_at": datetime.now()}
         if update.title is not None:
@@ -738,7 +915,7 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
         if update.visible is not None:
             update_doc["visible"] = update.visible
         if update.data is not None:
-            update_doc["data"] = (update.data)
+            update_doc["data"] = update.data
         if update.expires_at is not None:
             # Normalize tz-aware datetimes to local naive datetime before storing
             expires_val = update.expires_at
@@ -750,7 +927,7 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             update_doc["expires_at"] = expires_val
         if update.supported_locales is not None:
             update_doc["supported_locales"] = update.supported_locales
-        
+
         # Handle payment configuration updates
         if update.requires_payment is not None:
             update_doc["requires_payment"] = update.requires_payment
@@ -764,7 +941,7 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
             update_doc["min_payment_amount"] = update.min_payment_amount
         if update.max_payment_amount is not None:
             update_doc["max_payment_amount"] = update.max_payment_amount
-        
+
         try:
             provided = update.model_dump(exclude_unset=True)
         except Exception:
@@ -775,14 +952,19 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
                 update_doc["ministries"] = []
             else:
                 try:
-                    update_doc["ministries"] = await canonicalize_ministry_names(ministries_value)
+                    update_doc["ministries"] = await canonicalize_ministry_names(
+                        ministries_value
+                    )
                 except MinistryNotFoundError as exc:
                     logger.warning("Form update aborted: %s", exc)
                     return None
         if "slug" in provided:
             update_doc["slug"] = provided.get("slug")
         if "form_width" in provided:
-            update_doc["form_width"] = _normalize_form_width_value(provided.get("form_width")) or DEFAULT_FORM_WIDTH
+            update_doc["form_width"] = (
+                _normalize_form_width_value(provided.get("form_width"))
+                or DEFAULT_FORM_WIDTH
+            )
         if "expires_at" in provided:
             # Provided value may be a datetime; normalize similarly
             provided_val = provided.get("expires_at")
@@ -793,7 +975,9 @@ async def update_form(form_id: str, user_id: str, update: FormUpdate) -> Optiona
                     pass
             update_doc["expires_at"] = provided_val
 
-        result = await DB.db.forms.update_one({"_id": ObjectId(form_id), "user_id": user_id}, {"$set": update_doc})
+        result = await DB.db.forms.update_one(
+            {"_id": ObjectId(form_id), "user_id": user_id}, {"$set": update_doc}
+        )
         if result.matched_count:
             doc = await DB.db.forms.find_one({"_id": ObjectId(form_id)})
             return _doc_to_out(doc) if doc else None
@@ -827,7 +1011,9 @@ async def delete_form_responses(form_id: str, user_id: str) -> bool:
         except Exception:
             return False
 
-        owned_form = await DB.db.forms.find_one({"_id": form_obj_id, "user_id": user_id})
+        owned_form = await DB.db.forms.find_one(
+            {"_id": form_obj_id, "user_id": user_id}
+        )
         if not owned_form:
             return False
 
@@ -838,7 +1024,9 @@ async def delete_form_responses(form_id: str, user_id: str) -> bool:
         return False
 
 
-async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: int | None = None) -> Optional[dict]:
+async def get_form_responses(
+    form_id: str, user_id: str, skip: int = 0, limit: int | None = None
+) -> Optional[dict]:
     """Return responses for a form owned by the given user.
 
     Results include total count and a slice of items sorted by submitted_at DESC.
@@ -850,6 +1038,7 @@ async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: i
             return {"form_id": form_id, "count": 0, "items": []}
 
         responses = agg_doc.get("responses", []) or []
+
         # Sort by submitted_at desc (handle missing gracefully)
         def _to_dt(x):
             return x.get("submitted_at") or datetime.min
@@ -879,14 +1068,15 @@ async def get_form_responses(form_id: str, user_id: str, skip: int = 0, limit: i
                 uid_str = str(uid)
             else:
                 uid_str = str(uid) if uid is not None else None
-            items.append({
-                "submitted_at": submitted_iso,
-                "user_id": uid_str,
-                "response": _canonicalize_response(r.get("response", {})),
-            })
+            items.append(
+                {
+                    "submitted_at": submitted_iso,
+                    "user_id": uid_str,
+                    "response": _canonicalize_response(r.get("response", {})),
+                }
+            )
 
         return {"form_id": form_id, "count": total, "items": items}
     except Exception as e:
         logger.error(f"Error getting form responses: {e}")
         return None
-
