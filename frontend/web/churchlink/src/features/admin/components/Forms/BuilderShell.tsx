@@ -513,12 +513,7 @@ export function BuilderShell() {
         <div className="flex h-full w-full flex-col overflow-auto p-6">
           <div className="mx-auto w-full max-w-6xl">
             <ErrorBoundary>
-              <PreviewRendererClient applyFormWidth={true} />
-            </ErrorBoundary>
-          </div>
-          <div className="mx-auto w-full max-w-6xl">
-            <ErrorBoundary>
-              <PreviewRendererClient instanceId="expanded" />
+              <PreviewRendererClient applyFormWidth={true} instanceId="expanded" />
             </ErrorBoundary>
           </div>
         </div>
@@ -891,7 +886,7 @@ export function BuilderShell() {
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   size="icon"
                   className="rounded-full"
                   onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
