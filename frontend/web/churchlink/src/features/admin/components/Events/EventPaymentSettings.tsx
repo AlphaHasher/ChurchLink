@@ -59,10 +59,10 @@ export function EventPaymentSettings({
                 ) : (
                     <div className="flex items-start space-x-3 p-3 border rounded-lg bg-muted">
                         <div className="flex-1">
-                            <Label className="font-medium text-destructive">
+                            <Label className="font-medium text-red-700 dark:text-red-400">
                                 💳 Paid Event
                             </Label>
-                            <p className="text-sm text-destructive mt-1">
+                            <p className="text-sm text-red-700 dark:text-red-400 mt-1">
                                 Price: <strong>${price.toFixed(2)}</strong> - at least one payment option required
                             </p>
                         </div>
@@ -114,7 +114,7 @@ export function EventPaymentSettings({
                     {/* Validation Message */}
                     {isPaidEvent && (payment_options?.length || 0) === 0 && (
                         <div className="p-3 bg-muted border rounded-lg">
-                            <p className="text-sm text-destructive">
+                            <p className="text-sm text-red-700 dark:text-red-400">
                                 ⚠️ Paid events must have at least one payment option selected
                             </p>
                         </div>
