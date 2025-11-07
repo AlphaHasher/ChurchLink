@@ -444,12 +444,7 @@ class _GivingState extends State<Giving> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: Theme.of(context),
-      darkTheme: Theme.of(context),
-      title: 'Church Giving',
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Church Giving',
@@ -728,7 +723,6 @@ class _GivingState extends State<Giving> {
             ),
           ),
         ),
-      ),
     );
   }
 
