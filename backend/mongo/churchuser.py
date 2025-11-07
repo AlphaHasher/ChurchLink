@@ -31,6 +31,7 @@ class UserHandler:
             "phone": phone,
             "birthday": birthday,
             "gender": None,
+            "language": "en",
             "address": address or {
                 "address": None,
                 "suite": None,
