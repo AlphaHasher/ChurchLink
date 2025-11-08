@@ -16,6 +16,11 @@ import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/my_events_page.dart';
 import 'package:app/theme/theme_controller.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/helpers/backend_helper.dart';
+
+import 'package:app/widgets/change_email_sheet.dart';
+
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
 
@@ -116,8 +121,6 @@ class _UserSettingsState extends State<UserSettings> {
       return false;
     }
   }
-
-
 
   // Show the theme selection bottom sheet
   void _showThemeSheet() {
@@ -408,6 +411,12 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
+            'icon': Icons.alternate_email,
+            'title': 'Change Email',
+            'subtitle': 'Request an email to change your address',
+            'ontap': () => ChangeEmailSheet.show(context),
+          },
+          {
             'icon': Icons.password,
             'title': 'Change Password',
             'subtitle': 'Request an email to reset your password',
@@ -636,3 +645,4 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 }
+

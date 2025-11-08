@@ -27,6 +27,10 @@ import { readMembershipDetails } from "@/helpers/MembershipHelper";
 import type { MembershipDetails } from "@/shared/types/MembershipRequests";
 import { useLocalize } from "@/shared/utils/localizationUtils";
 
+import ChangeEmailDialog from "@/features/users/components/Profile/ChangeEmailDialog";
+import ChangePasswordDialog from "@/features/users/components/Profile/ChangePasswordDialog";
+import { getAuth } from "firebase/auth";
+
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
 const toPersonInfo = (p: ProfileInfo): EditPersonInfo => ({
@@ -165,12 +169,19 @@ const ProfilePage: React.FC = () => {
                                 birthday={profile.birthday}
                                 gender={profile.gender}
                                 footer={
-                                    <ProfileEditDialog
-                                        email={profile.email}
-                                        membership={profile.membership}
-                                        initialPerson={toPersonInfo(profile)}
-                                        onUpdated={(p) => setProfile(p)}
-                                    />
+                                    <div className="grid w-full gap-2">
+                                        <div className="grid grid-cols-2 gap-2 [&_button]:w-full">
+                                            <ChangeEmailDialog />
+                                            <ChangePasswordDialog />
+                                        </div>
+
+                                        <ProfileEditDialog
+                                            email={profile.email}
+                                            membership={profile.membership}
+                                            initialPerson={toPersonInfo(profile)}
+                                            onUpdated={(p) => setProfile(p)}
+                                        />
+                                    </div>
                                 }
                             />
                             <ContactCard

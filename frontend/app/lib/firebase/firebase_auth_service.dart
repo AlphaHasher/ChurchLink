@@ -1,7 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:app/services/fcm_token_service.dart';
+import 'package:app/helpers/backend_helper.dart';
 
 class FirebaseAuthService {
   static final FirebaseAuthService _instance = FirebaseAuthService._internal();
@@ -14,6 +17,12 @@ class FirebaseAuthService {
 
   factory FirebaseAuthService() {
     return _instance;
+  }
+
+  // Calls the sync function to make MongoDB email match Firebase
+  Future<void> _postSignInSync() async {
+    await BackendHelper().verifyAndSyncUser((msg) {
+    });
   }
 
   Future<void> initializeGoogleSignIn({
@@ -108,6 +117,10 @@ class FirebaseAuthService {
         return "Email not verified. Please check your inbox.";
       }
 
+      // Sync Firebase email with MongoDB
+      // Needed for when user changes email
+      await _postSignInSync();
+
       final String? idToken = await user.getIdToken(true);
       if (idToken == null) {
         throw Exception("❌ Failed to retrieve Firebase ID Token.");
@@ -184,5 +197,36 @@ class FirebaseAuthService {
   // ✅ Check User Login Status
   User? getCurrentUser() {
     return _firebaseAuth.currentUser;
+  }
+
+  // Change Email function
+  // WORKS BUT DOESNT MATCH THE OTHER FUNCTIONS STYLE
+  Future<void> changeEmail({
+    required String newEmail,
+    String? currentPasswordIfEmailUser,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser!;
+    
+    // Re-auth for email/password users (Google/Apple reauth can be added later)
+    if (currentPasswordIfEmailUser != null && user.email != null) {
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPasswordIfEmailUser,
+      );
+      await user.reauthenticateWithCredential(cred);
+    }
+
+    // Use the currently running project instead of hardcoding it
+    final projectId = Firebase.app().options.projectId;
+    final host = dotenv.env['AUTH_LINK_HOST'] ?? '$projectId.firebaseapp.com';
+    final path = dotenv.env['EMAIL_CHANGE_PATH'] ?? '/finishEmailChange';
+
+    final acs = ActionCodeSettings(
+      url: 'https://$host$path',
+      handleCodeInApp: false,
+    );
+
+    // Send verification link to the NEW email; Firebase updates after user clicks it
+    await user.verifyBeforeUpdateEmail(newEmail, acs);
   }
 }
