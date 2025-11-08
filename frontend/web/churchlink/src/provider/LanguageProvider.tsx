@@ -89,12 +89,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 		return () => { cancelled = true; };
 	}, [loadSiteLocales]);
 
-    const setLocale = useCallback((code: string) => {
+    const setLocale = useCallback(async (code: string) => {
         setLocaleState(code);
         try {
             window.localStorage.setItem(LOCAL_STORAGE_KEY, code);
             window.dispatchEvent(new CustomEvent("preferred-locale-changed", { detail: { locale: code } }));
-        } catch {}
+
+            // NEW: Persist to backend
+            await api.patch("/v1/users/update-language", { language: code });
+        } catch (err) {
+            console.error("Failed to persist language preference", err);
+        }
     }, []);
 
     // Stay in sync if anything else updates the locale

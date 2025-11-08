@@ -202,6 +202,29 @@ async def delete_user_family_member_route(request: Request, family_id:str):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error deleting family member: {str(e)}")
     
+# Private Router
+# Update Language
+@user_private_router.patch("/update-language", response_model=dict)
+async def update_user_language(request: Request, data: dict = Body(...)):
+    from mongo.churchuser import UserHandler
+
+    try:
+        uid = request.state.uid
+        new_lang = data.get("language")
+
+        if not new_lang or len(new_lang) not in (2, 3):
+            raise HTTPException(status_code=400, detail="Invalid language code")
+
+        result = await UserHandler.update_user({"uid": uid}, {"language": new_lang})
+        if not result:
+            raise HTTPException(status_code=400, detail="Failed to update language")
+
+        return {"success": True, "language": new_lang}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating language: {str(e)}")
+    
     # Private Router
 @user_private_router.get("/me/people", response_model=dict)
 async def list_my_people_alias(request: Request):
