@@ -64,6 +64,14 @@ const Users = () => {
   const usersAbortRef = useRef<AbortController | null>(null);
   const logicalAbortRef = useRef<AbortController | null>(null);
 
+  // ------- cleanup on unmount -------
+  useEffect(() => {
+    return () => {
+      usersAbortRef.current?.abort();
+      logicalAbortRef.current?.abort();
+    };
+  }, []);
+
   // ------- fetch permissions once -------
   useEffect(() => {
     (async () => {
@@ -105,12 +113,21 @@ const Users = () => {
 
       try {
         const res: UsersPagedResult = await fetchUsersPaged(params, controller.signal);
-        setUsers(res.items);
-        setTotalUsers(res.total);
+        // Only update state if the request wasn't aborted
+        if (!controller.signal.aborted) {
+          setUsers(res.items);
+          setTotalUsers(res.total);
+        }
       } catch (e) {
-        console.error("Failed to load users page", e);
+        // Don't log cancellation errors as they are expected
+        if (e instanceof Error && e.name !== 'CanceledError' && e.name !== 'AbortError') {
+          console.error("Failed to load users page", e);
+        }
       } finally {
-        setUsersLoading(false);
+        // Only update loading state if not aborted
+        if (!controller.signal.aborted) {
+          setUsersLoading(false);
+        }
       }
     })();
   }, [page, pageSize, searchField, searchTerm, sortBy, sortDir, usersReload]);
@@ -134,12 +151,21 @@ const Users = () => {
 
       try {
         const res: UsersPagedResult = await fetchLogicalUsersPaged(params, controller.signal);
-        setLogicalUsers(res.items);
-        setTotalLogical(res.total);
+        // Only update state if the request wasn't aborted
+        if (!controller.signal.aborted) {
+          setLogicalUsers(res.items);
+          setTotalLogical(res.total);
+        }
       } catch (e) {
-        console.error("Failed to load logical users page", e);
+        // Don't log cancellation errors as they are expected
+        if (e instanceof Error && e.name !== 'CanceledError' && e.name !== 'AbortError') {
+          console.error("Failed to load logical users page", e);
+        }
       } finally {
-        setLogicalLoading(false);
+        // Only update loading state if not aborted
+        if (!controller.signal.aborted) {
+          setLogicalLoading(false);
+        }
       }
     })();
   }, [logicPage, logicPageSize, logicSearchField, logicSearch, logicSortBy, logicSortDir, logicReload]);

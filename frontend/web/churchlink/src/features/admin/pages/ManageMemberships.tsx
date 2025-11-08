@@ -3,6 +3,7 @@ import MembershipRequestTable from "../components/Users/MembershipRequests/Membe
 import {
     fetchMembershipRequestsPaged,
 } from "@/helpers/MembershipHelper";
+import useUserPermissions from "@/hooks/useUserPermissions";
 
 import { MembershipRequest } from "@/shared/types/MembershipRequests";
 import { MembershipSearchParams } from "@/helpers/MembershipHelper";
@@ -25,6 +26,8 @@ const DEFAULT_PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 350;
 
 const ManageMemberships = () => {
+    const { permissions, loading: permissionsLoading } = useUserPermissions();
+    
     const [status, setStatus] = useState<Status>("pending");
     const [page, setPage] = useState<number>(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -41,6 +44,8 @@ const ManageMemberships = () => {
 
     const abortRef = useRef<AbortController | null>(null);
 
+    // Check if user has required permissions
+    const hasPermission = permissions?.admin || permissions?.permissions_management;
 
     useEffect(() => {
         const id = setTimeout(() => setSearchTerm(searchInput), SEARCH_DEBOUNCE_MS);
@@ -48,6 +53,11 @@ const ManageMemberships = () => {
     }, [searchInput]);
 
     useEffect(() => {
+        // Don't make API calls until permissions are loaded and user has permission
+        if (permissionsLoading || !hasPermission) {
+            return;
+        }
+
         (async () => {
             abortRef.current?.abort();
             const controller = new AbortController();
@@ -74,7 +84,7 @@ const ManageMemberships = () => {
                 setLoading(false);
             }
         })();
-    }, [page, pageSize, searchField, searchTerm, sortDir, status, reload]);
+    }, [page, pageSize, searchField, searchTerm, sortDir, status, reload, permissionsLoading, hasPermission]);
 
     const handleSortChange = (_field: string, dir: SortDir) => {
         setSortDir(dir ?? "asc");
@@ -88,6 +98,30 @@ const ManageMemberships = () => {
     };
 
     const refreshAfterUpdate = () => setReload((x) => x + 1);
+
+    // Show loading while permissions are being fetched
+    if (permissionsLoading) {
+        return (
+            <div className="p-6">
+                <h1 className="text-xl font-bold mb-4">Membership Requests</h1>
+                <div className="flex items-center justify-center h-32">
+                    <div className="text-muted-foreground">Loading permissions...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error if user doesn't have required permissions
+    if (!hasPermission) {
+        return (
+            <div className="p-6">
+                <h1 className="text-xl font-bold mb-4">Membership Requests</h1>
+                <div className="flex items-center justify-center h-32">
+                    <div className="text-destructive">You don't have permission to access this page.</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 overflow-x-hidden">

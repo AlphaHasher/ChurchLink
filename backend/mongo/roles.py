@@ -5,13 +5,18 @@ class RoleHandler:
     permission_template = {
         "admin":False,
         "permissions_management": False,
-        "layout_management": False,
+        "web_builder_management": False,
+        "mobile_ui_management": False,
         "event_editing":False,
         "event_management":False,
         "media_management":False,
         "sermon_editing": False,
         "bulletin_editing": False,
         "finance": False,
+        "ministries_management": False,
+        "forms_management": False,
+        "bible_plan_management": False,
+        "notification_management": False,
     }
 
     @staticmethod
@@ -21,6 +26,8 @@ class RoleHandler:
             existing_role = roleCheck[0]
             permissions = existing_role.get("permissions", {}).copy()
             updated = False
+            
+            # Ensure all current template permissions exist
             for key in RoleHandler.permission_template:
                 if not permissions.get(key, False):
                     permissions[key] = True
@@ -29,7 +36,7 @@ class RoleHandler:
                 await RoleHandler.update_role(
                     str(existing_role["_id"]),
                     existing_role["name"],
-                    [perm for perm, enabled in permissions.items() if enabled],
+                    [perm for perm, enabled in permissions.items() if enabled and perm != '_id'],
                 )
             return
         else:
@@ -49,7 +56,9 @@ class RoleHandler:
             for key, value in role['permissions'].items():
                 if key == '_id':
                     continue
-                permissions[key] = permissions[key] or value
+                # Only update permissions that exist in the current template
+                if key in permissions:
+                    permissions[key] = permissions[key] or value
 
         if permissions['admin']:
             for key,value in permissions.items():
@@ -64,17 +73,28 @@ class RoleHandler:
         returnable_roles = []
         roles = await RoleHandler.find_all_roles()
         for role in roles:
-            breakFlag = False
-            if (role['permissions']['permissions_management'] or role['permissions']['admin']) and permissions['admin'] == False:
+            # Skip roles with admin or permissions_management if user doesn't have admin
+            if (role['permissions'].get('permissions_management', False) or role['permissions'].get('admin', False)) and not permissions.get('admin', False):
                 continue
-            breakFlag = False
+            
+            # Check if user has all required permissions for this role
+            can_assign = True
             for key, value in role['permissions'].items():
-                if value and permissions[key] == False:
-                    breakFlag = True
+                if key == '_id':  # Skip the _id field
+                    continue
+                
+                # Only check permissions that exist in the current template
+                if key not in RoleHandler.permission_template:
+                    continue
+                    
+                # If the role requires this permission but user doesn't have it, skip this role
+                if value and not permissions.get(key, False):
+                    can_assign = False
                     break
-            if breakFlag:
-                continue
-            returnable_roles.append(role)
+            
+            if can_assign:
+                returnable_roles.append(role)
+                
         return returnable_roles
     
     @staticmethod

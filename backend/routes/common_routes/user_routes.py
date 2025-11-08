@@ -7,6 +7,7 @@ from models.user import ( PersonCreate, PersonUpdateRequest,
 )
 from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id, delete_user_account, check_if_user_is_admin
 from mongo.database import DB
+from mongo.roles import RoleHandler
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
 user_mod_router = APIRouter(prefix="/users", tags=["Users"])
@@ -43,6 +44,29 @@ async def process_check_mod(request:Request):
         return {'success':True}
     else:
         return {'success':False}
+
+# Private Router - Get current user's permissions
+@user_private_router.get("/permissions")
+async def get_user_permissions(request: Request):
+    """Get the current user's computed permissions"""
+    try:
+        # Get user from request state (set by AuthProtectedRouter)
+        user = getattr(request.state, 'user', None)
+        if not user:
+            return {'success': False, 'permissions': {}, 'msg': 'User not found in request state'}
+        
+        # Get user roles and compute permissions
+        user_roles = user.get('roles', [])
+        if not user_roles:
+            # User has no roles - return empty permissions
+            user_perms = RoleHandler.permission_template.copy()
+        else:
+            # Compute permissions from roles
+            user_perms = await RoleHandler.infer_permissions(user_roles)
+        
+        return {'success': True, 'permissions': user_perms}
+    except Exception as e:
+        return {'success': False, 'permissions': {}, 'msg': f'Error fetching permissions: {str(e)}'}
 
 # Mod Router
 @user_mod_router.get("/get-users")

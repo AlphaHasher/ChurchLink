@@ -104,7 +104,7 @@ async def get_footer_items_route():
 
 
 # ------------------------
-# layout_management protected routes
+# web_builder_management protected routes
 # ------------------------
 
 @mod_footer_router.get("/locales")
