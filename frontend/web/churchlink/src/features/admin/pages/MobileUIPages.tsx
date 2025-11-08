@@ -44,7 +44,14 @@ const DashboardPagesManager = () => {
     try {
       const pageData = await getDashboardPages();
       const processedPages = [...pageData];
-      processedPages.forEach((page, index) => (page.index = index));
+      // Normalize page names using ALLOWED_PAGES as source of truth
+      processedPages.forEach((page, index) => {
+        page.index = index;
+        const allowedPage = ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === page.pageName.toLowerCase());
+        if (allowedPage) {
+          page.pageName = allowedPage.pageName;
+        }
+      });
       setPages(processedPages);
     } catch (err) {
       setError("Failed to load dashboard pages");
@@ -164,12 +171,20 @@ const DashboardPagesManager = () => {
     }
 
     try {
+      // Normalize page name using ALLOWED_PAGES as source of truth
+      const allowedPage = ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === editingPage.pageName.toLowerCase());
+      const normalizedEditingPage = {
+        ...editingPage,
+        pageName: allowedPage?.pageName || editingPage.pageName.toLowerCase(),
+        isNew: undefined
+      };
+
       let newPages;
       if (editingPage.isNew) {
         const exists = pages.some(
           (p) =>
-            p.pageName.toLowerCase() === editingPage.pageName.toLowerCase() ||
-            p.index === editingPage.index
+            p.pageName.toLowerCase() === normalizedEditingPage.pageName.toLowerCase() ||
+            p.index === normalizedEditingPage.index
         );
         if (exists) {
           setError("Page name or index already exists");
@@ -177,7 +192,7 @@ const DashboardPagesManager = () => {
         }
 
         // Add, then normalize order (sort and reindex)
-        newPages = [...pages, { ...editingPage, isNew: undefined }].sort(
+        newPages = [...pages, normalizedEditingPage].sort(
           (a, b) => a.index - b.index
         );
         newPages.forEach((p, idx) => (p.index = idx));
@@ -188,8 +203,8 @@ const DashboardPagesManager = () => {
       } else {
         // Update the matching page by pageName to be resilient to index changes
         newPages = pages.map((p) =>
-          p.pageName.toLowerCase() === editingPage.pageName.toLowerCase()
-            ? { ...editingPage, isNew: undefined }
+          p.pageName.toLowerCase() === normalizedEditingPage.pageName.toLowerCase()
+            ? normalizedEditingPage
             : p
         );
         // Normalize order (sort by index and reindex) to persist ordering changes
@@ -311,6 +326,18 @@ const DashboardPagesManager = () => {
               </div>
 
               <div>
+                <label className="block text-sm font-medium mb-1">Page Name</label>
+                <input
+                  type="text"
+                  value={ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === editingPage.pageName.toLowerCase())?.pageName || editingPage.pageName}
+                  readOnly
+                  disabled
+                  className="border border-input bg-muted rounded px-3 py-2 w-full cursor-not-allowed"
+                />
+                <small className="text-xs text-muted-foreground">Internal identifier from allowed pages.</small>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium mb-1">Display Name (optional)</label>
                 <input
                   type="text"
@@ -426,7 +453,7 @@ const DashboardPagesManager = () => {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Page Name</div>
-                  <div className="font-medium">{page.pageName || "—"}</div>
+                  <div className="font-medium">{ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === page.pageName.toLowerCase())?.pageName || page.pageName || "—"}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Display Name</div>
