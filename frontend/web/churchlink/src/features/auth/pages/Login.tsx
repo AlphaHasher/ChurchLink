@@ -68,7 +68,20 @@ function Login() {
       navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        const errorCode = (err as any).code;
+        if (errorCode === 'auth/invalid-credential' || 
+            errorCode === 'auth/wrong-password' || 
+            errorCode === 'auth/user-not-found') {
+          setError("Incorrect Email or Password");
+        } else if (errorCode === 'auth/too-many-requests') {
+          setError("Too many failed login attempts. Please try again later.");
+        } else if (errorCode === 'auth/user-disabled') {
+          setError("This account has been disabled. Please contact support.");
+        } else if (errorCode === 'auth/invalid-email') {
+          setError("Invalid email address format.");
+        } else {
+          setError("An error occurred during login. Please try again.");
+        }
       } else {
         setError("An unknown error occurred");
       }
@@ -85,7 +98,17 @@ function Login() {
       navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        // Transform Firebase auth errors into user-friendly messages
+        const errorCode = (err as any).code;
+        if (errorCode === 'auth/popup-closed-by-user') {
+          setError("Google sign-in was cancelled.");
+        } else if (errorCode === 'auth/popup-blocked') {
+          setError("Pop-up was blocked. Please allow pop-ups for this site.");
+        } else if (errorCode === 'auth/account-exists-with-different-credential') {
+          setError("An account already exists with the same email address but different sign-in credentials.");
+        } else {
+          setError("An error occurred during Google sign-in. Please try again.");
+        }
       } else {
         setError("An unknown error occurred");
       }
