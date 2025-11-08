@@ -279,10 +279,12 @@ class _UserSettingsState extends State<UserSettings> {
   Future<void> _updateLanguage(String newLang) async {
     setState(() => _loading = true);
 
-    final success = await UserHelper.updateLanguage(newLang);
+    final result = await UserHelper.updateLanguage(newLang);
     if (mounted) {
       setState(() {
-        _selectedLanguage = newLang;
+        if (result.success) {
+          _selectedLanguage = newLang;
+        }
         _loading = false;
       });
     }
