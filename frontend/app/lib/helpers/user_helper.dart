@@ -7,11 +7,6 @@ import 'package:app/models/profile_info.dart';
 import 'package:app/caches/user_status_cache.dart';
 import 'package:app/caches/user_profile_cache.dart';
 import 'package:app/caches/user_contact_info_cache.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'dart:developer' as dev;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateProfileResult {
   final bool success;
@@ -55,7 +50,6 @@ class UpdateLanguageResult {
 }
 
 class UserHelper {
-  static String get apiBaseUrl => dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8000/v1';
 
   static Future<Map<String, dynamic>?> getIsInit() async {
     try {
@@ -249,8 +243,7 @@ class UserHelper {
         final lang = data['language'];
         if (lang == 'ru' || lang == 'en') return lang;
       }
-    } catch (e, st) {
-      dev.log('fetchUserLanguage failed', error: e, stackTrace: st);
+    } catch (e) {
     }
     return 'en';
   }
@@ -272,8 +265,7 @@ class UserHelper {
       final msg = (data['msg'] is String) ? data['msg'] as String : '';
 
       return UpdateLanguageResult(success: success, msg: msg, language: safeLang);
-    } catch (e, st) {
-      dev.log('updateLanguage failed', error: e, stackTrace: st);
+    } catch (e) {
       return const UpdateLanguageResult(
         success: false,
         msg: 'Failed to update language.',
