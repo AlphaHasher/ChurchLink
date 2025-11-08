@@ -12,6 +12,7 @@ import api from "@/api/api";
 import { ChevronDown } from "lucide-react";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { useLocalize } from "@/shared/utils/localizationUtils";
+import { SidebarTrigger } from "@/shared/components/ui/sidebar";
 
 // Define interfaces for header data types
 interface HeaderLink {
@@ -149,10 +150,10 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     }, [user]);
 
     return (
-        <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80]">
+        <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80] relative">
             <div className="h-30 w-full lg:h-24 flex flex-row justify-between align-center">
                 {/* Logo Section */}
-                <NavigationMenuList className="flex gap-4 justify-between xl:pl-8">
+                <NavigationMenuList className="flex gap-4 justify-between xl:pl-8 items-center">
                     <Link to="/" className="hover:opacity-80 transition-opacity">
                         <HeaderDove className="w-60 xs:w-70 sm:w-90 lg:w-70 lg:h-24 h-32 max-w-[70vw]" />
                     </Link>
@@ -230,6 +231,9 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                             </Link>
                         </div>
                     )}
+                    
+                    {/* Mobile Hamburger Menu Trigger - Positioned on the Right */}
+                    <SidebarTrigger className="lg:hidden flex items-center justify-center text-white hover:text-gray-300 hover:bg-white/10 transition-colors duration-200 rounded-md p-2 ml-auto [&_svg:not([class*='size-'])]:size-6" />
                 </NavigationMenuList>
             </div>
         </NavigationMenu>
