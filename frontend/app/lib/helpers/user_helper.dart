@@ -7,6 +7,11 @@ import 'package:app/models/profile_info.dart';
 import 'package:app/caches/user_status_cache.dart';
 import 'package:app/caches/user_profile_cache.dart';
 import 'package:app/caches/user_contact_info_cache.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'dart:developer' as dev;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateProfileResult {
   final bool success;
@@ -37,7 +42,21 @@ class FetchProfileReturn {
   const FetchProfileReturn({required this.profile, required this.contact});
 }
 
+class UpdateLanguageResult {
+  final bool success;
+  final String msg;
+  final String language;
+
+  const UpdateLanguageResult({
+    required this.success,
+    required this.msg,
+    required this.language,
+  });
+}
+
 class UserHelper {
+  static String get apiBaseUrl => dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8000/v1';
+
   static Future<Map<String, dynamic>?> getIsInit() async {
     try {
       final res = await api.get('/v1/users/is-init');
@@ -217,6 +236,48 @@ class UserHelper {
         success: false,
         msg: 'Failed to update profile info.',
         profile: null,
+      );
+    }
+  }
+
+  /// Fetch user language directly from backend.
+  static Future<String> fetchUserLanguage() async {
+    try {
+      final res = await api.get('/v1/users/get-profile');
+      if (res.data is Map<String, dynamic>) {
+        final data = Map<String, dynamic>.from(res.data);
+        final lang = data['language'];
+        if (lang == 'ru' || lang == 'en') return lang;
+      }
+    } catch (e, st) {
+      dev.log('fetchUserLanguage failed', error: e, stackTrace: st);
+    }
+    return 'en';
+  }
+
+  /// Update user's preferred language in MongoDB.
+  static Future<UpdateLanguageResult> updateLanguage(String languageCode) async {
+    try {
+      final safeLang = (languageCode == 'ru') ? 'ru' : 'en';
+
+      final payload = <String, dynamic>{'language': safeLang};
+
+      final res = await api.patch('/v1/users/update-language', data: payload);
+
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data)
+          : const <String, dynamic>{};
+
+      final success = data['success'] == true;
+      final msg = (data['msg'] is String) ? data['msg'] as String : '';
+
+      return UpdateLanguageResult(success: success, msg: msg, language: safeLang);
+    } catch (e, st) {
+      dev.log('updateLanguage failed', error: e, stackTrace: st);
+      return const UpdateLanguageResult(
+        success: false,
+        msg: 'Failed to update language.',
+        language: 'en',
       );
     }
   }
