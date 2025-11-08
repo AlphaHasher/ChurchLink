@@ -89,13 +89,47 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     );
   }
 
-  // Basic visibleIf evaluator similar to web: `name op value` where op in == != >= <= > <
+  // Evaluate visibility condition with support for unlimited conditions chained with && (AND) or || (OR)
+  // Syntax: "fieldName operator value" or chained conditions
+  // Operators: ==, !=, >=, <=, >, <
+  // Logical operators: && (AND), || (OR)
+  // AND has higher precedence than OR
   bool _isVisible(Map<String, dynamic> f) {
     final raw = (f['visibleIf'] ?? '').toString().trim();
     if (raw.isEmpty) return true;
+    
+    return _evaluateVisibility(raw);
+  }
+  
+  bool _evaluateVisibility(String condition) {
+    final trimmed = condition.trim();
+    if (trimmed.isEmpty) return true;
+    
+    // Check for OR operator first (lower precedence)
+    // Split on || and evaluate each part - at least one must be true
+    if (trimmed.contains('||')) {
+      final orParts = trimmed.split('||').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      // At least one part must be true for OR
+      return orParts.any((part) => _evaluateVisibility(part));
+    }
+    
+    // Check for AND operator (higher precedence)
+    // Split on && and evaluate each part - all must be true
+    if (trimmed.contains('&&')) {
+      final andParts = trimmed.split('&&').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      // All parts must be true for AND
+      return andParts.every((part) => _evaluateVisibility(part));
+    }
+    
+    // Single condition - evaluate it
+    return _evaluateSingleCondition(trimmed);
+  }
+  
+  bool _evaluateSingleCondition(String condition) {
     final reg = RegExp(r'^\s*(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*$');
-    final m = reg.firstMatch(raw);
-    if (m == null) return true;
+    final m = reg.firstMatch(condition);
+    if (m == null) return true; // Invalid syntax, default to visible
+    
     final name = m.group(1)!;
     final op = m.group(2)!;
     final rhsRaw = m.group(3)!;
@@ -110,26 +144,32 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     } else {
       rhs = double.tryParse(s) ?? s; // fallback to string
     }
-    int cmp(dynamic a, dynamic b) {
-      if (a is num && b is num) return a.compareTo(b);
-      return a.toString().compareTo(b.toString());
-    }
+    
+    try {
+      int cmp(dynamic a, dynamic b) {
+        if (a is num && b is num) return a.compareTo(b);
+        return a.toString().compareTo(b.toString());
+      }
 
-    switch (op) {
-      case '==':
-        return lhs == rhs;
-      case '!=':
-        return lhs != rhs;
-      case '>=':
-        return cmp(lhs, rhs) >= 0;
-      case '<=':
-        return cmp(lhs, rhs) <= 0;
-      case '>':
-        return cmp(lhs, rhs) > 0;
-      case '<':
-        return cmp(lhs, rhs) < 0;
-      default:
-        return true;
+      switch (op) {
+        case '==':
+          return lhs == rhs;
+        case '!=':
+          return lhs != rhs;
+        case '>=':
+          return cmp(lhs, rhs) >= 0;
+        case '<=':
+          return cmp(lhs, rhs) <= 0;
+        case '>':
+          return cmp(lhs, rhs) > 0;
+        case '<':
+          return cmp(lhs, rhs) < 0;
+        default:
+          return true;
+      }
+    } catch (e) {
+      // Comparison failed, default to visible
+      return true;
     }
   }
 
@@ -406,9 +446,18 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     Widget widget;
     switch (type) {
       case 'static':
+        // For static fields, content comes from 'content' field, not 'label'
+        final staticContent = 
+            (field['content'] ?? 
+             f['content'] ?? 
+             field['text'] ?? 
+             f['text'] ?? 
+             field['label'] ?? 
+             f['label'] ?? 
+             'Static Text').toString();
         widget = StaticFormComponent(
           field: field,
-          labelOverride: labelText,
+          labelOverride: staticContent,
           helperOverride: helperText,
         );
         break;
@@ -524,6 +573,8 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           label: labelText,
           inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
           helperText: helperText,
+          onText: (field['onText'] ?? f['onText'])?.toString(),
+          offText: (field['offText'] ?? f['offText'])?.toString(),
           requiredField: requiredField,
           value: _values[fieldName] == true,
           onChanged: (val) => _updateValue(fieldName, val),

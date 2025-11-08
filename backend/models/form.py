@@ -567,26 +567,19 @@ def _is_present(value: Any) -> bool:
     return value is not None and value != ""
 
 
-def _evaluate_visibility(visible_if: Optional[str], values: dict) -> bool:
+def _evaluate_single_condition(condition: str, values: dict) -> bool:
     """
-    Evaluate visibility condition for a form field.
-
-    Syntax: "fieldName operator value"
-    Operators: ==, !=, >=, <=, >, <
-
-    Examples:
-    - "age >= 18"
-    - "subscribe == true"
-    - "country != \"USA\""
-
-    Returns True if field should be visible, False otherwise.
-    If no condition is specified, field is always visible.
+    Evaluate a single condition expression.
+    
+    Args:
+        condition: Single condition like "age >= 18"
+        values: Current form values
+        
+    Returns:
+        Boolean result of the condition
     """
-    if not visible_if:
-        return True
-
     # Parse: "name op literal" where op in == != >= <= > <
-    match = re.match(r"^\s*(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*$", visible_if)
+    match = re.match(r"^\s*(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*$", condition)
     if not match:
         return True  # Invalid condition syntax, default to visible
 
@@ -631,6 +624,55 @@ def _evaluate_visibility(visible_if: Optional[str], values: dict) -> bool:
         return True
 
     return True
+
+
+def _evaluate_visibility(visible_if: Optional[str], values: dict) -> bool:
+    """
+    Evaluate visibility condition with support for unlimited conditions chained with && (AND) or || (OR).
+
+    Syntax: "fieldName operator value" or chained conditions
+    Operators: ==, !=, >=, <=, >, <
+    Logical operators: && (AND), || (OR)
+
+    AND has higher precedence than OR.
+    You can chain as many conditions as needed.
+
+    Examples:
+    - "age >= 18"
+    - "subscribe == true"
+    - "country != \"USA\""
+    - "age >= 18 && subscribe == true"
+    - "country == \"USA\" || country == \"Canada\""
+    - "age >= 18 && subscribe == true && member == true"
+    - "age >= 18 && subscribe == true || admin == true"
+    - "country == \"USA\" || country == \"Canada\" || country == \"Mexico\""
+
+    Returns True if field should be visible, False otherwise.
+    If no condition is specified, field is always visible.
+    """
+    if not visible_if:
+        return True
+
+    trimmed = visible_if.strip()
+    if not trimmed:
+        return True
+
+    # Check for OR operator first (lower precedence)
+    # Split on || and evaluate each part - at least one must be true
+    if "||" in trimmed:
+        or_parts = [part.strip() for part in trimmed.split("||") if part.strip()]
+        # At least one part must be true for OR
+        return any(_evaluate_visibility(part, values) for part in or_parts)
+
+    # Check for AND operator (higher precedence)
+    # Split on && and evaluate each part - all must be true
+    if "&&" in trimmed:
+        and_parts = [part.strip() for part in trimmed.split("&&") if part.strip()]
+        # All parts must be true for AND
+        return all(_evaluate_visibility(part, values) for part in and_parts)
+
+    # Single condition - evaluate it
+    return _evaluate_single_condition(trimmed, values)
 
 
 def _validate_field(field: dict, value: Any) -> Tuple[bool, Optional[str]]:
