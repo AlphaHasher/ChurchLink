@@ -25,6 +25,7 @@ import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
 import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface EditBulletinProps {
     bulletin: ChurchBulletin;
@@ -68,7 +69,8 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             handleDialogClose();
         } catch (err) {
             console.error("Failed to update bulletin:", err);
-            alert("Failed to update bulletin. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to update bulletin");
+            alert(errorMessage);
         }
         setSaving(false);
     };
@@ -82,7 +84,8 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             handleDialogClose();
         } catch (err) {
             console.error("Failed to delete bulletin:", err);
-            alert("Failed to delete bulletin. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to delete bulletin");
+            alert(errorMessage);
         }
         setDeleting(false);
     };

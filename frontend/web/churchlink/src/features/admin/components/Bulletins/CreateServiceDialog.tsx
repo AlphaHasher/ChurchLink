@@ -15,6 +15,7 @@ import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createService } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateServiceDialogProps {
     onSave: () => Promise<void>;
@@ -77,7 +78,8 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
             handleDialogClose();
         } catch (err) {
             console.error("[Service Create Error]", err);
-            alert("Failed to create service. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to create service");
+            alert(errorMessage);
         } finally {
             setSaving(false);
         }

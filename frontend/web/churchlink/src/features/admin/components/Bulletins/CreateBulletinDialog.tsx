@@ -17,6 +17,7 @@ import { getMyPermissions } from "@/helpers/UserHelper";
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
 import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateBulletinProps {
     onSave: () => Promise<void>;
@@ -68,7 +69,8 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
             handleDialogClose();
         } catch (err) {
             console.error("Failed to create bulletin:", err);
-            alert("Failed to create bulletin. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to create bulletin");
+            alert(errorMessage);
         }
         setSaving(false);
     };

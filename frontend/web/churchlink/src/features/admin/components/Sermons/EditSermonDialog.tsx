@@ -24,6 +24,7 @@ import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
 import { fetchMinistries } from "@/helpers/EventsHelper";
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface EditSermonProps {
     sermon: ChurchSermon;
@@ -62,7 +63,8 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
             handleDialogClose();
         } catch (err) {
             console.error("Failed to update sermon:", err);
-            alert("Failed to update sermon. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to update sermon");
+            alert(errorMessage);
         }
         setSaving(false);
     };
@@ -76,7 +78,8 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
             handleDialogClose();
         } catch (err) {
             console.error("Failed to delete sermon:", err);
-            alert("Failed to delete sermon. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to delete sermon");
+            alert(errorMessage);
         }
         setDeleting(false);
     };

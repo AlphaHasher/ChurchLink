@@ -16,6 +16,7 @@ import { createSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
 import { fetchMinistries } from "@/helpers/EventsHelper";
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateSermonProps {
     onSave: () => Promise<void>;
@@ -66,7 +67,8 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
             handleDialogClose();
         } catch (err) {
             console.error("Failed to create sermon:", err);
-            alert("Failed to create sermon. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to create sermon");
+            alert(errorMessage);
         }
         setSaving(false);
     };
