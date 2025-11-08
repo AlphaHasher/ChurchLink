@@ -174,62 +174,49 @@ class BiblePlanService {
   }
 
   /// Get combined data of user's subscribed plans with full plan details
+  /// Uses a single backend call that filters out missing/inaccessible plans,
+  /// avoiding per-plan 404 responses and reducing network chatter.
   Future<List<UserBiblePlanWithDetails>> getMyPlansWithDetails() async {
     try {
-      // First, get all subscriptions
-      final subscriptions = await getMyBiblePlans();
-      
-      // Then, fetch the full plan details for each subscription
-      final plansWithDetails = <UserBiblePlanWithDetails>[];
-      
-      for (final subscription in subscriptions) {
-        final plan = await getPlanById(subscription.planId);
-        if (plan != null) {
-          plansWithDetails.add(
-            UserBiblePlanWithDetails(
-              plan: plan,
-              subscription: subscription,
-            ),
+      final response = await _client.get('$_baseUrl/my-bible-plans/with-details');
+      if (response.statusCode == 200 && response.data is List) {
+        final list = response.data as List;
+        return list.map((item) {
+          final map = item as Map<String, dynamic>;
+          final planJson = map['plan'] as Map<String, dynamic>;
+          final subJson = map['subscription'] as Map<String, dynamic>;
+          return UserBiblePlanWithDetails(
+            plan: BiblePlan.fromJson(planJson),
+            subscription: UserBiblePlanSubscription.fromJson(subJson),
           );
-        }
+        }).toList();
       }
-      
-      return plansWithDetails;
+      return [];
     } catch (e) {
       logger.e('Error fetching plans with details: $e');
       rethrow;
     }
   }
 
-  /// Toggle a passage as completed/uncompleted
-  Future<bool> togglePassageCompletion({
+  /// Update progress for multiple days in a batch operation
+  Future<bool> updatePlanProgressBatch({
     required String planId,
-    required int day,
-    required String passageId,
-    required List<String> currentCompletedPassages,
-    required int totalPassagesForDay,
+    required List<Map<String, dynamic>> dayUpdates,
   }) async {
     try {
-      // Toggle the passage
-      final updatedPassages = List<String>.from(currentCompletedPassages);
-      if (updatedPassages.contains(passageId)) {
-        updatedPassages.remove(passageId);
-      } else {
-        updatedPassages.add(passageId);
-      }
-      
-      // Check if all passages for this day are completed
-      final isCompleted = updatedPassages.length == totalPassagesForDay;
-      
-      // Update the progress
-      return await updatePlanProgress(
-        planId: planId,
-        day: day,
-        completedPassages: updatedPassages,
-        isCompleted: isCompleted,
+      final response = await _client.put(
+        '$_baseUrl/my-bible-plans/progress-batch/$planId',
+        data: {
+          'day_updates': dayUpdates,
+        },
       );
+      
+      return response.statusCode == 200;
     } catch (e) {
-      logger.e('Error toggling passage completion: $e');
+      logger.e('Error updating plan progress batch: $e');
+      if (e is DioException && e.response?.data != null) {
+        logger.e('Server error details: ${e.response?.data}');
+      }
       rethrow;
     }
   }
