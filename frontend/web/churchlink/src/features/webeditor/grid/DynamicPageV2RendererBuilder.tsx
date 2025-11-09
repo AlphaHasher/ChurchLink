@@ -6,9 +6,9 @@ import { makeVirtualTransform, VirtualTransform } from './virtualGrid';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
 import EventSection from '@sections/EventSection';
 import MapSection from '@sections/MapSection';
-// import ServiceTimesSection from '@sections/ServiceTimesSection';
-// import MenuSection from '@sections/MenuSection';
-// import ContactInfoSection from '@sections/ContactInfoSection';
+import ServiceTimesSection from '@sections/ServiceTimesSection';
+import MenuSection from '@sections/MenuSection';
+import ContactInfoSection from '@sections/ContactInfoSection';
 import PaypalSection from '@sections/PaypalSection';
 // import ScopedStyle from '@/shared/components/ScopedStyle';
 import { ActivePaddingOverlay, BuilderState } from '@/features/webeditor/state/BuilderState';
@@ -146,8 +146,6 @@ const renderNode = (
   activeLocale?: string,
   defaultLocale?: string,
   localizeFn?: (text: string) => string,
-  slideScale?: boolean,
-  cssScaleForHandles: number = 1,
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyle = nodeFontFamily ? { fontFamily: nodeFontFamily } : undefined;
@@ -243,11 +241,21 @@ const renderNode = (
         ...paddingStyles,
       };
 
-      const gridScale = transform ? (transform.cellPx / 16) : 1; // 1 grid unit ~= 16px baseline
+      const gridScale = transform ? (transform.cellPx / 16) : 1; // scale relative to grid cell size
+      const baseRemByVariant: Record<string, number> = {
+        h1: 2.25,
+        h2: 1.875,
+        h3: 1.5,
+        lead: 1.25,
+        muted: 0.875,
+        p: 1,
+      };
+      const effectiveRem =
+        typeof fontSize === 'number' && fontSize > 0
+          ? fontSize
+          : (baseRemByVariant[variant] ?? 1);
       const innerStyle: React.CSSProperties = {
-        ...(typeof fontSize === 'number' && fontSize > 0
-          ? { fontSize: `${fontSize * 16 * gridScale}px` }
-          : {}),
+        fontSize: `${effectiveRem * 16 * gridScale}px`,
         ...(fontWeight && fontWeight !== 400 ? { fontWeight } : {}),
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
         ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
@@ -367,6 +375,7 @@ const renderNode = (
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
+        margin: 0,
         whiteSpace: 'nowrap',
         width: '100%',
         height: '100%',
@@ -478,7 +487,7 @@ const renderNode = (
         </div>
       );
     }
-    case 'paypal': {
+    case 'serviceTimes': {
       const nodeStyleRaw = (node as any).style || {};
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
@@ -486,15 +495,122 @@ const renderNode = (
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
+      const defaultData = { title: 'Service Times', times: [{ label: 'Sunday', time: '9:00 AM' }, { label: 'Sunday', time: '11:00 AM' }] };
+      const data = (node as any).props?.data ?? defaultData;
       return (
-        <div className={cn(interactiveClass, outlineClass)} style={inlineStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onClick={handleClick}>
-          <PaypalSection data={{}} isEditing={false} />
+        <div
+          data-node-id={node.id}
+          data-node-type={node.type}
+          className={cn(interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        >
+          <ServiceTimesSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case 'menu': {
+      const nodeStyleRaw = (node as any).style || {};
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
+      const defaultData = { items: [] as Array<{ title: string; imageUrl: string; description?: string; linkUrl?: string }> };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div
+          data-node-id={node.id}
+          data-node-type={node.type}
+          className={cn(interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        >
+          <MenuSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case 'contactInfo': {
+      const nodeStyleRaw = (node as any).style || {};
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
+      const defaultData = { items: [{ label: 'Phone', value: '(555) 123-4567' }, { label: 'Email', value: 'hello@yourchurch.org' }] };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div
+          data-node-id={node.id}
+          data-node-type={node.type}
+          className={cn(interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        >
+          <ContactInfoSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case 'paypal': {
+      const nodeStyleRaw = (node as any).style || {};
+      const BASE_W = 512;
+      const BASE_H = 700;
+      let scale = 1;
+      if (transform && (node as any)?.layout?.units) {
+        const size = transform.toPx((node as any).layout.units);
+        const w = (size && typeof size.w === 'number') ? size.w : 0;
+        const h = (size && typeof size.h === 'number') ? size.h : 0;
+        const widthScale = w > 0 ? (w / BASE_W) : 1;
+        const heightScale = h > 0 ? (h / BASE_H) : 1;
+        scale = Math.max(0.2, Math.min(widthScale, heightScale));
+      } else if (transform) {
+        scale = Math.max(0.2, transform.cellPx / 16);
+      }
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        display: 'block',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+      };
+      return (
+        <div
+          className={cn(interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+        >
+          <div
+            style={{
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+              width: `${100 / (scale || 1)}%`,
+              height: `${100 / (scale || 1)}%`,
+            }}
+          >
+            <PaypalSection data={{}} isEditing={false} />
+          </div>
         </div>
       );
     }
     case 'container': {
       const nodeStyleRaw = (node as any).style || {};
-      const maxWidth = (node as any).props?.maxWidth ?? 'xl';
+      const maxWidth = 'full';
       const px = (node as any).props?.paddingX ?? 4;
       const py = (node as any).props?.paddingY ?? 6;
       const containerOrigin = transform ? transform.toPx((node.layout?.units as any) ?? { xu: 0, yu: 0 }) : { x: 0, y: 0 };
@@ -521,7 +637,7 @@ const renderNode = (
           const childSize = transform.toPx(c.layout!.units);
           const cw = childSize.w;
           const ch = childSize.h;
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale, localizeFn, slideScale, cssScaleForHandles);
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale, localizeFn);
           return (
             <DraggableNode
               key={c.id}
@@ -531,7 +647,6 @@ const renderNode = (
                 layout: { units: c.layout!.units },
               }}
               transform={transform}
-              cssScale={cssScaleForHandles}
               defaultSize={{ w: cw, h: ch }}
               selected={selectedNodeId === c.id}
               onCommitLayout={(nodeId, units) => onUpdateNodeLayout(sectionId, nodeId, units)}

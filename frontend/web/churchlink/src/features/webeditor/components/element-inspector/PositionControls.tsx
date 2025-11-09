@@ -192,10 +192,13 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
       const wrapperUnits = actualTransform.toUnits({ ...wrapperPx, w: wrapperPx.w, h: wrapperPx.h });
       wu = wrapperUnits.wu;
     }
-    console.log('[CenterH] parentUnitsW', parentUnits.wu, 'wu', wu);
+    console.log('[CenterH] parentUnits', parentUnits, 'child wu', wu);
 
-    const centerXu = Math.max(0, Math.round((parentUnits.wu - wu) / 2));
-    console.log('[CenterH] centerXu(units)', centerXu);
+    const minXu = parentUnits.xu;
+    const maxXu = parentUnits.xu + parentUnits.wu - wu;
+    const target = Math.round(parentUnits.xu + (parentUnits.wu - wu) / 2);
+    const centerXu = Math.max(minXu, Math.min(target, maxXu));
+    console.log('[CenterH] centerXu(units)', centerXu, { minXu, maxXu, target });
 
     if (!prevUnitsRef.current) {
       prevUnitsRef.current = { ...(node.layout?.units || {}) };
@@ -317,10 +320,14 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
       const wrapperUnits = actualTransform.toUnits({ ...wrapperPx, w: wrapperPx.w, h: wrapperPx.h });
       hu = wrapperUnits.hu;
     }
-    console.log('[CenterV] parentUnitsH', parentUnits.hu, 'hu', hu);
+    console.log('[CenterV] parentUnits', parentUnits, 'child hu', hu);
 
-    const centerYu = Math.max(0, Math.round((parentUnits.hu - hu) / 2));
-    console.log('[CenterV] centerYu(units)', centerYu);
+    // Center relative to parent's origin, then clamp within parent bounds
+    const minYu = parentUnits.yu;
+    const maxYu = parentUnits.yu + parentUnits.hu - hu;
+    const targetY = Math.round(parentUnits.yu + (parentUnits.hu - hu) / 2);
+    const centerYu = Math.max(minYu, Math.min(targetY, maxYu));
+    console.log('[CenterV] centerYu(units)', centerYu, { minYu, maxYu, targetY });
 
     if (!prevUnitsRef.current) {
       prevUnitsRef.current = { ...(node.layout?.units || {}) };

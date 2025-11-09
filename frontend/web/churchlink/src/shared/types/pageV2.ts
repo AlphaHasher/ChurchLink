@@ -118,7 +118,6 @@ export interface SectionV2 {
     showGrid?: boolean;
     cols?: number; 
     aspect?: { num: number; den: number }; 
-    slideScale?: boolean; // when true, render section as scaled fixed-aspect canvas
   };
   // When true, disables drag & resize of child nodes in the builder, but style editing remains
   lockLayout?: boolean;

@@ -18,7 +18,6 @@ export const defaultSection = (): SectionV2 => ({
     cols: 64,
     aspect: { num: 16, den: 9 },
     showGrid: true,
-    slideScale: false,
   },
   children: [
     { 
@@ -53,7 +52,6 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
-        slideScale: false,
       },
       children: [
         {
@@ -151,7 +149,6 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
-        slideScale: false,
       },
       lockLayout: true,
       children: [
@@ -179,7 +176,6 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
-        slideScale: false,
       },
       lockLayout: true,
       children: [
@@ -218,7 +214,6 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
-        slideScale: false,
       },
       lockLayout: true,
       children: [
@@ -249,12 +244,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       heightPercent: 85,
       background: { className: "", style: { backgroundColor: "#92a2c4" } },
       grid: { className: "w-full" },
-      styleTokens: { fontFamily: "Lato, sans-serif" },
+      styleTokens: { fontFamily: "Lato, sans-serif", name: "service times" },
       builderGrid: {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
-        slideScale: false,
       },
       children: [
         {
@@ -263,47 +257,30 @@ export const createPresetSection = (key: string): SectionV2 | null => {
           props: { maxWidth: "xl", paddingX: 4, paddingY: 10 },
           style: { className: "block w-full h-full [&_.card]:shadow-sm [&_.card]:ring-1 [&_.card]:ring-slate-200" },
           children: [
-            // Title at left:432 top:64 size:272x48
-            { id: `${newId()}-svc-title`, type: "text", props: { variant: "h2", html: "Service Times" }, style: { fontSize: 2, fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 27, yu: 4, wu: 17, hu: 3 } } } as Node,
-            // Subtitle at left:448 top:160 size:192x32
-            { id: `${newId()}-svc-sub`, type: "text", props: { variant: "p", html: "We'd love to see you this Sunday!" }, style: { color: "#475569" }, layout: { units: { xu: 28, yu: 10, wu: 12, hu: 2 } } } as Node,
-            // Cards row with absolute positions
-            // Card 2 (Location) at left:80 top:256 size:272x144
+            { id: `${newId()}-svc-title`, type: "text", props: { variant: "h2", html: "Service Times" }, style: { fontSize: 2, fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 24, yu: 2, wu: 15, hu: 3 } } } as Node,
+            { id: `${newId()}-svc-sub`, type: "text", props: { variant: "p", html: "We'd love to see you this Sunday!" }, style: { color: "#475569" }, layout: { units: { xu: 23, yu: 6, wu: 17, hu: 2 } } } as Node,
             { id: `${newId()}-svc-card-2`, type: "container", style: { borderRadius: 16, backgroundColor: "#ffffff", className: "card p-6" }, children: [
-              { id: `${newId()}-svc-card-2-title`, type: "text", props: { variant: "h3", html: "Location" }, style: { fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 1, yu: 1, wu: 10, hu: 2 } } } as Node,
-              { id: `${newId()}-svc-card-2-p`, type: "text", props: { variant: "p", html: "6601 Watt Ave, North Highlands, CA 95660" }, style: { color: "#334155" }, layout: { units: { xu: 1, yu: 4, wu: 10, hu: 3 } } } as Node,
-            ], layout: { units: { xu: 5, yu: 16, wu: 17, hu: 9 } } } as Node,
-            // Card 3 (Kids) at left:400 top:256 size:288x144
+              { id: `${newId()}-svc-card-2-title`, type: "text", props: { variant: "h3", html: "Location" }, style: { fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 6, yu: 13, wu: 10, hu: 2 } } } as Node,
+              { id: `${newId()}-svc-card-2-p`, type: "text", props: { variant: "p", html: "6601 Watt Ave, North Highlands, CA 95660" }, style: { color: "#334155" }, layout: { units: { xu: 5, yu: 17, wu: 12, hu: 3 } } } as Node,
+            ], layout: { units: { xu: 4, yu: 12, wu: 17, hu: 9 } } } as Node,
             { id: `${newId()}-svc-card-3`, type: "container", style: { borderRadius: 16, backgroundColor: "#ffffff", className: "card p-6" }, children: [
-              { id: `${newId()}-svc-card-3-title`, type: "text", props: { variant: "h3", html: "Kids & Students" }, style: { fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 2, yu: 1, wu: 10, hu: 2 } } } as Node,
-              { id: `${newId()}-svc-card-3-p`, type: "text", props: { variant: "p", html: "Age-appropriate programs during both services" }, style: { color: "#334155" }, layout: { units: { xu: 2, yu: 4, wu: 12, hu: 3 } } } as Node,
-            ], layout: { units: { xu: 25, yu: 16, wu: 18, hu: 9 } } } as Node,
-            // Card 1 (Sunday Gatherings) at left:768 top:256 size:288x144
+              { id: `${newId()}-svc-card-3-title`, type: "text", props: { variant: "h3", html: "Kids & Students" }, style: { fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 25, yu: 13, wu: 12, hu: 2 } } } as Node,
+              { id: `${newId()}-svc-card-3-p`, type: "text", props: { variant: "p", html: "Age-appropriate programs during both services" }, style: { color: "#334155" }, layout: { units: { xu: 25, yu: 17, wu: 13, hu: 3 } } } as Node,
+            ], layout: { units: { xu: 23, yu: 12, wu: 18, hu: 9 } } } as Node,
             { id: `${newId()}-svc-card-1`, type: "container", style: { borderRadius: 16, backgroundColor: "#ffffff", className: "card p-6" }, children: [
-              { id: `${newId()}-svc-card-1-title`, type: "text", props: { variant: "h3", html: "Sunday Gatherings" }, style: { fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 1, yu: 1, wu: 14, hu: 2 } } } as Node,
-              { id: `${newId()}-svc-card-1-p`, type: "text", props: { variant: "p", html: "9:00 AM & 11:00 AM • Main Auditorium" }, style: { color: "#334155" }, layout: { units: { xu: 1, yu: 4, wu: 16, hu: 3 } } } as Node,
-            ], layout: { units: { xu: 48, yu: 16, wu: 18, hu: 9 } } } as Node,
+              { id: `${newId()}-svc-card-1-title`, type: "text", props: { variant: "h3", html: "Sunday Gatherings" }, style: { fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 45, yu: 13, wu: 14, hu: 2 } } } as Node,
+              { id: `${newId()}-svc-card-1-p`, type: "text", props: { variant: "p", html: "9:00 AM & 11:00 AM • Main Auditorium" }, style: { color: "#334155" }, layout: { units: { xu: 45, yu: 17, wu: 16, hu: 3 } } } as Node,
+            ], layout: { units: { xu: 44, yu: 12, wu: 18, hu: 9 } } } as Node,
 
-            // CTA Button at left:432 top:544 size:160x48
-            { id: `${newId()}-svc-cta`, type: "button", props: { label: "Plan Your Visit", href: "#" }, style: { className: "mt-6 px-6 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition" }, layout: { units: { xu: 27, yu: 34, wu: 10, hu: 3 } } } as Node,
+            { id: `${newId()}-svc-cta`, type: "button", props: { label: "Plan Your Visit", href: "#" }, style: { className: "px-6 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition" }, layout: { units: { xu: 27, yu: 28, wu: 11, hu: 3 } } } as Node,
           ],
-          // Container absolute position at left:96 top:160 size:1072x704
-          layout: { units: { xu: 6, yu: 10, wu: 67, hu: 44 } },
+          layout: { units: { xu: 0, yu: 2, wu: 64, hu: 32 } },
         } as Node,
       ],
     };
   }
 
   if (key === "menu") {
-    const tileClass = "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition";
-    const makeTile = (label: string, x: number, y: number): Node => ({
-      id: `${newId()}-menu-tile-${label.toLowerCase().replace(/\s+/g, '-')}`,
-      type: "button",
-      props: { label, href: "#" },
-      style: { className: tileClass },
-      layout: { units: { xu: x, yu: y, wu: 4, hu: 4 } },
-    } as Node);
-
     return {
       id: `${newId()}-menu`,
       kind: "section",
@@ -311,35 +288,28 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "bg-gradient-to-b from-white to-slate-50" },
       grid: { className: "w-full" },
       styleTokens: {},
-      builderGrid: {
-        cols: 64,
-        aspect: { num: 16, den: 9 },
-        showGrid: true,
-      },
+      builderGrid: { cols: 64, aspect: { num: 16, den: 9 }, showGrid: true },
       children: [
         {
           id: `${newId()}-c-menu`,
           type: "container",
           props: { maxWidth: "xl", paddingX: 4, paddingY: 10 },
           children: [
-            { id: `${newId()}-menu-title`, type: "text", props: { variant: "h2", html: "Explore" }, style: { fontSize: 2, fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 0, yu: 0, wu: 12, hu: 2 } } } as Node,
-            { id: `${newId()}-menu-sub`, type: "text", props: { variant: "p", html: "Quick links to popular pages" }, style: { color: "#475569" }, layout: { units: { xu: 0, yu: 3, wu: 12, hu: 2 } } } as Node,
-            makeTile("I'm New", 0, 6),
-            makeTile("Sermons", 4, 6),
-            makeTile("Events", 8, 6),
-            makeTile("Ministries", 0, 10),
-            makeTile("Serve", 4, 10),
-            makeTile("Give", 8, 10),
+            {
+              id: `${newId()}-menu-node`,
+              type: "menu",
+              props: { data: { items: [] } },
+              style: { className: "" },
+              layout: { units: { xu: 0, yu: 0, wu: 12, hu: 12 } },
+            } as Node,
           ],
-          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 20 } },
+          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 14 } },
         } as Node,
       ],
     };
   }
 
   if (key === "contactInfo") {
-    const place = "6601 Watt Ave, North Highlands, CA 95660";
-    const embedUrl = `https://www.google.com/maps?q=${encodeURIComponent(place)}&output=embed`;
     return {
       id: `${newId()}-contact`,
       kind: "section",
@@ -347,31 +317,22 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       background: { className: "bg-white" },
       grid: { className: "w-full" },
       styleTokens: {},
-      builderGrid: {
-        cols: 64,
-        aspect: { num: 16, den: 9 },
-        showGrid: true,
-      },
-      lockLayout: true,
+      builderGrid: { cols: 64, aspect: { num: 16, den: 9 }, showGrid: true },
       children: [
         {
           id: `${newId()}-c-contact`,
           type: "container",
           props: { maxWidth: "xl", paddingX: 4, paddingY: 10 },
           children: [
-            { id: `${newId()}-contact-title`, type: "text", props: { variant: "h2", html: "Contact Us" }, style: { fontSize: 2, fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 0, yu: 0, wu: 12, hu: 2 } } } as Node,
-            // Left column: details
-            { id: `${newId()}-contact-left`, type: "container", style: { className: "" }, children: [
-              { id: `${newId()}-contact-visit`, type: "text", props: { variant: "h3", html: "Visit Us" }, style: { fontWeight: 700, color: "#0f172a" }, layout: { units: { xu: 0, yu: 0, wu: 12, hu: 2 } } } as Node,
-              { id: `${newId()}-contact-address`, type: "text", props: { variant: "p", html: place }, style: { color: "#334155" }, layout: { units: { xu: 0, yu: 3, wu: 12, hu: 2 } } } as Node,
-              { id: `${newId()}-contact-phone`, type: "text", props: { variant: "p", html: "(555) 123-4567" }, style: { color: "#334155" }, layout: { units: { xu: 0, yu: 6, wu: 12, hu: 2 } } } as Node,
-              { id: `${newId()}-contact-email`, type: "text", props: { variant: "p", html: "hello@yourchurch.org" }, style: { color: "#334155" }, layout: { units: { xu: 0, yu: 9, wu: 12, hu: 2 } } } as Node,
-              { id: `${newId()}-contact-cta`, type: "button", props: { label: "Email Us", href: "mailto:hello@yourchurch.org" }, style: { className: "mt-4 px-5 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800" }, layout: { units: { xu: 0, yu: 12, wu: 8, hu: 3 } } } as Node,
-            ], layout: { units: { xu: 0, yu: 6, wu: 5, hu: 14 } } } as Node,
-            // Right column: map
-            { id: `${newId()}-contact-map`, type: "map", props: { embedUrl, place }, style: { borderRadius: 16, backgroundColor: "#ffffff", className: "shadow-sm ring-1 ring-slate-200" }, layout: { units: { xu: 6, yu: 6, wu: 6, hu: 14 } } } as Node,
+            {
+              id: `${newId()}-contact-node`,
+              type: "contactInfo",
+              props: { data: { items: [{ label: "Phone", value: "(555) 123-4567" }, { label: "Email", value: "hello@yourchurch.org" }] } },
+              style: { className: "" },
+              layout: { units: { xu: 0, yu: 0, wu: 12, hu: 10 } },
+            } as Node,
           ],
-          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 22 } },
+          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 12 } },
         } as Node,
       ],
     };
@@ -387,6 +348,9 @@ export const ELEMENTS: Array<{ type: Node["type"]; label: string }> = [
   { type: "container", label: "Container" },
   { type: "eventList", label: "Event List" },
   { type: "map", label: "Map" },
+  { type: "serviceTimes", label: "Service Times" },
+  { type: "menu", label: "Menu" },
+  { type: "contactInfo", label: "Contact Info" },
 ];
 
 export const SECTION_PRESETS = [

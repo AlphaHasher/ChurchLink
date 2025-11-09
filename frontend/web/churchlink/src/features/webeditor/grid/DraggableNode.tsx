@@ -9,7 +9,6 @@ function mergeClassNames(...classes: Array<string | undefined | null | false>) {
 }
 
 function enforceFullSize(content: React.ReactNode): React.ReactNode {
-  // If content is a Fragment, promote its element children to fill and wrap for stable measurement
   if (React.isValidElement(content) && (content as any).type === React.Fragment) {
     const children = React.Children.toArray((content as any).props?.children ?? []);
     const filled = children.map((child) => {
@@ -38,7 +37,6 @@ function enforceFullSize(content: React.ReactNode): React.ReactNode {
       </div>
     );
   }
-  // Regular element -> clone with full-size
   const element: React.ReactElement<any> = content as React.ReactElement<any>;
   const existingStyle = (element.props && element.props.style) || {};
   const existingClass = (element.props && element.props.className) || '';
@@ -320,7 +318,6 @@ export function DraggableNode({
       const w = tempSize?.w ?? startRef.current.w0;
       const h = tempSize?.h ?? startRef.current.h0;
       
-      // Convert from local (offsetParent) coordinates to content coordinates by adding origin
       let { xu, yu, wu, hu } = transform.toUnits({ x: nx + originX, y: ny + originY, w, h });
 
       if (containerId) {

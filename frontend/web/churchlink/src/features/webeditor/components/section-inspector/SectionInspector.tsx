@@ -122,46 +122,134 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
           </Popover>
         </div>
 
-        {/* Section height controls */}
+        {/* Section aspect ratio controls (replaces heightPercent) */}
         <div>
-          <label className="text-sm mb-2 block">Section Height (% of viewport)</label>
+          <label className="text-sm mb-2 block">Section Aspect Ratio</label>
           <div className="space-y-2">
             <input
               type="range"
-              min={10}
-              max={200}
-              step={5}
-              value={section.heightPercent ?? 100}
+              min={1}
+              max={32}
+              step={1}
+              value={section.builderGrid?.aspect?.den ?? 9}
               onChange={(e) => {
-                const val = Number(e.target.value);
+                const den = Number(e.target.value);
+                const num = section.builderGrid?.aspect?.num ?? 16;
+                BuilderState.startAdjustingGrid(section.id);
                 setSections((prev) =>
                   prev.map((s) =>
                     s.id === section.id
-                      ? { ...s, heightPercent: val }
+                      ? {
+                          ...s,
+                          builderGrid: {
+                            cols: s.builderGrid?.cols ?? 64,
+                            aspect: { num, den },
+                            showGrid: s.builderGrid?.showGrid ?? true,
+                          },
+                        }
                       : s
                   )
                 );
               }}
+              onMouseUp={() => BuilderState.stopAdjustingGrid(section.id)}
+              onTouchEnd={() => BuilderState.stopAdjustingGrid(section.id)}
               className="w-full"
             />
-            <div className="flex items-center gap-2">
-              <NumericDragInput
-                min={10}
-                max={200}
-                step={5}
-                value={section.heightPercent ?? 100}
-                onChange={(val) => {
-                  setSections((prev) =>
-                    prev.map((s) =>
-                      s.id === section.id
-                        ? { ...s, heightPercent: Math.max(10, Math.min(200, val)) }
-                        : s
-                    )
-                  );
-                }}
-                className="w-24"
-              />
-              <span className="text-xs text-muted-foreground">vh</span>
+            <div className="grid grid-cols-3 items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs">W</Label>
+                <NumericDragInput
+                  min={1}
+                  max={32}
+                  step={1}
+                  value={section.builderGrid?.aspect?.num ?? 16}
+                  onFocus={() => {
+                    BuilderState.startAdjustingGrid(section.id);
+                  }}
+                  onMouseDown={() => {
+                    BuilderState.startAdjustingGrid(section.id);
+                  }}
+                  onChange={(val) => {
+                    const den = section.builderGrid?.aspect?.den ?? 9;
+                    setSections((prev) =>
+                      prev.map((s) =>
+                        s.id === section.id
+                          ? {
+                              ...s,
+                              builderGrid: {
+                                cols: s.builderGrid?.cols ?? 64,
+                                aspect: { num: Math.max(1, Math.min(32, val)), den },
+                                showGrid: s.builderGrid?.showGrid ?? true,
+                              },
+                            }
+                          : s
+                      )
+                    );
+                  }}
+                  onBlur={() => {
+                    BuilderState.stopAdjustingGrid(section.id);
+                  }}
+                  onMouseUp={() => {
+                    BuilderState.stopAdjustingGrid(section.id);
+                  }}
+                  onTouchStart={() => {
+                    BuilderState.startAdjustingGrid(section.id);
+                  }}
+                  onTouchEnd={() => {
+                    BuilderState.stopAdjustingGrid(section.id);
+                  }}
+                  className="w-full"
+                />
+              </div>
+              <div className="text-center text-xs text-muted-foreground">:</div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs">H</Label>
+                <NumericDragInput
+                  min={1}
+                  max={32}
+                  step={1}
+                  value={section.builderGrid?.aspect?.den ?? 9}
+                  onFocus={() => {
+                    BuilderState.startAdjustingGrid(section.id);
+                  }}
+                  onMouseDown={() => {
+                    BuilderState.startAdjustingGrid(section.id);
+                  }}
+                  onChange={(val) => {
+                    const num = section.builderGrid?.aspect?.num ?? 16;
+                    setSections((prev) =>
+                      prev.map((s) =>
+                        s.id === section.id
+                          ? {
+                              ...s,
+                              builderGrid: {
+                                cols: s.builderGrid?.cols ?? 64,
+                                aspect: { num, den: Math.max(1, Math.min(32, val)) },
+                                showGrid: s.builderGrid?.showGrid ?? true,
+                              },
+                            }
+                          : s
+                      )
+                    );
+                  }}
+                  onBlur={() => {
+                    BuilderState.stopAdjustingGrid(section.id);
+                  }}
+                  onMouseUp={() => {
+                    BuilderState.stopAdjustingGrid(section.id);
+                  }}
+                  onTouchStart={() => {
+                    BuilderState.startAdjustingGrid(section.id);
+                  }}
+                  onTouchEnd={() => {
+                    BuilderState.stopAdjustingGrid(section.id);
+                  }}
+                  className="w-full"
+                />
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Aspect ratio: {section.builderGrid?.aspect?.num ?? 16}:{section.builderGrid?.aspect?.den ?? 9}
             </div>
           </div>
         </div>
@@ -182,8 +270,7 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                           builderGrid: { 
                             cols: s.builderGrid?.cols ?? 64,
                             aspect: s.builderGrid?.aspect ?? { num: 16, den: 9 },
-                            showGrid: e.target.checked,
-                            slideScale: s.builderGrid?.slideScale ?? false,
+                            showGrid: e.target.checked
                           } 
                         }
                       : s
@@ -191,31 +278,6 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                 )}
               />
               <span className="ml-2 text-sm">Show Grid Overlay</span>
-            </div>
-            <div>
-              <input
-                type="checkbox"
-                checked={section.builderGrid?.slideScale ?? false}
-                onChange={(e) => setSections((prev) =>
-                  prev.map((s) =>
-                    s.id === section.id
-                      ? { 
-                          ...s, 
-                          builderGrid: { 
-                            cols: s.builderGrid?.cols ?? 64,
-                            aspect: s.builderGrid?.aspect ?? { num: 16, den: 9 },
-                            showGrid: s.builderGrid?.showGrid ?? true,
-                            slideScale: e.target.checked
-                          } 
-                        }
-                      : s
-                  )
-                )}
-              />
-              <span className="ml-2 text-sm">Scale section like a slide (locks aspect)</span>
-              <div className="text-xs text-muted-foreground mt-1">
-                Renders the section as a fixed canvas scaled by browser width. Disables drag/resize while on.
-              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground mb-1">Grid Columns</div>

@@ -446,7 +446,7 @@ const WebEditor: React.FC = () => {
       onOpenChange={handleSidebarOpenChange}
       style={{
         ["--sidebar-width" as any]: "14rem",
-        ["--sidebar-width-icon" as any]: "2.75rem",
+        ["--sidebar-width-icon" as any]: "0rem",
       }}
     >
       {/* Full-width fixed top bar */}
@@ -566,7 +566,7 @@ const WebEditor: React.FC = () => {
       
 
       {/* Canvas - full available width/height */}
-      <SidebarInset className="h-[calc(100vh-48px)] mt-12 overflow-auto bg-white text-gray-900">
+      <SidebarInset className="h-[calc(100vh-48px)] mt-12 overflow-y-auto overflow-x-hidden bg-white text-gray-900">
         <div className="min-h-full" onMouseDown={handleCanvasMouseDown}>
           {showHeader && (
             <div className="border-b">

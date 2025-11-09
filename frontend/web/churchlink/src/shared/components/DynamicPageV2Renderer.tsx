@@ -1,9 +1,9 @@
 import React from "react";
 import EventSection from "@sections/EventSection";
 import MapSection from "@sections/MapSection";
-// import ServiceTimesSection from "@sections/ServiceTimesSection";
-// import MenuSection from "@sections/MenuSection";
-// import ContactInfoSection from "@sections/ContactInfoSection";
+import ServiceTimesSection from "@sections/ServiceTimesSection";
+import MenuSection from "@sections/MenuSection";
+import ContactInfoSection from "@sections/ContactInfoSection";
 import PaypalSection from "@sections/PaypalSection";
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
@@ -365,6 +365,33 @@ const renderNode = (
       return (
         <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
           <PaypalSection data={{}} isEditing={false} />
+        </div>
+      );
+    }
+    case "serviceTimes": {
+      const defaultData = { title: "Service Times", times: [{ label: "Sunday", time: "9:00 AM" }, { label: "Sunday", time: "11:00 AM" }] };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
+          <ServiceTimesSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case "menu": {
+      const defaultData = { items: [] as Array<{ title: string; imageUrl: string; description?: string; linkUrl?: string }> };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
+          <MenuSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case "contactInfo": {
+      const defaultData = { items: [{ label: "Phone", value: "(555) 123-4567" }, { label: "Email", value: "hello@yourchurch.org" }] };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
+          <ContactInfoSection data={data} isEditing={false} />
         </div>
       );
     }
