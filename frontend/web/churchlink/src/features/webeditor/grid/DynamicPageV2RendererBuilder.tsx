@@ -146,6 +146,8 @@ const renderNode = (
   activeLocale?: string,
   defaultLocale?: string,
   localizeFn?: (text: string) => string,
+  slideScale?: boolean,
+  cssScaleForHandles: number = 1,
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyle = nodeFontFamily ? { fontFamily: nodeFontFamily } : undefined;
@@ -204,7 +206,6 @@ const renderNode = (
       const textStyles = nodeStyleRaw?.textStyles || [];
       const fontSize = nodeStyleRaw?.fontSize;
       const fontWeight = nodeStyleRaw?.fontWeight;
-      const width = nodeStyleRaw?.width;
       const elementFontFamily = nodeStyleRaw?.fontFamily;
       const underlineThickness = nodeStyleRaw?.underlineThickness;
       const color = nodeStyleRaw?.color;
@@ -233,18 +234,23 @@ const renderNode = (
 
       const wrapperStyle: React.CSSProperties = {
         ...nodeStyle,
-        ...(width && width !== 'auto' ? { width, display: 'inline-block' } : { display: 'inline-block' }),
+        width: '100%',
+        height: '100%',
+        display: 'block',
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
         ...(typeof borderRadius === 'number' ? { borderRadius } : {}),
         ...paddingStyles,
       };
 
+      const gridScale = transform ? (transform.cellPx / 16) : 1; // 1 grid unit ~= 16px baseline
       const innerStyle: React.CSSProperties = {
-        ...(fontSize && fontSize !== 1 ? { fontSize: `${fontSize}rem` } : {}),
+        ...(typeof fontSize === 'number' && fontSize > 0
+          ? { fontSize: `${fontSize * 16 * gridScale}px` }
+          : {}),
         ...(fontWeight && fontWeight !== 400 ? { fontWeight } : {}),
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
-        ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness}px` } : {}),
+        ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
         ...(color ? { color } : {}),
       };
 
@@ -256,7 +262,7 @@ const renderNode = (
             data-node-id={node.id}
             data-node-type={node.type}
             className={cn(
-              'inline-block max-w-full w-fit align-top break-words',
+              'block w-full h-full align-top break-words',
               interactiveClass,
               outlineClass,
               nodeClassName,
@@ -349,11 +355,21 @@ const renderNode = (
         interactiveClass,
         outlineClass
       );
+      const gridScaleBtn = transform ? (transform.cellPx / 16) : 1;
+      const fontSizeRemBtn = typeof (nodeStyleRaw as any)?.fontSize === 'number' ? (nodeStyleRaw as any).fontSize : 1; // default 1rem
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        fontSize: `${fontSizeRemBtn * 16 * gridScaleBtn}px`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        whiteSpace: 'nowrap',
+        width: '100%',
+        height: '100%',
       };
       if (href) {
         return (
@@ -481,6 +497,7 @@ const renderNode = (
       const maxWidth = (node as any).props?.maxWidth ?? 'xl';
       const px = (node as any).props?.paddingX ?? 4;
       const py = (node as any).props?.paddingY ?? 6;
+      const containerOrigin = transform ? transform.toPx((node.layout?.units as any) ?? { xu: 0, yu: 0 }) : { x: 0, y: 0 };
       const mwClass =
         maxWidth === 'full'
           ? 'w-full'
@@ -501,8 +518,10 @@ const renderNode = (
       const containerContent = (node.children ?? []).map((c) => {
         const childHasLayout = !!c.layout?.units;
         if (childHasLayout && transform && onUpdateNodeLayout && sectionId && !forceFlowLayout) {
-          const { x: cx, y: cy, w: cw, h: ch } = transform.toPx(c.layout!.units);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
+          const childSize = transform.toPx(c.layout!.units);
+          const cw = childSize.w;
+          const ch = childSize.h;
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale, localizeFn, slideScale, cssScaleForHandles);
           return (
             <DraggableNode
               key={c.id}
@@ -512,6 +531,7 @@ const renderNode = (
                 layout: { units: c.layout!.units },
               }}
               transform={transform}
+              cssScale={cssScaleForHandles}
               defaultSize={{ w: cw, h: ch }}
               selected={selectedNodeId === c.id}
               onCommitLayout={(nodeId, units) => onUpdateNodeLayout(sectionId, nodeId, units)}
@@ -519,7 +539,8 @@ const renderNode = (
               onDoubleSelect={() => onNodeDoubleClick?.(sectionId, c.id)}
               render={() => childRendered}
               containerId={node.id}
-              enforceChildFullSize={c.type === 'container' || c.type === 'button' || c.type === 'text'}
+              originPx={{ x: containerOrigin.x ?? 0, y: containerOrigin.y ?? 0 }}
+              enforceChildFullSize
               allowContentPointerEvents
             />
           );
@@ -710,8 +731,9 @@ const SectionWithVirtualGrid: React.FC<{
   const updateTransform = useCallback(() => {
     if (!contentRef.current) return;
     const rect = contentRef.current.getBoundingClientRect();
+    const virtualHeightPx = rect.width * aspect.den / aspect.num;
     const newTransform = makeVirtualTransform(
-      { width: rect.width, height: rect.height },
+      { width: rect.width, height: virtualHeightPx },
       cols,
       aspect
     );
@@ -732,6 +754,7 @@ const SectionWithVirtualGrid: React.FC<{
   }, [updateTransform]);
 
   const locked = section.lockLayout === true;
+  const rootContainerId = (section.children || []).find((n) => n.type === 'container')?.id;
 
   return (
     <section
@@ -743,7 +766,7 @@ const SectionWithVirtualGrid: React.FC<{
       style={{
         ...(section.background?.style as React.CSSProperties),
         ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
-        minHeight: `${(section.heightPercent ?? 100)}vh`,
+        height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh`,
       }}
     >
       {gridEnabled && transform && (
@@ -768,9 +791,13 @@ const SectionWithVirtualGrid: React.FC<{
       >
         {transform && section.children.map((node) => {
           const hasLayout = !!node.layout?.units;
+          const rootContainer = (section.children || []).find((n) => n.type === 'container') || null;
+          const rootOriginPx = rootContainer?.layout?.units ? transform.toPx(rootContainer.layout.units as any) : { x: 0, y: 0 };
           let rendered: React.ReactNode;
           if (hasLayout && !locked) {
-            const { x, y, w, h } = transform.toPx(node.layout!.units);
+            const topLevelSize = transform.toPx(node.layout!.units);
+            const w = topLevelSize.w;
+            const h = topLevelSize.h;
             rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
 
             const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
@@ -806,8 +833,8 @@ const SectionWithVirtualGrid: React.FC<{
                 onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
                 onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
                 render={() => rendered}
-                containerId={`section-content-${section.id}`}
-                enforceChildFullSize={node.type === 'container' || node.type === 'button' || node.type === 'text'}
+                containerId={node.type === 'container' ? `section-content-${section.id}` : (rootContainerId ?? `section-content-${section.id}`)}
+                enforceChildFullSize
                 allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
                 disabled={locked}
               />

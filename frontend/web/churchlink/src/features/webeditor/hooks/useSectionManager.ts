@@ -46,6 +46,22 @@ export function useSectionManager() {
     });
   }, []);
 
+  const findParentAndIndex = useCallback(function find(
+    nodes: Node[],
+    targetId: string,
+    parent: Node | null = null
+  ): { parentChildren: Node[]; index: number; parentNode: Node | null } | null {
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (n.id === targetId) return { parentChildren: nodes, index: i, parentNode: parent };
+      if (n.children && n.children.length) {
+        const found = find(n.children, targetId, n);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, []);
+
   const addSection = useCallback(() => {
     const prev = sections;
     const next = [...sections, defaultSection()];
@@ -98,59 +114,203 @@ export function useSectionManager() {
     }
   }, [sections, setSectionsWithLayouts]);
 
-  const addElement = useCallback((type: Node["type"]) => {
-    if (isAddingRef.current) return;
-    isAddingRef.current = true;
+  const addElement = useCallback(
+    (type: Node["type"]) => {
+      if (isAddingRef.current) return;
+      isAddingRef.current = true;
 
-    const prev = sections;
-    let newNode: Node;
-    let nextYu = 0;
+      try {
+        const prev = sections;
 
-    if (type === "text") {
-      newNode = { id: `${newId()}-t`, type: "text", props: { html: "Edit me" } } as Node;
-    } else if (type === "button") {
-      newNode = { id: `${newId()}-b`, type: "button", props: { label: "Click" } } as Node;
-    } else if (type === "image") {
-      newNode = { id: `${newId()}-img`, type: "image", props: { src: "https://placehold.co/600x400", alt: "Image" } } as Node;
-    } else if (type === "eventList") {
-      newNode = { id: `${newId()}-e`, type: "eventList", props: { showFilters: true } } as Node;
-    } else if (type === "map") {
-      newNode = { id: `${newId()}-map`, type: "map", props: { embedUrl: "https://www.google.com/maps/embed?pb=..." } } as Node;
-    } else {
-      newNode = { id: `${newId()}-c`, type: "container", props: { maxWidth: "xl", paddingX: 4, paddingY: 6 }, children: [] } as Node;
-    }
-
-    newNode.layout = {
-      units: {
-        xu: 0,
-        yu: nextYu
-      }
-    };
-
-    let next: SectionV2[] = [];
-    if (prev.length === 0) {
-      const container = { id: `${newId()}-c0`, type: "container", props: { maxWidth: "xl", paddingX: 4, paddingY: 6 }, children: [] } as Node;
-      const s = defaultSection();
-      s.children = [container, newNode];
-      next = [s];
-    } else {
-      const copy = prev.map((s) => ({ ...s, children: [...(s.children || [])] }));
-      const last = copy[copy.length - 1];
-      if (last.children) {
-        for (const child of last.children) {
-          if (child.layout?.units?.yu !== undefined) {
-            nextYu = Math.max(nextYu, child.layout.units.yu + 1);
+        const createNewNode = (): Node => {
+          if (type === "text") {
+            return { id: `${newId()}-t`, type: "text", props: { html: "Edit me" } } as Node;
           }
+          if (type === "button") {
+            return { id: `${newId()}-b`, type: "button", props: { label: "Click" } } as Node;
+          }
+          if (type === "image") {
+            return { id: `${newId()}-img`, type: "image", props: { src: "https://placehold.co/600x400", alt: "Image" } } as Node;
+          }
+          if (type === "eventList") {
+            return { id: `${newId()}-e`, type: "eventList", props: { showFilters: true } } as Node;
+          }
+          if (type === "map") {
+            return { id: `${newId()}-map`, type: "map", props: { embedUrl: "https://www.google.com/maps/embed?pb=..." } } as Node;
+          }
+          return {
+            id: `${newId()}-c`,
+            type: "container",
+            props: { maxWidth: "xl", paddingX: 4, paddingY: 6 },
+            children: [],
+          } as Node;
+        };
+
+        const computeNextYu = (children: Node[] | undefined): number => {
+          if (!children || !children.length) return 0;
+          let nextYu = 0;
+          for (const child of children) {
+            const yu = child.layout?.units?.yu;
+            if (typeof yu === "number") {
+              nextYu = Math.max(nextYu, yu + 1);
+            }
+          }
+          return nextYu;
+        };
+
+        const newNodeBase = createNewNode();
+
+        let next: SectionV2[] | null = null;
+
+        if (prev.length === 0) {
+          const s = defaultSection();
+          const existingChildren = s.children ?? [];
+          const containerChild = existingChildren.find((child) => child.type === "container");
+          const targetContainer =
+            containerChild ??
+            ({
+              id: `${newId()}-root-container`,
+              type: "container",
+              props: { maxWidth: "xl", paddingX: 4, paddingY: 6 },
+              children: [],
+            } as Node);
+
+          const containerChildren = [...(targetContainer.children ?? [])];
+          const nextYu = computeNextYu(containerChildren);
+          const nodeToInsert = {
+            ...newNodeBase,
+            layout: { units: { xu: 0, yu: nextYu } },
+          } as Node;
+          containerChildren.push(nodeToInsert);
+
+          const updatedContainer = {
+            ...targetContainer,
+            children: containerChildren,
+          } as Node;
+
+          if (containerChild) {
+            s.children = existingChildren.map((child) =>
+              child.id === containerChild.id ? updatedContainer : child
+            );
+          } else {
+            s.children = [...existingChildren, updatedContainer];
+          }
+          next = [s];
+        } else {
+          const targetSectionId =
+            selection?.sectionId ??
+            selectedSectionId ??
+            prev[prev.length - 1]?.id;
+
+          const section =
+            prev.find((sec) => sec.id === targetSectionId) ?? prev[prev.length - 1];
+          const sectionChildren = section.children ?? [];
+
+          const selectionContext =
+            type !== "container" && selection?.sectionId === section.id && selection.nodeId
+              ? findParentAndIndex(sectionChildren, selection.nodeId)
+              : null;
+
+          let parentNodeId: string | null = null;
+          let insertIndex = -1;
+          let parentChildren: Node[] = sectionChildren;
+
+          if (type === "container") {
+            if (selectionContext && selectionContext.parentChildren === sectionChildren) {
+              insertIndex = selectionContext.index + 1;
+            } else {
+              insertIndex = sectionChildren.length;
+            }
+          } else {
+            if (selectionContext) {
+              const selectedNode = selectionContext.parentChildren[selectionContext.index];
+              if (selectedNode.type === "container") {
+                parentNodeId = selectedNode.id;
+                parentChildren = selectedNode.children ?? [];
+                insertIndex = parentChildren.length;
+              } else {
+                const parentNode = selectionContext.parentNode;
+                if (parentNode && parentNode.type === "container") {
+                  parentNodeId = parentNode.id;
+                  parentChildren = parentNode.children ?? [];
+                } else {
+                  parentChildren = sectionChildren;
+                  parentNodeId = null;
+                }
+                insertIndex = selectionContext.index + 1;
+              }
+            }
+
+            if (insertIndex === -1) {
+              const fallbackContainer = sectionChildren.find((node) => node.type === "container");
+              if (fallbackContainer) {
+                parentNodeId = fallbackContainer.id;
+                parentChildren = fallbackContainer.children ?? [];
+                insertIndex = parentChildren.length;
+              } else {
+                parentNodeId = null;
+                parentChildren = sectionChildren;
+                insertIndex = parentChildren.length;
+              }
+            }
+          }
+
+          const nodeToInsert = {
+            ...newNodeBase,
+            layout: {
+              units: {
+                xu: 0,
+                yu: computeNextYu(parentChildren),
+              },
+            },
+          } as Node;
+
+          const updatedSections = prev.map((s) => {
+            if (s.id !== section.id) return s;
+
+            if (!parentNodeId) {
+              const updatedChildren = [...(s.children ?? [])];
+              updatedChildren.splice(insertIndex, 0, nodeToInsert);
+              return { ...s, children: updatedChildren };
+            }
+
+            let inserted = false;
+            const insertIntoNodes = (nodes: Node[]): Node[] => {
+              return nodes.map((node) => {
+                if (inserted) return node;
+                if (node.id === parentNodeId) {
+                  inserted = true;
+                  const childList = [...(node.children ?? [])];
+                  childList.splice(insertIndex, 0, nodeToInsert);
+                  return { ...node, children: childList };
+                }
+                if (node.children && node.children.length) {
+                  const updatedKids = insertIntoNodes(node.children);
+                  if (updatedKids !== node.children) {
+                    return { ...node, children: updatedKids };
+                  }
+                }
+                return node;
+              });
+            };
+
+            const updatedChildren = insertIntoNodes(s.children ?? []);
+            return { ...s, children: updatedChildren };
+          });
+
+          next = updatedSections;
         }
+
+        if (next && next !== sections) {
+          BuilderState.pushSections(prev, next);
+          setSectionsWithLayouts(next);
+        }
+      } finally {
+        isAddingRef.current = false;
       }
-      (newNode.layout as any).units.yu = nextYu;
-      last.children = [...(last.children ?? []), newNode];
-      next = copy;
-    }
-    BuilderState.pushSections(prev, next);
-    setSectionsWithLayouts(next);
-    isAddingRef.current = false;
-  }, [sections, setSectionsWithLayouts]);
+    },
+    [sections, setSectionsWithLayouts, selection, selectedSectionId, findParentAndIndex]
+  );
 
   const onSelectNode = useCallback((sectionId: string, nodeId: string) => {
     setSelection({ sectionId, nodeId });
@@ -195,18 +355,6 @@ export function useSectionManager() {
       children: clonedChildren,
       layout: layoutUnits ? { units: layoutUnits } : undefined,
     } as Node;
-  }, []);
-
-  const findParentAndIndex = useCallback(function find(nodes: Node[], targetId: string): { parentChildren: Node[]; index: number } | null {
-    for (let i = 0; i < nodes.length; i++) {
-      const n = nodes[i];
-      if (n.id === targetId) return { parentChildren: nodes, index: i };
-      if (n.children && n.children.length) {
-        const found = find(n.children, targetId);
-        if (found) return found;
-      }
-    }
-    return null;
   }, []);
 
   const copySelected = useCallback(() => {
@@ -330,12 +478,44 @@ export function useSectionManager() {
                   wu: units.wu ?? n.layout?.units?.wu,
                   hu: units.hu ?? n.layout?.units?.hu,
                 };
+                const dxu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+                const dyu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
+
+                // If moving a container, shift all descendants by the same delta so visual stays in place
+                const shiftChildren = (children: Node[] | undefined): Node[] | undefined => {
+                  if (!children || children.length === 0) return children;
+                  return children.map((child) => {
+                    const cu = { ...(child.layout?.units || {}) };
+                    const shifted: Node = {
+                      ...child,
+                      layout: {
+                        units: {
+                          xu: (cu.xu ?? 0) + dxu,
+                          yu: (cu.yu ?? 0) + dyu,
+                          wu: cu.wu,
+                          hu: cu.hu,
+                        },
+                      },
+                      children: shiftChildren(child.children),
+                    } as Node;
+                    // Track history per child move for proper undo/redo
+                    BuilderState.pushLayout(sectionId, child.id, cu, (shifted.layout as any).units);
+                    return shifted;
+                  });
+                };
+
+                const withShiftedChildren =
+                  n.type === 'container' && (dxu !== 0 || dyu !== 0)
+                    ? shiftChildren(n.children)
+                    : n.children;
+
                 BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
                 // Clear any cached pixel overrides so the renderer uses updated units
                 BuilderState.clearNodePixelLayout(sectionId, nodeId);
                 return {
                   ...n,
                   layout: { units: nextUnits },
+                  children: withShiftedChildren,
                 } as Node;
               }
               if (n.children && n.children.length) {

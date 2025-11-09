@@ -1,5 +1,5 @@
 // DraggableNode.tsx - Draggable node with grid snapping
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Node } from '@/shared/types/pageV2';
 import { BuilderState, ResizeHandle } from '@/features/webeditor/state/BuilderState';
 import { VirtualTransform } from './virtualGrid';
@@ -62,9 +62,11 @@ type DragNodeProps = {
   onSelect?: () => void;
   onDoubleSelect?: () => void;
   containerId?: string;
+  originPx?: { x: number; y: number };
   enforceChildFullSize?: boolean;
   allowContentPointerEvents?: boolean;
   disabled?: boolean;
+  cssScale?: number; // when parent canvas is CSS-scaled (e.g., slide-scaling), compensate pointer math
 };
 
 export function DraggableNode({
@@ -78,14 +80,18 @@ export function DraggableNode({
   onSelect,
   onDoubleSelect,
   containerId,
+  originPx,
   enforceChildFullSize,
   allowContentPointerEvents,
   disabled,
+  cssScale = 1,
 }: DragNodeProps) {
   const [dragging, setDragging] = useState(false);
   const [tempPos, setTempPos] = useState<{ x: number; y: number } | null>(null);
   const [tempSize, setTempSize] = useState<{ w: number; h: number } | null>(null);
   const startRef = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number; w0: number; h0: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [measuredOrigin, setMeasuredOrigin] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const resizeRef = useRef<
     | null
     | {
@@ -103,7 +109,34 @@ export function DraggableNode({
   const activeEditing = BuilderState.editing;
   const isEditing = activeEditing?.sectionId === sectionId && activeEditing?.nodeId === node.id;
 
-  const { x, y, w: baseWidth, h: baseHeight } = transform.toPx(node.layout?.units ?? { xu: 0, yu: 0 });
+  useLayoutEffect(() => {
+    if (originPx) {
+      setMeasuredOrigin(originPx);
+      return;
+    }
+    const el = wrapperRef.current;
+    const content = document.getElementById(`section-content-${sectionId}`);
+    if (!el || !content) {
+      setMeasuredOrigin({ x: 0, y: 0 });
+      return;
+    }
+    const offsetParent = el.offsetParent as HTMLElement | null;
+    if (!offsetParent) {
+      setMeasuredOrigin({ x: 0, y: 0 });
+      return;
+    }
+    const pRect = offsetParent.getBoundingClientRect();
+    const cRect = content.getBoundingClientRect();
+    setMeasuredOrigin({ x: (pRect.left - cRect.left) / cssScale, y: (pRect.top - cRect.top) / cssScale });
+  }, [sectionId, originPx, cssScale]);
+
+  const originX = originPx?.x ?? measuredOrigin.x;
+  const originY = originPx?.y ?? measuredOrigin.y;
+  const _gridPx = transform.toPx(node.layout?.units ?? { xu: 0, yu: 0 });
+  const x = _gridPx.x - originX;
+  const y = _gridPx.y - originY;
+  const baseWidth = _gridPx.w;
+  const baseHeight = _gridPx.h;
 
   const applyParentOutline = useCallback((edges: { top: boolean; right: boolean; bottom: boolean; left: boolean } | null) => {
     if (!containerId) return;
@@ -126,9 +159,9 @@ export function DraggableNode({
     const parent = wrapper.offsetParent as HTMLElement | null;
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
-    const pointerX = e.clientX - rect.left;
-    const pointerY = e.clientY - rect.top;
-    startRef.current = { pointerX, pointerY, x0: x, y0: y, w0: innerRect.width, h0: innerRect.height };
+    const pointerX = (e.clientX - rect.left) / cssScale;
+    const pointerY = (e.clientY - rect.top) / cssScale;
+    startRef.current = { pointerX, pointerY, x0: x, y0: y, w0: innerRect.width / cssScale, h0: innerRect.height / cssScale };
     setTempSize(null);
     wrapper.setPointerCapture(e.pointerId);
     pressedRef.current = true;
@@ -143,10 +176,10 @@ export function DraggableNode({
     const container = wrapper.offsetParent as HTMLElement | null;
     if (!container) return;
     const containerRect = container.getBoundingClientRect();
-    const pointerX = e.clientX - containerRect.left;
-    const pointerY = e.clientY - containerRect.top;
-      const dx = pointerX - startRef.current.pointerX;
-      const dy = pointerY - startRef.current.pointerY;
+    const pointerX = (e.clientX - containerRect.left) / cssScale;
+    const pointerY = (e.clientY - containerRect.top) / cssScale;
+    const dx = pointerX - startRef.current.pointerX;
+    const dy = pointerY - startRef.current.pointerY;
 
     // If resizing, keep opposite edges pinned and do NOT snap while dragging
     if (resizeRef.current) {
@@ -166,23 +199,37 @@ export function DraggableNode({
           const contentEl = document.getElementById(`section-content-${sectionId}`) || parentEl;
           const contentRect = contentEl.getBoundingClientRect();
           const parentRect = parentEl.getBoundingClientRect();
-          const parentPx = {
-            x: parentRect.left - contentRect.left,
-            y: parentRect.top - contentRect.top,
-            w: parentRect.width,
-            h: parentRect.height,
-          };
-          const parentUnits = transform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
-          const { xu: nxu, yu: nyu, wu: nwu, hu: nhu } = transform.toUnits({ x: nx, y: ny, w: nw, h: nh });
+          const isSectionRoot = parentEl === contentEl;
+          const parentPx = isSectionRoot
+            ? {
+                x: 0,
+                y: 0,
+                w: transform.cols * transform.cellPx,
+                h: transform.rows * transform.cellPx,
+              }
+            : {
+                x: ((parentRect.left - contentRect.left)) / cssScale,
+                y: ((parentRect.top - contentRect.top)) / cssScale,
+                w: parentRect.width / cssScale,
+                h: parentRect.height / cssScale,
+              };
+          const parentUnits = isSectionRoot
+            ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+            : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
+          const { xu: nxu, yu: nyu, wu: nwu, hu: nhu } = transform.toUnits({ x: nx + originX, y: ny + originY, w: nw, h: nh });
+          const minXu = isSectionRoot ? 0 : parentUnits.xu;
+          const minYu = isSectionRoot ? 0 : parentUnits.yu;
+          const maxXu = minXu + parentUnits.wu - nwu;
+          const maxYu = minYu + parentUnits.hu - nhu;
           const clampedUnits = {
-            xu: Math.max(0, Math.min(nxu, parentUnits.wu - nwu)),
-            yu: parentUnits.hu > nhu ? Math.max(0, Math.min(nyu, parentUnits.hu - nhu)) : nyu,
+            xu: Math.max(minXu, Math.min(nxu, maxXu)),
+            yu: parentUnits.hu > nhu ? Math.max(minYu, Math.min(nyu, maxYu)) : nyu,
             wu: nwu,
             hu: nhu,
           };
           const clampedPx = transform.toPx(clampedUnits);
-          nx = clampedPx.x;
-          ny = clampedPx.y;
+          nx = clampedPx.x - originX;
+          ny = clampedPx.y - originY;
 
           // Edge contact detection for resize case
           const tol = 0.5;
@@ -206,7 +253,7 @@ export function DraggableNode({
     const rawX = startRef.current.x0 + dx;
     const rawY = startRef.current.y0 + dy;
 
-    const tentativeUnits = transform.toUnits({ x: rawX, y: rawY, w: startRef.current.w0, h: startRef.current.h0 });
+    const tentativeUnits = transform.toUnits({ x: rawX + originX, y: rawY + originY, w: startRef.current.w0, h: startRef.current.h0 });
     let xu = tentativeUnits.xu;
     let yu = tentativeUnits.yu;
 
@@ -216,29 +263,42 @@ export function DraggableNode({
         const contentEl = document.getElementById(`section-content-${sectionId}`) || parentEl;
         const contentRect = contentEl.getBoundingClientRect();
         const parentRect = parentEl.getBoundingClientRect();
-        const parentPx = {
-          x: parentRect.left - contentRect.left,
-          y: parentRect.top - contentRect.top,
-          w: parentRect.width,
-          h: parentRect.height,
-        };
-        const parentUnits = transform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
+        const isSectionRoot = parentEl === contentEl;
+        const parentPx = isSectionRoot
+          ? {
+              x: 0,
+              y: 0,
+              w: transform.cols * transform.cellPx,
+              h: transform.rows * transform.cellPx,
+            }
+          : {
+              x: ((parentRect.left - contentRect.left)) / cssScale,
+              y: ((parentRect.top - contentRect.top)) / cssScale,
+              w: parentRect.width / cssScale,
+              h: parentRect.height / cssScale,
+            };
+        const parentUnits = isSectionRoot
+          ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+          : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
         const wu = node.layout?.units?.wu ?? Math.round(startRef.current.w0 / transform.cellPx);
         const hu = node.layout?.units?.hu ?? Math.round(startRef.current.h0 / transform.cellPx);
-        
-        xu = Math.max(0, Math.min(xu, parentUnits.wu - wu));
+        const minXu = isSectionRoot ? 0 : parentUnits.xu;
+        const minYu = isSectionRoot ? 0 : parentUnits.yu;
+        const maxXu = minXu + parentUnits.wu - wu;
+        const maxYu = minYu + parentUnits.hu - hu;
+        xu = Math.max(minXu, Math.min(xu, maxXu));
         if (parentUnits.hu > hu) {
-          yu = Math.max(0, Math.min(yu, parentUnits.hu - hu));
+          yu = Math.max(minYu, Math.min(yu, maxYu));
         }
 
         // Edge contact detection for move case
         const snappedPx = transform.toPx({ xu, yu, wu, hu });
         const tol = 0.5;
         const edges = {
-          left: snappedPx.x <= tol,
-          top: snappedPx.y <= tol,
-          right: Math.abs(snappedPx.x + snappedPx.w! - parentPx.w) <= tol,
-          bottom: parentUnits.hu > hu ? Math.abs(snappedPx.y + snappedPx.h! - parentPx.h) <= tol : false,
+          left: (snappedPx.x - originX) <= tol,
+          top: (snappedPx.y - originY) <= tol,
+          right: Math.abs((snappedPx.x - originX) + snappedPx.w! - parentPx.w) <= tol,
+          bottom: parentUnits.hu > hu ? Math.abs((snappedPx.y - originY) + snappedPx.h! - parentPx.h) <= tol : false,
         } as const;
         if (BuilderState.setEdgeContact) BuilderState.setEdgeContact(containerId, { top: edges.top, right: edges.right, bottom: edges.bottom, left: edges.left });
         applyParentOutline(edges);
@@ -246,9 +306,9 @@ export function DraggableNode({
     }
 
     const snappedPx = transform.toPx({ xu, yu, wu: startRef.current.w0 / transform.cellPx, hu: startRef.current.h0 / transform.cellPx });
-    setTempPos({ x: snappedPx.x, y: snappedPx.y });
+    setTempPos({ x: snappedPx.x - originX, y: snappedPx.y - originY });
     e.stopPropagation();
-  }, [dragging, transform, containerId, sectionId, disabled, applyParentOutline, node.layout?.units]);
+  }, [dragging, transform, containerId, sectionId, disabled, applyParentOutline, node.layout?.units, originX, originY]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (disabled) return;
@@ -260,7 +320,8 @@ export function DraggableNode({
       const w = tempSize?.w ?? startRef.current.w0;
       const h = tempSize?.h ?? startRef.current.h0;
       
-      let { xu, yu, wu, hu } = transform.toUnits({ x: nx, y: ny, w, h });
+      // Convert from local (offsetParent) coordinates to content coordinates by adding origin
+      let { xu, yu, wu, hu } = transform.toUnits({ x: nx + originX, y: ny + originY, w, h });
 
       if (containerId) {
         const parentEl = document.getElementById(containerId);
@@ -268,18 +329,32 @@ export function DraggableNode({
           const contentEl = document.getElementById(`section-content-${sectionId}`) || parentEl;
           const contentRect = contentEl.getBoundingClientRect();
           const parentRect = parentEl.getBoundingClientRect();
-          const parentPx = {
-            x: parentRect.left - contentRect.left,
-            y: parentRect.top - contentRect.top,
-            w: parentRect.width,
-            h: parentRect.height,
-          };
-          const parentUnits = transform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
+          const isSectionRoot = parentEl === contentEl;
+          const parentPx = isSectionRoot
+            ? {
+                x: 0,
+                y: 0,
+                w: transform.cols * transform.cellPx,
+                h: transform.rows * transform.cellPx,
+              }
+            : {
+                x: (parentRect.left - contentRect.left) - transform.offsetX,
+                y: (parentRect.top - contentRect.top) - transform.offsetY,
+                w: parentRect.width,
+                h: parentRect.height,
+              };
+          const parentUnits = isSectionRoot
+            ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+            : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
           wu = Math.max(1, Math.min(wu, parentUnits.wu));
           hu = Math.max(1, Math.min(hu, parentUnits.hu));
-          xu = Math.max(0, Math.min(xu, parentUnits.wu - wu));
+          const minXu = isSectionRoot ? 0 : parentUnits.xu;
+          const minYu = isSectionRoot ? 0 : parentUnits.yu;
+          const maxXu = minXu + parentUnits.wu - wu;
+          const maxYu = minYu + parentUnits.hu - hu;
+          xu = Math.max(minXu, Math.min(xu, maxXu));
           if (parentUnits.hu > hu) {
-            yu = Math.max(0, Math.min(yu, parentUnits.hu - hu));
+            yu = Math.max(minYu, Math.min(yu, maxYu));
           }
         }
       }
@@ -304,8 +379,8 @@ export function DraggableNode({
     if (!tempPos) return;
     
     const finalPxRect = {
-      x: tempPos.x,
-      y: tempPos.y,
+      x: tempPos.x + originX,
+      y: tempPos.y + originY,
       w: tempSize?.w ?? startRef.current.w0,
       h: tempSize?.h ?? startRef.current.h0,
     };
@@ -317,18 +392,32 @@ export function DraggableNode({
         const contentEl = document.getElementById(`section-content-${sectionId}`) || parentEl;
         const contentRect = contentEl.getBoundingClientRect();
         const parentRect = parentEl.getBoundingClientRect();
-        const parentPx = {
-          x: parentRect.left - contentRect.left,
-          y: parentRect.top - contentRect.top,
-          w: parentRect.width,
-          h: parentRect.height,
-        };
-        const parentUnits = transform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
+        const isSectionRoot = parentEl === contentEl;
+        const parentPx = isSectionRoot
+          ? {
+              x: 0,
+              y: 0,
+              w: transform.cols * transform.cellPx,
+              h: transform.rows * transform.cellPx,
+            }
+          : {
+              x: (parentRect.left - contentRect.left) - transform.offsetX,
+              y: (parentRect.top - contentRect.top) - transform.offsetY,
+              w: parentRect.width,
+              h: parentRect.height,
+            };
+        const parentUnits = isSectionRoot
+          ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+          : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
         const nodeWu = Math.round(startRef.current.w0 / transform.cellPx);
         const nodeHu = Math.round(startRef.current.h0 / transform.cellPx);
-        xu = Math.max(0, Math.min(xu, parentUnits.wu - nodeWu));
+        const minXu = isSectionRoot ? 0 : parentUnits.xu;
+        const minYu = isSectionRoot ? 0 : parentUnits.yu;
+        const maxXu = minXu + parentUnits.wu - nodeWu;
+        const maxYu = minYu + parentUnits.hu - nodeHu;
+        xu = Math.max(minXu, Math.min(xu, maxXu));
         if (parentUnits.hu > nodeHu) {
-          yu = Math.max(0, Math.min(yu, parentUnits.hu - nodeHu));
+          yu = Math.max(minYu, Math.min(yu, maxYu));
         }
       }
     }
@@ -391,6 +480,7 @@ export function DraggableNode({
 
   return (
     <div
+      ref={wrapperRef}
       className={`absolute ${dragging ? 'select-none' : ''}`}
       style={{
         left: renderX,
@@ -447,15 +537,16 @@ export function DraggableNode({
             if (dir === 'ne' || dir === 'sw') cursor = 'nesw-resize';
 
             // Edge hit areas leave a gap for corner boxes so corners get priority/correct cursor
-            if (dir === 'n') { style.top = -3; style.left = 6; style.right = 6; style.height = 6; }
-            if (dir === 's') { style.bottom = -3; style.left = 6; style.right = 6; style.height = 6; }
-            if (dir === 'w') { style.left = -3; style.top = 6; style.bottom = 6; style.width = 6; }
-            if (dir === 'e') { style.right = -3; style.top = 6; style.bottom = 6; style.width = 6; }
+            const px = (v: number) => v / cssScale;
+            if (dir === 'n') { style.top = -px(3); style.left = px(6); style.right = px(6); style.height = px(6); }
+            if (dir === 's') { style.bottom = -px(3); style.left = px(6); style.right = px(6); style.height = px(6); }
+            if (dir === 'w') { style.left = -px(3); style.top = px(6); style.bottom = px(6); style.width = px(6); }
+            if (dir === 'e') { style.right = -px(3); style.top = px(6); style.bottom = px(6); style.width = px(6); }
 
-            if (dir === 'nw') { style.top = -6; style.left = -6; style.width = 12; style.height = 12; }
-            if (dir === 'ne') { style.top = -6; style.right = -6; style.width = 12; style.height = 12; }
-            if (dir === 'sw') { style.bottom = -6; style.left = -6; style.width = 12; style.height = 12; }
-            if (dir === 'se') { style.bottom = -6; style.right = -6; style.width = 12; style.height = 12; }
+            if (dir === 'nw') { style.top = -px(6); style.left = -px(6); style.width = px(12); style.height = px(12); }
+            if (dir === 'ne') { style.top = -px(6); style.right = -px(6); style.width = px(12); style.height = px(12); }
+            if (dir === 'sw') { style.bottom = -px(6); style.left = -px(6); style.width = px(12); style.height = px(12); }
+            if (dir === 'se') { style.bottom = -px(6); style.right = -px(6); style.width = px(12); style.height = px(12); }
 
             const isCorner = dir.length === 2;
 
@@ -482,25 +573,25 @@ export function DraggableNode({
                     mode: dir as ResizeHandle,
                     startX: e.clientX,
                     startY: e.clientY,
-                    x0: rect.left - parentRect.left,
-                    y0: rect.top - parentRect.top,
-                    w0: rect.width,
-                    h0: rect.height,
+                    x0: (rect.left - parentRect.left) / cssScale,
+                    y0: (rect.top - parentRect.top) / cssScale,
+                    w0: rect.width / cssScale,
+                    h0: rect.height / cssScale,
                   };
                   startRef.current = {
-                    pointerX: e.clientX - parentRect.left,
-                    pointerY: e.clientY - parentRect.top,
+                    pointerX: (e.clientX - parentRect.left) / cssScale,
+                    pointerY: (e.clientY - parentRect.top) / cssScale,
                     x0: resizeRef.current.x0,
                     y0: resizeRef.current.y0,
-                    w0: rect.width,
-                    h0: rect.height,
+                    w0: rect.width / cssScale,
+                    h0: rect.height / cssScale,
                   };
                   BuilderState.startResizing(sectionId, node.id, dir as ResizeHandle);
                   wrapper.setPointerCapture(e.pointerId);
                   pressedRef.current = true;
                   setDragging(true);
                   setTempPos({ x: resizeRef.current.x0, y: resizeRef.current.y0 });
-                  setTempSize({ w: rect.width, h: rect.height });
+                  setTempSize({ w: rect.width / cssScale, h: rect.height / cssScale });
                   e.stopPropagation();
                 }}
                 onPointerUp={(e) => {

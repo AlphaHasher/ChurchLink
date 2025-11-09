@@ -15,10 +15,11 @@ export function makeVirtualTransform(
   aspect: { num: number; den: number }
 ): VirtualTransform {
   const rows = Math.round(cols * aspect.den / aspect.num);
-  const scale = Math.min(containerRect.width / cols, containerRect.height / rows);
-  const cellPx = scale;
-  const offsetX = (containerRect.width - cols * cellPx) / 2;
-  const offsetY = (containerRect.height - rows * cellPx) / 2;
+  const cellPx = containerRect.width / cols;
+  const contentW = cols * cellPx;
+  const contentH = rows * cellPx;
+  const offsetX = (containerRect.width - contentW) / 2;
+  const offsetY = (containerRect.height - contentH) / 2;
 
   const toPx = (unitsRect: { xu: number; yu: number; wu?: number; hu?: number }) => ({
     x: offsetX + unitsRect.xu * cellPx,

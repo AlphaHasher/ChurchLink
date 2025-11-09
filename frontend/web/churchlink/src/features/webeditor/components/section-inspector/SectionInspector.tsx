@@ -182,7 +182,8 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                           builderGrid: { 
                             cols: s.builderGrid?.cols ?? 64,
                             aspect: s.builderGrid?.aspect ?? { num: 16, den: 9 },
-                            showGrid: e.target.checked 
+                            showGrid: e.target.checked,
+                            slideScale: s.builderGrid?.slideScale ?? false,
                           } 
                         }
                       : s
@@ -190,6 +191,31 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                 )}
               />
               <span className="ml-2 text-sm">Show Grid Overlay</span>
+            </div>
+            <div>
+              <input
+                type="checkbox"
+                checked={section.builderGrid?.slideScale ?? false}
+                onChange={(e) => setSections((prev) =>
+                  prev.map((s) =>
+                    s.id === section.id
+                      ? { 
+                          ...s, 
+                          builderGrid: { 
+                            cols: s.builderGrid?.cols ?? 64,
+                            aspect: s.builderGrid?.aspect ?? { num: 16, den: 9 },
+                            showGrid: s.builderGrid?.showGrid ?? true,
+                            slideScale: e.target.checked
+                          } 
+                        }
+                      : s
+                  )
+                )}
+              />
+              <span className="ml-2 text-sm">Scale section like a slide (locks aspect)</span>
+              <div className="text-xs text-muted-foreground mt-1">
+                Renders the section as a fixed canvas scaled by browser width. Disables drag/resize while on.
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground mb-1">Grid Columns</div>

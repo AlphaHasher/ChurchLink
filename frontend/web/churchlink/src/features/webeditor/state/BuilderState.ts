@@ -42,6 +42,7 @@ class BuilderStateClass {
   private _edgeContactListeners: Set<(
     payload: { containerId: string; edges: { top: boolean; right: boolean; bottom: boolean; left: boolean } } | null
   ) => void> = new Set();
+  private _nodePixelLayouts: Map<string, any> = new Map();
 
   get selection() { return this._selection; }
   get draggingNodeId() { return this._draggingNodeId; }
@@ -227,6 +228,18 @@ class BuilderStateClass {
     this._undoStack.push(action);
     this.notify();
     return action;
+  }
+
+  clearNodePixelLayout(sectionId: string, nodeId: string) {
+    this._nodePixelLayouts.delete(nodeId);
+  }
+
+  getNodePixelLayout(nodeId: string): any | undefined {
+    return this._nodePixelLayouts.get(nodeId);
+  }
+
+  setNodePixelLayout(nodeId: string, layout: any) {
+    this._nodePixelLayouts.set(nodeId, layout);
   }
 }
 

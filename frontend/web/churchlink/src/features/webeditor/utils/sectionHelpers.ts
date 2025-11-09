@@ -18,6 +18,7 @@ export const defaultSection = (): SectionV2 => ({
     cols: 64,
     aspect: { num: 16, den: 9 },
     showGrid: true,
+    slideScale: false,
   },
   children: [
     { 
@@ -52,6 +53,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
+        slideScale: false,
       },
       children: [
         {
@@ -149,6 +151,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
+        slideScale: false,
       },
       lockLayout: true,
       children: [
@@ -176,6 +179,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
+        slideScale: false,
       },
       lockLayout: true,
       children: [
@@ -214,6 +218,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
+        slideScale: false,
       },
       lockLayout: true,
       children: [
@@ -249,6 +254,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         cols: 64,
         aspect: { num: 16, den: 9 },
         showGrid: true,
+        slideScale: false,
       },
       children: [
         {
