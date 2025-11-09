@@ -21,6 +21,7 @@ import api from "@/api/api";
 import { auth, signOut } from "@/lib/firebase";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
 import AvatarImg from "./AvatarImg";
+import HeaderDove from "@/assets/HeaderDove";
 
 // Define interfaces for header data types
 interface HeaderLink {
@@ -145,14 +146,21 @@ export function AppSidebar() {
   return (
     <Sidebar side="right" variant="sidebar" className="lg:hidden! z-[100]">
       <SidebarContent className="bg-slate-900 w-full max-w-[100vw] relative z-[100] overflow-x-hidden">
+        {/* Logo Section at Top */}
+        <div className="flex items-center justify-center py-4 px-4 border-b border-white/10">
+          <Link to="/" onClick={() => setOpen(false)} className="hover:opacity-80 transition-opacity">
+            <HeaderDove className="w-48 h-20" />
+          </Link>
+        </div>
+        
         <SidebarGroup>
-          <SidebarGroupContent className="pt-6 px-2">
+          <SidebarGroupContent className="pt-4 px-2">
             <SidebarMenu className="gap-1">
               {/* Auth-aware Profile Dropdown */}
               {!loading && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    className="text-white! hover:bg-white/10! hover:text-gray-300! px-4 py-3 justify-between font-[Montserrat]! transition-colors duration-200 rounded-md"
+                    className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 justify-between font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                     onClick={() => {
                       if (!user) {
                         navigate("/auth/login");
@@ -164,7 +172,7 @@ export function AppSidebar() {
                   >
                     <div className="flex items-center gap-3">
                       {user ? (
-                        <Avatar className="size-6 rounded-full">
+                        <Avatar className="size-6 rounded-full flex-shrink-0">
                           <AvatarImg
                             user={{
                               id: user?.uid,
@@ -183,9 +191,9 @@ export function AppSidebar() {
                           </AvatarFallback>
                         </Avatar>
                       ) : (
-                        <User className="h-4 w-4" />
+                        <User className="h-4 w-4 flex-shrink-0" />
                       )}
-                      <span className="text-[17px] font-medium tracking-wide">
+                      <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words! flex-1">
                         {user ? "Settings" : "Sign in"}
                       </span>
                     </div>
@@ -201,11 +209,11 @@ export function AppSidebar() {
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton
                           asChild
-                          className="text-white! hover:bg-white/10! hover:text-gray-300! pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-colors duration-200 rounded-md"
+                          className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                         >
                           <Link to="/profile" onClick={() => setOpen(false)} className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <span>Profile</span>
+                            <User className="h-4 w-4 flex-shrink-0 text-white!" />
+                            <span className="whitespace-normal! break-words! flex-1">Profile</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
@@ -214,11 +222,11 @@ export function AppSidebar() {
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton
                             asChild
-                            className="text-white! hover:bg-white/10! hover:text-gray-300! pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-colors duration-200 rounded-md"
+                            className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                           >
                             <Link to="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2">
-                              <Shield className="h-4 w-4" />
-                              <span>Admin Panel</span>
+                              <Shield className="h-4 w-4 flex-shrink-0 text-white!" />
+                              <span className="whitespace-normal! break-words! flex-1">Admin Panel</span>
                             </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -226,15 +234,15 @@ export function AppSidebar() {
                       
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton
-                          className="text-white! hover:bg-white/10! hover:text-gray-300! pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-colors duration-200 rounded-md"
+                          className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                           onClick={() => {
                             signOut(auth);
                             setOpen(false);
                           }}
                         >
                           <div className="flex items-center gap-2">
-                            <LogOut className="h-4 w-4" />
-                            <span>Log out</span>
+                            <LogOut className="h-4 w-4 flex-shrink-0" />
+                            <span className="whitespace-normal! break-words! flex-1">Log out</span>
                           </div>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
@@ -254,12 +262,12 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
-                        className="text-white! hover:bg-white/10! hover:text-gray-300! px-4 py-3 justify-between font-[Montserrat]! transition-colors duration-200 rounded-md"
+                        className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 justify-between font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                         onClick={() => toggleDropdown(item.title)}
                       >
-                        <span className="text-[17px] font-medium tracking-wide">{getLabelFromTitles(dropdown.titles, dropdown.title)}</span>
+                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words! flex-1">{getLabelFromTitles(dropdown.titles, dropdown.title)}</span>
                         <ChevronDown
-                          className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
                         />
                       </SidebarMenuButton>
                       
@@ -270,7 +278,7 @@ export function AppSidebar() {
                             .map((subItem) => (
                               <SidebarMenuSubItem key={`${item.title}-${subItem.title}`}>
                                 <SidebarMenuSubButton
-                                  className="text-white! hover:bg-white/10! hover:text-gray-300! pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-colors duration-200 rounded-md"
+                                  className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] whitespace-normal! break-words! [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                                   onClick={() => handleNavigation(subItem)}
                                 >
                                   {getLabelFromTitles(subItem.titles, subItem.title)}
@@ -287,10 +295,10 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
-                        className="text-white! hover:bg-white/10! hover:text-gray-300! px-4 py-3 font-[Montserrat]! transition-colors duration-200 rounded-md"
+                        className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                         onClick={() => handleNavigation(link)}
                       >
-                        <span className="text-[17px] font-medium tracking-wide">{getLabelFromTitles(link.titles, link.title)}</span>
+                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words!">{getLabelFromTitles(link.titles, link.title)}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

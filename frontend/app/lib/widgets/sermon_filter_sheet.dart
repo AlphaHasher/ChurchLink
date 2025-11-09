@@ -164,14 +164,9 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      setState(() {
-                        _searchController.clear();
-                        _speakerController.clear();
-                        _ministry = null;
-                        _favoritesOnly = false;
-                        _dateAfter = null;
-                        _dateBefore = null;
-                      });
+                      Navigator.of(context).pop(
+                        const SermonFilter(limit: 50, skip: 0),
+                      );
                     },
                     child: const Text('Clear'),
                   ),
