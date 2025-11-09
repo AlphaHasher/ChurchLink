@@ -6,12 +6,13 @@ import { FieldRenderer } from "./FieldRenderer";
 import { useBuilderStore, type BuilderState } from "./store";
 import { Button } from "@/shared/components/ui/button";
 import { useMemo, useState } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
+import PreviewUnavailableAlert from './PreviewUnavailableAlert';
 import type { AnyField } from "./types";
-import { getBoundsViolations } from "./validation";
+import { getBoundsViolations, getOptionViolations } from "./validation";
 export function PreviewRenderer() {
   const schema = useBuilderStore((s: BuilderState) => s.schema);
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
+  const optionViolations = useMemo(() => getOptionViolations(schema), [schema]);
   const zodSchema = schemaToZodObject(schema);
 
   // Set default values for payment method fields
@@ -38,21 +39,33 @@ export function PreviewRenderer() {
   });
   const values = form.watch();
   const [status, setStatus] = useState<string | null>(null);
+  // If there are any bounds violations, show the reusable preview-unavailable alert
   if (boundsViolations.length > 0) {
     return (
-      <Alert variant="warning">
-        <AlertTitle>Preview unavailable</AlertTitle>
-        <AlertDescription>
-          <p className="mb-1">Fix these min/max conflicts to continue:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            {boundsViolations.map((issue) => (
-              <li key={issue.fieldId}>
-                <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
-              </li>
-            ))}
-          </ul>
-        </AlertDescription>
-      </Alert>
+      <PreviewUnavailableAlert>
+        {boundsViolations.map((issue) => (
+          <li key={issue.fieldId}>
+            <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+          </li>
+        ))}
+      </PreviewUnavailableAlert>
+    );
+  }
+
+  if (optionViolations.length > 0) {
+    return (
+      <PreviewUnavailableAlert>
+        {optionViolations.map((issue) => (
+          <li key={issue.fieldId}>
+            <span className="font-medium">{issue.fieldLabel}</span>:
+            {issue.hasEmptyLabels && issue.hasEmptyValues
+              ? ' One or more options have empty labels and values'
+              : issue.hasEmptyLabels
+                ? ' One or more options have empty labels'
+                : ' One or more options have empty values'}
+          </li>
+        ))}
+      </PreviewUnavailableAlert>
     );
   }
   // Language selection handled in parent card header

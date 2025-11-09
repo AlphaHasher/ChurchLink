@@ -3,7 +3,7 @@ Dashboard App Configuration Routes
 Provides endpoints for getting and managing dashboard page configurations.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import List, Dict, Any
 from helpers.DashboardAppConfigHelper import DashboardAppConfigHelper
 

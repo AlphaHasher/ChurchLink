@@ -31,6 +31,7 @@ class UserHandler:
             "phone": phone,
             "birthday": birthday,
             "gender": None,
+            "language": "en",
             "address": address or {
                 "address": None,
                 "suite": None,
@@ -252,7 +253,7 @@ class UserHandler:
     @staticmethod
     async def find_users_with_permissions(permission_names):
         roles_with_permissions = await RoleHandler.find_roles_with_permissions(permission_names)
-        role_ids = [role["_id"] for role in roles_with_permissions]
+        role_ids = [str(role["_id"]) for role in roles_with_permissions]
         return await DB.find_documents("users", {"roles": {"$in": role_ids}}) if role_ids else []
 
     @staticmethod
@@ -469,6 +470,7 @@ class UserHandler:
             await DB.update_document("users", {"uid": uid}, {
                     "roles": roles
             })
+            return True  # Return True on successful update
         except Exception as e:
             print(f"An error occurred:\n {e}")
             return False

@@ -16,6 +16,11 @@ import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/my_events_page.dart';
 import 'package:app/theme/theme_controller.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/helpers/backend_helper.dart';
+
+import 'package:app/widgets/change_email_sheet.dart';
+
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
 
@@ -31,12 +36,14 @@ class _UserSettingsState extends State<UserSettings> {
   StreamSubscription<User?>? _userSub;
 
   ProfileInfo? _profile; // backend truth (cached/online)
-  String _selectedLanguage = 'English'; // Language preference
+  String _selectedLanguage = 'en'; // Language preference
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
 
+    _loadLanguageFromServer();
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) async {
       if (!mounted) return;
       await _loadProfile();
@@ -115,8 +122,6 @@ class _UserSettingsState extends State<UserSettings> {
     }
   }
 
-
-
   // Show the theme selection bottom sheet
   void _showThemeSheet() {
     final current = ThemeController.instance.mode;
@@ -180,62 +185,69 @@ class _UserSettingsState extends State<UserSettings> {
   void _showLanguageSheet() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) {
+      builder: (BuildContext context) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'Select Language',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              const SizedBox(height: 12),
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text(
+                "Select Language",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const Divider(height: 24),
               ListTile(
                 leading: const Icon(Icons.language),
                 title: const Text('English'),
-                trailing: _selectedLanguage == 'English'
-                    ? const Icon(Icons.check)
+                trailing: _selectedLanguage == 'en'
+                    ? const Icon(Icons.check, color: Colors.blue)
                     : null,
                 onTap: () {
-                  setState(() => _selectedLanguage = 'English');
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Language set to English'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                  _updateLanguage('en');
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text('Russian (Русский)'),
-                trailing: _selectedLanguage == 'Russian'
-                    ? const Icon(Icons.check)
+                leading: const Icon(Icons.translate),
+                title: const Text('Русский'),
+                trailing: _selectedLanguage == 'ru'
+                    ? const Icon(Icons.check, color: Colors.blue)
                     : null,
                 onTap: () {
-                  setState(() => _selectedLanguage = 'Russian');
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Язык установлен на русский'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                  _updateLanguage('ru');
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
             ],
           ),
         );
       },
     );
   }
+
+  String _languageDisplayName(String code) {
+  switch (code) {
+    case 'ru':
+      return 'Русский'; // or 'Russian' if you prefer
+    case 'en':
+    default:
+      return 'English';
+  }
+}
 
   // Show Terms and Policies popup
   void _showTermsAndPolicies(BuildContext context) {
@@ -266,6 +278,31 @@ class _UserSettingsState extends State<UserSettings> {
       ),
     );
   }
+
+  Future<void> _updateLanguage(String newLang) async {
+    setState(() => _loading = true);
+
+    final result = await UserHelper.updateLanguage(newLang);
+    if (mounted) {
+      setState(() {
+        if (result.success) {
+          _selectedLanguage = newLang;
+        }
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadLanguageFromServer() async {
+    final lang = await UserHelper.fetchUserLanguage();
+    if (mounted) {
+      setState(() {
+        _selectedLanguage = lang;
+        _loading = false;
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +411,12 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
+            'icon': Icons.alternate_email,
+            'title': 'Change Email',
+            'subtitle': 'Request an email to change your address',
+            'ontap': () => ChangeEmailSheet.show(context),
+          },
+          {
             'icon': Icons.password,
             'title': 'Change Password',
             'subtitle': 'Request an email to reset your password',
@@ -409,7 +452,7 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.language,
             'title': 'Language',
-            'subtitle': _selectedLanguage,
+            'subtitle': _languageDisplayName(_selectedLanguage),
             'ontap': _showLanguageSheet,
           },
           {
@@ -602,3 +645,4 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 }
+

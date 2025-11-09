@@ -56,6 +56,7 @@ export function FieldRenderer({ field, control, error }: Props) {
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const allFields = useBuilderStore((s) => s.schema.data);
   
+
   // Handle price field separately to avoid double layout
   if (field.type === "price") {
     const priceField = field as any;
@@ -74,12 +75,12 @@ export function FieldRenderer({ field, control, error }: Props) {
     const allowPayPal = paymentMethods.allowPayPal !== false; // default true
     const allowInPerson = paymentMethods.allowInPerson !== false; // default true
     const localizedLabel = priceField.label;
-    
+
     // Determine UI behavior based on enabled payment methods
     const paypalOnly = allowPayPal && !allowInPerson;
     const inPersonOnly = !allowPayPal && allowInPerson;
     const bothEnabled = allowPayPal && allowInPerson;
-    
+
     return (
       <div className={cn("flex flex-col gap-3", colClass)}>
         {/* Price field header */}
@@ -94,7 +95,7 @@ export function FieldRenderer({ field, control, error }: Props) {
             </span>
           </div>
         )}
-        
+
         {/* Scenario 1: PayPal Only - Show PayPal info */}
         {paypalOnly && (
           <div className="border rounded-lg p-4 space-y-3 bg-blue-50">
@@ -109,7 +110,7 @@ export function FieldRenderer({ field, control, error }: Props) {
             </p>
           </div>
         )}
-        
+
         {/* Scenario 2: In-Person Only - Show note */}
         {inPersonOnly && (
           <div className="border rounded-lg p-4 space-y-3 bg-green-50">
@@ -120,17 +121,17 @@ export function FieldRenderer({ field, control, error }: Props) {
               <span className="font-medium">In-Person Payment Required</span>
             </div>
             <p className="text-sm text-green-600">
-              This payment will be collected in-person at the event or location. 
+              This payment will be collected in-person at the event or location.
               You can submit the form now and complete payment when you arrive.
             </p>
           </div>
         )}
-        
+
         {/* Scenario 3: Both Enabled - Show selection options */}
         {bothEnabled && (
           <div className="border rounded-lg p-4 space-y-3">
             <div className="text-sm font-medium mb-2">Choose Payment Method:</div>
-            
+
             <Controller
               name={`${field.name}_payment_method`}
               control={control}
@@ -157,7 +158,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                       </span>
                     </div>
                   </label>
-                  
+
                   {/* In-Person Option */}
                   <label className="flex items-center gap-3 p-2 border rounded-md cursor-pointer hover:bg-muted/20 transition-colors">
                     <input
@@ -181,20 +182,20 @@ export function FieldRenderer({ field, control, error }: Props) {
                 </div>
               )}
             />
-            
+
             <div className="text-xs text-muted-foreground text-center pt-2 border-t">
               Submit button will adapt based on your selection
             </div>
           </div>
         )}
-        
+
         {/* No payment methods configured */}
         {!allowPayPal && !allowInPerson && (
           <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
             ⚠️ No payment methods configured
           </div>
         )}
-        
+
         {error && <p className="text-xs text-destructive">{String(error)}</p>}
       </div>
     );
@@ -234,33 +235,34 @@ export function FieldRenderer({ field, control, error }: Props) {
     );
   }
   
+
   const translations = useBuilderStore((s) => s.translations);
-  
-  const t = (key: 'label'|'placeholder'|'helpText'|'content', base?: string) => {
+
+  const t = (key: 'label' | 'placeholder' | 'helpText' | 'content', base?: string) => {
     // If no active locale or it's English, return base
     if (!activeLocale || activeLocale === 'en') return base;
-    
+
     // Get translations for this field
     const fieldTranslations = translations[field.id]?.[activeLocale];
     if (!fieldTranslations) return base;
-    
+
     // For helpText and content, check if it exists in the translations
     const val = (fieldTranslations as any)[key];
     return (val != null && val !== '') ? val : base;
   };
-  
+
   const tOption = (optionIdx: number, base: string) => {
     // If no active locale or it's English, return base
     if (!activeLocale || activeLocale === 'en') return base;
-    
+
     // Get translations for this field's options
     const fieldTranslations = translations[field.id]?.[activeLocale];
     if (!fieldTranslations) return base;
-    
+
     const val = (fieldTranslations as any)[`option_${optionIdx}`];
     return (val != null && val !== '') ? val : base;
   };
-  
+
   const localizedLabel = t('label', field.label);
   const localizedPlaceholder = t('placeholder', (field as any).placeholder);
   const localizedHelp = t('helpText', (field as any).helpText);
@@ -284,7 +286,7 @@ export function FieldRenderer({ field, control, error }: Props) {
           return "text-base";
       }
     })();
-  const baseStyle: CSSProperties = {
+    const baseStyle: CSSProperties = {
       color: f.color || undefined,
       fontWeight: f.bold ? 600 : undefined,
     };
@@ -389,6 +391,7 @@ export function FieldRenderer({ field, control, error }: Props) {
             case "select": {
               const f: any = field as any;
               const opts = f.options || [];
+              const safeOpts = opts.filter((o: any) => (o?.value ?? "").toString().trim() !== "");
               if (f.multiple) {
                 const current: string[] = Array.isArray(rhf.value) ? rhf.value : [];
                 const toggle = (val: string, checked: boolean) => {
@@ -397,7 +400,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                 };
                 return (
                   <div className="flex flex-col gap-2">
-                    {opts.map((o: any, idx: number) => (
+                    {safeOpts.map((o: any, idx: number) => (
                       <label key={o.value} className="flex items-center gap-2">
                         <Checkbox
                           checked={current.includes(o.value)}
@@ -415,7 +418,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                     <SelectValue placeholder={localizedPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
-                    {opts.map((o: any, idx: number) => (
+                    {safeOpts.map((o: any, idx: number) => (
                       <SelectItem key={o.value} value={o.value}>
                         {tOption(idx, o.label)}
                       </SelectItem>
@@ -459,13 +462,13 @@ export function FieldRenderer({ field, control, error }: Props) {
                 const label = selected.from && selected.to
                   ? `${format(selected.from, "PPP")} – ${format(selected.to, "PPP")}`
                   : selected.from
-                  ? `${format(selected.from, "PPP")} – …`
-                  : field.placeholder || "Pick a date range";
+                    ? `${format(selected.from, "PPP")} – …`
+                    : field.placeholder || "Pick a date range";
                 const selectedRange = selected.from ? selected : undefined;
                 return (
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("justify-start", !selected.from && "text-muted-foreground")}> 
+                      <Button variant="outline" className={cn("justify-start", !selected.from && "text-muted-foreground")}>
                         {label}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
@@ -492,7 +495,7 @@ export function FieldRenderer({ field, control, error }: Props) {
                 );
               }
 
-              
+
               const selectedDate: Date | undefined = startOfDay(rhf.value as Date | undefined);
               return (
                 <Popover>

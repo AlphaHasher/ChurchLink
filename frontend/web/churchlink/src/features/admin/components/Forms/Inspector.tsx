@@ -41,64 +41,66 @@ export function Inspector() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(sel.options || []).map((o, idx) => (
-              <TableRow key={idx}>
-                <TableCell>
-                  <Input
-                    placeholder="Label"
-                    value={o.label}
-                    onChange={(e) => {
-                      const next = [...sel.options];
-                      next[idx] = { ...next[idx], label: e.target.value };
-                      updateOptions(field.id, next);
-                    }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    placeholder="Value"
-                    value={o.value}
-                    onChange={(e) => {
-                      const next = [...sel.options];
-                      next[idx] = { ...next[idx], value: e.target.value };
-                      updateOptions(field.id, next);
-                    }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={(o as any).price ?? ""}
-                    onChange={(e) => {
-                      const next = [...sel.options];
-                      const price = e.target.value === "" ? undefined : Number(e.target.value);
-                      next[idx] = { ...next[idx], price } as any;
-                      updateOptions(field.id, next);
-                    }}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const next = sel.options.filter((_, i) => i !== idx);
-                      updateOptions(field.id, next);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {(sel.options || []).map((o, idx) => {
+              return (
+                <TableRow key={idx}>
+                  <TableCell>
+                    <Input
+                      placeholder="Label"
+                      value={o.label ?? ""}
+                      onChange={(e) => {
+                        const next = [...sel.options];
+                        next[idx] = { ...next[idx], label: e.target.value };
+                        updateOptions(field.id, next);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      placeholder="Value"
+                      value={o.value ?? ""}
+                      onChange={(e) => {
+                        const next = [...sel.options];
+                        next[idx] = { ...next[idx], value: e.target.value };
+                        updateOptions(field.id, next);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={(o as any).price ?? ""}
+                      onChange={(e) => {
+                        const next = [...sel.options];
+                        const price = e.target.value === "" ? undefined : Number(e.target.value);
+                        next[idx] = { ...next[idx], price } as any;
+                        updateOptions(field.id, next);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const next = sel.options.filter((_, i) => i !== idx);
+                        updateOptions(field.id, next);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         <div>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => updateOptions(field.id, [...(sel.options || []), { label: "New option", value: `value${(sel.options?.length || 0) + 1}` }])}
+            onClick={() => updateOptions(field.id, [...(sel.options || []), { label: `Option ${(sel.options?.length || 0) + 1}`, value: `option${(sel.options?.length || 0) + 1}` }])}
           >
             Add option
           </Button>

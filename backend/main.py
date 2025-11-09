@@ -335,11 +335,11 @@ permissions_management_protected_router = PermProtectedRouter(prefix="/api/v1", 
 
 permissions_management_protected_router.include_router(permissions_protected_router)
 
-# LAYOUT MANAGEMENT CORE
-layout_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Header/Footer Layout"], required_perms=['layout_management'])
-layout_management_protected_router.include_router(mod_header_router)
-layout_management_protected_router.include_router(mod_footer_router)
-layout_management_protected_router.include_router(webbuilder_config_private_router)
+# WEB BUILDER MANAGEMENT CORE
+web_builder_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Header/Footer Layout"], required_perms=['web_builder_management'])
+web_builder_management_protected_router.include_router(mod_header_router)
+web_builder_management_protected_router.include_router(mod_footer_router)
+web_builder_management_protected_router.include_router(webbuilder_config_private_router)
 
 # FINANCE MANAGEMENT CORE
 finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Finance Management"], required_perms=["finance"])
@@ -368,7 +368,7 @@ app.include_router(sermon_editing_protected_router)
 app.include_router(bulletin_editing_protected_router)
 app.include_router(service_editing_protected_router)
 app.include_router(permissions_management_protected_router)
-app.include_router(layout_management_protected_router)
+app.include_router(web_builder_management_protected_router)
 app.include_router(finance_management_protected_router)
 app.include_router(admin_refund_management_router)
 app.include_router(media_management_protected_router)

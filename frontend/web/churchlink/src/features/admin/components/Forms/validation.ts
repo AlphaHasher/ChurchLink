@@ -8,6 +8,13 @@ export interface BoundsViolation {
   message: string;
   type: string;
 }
+
+export interface OptionViolation {
+  fieldId: string;
+  fieldLabel: string;
+  hasEmptyValues: boolean;
+  hasEmptyLabels: boolean;
+}
 const toDate = (value: Date | string | undefined): Date | null => {
   const d = normalizeDateOnly(value as any);
   return d ?? null;
@@ -84,4 +91,28 @@ export const getBoundsViolations = (schema: FormSchema | undefined | null): Boun
     }
   }
   return violations;
+};
+
+export const getOptionViolations = (schema: FormSchema | undefined | null): OptionViolation[] => {
+  if (!schema || !Array.isArray(schema.data)) return [];
+  
+  return (schema.data as AnyField[])
+    .filter((f: any) => (f.type === 'select' || f.type === 'radio') && Array.isArray(f.options) && f.options.length > 0)
+    .map((f: any) => {
+      const emptyValues = (f.options || []).some((o: any) => {
+        const val = (o?.value ?? '').toString().trim();
+        return val === '';
+      });
+      const emptyLabels = (f.options || []).some((o: any) => {
+        const lbl = (o?.label ?? '').toString().trim();
+        return lbl === '';
+      });
+      return {
+        fieldId: f.id,
+        fieldLabel: f.label || f.name,
+        hasEmptyValues: emptyValues,
+        hasEmptyLabels: emptyLabels
+      };
+    })
+    .filter((r) => r.hasEmptyValues || r.hasEmptyLabels);
 };
