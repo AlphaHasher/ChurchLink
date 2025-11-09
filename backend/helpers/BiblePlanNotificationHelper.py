@@ -316,58 +316,38 @@ class BiblePlanNotificationManager:
             if not user_tokens:
                 return {"success": False, "error": "No device tokens found for user"}
             
-            # Send notification only to the specific user's devices
-            result = await send_push_notification(
-                title=title,
-                body=body,
-                data={
-                    "plan_id": plan_id,
-                    "route": "bible_plan_reading",
-                    "actionType": "bible_plan",
-                    "uid": uid
-                },
-                send_to_all=False,  # Send only to specific user, not all users
-                token=user_tokens[0] if len(user_tokens) == 1 else None,  # Use first token if only one
-                eventId=None,
-                link=None,
-                route="bible_plan_reading",
-                actionType="bible_plan"
-            )
+            # Send notification to all of the user's devices
+            results = []
+            for token in user_tokens:
+                result = await send_push_notification(
+                    title=title,
+                    body=body,
+                    data={
+                        "plan_id": plan_id,
+                        "route": "bible_plan_reading",
+                        "actionType": "bible_plan",
+                        "uid": uid
+                    },
+                    send_to_all=False,
+                    token=token,
+                    eventId=None,
+                    link=None,
+                    route="bible_plan_reading",
+                    actionType="bible_plan"
+                )
+                results.append(result)
             
-            # If user has multiple devices, send to all their tokens
-            if len(user_tokens) > 1:
-                additional_results = []
-                for token in user_tokens[1:]:  # Send to remaining tokens
-                    additional_result = await send_push_notification(
-                        title=title,
-                        body=body,
-                        data={
-                            "plan_id": plan_id,
-                            "route": "bible_plan_reading",
-                            "actionType": "bible_plan",
-                            "uid": uid
-                        },
-                        send_to_all=False,
-                        token=token,
-                        eventId=None,
-                        link=None,
-                        route="bible_plan_reading",
-                        actionType="bible_plan"
-                    )
-                    additional_results.append(additional_result)
-                
-                # Combine results
-                if result.get("success") and additional_results:
-                    all_results = [result] + additional_results
-                    successful_sends = sum(1 for r in all_results if r.get("success"))
-                    result = {
-                        "success": successful_sends > 0,
-                        "results": all_results,
-                        "total_devices": len(user_tokens),
-                        "successful_sends": successful_sends
-                    }
-            
-            return result
+            # Aggregate results for multiple devices
+            if len(user_tokens) == 1:
+                return results[0]
+            else:
+                successful_sends = sum(1 for r in results if r.get("success"))
+                return {
+                    "success": successful_sends > 0,
+                    "results": results,
+                    "total_devices": len(user_tokens),
+                    "successful_sends": successful_sends
+                }
             
         except Exception as e:
             logging.error(f"Failed to send immediate Bible plan notification: {e}")

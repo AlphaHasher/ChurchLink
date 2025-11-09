@@ -58,7 +58,7 @@ class FormPaymentHelper:
                         continue
                     
                     # Get the price from the field definition (not from user input for security)
-                    price = field.get('price', 0)
+                    price = field.get('amount', field.get('price', 0))
                     
                     # Check if user selected this field (for optional price fields)
                     # If the field is in the response, it means the user selected it

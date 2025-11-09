@@ -116,8 +116,17 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       }
     }
     
-    const newFieldData = newField(type);
-    const newData = [...s.schema.data, newFieldData];
+    let newFieldData = newField(type);
+    let newData: AnyField[] = [...s.schema.data, newFieldData];
+
+    if (type === 'price') {
+      const pricelabelFields = s.schema.data.filter(f => f.type === 'pricelabel') as AnyField[];
+      if (pricelabelFields.length > 0) {
+        const calculatedTotal = pricelabelFields.reduce((sum, f: any) => sum + (f.amount || 0), 0);
+        newFieldData = { ...newFieldData, amount: calculatedTotal } as AnyField;
+        newData = [...s.schema.data, newFieldData];
+      }
+    }
     
     // If we're adding a pricelabel field, update price field totals
     if (type === 'pricelabel') {

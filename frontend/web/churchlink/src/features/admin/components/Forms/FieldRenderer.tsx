@@ -55,6 +55,7 @@ export function FieldRenderer({ field, control, error }: Props) {
   const colClass = cn("col-span-12", widthToCols(field.width));
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const allFields = useBuilderStore((s) => s.schema.data);
+  const translations = useBuilderStore((s) => s.translations);
   
 
   // Handle price field separately to avoid double layout
@@ -206,8 +207,6 @@ export function FieldRenderer({ field, control, error }: Props) {
     const pricelabelField = field as any;
     const amount = pricelabelField.amount || 0;
     
-    // Use translation system for the label
-    const translations = useBuilderStore((s) => s.translations);
     const t = (key: 'label', base?: string) => {
       // If no active locale or it's English, return base
       if (!activeLocale || activeLocale === 'en') return base;
@@ -235,8 +234,6 @@ export function FieldRenderer({ field, control, error }: Props) {
     );
   }
   
-
-  const translations = useBuilderStore((s) => s.translations);
 
   const t = (key: 'label' | 'placeholder' | 'helpText' | 'content', base?: string) => {
     // If no active locale or it's English, return base
