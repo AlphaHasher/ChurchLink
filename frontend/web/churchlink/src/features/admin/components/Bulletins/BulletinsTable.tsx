@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import {
@@ -14,106 +16,236 @@ import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { format } from 'date-fns';
 import CreateBulletinDialog from './CreateBulletinDialog';
 import EditBulletinDialog from './EditBulletinDialog';
+import { GripVertical, Image as ImageIcon } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface BulletinsTableProps {
     bulletins: ChurchBulletin[];
     permissions: AccountPermissions | null;
     onRefresh: () => Promise<void>;
+    onReorder: (bulletinIds: string[]) => Promise<void>;
 }
 
-export function BulletinsTable({ bulletins, permissions, onRefresh }: BulletinsTableProps) {
-    const [search, setSearch] = useState('');
+interface SortableRowProps {
+    bulletin: ChurchBulletin;
+    permissions: AccountPermissions | null;
+    onRefresh: () => Promise<void>;
+}
 
-    const filtered = bulletins.filter((b) => 
+function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: bulletin.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    const formatDate = (date: Date) => {
+        return format(date, 'MMM dd, yyyy');
+    };
+
+    return (
+        <TableRow ref={setNodeRef} style={style}>
+            <TableCell {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+                <GripVertical className="h-5 w-5 text-gray-400" />
+            </TableCell>
+            <TableCell>{bulletin.order}</TableCell>
+            <TableCell className="font-medium">
+                <div className="flex items-center gap-2">
+                    {bulletin.image_id && (
+                        <ImageIcon className="h-4 w-4 text-gray-400" title="Has image" />
+                    )}
+                    {bulletin.headline}
+                </div>
+            </TableCell>
+            <TableCell>{bulletin.ru_headline || '-'}</TableCell>
+            <TableCell>{formatDate(bulletin.publish_date)}</TableCell>
+            <TableCell>
+                <span
+                    className={
+                        `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
+                            bulletin.published
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-amber-200 bg-amber-50 text-amber-700'
+                        }`
+                    }
+                >
+                    {bulletin.published ? 'Published' : 'Draft'}
+                </span>
+            </TableCell>
+            <TableCell>
+                <span
+                    className={
+                        `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
+                            bulletin.pinned
+                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                : 'border-gray-200 bg-gray-50 text-gray-600'
+                        }`
+                    }
+                >
+                    {bulletin.pinned ? 'Yes' : 'No'}
+                </span>
+            </TableCell>
+            <TableCell>
+                {bulletin.ministries && bulletin.ministries.length > 0
+                    ? bulletin.ministries.join(', ')
+                    : '-'}
+            </TableCell>
+            <TableCell>
+                <EditBulletinDialog 
+                    bulletin={bulletin} 
+                    onSave={onRefresh} 
+                    permissions={permissions} 
+                />
+            </TableCell>
+        </TableRow>
+    );
+}
+
+export function BulletinsTable({ 
+    bulletins, 
+    permissions, 
+    onRefresh,
+    onReorder 
+}: BulletinsTableProps) {
+    const [search, setSearch] = useState('');
+    const [isReordering, setIsReordering] = useState(false);
+    const [localBulletins, setLocalBulletins] = useState(bulletins);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const filtered = (localBulletins.length ? localBulletins : bulletins).filter((b) => 
         b.headline.toLowerCase().includes(search.toLowerCase()) ||
+        (b.body && b.body.toLowerCase().includes(search.toLowerCase())) ||
         (b.ru_headline && b.ru_headline.toLowerCase().includes(search.toLowerCase()))
     );
 
-    const formatWeek = (date: Date) => {
-        return format(date, 'MMM dd, yyyy');
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = filtered.findIndex((b) => b.id === active.id);
+        const newIndex = filtered.findIndex((b) => b.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const reordered = arrayMove(filtered, oldIndex, newIndex);
+        setLocalBulletins(reordered);
+
+        const bulletinIds = reordered.map(b => b.id);
+
+        setIsReordering(true);
+        try {
+            await onReorder(bulletinIds);
+            console.log(`[Bulletin Reorder] Successfully reordered ${bulletinIds.length} bulletins at ${new Date().toISOString()}`);
+            toast.success('Bulletins reordered successfully');
+        } catch (err) {
+            console.error('[Bulletin Reorder Error]', err);
+            toast.error('Failed to reorder bulletins. Changes not saved.');
+            setLocalBulletins(bulletins);
+        } finally {
+            setIsReordering(false);
+        }
+    };
+
+    const handleRefresh = async () => {
+        await onRefresh();
+        setLocalBulletins([]);
     };
 
     return (
         <div className="container mx-start">
             <div className="flex items-center py-4">
                 <Input 
-                    placeholder="Search Headline..." 
+                    placeholder="Search Headline or Body..." 
                     value={search} 
                     onChange={(e) => setSearch(e.target.value)} 
                     className="max-w-sm" 
                 />
                 <div className="ml-auto flex items-center space-x-2">
-                    <Button onClick={() => onRefresh()}>Refresh</Button>
-                    <CreateBulletinDialog onSave={onRefresh} permissions={permissions} />
+                    <Button onClick={handleRefresh} disabled={isReordering}>
+                        Refresh
+                    </Button>
+                    <CreateBulletinDialog onSave={handleRefresh} permissions={permissions} />
                 </div>
             </div>
 
             <div className="rounded-md border overflow-x-auto max-w-full">
-                <Table className="w-full min-w-max">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Headline</TableHead>
-                            <TableHead>Headline (RU)</TableHead>
-                            <TableHead>Publish Date</TableHead>
-                            <TableHead>Published</TableHead>
-                            <TableHead>Pinned</TableHead>
-                            <TableHead>Ministries</TableHead>
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-
-                    <TableBody>
-                        {filtered.length ? (
-                            filtered.map((b) => (
-                                <TableRow key={b.id}>
-                                    <TableCell>{b.headline}</TableCell>
-                                    <TableCell>{b.ru_headline ?? ''}</TableCell>
-                                    <TableCell>{formatWeek(b.publish_date)}</TableCell>
-                                    <TableCell>
-                                        <span
-                                            className={
-                                                `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
-                                                    b.published
-                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                        : 'border-amber-200 bg-amber-50 text-amber-700'
-                                                }`
-                                            }
-                                        >
-                                            {b.published ? 'Published' : 'Draft'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span
-                                            className={
-                                                `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
-                                                    b.pinned
-                                                        ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                                        : 'border-gray-200 bg-gray-50 text-gray-600'
-                                                }`
-                                            }
-                                        >
-                                            {b.pinned ? 'Pinned' : 'Normal'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-sm">
-                                            {b.ministries.join(', ')}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex space-x-2">
-                                            <EditBulletinDialog bulletin={b} onSave={onRefresh} permissions={permissions} />
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
+                <DndContext 
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <Table className="w-full min-w-max">
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">No results.</TableCell>
+                                <TableHead className="w-12"></TableHead>
+                                <TableHead>Order</TableHead>
+                                <TableHead>Headline</TableHead>
+                                <TableHead>Headline (RU)</TableHead>
+                                <TableHead>Publish Date</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Pinned</TableHead>
+                                <TableHead>Ministries</TableHead>
+                                <TableHead>Actions</TableHead>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+
+                        <SortableContext 
+                            items={filtered.map(b => b.id)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <TableBody>
+                                {filtered.length ? (
+                                    filtered.map((bulletin) => (
+                                        <SortableRow 
+                                            key={bulletin.id}
+                                            bulletin={bulletin}
+                                            permissions={permissions}
+                                            onRefresh={handleRefresh}
+                                        />
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={9} className="h-24 text-center">
+                                            No bulletins found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </SortableContext>
+                    </Table>
+                </DndContext>
             </div>
         </div>
     );

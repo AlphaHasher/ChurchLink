@@ -15,6 +15,7 @@ from controllers.bulletin_functions import (
 	process_edit_bulletin,
 	process_pin_toggle,
 	process_publish_toggle,
+	process_reorder_bulletins,
 )
 from controllers.service_bulletin_functions import (
 	process_create_service,
@@ -55,6 +56,10 @@ class BulletinPublishToggle(BaseModel):
 
 class BulletinPinToggle(BaseModel):
 	pinned: bool
+
+
+class BulletinReorderPayload(BaseModel):
+	bulletin_ids: List[str]
 
 
 def _combine_date_and_time(value: Optional[date], *, end_of_day: bool = False) -> Optional[datetime]:
@@ -252,6 +257,15 @@ async def toggle_bulletin_pin(
 		pinned=payload.pinned,
 		request=request,
 	)
+
+
+@bulletin_editing_router.patch("/reorder")
+async def reorder_bulletins_route(
+	payload: BulletinReorderPayload,
+	request: Request,
+):
+	"""Reorder bulletins by updating order field"""
+	return await process_reorder_bulletins(payload.bulletin_ids, request)
 
 
 # PUBLIC SERVICE ROUTES

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, time, timedelta
 from typing import List, Optional, Set
 
@@ -23,6 +24,7 @@ class BulletinBase(BaseModel):
 	expire_at: Optional[datetime] = None
 	published: bool
 	pinned: bool = False
+	order: int = 0  # Display order for drag-and-drop reordering
 	roles: List[str] = Field(default_factory=list)
 	ministries: List[str] = Field(default_factory=list)
 	attachments: List[AttachmentItem] = Field(default_factory=list)
@@ -30,6 +32,9 @@ class BulletinBase(BaseModel):
 	# Localization fields
 	ru_headline: Optional[str] = None
 	ru_body: Optional[str] = None
+	
+	# Media library integration
+	image_id: Optional[str] = Field(None, description="Media library image ID (24-char ObjectId)")
 
 
 class BulletinCreate(BulletinBase):
@@ -43,17 +48,22 @@ class BulletinUpdate(BaseModel):
 	expire_at: Optional[datetime] = None
 	published: Optional[bool] = None
 	pinned: Optional[bool] = None
+	order: Optional[int] = None
 	roles: Optional[List[str]] = None
 	ministries: Optional[List[str]] = None
 	attachments: Optional[List[AttachmentItem]] = None
 	ru_headline: Optional[str] = None
 	ru_body: Optional[str] = None
+	image_id: Optional[str] = None
 
 
 class BulletinOut(BulletinBase):
 	id: str
 	created_at: datetime
 	updated_at: datetime
+	# Computed fields for image URLs
+	image_url: Optional[str] = None
+	thumbnail_url: Optional[str] = None
 
 
 class BulletinFeedOut(BaseModel):
@@ -73,6 +83,47 @@ def canonicalize_week_start(dt: datetime) -> datetime:
 	return datetime.combine(monday.date(), time.min)
 
 
+def _build_image_urls(image_id: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+	"""Convert image_id to public and thumbnail URLs"""
+	normalized_id = _normalize_image_id(image_id)
+	if not normalized_id:
+		return None, None
+	
+	base = os.getenv("BACKEND_URL", "").rstrip('/')
+	if not base:
+		# Fallback to localhost if not configured
+		base = "http://localhost:8000"
+	
+	image_url = f"{base}/api/v1/assets/public/id/{normalized_id}"
+	thumbnail_url = f"{base}/api/v1/assets/public/id/{normalized_id}?thumbnail=true"
+	
+	return image_url, thumbnail_url
+
+
+def _normalize_image_id(image_id: Optional[str]) -> Optional[str]:
+	"""Return a sanitized 24-character image ID or None when invalid/empty."""
+	if not image_id:
+		return None
+
+	if isinstance(image_id, ObjectId):
+		raw = str(image_id)
+	elif isinstance(image_id, str):
+		raw = image_id
+	else:
+		return None
+
+	trimmed = raw.strip()
+	if len(trimmed) != 24:
+		return None
+
+	try:
+		ObjectId(trimmed)
+	except Exception:
+		return None
+
+	return trimmed
+
+
 async def _fetch_bulletin_document(filter_query: dict) -> Optional[BulletinOut]:
 	if DB.db is None:
 		return None
@@ -83,6 +134,12 @@ async def _fetch_bulletin_document(filter_query: dict) -> Optional[BulletinOut]:
 	
 	document["id"] = str(document.pop("_id"))
 	serialized = serialize_objectid_deep(document)
+	
+	# Add computed image URLs
+	image_url, thumbnail_url = _build_image_urls(serialized.get("image_id"))
+	serialized["image_url"] = image_url
+	serialized["thumbnail_url"] = thumbnail_url
+	
 	return BulletinOut(**serialized)
 
 
@@ -94,6 +151,11 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 	
 	# Keep the exact publish_date as specified
 	payload["publish_date"] = bulletin.publish_date
+	image_id = _normalize_image_id(payload.get("image_id"))
+	if image_id is None:
+		payload.pop("image_id", None)
+	else:
+		payload["image_id"] = image_id
 	
 	# Serialize attachments
 	serialized_attachments = []
@@ -164,6 +226,15 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 	if not update_payload:
 		return False
 
+	unset_payload: dict[str, str] = {}
+	if "image_id" in update_payload:
+		normalized_image_id = _normalize_image_id(update_payload.get("image_id"))
+		if normalized_image_id is None:
+			update_payload.pop("image_id", None)
+			unset_payload["image_id"] = ""
+		else:
+			update_payload["image_id"] = normalized_image_id
+
 	# Keep the exact publish_date if provided (no normalization)
 	# publish_date is already in update_payload as-is
 	
@@ -187,10 +258,13 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 		update_payload["attachments"] = serialized_attachments
 
 	update_payload["updated_at"] = datetime.utcnow()
+	update_doc: dict[str, dict] = {"$set": update_payload}
+	if unset_payload:
+		update_doc["$unset"] = unset_payload
 
 	try:
-		result = await DB.db["bulletins"].update_one({"_id": object_id}, {"$set": update_payload})
-		return result.modified_count > 0
+		result = await DB.db["bulletins"].update_one({"_id": object_id}, update_doc)
+		return result.matched_count > 0
 	except Exception as exc:
 		print(f"Error updating bulletin {bulletin_id}: {exc}")
 		return False
@@ -287,6 +361,12 @@ async def list_bulletins(
 	for document in documents:
 		document["id"] = str(document.pop("_id"))
 		serialized = serialize_objectid_deep(document)
+		
+		# Add computed image URLs
+		image_url, thumbnail_url = _build_image_urls(serialized.get("image_id"))
+		serialized["image_url"] = image_url
+		serialized["thumbnail_url"] = thumbnail_url
+		
 		bulletin = BulletinOut(**serialized)
 		bulletins.append(bulletin)
 	return bulletins
@@ -333,6 +413,33 @@ async def search_bulletins(
 	for document in documents:
 		document["id"] = str(document.pop("_id"))
 		serialized = serialize_objectid_deep(document)
+		
+		# Add computed image URLs
+		image_url, thumbnail_url = _build_image_urls(serialized.get("image_id"))
+		serialized["image_url"] = image_url
+		serialized["thumbnail_url"] = thumbnail_url
+		
 		bulletin = BulletinOut(**serialized)
 		bulletins.append(bulletin)
 	return bulletins
+
+
+async def reorder_bulletins(bulletin_ids: List[str]) -> bool:
+	"""
+	Reorder bulletins by updating their order field.
+	bulletin_ids should be in desired display order.
+	"""
+	if DB.db is None:
+		return False
+
+	try:
+		for idx, bulletin_id in enumerate(bulletin_ids):
+			object_id = ObjectId(bulletin_id)
+			await DB.db["bulletins"].update_one(
+				{"_id": object_id},
+				{"$set": {"order": idx, "updated_at": datetime.utcnow()}}
+			)
+		return True
+	except Exception as exc:
+		print(f"Error reordering bulletins: {exc}")
+		return False

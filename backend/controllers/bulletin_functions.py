@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException, Request, status
@@ -12,6 +12,7 @@ from models.bulletin import (
 	delete_bulletin,
 	get_bulletin_by_id,
 	get_bulletin_by_headline_and_week,
+	reorder_bulletins,
 	update_bulletin,
 )
 from mongo.churchuser import UserHandler
@@ -208,3 +209,23 @@ async def process_pin_toggle(
 		request,
 	)
 	return {"message": "Bulletin pinned state updated", "success": True}
+
+
+async def process_reorder_bulletins(bulletin_ids: List[str], request: Request):
+	"""Reorder bulletins by updating order field"""
+	_require_bulletin_permissions(request)
+
+	if not bulletin_ids:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="No bulletin IDs provided",
+		)
+
+	success = await reorder_bulletins(bulletin_ids)
+	if not success:
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail="Error reordering bulletins",
+		)
+
+	return {"message": "Bulletins reordered successfully"}

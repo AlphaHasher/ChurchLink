@@ -14,11 +14,16 @@ export type ChurchBulletin = {
     expire_at?: Date;
     published: boolean;
     pinned: boolean;
+    order: number;  // Display order for drag-and-drop reordering
     roles?: string[];
     ministries: string[];
     attachments: AttachmentItem[];
     ru_headline?: string;
     ru_body?: string;
+    // Image fields for media library integration
+    image_id?: string | null;        // 24-char MongoDB ObjectId from media library
+    image_url?: string | null;       // Full image URL (computed by backend)
+    thumbnail_url?: string | null;   // Thumbnail URL (computed by backend)
     created_at?: Date;
     updated_at?: Date;
 };
@@ -37,6 +42,10 @@ export type ServiceBulletin = {
     ru_title?: string;
     ru_description?: string;
     ru_timeline_notes?: string;
+    // Image fields for media library integration
+    image_id?: string;        // 24-char MongoDB ObjectId from media library
+    image_url?: string;       // Full image URL (computed by backend)
+    thumbnail_url?: string;   // Thumbnail URL (computed by backend)
     created_at?: Date;
     updated_at?: Date;
 };

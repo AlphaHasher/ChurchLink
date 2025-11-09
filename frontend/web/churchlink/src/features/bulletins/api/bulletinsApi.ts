@@ -221,3 +221,12 @@ export const togglePin = async (id: string, pinned: boolean) => {
 		throw err;
 	}
 };
+
+export const reorderBulletins = async (bulletinIds: string[]) => {
+	try {
+		await api.patch('/v1/bulletins/reorder', { bulletin_ids: bulletinIds });
+	} catch (err) {
+		console.error('Failed to reorder bulletins:', err);
+		throw err;
+	}
+};

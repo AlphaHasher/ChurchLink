@@ -123,15 +123,24 @@ class _BulletinsPageState extends State<BulletinsPage> {
           ),
         ],
 
-        // Bulletins section
+        // Announcements section - BULLETINS ARE THE ANNOUNCEMENTS
         if (hasBulletins) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text(
-              'Bulletin Announcements',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.campaign_outlined,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Announcements',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           ),
           ...provider.items.map(
@@ -239,5 +248,3 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
-
-

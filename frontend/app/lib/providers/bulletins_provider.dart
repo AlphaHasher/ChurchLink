@@ -23,8 +23,9 @@ DateTime _getCurrentWeekSunday() {
 }
 
 class BulletinsProvider extends ChangeNotifier {
-  BulletinsProvider({BulletinsService? bulletinsService})
-    : _bulletinsService = bulletinsService ?? BulletinsService() {
+  BulletinsProvider({
+    BulletinsService? bulletinsService,
+  }) : _bulletinsService = bulletinsService ?? BulletinsService() {
     // Initialize filter with current week boundaries for services
     // and upcomingOnly=true for bulletins (date-based filtering)
     _activeFilter = BulletinFilter(
@@ -118,7 +119,7 @@ class BulletinsProvider extends ChangeNotifier {
 
       debugPrint(
         '[Bulletins Provider] Loaded ${feed.services.length} services for current week, '
-        '${feed.bulletins.length} bulletins (date-based filtering)',
+        '${feed.bulletins.length} bulletins (announcements) with date-based filtering',
       );
 
       if (resetPagination) {
@@ -190,4 +191,3 @@ class BulletinsProvider extends ChangeNotifier {
     super.dispose();
   }
 }
-

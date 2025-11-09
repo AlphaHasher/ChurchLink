@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
+import { Label } from "@/shared/components/ui/label";
 import {
     Dialog,
     DialogContent,
@@ -9,6 +10,7 @@ import {
     DialogTitle,
 } from "@/shared/components/ui/Dialog";
 import { Loader2, Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
@@ -18,6 +20,7 @@ import { EventMinistryDropdown } from '@/features/admin/components/Events/EventM
 import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
+import { BulletinImageSelector } from "./BulletinImageSelector";
 
 interface CreateBulletinProps {
     onSave: () => Promise<void>;
@@ -37,6 +40,7 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
         attachments: [],
         ru_headline: "",
         ru_body: "",
+        image_id: undefined,
     };
 
     const [bulletin, setBulletin] = useState<Partial<ChurchBulletin>>(initial);
@@ -117,23 +121,42 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
         <>
             <Button
                 variant="outline"
-                className="!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600"
+                className={cn(
+                    "!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600",
+                    "dark:!bg-blue-600 dark:border-blue-500 dark:text-white dark:hover:bg-blue-700"
+                )}
                 onClick={handleDialogOpen}
                 disabled={checkingPerms}
             >
-                {checkingPerms ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : "Create Bulletin"}
+                {checkingPerms ? (
+                    <>
+                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                        Checking...
+                    </>
+                ) : (
+                    "Create New Announcement"
+                )}
             </Button>
 
             <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
-                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
+                <DialogContent className={cn(
+                    "sm:max-w-[100vh] max-h-[80vh] overflow-y-auto",
+                    "bg-white dark:bg-gray-800 text-black dark:text-white",
+                    "border border-gray-200 dark:border-gray-600"
+                )}>
                     <DialogHeader>
-                        <DialogTitle>New Bulletin</DialogTitle>
+                        <DialogTitle className="text-black dark:text-white">New Bulletin Announcement</DialogTitle>
                         <div className="pt-6">
-                            <DialogDescription>Fill out the bulletin details below.</DialogDescription>
+                            <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
+                                Create a new bulletin announcement with an optional image from the media library
+                            </DialogDescription>
                         </div>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className={cn(
+                        "grid gap-4 py-4",
+                        "bg-white dark:bg-gray-800"
+                    )}>
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Headline *</span>
                             <input
@@ -175,6 +198,14 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                                 onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })}
                             />
                         </label>
+
+                        {/* Image Selector */}
+                        <BulletinImageSelector
+                            value={bulletin.image_id ?? null}
+                            onChange={(imageId) => setBulletin({ ...bulletin, image_id: imageId ?? undefined })}
+                            label="Announcement Image"
+                            helperText="Select an optional image to display with this announcement. The image will appear as a thumbnail in the bulletin list."
+                        />
 
                         <div>
                             <EventMinistryDropdown

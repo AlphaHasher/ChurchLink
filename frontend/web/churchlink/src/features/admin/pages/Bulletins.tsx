@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchBulletins, fetchServices, reorderServices } from '@/features/bulletins/api/bulletinsApi';
+import { fetchBulletins, fetchServices, reorderServices, reorderBulletins } from '@/features/bulletins/api/bulletinsApi';
 import { fetchPermissions } from '@/helpers/PermissionsHelper';
 import { ChurchBulletin, ServiceBulletin } from '@/shared/types/ChurchBulletin';
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
@@ -27,6 +27,11 @@ const Bulletins = () => {
             });
 
             const sorted = Array.from(merged.values()).sort((a, b) => {
+                // Sort by order first (for drag-and-drop), then by publish_date desc, then pinned
+                if (a.order !== b.order) {
+                    return a.order - b.order;
+                }
+                
                 const aTime = a.publish_date ? new Date(a.publish_date).getTime() : 0;
                 const bTime = b.publish_date ? new Date(b.publish_date).getTime() : 0;
                 
@@ -84,9 +89,14 @@ const Bulletins = () => {
         }
     };
 
-    const handleReorder = async (serviceIds: string[]) => {
+    const handleReorderServices = async (serviceIds: string[]) => {
         await reorderServices(serviceIds);
         await loadServices();
+    };
+
+    const handleReorderBulletins = async (bulletinIds: string[]) => {
+        await reorderBulletins(bulletinIds);
+        await loadBulletins();
     };
 
     useEffect(() => { 
@@ -103,14 +113,15 @@ const Bulletins = () => {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full max-w-md grid-cols-2">
                     <TabsTrigger value="services">Services</TabsTrigger>
-                    <TabsTrigger value="bulletins">Bulletins</TabsTrigger>
+                    <TabsTrigger value="bulletins">Bulletin Announcments</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="bulletins" className="mt-6">
                     <BulletinsTable 
                         bulletins={bulletins} 
                         permissions={perms} 
-                        onRefresh={loadBulletins} 
+                        onRefresh={loadBulletins}
+                        onReorder={handleReorderBulletins}
                     />
                 </TabsContent>
                 
@@ -119,7 +130,7 @@ const Bulletins = () => {
                         services={services} 
                         permissions={perms} 
                         onRefresh={loadServices}
-                        onReorder={handleReorder}
+                        onReorder={handleReorderServices}
                     />
                 </TabsContent>
             </Tabs>

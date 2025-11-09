@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
+import { Label } from "@/shared/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
     Dialog,
     DialogContent,
@@ -16,7 +18,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X, Edit } from "lucide-react";
 
 import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
 import { updateBulletin, deleteBulletin } from "@/features/bulletins/api/bulletinsApi";
@@ -26,6 +28,7 @@ import { EventMinistryDropdown } from '@/features/admin/components/Events/EventM
 import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
+import { BulletinImageSelector } from "./BulletinImageSelector";
 
 interface EditBulletinProps {
     bulletin: ChurchBulletin;
@@ -34,7 +37,7 @@ interface EditBulletinProps {
 }
 
 export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBulletinProps) {
-    const [bulletin, setBulletin] = useState<ChurchBulletin>(initialBulletin);
+    const [bulletin, setBulletin] = useState<ChurchBulletin>({ ...initialBulletin });
 
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -49,8 +52,14 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
         }
     }, [isOpen])
 
+    useEffect(() => {
+        if (!isOpen) {
+            setBulletin({ ...initialBulletin });
+        }
+    }, [initialBulletin, isOpen]);
+
     const handleDialogClose = () => {
-        setBulletin(initialBulletin);
+        setBulletin({ ...initialBulletin });
         setDeleteConfirmOpen(false);
         setDeleting(false);
         setIsOpen(false);
@@ -97,6 +106,7 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             const result = await getMyPermissions(requestOptions);
             if (result?.success) {
                 if (result?.perms?.admin || result?.perms?.bulletin_editing) {
+                    setBulletin({ ...initialBulletin });
                     setIsOpen(true);
                 } else {
                     alert("You must have the Bulletin Editor permission to edit bulletins.");
@@ -130,17 +140,40 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
 
     return (
         <>
-            <Button size="sm" variant="ghost" onClick={handleDialogOpen} disabled={checkingPerms}>Edit</Button>
+            <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleDialogOpen} 
+                disabled={checkingPerms}
+                className="h-8 px-3"
+                title="Edit Bulletin"
+            >
+                {checkingPerms ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Edit className="h-4 w-4" />
+                )}
+            </Button>
+            
             <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
-                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
+                <DialogContent className={cn(
+                    "sm:max-w-[100vh] max-h-[80vh] overflow-y-auto",
+                    "bg-white dark:bg-gray-800 text-black dark:text-white",
+                    "border border-gray-200 dark:border-gray-600"
+                )}>
                     <DialogHeader>
-                        <DialogTitle>Edit Bulletin</DialogTitle>
+                        <DialogTitle className="text-black dark:text-white">Edit Bulletin Announcement</DialogTitle>
                         <div className="pt-6">
-                            <DialogDescription>Edit the bulletin fields below.</DialogDescription>
+                            <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
+                                Update the bulletin announcement details and manage the associated image
+                            </DialogDescription>
                         </div>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className={cn(
+                        "grid gap-4 py-4",
+                        "bg-white dark:bg-gray-800"
+                    )}>
                         <div className="text-xs text-gray-500 grid grid-cols-2 gap-2">
                             <div>Created: {bulletin.created_at ? new Date(bulletin.created_at).toLocaleString() : 'N/A'}</div>
                             <div>Updated: {bulletin.updated_at ? new Date(bulletin.updated_at).toLocaleString() : 'N/A'}</div>
@@ -187,6 +220,19 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                                 onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })}
                             />
                         </label>
+
+                        {/* Image Selector */}
+                        <BulletinImageSelector
+                            value={bulletin.image_id ?? null}
+                            onChange={(imageId) => setBulletin({
+                                ...bulletin,
+                                image_id: imageId,
+                                image_url: null,
+                                thumbnail_url: null,
+                            })}
+                            label="Announcement Image"
+                            helperText="Select an optional image to display with this announcement. The image will appear as a thumbnail in the bulletin list."
+                        />
 
                         <div>
                             <EventMinistryDropdown

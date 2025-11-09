@@ -17,22 +17,18 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
 	};
 
 	return (
-		<Card
-			className="group overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 relative border-l-4 border-l-black border-r-4 border-r-black bg-gradient-to-br from-gray-50 via-white to-gray-100 p-6"
+	<Card
+		className="group overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 relative bg-gradient-to-br from-gray-50 via-white to-gray-100 p-5"
 			onClick={onClick}
 		>
-			<div className="flex flex-col gap-3">
+		<div className="flex flex-col gap-2">
 				{/* Header with title */}
-				<div className="flex items-start justify-between gap-3">
-					<div className="flex-1">
-						<h3 className="text-lg font-semibold leading-tight text-gray-900">
-							{service.title}
-						</h3>
-					</div>
-				</div>
+			<h3 className="text-lg font-semibold leading-tight text-gray-900 text-center">
+				{service.title}
+			</h3>
 
 				{/* Service time */}
-				<div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+			<div className="flex items-center justify-center gap-2 text-sm font-medium text-gray-700">
 					<svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							strokeLinecap="round"
@@ -45,11 +41,11 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
 				</div>
 
 				{/* Description */}
-				{service.description && (
-					<p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-						{service.description}
-					</p>
-				)}
+			{service.description && (
+				<p className="text-sm text-gray-600 line-clamp-2 leading-relaxed text-center">
+					{service.description}
+				</p>
+			)}
 			</div>
 		</Card>
 	);
