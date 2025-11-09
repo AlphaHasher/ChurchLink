@@ -356,13 +356,12 @@ class DB:
 
     @staticmethod
     async def get_paypal_settings():
-        """Get all PayPal settings as a dictionary."""
+        """Get PayPal-specific settings as a dictionary."""
         settings = {}
-        # Define default values
+        # Define default values for PayPal settings only
         defaults = {
             "PAYPAL_PLAN_NAME": "Church Donation Subscription",
             "PAYPAL_PLAN_DESCRIPTION": "Recurring donation to Church",
-            "CHURCH_NAME": "Church",
             "ALLOWED_FUNDS": ["General", "Building", "Missions", "Youth", "Other"]
         }
 
@@ -378,3 +377,39 @@ class DB:
             settings[key] = value
 
         return settings
+
+    @staticmethod
+    async def get_church_settings():
+        """Get church information settings as a dictionary."""
+        settings = {}
+        # Define default values for church settings
+        defaults = {
+            "CHURCH_NAME": "Your Church Name",
+            "CHURCH_ADDRESS": "123 Main Street",
+            "CHURCH_CITY": "Your City",
+            "CHURCH_STATE": "ST",
+            "CHURCH_POSTAL_CODE": "12345"
+        }
+
+        # Try to get settings from database, fall back to defaults
+        for key, default in defaults.items():
+            # Try to get from database first
+            value = await DB.get_setting(key, None)
+
+            # If not in database, use default
+            if value is None:
+                value = default
+
+            settings[key] = value
+
+        return settings
+
+    @staticmethod
+    async def get_combined_paypal_church_settings():
+        """Get combined PayPal and church settings for backward compatibility."""
+        paypal_settings = await DB.get_paypal_settings()
+        church_settings = await DB.get_church_settings()
+        
+        # Combine both settings into one dictionary
+        combined_settings = {**paypal_settings, **church_settings}
+        return combined_settings

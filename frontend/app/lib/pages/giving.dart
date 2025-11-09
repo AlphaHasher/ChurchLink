@@ -27,6 +27,13 @@ class _GivingState extends State<Giving> {
   String? _accountEmail; 
   String _purpose = 'General';
   List<String> _fundPurposes = ['General']; // Default value while loading
+  String _churchName = 'Your Church Name'; // Default value while loading
+  Map<String, String> _churchAddress = {
+    'address': '123 Main Street',
+    'city': 'Your City',
+    'state': 'ST',
+    'postal_code': '12345',
+  }; // Default values while loading
   bool _isSubscription = false;
   String _intervalUnit = 'MONTH';
   int _intervalCount = 1;
@@ -202,6 +209,8 @@ class _GivingState extends State<Giving> {
     });
     _accountEmail = FirebaseAuth.instance.currentUser?.email;
     _loadFundPurposes();
+    _loadChurchName();
+    _loadChurchAddress();
   }
 
   Future<void> _loadFundPurposes() async {
@@ -214,6 +223,32 @@ class _GivingState extends State<Giving> {
           if (!_fundPurposes.contains(_purpose)) {
             _purpose = _fundPurposes.isNotEmpty ? _fundPurposes.first : 'General';
           }
+        });
+      }
+    } catch (e) {
+      // Error is already handled in the service with default values
+    }
+  }
+
+  Future<void> _loadChurchName() async {
+    try {
+      final churchName = await PaypalService.getChurchName();
+      if (mounted) {
+        setState(() {
+          _churchName = churchName;
+        });
+      }
+    } catch (e) {
+      // Error is already handled in the service with default values
+    }
+  }
+
+  Future<void> _loadChurchAddress() async {
+    try {
+      final churchAddress = await PaypalService.getChurchAddress();
+      if (mounted) {
+        setState(() {
+          _churchAddress = churchAddress;
         });
       }
     } catch (e) {
@@ -446,8 +481,8 @@ class _GivingState extends State<Giving> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Church Giving',
+        title: Text(
+          '$_churchName Giving',
         ),
         centerTitle: true,
         leading: IconButton(
@@ -469,7 +504,7 @@ class _GivingState extends State<Giving> {
                     ),
                   const SizedBox(height: 16),
                   
-                  Text('Supporting Your Church', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Supporting $_churchName', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
                   Text(
                       'Your donations help our mission to support and uplift you and the community! Every contribution, large or small, has a meaningful difference!',
@@ -894,7 +929,7 @@ class _GivingState extends State<Giving> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Prefer to send a check? Mail your donation to our church address. Please make checks payable to the church name.',
+                        'Prefer to send a check? Mail your donation to our church address. Please make checks payable to $_churchName.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
@@ -919,7 +954,7 @@ class _GivingState extends State<Giving> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Second Slavic Baptist Church',
+                                  _churchName,
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
@@ -933,18 +968,26 @@ class _GivingState extends State<Giving> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '6601 Watt Ave',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                  if (_churchAddress['address']?.isNotEmpty == true)
+                                    Text(
+                                      _churchAddress['address']!,
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    'North Highlands, CA 95660',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                  if (_churchAddress['city']?.isNotEmpty == true ||
+                                      _churchAddress['state']?.isNotEmpty == true ||
+                                      _churchAddress['postalCode']?.isNotEmpty == true)
+                                    Text(
+                                      [
+                                        _churchAddress['city'],
+                                        _churchAddress['state'],
+                                        _churchAddress['postalCode']
+                                      ].where((part) => part?.isNotEmpty == true).join(', '),
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),

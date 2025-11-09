@@ -4,12 +4,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { auth, createUserWithEmailAndPassword } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
+import { getChurchName } from "@/helpers/ChurchSettingsHelper";
 
 function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [churchName, setChurchName] = useState("Your Church Name");
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -18,6 +20,21 @@ function Signup() {
       navigate("/");
     }
   }, [user]);
+
+  // Fetch church name on component mount
+  useEffect(() => {
+    const fetchChurchName = async () => {
+      try {
+        const name = await getChurchName();
+        setChurchName(name);
+      } catch (error) {
+        console.warn("Failed to fetch church name for signup page:", error);
+        // Keep default value
+      }
+    };
+
+    fetchChurchName();
+  }, []);
 
   const handleGoogleSignup = async () => {
     try {
@@ -71,7 +88,7 @@ function Signup() {
           Sign Up
         </h2>
         <div className="text-gray-600 mb-6">
-          The Second Slavic Baptist Church welcomes you! Please create your
+          {churchName} welcomes you! Please create your
           credentials below.
         </div>
 
