@@ -150,8 +150,8 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     }, [user]);
 
     return (
-        <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80] relative">
-            <div className="h-30 w-full lg:h-24 flex flex-row justify-between align-center">
+        <NavigationMenu className="flex items-center p-4 bg-slate-900 justify-between text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80] relative">
+            <div className="flex w-full flex-row items-center justify-between lg:h-24">
                 {/* Logo Section */}
                 <NavigationMenuList className="flex gap-4 justify-between xl:pl-8 items-center">
                     <Link to="/" className="hover:opacity-80 transition-opacity">
@@ -160,7 +160,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                 </NavigationMenuList>
 
                 {/* Navigation Items Section */}
-                <NavigationMenuList className="lg:flex flex-wrap justify-end h-20 xl:pr-8 align-center">
+                <NavigationMenuList className="lg:flex flex-wrap items-center justify-end xl:pr-8">
                     {!loading && headerItems.map((item) => (
                         <NavigationMenuItem
                             key={item.title}
