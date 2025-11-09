@@ -18,7 +18,7 @@ export function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
     
     return (
 	<Card
-		className="group overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 relative bg-gradient-to-br from-gray-50 via-white to-gray-100 py-0 gap-2"
+		className="group flex h-full w-full flex-col overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 relative bg-gradient-to-br from-gray-50 via-white to-gray-100 py-0 gap-2"
             onClick={onClick}
         >
             {/* Thumbnail Image */}

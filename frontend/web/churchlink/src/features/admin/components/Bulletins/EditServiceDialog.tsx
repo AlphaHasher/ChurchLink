@@ -2,11 +2,12 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Button } from "@/shared/components/ui/button";
+import { Label } from "@/shared/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/shared/components/ui/Dialog";
@@ -18,7 +19,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { Loader2 } from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
 
 import { ServiceBulletin } from "@/shared/types/ChurchBulletin";
 import { 
@@ -28,6 +29,7 @@ import {
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
+import { Switch } from "@/shared/components/ui/switch";
 
 interface EditServiceDialogProps {
     service: ServiceBulletin;
@@ -140,27 +142,100 @@ export function EditServiceDialog({
 
     return (
         <>
-            <Button size="sm" variant="ghost" onClick={handleDialogOpen} disabled={checkingPerms}>
-                Edit
+            <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDialogOpen}
+                disabled={checkingPerms}
+                className="h-8 px-3"
+                title="Edit Service"
+            >
+                {checkingPerms ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Edit className="h-4 w-4" />
+                )}
             </Button>
 
             <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
-                <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Edit Service</DialogTitle>
-                        <DialogDescription className="pt-4">
-                            Update service information below.
-                        </DialogDescription>
+                <DialogContent
+                    className={cn(
+                        "sm:max-w-[700px] max-h-[80vh] overflow-y-auto",
+                        "bg-white dark:bg-gray-800 text-black dark:text-white",
+                        "border border-gray-200 dark:border-gray-600"
+                    )}
+                >
+                    <DialogHeader className="space-y-4">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <DialogTitle className="text-black dark:text-white">Edit Service</DialogTitle>
+                                <DialogDescription className="pt-2 text-muted-foreground dark:text-muted-foreground/80">
+                                    Update service information below.
+                                </DialogDescription>
+                            </div>
+                            <div className="ml-auto flex flex-wrap items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleDialogClose}
+                                    disabled={saving || deleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => setDeleteConfirmOpen(true)}
+                                    disabled={saving || deleting}
+                                >
+                                    Delete
+                                </Button>
+                                <Button
+                                    className="ml-3"
+                                    onClick={handleSave}
+                                    disabled={saving || deleting}
+                                >
+                                    {saving ? (
+                                        <>
+                                            <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        'Save changes'
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className={cn(
+                        "grid gap-4 py-4",
+                        "bg-white dark:bg-gray-800"
+                    )}>
+                        <div className="rounded border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+                            <div className="flex flex-wrap items-center gap-6">
+                                <div className="flex flex-col">
+                                    <Label htmlFor="edit-service-published" className="mb-1 text-sm">Published</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="edit-service-published"
+                                            checked={Boolean(service.published)}
+                                            onCheckedChange={(checked) => setService({ ...service, published: checked })}
+                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
+                                        />
+                                        <span className="text-sm">{service.published ? "Yes" : "No"}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="text-xs text-gray-500 grid grid-cols-2 gap-2">
                             <div>Created: {service.created_at ? new Date(service.created_at).toLocaleString() : 'N/A'}</div>
                             <div>Updated: {service.updated_at ? new Date(service.updated_at).toLocaleString() : 'N/A'}</div>
                         </div>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Title *</span>
+                            <span className="text-sm font-medium">Title *</span>
                             <input 
                                 className="border p-2 rounded" 
                                 placeholder="Title"
@@ -170,7 +245,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600 mb-1">Title (RU)</span>
+                            <span className="text-sm font-medium text-gray-600">Title (RU)</span>
                             <input 
                                 className="border p-2 rounded" 
                                 placeholder="Title (RU)"
@@ -180,7 +255,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Day of Week *</span>
+                            <span className="text-sm font-medium">Day of Week *</span>
                             <select
                                 className="border p-2 rounded" 
                                 value={service.day_of_week || 'Sunday'}
@@ -197,7 +272,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Time of Day *</span>
+                            <span className="text-sm font-medium">Time of Day *</span>
                             <input 
                                 type="time"
                                 className="border p-2 rounded" 
@@ -213,7 +288,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Visibility Mode *</span>
+                            <span className="text-sm font-medium">Visibility Mode *</span>
                             <select 
                                 className="border p-2 rounded" 
                                 value={service.visibility_mode || 'always'}
@@ -232,7 +307,7 @@ export function EditServiceDialog({
 
                         {service.visibility_mode === 'specific_weeks' && (
                             <label className="flex flex-col">
-                                <span className="text-sm font-medium mb-1">Display Week *</span>
+                                <span className="text-sm font-medium">Display Week *</span>
                                 <input 
                                     type="date" 
                                     className="border p-2 rounded" 
@@ -252,7 +327,7 @@ export function EditServiceDialog({
                         )}
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Description</span>
+                            <span className="text-sm font-medium">Description</span>
                             <textarea 
                                 className="border p-2 rounded" 
                                 rows={3}
@@ -263,7 +338,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600 mb-1">Description (RU)</span>
+                            <span className="text-sm font-medium text-gray-600">Description (RU)</span>
                             <textarea 
                                 className="border p-2 rounded" 
                                 rows={3}
@@ -274,7 +349,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Timeline Notes</span>
+                            <span className="text-sm font-medium">Timeline Notes</span>
                             <textarea 
                                 className="border p-2 rounded font-mono text-sm" 
                                 rows={8}
@@ -288,7 +363,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600 mb-1">Timeline Notes (RU)</span>
+                            <span className="text-sm font-medium text-gray-600">Timeline Notes (RU)</span>
                             <textarea 
                                 className="border p-2 rounded font-mono text-sm" 
                                 rows={8}
@@ -302,7 +377,7 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Order</span>
+                            <span className="text-sm font-medium">Order</span>
                             <input 
                                 type="number"
                                 min="0"
@@ -315,36 +390,7 @@ export function EditServiceDialog({
                             </span>
                         </label>
 
-                        <label className="flex items-center space-x-2">
-                            <input 
-                                type="checkbox" 
-                                checked={service.published ?? false} 
-                                onChange={(e) => setService({ ...service, published: e.target.checked })} 
-                            />
-                            <span className="text-sm font-medium">Published</span>
-                        </label>
-
-                        <div className="flex gap-2 flex-wrap">
-                            <Button 
-                                type="button"
-                                variant="destructive" 
-                                onClick={() => setDeleteConfirmOpen(true)}
-                                disabled={saving}
-                            >
-                                Delete Service
-                            </Button>
-                        </div>
                     </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleDialogClose} disabled={saving}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSave} disabled={saving}>
-                            {saving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                            Save Changes
-                        </Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

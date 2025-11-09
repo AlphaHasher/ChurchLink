@@ -174,16 +174,20 @@ const BulletinsPage = () => {
                             {serviceItems.length > 0 ? `For the week of ${format(serviceItems[0].display_week, 'MMM d, yyyy')}` : 'Services'}
                         </h2>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="flex flex-wrap justify-center gap-6">
                         {serviceItems.map((service) => (
-                            <ServiceCard
+                            <div
                                 key={service.id}
-                                service={service}
-                                onClick={() => {
-                                    console.log(`[Service Click] User clicked service "${service.title}" (ID: ${service.id}) at ${new Date().toISOString()}`);
-                                    setSelectedService(service);
-                                }}
-                            />
+                                className="flex w-full sm:w-[320px] md:w-[360px] lg:w-[380px]"
+                            >
+                                <ServiceCard
+                                    service={service}
+                                    onClick={() => {
+                                        console.log(`[Service Click] User clicked service "${service.title}" (ID: ${service.id}) at ${new Date().toISOString()}`);
+                                        setSelectedService(service);
+                                    }}
+                                />
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -193,15 +197,15 @@ const BulletinsPage = () => {
             <div>
                 {serviceItems.length > 0 && (
                     <div className="mb-4 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                        </svg>
-                        <h2 className="text-xl font-bold">Bulletin Announcements</h2>
+                        <span
+                            className="text-2xl text-black/60"
+                            style={{ fontVariantEmoji: 'text', fontFamily: '"Segoe UI Symbol","Noto Sans Symbols","Noto Sans",sans-serif' }}
+                            role="img"
+                            aria-hidden="true"
+                        >
+                            {'\u{1F4E2}\uFE0E'}
+                        </span>
+                        <h2 className="text-xl font-bold">Announcments</h2>
                     </div>
                 )}
                 <BulletinList items={filteredBulletins} onItemClick={setSelectedBulletin} />
@@ -269,8 +273,7 @@ const BulletinsPage = () => {
                             )}
 
                             {selectedService.timeline_notes && selectedService.timeline_notes.trim() !== '' && (
-                                <div className="mt-6 p-4 bg-gray-50 border-l-4 border-black rounded-r">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-3">Service Timeline</h3>
+                                <div className="mt-6 p-4 bg-gray-50 border-l-4 border-blue-900 rounded-r">
                                     <div className="prose prose-sm max-w-none text-gray-700 space-y-0">
                                         {selectedService.timeline_notes.split('\n').map((line, index, array) => {
                                             const trimmedLine = line.trim();

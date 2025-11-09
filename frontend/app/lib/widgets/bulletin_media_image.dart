@@ -9,14 +9,17 @@ class BulletinMediaImage extends StatefulWidget {
     this.height,
     this.aspectRatio,
     this.fit = BoxFit.cover,
+    this.maxRetriesPerUrl = 3,
   }) : assert(height != null || aspectRatio != null,
-            'Either height or aspectRatio must be provided.');
+            'Either height or aspectRatio must be provided.'),
+        assert(maxRetriesPerUrl >= 1, 'maxRetriesPerUrl must be at least 1.');
 
   final List<String> urls;
   final BorderRadius borderRadius;
   final double? height;
   final double? aspectRatio;
   final BoxFit fit;
+  final int maxRetriesPerUrl;
 
   @override
   State<BulletinMediaImage> createState() => _BulletinMediaImageState();
@@ -24,11 +27,13 @@ class BulletinMediaImage extends StatefulWidget {
 
 class _BulletinMediaImageState extends State<BulletinMediaImage> {
   late int _activeIndex;
+  int _reloadToken = 0;
+  final Map<String, int> _attempts = {};
 
   @override
   void initState() {
     super.initState();
-    _activeIndex = widget.urls.isEmpty ? -1 : 0;
+    _resetSourceState();
   }
 
   @override
@@ -36,18 +41,56 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
     super.didUpdateWidget(oldWidget);
     if (!listEquals(oldWidget.urls, widget.urls)) {
       setState(() {
-        _activeIndex = widget.urls.isEmpty ? -1 : 0;
+        _resetSourceState();
       });
     }
+    if (oldWidget.maxRetriesPerUrl != widget.maxRetriesPerUrl) {
+      _attempts.clear();
+      _reloadToken = 0;
+    }
+  }
+
+  void _resetSourceState() {
+    _activeIndex = widget.urls.isEmpty ? -1 : 0;
+    _reloadToken = 0;
+    _attempts.clear();
   }
 
   void _advanceSource() {
     if (!mounted) return;
+    if (_activeIndex >= 0 && _activeIndex < widget.urls.length) {
+      _attempts.remove(widget.urls[_activeIndex]);
+    }
     if (_activeIndex + 1 < widget.urls.length) {
-      setState(() => _activeIndex++);
+      setState(() {
+        _activeIndex++;
+        _reloadToken = 0;
+      });
     } else if (_activeIndex != -1) {
       setState(() => _activeIndex = -1);
     }
+  }
+
+  void _retryCurrentSource() {
+    if (!mounted || _activeIndex < 0 || _activeIndex >= widget.urls.length) {
+      return;
+    }
+
+    final url = widget.urls[_activeIndex];
+    final attempts = (_attempts[url] ?? 0) + 1;
+    if (attempts >= widget.maxRetriesPerUrl) {
+      _attempts.remove(url);
+      _advanceSource();
+      return;
+    }
+
+    _attempts[url] = attempts;
+
+    final provider = NetworkImage(url);
+    provider.evict().ignore();
+
+    if (!mounted) return;
+    setState(() => _reloadToken++);
   }
 
   @override
@@ -57,14 +100,46 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
     }
 
     final url = widget.urls[_activeIndex];
+    final placeholderColor = Theme.of(context)
+        .colorScheme
+        .surface
+        .withAlpha(20);
+
     final image = Image.network(
       url,
+      key: ValueKey('bulletin-media-$url-$_reloadToken'),
       fit: widget.fit,
       width: double.infinity,
       height: widget.aspectRatio == null ? widget.height : null,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: placeholderColor,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
       errorBuilder: (context, error, stackTrace) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _advanceSource());
-        return const SizedBox.shrink();
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _retryCurrentSource());
+        return Container(
+          color: placeholderColor,
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.broken_image_outlined,
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(90),
+          ),
+        );
       },
     );
 

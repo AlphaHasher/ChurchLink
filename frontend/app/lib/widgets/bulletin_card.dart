@@ -64,8 +64,7 @@ class BulletinCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (bulletin.ministries.isNotEmpty ||
-                      bulletin.attachments.isNotEmpty) ...[
+                  if (bulletin.ministries.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
@@ -122,45 +121,6 @@ class BulletinCard extends StatelessWidget {
                                         .primary,
                                     fontWeight: FontWeight.w600,
                                   ),
-                            ),
-                          ),
-                        if (bulletin.attachments.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .secondary
-                                  .withAlpha(16),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.attach_file,
-                                  size: 14,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .secondary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${bulletin.attachments.length}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .secondary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                              ],
                             ),
                           ),
                       ],

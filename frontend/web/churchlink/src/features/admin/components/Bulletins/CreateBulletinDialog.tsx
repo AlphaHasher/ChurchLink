@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import {
@@ -17,10 +17,11 @@ import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 import { BulletinImageSelector } from "./BulletinImageSelector";
+import { Switch } from "@/shared/components/ui/switch";
+import { BULLETIN_MINISTRY_OPTIONS } from "@/features/admin/constants/bulletinMinistryOptions";
 
 interface CreateBulletinProps {
     onSave: () => Promise<void>;
@@ -47,13 +48,16 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
-
-    useEffect(() => {
-        if (isOpen) {
-            fetchMinistries().then(setMinistries)
-        }
-    }, [isOpen])
+    const ministryOptions = useMemo(() => {
+        const base = new Set<string>(BULLETIN_MINISTRY_OPTIONS);
+        (bulletin.ministries || []).forEach((name) => {
+            const normalized = (name || "").trim();
+            if (normalized) {
+                base.add(normalized);
+            }
+        });
+        return Array.from(base).sort((a, b) => a.localeCompare(b));
+    }, [bulletin.ministries]);
 
     const handleDialogClose = () => {
         setBulletin(initial);
@@ -211,7 +215,7 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                             <EventMinistryDropdown
                                 selected={bulletin.ministries ?? []}
                                 onChange={(next: string[]) => setBulletin({ ...bulletin, ministries: next })}
-                                ministries={ministries}
+                                ministries={ministryOptions}
                             />
                         </div>
 
@@ -273,24 +277,34 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                             )}
                         </div>
 
-                        <div className="flex gap-4">
-                            <label className="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    checked={bulletin.published || false}
-                                    onChange={(e) => setBulletin({ ...bulletin, published: e.target.checked })}
-                                />
-                                <span className="text-sm">Published</span>
-                            </label>
+                        <div className="rounded border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+                            <div className="flex flex-wrap items-center gap-6">
+                                <div className="flex flex-col">
+                                    <Label htmlFor="create-bulletin-published" className="mb-1 text-sm">Published</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="create-bulletin-published"
+                                            checked={Boolean(bulletin.published)}
+                                            onCheckedChange={(checked) => setBulletin({ ...bulletin, published: checked })}
+                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
+                                        />
+                                        <span className="text-sm">{bulletin.published ? "Yes" : "No"}</span>
+                                    </div>
+                                </div>
 
-                            <label className="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    checked={bulletin.pinned || false}
-                                    onChange={(e) => setBulletin({ ...bulletin, pinned: e.target.checked })}
-                                />
-                                <span className="text-sm">Pinned</span>
-                            </label>
+                                <div className="flex flex-col">
+                                    <Label htmlFor="create-bulletin-pinned" className="mb-1 text-sm">Pinned</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="create-bulletin-pinned"
+                                            checked={Boolean(bulletin.pinned)}
+                                            onCheckedChange={(checked) => setBulletin({ ...bulletin, pinned: checked })}
+                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
+                                        />
+                                        <span className="text-sm">{bulletin.pinned ? "Yes" : "No"}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

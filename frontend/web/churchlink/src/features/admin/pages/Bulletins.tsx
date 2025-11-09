@@ -14,7 +14,7 @@ const Bulletins = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<string>('services');
 
-    const loadBulletins = async () => {
+    const loadBulletins = async (): Promise<ChurchBulletin[]> => {
         try {
             const [publishedBulletins, draftBulletins] = await Promise.all([
                 fetchBulletins({ published: true, skip_expiration_filter: true }),
@@ -45,13 +45,15 @@ const Bulletins = () => {
             });
 
             setBulletins(sorted);
+            return sorted;
         } catch (err) {
             console.error('Failed to load bulletins:', err);
             setBulletins([]);
+            return [];
         }
     };
 
-    const loadServices = async () => {
+    const loadServices = async (): Promise<ServiceBulletin[]> => {
         try {
             const allServices = await fetchServices({ published: undefined });
             const sorted = allServices.sort((a, b) => {
@@ -66,22 +68,24 @@ const Bulletins = () => {
                 return a.order - b.order;
             });
             setServices(sorted);
+            return sorted;
         } catch (err) {
             console.error('Failed to load services:', err);
             setServices([]);
+            return [];
         }
     };
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const permsFromAPI = await fetchPermissions();
-            setPerms(permsFromAPI && permsFromAPI.length > 0 ? permsFromAPI[0] : null);
-            
-            await Promise.all([
+            const [permsFromAPI] = await Promise.all([
+                fetchPermissions(),
                 loadBulletins(),
                 loadServices(),
             ]);
+
+            setPerms(permsFromAPI && permsFromAPI.length > 0 ? permsFromAPI[0] : null);
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {
@@ -111,9 +115,19 @@ const Bulletins = () => {
             <h1 className="text-xl font-bold mb-4">Weekly Bulletin Management</h1>
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full max-w-md grid-cols-2">
-                    <TabsTrigger value="services">Services</TabsTrigger>
-                    <TabsTrigger value="bulletins">Bulletin Announcments</TabsTrigger>
+                <TabsList className="gap-3 bg-muted/80 p-[4px] dark:bg-muted/40">
+                    <TabsTrigger
+                        value="services"
+                        className="transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
+                    >
+                        Services
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="bulletins"
+                        className="transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
+                    >
+                        Bulletin Announcments
+                    </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="bulletins" className="mt-6">

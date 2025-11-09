@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
+import { cn } from '@/lib/utils';
 import {
     Table,
     TableBody,
@@ -86,26 +87,24 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
             <TableCell>{formatDate(bulletin.publish_date)}</TableCell>
             <TableCell>
                 <span
-                    className={
-                        `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
-                            bulletin.published
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                : 'border-amber-200 bg-amber-50 text-amber-700'
-                        }`
-                    }
+                    className={cn(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
+                        bulletin.published
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-400/15 dark:text-emerald-200 dark:hover:bg-emerald-400/25'
+                            : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/20'
+                    )}
                 >
                     {bulletin.published ? 'Published' : 'Draft'}
                 </span>
             </TableCell>
             <TableCell>
                 <span
-                    className={
-                        `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
-                            bulletin.pinned
-                                ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                : 'border-gray-200 bg-gray-50 text-gray-600'
-                        }`
-                    }
+                    className={cn(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
+                        bulletin.pinned
+                            ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-500/40 dark:bg-blue-400/10 dark:text-blue-200 dark:hover:bg-blue-400/20'
+                            : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-500/40 dark:bg-gray-400/10 dark:text-gray-200 dark:hover:bg-gray-400/20'
+                    )}
                 >
                     {bulletin.pinned ? 'Yes' : 'No'}
                 </span>
@@ -130,7 +129,7 @@ export function BulletinsTable({
     bulletins, 
     permissions, 
     onRefresh,
-    onReorder 
+    onReorder,
 }: BulletinsTableProps) {
     const [search, setSearch] = useState('');
     const [isReordering, setIsReordering] = useState(false);
@@ -192,7 +191,7 @@ export function BulletinsTable({
                     onChange={(e) => setSearch(e.target.value)} 
                     className="max-w-sm" 
                 />
-                <div className="ml-auto flex items-center space-x-2">
+                <div className="ml-auto flex items-center gap-3">
                     <Button onClick={handleRefresh} disabled={isReordering}>
                         Refresh
                     </Button>
