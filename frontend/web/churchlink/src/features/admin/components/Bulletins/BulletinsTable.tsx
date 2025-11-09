@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Button } from '@/shared/components/ui/button';
@@ -83,7 +83,6 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
                     {bulletin.headline}
                 </div>
             </TableCell>
-            <TableCell>{bulletin.ru_headline || '-'}</TableCell>
             <TableCell>{formatDate(bulletin.publish_date)}</TableCell>
             <TableCell>
                 <span
@@ -95,18 +94,6 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
                     )}
                 >
                     {bulletin.published ? 'Published' : 'Draft'}
-                </span>
-            </TableCell>
-            <TableCell>
-                <span
-                    className={cn(
-                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
-                        bulletin.pinned
-                            ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-500/40 dark:bg-blue-400/10 dark:text-blue-200 dark:hover:bg-blue-400/20'
-                            : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-500/40 dark:bg-gray-400/10 dark:text-gray-200 dark:hover:bg-gray-400/20'
-                    )}
-                >
-                    {bulletin.pinned ? 'Yes' : 'No'}
                 </span>
             </TableCell>
             <TableCell>
@@ -133,7 +120,7 @@ export function BulletinsTable({
 }: BulletinsTableProps) {
     const [search, setSearch] = useState('');
     const [isReordering, setIsReordering] = useState(false);
-    const [localBulletins, setLocalBulletins] = useState(bulletins);
+    const [localBulletins, setLocalBulletins] = useState<ChurchBulletin[]>(bulletins);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -142,10 +129,14 @@ export function BulletinsTable({
         })
     );
 
-    const filtered = (localBulletins.length ? localBulletins : bulletins).filter((b) => 
+    // Sync local state when bulletins prop changes
+    useEffect(() => {
+        setLocalBulletins(bulletins);
+    }, [bulletins]);
+
+    const filtered = localBulletins.filter((b) => 
         b.headline.toLowerCase().includes(search.toLowerCase()) ||
-        (b.body && b.body.toLowerCase().includes(search.toLowerCase())) ||
-        (b.ru_headline && b.ru_headline.toLowerCase().includes(search.toLowerCase()))
+        (b.body && b.body.toLowerCase().includes(search.toLowerCase()))
     );
 
     const handleDragEnd = async (event: DragEndEvent) => {
@@ -159,18 +150,29 @@ export function BulletinsTable({
         if (oldIndex === -1 || newIndex === -1) return;
 
         const reordered = arrayMove(filtered, oldIndex, newIndex);
-        setLocalBulletins(reordered);
+        
+        // Update order field values to reflect new positions
+        const updatedBulletins = reordered.map((bulletin, index) => ({
+            ...bulletin,
+            order: index + 1
+        }));
+        
+        // Immediately update UI with new order values
+        setLocalBulletins(updatedBulletins);
 
-        const bulletinIds = reordered.map(b => b.id);
+        const bulletinIds = updatedBulletins.map(b => b.id);
 
         setIsReordering(true);
         try {
             await onReorder(bulletinIds);
             console.log(`[Bulletin Reorder] Successfully reordered ${bulletinIds.length} bulletins at ${new Date().toISOString()}`);
             toast.success('Bulletins reordered successfully');
+            // Refresh from backend to get authoritative order
+            await onRefresh();
         } catch (err) {
             console.error('[Bulletin Reorder Error]', err);
             toast.error('Failed to reorder bulletins. Changes not saved.');
+            // Revert to original order on error
             setLocalBulletins(bulletins);
         } finally {
             setIsReordering(false);
@@ -179,7 +181,6 @@ export function BulletinsTable({
 
     const handleRefresh = async () => {
         await onRefresh();
-        setLocalBulletins([]);
     };
 
     return (
@@ -211,10 +212,8 @@ export function BulletinsTable({
                                 <TableHead className="w-12"></TableHead>
                                 <TableHead>Order</TableHead>
                                 <TableHead>Headline</TableHead>
-                                <TableHead>Headline (RU)</TableHead>
                                 <TableHead>Publish Date</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead>Pinned</TableHead>
                                 <TableHead>Ministries</TableHead>
                                 <TableHead>Actions</TableHead>
                             </TableRow>
@@ -236,7 +235,7 @@ export function BulletinsTable({
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center">
+                                        <TableCell colSpan={8} className="h-24 text-center">
                                             No bulletins found.
                                         </TableCell>
                                     </TableRow>

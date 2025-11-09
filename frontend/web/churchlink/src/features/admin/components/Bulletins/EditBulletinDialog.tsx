@@ -165,44 +165,38 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                     "bg-white dark:bg-gray-800 text-black dark:text-white",
                     "border border-gray-200 dark:border-gray-600"
                 )}>
-                    <DialogHeader className="space-y-4">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                            <div>
-                                <DialogTitle className="text-black dark:text-white">Edit Bulletin Announcement</DialogTitle>
-                                <div className="pt-2">
-                                    <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
-                                        Update the bulletin announcement details and manage the associated image
-                                    </DialogDescription>
-                                </div>
-                            </div>
-                            <div className="ml-auto flex flex-wrap items-center gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleDialogClose}
-                                    disabled={saving || deleting}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={() => setDeleteConfirmOpen(true)}
-                                    disabled={saving || deleting}
-                                >
-                                    Delete
-                                </Button>
-                                <Button
-                                    type="button"
-                                    className="ml-3"
-                                    onClick={handleSave}
-                                    disabled={saving || deleting}
-                                >
-                                    {saving ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Saving...</> : 'Save changes'}
-                                </Button>
-                            </div>
-                        </div>
+                    <DialogHeader className="space-y-2">
+                        <DialogTitle className="text-black dark:text-white">Edit Bulletin Announcement</DialogTitle>
+                        <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
+                            Update the bulletin announcement details and manage the associated image
+                        </DialogDescription>
                     </DialogHeader>
+
+                    <div className="mb-4 flex flex-wrap items-center justify-end gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleDialogClose}
+                            disabled={saving || deleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => setDeleteConfirmOpen(true)}
+                            disabled={saving || deleting}
+                        >
+                            Delete
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving || deleting}
+                        >
+                            {saving ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Saving...</> : 'Save changes'}
+                        </Button>
+                    </div>
 
                     <div className={cn(
                         "grid gap-4 py-4",
@@ -220,19 +214,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                                             className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
                                         />
                                         <span className="text-sm">{bulletin.published ? "Yes" : "No"}</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col">
-                                    <Label htmlFor="edit-bulletin-pinned" className="mb-1 text-sm">Pinned</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Switch
-                                            id="edit-bulletin-pinned"
-                                            checked={Boolean(bulletin.pinned)}
-                                            onCheckedChange={(checked) => setBulletin({ ...bulletin, pinned: checked })}
-                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
-                                        />
-                                        <span className="text-sm">{bulletin.pinned ? "Yes" : "No"}</span>
                                     </div>
                                 </div>
                             </div>
@@ -254,16 +235,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Headline (RU)</span>
-                            <input
-                                className="border p-2 rounded"
-                                placeholder="Headline (RU)"
-                                value={bulletin.ru_headline || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_headline: e.target.value })}
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Body *</span>
                             <textarea
                                 className="border p-2 rounded"
@@ -271,17 +242,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                                 placeholder="Body"
                                 value={bulletin.body}
                                 onChange={(e) => setBulletin({ ...bulletin, body: e.target.value })}
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Body (RU)</span>
-                            <textarea
-                                className="border p-2 rounded"
-                                rows={6}
-                                placeholder="Body (RU)"
-                                value={bulletin.ru_body || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })}
                             />
                         </label>
 

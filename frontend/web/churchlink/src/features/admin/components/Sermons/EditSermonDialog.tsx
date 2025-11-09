@@ -124,28 +124,13 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium">Title (RU)</span>
-                            <input className="border p-2 rounded" value={sermon.ru_title || ''} onChange={(e) => setSermon({ ...sermon, ru_title: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Description</span>
                             <textarea className="border p-2 rounded" value={sermon.description} onChange={(e) => setSermon({ ...sermon, description: e.target.value })} />
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium">Description (RU)</span>
-                            <textarea className="border p-2 rounded" value={sermon.ru_description || ''} onChange={(e) => setSermon({ ...sermon, ru_description: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Speaker</span>
                             <input className="border p-2 rounded" value={sermon.speaker} onChange={(e) => setSermon({ ...sermon, speaker: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium">Speaker (RU)</span>
-                            <input className="border p-2 rounded" value={sermon.ru_speaker || ''} onChange={(e) => setSermon({ ...sermon, ru_speaker: e.target.value })} />
                         </label>
 
                         <label className="flex flex-col">

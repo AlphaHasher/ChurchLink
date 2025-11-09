@@ -33,12 +33,8 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
         description: "",
         timeline_notes: "",
         display_week: new Date(),
-        order: 0,
         published: false,
         visibility_mode: 'specific_weeks',
-        ru_title: "",
-        ru_description: "",
-        ru_timeline_notes: "",
     };
 
     const [service, setService] = useState<Partial<ServiceBulletin>>(initial);
@@ -66,12 +62,8 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                 description: service.description || "",
                 timeline_notes: service.timeline_notes || "",
                 display_week: service.display_week ? service.display_week.toISOString() : new Date().toISOString(),
-                order: service.order || 0,
                 published: service.published ?? false,
                 visibility_mode: service.visibility_mode || 'specific_weeks',
-                ru_title: service.ru_title || "",
-                ru_description: service.ru_description || "",
-                ru_timeline_notes: service.ru_timeline_notes || "",
             };
 
             console.log(`[Service Create] Attempting to create service "${payload.title}" at ${new Date().toISOString()}`);
@@ -159,16 +151,6 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Title (RU)</span>
-                            <input 
-                                className="border p-2 rounded" 
-                                placeholder="Title (RU)"
-                                value={service.ru_title || ''} 
-                                onChange={(e) => setService({ ...service, ru_title: e.target.value })} 
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Day of Week *</span>
                             <select
                                 className="border p-2 rounded" 
@@ -252,17 +234,6 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Description (RU)</span>
-                            <textarea 
-                                className="border p-2 rounded" 
-                                rows={3}
-                                placeholder="Description (RU)"
-                                value={service.ru_description || ''} 
-                                onChange={(e) => setService({ ...service, ru_description: e.target.value })} 
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Timeline Notes</span>
                             <textarea 
                                 className="border p-2 rounded font-mono text-sm" 
@@ -273,34 +244,6 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                             />
                             <span className="text-xs text-gray-500 mt-1">
                                 Timeline
-                            </span>
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Timeline Notes (RU)</span>
-                            <textarea 
-                                className="border p-2 rounded font-mono text-sm" 
-                                rows={8}
-                                placeholder="Timeline Notes (RU)"
-                                value={service.ru_timeline_notes || ''} 
-                                onChange={(e) => setService({ ...service, ru_timeline_notes: e.target.value })} 
-                            />
-                            <span className="text-xs text-gray-500 mt-1">
-                                Timeline
-                            </span>
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium">Order</span>
-                            <input 
-                                type="number"
-                                min="0"
-                                className="border p-2 rounded" 
-                                value={service.order ?? 0} 
-                                onChange={(e) => setService({ ...service, order: parseInt(e.target.value) || 0 })} 
-                            />
-                            <span className="text-xs text-gray-500 mt-1">
-                                Lower numbers appear first (can also be reordered via drag-and-drop)
                             </span>
                         </label>
 

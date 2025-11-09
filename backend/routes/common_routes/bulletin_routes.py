@@ -13,7 +13,6 @@ from controllers.bulletin_functions import (
 	process_create_bulletin,
 	process_delete_bulletin,
 	process_edit_bulletin,
-	process_pin_toggle,
 	process_publish_toggle,
 	process_reorder_bulletins,
 )
@@ -52,10 +51,6 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 class BulletinPublishToggle(BaseModel):
 	published: bool
-
-
-class BulletinPinToggle(BaseModel):
-	pinned: bool
 
 
 class BulletinReorderPayload(BaseModel):
@@ -101,7 +96,6 @@ async def get_bulletins(
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = True,
-	pinned_only: bool = False,
 	upcoming_only: bool = False,
 	skip_expiration_filter: bool = False,
 	include_services: bool = False,
@@ -113,6 +107,7 @@ async def get_bulletins(
 	
 	IMPORTANT: week_start/week_end are used ONLY for services, NOT for bulletins.
 	Bulletins use upcoming_only for date-based filtering (publish_date <= today).
+	Bulletins are sorted by order field (ascending) for drag-and-drop reordering.
 	"""
 	# For bulletins: ignore week_start/week_end when upcoming_only is True (date-based filtering)
 	# Only use week filters for bulletins when explicitly querying a specific date range
@@ -127,7 +122,6 @@ async def get_bulletins(
 		week_start=_combine_date_and_time(bulletin_week_start),
 		week_end=_combine_date_and_time(bulletin_week_end, end_of_day=True),
 		published=published,
-		pinned_only=pinned_only,
 		upcoming_only=upcoming_only,
 		skip_expiration_filter=skip_expiration_filter,
 	)
@@ -158,7 +152,6 @@ async def search_bulletins_route(
 	limit: int = 100,
 	ministry: Optional[str] = None,
 	published: Optional[bool] = True,
-	pinned_only: bool = False,
 ):
 	"""Search bulletins by text"""
 	return await search_bulletins(
@@ -167,7 +160,6 @@ async def search_bulletins_route(
 		limit=limit,
 		ministry=ministry,
 		published=published,
-		pinned_only=pinned_only,
 	)
 
 
@@ -195,11 +187,10 @@ async def list_all_bulletins_for_editing(
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = None,
-	pinned_only: bool = False,
 	upcoming_only: bool = False,
 	skip_expiration_filter: bool = False,
 ):
-	"""List ALL bulletins (published and unpublished) for admin editing"""
+	"""List ALL bulletins (published and unpublished) for admin editing, sorted by order field"""
 	return await list_bulletins(
 		skip=skip,
 		limit=limit,
@@ -207,7 +198,6 @@ async def list_all_bulletins_for_editing(
 		week_start=_combine_date_and_time(week_start),
 		week_end=_combine_date_and_time(week_end, end_of_day=True),
 		published=published,  # None allows both published and unpublished
-		pinned_only=pinned_only,
 		upcoming_only=upcoming_only,
 		skip_expiration_filter=skip_expiration_filter,
 	)
@@ -241,20 +231,6 @@ async def toggle_bulletin_publish(
 	return await process_publish_toggle(
 		bulletin_id,
 		published=payload.published,
-		request=request,
-	)
-
-
-@bulletin_editing_router.patch("/{bulletin_id}/pin")
-async def toggle_bulletin_pin(
-	bulletin_id: str,
-	payload: BulletinPinToggle,
-	request: Request,
-):
-	"""Toggle bulletin pinned status"""
-	return await process_pin_toggle(
-		bulletin_id,
-		pinned=payload.pinned,
 		request=request,
 	)
 

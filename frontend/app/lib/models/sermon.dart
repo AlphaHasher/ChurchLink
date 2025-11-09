@@ -6,11 +6,8 @@ import 'package:intl/intl.dart';
 class Sermon {
   final String id;
   final String title;
-  final String? ruTitle;
   final String description;
-  final String? ruDescription;
   final String speaker;
-  final String? ruSpeaker;
   final List<String> ministry;
   final String youtubeUrl;
   final String? videoId;
@@ -28,11 +25,8 @@ class Sermon {
   const Sermon({
     required this.id,
     required this.title,
-    this.ruTitle,
     required this.description,
-    this.ruDescription,
     required this.speaker,
-    this.ruSpeaker,
     required this.ministry,
     required this.youtubeUrl,
     this.videoId,
@@ -74,11 +68,8 @@ class Sermon {
     return Sermon(
       id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
-      ruTitle: json['ru_title']?.toString(),
       description: json['description']?.toString() ?? '',
-      ruDescription: json['ru_description']?.toString(),
       speaker: json['speaker']?.toString() ?? '',
-      ruSpeaker: json['ru_speaker']?.toString(),
       ministry: _coerceStringList(json['ministry']),
       youtubeUrl: json['youtube_url']?.toString() ?? '',
       videoId: json['video_id']?.toString(),
@@ -99,11 +90,8 @@ class Sermon {
     return {
       'id': id,
       'title': title,
-      if (ruTitle != null) 'ru_title': ruTitle,
       'description': description,
-      if (ruDescription != null) 'ru_description': ruDescription,
       'speaker': speaker,
-      if (ruSpeaker != null) 'ru_speaker': ruSpeaker,
       'ministry': ministry,
       'youtube_url': youtubeUrl,
       if (videoId != null) 'video_id': videoId,
@@ -214,36 +202,12 @@ class Sermon {
   String get formattedDateTime =>
       DateFormat('MMM dd, yyyy • hh:mm a').format(datePosted);
 
-  String getDisplayTitle({bool useRussian = false}) {
-    if (useRussian && ruTitle != null && ruTitle!.isNotEmpty) {
-      return ruTitle!;
-    }
-    return title;
-  }
-
-  String getDisplayDescription({bool useRussian = false}) {
-    if (useRussian && ruDescription != null && ruDescription!.isNotEmpty) {
-      return ruDescription!;
-    }
-    return description;
-  }
-
-  String getDisplaySpeaker({bool useRussian = false}) {
-    if (useRussian && ruSpeaker != null && ruSpeaker!.isNotEmpty) {
-      return ruSpeaker!;
-    }
-    return speaker;
-  }
-
   Sermon copyWith({bool? isFavorited}) {
     return Sermon(
       id: id,
       title: title,
-      ruTitle: ruTitle,
       description: description,
-      ruDescription: ruDescription,
       speaker: speaker,
-      ruSpeaker: ruSpeaker,
       ministry: ministry,
       youtubeUrl: youtubeUrl,
       videoId: videoId,

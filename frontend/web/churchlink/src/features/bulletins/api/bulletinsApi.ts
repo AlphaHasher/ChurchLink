@@ -213,15 +213,6 @@ export const togglePublish = async (id: string, published: boolean) => {
 	}
 };
 
-export const togglePin = async (id: string, pinned: boolean) => {
-	try {
-		await api.patch(`/v1/bulletins/${id}/pin`, { pinned });
-	} catch (err) {
-		console.error('Failed to toggle pin:', err);
-		throw err;
-	}
-};
-
 export const reorderBulletins = async (bulletinIds: string[]) => {
 	try {
 		await api.patch('/v1/bulletins/reorder', { bulletin_ids: bulletinIds });

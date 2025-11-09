@@ -19,9 +19,6 @@ class SermonBase(BaseModel):
 	youtube_url: HttpUrl
 	date_posted: datetime
 	published: bool
-	ru_title: Optional[str] = None
-	ru_description: Optional[str] = None
-	ru_speaker: Optional[str] = None
 	roles: List[str] = Field(default_factory=list)
 	thumbnail_url: Optional[HttpUrl] = None
 	tags: List[str] = Field(default_factory=list)
@@ -43,9 +40,6 @@ class SermonUpdate(BaseModel):
 	date_posted: Optional[datetime] = None
 	published: Optional[bool] = None
 	roles: Optional[List[str]] = None
-	ru_title: Optional[str] = None
-	ru_description: Optional[str] = None
-	ru_speaker: Optional[str] = None
 	thumbnail_url: Optional[HttpUrl] = None
 	tags: Optional[List[str]] = None
 	duration_seconds: Optional[int] = Field(default=None, ge=0)

@@ -23,15 +23,10 @@ class BulletinBase(BaseModel):
 	publish_date: datetime  # Exact publication date (not normalized)
 	expire_at: Optional[datetime] = None
 	published: bool
-	pinned: bool = False
 	order: int = 0  # Display order for drag-and-drop reordering
 	roles: List[str] = Field(default_factory=list)
 	ministries: List[str] = Field(default_factory=list)
 	attachments: List[AttachmentItem] = Field(default_factory=list)
-	
-	# Localization fields
-	ru_headline: Optional[str] = None
-	ru_body: Optional[str] = None
 	
 	# Media library integration
 	image_id: Optional[str] = Field(None, description="Media library image ID (24-char ObjectId)")
@@ -47,13 +42,10 @@ class BulletinUpdate(BaseModel):
 	publish_date: Optional[datetime] = None
 	expire_at: Optional[datetime] = None
 	published: Optional[bool] = None
-	pinned: Optional[bool] = None
 	order: Optional[int] = None
 	roles: Optional[List[str]] = None
 	ministries: Optional[List[str]] = None
 	attachments: Optional[List[AttachmentItem]] = None
-	ru_headline: Optional[str] = None
-	ru_body: Optional[str] = None
 	image_id: Optional[str] = None
 
 
@@ -172,6 +164,21 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 				"url": str(att.url),
 			})
 	payload["attachments"] = serialized_attachments
+
+	# Assign order to the end of the list when not explicitly provided
+	order_value = payload.get("order")
+	if not isinstance(order_value, int) or order_value <= 0:
+		max_order_doc = None
+		try:
+			if DB.db is not None:
+				max_order_doc = await DB.db["bulletins"].find_one({}, sort=[("order", -1)], projection={"order": 1})
+		except Exception as exc:
+			print(f"Error fetching max bulletin order: {exc}")
+
+		if max_order_doc and isinstance(max_order_doc.get("order"), int):
+			payload["order"] = max(max_order_doc.get("order", -1) + 1, 0)
+		else:
+			payload["order"] = 0
 	
 	now = datetime.utcnow()
 	payload["created_at"] = now
@@ -296,7 +303,6 @@ async def list_bulletins(
 	week_start: Optional[datetime] = None,
 	week_end: Optional[datetime] = None,
 	published: Optional[bool] = None,
-	pinned_only: bool = False,
 	upcoming_only: bool = False,
 	skip_expiration_filter: bool = False,
 ) -> List[BulletinOut]:
@@ -304,10 +310,10 @@ async def list_bulletins(
 	List bulletins with optional filters.
 	- query_text: text search across headline and summary
 	- week_start/week_end: filter by exact publish_date range (used for services, not bulletins)
-	- pinned_only: return only pinned bulletins
 	- upcoming_only: filter for publish_date <= today (bulletins that have been published)
 	- skip_expiration_filter: if True, show expired bulletins too (for admin dashboard)
 	- Automatically filters out expired bulletins (expire_at < now) unless skip_expiration_filter=True
+	- Sorted by order field ascending (for drag-and-drop reordering)
 	"""
 	query: dict = {}
 
@@ -319,8 +325,6 @@ async def list_bulletins(
 		query["ministries"] = {"$in": [ministry]}
 	if published is not None:
 		query["published"] = published
-	if pinned_only:
-		query["pinned"] = True
 	if upcoming_only:
 		# For bulletins: show if publish_date <= now (already published)
 		query.setdefault("publish_date", {})["$lte"] = datetime.utcnow()
@@ -345,11 +349,11 @@ async def list_bulletins(
 	if DB.db is None:
 		return []
 
-	# Sort by text score if searching, otherwise by publish_date descending, then pinned first
+	# Sort by text score if searching, otherwise by order ascending (drag-and-drop order)
 	if query_text:
 		cursor = DB.db["bulletins"].find(query).sort([("score", {"$meta": "textScore"})])
 	else:
-		cursor = DB.db["bulletins"].find(query).sort([("publish_date", -1), ("pinned", -1)])
+		cursor = DB.db["bulletins"].find(query).sort([("order", 1)])
 	
 	if skip:
 		cursor = cursor.skip(skip)
@@ -379,7 +383,6 @@ async def search_bulletins(
 	limit: int = 100,
 	ministry: Optional[str] = None,
 	published: Optional[bool] = None,
-	pinned_only: bool = False,
 ) -> List[BulletinOut]:
 	"""Text search across bulletin headlines and summaries"""
 	query: dict = {"$text": {"$search": query_text}}
@@ -388,8 +391,6 @@ async def search_bulletins(
 		query["ministries"] = {"$in": [ministry]}
 	if published is not None:
 		query["published"] = published
-	if pinned_only:
-		query["pinned"] = True
 
 	# Filter out expired bulletins (expire_at in the past)
 	now = datetime.utcnow()

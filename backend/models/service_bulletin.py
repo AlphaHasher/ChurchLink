@@ -30,11 +30,6 @@ class ServiceBulletinBase(BaseModel):
 	order: int = 0  # Display order within the week
 	published: bool = True
 	visibility_mode: Literal['always', 'specific_weeks'] = 'specific_weeks'  # Control when service appears
-	
-	# Localization fields
-	ru_title: Optional[str] = None
-	ru_description: Optional[str] = None
-	ru_timeline_notes: Optional[str] = None
 
 
 class ServiceBulletinCreate(ServiceBulletinBase):
@@ -51,9 +46,6 @@ class ServiceBulletinUpdate(BaseModel):
 	order: Optional[int] = None
 	published: Optional[bool] = None
 	visibility_mode: Optional[Literal['always', 'specific_weeks']] = None
-	ru_title: Optional[str] = None
-	ru_description: Optional[str] = None
-	ru_timeline_notes: Optional[str] = None
 
 
 class ServiceBulletinOut(ServiceBulletinBase):
@@ -85,6 +77,21 @@ async def create_service(service: ServiceBulletinCreate) -> Optional[ServiceBull
 	
 	# Normalize display_week to Monday 00:00
 	payload["display_week"] = canonicalize_week_start(service.display_week)
+
+	# Ensure new services append to the end of the ordering sequence
+	order_value = payload.get("order")
+	if not isinstance(order_value, int) or order_value <= 0:
+		max_order_doc = None
+		try:
+			if DB.db is not None:
+				max_order_doc = await DB.db["service_bulletins"].find_one({}, sort=[("order", -1)], projection={"order": 1})
+		except Exception as exc:
+			print(f"Error fetching max service order: {exc}")
+
+		if max_order_doc and isinstance(max_order_doc.get("order"), int):
+			payload["order"] = max(max_order_doc.get("order", -1) + 1, 0)
+		else:
+			payload["order"] = 0
 	
 	now = datetime.utcnow()
 	payload["created_at"] = now

@@ -196,21 +196,6 @@ async def process_publish_toggle(
 	return {"message": "Bulletin publish state updated", "success": True}
 
 
-async def process_pin_toggle(
-	bulletin_id: str,
-	*,
-	pinned: bool,
-	request: Request,
-):
-	"""Toggle pinned status"""
-	await process_edit_bulletin(
-		bulletin_id,
-		BulletinUpdate(pinned=pinned),
-		request,
-	)
-	return {"message": "Bulletin pinned state updated", "success": True}
-
-
 async def process_reorder_bulletins(bulletin_ids: List[str], request: Request):
 	"""Reorder bulletins by updating order field"""
 	_require_bulletin_permissions(request)

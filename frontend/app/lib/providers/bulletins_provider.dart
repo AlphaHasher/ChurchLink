@@ -53,10 +53,6 @@ class BulletinsProvider extends ChangeNotifier {
   BulletinFilter get activeFilter => _activeFilter;
   Bulletin? get selected => _selected;
 
-  /// Get only pinned bulletins
-  List<Bulletin> get pinnedBulletins =>
-      _items.where((bulletin) => bulletin.pinned).toList();
-
   /// Get upcoming bulletins (publish date in the future)
   List<Bulletin> get upcomingBulletins =>
       _items.where((bulletin) => bulletin.isUpcoming).toList();

@@ -71,12 +71,8 @@ export function EditServiceDialog({
                 description: service.description || "",
                 timeline_notes: service.timeline_notes || "",
                 display_week: service.display_week ? service.display_week.toISOString() : new Date().toISOString(),
-                order: service.order ?? 0,
                 published: service.published ?? false,
                 visibility_mode: service.visibility_mode || 'specific_weeks',
-                ru_title: service.ru_title || "",
-                ru_description: service.ru_description || "",
-                ru_timeline_notes: service.ru_timeline_notes || "",
             };
 
             console.log(`[Service Update] Updating service "${service.title}" (ID: ${service.id}) at ${new Date().toISOString()}`);
@@ -165,48 +161,44 @@ export function EditServiceDialog({
                         "border border-gray-200 dark:border-gray-600"
                     )}
                 >
-                    <DialogHeader className="space-y-4">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                            <div>
-                                <DialogTitle className="text-black dark:text-white">Edit Service</DialogTitle>
-                                <DialogDescription className="pt-2 text-muted-foreground dark:text-muted-foreground/80">
-                                    Update service information below.
-                                </DialogDescription>
-                            </div>
-                            <div className="ml-auto flex flex-wrap items-center gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleDialogClose}
-                                    disabled={saving || deleting}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={() => setDeleteConfirmOpen(true)}
-                                    disabled={saving || deleting}
-                                >
-                                    Delete
-                                </Button>
-                                <Button
-                                    className="ml-3"
-                                    onClick={handleSave}
-                                    disabled={saving || deleting}
-                                >
-                                    {saving ? (
-                                        <>
-                                            <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        'Save changes'
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
+                    <DialogHeader className="space-y-2">
+                        <DialogTitle className="text-black dark:text-white">Edit Service</DialogTitle>
+                        <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
+                            Update service information below.
+                        </DialogDescription>
                     </DialogHeader>
+
+                    <div className="mb-4 flex flex-wrap items-center justify-end gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleDialogClose}
+                            disabled={saving || deleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => setDeleteConfirmOpen(true)}
+                            disabled={saving || deleting}
+                        >
+                            Delete
+                        </Button>
+                        <Button
+                            onClick={handleSave}
+                            disabled={saving || deleting}
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save changes'
+                            )}
+                        </Button>
+                    </div>
 
                     <div className={cn(
                         "grid gap-4 py-4",
@@ -241,16 +233,6 @@ export function EditServiceDialog({
                                 placeholder="Title"
                                 value={service.title} 
                                 onChange={(e) => setService({ ...service, title: e.target.value })} 
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Title (RU)</span>
-                            <input 
-                                className="border p-2 rounded" 
-                                placeholder="Title (RU)"
-                                value={service.ru_title || ''} 
-                                onChange={(e) => setService({ ...service, ru_title: e.target.value })} 
                             />
                         </label>
 
@@ -338,17 +320,6 @@ export function EditServiceDialog({
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Description (RU)</span>
-                            <textarea 
-                                className="border p-2 rounded" 
-                                rows={3}
-                                placeholder="Description (RU)"
-                                value={service.ru_description || ''} 
-                                onChange={(e) => setService({ ...service, ru_description: e.target.value })} 
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Timeline Notes</span>
                             <textarea 
                                 className="border p-2 rounded font-mono text-sm" 
@@ -359,34 +330,6 @@ export function EditServiceDialog({
                             />
                             <span className="text-xs text-gray-500 mt-1">
                                 Timeline
-                            </span>
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Timeline Notes (RU)</span>
-                            <textarea 
-                                className="border p-2 rounded font-mono text-sm" 
-                                rows={8}
-                                placeholder="Timeline Notes (RU)"
-                                value={service.ru_timeline_notes || ''} 
-                                onChange={(e) => setService({ ...service, ru_timeline_notes: e.target.value })} 
-                            />
-                            <span className="text-xs text-gray-500 mt-1">
-                                Timeline
-                            </span>
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium">Order</span>
-                            <input 
-                                type="number"
-                                min="0"
-                                className="border p-2 rounded" 
-                                value={service.order ?? 0} 
-                                onChange={(e) => setService({ ...service, order: parseInt(e.target.value) || 0 })} 
-                            />
-                            <span className="text-xs text-gray-500 mt-1">
-                                Lower numbers appear first (can also be reordered via drag-and-drop)
                             </span>
                         </label>
 

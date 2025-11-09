@@ -27,21 +27,8 @@ const Bulletins = () => {
             });
 
             const sorted = Array.from(merged.values()).sort((a, b) => {
-                // Sort by order first (for drag-and-drop), then by publish_date desc, then pinned
-                if (a.order !== b.order) {
-                    return a.order - b.order;
-                }
-                
-                const aTime = a.publish_date ? new Date(a.publish_date).getTime() : 0;
-                const bTime = b.publish_date ? new Date(b.publish_date).getTime() : 0;
-                
-                if (aTime !== bTime) {
-                    return bTime - aTime;
-                }
-                
-                if (a.pinned && !b.pinned) return -1;
-                if (!a.pinned && b.pinned) return 1;
-                return 0;
+                // Sort by order (ascending) for drag-and-drop reordering
+                return a.order - b.order;
             });
 
             setBulletins(sorted);
@@ -115,16 +102,16 @@ const Bulletins = () => {
             <h1 className="text-xl font-bold mb-4">Weekly Bulletin Management</h1>
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="gap-3 bg-muted/80 p-[4px] dark:bg-muted/40">
+                <TabsList className="gap-3 bg-muted/80 p-2 dark:bg-muted/40">
                     <TabsTrigger
                         value="services"
-                        className="transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
+                        className="px-6 py-2.5 transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
                     >
                         Services
                     </TabsTrigger>
                     <TabsTrigger
                         value="bulletins"
-                        className="transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
+                        className="px-6 py-2.5 transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
                     >
                         Bulletin Announcments
                     </TabsTrigger>

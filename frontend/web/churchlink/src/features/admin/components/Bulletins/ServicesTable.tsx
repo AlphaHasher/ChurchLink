@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Button } from '@/shared/components/ui/button';
@@ -135,7 +135,7 @@ export function ServicesTable({
 }: ServicesTableProps) {
     const [search, setSearch] = useState('');
     const [isReordering, setIsReordering] = useState(false);
-    const [localServices, setLocalServices] = useState(services);
+    const [localServices, setLocalServices] = useState<ServiceBulletin[]>(services);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -144,7 +144,12 @@ export function ServicesTable({
         })
     );
 
-    const filtered = (localServices.length ? localServices : services).filter((s) => 
+    // Sync local state when services prop changes
+    useEffect(() => {
+        setLocalServices(services);
+    }, [services]);
+
+    const filtered = localServices.filter((s) => 
         s.title.toLowerCase().includes(search.toLowerCase()) ||
         (s.description && s.description.toLowerCase().includes(search.toLowerCase()))
     );
@@ -160,18 +165,29 @@ export function ServicesTable({
         if (oldIndex === -1 || newIndex === -1) return;
 
         const reordered = arrayMove(filtered, oldIndex, newIndex);
-        setLocalServices(reordered);
+        
+        // Update order field values to reflect new positions
+        const updatedServices = reordered.map((service, index) => ({
+            ...service,
+            order: index + 1
+        }));
+        
+        // Immediately update UI with new order values
+        setLocalServices(updatedServices);
 
-        const serviceIds = reordered.map(s => s.id);
+        const serviceIds = updatedServices.map(s => s.id);
 
         setIsReordering(true);
         try {
             await onReorder(serviceIds);
             console.log(`[Service Reorder] Successfully reordered ${serviceIds.length} services at ${new Date().toISOString()}`);
             toast.success('Services reordered successfully');
+            // Refresh from backend to get authoritative order
+            await onRefresh();
         } catch (err) {
             console.error('[Service Reorder Error]', err);
             toast.error('Failed to reorder services. Changes not saved.');
+            // Revert to original order on error
             setLocalServices(services);
         } finally {
             setIsReordering(false);
@@ -180,7 +196,6 @@ export function ServicesTable({
 
     const handleRefresh = async () => {
         await onRefresh();
-        setLocalServices([]);
     };
 
     return (

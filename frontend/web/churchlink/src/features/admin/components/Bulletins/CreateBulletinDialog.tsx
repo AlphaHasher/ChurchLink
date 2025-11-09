@@ -35,12 +35,10 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
         publish_date: new Date(),
         expire_at: undefined,
         published: false,
-        pinned: false,
+        order: 0,
         ministries: [],
         roles: [],
         attachments: [],
-        ru_headline: "",
-        ru_body: "",
         image_id: undefined,
     };
 
@@ -172,16 +170,6 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Headline (RU)</span>
-                            <input
-                                className="border p-2 rounded"
-                                placeholder="Headline (RU)"
-                                value={bulletin.ru_headline || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_headline: e.target.value })}
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Body *</span>
                             <textarea
                                 className="border p-2 rounded"
@@ -189,17 +177,6 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                                 placeholder="Body"
                                 value={bulletin.body}
                                 onChange={(e) => setBulletin({ ...bulletin, body: e.target.value })}
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Body (RU)</span>
-                            <textarea
-                                className="border p-2 rounded"
-                                rows={6}
-                                placeholder="Body (RU)"
-                                value={bulletin.ru_body || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })}
                             />
                         </label>
 
@@ -289,19 +266,6 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                                             className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
                                         />
                                         <span className="text-sm">{bulletin.published ? "Yes" : "No"}</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col">
-                                    <Label htmlFor="create-bulletin-pinned" className="mb-1 text-sm">Pinned</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Switch
-                                            id="create-bulletin-pinned"
-                                            checked={Boolean(bulletin.pinned)}
-                                            onCheckedChange={(checked) => setBulletin({ ...bulletin, pinned: checked })}
-                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
-                                        />
-                                        <span className="text-sm">{bulletin.pinned ? "Yes" : "No"}</span>
                                     </div>
                                 </div>
                             </div>
