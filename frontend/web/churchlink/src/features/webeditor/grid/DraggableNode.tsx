@@ -60,6 +60,7 @@ type DragNodeProps = {
   onSelect?: () => void;
   onDoubleSelect?: () => void;
   containerId?: string;
+  parentUnits?: { xu: number; yu: number; wu: number; hu: number };
   originPx?: { x: number; y: number };
   enforceChildFullSize?: boolean;
   allowContentPointerEvents?: boolean;
@@ -78,6 +79,7 @@ export function DraggableNode({
   onSelect,
   onDoubleSelect,
   containerId,
+  parentUnits,
   originPx,
   enforceChildFullSize,
   allowContentPointerEvents,
@@ -177,9 +179,40 @@ export function DraggableNode({
     return () => ro.disconnect();
   }, [sectionId, originPx, cssScale, transform]);
 
+  // Continuously refresh origin so children visually track moving containers during drag
+  // We keep this lightweight by only committing state when the computed origin actually changes.
+  useLayoutEffect(() => {
+    if (originPx) return;
+    if (!containerId) return; // Only needed for nested nodes
+    let raf = 0;
+    let running = true;
+    const tick = () => {
+      if (!running) return;
+      const el = wrapperRef.current;
+      const content = document.getElementById(`section-content-${sectionId}`);
+      if (el && content) {
+        const offsetParent = el.offsetParent as HTMLElement | null;
+        if (offsetParent) {
+          const pRect = offsetParent.getBoundingClientRect();
+          const cRect = content.getBoundingClientRect();
+          const ox = (pRect.left - cRect.left) / cssScale;
+          const oy = (pRect.top - cRect.top) / cssScale;
+          setMeasuredOrigin((prev) => (prev.x !== ox || prev.y !== oy ? { x: ox, y: oy } : prev));
+        }
+      }
+      raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => {
+      running = false;
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [sectionId, cssScale, containerId, originPx]);
+
   const originX = originPx?.x ?? measuredOrigin.x;
   const originY = originPx?.y ?? measuredOrigin.y;
   const scale = (cssScale || 1) * (autoScale || 1);
+  const isContainerNode = node.type === 'container';
   const _gridPx = transform.toPx(node.layout?.units ?? { xu: 0, yu: 0 });
   const x = _gridPx.x - originX;
   const y = _gridPx.y - originY;
@@ -190,15 +223,36 @@ export function DraggableNode({
     if (!containerId) return;
     const parentEl = document.getElementById(containerId);
     if (!parentEl) return;
-    if (edges && (edges.top || edges.right || edges.bottom || edges.left)) {
-      (parentEl.style as any).boxShadow = 'inset 0 0 0 2px #ef4444';
-    } else {
-      (parentEl.style as any).boxShadow = '';
-    }
+    const hasEdges = Boolean(edges && (edges.top || edges.right || edges.bottom || edges.left));
+    (parentEl.style as any).boxShadow = hasEdges ? 'inset 0 0 0 2px #ef4444' : '';
   }, [containerId]);
 
+  // Convert a px-rect into fractional grid units (no rounding)
+  const toUnitsFloat = useCallback((pxRect: { x: number; y: number; w: number; h: number }) => {
+    const cell = transform.cellPx;
+    const ox = transform.offsetX;
+    const oy = transform.offsetY;
+    return {
+      xu: (pxRect.x - ox) / cell,
+      yu: (pxRect.y - oy) / cell,
+      wu: pxRect.w / cell,
+      hu: pxRect.h / cell,
+    };
+  }, [transform.cellPx, transform.offsetX, transform.offsetY]);
+
+  // Persistently outline the movement constraint bounds whenever this node is selected.
+  useLayoutEffect(() => {
+    const targetId = isContainerNode ? node.id : containerId;
+    if (!targetId) return;
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+    return () => {
+      (targetEl.style as any).boxShadow = '';
+    };
+  }, [containerId, isContainerNode, node.id]);
+
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (disabled) return; // disable interactions
+    if (disabled) return;
     if (isEditing) return; // Disable drag when editing text
     const wrapper = e.currentTarget as HTMLElement;
     // Measure actual child box instead of wrapper which includes outlines/handles
@@ -248,30 +302,34 @@ export function DraggableNode({
           const contentRect = contentEl.getBoundingClientRect();
           const parentRect = parentEl.getBoundingClientRect();
           const isSectionRoot = parentEl === contentEl;
-          const parentPx = isSectionRoot
-            ? {
-                x: 0,
-                y: 0,
-                w: transform.cols * transform.cellPx,
-                h: transform.rows * transform.cellPx,
-              }
-            : {
-                x: ((parentRect.left - contentRect.left)) / cssScale,
-                y: ((parentRect.top - contentRect.top)) / cssScale,
-                w: parentRect.width / cssScale,
-                h: parentRect.height / cssScale,
-              };
-          const parentUnits = isSectionRoot
-            ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
-            : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
+          const parentUnitsFloat = parentUnits
+            ? parentUnits
+            : (isSectionRoot
+                ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+                : toUnitsFloat({
+                    x: ((parentRect.left - contentRect.left)) / cssScale,
+                    y: ((parentRect.top - contentRect.top)) / cssScale,
+                    w: parentRect.width / cssScale,
+                    h: parentRect.height / cssScale,
+                  }));
+          const parentWidthPx = (parentUnits?.wu ?? parentUnitsFloat.wu) * transform.cellPx;
+          const parentHeightPx = (parentUnits?.hu ?? parentUnitsFloat.hu) * transform.cellPx;
+          const parentPx = {
+            w: parentWidthPx,
+            h: parentHeightPx,
+          };
           const { xu: nxu, yu: nyu, wu: nwu, hu: nhu } = transform.toUnits({ x: nx + originX, y: ny + originY, w: nw, h: nh });
-          const minXu = isSectionRoot ? 0 : parentUnits.xu;
-          const minYu = isSectionRoot ? 0 : parentUnits.yu;
-          const maxXu = minXu + parentUnits.wu - nwu;
-          const maxYu = minYu + parentUnits.hu - nhu;
+          const minXu = parentUnits ? parentUnits.xu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.xu);
+          const minYu = parentUnits ? parentUnits.yu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.yu);
+          const maxXu = parentUnits
+            ? parentUnits.xu + parentUnits.wu - nwu
+            : (isSectionRoot ? (transform.cols - nwu) : Math.floor(parentUnitsFloat.xu + parentUnitsFloat.wu - nwu));
+          const maxYu = parentUnits
+            ? parentUnits.yu + parentUnits.hu - nhu
+            : (isSectionRoot ? (transform.rows - nhu) : Math.floor(parentUnitsFloat.yu + parentUnitsFloat.hu - nhu));
           const clampedUnits = {
             xu: Math.max(minXu, Math.min(nxu, maxXu)),
-            yu: parentUnits.hu > nhu ? Math.max(minYu, Math.min(nyu, maxYu)) : nyu,
+            yu: ((parentUnits?.hu ?? parentUnitsFloat.hu) > nhu) ? Math.max(minYu, Math.min(nyu, maxYu)) : nyu,
             wu: nwu,
             hu: nhu,
           };
@@ -285,7 +343,7 @@ export function DraggableNode({
             left: nx <= tol,
             top: ny <= tol,
             right: Math.abs(nx + nw - parentPx.w) <= tol,
-            bottom: parentUnits.hu > nhu ? Math.abs(ny + nh - parentPx.h) <= tol : false,
+            bottom: (isSectionRoot ? transform.rows : parentUnitsFloat.hu) > nhu ? Math.abs(ny + nh - parentPx.h) <= tol : false,
           } as const;
           if (BuilderState.setEdgeContact) BuilderState.setEdgeContact(containerId, { top: edges.top, right: edges.right, bottom: edges.bottom, left: edges.left });
           applyParentOutline(edges);
@@ -310,32 +368,32 @@ export function DraggableNode({
       if (parentEl) {
         const contentEl = document.getElementById(`section-content-${sectionId}`) || parentEl;
         const contentRect = contentEl.getBoundingClientRect();
-        const parentRect = parentEl.getBoundingClientRect();
-        const isSectionRoot = parentEl === contentEl;
-        const parentPx = isSectionRoot
-          ? {
-              x: 0,
-              y: 0,
-              w: transform.cols * transform.cellPx,
-              h: transform.rows * transform.cellPx,
-            }
-          : {
-              x: ((parentRect.left - contentRect.left)) / cssScale,
-              y: ((parentRect.top - contentRect.top)) / cssScale,
-              w: parentRect.width / cssScale,
-              h: parentRect.height / cssScale,
-            };
-        const parentUnits = isSectionRoot
-          ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
-          : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
+          const parentRect = parentEl.getBoundingClientRect();
+          const isSectionRoot = parentEl === contentEl;
+          const parentUnitsFloat = parentUnits
+            ? parentUnits
+            : (isSectionRoot
+                ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+                : toUnitsFloat({
+                    x: ((parentRect.left - contentRect.left)) / cssScale,
+                    y: ((parentRect.top - contentRect.top)) / cssScale,
+                    w: parentRect.width / cssScale,
+                    h: parentRect.height / cssScale,
+                  }));
+        const parentWidthPx = (parentUnits?.wu ?? parentUnitsFloat.wu) * transform.cellPx;
+        const parentHeightPx = (parentUnits?.hu ?? parentUnitsFloat.hu) * transform.cellPx;
         const wu = node.layout?.units?.wu ?? Math.round(startRef.current.w0 / transform.cellPx);
         const hu = node.layout?.units?.hu ?? Math.round(startRef.current.h0 / transform.cellPx);
-        const minXu = isSectionRoot ? 0 : parentUnits.xu;
-        const minYu = isSectionRoot ? 0 : parentUnits.yu;
-        const maxXu = minXu + parentUnits.wu - wu;
-        const maxYu = minYu + parentUnits.hu - hu;
+        const minXu = parentUnits ? parentUnits.xu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.xu);
+        const minYu = parentUnits ? parentUnits.yu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.yu);
+        const maxXu = parentUnits
+          ? parentUnits.xu + parentUnits.wu - wu
+          : (isSectionRoot ? (transform.cols - wu) : Math.floor(parentUnitsFloat.xu + parentUnitsFloat.wu - wu));
+        const maxYu = parentUnits
+          ? parentUnits.yu + parentUnits.hu - hu
+          : (isSectionRoot ? (transform.rows - hu) : Math.floor(parentUnitsFloat.yu + parentUnitsFloat.hu - hu));
         xu = Math.max(minXu, Math.min(xu, maxXu));
-        if (parentUnits.hu > hu) {
+        if ((isSectionRoot ? transform.rows : parentUnitsFloat.hu) > hu) {
           yu = Math.max(minYu, Math.min(yu, maxYu));
         }
 
@@ -345,8 +403,8 @@ export function DraggableNode({
         const edges = {
           left: (snappedPx.x - originX) <= tol,
           top: (snappedPx.y - originY) <= tol,
-          right: Math.abs((snappedPx.x - originX) + snappedPx.w! - parentPx.w) <= tol,
-          bottom: parentUnits.hu > hu ? Math.abs((snappedPx.y - originY) + snappedPx.h! - parentPx.h) <= tol : false,
+          right: Math.abs((snappedPx.x - originX) + snappedPx.w! - parentWidthPx) <= tol,
+          bottom: ((parentUnits?.hu ?? parentUnitsFloat.hu) > hu) ? Math.abs((snappedPx.y - originY) + snappedPx.h! - parentHeightPx) <= tol : false,
         } as const;
         if (BuilderState.setEdgeContact) BuilderState.setEdgeContact(containerId, { top: edges.top, right: edges.right, bottom: edges.bottom, left: edges.left });
         applyParentOutline(edges);
@@ -377,30 +435,28 @@ export function DraggableNode({
           const contentRect = contentEl.getBoundingClientRect();
           const parentRect = parentEl.getBoundingClientRect();
           const isSectionRoot = parentEl === contentEl;
-          const parentPx = isSectionRoot
-            ? {
-                x: 0,
-                y: 0,
-                w: transform.cols * transform.cellPx,
-                h: transform.rows * transform.cellPx,
-              }
-            : {
-                x: (parentRect.left - contentRect.left) - transform.offsetX,
-                y: (parentRect.top - contentRect.top) - transform.offsetY,
-                w: parentRect.width,
-                h: parentRect.height,
-              };
-          const parentUnits = isSectionRoot
-            ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
-            : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
-          wu = Math.max(1, Math.min(wu, parentUnits.wu));
-          hu = Math.max(1, Math.min(hu, parentUnits.hu));
-          const minXu = isSectionRoot ? 0 : parentUnits.xu;
-          const minYu = isSectionRoot ? 0 : parentUnits.yu;
-          const maxXu = minXu + parentUnits.wu - wu;
-          const maxYu = minYu + parentUnits.hu - hu;
+          const parentUnitsFloat = parentUnits
+            ? parentUnits
+            : (isSectionRoot
+                ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+                : toUnitsFloat({
+                    x: ((parentRect.left - contentRect.left)) / cssScale,
+                    y: ((parentRect.top - contentRect.top)) / cssScale,
+                    w: parentRect.width / cssScale,
+                    h: parentRect.height / cssScale,
+                  }));
+          wu = Math.max(1, Math.min(wu, Math.floor(parentUnitsFloat.wu)));
+          hu = Math.max(1, Math.min(hu, Math.floor(parentUnitsFloat.hu)));
+          const minXu = parentUnits ? parentUnits.xu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.xu);
+          const minYu = parentUnits ? parentUnits.yu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.yu);
+          const maxXu = parentUnits
+            ? parentUnits.xu + parentUnits.wu - wu
+            : (isSectionRoot ? (transform.cols - wu) : Math.floor(parentUnitsFloat.xu + parentUnitsFloat.wu - wu));
+          const maxYu = parentUnits
+            ? parentUnits.yu + parentUnits.hu - hu
+            : (isSectionRoot ? (transform.rows - hu) : Math.floor(parentUnitsFloat.yu + parentUnitsFloat.hu - hu));
           xu = Math.max(minXu, Math.min(xu, maxXu));
-          if (parentUnits.hu > hu) {
+          if ((parentUnits?.hu ?? parentUnitsFloat.hu) > hu) {
             yu = Math.max(minYu, Math.min(yu, maxYu));
           }
         }
@@ -440,30 +496,28 @@ export function DraggableNode({
         const contentRect = contentEl.getBoundingClientRect();
         const parentRect = parentEl.getBoundingClientRect();
         const isSectionRoot = parentEl === contentEl;
-        const parentPx = isSectionRoot
-          ? {
-              x: 0,
-              y: 0,
-              w: transform.cols * transform.cellPx,
-              h: transform.rows * transform.cellPx,
-            }
-          : {
-              x: (parentRect.left - contentRect.left) - transform.offsetX,
-              y: (parentRect.top - contentRect.top) - transform.offsetY,
-              w: parentRect.width,
-              h: parentRect.height,
-            };
-        const parentUnits = isSectionRoot
-          ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
-          : transform.toUnits({ x: parentPx.x, y: parentPx.y, w: parentPx.w, h: parentPx.h });
+        const parentUnitsFloat = parentUnits
+          ? parentUnits
+          : (isSectionRoot
+              ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+              : toUnitsFloat({
+                  x: ((parentRect.left - contentRect.left)) / cssScale,
+                  y: ((parentRect.top - contentRect.top)) / cssScale,
+                  w: parentRect.width / cssScale,
+                  h: parentRect.height / cssScale,
+                }));
         const nodeWu = Math.round(startRef.current.w0 / transform.cellPx);
         const nodeHu = Math.round(startRef.current.h0 / transform.cellPx);
-        const minXu = isSectionRoot ? 0 : parentUnits.xu;
-        const minYu = isSectionRoot ? 0 : parentUnits.yu;
-        const maxXu = minXu + parentUnits.wu - nodeWu;
-        const maxYu = minYu + parentUnits.hu - nodeHu;
+        const minXu = parentUnits ? parentUnits.xu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.xu);
+        const minYu = parentUnits ? parentUnits.yu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.yu);
+        const maxXu = parentUnits
+          ? parentUnits.xu + parentUnits.wu - nodeWu
+          : (isSectionRoot ? (transform.cols - nodeWu) : Math.floor(parentUnitsFloat.xu + parentUnitsFloat.wu - nodeWu));
+        const maxYu = parentUnits
+          ? parentUnits.yu + parentUnits.hu - nodeHu
+          : (isSectionRoot ? (transform.rows - nodeHu) : Math.floor(parentUnitsFloat.yu + parentUnitsFloat.hu - nodeHu));
         xu = Math.max(minXu, Math.min(xu, maxXu));
-        if (parentUnits.hu > nodeHu) {
+        if ((parentUnits?.hu ?? parentUnitsFloat.hu) > nodeHu) {
           yu = Math.max(minYu, Math.min(yu, maxYu));
         }
       }
@@ -490,6 +544,24 @@ export function DraggableNode({
   const renderY = tempPos?.y ?? y;
   const renderW = tempSize?.w ?? baseWidth ?? defaultSize?.w;
   const renderH = tempSize?.h ?? baseHeight ?? defaultSize?.h;
+
+  // Propagate live container drag delta to its descendants via CSS variables so children visually track the card during drag.
+  useLayoutEffect(() => {
+    if (node.type !== 'container') return;
+    const el = document.getElementById(node.id);
+    if (!el) return;
+    const baseX = (_gridPx.x - originX);
+    const baseY = (_gridPx.y - originY);
+    const dx = (tempPos?.x ?? x) - baseX;
+    const dy = (tempPos?.y ?? y) - baseY;
+    (el.style as any).setProperty('--drag-dx', `${dx}px`);
+    (el.style as any).setProperty('--drag-dy', `${dy}px`);
+    return () => {
+      // Reset on unmount or when this node stops being a container
+      (el.style as any).setProperty('--drag-dx', `0px`);
+      (el.style as any).setProperty('--drag-dy', `0px`);
+    };
+  }, [node.type, node.id, tempPos, x, y, _gridPx.x, _gridPx.y, originX, originY]);
 
   // Activate dragging or resizing only after small movement threshold
   const onWrapperPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -534,7 +606,8 @@ export function DraggableNode({
         top: renderY,
         width: renderW,
         height: renderH,
-        transform: 'translateZ(0)', // GPU hint
+        // Children of containers read CSS vars --drag-dx/--drag-dy from their parent container element.
+        transform: `translateZ(0)${containerId ? ' translate(var(--drag-dx, 0px), var(--drag-dy, 0px))' : ''}`,
         zIndex: dragging ? 60 : (selected ? 50 : 10),
         pointerEvents: disabled ? 'auto' : undefined,
         cursor: disabled ? 'default' : undefined,
@@ -568,8 +641,8 @@ export function DraggableNode({
       >
         {renderedContent}
       </div>
-      {/* True selection outline (no ring classes) */}
-      {selected && !isEditing && (
+
+      {selected && !isEditing && !isContainerNode && (
         <div className="absolute inset-0 border border-blue-500 pointer-events-none" />
       )}
       {/* Resize handles */}

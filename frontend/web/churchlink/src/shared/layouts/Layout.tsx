@@ -24,7 +24,7 @@ function Layout({
             <AppSidebar/>
           </div>
           <NavBar />
-          <main className="flex-grow bg-background">{children}</main>
+          <main className="flex-grow bg-background overflow-x-hidden">{children}</main>
         </div>
         <Footer />
       </div>

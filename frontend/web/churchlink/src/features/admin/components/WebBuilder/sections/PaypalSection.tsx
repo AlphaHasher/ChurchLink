@@ -149,7 +149,7 @@ const PaypalSection: React.FC<PaypalSectionProps> = ({ data, isEditing, onChange
 
   return (
     <section
-      className="w-full h-full bg-cover bg-center text-white text-center rounded"
+      className="w-full bg-cover bg-center text-white text-center rounded"
       style={{ backgroundImage: `url(${data.backgroundImageUrl ?? ""})` }}
     >
       {isEditing && (
@@ -203,8 +203,8 @@ const PaypalSection: React.FC<PaypalSectionProps> = ({ data, isEditing, onChange
           )}
         </div>
       ) : (
-        <div className="w-full h-full flex items-center justify-center p-4">
-          <div className="bg-white/90 shadow-xl rounded-2xl p-6 sm:p-8 w-full h-full text-gray-900 flex flex-col">
+        <div className="w-full flex items-center justify-center p-4">
+          <div className="bg-white/90 shadow-xl rounded-2xl p-6 sm:p-8 w-full text-gray-900 flex flex-col">
             <div className="flex flex-col items-center mb-6">
               <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-2" aria-hidden>
                 <svg width="32" height="32" fill="none" viewBox="0 0 24 24">
@@ -219,7 +219,7 @@ const PaypalSection: React.FC<PaypalSectionProps> = ({ data, isEditing, onChange
               </p>
             </div>
 
-            <form className="space-y-3 mb-6 w-full flex-1" onSubmit={(e) => { e.preventDefault(); handleDonate(); }}>
+            <form className="space-y-3 mb-6 w-full" onSubmit={(e) => { e.preventDefault(); handleDonate(); }}>
               <div className="mb-2">
                 <label className="font-semibold text-gray-700 block mb-1">Purpose:</label>
                 <select

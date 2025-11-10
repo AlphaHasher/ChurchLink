@@ -53,7 +53,7 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, transform, node 
 
   const data = overlay ?? layer;
   if (!data || !transform || !node || !node.layout?.units) return null;
-  const { nodeId, sectionId, values } = data;
+  const { values } = data;
   const [top, right, bottom, left] = values;
   const { x, y, w, h } = transform.toPx(node.layout.units);
 
@@ -482,7 +482,7 @@ const renderNode = (
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
         >
-          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle unstyled disableInteractions />
+          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle disableInteractions />
         </div>
       );
     }
@@ -566,14 +566,14 @@ const renderNode = (
       const BASE_W = 200;
       const BASE_H = 200;
       let scale = 1;
-      if (transform && (node as any)?.layout?.units) {
+      if (!forceFlowLayout && transform && (node as any)?.layout?.units) {
         const size = transform.toPx((node as any).layout.units);
         const w = (size && typeof size.w === 'number') ? size.w : 0;
         const h = (size && typeof size.h === 'number') ? size.h : 0;
         const widthScale = w > 0 ? (w / BASE_W) : 1;
         const heightScale = h > 0 ? (h / BASE_H) : 1;
         scale = Math.max(0.2, Math.min(widthScale, heightScale));
-      } else if (transform) {
+      } else if (!forceFlowLayout && transform) {
         scale = Math.max(0.2, transform.cellPx / 16);
       }
       const inlineStyle: React.CSSProperties = {
@@ -583,29 +583,41 @@ const renderNode = (
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
         display: 'block',
         width: '100%',
-        height: '100%',
-        overflow: 'hidden',
+        overflow: 'visible',
       };
-      return (
-        <div
-          className={cn(interactiveClass, outlineClass)}
-          style={inlineStyle}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-        >
+      if (forceFlowLayout) {
+        return (
           <div
-            style={{
-              transform: `scale(${scale})`,
-              transformOrigin: 'top left',
-              width: `${100 / (scale || 1)}%`,
-              height: `${100 / (scale || 1)}%`,
-            }}
+            className={cn(interactiveClass, outlineClass)}
+            style={inlineStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
           >
             <PaypalSection data={{}} isEditing={false} />
           </div>
-        </div>
-      );
+        );
+      } else {
+        return (
+          <div
+            className={cn(interactiveClass, outlineClass)}
+            style={inlineStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+          >
+            <div
+              style={{
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                width: `${100 / (scale || 1)}%`,
+              }}
+            >
+              <PaypalSection data={{}} isEditing={false} />
+            </div>
+          </div>
+        );
+      }
     }
     case 'container': {
       const nodeStyleRaw = (node as any).style || {};
@@ -652,6 +664,7 @@ const renderNode = (
               onDoubleSelect={() => onNodeDoubleClick?.(sectionId, c.id)}
               render={() => childRendered}
               containerId={node.id}
+              parentUnits={node.layout?.units as any}
               enforceChildFullSize
               allowContentPointerEvents
             />
@@ -673,9 +686,6 @@ const renderNode = (
             className={cn(
               'mx-auto relative',
               mwClass,
-              pxClass,
-              pyClass,
-              nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
               interactiveClass,
               outlineClass
             )}
@@ -691,7 +701,16 @@ const renderNode = (
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
           >
-            {containerContent}
+            <div
+              className={cn(
+                pxClass,
+                pyClass,
+                nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
+              )}
+              style={{ width: '100%', height: '100%' }}
+            >
+              {containerContent}
+            </div>
           </div>
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
@@ -866,7 +885,8 @@ const SectionWithVirtualGrid: React.FC<{
   }, [updateTransform]);
 
   const locked = section.lockLayout === true;
-  const rootContainerId = (section.children || []).find((n) => n.type === 'container')?.id;
+  const rootContainerNode = (section.children || []).find((n) => n.type === 'container') || null;
+  const rootContainerId = rootContainerNode?.id;
 
   return (
     <section
@@ -878,7 +898,9 @@ const SectionWithVirtualGrid: React.FC<{
       style={{
         ...(section.background?.style as React.CSSProperties),
         ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
-        height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh`,
+        ...(locked
+          ? {}
+          : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
       }}
     >
       {gridEnabled && transform && (
@@ -897,65 +919,76 @@ const SectionWithVirtualGrid: React.FC<{
       {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
       <div
         ref={contentRef}
-        className={cn(gridClasses, 'relative h-full min-h-full')}
+        className={cn(gridClasses, 'relative', !locked && 'h-full min-h-full')}
         id={`section-content-${section.id}`}
-        style={{ minHeight: 'inherit', position: 'relative' }}
+        style={{ ...(locked ? {} : { minHeight: 'inherit' }), position: 'relative' }}
       >
-        {transform && section.children.map((node) => {
-          const hasLayout = !!node.layout?.units;
-          const rootContainer = (section.children || []).find((n) => n.type === 'container') || null;
-          const rootOriginPx = rootContainer?.layout?.units ? transform.toPx(rootContainer.layout.units as any) : { x: 0, y: 0 };
-          let rendered: React.ReactNode;
-          if (hasLayout && !locked) {
-            const topLevelSize = transform.toPx(node.layout!.units);
-            const w = topLevelSize.w;
-            const h = topLevelSize.h;
-            rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
+        {transform &&
+          (() => {
+            const sectionUnits = { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows };
+            const normalizeUnits = (units?: { xu?: number; yu?: number; wu?: number; hu?: number } | null, fallback = sectionUnits) => ({
+              xu: typeof units?.xu === 'number' ? units.xu : fallback.xu,
+              yu: typeof units?.yu === 'number' ? units.yu : fallback.yu,
+              wu: typeof units?.wu === 'number' ? units.wu : fallback.wu,
+              hu: typeof units?.hu === 'number' ? units.hu : fallback.hu,
+            });
+            const rootUnits = normalizeUnits(rootContainerNode?.layout?.units, sectionUnits);
 
-            const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
-              if (node.type !== 'container') {
-                onUpdateNodeLayout(section.id, nodeId, units as any);
-                return;
+            return section.children.map((node) => {
+              const hasLayout = !!node.layout?.units;
+              let rendered: React.ReactNode;
+              if (hasLayout && !locked) {
+                const topLevelSize = transform.toPx(node.layout!.units);
+                const w = topLevelSize.w;
+                const h = topLevelSize.h;
+                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
+
+                const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
+                  if (node.type !== 'container') {
+                    onUpdateNodeLayout(section.id, nodeId, units as any);
+                    return;
+                  }
+
+                  const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
+
+                  const nextUnits = {
+                    xu: units.xu ?? prevUnits.xu ?? 0,
+                    yu: units.yu ?? prevUnits.yu ?? 0,
+                    wu: units.wu ?? prevUnits.wu,
+                    hu: units.hu ?? prevUnits.hu,
+                  };
+
+                  onUpdateNodeLayout(section.id, nodeId, nextUnits);
+                };
+
+                return (
+                  <DraggableNode
+                    key={node.id}
+                    sectionId={section.id}
+                    node={{
+                      ...node,
+                      layout: { units: node.layout!.units },
+                    }}
+                    transform={transform}
+                    defaultSize={{ w, h }}
+                    selected={node.id === selectedNodeId}
+                    onCommitLayout={handleCommitLayout}
+                    onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
+                    onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
+                    render={() => rendered}
+                    containerId={node.type === 'container' ? `section-content-${section.id}` : (rootContainerId ?? `section-content-${section.id}`)}
+                    parentUnits={node.type === 'container' ? sectionUnits : rootUnits}
+                    enforceChildFullSize
+                    allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
+                    disabled={locked}
+                  />
+                );
+              } else {
+                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
+                return <div key={node.id} className="relative">{rendered}</div>;
               }
-
-              const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
-
-              const nextUnits = {
-                xu: units.xu ?? prevUnits.xu ?? 0,
-                yu: units.yu ?? prevUnits.yu ?? 0,
-                wu: units.wu ?? prevUnits.wu,
-                hu: units.hu ?? prevUnits.hu,
-              };
-
-              onUpdateNodeLayout(section.id, nodeId, nextUnits);
-            };
-
-            return (
-              <DraggableNode
-                key={node.id}
-                sectionId={section.id}
-                node={{
-                  ...node,
-                  layout: { units: node.layout!.units },
-                }}
-                transform={transform}
-                defaultSize={{ w, h }}
-                selected={node.id === selectedNodeId}
-                onCommitLayout={handleCommitLayout}
-                onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
-                onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
-                render={() => rendered}
-                containerId={node.type === 'container' ? `section-content-${section.id}` : (rootContainerId ?? `section-content-${section.id}`)}
-                enforceChildFullSize
-                allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
-                disabled={locked}
-              />
-            );
-          } else {
-            rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
-            return <div key={node.id} className="relative">{rendered}</div>;
-          }
-        })}
+            });
+          })()}
 
         {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && transform && (
           <PaddingOverlay
