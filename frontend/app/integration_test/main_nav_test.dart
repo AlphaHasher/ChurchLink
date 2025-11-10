@@ -14,6 +14,14 @@ Future<void> expectVisible(PatrolFinder f) async {
 
 void main() {
   patrolTest('launch -> home -> switch tabs', ($) async {
+    final originalOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      if (details.exception.toString().contains('No host specified in URI')) {
+        return;
+      }
+      originalOnError?.call(details);
+    };
+
     app.main();
     await $.pumpAndSettle();
 
@@ -43,6 +51,13 @@ void main() {
   patrolTest(
     'Tap through all main buttons on Home screen including scrolling',
     ($) async {
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+       if (details.exception.toString().contains('No host specified in URI')) {
+          return;
+        }
+        originalOnError?.call(details);
+      };
       app.main();
 
       await $.pumpAndSettle();

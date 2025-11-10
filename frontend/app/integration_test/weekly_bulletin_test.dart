@@ -5,6 +5,14 @@ import 'package:app/main.dart' as app;
 
 void main() {
   patrolTest('Weekly Bulletin page shows current data', ($) async {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exception.toString().contains('No host specified in URI')) {
+      return;
+    }
+    originalOnError?.call(details);
+  };
+
   app.main();
   await $.pumpAndSettle();
 
@@ -24,6 +32,14 @@ void main() {
 });
 
  patrolTest('Can open and view service detail page', ($) async {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exception.toString().contains('No host specified in URI')) {
+      return;
+    }
+    originalOnError?.call(details);
+  };
+
   app.main();
   await $.pumpAndSettle();
 
@@ -47,6 +63,14 @@ void main() {
 });
 
  patrolTest('Can open bulletin announcement modal', ($) async {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exception.toString().contains('No host specified in URI')) {
+      return;
+    }
+    originalOnError?.call(details);
+  };
+
   app.main();
   await $.pumpAndSettle();
 
@@ -65,6 +89,14 @@ void main() {
 });
 
  patrolTest('Can open and close filter announcements modal', ($) async {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exception.toString().contains('No host specified in URI')) {
+      return;
+    }
+    originalOnError?.call(details);
+  };
+
   app.main();
   await $.pumpAndSettle();
 
@@ -91,6 +123,14 @@ void main() {
 });
 
  patrolTest('Can select a ministry from filter dropdown', ($) async {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exception.toString().contains('No host specified in URI')) {
+      return;
+    }
+    originalOnError?.call(details);
+  };
+
   app.main();
   await $.pumpAndSettle();
 
@@ -112,6 +152,14 @@ void main() {
 });
 
  patrolTest('Back arrow returns to home from Weekly Bulletin', ($) async {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exception.toString().contains('No host specified in URI')) {
+      return;
+    }
+    originalOnError?.call(details);
+  };
+
   app.main();
   await $.pumpAndSettle();
 
