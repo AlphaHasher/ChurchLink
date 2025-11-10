@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
 
@@ -165,8 +166,9 @@ async def list_image_data_advanced(
         query["path"] = {"$regex": f"^{prefix}"}
 
     if name_q:
-        # name substring match (case-insensitive)
-        query["name"] = {"$regex": name_q, "$options": "i"}
+        # name substring match (case-insensitive) - escape to prevent regex injection
+        escaped_name = re.escape(name_q)
+        query["name"] = {"$regex": escaped_name, "$options": "i"}
 
     total = await col.count_documents(query)
     skip = max(0, (page - 1) * page_size)

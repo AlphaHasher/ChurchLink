@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
+import { Label } from "@/shared/components/ui/label";
 import {
     Dialog,
     DialogContent,
@@ -9,14 +10,18 @@ import {
     DialogTitle,
 } from "@/shared/components/ui/Dialog";
 import { Loader2, Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
+import { BulletinImageSelector } from "./BulletinImageSelector";
+import { Switch } from "@/shared/components/ui/switch";
+import { BULLETIN_MINISTRY_OPTIONS } from "@/features/admin/constants/bulletinMinistryOptions";
 
 interface CreateBulletinProps {
     onSave: () => Promise<void>;
@@ -30,25 +35,27 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
         publish_date: new Date(),
         expire_at: undefined,
         published: false,
-        pinned: false,
+        order: 0,
         ministries: [],
         roles: [],
         attachments: [],
-        ru_headline: "",
-        ru_body: "",
+        image_id: undefined,
     };
 
     const [bulletin, setBulletin] = useState<Partial<ChurchBulletin>>(initial);
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
-
-    useEffect(() => {
-        if (isOpen) {
-            fetchMinistries().then(setMinistries)
-        }
-    }, [isOpen])
+    const ministryOptions = useMemo(() => {
+        const base = new Set<string>(BULLETIN_MINISTRY_OPTIONS);
+        (bulletin.ministries || []).forEach((name) => {
+            const normalized = (name || "").trim();
+            if (normalized) {
+                base.add(normalized);
+            }
+        });
+        return Array.from(base).sort((a, b) => a.localeCompare(b));
+    }, [bulletin.ministries]);
 
     const handleDialogClose = () => {
         setBulletin(initial);
@@ -68,7 +75,8 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
             handleDialogClose();
         } catch (err) {
             console.error("Failed to create bulletin:", err);
-            alert("Failed to create bulletin. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to create bulletin");
+            alert(errorMessage);
         }
         setSaving(false);
     };
@@ -115,23 +123,42 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
         <>
             <Button
                 variant="outline"
-                className="!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600"
+                className={cn(
+                    "!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600",
+                    "dark:!bg-blue-600 dark:border-blue-500 dark:text-white dark:hover:bg-blue-700"
+                )}
                 onClick={handleDialogOpen}
                 disabled={checkingPerms}
             >
-                {checkingPerms ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : "Create Bulletin"}
+                {checkingPerms ? (
+                    <>
+                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                        Checking...
+                    </>
+                ) : (
+                    "Create New Announcement"
+                )}
             </Button>
 
             <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
-                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
+                <DialogContent className={cn(
+                    "sm:max-w-[100vh] max-h-[80vh] overflow-y-auto",
+                    "bg-white dark:bg-gray-800 text-black dark:text-white",
+                    "border border-gray-200 dark:border-gray-600"
+                )}>
                     <DialogHeader>
-                        <DialogTitle>New Bulletin</DialogTitle>
+                        <DialogTitle className="text-black dark:text-white">New Bulletin Announcement</DialogTitle>
                         <div className="pt-6">
-                            <DialogDescription>Fill out the bulletin details below.</DialogDescription>
+                            <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
+                                Create a new bulletin announcement with an optional image from the media library
+                            </DialogDescription>
                         </div>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className={cn(
+                        "grid gap-4 py-4",
+                        "bg-white dark:bg-gray-800"
+                    )}>
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Headline *</span>
                             <input
@@ -139,16 +166,6 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                                 placeholder="Headline"
                                 value={bulletin.headline}
                                 onChange={(e) => setBulletin({ ...bulletin, headline: e.target.value })}
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Headline (RU)</span>
-                            <input
-                                className="border p-2 rounded"
-                                placeholder="Headline (RU)"
-                                value={bulletin.ru_headline || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_headline: e.target.value })}
                             />
                         </label>
 
@@ -163,22 +180,19 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                             />
                         </label>
 
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Body (RU)</span>
-                            <textarea
-                                className="border p-2 rounded"
-                                rows={6}
-                                placeholder="Body (RU)"
-                                value={bulletin.ru_body || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })}
-                            />
-                        </label>
+                        {/* Image Selector */}
+                        <BulletinImageSelector
+                            value={bulletin.image_id ?? null}
+                            onChange={(imageId) => setBulletin({ ...bulletin, image_id: imageId ?? undefined })}
+                            label="Announcement Image"
+                            helperText="Select an optional image to display with this announcement. The image will appear as a thumbnail in the bulletin list."
+                        />
 
                         <div>
                             <EventMinistryDropdown
                                 selected={bulletin.ministries ?? []}
                                 onChange={(next: string[]) => setBulletin({ ...bulletin, ministries: next })}
-                                ministries={ministries}
+                                ministries={ministryOptions}
                             />
                         </div>
 
@@ -240,24 +254,21 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                             )}
                         </div>
 
-                        <div className="flex gap-4">
-                            <label className="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    checked={bulletin.published || false}
-                                    onChange={(e) => setBulletin({ ...bulletin, published: e.target.checked })}
-                                />
-                                <span className="text-sm">Published</span>
-                            </label>
-
-                            <label className="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    checked={bulletin.pinned || false}
-                                    onChange={(e) => setBulletin({ ...bulletin, pinned: e.target.checked })}
-                                />
-                                <span className="text-sm">Pinned</span>
-                            </label>
+                        <div className="rounded border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+                            <div className="flex flex-wrap items-center gap-6">
+                                <div className="flex flex-col">
+                                    <Label htmlFor="create-bulletin-published" className="mb-1 text-sm">Published</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="create-bulletin-published"
+                                            checked={Boolean(bulletin.published)}
+                                            onCheckedChange={(checked) => setBulletin({ ...bulletin, published: checked })}
+                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
+                                        />
+                                        <span className="text-sm">{bulletin.published ? "Yes" : "No"}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

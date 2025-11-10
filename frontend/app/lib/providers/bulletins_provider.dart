@@ -2,37 +2,18 @@ import 'package:flutter/foundation.dart';
 
 import 'package:app/models/bulletin.dart';
 import 'package:app/models/service_bulletin.dart';
+import 'package:app/models/server_week.dart';
 import 'package:app/services/bulletins_service.dart';
 
-/// Get the Monday of the current week at 00:00:00
-/// Used ONLY for filtering services by week (services still use week-based display_week)
-/// Bulletins now use exact date filtering via upcomingOnly parameter
-DateTime _getCurrentWeekMonday() {
-  final today = DateTime.now();
-  final dayOfWeek = today.weekday; // 1 = Monday, 7 = Sunday
-  final daysFromMonday = dayOfWeek - 1;
-  final monday = today.subtract(Duration(days: daysFromMonday));
-  return DateTime(monday.year, monday.month, monday.day);
-}
-
-/// Get the Sunday of the current week at 23:59:59
-DateTime _getCurrentWeekSunday() {
-  final monday = _getCurrentWeekMonday();
-  final sunday = monday.add(const Duration(days: 6));
-  return DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
-}
-
 class BulletinsProvider extends ChangeNotifier {
-  BulletinsProvider({BulletinsService? bulletinsService})
-    : _bulletinsService = bulletinsService ?? BulletinsService() {
-    // Initialize filter with current week boundaries for services
-    // and upcomingOnly=true for bulletins (date-based filtering)
+  BulletinsProvider({
+    BulletinsService? bulletinsService,
+  }) : _bulletinsService = bulletinsService ?? BulletinsService() {
+    // Initialize filter with empty week boundaries - will be fetched from server
     _activeFilter = BulletinFilter(
       limit: 50,
       published: true,
       upcomingOnly: true, // Show bulletins where publish_date <= now
-      weekStart: _getCurrentWeekMonday(), // For services only
-      weekEnd: _getCurrentWeekSunday(), // For services only
     );
   }
 
@@ -40,6 +21,7 @@ class BulletinsProvider extends ChangeNotifier {
 
   List<Bulletin> _items = <Bulletin>[];
   List<ServiceBulletin> _services = <ServiceBulletin>[];
+  ServerWeekInfo? _serverWeek;
   bool _loading = false;
   String? _error;
   late BulletinFilter _activeFilter;
@@ -47,14 +29,11 @@ class BulletinsProvider extends ChangeNotifier {
 
   List<Bulletin> get items => List.unmodifiable(_items);
   List<ServiceBulletin> get services => List.unmodifiable(_services);
+  ServerWeekInfo? get serverWeek => _serverWeek;
   bool get isLoading => _loading;
   String? get error => _error;
   BulletinFilter get activeFilter => _activeFilter;
   Bulletin? get selected => _selected;
-
-  /// Get only pinned bulletins
-  List<Bulletin> get pinnedBulletins =>
-      _items.where((bulletin) => bulletin.pinned).toList();
 
   /// Get upcoming bulletins (publish date in the future)
   List<Bulletin> get upcomingBulletins =>
@@ -105,6 +84,21 @@ class BulletinsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Fetch server week info if not already loaded
+      if (_serverWeek == null || resetPagination) {
+        _serverWeek = await _bulletinsService.fetchCurrentWeek();
+        debugPrint(
+          '[Bulletins Provider] Server week: ${_serverWeek!.weekLabel} '
+          '(${_serverWeek!.timezone})',
+        );
+        
+        // Update filter with server week boundaries
+        filter = filter.copyWith(
+          weekStart: _serverWeek!.weekStart,
+          weekEnd: _serverWeek!.weekEnd,
+        );
+      }
+      
       // Log week filtering for services (not bulletins)
       if (filter.weekStart != null && filter.weekEnd != null) {
         debugPrint(
@@ -118,7 +112,7 @@ class BulletinsProvider extends ChangeNotifier {
 
       debugPrint(
         '[Bulletins Provider] Loaded ${feed.services.length} services for current week, '
-        '${feed.bulletins.length} bulletins (date-based filtering)',
+        '${feed.bulletins.length} bulletins (announcements) with date-based filtering',
       );
 
       if (resetPagination) {
@@ -146,7 +140,7 @@ class BulletinsProvider extends ChangeNotifier {
     }
   }
 
-  /// Search bulletins by headline (legacy - does not include services)
+  /// Search bulletins by headline (does not include services in results)
   Future<void> searchBulletins(String query) async {
     if (query.isEmpty) {
       await loadInitial();
@@ -190,4 +184,3 @@ class BulletinsProvider extends ChangeNotifier {
     super.dispose();
   }
 }
-

@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
+import { Label } from "@/shared/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/shared/components/ui/Dialog";
@@ -16,15 +17,18 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X, Edit } from "lucide-react";
 
 import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
 import { updateBulletin, deleteBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
+import { BulletinImageSelector } from "./BulletinImageSelector";
+import { Switch } from "@/shared/components/ui/switch";
+import { BULLETIN_MINISTRY_OPTIONS } from "@/features/admin/constants/bulletinMinistryOptions";
 
 interface EditBulletinProps {
     bulletin: ChurchBulletin;
@@ -33,23 +37,33 @@ interface EditBulletinProps {
 }
 
 export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBulletinProps) {
-    const [bulletin, setBulletin] = useState<ChurchBulletin>(initialBulletin);
+    const [bulletin, setBulletin] = useState<ChurchBulletin>({ ...initialBulletin });
 
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
+
+    const ministryOptions = useMemo(() => {
+        const base = new Set<string>(BULLETIN_MINISTRY_OPTIONS);
+        (bulletin.ministries || []).forEach((name) => {
+            const normalized = (name || "").trim();
+            if (normalized) {
+                base.add(normalized);
+            }
+        });
+        return Array.from(base).sort((a, b) => a.localeCompare(b));
+    }, [bulletin.ministries]);
 
     useEffect(() => {
-        if (isOpen) {
-            fetchMinistries().then(setMinistries)
+        if (!isOpen) {
+            setBulletin({ ...initialBulletin });
         }
-    }, [isOpen])
+    }, [initialBulletin, isOpen]);
 
     const handleDialogClose = () => {
-        setBulletin(initialBulletin);
+        setBulletin({ ...initialBulletin });
         setDeleteConfirmOpen(false);
         setDeleting(false);
         setIsOpen(false);
@@ -68,7 +82,8 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             handleDialogClose();
         } catch (err) {
             console.error("Failed to update bulletin:", err);
-            alert("Failed to update bulletin. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to update bulletin");
+            alert(errorMessage);
         }
         setSaving(false);
     };
@@ -82,7 +97,8 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             handleDialogClose();
         } catch (err) {
             console.error("Failed to delete bulletin:", err);
-            alert("Failed to delete bulletin. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to delete bulletin");
+            alert(errorMessage);
         }
         setDeleting(false);
     };
@@ -94,6 +110,7 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             const result = await getMyPermissions(requestOptions);
             if (result?.success) {
                 if (result?.perms?.admin || result?.perms?.bulletin_editing) {
+                    setBulletin({ ...initialBulletin });
                     setIsOpen(true);
                 } else {
                     alert("You must have the Bulletin Editor permission to edit bulletins.");
@@ -127,17 +144,81 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
 
     return (
         <>
-            <Button size="sm" variant="ghost" onClick={handleDialogOpen} disabled={checkingPerms}>Edit</Button>
+            <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleDialogOpen} 
+                disabled={checkingPerms}
+                className="h-8 px-3"
+                title="Edit Bulletin"
+            >
+                {checkingPerms ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Edit className="h-4 w-4" />
+                )}
+            </Button>
+            
             <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
-                <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Edit Bulletin</DialogTitle>
-                        <div className="pt-6">
-                            <DialogDescription>Edit the bulletin fields below.</DialogDescription>
-                        </div>
+                <DialogContent className={cn(
+                    "sm:max-w-[100vh] max-h-[80vh] overflow-y-auto",
+                    "bg-white dark:bg-gray-800 text-black dark:text-white",
+                    "border border-gray-200 dark:border-gray-600"
+                )}>
+                    <DialogHeader className="space-y-2">
+                        <DialogTitle className="text-black dark:text-white">Edit Bulletin Announcement</DialogTitle>
+                        <DialogDescription className="text-muted-foreground dark:text-muted-foreground/80">
+                            Update the bulletin announcement details and manage the associated image
+                        </DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className="mb-4 flex flex-wrap items-center justify-end gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleDialogClose}
+                            disabled={saving || deleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => setDeleteConfirmOpen(true)}
+                            disabled={saving || deleting}
+                        >
+                            Delete
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving || deleting}
+                        >
+                            {saving ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Saving...</> : 'Save changes'}
+                        </Button>
+                    </div>
+
+                    <div className={cn(
+                        "grid gap-4 py-4",
+                        "bg-white dark:bg-gray-800"
+                    )}>
+                        <div className="rounded border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+                            <div className="flex flex-wrap items-center gap-6">
+                                <div className="flex flex-col">
+                                    <Label htmlFor="edit-bulletin-published" className="mb-1 text-sm">Published</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="edit-bulletin-published"
+                                            checked={Boolean(bulletin.published)}
+                                            onCheckedChange={(checked) => setBulletin({ ...bulletin, published: checked })}
+                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
+                                        />
+                                        <span className="text-sm">{bulletin.published ? "Yes" : "No"}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="text-xs text-gray-500 grid grid-cols-2 gap-2">
                             <div>Created: {bulletin.created_at ? new Date(bulletin.created_at).toLocaleString() : 'N/A'}</div>
                             <div>Updated: {bulletin.updated_at ? new Date(bulletin.updated_at).toLocaleString() : 'N/A'}</div>
@@ -154,16 +235,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Headline (RU)</span>
-                            <input
-                                className="border p-2 rounded"
-                                placeholder="Headline (RU)"
-                                value={bulletin.ru_headline || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_headline: e.target.value })}
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Body *</span>
                             <textarea
                                 className="border p-2 rounded"
@@ -174,22 +245,24 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                             />
                         </label>
 
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600">Body (RU)</span>
-                            <textarea
-                                className="border p-2 rounded"
-                                rows={6}
-                                placeholder="Body (RU)"
-                                value={bulletin.ru_body || ''}
-                                onChange={(e) => setBulletin({ ...bulletin, ru_body: e.target.value })}
-                            />
-                        </label>
+                        {/* Image Selector */}
+                        <BulletinImageSelector
+                            value={bulletin.image_id ?? null}
+                            onChange={(imageId) => setBulletin({
+                                ...bulletin,
+                                image_id: imageId,
+                                image_url: null,
+                                thumbnail_url: null,
+                            })}
+                            label="Announcement Image"
+                            helperText="Select an optional image to display with this announcement. The image will appear as a thumbnail in the bulletin list."
+                        />
 
                         <div>
                             <EventMinistryDropdown
                                 selected={bulletin.ministries ?? []}
                                 onChange={(next: string[]) => setBulletin({ ...bulletin, ministries: next })}
-                                ministries={ministries}
+                                ministries={ministryOptions}
                             />
                         </div>
 
@@ -251,25 +324,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                             )}
                         </div>
 
-                        <div className="flex gap-4">
-                            <label className="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    checked={bulletin.published || false}
-                                    onChange={(e) => setBulletin({ ...bulletin, published: e.target.checked })}
-                                />
-                                <span className="text-sm">Published</span>
-                            </label>
-
-                            <label className="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    checked={bulletin.pinned || false}
-                                    onChange={(e) => setBulletin({ ...bulletin, pinned: e.target.checked })}
-                                />
-                                <span className="text-sm">Pinned</span>
-                            </label>
-                        </div>
                     </div>
 
                     <AlertDialog open={deleteConfirmOpen} onOpenChange={(next) => {
@@ -311,21 +365,6 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={saving || deleting}
-                            onClick={() => setDeleteConfirmOpen(true)}
-                        >
-                            Delete bulletin
-                        </Button>
-                        <Button type="button" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
-                        <Button type="button" onClick={handleSave} disabled={saving}>
-                            {saving ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Saving...</> : 'Save changes'}
-                        </Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>

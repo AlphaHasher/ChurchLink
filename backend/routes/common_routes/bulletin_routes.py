@@ -13,8 +13,8 @@ from controllers.bulletin_functions import (
 	process_create_bulletin,
 	process_delete_bulletin,
 	process_edit_bulletin,
-	process_pin_toggle,
 	process_publish_toggle,
+	process_reorder_bulletins,
 )
 from controllers.service_bulletin_functions import (
 	process_create_service,
@@ -38,6 +38,7 @@ from models.service_bulletin import (
 	list_services,
 )
 from mongo.churchuser import UserHandler
+from helpers.timezone_utils import get_local_now, normalize_to_local_week_start
 
 
 bulletin_editing_router = APIRouter(prefix="/bulletins", tags=["Bulletins Admin Routes"])
@@ -53,8 +54,8 @@ class BulletinPublishToggle(BaseModel):
 	published: bool
 
 
-class BulletinPinToggle(BaseModel):
-	pinned: bool
+class BulletinReorderPayload(BaseModel):
+	bulletin_ids: List[str]
 
 
 def _combine_date_and_time(value: Optional[date], *, end_of_day: bool = False) -> Optional[datetime]:
@@ -86,29 +87,65 @@ async def _extract_uid_from_request(request: Request) -> Optional[str]:
 
 # PUBLIC ROUTES
 
-@public_bulletin_router.get("/", response_model=Union[List, BulletinFeedOut])
+@public_bulletin_router.get("/current_week")
+async def get_current_week(request: Request):
+	"""
+	Get the server's current week information based on the configured local timezone.
+	This endpoint ensures frontend-backend synchronization for week calculations.
+	
+	Returns:
+	- current_date: Current date/time in server's local timezone
+	- week_start: Monday of current week at 00:00:00 in local timezone
+	- week_end: Sunday of current week at 23:59:59 in local timezone
+	- week_label: Formatted string for "For the week of {date}"
+	"""
+	# Get current time in server's local timezone
+	now = get_local_now()
+	
+	# Get Monday of current week
+	week_start = normalize_to_local_week_start(now)
+	
+	# Calculate Sunday (end of week)
+	from datetime import timedelta
+	week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+	
+	# Format the week label
+	week_label = week_start.strftime("%b %d, %Y")
+	
+	return {
+		"current_date": now.isoformat(),
+		"week_start": week_start.isoformat(),
+		"week_end": week_end.isoformat(),
+		"week_label": f"For the week of {week_label}",
+		"timezone": str(now.tzinfo)
+	}
+
+@public_bulletin_router.get("/", response_model=BulletinFeedOut)
 async def get_bulletins(
-	request: Request,
-	skip: int = 0,
-	limit: int = 100,
+	skip: int = Query(0, ge=0, description="Number of records to skip"),
+	limit: int = Query(100, ge=1, le=500, description="Max number of records to return"),
 	ministry: Optional[str] = None,
 	query: Optional[str] = None,
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = True,
-	pinned_only: bool = False,
 	upcoming_only: bool = False,
 	skip_expiration_filter: bool = False,
-	include_services: bool = False,
 ):
 	"""
 	List bulletins with optional filters.
-	When include_services=True, returns BulletinFeedOut with services and bulletins.
-	When include_services=False (default), returns List[BulletinOut] for backward compatibility.
+	Always returns BulletinFeedOut with both services and bulletins arrays.
 	
 	IMPORTANT: week_start/week_end are used ONLY for services, NOT for bulletins.
 	Bulletins use upcoming_only for date-based filtering (publish_date <= today).
+	Bulletins are sorted by order field (ascending) for drag-and-drop reordering.
 	"""
+	# Validate date range if both provided
+	if week_start and week_end and week_end < week_start:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="week_end cannot be before week_start",
+		)
 	# For bulletins: ignore week_start/week_end when upcoming_only is True (date-based filtering)
 	# Only use week filters for bulletins when explicitly querying a specific date range
 	bulletin_week_start = None if upcoming_only else week_start
@@ -122,16 +159,11 @@ async def get_bulletins(
 		week_start=_combine_date_and_time(bulletin_week_start),
 		week_end=_combine_date_and_time(bulletin_week_end, end_of_day=True),
 		published=published,
-		pinned_only=pinned_only,
 		upcoming_only=upcoming_only,
 		skip_expiration_filter=skip_expiration_filter,
 	)
 	
-	if not include_services:
-		# Legacy response: just bulletins array
-		return bulletins
-	
-	# New unified feed response
+	# Always return unified feed response with both services and bulletins
 	# For services: ALWAYS use week_start/week_end (services are week-based)
 	services = await list_services(
 		skip=0,
@@ -139,7 +171,6 @@ async def get_bulletins(
 		week_start=_combine_date_and_time(week_start),
 		week_end=_combine_date_and_time(week_end, end_of_day=True),
 		published=published,
-		upcoming_only=upcoming_only,
 	)
 	
 	return BulletinFeedOut(services=services, bulletins=bulletins)
@@ -153,7 +184,6 @@ async def search_bulletins_route(
 	limit: int = 100,
 	ministry: Optional[str] = None,
 	published: Optional[bool] = True,
-	pinned_only: bool = False,
 ):
 	"""Search bulletins by text"""
 	return await search_bulletins(
@@ -162,7 +192,6 @@ async def search_bulletins_route(
 		limit=limit,
 		ministry=ministry,
 		published=published,
-		pinned_only=pinned_only,
 	)
 
 
@@ -184,17 +213,23 @@ async def get_bulletin_detail(bulletin_id: str, request: Request):
 @bulletin_editing_router.get("/editing/list")
 async def list_all_bulletins_for_editing(
 	request: Request,
-	skip: int = 0,
-	limit: int = 100,
+	skip: int = Query(0, ge=0, description="Number of records to skip"),
+	limit: int = Query(100, ge=1, le=500, description="Max number of records to return"),
 	ministry: Optional[str] = None,
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = None,
-	pinned_only: bool = False,
 	upcoming_only: bool = False,
 	skip_expiration_filter: bool = False,
 ):
-	"""List ALL bulletins (published and unpublished) for admin editing"""
+	"""List ALL bulletins (published and unpublished) for admin editing, sorted by order field"""
+	# Validate date range if both provided
+	if week_start and week_end and week_end < week_start:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="week_end cannot be before week_start",
+		)
+	
 	return await list_bulletins(
 		skip=skip,
 		limit=limit,
@@ -202,7 +237,6 @@ async def list_all_bulletins_for_editing(
 		week_start=_combine_date_and_time(week_start),
 		week_end=_combine_date_and_time(week_end, end_of_day=True),
 		published=published,  # None allows both published and unpublished
-		pinned_only=pinned_only,
 		upcoming_only=upcoming_only,
 		skip_expiration_filter=skip_expiration_filter,
 	)
@@ -240,18 +274,13 @@ async def toggle_bulletin_publish(
 	)
 
 
-@bulletin_editing_router.patch("/{bulletin_id}/pin")
-async def toggle_bulletin_pin(
-	bulletin_id: str,
-	payload: BulletinPinToggle,
+@bulletin_editing_router.patch("/reorder")
+async def reorder_bulletins_route(
+	payload: BulletinReorderPayload,
 	request: Request,
 ):
-	"""Toggle bulletin pinned status"""
-	return await process_pin_toggle(
-		bulletin_id,
-		pinned=payload.pinned,
-		request=request,
-	)
+	"""Reorder bulletins by updating order field"""
+	return await process_reorder_bulletins(payload.bulletin_ids, request)
 
 
 # PUBLIC SERVICE ROUTES
@@ -259,21 +288,26 @@ async def toggle_bulletin_pin(
 @public_service_router.get("/")
 async def get_services(
 	request: Request,
-	skip: int = 0,
-	limit: int = 100,
+	skip: int = Query(0, ge=0, description="Number of records to skip"),
+	limit: int = Query(100, ge=1, le=500, description="Max number of records to return"),
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = True,
-	upcoming_only: bool = False,
 ):
 	"""List service bulletins with optional filters"""
+	# Validate date range if both provided
+	if week_start and week_end and week_end < week_start:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="week_end cannot be before week_start",
+		)
+	
 	return await list_services(
 		skip=skip,
 		limit=limit,
 		week_start=_combine_date_and_time(week_start),
 		week_end=_combine_date_and_time(week_end, end_of_day=True),
 		published=published,
-		upcoming_only=upcoming_only,
 	)
 
 
@@ -302,21 +336,26 @@ class ServiceReorderPayload(BaseModel):
 @service_bulletin_editing_router.get("/")
 async def get_services_admin(
 	request: Request,
-	skip: int = 0,
-	limit: int = 100,
+	skip: int = Query(0, ge=0, description="Number of records to skip"),
+	limit: int = Query(100, ge=1, le=500, description="Max number of records to return"),
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = None,  # Allow fetching both published and unpublished
-	upcoming_only: bool = False,
 ):
 	"""List service bulletins with optional filters (admin view - includes unpublished)"""
+	# Validate date range if both provided
+	if week_start and week_end and week_end < week_start:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="week_end cannot be before week_start",
+		)
+	
 	return await list_services(
 		skip=skip,
 		limit=limit,
 		week_start=_combine_date_and_time(week_start),
 		week_end=_combine_date_and_time(week_end, end_of_day=True),
 		published=published,
-		upcoming_only=upcoming_only,
 	)
 
 

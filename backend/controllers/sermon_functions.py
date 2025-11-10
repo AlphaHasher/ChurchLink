@@ -28,8 +28,8 @@ def _require_sermon_permissions(request: Request) -> tuple[dict, list[str]]:
 		or user_perms.get("sermon_editing")
 	):
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Error processing sermon: Invalid permissions",
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="You need 'sermon_editing' or 'admin' permissions to manage sermons.",
 		)
 
 	return user_perms, user_roles
@@ -48,8 +48,8 @@ async def _ensure_role_assignment_allowed(
 	missing = [role for role in requested_roles if role not in user_roles]
 	if missing:
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail=f"Error {action_detail}: Tried to add a permission role you do not have access to",
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail=f"Cannot assign roles you don't have. Missing roles: {', '.join(missing)}",
 		)
 
 
@@ -68,29 +68,29 @@ async def process_create_sermon(sermon: SermonCreate, request: Request):
 	except ValueError as exc:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail=f"Error creating sermon: {exc}",
+			detail=f"Invalid YouTube URL: {exc}",
 		) from exc
 
 	existing_video = await get_sermon_by_video_id(video_id)
 	if existing_video is not None:
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Sermon already exists",
+			status_code=status.HTTP_409_CONFLICT,
+			detail=f"A sermon with this YouTube video already exists: '{existing_video.title}'. Please use a different video.",
 		)
 
 	existing_title = await get_sermon_by_title(sermon.title)
 	if existing_title is not None:
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Sermon already exists",
+			status_code=status.HTTP_409_CONFLICT,
+			detail=f"A sermon with the title '{sermon.title}' already exists. Please use a unique title.",
 		)
 
 	sermon.video_id = video_id
 	created_sermon = await create_sermon(sermon)
 	if created_sermon is None:
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Error creating sermon",
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail="Failed to save sermon to database. Please try again or contact support if the issue persists.",
 		)
 	return created_sermon
 
@@ -103,7 +103,7 @@ async def process_edit_sermon(
 	if not sermon_update.model_dump(exclude_unset=True):
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Error editing sermon: No updates provided",
+			detail="No updates provided. Please specify at least one field to update.",
 		)
 
 	user_perms, user_roles = _require_sermon_permissions(request)
@@ -112,15 +112,15 @@ async def process_edit_sermon(
 	if existing_sermon is None:
 		raise HTTPException(
 			status_code=status.HTTP_404_NOT_FOUND,
-			detail="Sermon not found",
+			detail=f"Sermon with ID '{sermon_id}' not found.",
 		)
 
 	has_admin = user_perms.get("admin")
 	if not has_admin and existing_sermon.roles:
 		if not any(role in user_roles for role in existing_sermon.roles):
 			raise HTTPException(
-				status_code=status.HTTP_400_BAD_REQUEST,
-				detail="Error editing sermon: User does not have permission access to sermon",
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail="You don't have permission to edit this sermon. Required roles: " + ", ".join(existing_sermon.roles),
 			)
 
 	desired_roles = existing_sermon.roles if sermon_update.roles is None else sermon_update.roles
@@ -143,15 +143,15 @@ async def process_edit_sermon(
 		except ValueError as exc:
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
-				detail=f"Error editing sermon: {exc}",
+				detail=f"Invalid YouTube URL: {exc}",
 			) from exc
 
 	if target_video_id and target_video_id != existing_sermon.video_id:
 		duplicate_video = await get_sermon_by_video_id(target_video_id)
 		if duplicate_video and duplicate_video.id != existing_sermon.id:
 			raise HTTPException(
-				status_code=status.HTTP_400_BAD_REQUEST,
-				detail="Sermon already exists",
+				status_code=status.HTTP_409_CONFLICT,
+				detail=f"A sermon with this YouTube video already exists: '{duplicate_video.title}'. Please use a different video.",
 			)
 		update_payload["video_id"] = target_video_id
 
@@ -160,15 +160,15 @@ async def process_edit_sermon(
 		duplicate_title = await get_sermon_by_title(target_title)
 		if duplicate_title and duplicate_title.id != existing_sermon.id:
 			raise HTTPException(
-				status_code=status.HTTP_400_BAD_REQUEST,
-				detail="Sermon already exists",
+				status_code=status.HTTP_409_CONFLICT,
+				detail=f"A sermon with the title '{target_title}' already exists. Please use a unique title.",
 			)
 
 	success = await update_sermon(sermon_id, SermonUpdate(**update_payload))
 	if not success:
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Error editing sermon",
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail="Failed to update sermon in database. Please try again or contact support if the issue persists.",
 		)
 	return {"message": "Sermon updated successfully", "success": True}
 
@@ -180,22 +180,22 @@ async def process_delete_sermon(sermon_id: str, request: Request):
 	if existing_sermon is None:
 		raise HTTPException(
 			status_code=status.HTTP_404_NOT_FOUND,
-			detail="Sermon not found",
+			detail=f"Sermon with ID '{sermon_id}' not found.",
 		)
 
 	has_admin = user_perms.get("admin")
 	if not has_admin and existing_sermon.roles:
 		if not any(role in user_roles for role in existing_sermon.roles):
 			raise HTTPException(
-				status_code=status.HTTP_400_BAD_REQUEST,
-				detail="Error deleting sermon: User does not have permission access to sermon",
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail="You don't have permission to delete this sermon. Required roles: " + ", ".join(existing_sermon.roles),
 			)
 
 	success = await delete_sermon(sermon_id)
 	if not success:
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Error deleting sermon",
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail="Failed to delete sermon from database. Please try again or contact support if the issue persists.",
 		)
 	return {"message": "Sermon deleted successfully", "success": True}
 

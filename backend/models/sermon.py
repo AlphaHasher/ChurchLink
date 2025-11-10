@@ -19,9 +19,6 @@ class SermonBase(BaseModel):
 	youtube_url: HttpUrl
 	date_posted: datetime
 	published: bool
-	ru_title: Optional[str] = None
-	ru_description: Optional[str] = None
-	ru_speaker: Optional[str] = None
 	roles: List[str] = Field(default_factory=list)
 	thumbnail_url: Optional[HttpUrl] = None
 	tags: List[str] = Field(default_factory=list)
@@ -43,9 +40,6 @@ class SermonUpdate(BaseModel):
 	date_posted: Optional[datetime] = None
 	published: Optional[bool] = None
 	roles: Optional[List[str]] = None
-	ru_title: Optional[str] = None
-	ru_description: Optional[str] = None
-	ru_speaker: Optional[str] = None
 	thumbnail_url: Optional[HttpUrl] = None
 	tags: Optional[List[str]] = None
 	duration_seconds: Optional[int] = Field(default=None, ge=0)
@@ -220,6 +214,7 @@ async def list_sermons(
 	date_before: Optional[datetime] = None,
 	published: Optional[bool] = None,
 	favorite_ids: Optional[Set[str]] = None,
+	favorites_only: Optional[bool] = None,
 ) -> List[SermonOut]:
 	query: dict = {}
 
@@ -236,6 +231,9 @@ async def list_sermons(
 		query.setdefault("date_posted", {})["$gte"] = date_after
 	if date_before:
 		query.setdefault("date_posted", {})["$lte"] = date_before
+
+	if favorites_only and favorite_ids:
+		query["_id"] = {"$in": [ObjectId(fid) for fid in favorite_ids]}
 
 	if DB.db is None:
 		return []
@@ -266,7 +264,8 @@ async def search_sermons(
 	speaker: Optional[str] = None,
 	tags: Optional[List[str]] = None,
 	published: Optional[bool] = None,
-    favorite_ids: Optional[Set[str]] = None,
+	favorite_ids: Optional[Set[str]] = None,
+	favorites_only: Optional[bool] = None,
 ) -> List[SermonOut]:
 	query: dict = {"$text": {"$search": query_text}}
 
@@ -278,6 +277,9 @@ async def search_sermons(
 		query["tags"] = {"$all": tags}
 	if published is not None:
 		query["published"] = published
+
+	if favorites_only and favorite_ids:
+		query["_id"] = {"$in": [ObjectId(fid) for fid in favorite_ids]}
 
 	if DB.db is None:
 		return []

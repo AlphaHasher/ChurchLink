@@ -10,43 +10,28 @@ from models.service_bulletin import (
 	create_service,
 	delete_service,
 	get_service_by_id,
-	get_service_by_title_and_week,
+	get_service_by_title,
 	reorder_services,
 	update_service,
 )
-
-
-def _require_bulletin_permissions(request: Request) -> tuple[dict, list[str]]:
-	"""Validate user has bulletin_editing or admin permission"""
-	user_perms = getattr(request.state, "perms", {})
-	user_roles = getattr(request.state, "roles", [])
-
-	if not (
-		user_perms.get("admin")
-		or user_perms.get("bulletin_editing")
-	):
-		raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN,
-			detail="Insufficient permissions for bulletin management",
-		)
-
-	return user_perms, user_roles
+from helpers.permission_helpers import require_bulletin_permissions
 
 
 async def process_create_service(service: ServiceBulletinCreate, request: Request):
-	"""Create new service with permission and uniqueness validation"""
-	_require_bulletin_permissions(request)
-
-	# Check for duplicate title in the same week
-	existing = await get_service_by_title_and_week(service.title, service.display_week)
-	if existing is not None:
-		raise HTTPException(
-			status_code=status.HTTP_409_CONFLICT,
-			detail="Service with this title already exists for this week",
-		)
+	"""Create new service with permission validation"""
+	require_bulletin_permissions(request)
 
 	created_service = await create_service(service)
 	if created_service is None:
+		# Model returns None for duplicate key errors or other failures
+		# Check if it's a duplicate by attempting to find the service
+		existing = await get_service_by_title(service.title)
+		if existing is not None:
+			raise HTTPException(
+				status_code=status.HTTP_409_CONFLICT,
+				detail=f"A service with the title '{service.title}' already exists. Please use a unique title.",
+			)
+		# Otherwise it's an internal server error
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail="Error creating service bulletin",
@@ -66,7 +51,7 @@ async def process_edit_service(
 			detail="No updates provided",
 		)
 
-	_require_bulletin_permissions(request)
+	require_bulletin_permissions(request)
 
 	existing_service = await get_service_by_id(service_id)
 	if existing_service is None:
@@ -75,20 +60,17 @@ async def process_edit_service(
 			detail="Service not found",
 		)
 
-	# Check for title conflicts if title or display_week is being updated
-	if service_update.title or service_update.display_week:
-		new_title = service_update.title or existing_service.title
-		new_week = service_update.display_week or existing_service.display_week
-		
-		conflict = await get_service_by_title_and_week(new_title, new_week)
-		if conflict and conflict.id != service_id:
-			raise HTTPException(
-				status_code=status.HTTP_409_CONFLICT,
-				detail="Service with this title already exists for this week",
-			)
-
 	success = await update_service(service_id, service_update)
 	if not success:
+		# Check if it's a duplicate key error
+		if service_update.title and service_update.title != existing_service.title:
+			conflict = await get_service_by_title(service_update.title, exclude_id=service_id)
+			if conflict:
+				raise HTTPException(
+					status_code=status.HTTP_409_CONFLICT,
+					detail=f"A service with the title '{service_update.title}' already exists. Please use a unique title.",
+				)
+		# Otherwise it's an internal server error
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail="Error updating service bulletin",
@@ -100,7 +82,7 @@ async def process_edit_service(
 
 async def process_delete_service(service_id: str, request: Request):
 	"""Delete service with permission check"""
-	_require_bulletin_permissions(request)
+	require_bulletin_permissions(request)
 
 	existing_service = await get_service_by_id(service_id)
 	if existing_service is None:
@@ -125,7 +107,7 @@ async def process_publish_toggle(
 	request: Request,
 ):
 	"""Toggle service published status"""
-	_require_bulletin_permissions(request)
+	require_bulletin_permissions(request)
 
 	existing_service = await get_service_by_id(service_id)
 	if existing_service is None:
@@ -152,7 +134,7 @@ async def process_publish_toggle(
 
 async def process_reorder_services(service_ids: List[str], request: Request):
 	"""Reorder services by updating order field"""
-	_require_bulletin_permissions(request)
+	require_bulletin_permissions(request)
 
 	if not service_ids:
 		raise HTTPException(

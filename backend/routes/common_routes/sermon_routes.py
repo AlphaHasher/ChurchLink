@@ -95,6 +95,7 @@ async def get_sermons(
 	date_after: Optional[date] = None,
 	date_before: Optional[date] = None,
 	published: Optional[bool] = True,
+	favorites_only: Optional[bool] = None,
 ):
 	favorite_ids = await _collect_favorite_sermon_ids(request)
 	return await list_sermons(
@@ -107,6 +108,7 @@ async def get_sermons(
 		date_before=_combine_date_and_time(date_before, end_of_day=True),
 		published=published,
 		favorite_ids=favorite_ids,
+		favorites_only=favorites_only,
 	)
 
 
@@ -120,6 +122,7 @@ async def search_sermons_route(
 	speaker: Optional[str] = None,
 	tags: Optional[List[str]] = Query(default=None),
 	published: Optional[bool] = True,
+	favorites_only: Optional[bool] = None,
 ):
 	favorite_ids = await _collect_favorite_sermon_ids(request)
 	return await search_sermons(
@@ -131,6 +134,7 @@ async def search_sermons_route(
 		tags=tags,
 		published=published,
 		favorite_ids=favorite_ids,
+		favorites_only=favorites_only,
 	)
 
 

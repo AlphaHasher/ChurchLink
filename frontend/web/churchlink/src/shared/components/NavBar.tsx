@@ -12,6 +12,7 @@ import api from "@/api/api";
 import { ChevronDown } from "lucide-react";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { useLocalize } from "@/shared/utils/localizationUtils";
+import { SidebarTrigger } from "@/shared/components/ui/sidebar";
 
 // Define interfaces for header data types
 interface HeaderLink {
@@ -149,17 +150,17 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
     }, [user]);
 
     return (
-        <NavigationMenu className="flex p-4 bg-slate-900 justify-between align-center text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80]">
-            <div className="h-30 w-full lg:h-24 flex flex-row justify-between align-center">
+        <NavigationMenu className="flex items-center p-4 bg-slate-900 justify-between text-white w-full! max-w-screen! max-h-max font-[Montserrat]! tracking-wide! z-[80] relative">
+            <div className="flex w-full flex-row items-center justify-between lg:h-24">
                 {/* Logo Section */}
-                <NavigationMenuList className="flex gap-4 justify-between xl:pl-8">
+                <NavigationMenuList className="flex gap-4 justify-between xl:pl-8 items-center">
                     <Link to="/" className="hover:opacity-80 transition-opacity">
                         <HeaderDove className="w-60 xs:w-70 sm:w-90 lg:w-70 lg:h-24 h-32 max-w-[70vw]" />
                     </Link>
                 </NavigationMenuList>
 
                 {/* Navigation Items Section */}
-                <NavigationMenuList className="lg:flex flex-wrap justify-end h-20 xl:pr-8 align-center">
+                <NavigationMenuList className="lg:flex flex-wrap items-center justify-end xl:pr-8">
                     {!loading && headerItems.map((item) => (
                         <NavigationMenuItem
                             key={item.title}
@@ -195,13 +196,13 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
 
                                     {activeDropdown === item.title && (
                                         <div
-                                            className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-[90]"
+                                            className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-lg z-[90]"
                                         >
                                             {'items' in item && item.items.filter((subItem: HeaderLink) => subItem.visible !== false).map((subItem: HeaderLink) => (
                                                 <button
                                                     key={`${item.title}-${subItem.title}`}
                                                     onClick={() => handleNavigation(subItem)}
-                                                    className="block w-full py-2 px-4 transition-colors duration-150 hover:bg-slate-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left whitespace-nowrap"
+                                                    className="block w-full py-2 px-4 transition-colors duration-150 hover:bg-slate-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left whitespace-nowrap first:rounded-t-lg last:rounded-b-lg"
                                                 >
                                                     {getLabelFromTitles((subItem as any).titles, subItem.title)}
                                                 </button>
@@ -230,6 +231,9 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                             </Link>
                         </div>
                     )}
+                    
+                    {/* Mobile Hamburger Menu Trigger - Positioned on the Right */}
+                    <SidebarTrigger className="lg:hidden flex items-center justify-center text-white hover:text-gray-300 hover:bg-white/10 transition-colors duration-200 rounded-md p-2 ml-auto [&_svg:not([class*='size-'])]:size-6" />
                 </NavigationMenuList>
             </div>
         </NavigationMenu>

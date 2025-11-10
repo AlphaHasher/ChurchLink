@@ -8,9 +8,6 @@ export type ChurchSermon = {
     date_posted: Date;
     published: boolean;
     roles?: string[];
-    ru_title?: string;
-    ru_description?: string;
-    ru_speaker?: string;
     thumbnail_url?: string;
     tags?: string[];
     duration_seconds?: number;
@@ -36,10 +33,7 @@ export const sermonLabels: Record<string, string> = {
     id: 'ID',
     title: 'Title',
     description: 'Description',
-    ru_title: 'Title (RU)',
-    ru_description: 'Description (RU)',
     speaker: 'Speaker',
-    ru_speaker: 'Speaker (RU)',
     ministry: 'Ministry',
     youtube_url: 'YouTube URL',
     date_posted: 'Posted Date',
