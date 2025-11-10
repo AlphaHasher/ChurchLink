@@ -69,6 +69,31 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
         return format(date, 'MMM dd, yyyy');
     };
 
+    // Check if bulletin has expired
+    const isExpired = bulletin.expire_at && new Date(bulletin.expire_at) < new Date();
+
+    // Determine status display
+    const getStatusDisplay = () => {
+        if (isExpired) {
+            return {
+                label: 'Expired',
+                className: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/40 dark:bg-red-400/15 dark:text-red-200 dark:hover:bg-red-400/25'
+            };
+        } else if (bulletin.published) {
+            return {
+                label: 'Published',
+                className: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-400/15 dark:text-emerald-200 dark:hover:bg-emerald-400/25'
+            };
+        } else {
+            return {
+                label: 'Draft',
+                className: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/20'
+            };
+        }
+    };
+
+    const status = getStatusDisplay();
+
     return (
         <TableRow ref={setNodeRef} style={style}>
             <TableCell {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
@@ -85,15 +110,18 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
             </TableCell>
             <TableCell>{formatDate(bulletin.publish_date)}</TableCell>
             <TableCell>
+                {bulletin.expire_at ? formatDate(bulletin.expire_at) : (
+                    <span className="text-gray-400 italic">Never</span>
+                )}
+            </TableCell>
+            <TableCell>
                 <span
                     className={cn(
                         'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
-                        bulletin.published
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-400/15 dark:text-emerald-200 dark:hover:bg-emerald-400/25'
-                            : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/20'
+                        status.className
                     )}
                 >
-                    {bulletin.published ? 'Published' : 'Draft'}
+                    {status.label}
                 </span>
             </TableCell>
             <TableCell>
@@ -213,6 +241,7 @@ export function BulletinsTable({
                                 <TableHead>Order</TableHead>
                                 <TableHead>Headline</TableHead>
                                 <TableHead>Publish Date</TableHead>
+                                <TableHead>Expiration Date</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Ministries</TableHead>
                                 <TableHead>Actions</TableHead>
@@ -235,7 +264,7 @@ export function BulletinsTable({
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center">
+                                        <TableCell colSpan={9} className="h-24 text-center">
                                             No bulletins found.
                                         </TableCell>
                                     </TableRow>

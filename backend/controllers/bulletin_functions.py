@@ -11,7 +11,7 @@ from models.bulletin import (
 	create_bulletin,
 	delete_bulletin,
 	get_bulletin_by_id,
-	get_bulletin_by_headline_and_week,
+	get_bulletin_by_headline,
 	reorder_bulletins,
 	update_bulletin,
 )
@@ -66,12 +66,12 @@ async def process_create_bulletin(bulletin: BulletinCreate, request: Request):
 			action_detail="creating bulletin",
 		)
 
-	# Check for duplicate headline in the same week
-	existing = await get_bulletin_by_headline_and_week(bulletin.headline, bulletin.publish_date)
+	# Check for duplicate headline globally (case-insensitive)
+	existing = await get_bulletin_by_headline(bulletin.headline)
 	if existing is not None:
 		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Bulletin already exists",
+			status_code=status.HTTP_409_CONFLICT,
+			detail=f"A bulletin with the headline '{bulletin.headline}' already exists. Please use a unique headline.",
 		)
 
 	created_bulletin = await create_bulletin(bulletin)
@@ -124,24 +124,13 @@ async def process_edit_bulletin(
 
 	update_payload = bulletin_update.model_dump(exclude_unset=True)
 
-	# Check for duplicate headline if changing headline or publish_date
-	target_headline = update_payload.get("headline")
-	target_publish_date = update_payload.get("publish_date", existing_bulletin.publish_date)
-	
-	if target_headline and target_headline != existing_bulletin.headline:
-		duplicate_headline = await get_bulletin_by_headline_and_week(target_headline, target_publish_date)
-		if duplicate_headline and duplicate_headline.id != existing_bulletin.id:
+	# Check for duplicate headline if changing headline (case-insensitive global check)
+	if "headline" in update_payload and update_payload["headline"] != existing_bulletin.headline:
+		duplicate = await get_bulletin_by_headline(update_payload["headline"], exclude_id=bulletin_id)
+		if duplicate:
 			raise HTTPException(
-				status_code=status.HTTP_400_BAD_REQUEST,
-				detail="Bulletin already exists",
-			)
-	elif update_payload.get("publish_date") and update_payload["publish_date"] != existing_bulletin.publish_date:
-		# Check if moving to a different week with same headline
-		duplicate_headline = await get_bulletin_by_headline_and_week(existing_bulletin.headline, target_publish_date)
-		if duplicate_headline and duplicate_headline.id != existing_bulletin.id:
-			raise HTTPException(
-				status_code=status.HTTP_400_BAD_REQUEST,
-				detail="Bulletin already exists",
+				status_code=status.HTTP_409_CONFLICT,
+				detail=f"A bulletin with the headline '{update_payload['headline']}' already exists. Please use a unique headline.",
 			)
 
 	success = await update_bulletin(bulletin_id, BulletinUpdate(**update_payload))

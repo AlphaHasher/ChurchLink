@@ -38,6 +38,45 @@ const coerceBulletin = (item: Record<string, unknown>): ChurchBulletin => {
 	} as ChurchBulletin;
 };
 
+export interface ServerWeekInfo {
+	current_date: string;
+	week_start: string;
+	week_end: string;
+	week_label: string;
+	timezone: string;
+}
+
+/**
+ * Fetch current week info from server (server-localized)
+ */
+export const fetchCurrentWeek = async (): Promise<ServerWeekInfo> => {
+	try {
+		const res = await api.get('/v1/bulletins/current_week');
+		return res.data as ServerWeekInfo;
+	} catch (err) {
+		console.error('[Current Week] Failed to fetch server week info:', err);
+		// Fallback to client-side calculation if server endpoint fails
+		const today = new Date();
+		const dayOfWeek = today.getDay();
+		const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+		const monday = new Date(today);
+		monday.setDate(today.getDate() + daysToMonday);
+		monday.setHours(0, 0, 0, 0);
+		
+		const sunday = new Date(monday);
+		sunday.setDate(monday.getDate() + 6);
+		sunday.setHours(23, 59, 59, 999);
+		
+		return {
+			current_date: today.toISOString(),
+			week_start: monday.toISOString(),
+			week_end: sunday.toISOString(),
+			week_label: `For the week of ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+			timezone: 'client-local'
+		};
+	}
+};
+
 /**
  * Fetch combined feed with services and bulletins
  */

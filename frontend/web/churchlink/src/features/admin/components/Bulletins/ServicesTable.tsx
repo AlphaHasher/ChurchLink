@@ -65,8 +65,19 @@ function SortableRow({ service, permissions, onRefresh }: SortableRowProps) {
         opacity: isDragging ? 0.5 : 1,
     };
 
-    const formatWeek = (date: Date) => {
-        return format(date, 'MMM dd, yyyy');
+    const formatWeek = (service: ServiceBulletin) => {
+        // For 'always' visibility mode, display the current week's Monday
+        if (service.visibility_mode === 'always') {
+            const now = new Date();
+            const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+            const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Normalize to Monday
+            const currentWeekMonday = new Date(now);
+            currentWeekMonday.setDate(now.getDate() - daysToSubtract);
+            currentWeekMonday.setHours(0, 0, 0, 0); // Normalize time to 00:00:00
+            return format(currentWeekMonday, 'MMM dd, yyyy');
+        }
+        // For 'specific_weeks' visibility mode, display the stored display_week
+        return format(service.display_week, 'MMM dd, yyyy');
     };
 
     const formatServiceTime = (dayOfWeek: string, timeOfDay: string) => {
@@ -90,7 +101,7 @@ function SortableRow({ service, permissions, onRefresh }: SortableRowProps) {
                 {formatServiceTime(service.day_of_week, service.time_of_day)}
             </TableCell>
             <TableCell>
-                {formatWeek(service.display_week)}
+                {formatWeek(service)}
             </TableCell>
             <TableCell>
                 <span

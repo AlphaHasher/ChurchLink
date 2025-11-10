@@ -1,38 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { fetchCombinedFeed } from '@/features/bulletins/api/bulletinsApi';
+import { fetchCombinedFeed, fetchCurrentWeek, ServerWeekInfo } from '@/features/bulletins/api/bulletinsApi';
 import BulletinList from '@/features/bulletins/components/BulletinList';
 import { ServiceCard } from '@/features/bulletins/components/ServiceCard';
 import { BulletinDetailsModal } from '@/features/bulletins/components/BulletinDetailsModal';
 import { BulletinsFilterDialog, DEFAULT_BULLETIN_FILTERS, BulletinFilters } from '@/features/bulletins/components/BulletinsFilterDialog';
 import { ChurchBulletin, ServiceBulletin, BulletinFilter, DEFAULT_BULLETIN_LIMIT } from '@/shared/types/ChurchBulletin';
 import { useAuth } from '@/features/auth/hooks/auth-context';
-
-/**
- * Get the Monday of the current week at 00:00:00
- * Used ONLY for filtering services by week (services still use week-based display_week)
- * Bulletins now use exact date filtering instead
- */
-const getCurrentWeekMonday = (): Date => {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust Sunday to be 6 days from Monday
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - daysFromMonday);
-    monday.setHours(0, 0, 0, 0);
-    return monday;
-};
-
-/**
- * Get the Sunday of the current week at 23:59:59
- */
-const getCurrentWeekSunday = (): Date => {
-    const monday = getCurrentWeekMonday();
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
-    return sunday;
-};
 
 const BulletinsPage = () => {
     const [bulletinItems, setBulletinItems] = useState<ChurchBulletin[]>([]);
@@ -41,6 +15,7 @@ const BulletinsPage = () => {
     const [selectedBulletin, setSelectedBulletin] = useState<ChurchBulletin | null>(null);
     const [selectedService, setSelectedService] = useState<ServiceBulletin | null>(null);
     const [filters, setFilters] = useState<BulletinFilters>({ ...DEFAULT_BULLETIN_FILTERS });
+    const [serverWeek, setServerWeek] = useState<ServerWeekInfo | null>(null);
     const { user, loading: authLoading } = useAuth();
 
     // Load data whenever filters change
@@ -51,10 +26,15 @@ const BulletinsPage = () => {
             try {
                 console.log(`[Bulletins Page] Loading feed with filters at ${new Date().toISOString()}`, filters);
                 
-                // Get current week boundaries for service filtering ONLY
-                // Services still use week-based display_week, bulletins use exact dates
-                const weekStart = getCurrentWeekMonday();
-                const weekEnd = getCurrentWeekSunday();
+                // Fetch server-localized week info
+                const weekInfo = await fetchCurrentWeek();
+                if (isMounted) {
+                    setServerWeek(weekInfo);
+                    console.log(`[Bulletins Page] Server week: ${weekInfo.week_label} (${weekInfo.timezone})`);
+                }
+                
+                const weekStart = new Date(weekInfo.week_start);
+                const weekEnd = new Date(weekInfo.week_end);
                 
                 console.log(`[Bulletins Page] Filtering services for week: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`);
                 
@@ -171,7 +151,7 @@ const BulletinsPage = () => {
                 <div className="mb-8">
                     <div className="mb-4">
                         <h2 className="text-xl font-bold">
-                            {serviceItems.length > 0 ? `For the week of ${format(serviceItems[0].display_week, 'MMM d, yyyy')}` : 'Services'}
+                            {serverWeek ? serverWeek.week_label : 'Services'}
                         </h2>
                     </div>
                     <div className="flex flex-wrap justify-center gap-6">

@@ -7,17 +7,20 @@ from bson import ObjectId
 from pydantic import BaseModel, Field
 
 from helpers.MongoHelper import serialize_objectid_deep
+from helpers.timezone_utils import normalize_to_local_week_start, strip_timezone_for_mongo, get_local_now
 from mongo.database import DB
 
 
 def canonicalize_week_start(dt: datetime) -> datetime:
 	"""
-	Normalize datetime to the Monday 00:00:00 of the same week.
-	This ensures weekly services are grouped consistently.
+	Normalize datetime to the Monday 00:00:00 of the same week in local timezone.
+	This ensures weekly services are grouped consistently according to church's local time.
+	
+	DEPRECATED: Use normalize_to_local_week_start from timezone_utils instead.
+	This function is kept for backward compatibility but now delegates to the new utility.
 	"""
-	days_since_monday = dt.weekday()
-	monday = dt - timedelta(days=days_since_monday)
-	return datetime.combine(monday.date(), time.min)
+	# Use the new timezone-aware utility and strip timezone for MongoDB storage
+	return strip_timezone_for_mongo(normalize_to_local_week_start(dt))
 
 
 class ServiceBulletinBase(BaseModel):
@@ -52,6 +55,31 @@ class ServiceBulletinOut(ServiceBulletinBase):
 	id: str
 	created_at: datetime
 	updated_at: datetime
+	
+	def model_post_init(self, __context) -> None:
+		"""
+		Post-initialization hook to dynamically compute display_week for 'always' visibility mode.
+		
+		This ensures the API returns the CURRENT week's Monday for services that are "always visible",
+		BUT only if the service has already started (current week >= original display_week).
+		This prevents future services from showing before their configured start week.
+		"""
+		super().model_post_init(__context)
+		
+		# If visibility_mode is 'always', update display_week to current week's Monday
+		# BUT only if the service has started (current week >= stored display_week)
+		if self.visibility_mode == 'always':
+			# Get current time in local timezone
+			local_now = get_local_now()
+			# Calculate current week's Monday in local timezone
+			current_week_monday = normalize_to_local_week_start(local_now)
+			current_week_monday_naive = strip_timezone_for_mongo(current_week_monday)
+			
+			# Only update display_week if current week >= stored display_week
+			# This respects display_week as the "start showing from this week" date
+			# e.g., service configured for week 11/10 won't show on 11/09
+			if current_week_monday_naive >= self.display_week:
+				self.display_week = current_week_monday_naive
 
 
 async def _fetch_service_document(filter_query: dict) -> Optional[ServiceBulletinOut]:
@@ -73,9 +101,16 @@ async def create_service(service: ServiceBulletinCreate) -> Optional[ServiceBull
 	if DB.db is None:
 		return None
 
+	# Check for duplicate title (case-insensitive global uniqueness)
+	existing = await get_service_by_title(service.title)
+	if existing is not None:
+		print(f"Error: Service with title '{service.title}' already exists (ID: {existing.id})")
+		return None
+
 	payload = service.model_dump()
 	
-	# Normalize display_week to Monday 00:00
+	# Normalize display_week to Monday 00:00 in local timezone
+	# This ensures week boundaries match the church's local timezone, not UTC
 	payload["display_week"] = canonicalize_week_start(service.display_week)
 
 	# Ensure new services append to the end of the ordering sequence
@@ -121,16 +156,37 @@ async def get_service_by_id(service_id: str) -> Optional[ServiceBulletinOut]:
 	return await _fetch_service_document({"_id": object_id})
 
 
-async def get_service_by_title_and_week(title: str, display_week: datetime) -> Optional[ServiceBulletinOut]:
-	"""Check for duplicate title within the same week"""
+async def get_service_by_title(title: str, exclude_id: Optional[str] = None) -> Optional[ServiceBulletinOut]:
+	"""
+	Check for duplicate title globally (case-insensitive).
+	
+	Args:
+		title: The title to search for
+		exclude_id: Optional service ID to exclude from search (for update operations)
+	
+	Returns:
+		ServiceBulletinOut if a matching service exists, None otherwise
+	"""
 	if DB.db is None:
 		return None
 	
-	week_start = canonicalize_week_start(display_week)
-	return await _fetch_service_document({
-		"title": title,
-		"display_week": week_start
-	})
+	# Build query with case-insensitive regex match
+	# Trim whitespace and use exact match with case-insensitive flag
+	query = {
+		"title": {
+			"$regex": f"^{title.strip()}$",
+			"$options": "i"  # Case-insensitive
+		}
+	}
+	
+	# Exclude specific service ID if provided (for update operations)
+	if exclude_id:
+		try:
+			query["_id"] = {"$ne": ObjectId(exclude_id)}
+		except Exception:
+			pass  # Invalid ObjectId, ignore
+	
+	return await _fetch_service_document(query)
 
 
 async def update_service(service_id: str, updates: ServiceBulletinUpdate) -> bool:
@@ -148,7 +204,7 @@ async def update_service(service_id: str, updates: ServiceBulletinUpdate) -> boo
 	if not update_payload:
 		return False
 
-	# Normalize display_week if provided
+	# Normalize display_week to Monday 00:00 in local timezone if provided
 	if "display_week" in update_payload:
 		update_payload["display_week"] = canonicalize_week_start(update_payload["display_week"])
 
@@ -212,35 +268,51 @@ async def list_services(
 
 	# Handle visibility mode filtering with week filters
 	if week_start or week_end:
-		# Build the week filter conditions
-		week_conditions = []
+		# CRITICAL: display_week is ALWAYS stored as Monday 00:00 in UTC
+		# So we need to normalize week_start to find the Monday of the requested week
+		# week_end is NOT used for display_week comparison since there's only ONE Monday per week
 		
-		# Condition 1: visibility_mode is 'always' (always visible, ignore week filters)
-		always_condition = {"visibility_mode": "always"}
-		week_conditions.append(always_condition)
-		
-		# Condition 2: visibility_mode is 'specific_weeks' AND display_week is in range
-		specific_week_condition: dict = {"visibility_mode": "specific_weeks"}
-		display_week_filter: dict = {}
-		
+		# Normalize week_start to Monday of the week (if provided)
+		normalized_week_monday = None
 		if week_start:
-			normalized_start = canonicalize_week_start(week_start)
-			display_week_filter["$gte"] = normalized_start
-		if week_end:
-			normalized_end = canonicalize_week_start(week_end)
-			display_week_filter["$lte"] = normalized_end
+			normalized_week_monday = canonicalize_week_start(week_start)
+		elif week_end:
+			# If only week_end provided, find its Monday
+			normalized_week_monday = canonicalize_week_start(week_end)
 		
-		if display_week_filter:
-			specific_week_condition["display_week"] = display_week_filter
-		
-		week_conditions.append(specific_week_condition)
-		
-		# Condition 3: Handle legacy services without visibility_mode (treat as 'always')
-		legacy_condition = {"visibility_mode": {"$exists": False}}
-		week_conditions.append(legacy_condition)
-		
-		# Combine with OR
-		query["$or"] = week_conditions
+		if normalized_week_monday is None:
+			# No valid week specified, skip filtering
+			pass
+		else:
+			# Build the week filter conditions
+			week_conditions = []
+			
+			# Condition 1: visibility_mode is 'always' AND display_week <= current week's Monday
+			# This ensures 'always' services only show starting from their configured week
+			# e.g., service configured for week 11/10 won't show on 11/09
+			always_condition: dict = {
+				"visibility_mode": "always",
+				"display_week": {"$lte": normalized_week_monday}
+			}
+			week_conditions.append(always_condition)
+			
+			# Condition 2: visibility_mode is 'specific_weeks' AND display_week equals the Monday
+			# Since display_week is always a Monday, we just check for exact match
+			specific_week_condition: dict = {
+				"visibility_mode": "specific_weeks",
+				"display_week": normalized_week_monday  # Exact match, not a range!
+			}
+			week_conditions.append(specific_week_condition)
+			
+			# Condition 3: Handle legacy services without visibility_mode (treat as specific_weeks)
+			legacy_condition = {
+				"visibility_mode": {"$exists": False},
+				"display_week": normalized_week_monday
+			}
+			week_conditions.append(legacy_condition)
+			
+			# Combine with OR
+			query["$or"] = week_conditions
 	
 
 	if DB.db is None:

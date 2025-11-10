@@ -8,6 +8,7 @@ from bson import ObjectId
 from pydantic import BaseModel, Field, HttpUrl
 
 from helpers.MongoHelper import serialize_objectid_deep
+from helpers.timezone_utils import get_local_now, normalize_to_local_midnight, strip_timezone_for_mongo
 from mongo.database import DB
 
 
@@ -139,10 +140,21 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 	if DB.db is None:
 		return None
 
+	# Check for duplicate headline (case-insensitive global uniqueness)
+	existing = await get_bulletin_by_headline(bulletin.headline)
+	if existing is not None:
+		print(f"Error: Bulletin with headline '{bulletin.headline}' already exists (ID: {existing.id})")
+		return None
+
 	payload = bulletin.model_dump()
 	
-	# Keep the exact publish_date as specified
-	payload["publish_date"] = bulletin.publish_date
+	# Normalize publish_date to midnight in local timezone, then strip for MongoDB
+	# This ensures dates like "2025-11-10" are interpreted in church's local time, not UTC
+	payload["publish_date"] = strip_timezone_for_mongo(normalize_to_local_midnight(bulletin.publish_date))
+	
+	# Also normalize expire_at if provided
+	if bulletin.expire_at:
+		payload["expire_at"] = strip_timezone_for_mongo(normalize_to_local_midnight(bulletin.expire_at))
 	image_id = _normalize_image_id(payload.get("image_id"))
 	if image_id is None:
 		payload.pop("image_id", None)
@@ -207,16 +219,37 @@ async def get_bulletin_by_id(bulletin_id: str) -> Optional[BulletinOut]:
 	return await _fetch_bulletin_document({"_id": object_id})
 
 
-async def get_bulletin_by_headline_and_week(headline: str, publish_date: datetime) -> Optional[BulletinOut]:
-	"""Check for duplicate headline with the exact same publish date"""
+async def get_bulletin_by_headline(headline: str, exclude_id: Optional[str] = None) -> Optional[BulletinOut]:
+	"""
+	Check for duplicate headline globally (case-insensitive).
+	
+	Args:
+		headline: The headline to search for
+		exclude_id: Optional bulletin ID to exclude from search (for update operations)
+	
+	Returns:
+		BulletinOut if a matching bulletin exists, None otherwise
+	"""
 	if DB.db is None:
 		return None
 	
-	# Check for exact date match (no longer normalizing to week start)
-	return await _fetch_bulletin_document({
-		"headline": headline,
-		"publish_date": publish_date
-	})
+	# Build query with case-insensitive regex match
+	# Trim whitespace and use exact match with case-insensitive flag
+	query = {
+		"headline": {
+			"$regex": f"^{headline.strip()}$",
+			"$options": "i"  # Case-insensitive
+		}
+	}
+	
+	# Exclude specific bulletin ID if provided (for update operations)
+	if exclude_id:
+		try:
+			query["_id"] = {"$ne": ObjectId(exclude_id)}
+		except Exception:
+			pass  # Invalid ObjectId, ignore
+	
+	return await _fetch_bulletin_document(query)
 
 
 async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
@@ -242,8 +275,13 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 		else:
 			update_payload["image_id"] = normalized_image_id
 
-	# Keep the exact publish_date if provided (no normalization)
-	# publish_date is already in update_payload as-is
+	# Normalize publish_date to local midnight if provided
+	if "publish_date" in update_payload:
+		update_payload["publish_date"] = strip_timezone_for_mongo(normalize_to_local_midnight(update_payload["publish_date"]))
+	
+	# Normalize expire_at to local midnight if provided
+	if "expire_at" in update_payload and update_payload["expire_at"] is not None:
+		update_payload["expire_at"] = strip_timezone_for_mongo(normalize_to_local_midnight(update_payload["expire_at"]))
 	
 	# Serialize attachments if provided
 	if "attachments" in update_payload and update_payload["attachments"] is not None:
@@ -327,7 +365,9 @@ async def list_bulletins(
 		query["published"] = published
 	if upcoming_only:
 		# For bulletins: show if publish_date <= now (already published)
-		query.setdefault("publish_date", {})["$lte"] = datetime.utcnow()
+		# Use local timezone to avoid timezone mismatch issues
+		local_now = get_local_now()
+		query.setdefault("publish_date", {})["$lte"] = strip_timezone_for_mongo(local_now)
 
 	# Use exact date filtering (no longer normalize to week boundaries)
 	if week_start:
@@ -338,12 +378,14 @@ async def list_bulletins(
 	# Filter out expired bulletins (expire_at in the past)
 	# Show bulletin if: publish_date <= now AND (expire_at is null OR expire_at > now)
 	# Skip this filter for admin dashboard
+	# Use local timezone to avoid timezone mismatch issues
 	if not skip_expiration_filter:
-		now = datetime.utcnow()
+		local_now = get_local_now()
+		now_mongo = strip_timezone_for_mongo(local_now)
 		query["$or"] = [
 			{"expire_at": {"$exists": False}},  # No expiration date set
 			{"expire_at": None},  # Expiration date is null
-			{"expire_at": {"$gt": now}}  # Expiration date is in the future
+			{"expire_at": {"$gt": now_mongo}}  # Expiration date is in the future (local time)
 		]
 
 	if DB.db is None:
@@ -393,11 +435,13 @@ async def search_bulletins(
 		query["published"] = published
 
 	# Filter out expired bulletins (expire_at in the past)
-	now = datetime.utcnow()
+	# Use local timezone to avoid timezone mismatch issues
+	local_now = get_local_now()
+	now_mongo = strip_timezone_for_mongo(local_now)
 	query["$or"] = [
 		{"expire_at": {"$exists": False}},  # No expiration date set
 		{"expire_at": None},  # Expiration date is null
-		{"expire_at": {"$gt": now}}  # Expiration date is in the future
+		{"expire_at": {"$gt": now_mongo}}  # Expiration date is in the future (local time)
 	]
 
 	if DB.db is None:

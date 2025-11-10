@@ -10,7 +10,7 @@ from models.service_bulletin import (
 	create_service,
 	delete_service,
 	get_service_by_id,
-	get_service_by_title_and_week,
+	get_service_by_title,
 	reorder_services,
 	update_service,
 )
@@ -37,12 +37,12 @@ async def process_create_service(service: ServiceBulletinCreate, request: Reques
 	"""Create new service with permission and uniqueness validation"""
 	_require_bulletin_permissions(request)
 
-	# Check for duplicate title in the same week
-	existing = await get_service_by_title_and_week(service.title, service.display_week)
+	# Check for duplicate title globally (case-insensitive)
+	existing = await get_service_by_title(service.title)
 	if existing is not None:
 		raise HTTPException(
 			status_code=status.HTTP_409_CONFLICT,
-			detail="Service with this title already exists for this week",
+			detail=f"A service with the title '{service.title}' already exists. Please use a unique title.",
 		)
 
 	created_service = await create_service(service)
@@ -75,16 +75,13 @@ async def process_edit_service(
 			detail="Service not found",
 		)
 
-	# Check for title conflicts if title or display_week is being updated
-	if service_update.title or service_update.display_week:
-		new_title = service_update.title or existing_service.title
-		new_week = service_update.display_week or existing_service.display_week
-		
-		conflict = await get_service_by_title_and_week(new_title, new_week)
-		if conflict and conflict.id != service_id:
+	# Check for title conflicts if title is being updated (case-insensitive global check)
+	if service_update.title and service_update.title != existing_service.title:
+		conflict = await get_service_by_title(service_update.title, exclude_id=service_id)
+		if conflict:
 			raise HTTPException(
 				status_code=status.HTTP_409_CONFLICT,
-				detail="Service with this title already exists for this week",
+				detail=f"A service with the title '{service_update.title}' already exists. Please use a unique title.",
 			)
 
 	success = await update_service(service_id, service_update)

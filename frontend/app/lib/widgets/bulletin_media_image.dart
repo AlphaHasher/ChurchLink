@@ -29,6 +29,8 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
   late int _activeIndex;
   int _reloadToken = 0;
   final Map<String, int> _attempts = {};
+  bool _imageLoadedSuccessfully = false;
+  bool _allUrlsFailed = false;
 
   @override
   void initState() {
@@ -54,6 +56,8 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
     _activeIndex = widget.urls.isEmpty ? -1 : 0;
     _reloadToken = 0;
     _attempts.clear();
+    _imageLoadedSuccessfully = false;
+    _allUrlsFailed = false;
   }
 
   void _advanceSource() {
@@ -66,8 +70,11 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
         _activeIndex++;
         _reloadToken = 0;
       });
-    } else if (_activeIndex != -1) {
-      setState(() => _activeIndex = -1);
+    } else {
+      setState(() {
+        _activeIndex = -1;
+        _allUrlsFailed = true;
+      });
     }
   }
 
@@ -99,11 +106,11 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
       return const SizedBox.shrink();
     }
 
+    if (_allUrlsFailed) {
+      return _buildErrorContainer(context);
+    }
+
     final url = widget.urls[_activeIndex];
-    final placeholderColor = Theme.of(context)
-        .colorScheme
-        .surface
-        .withAlpha(20);
 
     final image = Image.network(
       url,
@@ -112,34 +119,34 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
       width: double.infinity,
       height: widget.aspectRatio == null ? widget.height : null,
       loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Container(
-          color: placeholderColor,
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
-                  : null,
-            ),
-          ),
-        );
+        if (loadingProgress == null) {
+          if (!_imageLoadedSuccessfully) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && !_imageLoadedSuccessfully) {
+                setState(() => _imageLoadedSuccessfully = true);
+              }
+            });
+          }
+          return child;
+        }
+        return _buildEmptyContainer();
+      },
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) {
+          if (!_imageLoadedSuccessfully) {
+            _imageLoadedSuccessfully = true;
+          }
+          return child;
+        }
+        if (frame == null) {
+          return _buildEmptyContainer();
+        }
+        return child;
       },
       errorBuilder: (context, error, stackTrace) {
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _retryCurrentSource());
-        return Container(
-          color: placeholderColor,
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.broken_image_outlined,
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(90),
-          ),
-        );
+        return _buildEmptyContainer();
       },
     );
 
@@ -162,6 +169,43 @@ class _BulletinMediaImageState extends State<BulletinMediaImage> {
     return ClipRRect(
       borderRadius: widget.borderRadius,
       child: content,
+    );
+  }
+
+  Widget _buildEmptyContainer() {
+    return Container(
+      color: Colors.transparent,
+      alignment: Alignment.center,
+    );
+  }
+
+  Widget _buildErrorContainer(BuildContext context) {
+    Widget errorContent = Container(
+      color: Colors.transparent,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.broken_image_outlined,
+        color: Theme.of(context).colorScheme.onSurface.withAlpha(90),
+        size: 48,
+      ),
+    );
+
+    if (widget.aspectRatio != null) {
+      errorContent = AspectRatio(
+        aspectRatio: widget.aspectRatio!,
+        child: errorContent,
+      );
+    } else if (widget.height != null) {
+      errorContent = SizedBox(
+        height: widget.height,
+        width: double.infinity,
+        child: errorContent,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: widget.borderRadius,
+      child: errorContent,
     );
   }
 }

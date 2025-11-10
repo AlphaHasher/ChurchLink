@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:app/helpers/api_client.dart';
 import 'package:app/models/bulletin.dart';
 import 'package:app/models/service_bulletin.dart';
+import 'package:app/models/server_week.dart';
 
 /// Response model for combined bulletin feed containing services and bulletins
 class BulletinFeedResponse {
@@ -34,6 +35,25 @@ class BulletinsService {
   BulletinsService({Dio? client}) : _client = client ?? api;
 
   final Dio _client;
+
+  /// Fetch current week info from server (server-localized)
+  Future<ServerWeekInfo> fetchCurrentWeek() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/v1/bulletins/current_week',
+      );
+
+      if (response.data != null) {
+        return ServerWeekInfo.fromJson(response.data!);
+      }
+      
+      // Fallback to client-side calculation
+      return ServerWeekInfo.clientFallback();
+    } on DioException {
+      // If server endpoint fails, use client-side fallback
+      return ServerWeekInfo.clientFallback();
+    }
+  }
 
   /// Fetch combined feed with services and bulletins (new unified endpoint)
   Future<BulletinFeedResponse> fetchCombinedFeed(BulletinFilter filter) async {

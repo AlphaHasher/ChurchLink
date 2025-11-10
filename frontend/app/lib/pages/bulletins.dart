@@ -107,8 +107,8 @@ class _BulletinsPageState extends State<BulletinsPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
-              provider.services.isNotEmpty
-                  ? 'For the week of ${provider.services.first.formattedWeek}'
+              provider.serverWeek != null
+                  ? provider.serverWeek!.weekLabel
                   : 'Upcoming Services',
               style: Theme.of(
                 context,

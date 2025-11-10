@@ -38,6 +38,7 @@ from models.service_bulletin import (
 	list_services,
 )
 from mongo.churchuser import UserHandler
+from helpers.timezone_utils import get_local_now, normalize_to_local_week_start
 
 
 bulletin_editing_router = APIRouter(prefix="/bulletins", tags=["Bulletins Admin Routes"])
@@ -85,6 +86,39 @@ async def _extract_uid_from_request(request: Request) -> Optional[str]:
 
 
 # PUBLIC ROUTES
+
+@public_bulletin_router.get("/current_week")
+async def get_current_week(request: Request):
+	"""
+	Get the server's current week information based on the configured local timezone.
+	This endpoint ensures frontend-backend synchronization for week calculations.
+	
+	Returns:
+	- current_date: Current date/time in server's local timezone
+	- week_start: Monday of current week at 00:00:00 in local timezone
+	- week_end: Sunday of current week at 23:59:59 in local timezone
+	- week_label: Formatted string for "For the week of {date}"
+	"""
+	# Get current time in server's local timezone
+	now = get_local_now()
+	
+	# Get Monday of current week
+	week_start = normalize_to_local_week_start(now)
+	
+	# Calculate Sunday (end of week)
+	from datetime import timedelta
+	week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+	
+	# Format the week label
+	week_label = week_start.strftime("%b %d, %Y")
+	
+	return {
+		"current_date": now.isoformat(),
+		"week_start": week_start.isoformat(),
+		"week_end": week_end.isoformat(),
+		"week_label": f"For the week of {week_label}",
+		"timezone": str(now.tzinfo)
+	}
 
 @public_bulletin_router.get("/", response_model=Union[List, BulletinFeedOut])
 async def get_bulletins(
