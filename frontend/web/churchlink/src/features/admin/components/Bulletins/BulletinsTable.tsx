@@ -130,19 +130,19 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
                     : '-'}
             </TableCell>
             <TableCell>
-                <EditBulletinDialog 
-                    bulletin={bulletin} 
-                    onSave={onRefresh} 
-                    permissions={permissions} 
+                <EditBulletinDialog
+                    bulletin={bulletin}
+                    onSave={onRefresh}
+                    permissions={permissions}
                 />
             </TableCell>
         </TableRow>
     );
 }
 
-export function BulletinsTable({ 
-    bulletins, 
-    permissions, 
+export function BulletinsTable({
+    bulletins,
+    permissions,
     onRefresh,
     onReorder,
 }: BulletinsTableProps) {
@@ -162,7 +162,7 @@ export function BulletinsTable({
         setLocalBulletins(bulletins);
     }, [bulletins]);
 
-    const filtered = localBulletins.filter((b) => 
+    const filtered = localBulletins.filter((b) =>
         b.headline.toLowerCase().includes(search.toLowerCase()) ||
         (b.body && b.body.toLowerCase().includes(search.toLowerCase()))
     );
@@ -180,13 +180,13 @@ export function BulletinsTable({
 
         // Perform arrayMove on the full list
         const reordered = arrayMove(localBulletins, oldIndex, newIndex);
-        
+
         // Update order field values to reflect new positions (0-indexed to match backend)
         const updatedBulletins = reordered.map((bulletin, index) => ({
             ...bulletin,
             order: index
         }));
-        
+
         // Immediately update UI with the full reordered list
         setLocalBulletins(updatedBulletins);
 
@@ -218,7 +218,7 @@ export function BulletinsTable({
         <div className="container mx-start">
             <div className="flex items-center py-4">
                 <Input 
-                    placeholder="Search Headline or Body..." 
+                    placeholder="Search Headline or Body..."
                     value={search} 
                     onChange={(e) => setSearch(e.target.value)} 
                     className="max-w-sm" 
@@ -232,7 +232,7 @@ export function BulletinsTable({
             </div>
 
             <div className="rounded-md border overflow-x-auto max-w-full">
-                <DndContext 
+                <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
@@ -251,14 +251,14 @@ export function BulletinsTable({
                             </TableRow>
                         </TableHeader>
 
-                        <SortableContext 
+                        <SortableContext
                             items={filtered.map(b => b.id)}
                             strategy={verticalListSortingStrategy}
                         >
                             <TableBody>
                                 {filtered.length ? (
                                     filtered.map((bulletin) => (
-                                        <SortableRow 
+                                        <SortableRow
                                             key={bulletin.id}
                                             bulletin={bulletin}
                                             permissions={permissions}

@@ -32,7 +32,7 @@ const BulletinsPage = () => {
                     setServerWeek(weekInfo);
                     console.log(`[Bulletins Page] Server week: ${weekInfo.week_label} (${weekInfo.timezone})`);
                 }
-                
+
                 const weekStart = new Date(weekInfo.week_start);
                 const weekEnd = new Date(weekInfo.week_end);
                 

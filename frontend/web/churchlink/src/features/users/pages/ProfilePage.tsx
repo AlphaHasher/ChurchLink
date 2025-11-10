@@ -29,7 +29,6 @@ import { useLocalize } from "@/shared/utils/localizationUtils";
 
 import ChangeEmailDialog from "@/features/users/components/Profile/ChangeEmailDialog";
 import ChangePasswordDialog from "@/features/users/components/Profile/ChangePasswordDialog";
-import { getAuth } from "firebase/auth";
 
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
