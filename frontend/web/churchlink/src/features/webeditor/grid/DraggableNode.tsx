@@ -90,6 +90,7 @@ export function DraggableNode({
   const startRef = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number; w0: number; h0: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [measuredOrigin, setMeasuredOrigin] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [autoScale, setAutoScale] = useState<number>(1);
   const resizeRef = useRef<
     | null
     | {
@@ -110,26 +111,75 @@ export function DraggableNode({
   useLayoutEffect(() => {
     if (originPx) {
       setMeasuredOrigin(originPx);
+      setAutoScale(1);
       return;
     }
     const el = wrapperRef.current;
     const content = document.getElementById(`section-content-${sectionId}`);
     if (!el || !content) {
       setMeasuredOrigin({ x: 0, y: 0 });
+      setAutoScale(1);
       return;
     }
     const offsetParent = el.offsetParent as HTMLElement | null;
     if (!offsetParent) {
       setMeasuredOrigin({ x: 0, y: 0 });
+      setAutoScale(1);
       return;
     }
     const pRect = offsetParent.getBoundingClientRect();
     const cRect = content.getBoundingClientRect();
     setMeasuredOrigin({ x: (pRect.left - cRect.left) / cssScale, y: (pRect.top - cRect.top) / cssScale });
-  }, [sectionId, originPx, cssScale]);
+
+    try {
+      const isSectionRoot = offsetParent.id === `section-content-${sectionId}`;
+      let gridParentWidthPx = transform.cols * transform.cellPx;
+      if (!isSectionRoot) {
+        const parentUnits = transform.toUnits({
+          x: (pRect.left - cRect.left),
+          y: (pRect.top - cRect.top),
+          w: pRect.width,
+          h: pRect.height,
+        });
+        gridParentWidthPx = parentUnits.wu * transform.cellPx;
+      }
+      const domParentWidthPx = pRect.width;
+      const nextScale = gridParentWidthPx > 0 ? (domParentWidthPx / gridParentWidthPx) : 1;
+      setAutoScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
+    } catch {
+      setAutoScale(1);
+    }
+    // Also watch for parent size changes
+    const ro = new ResizeObserver(() => {
+      const pRect2 = offsetParent.getBoundingClientRect();
+      const cRect2 = content.getBoundingClientRect();
+      setMeasuredOrigin({ x: (pRect2.left - cRect2.left) / cssScale, y: (pRect2.top - cRect2.top) / cssScale });
+      try {
+        const isSectionRoot2 = offsetParent.id === `section-content-${sectionId}`;
+        let gridParentWidthPx2 = transform.cols * transform.cellPx;
+        if (!isSectionRoot2) {
+          const parentUnits2 = transform.toUnits({
+            x: (pRect2.left - cRect2.left),
+            y: (pRect2.top - cRect2.top),
+            w: pRect2.width,
+            h: pRect2.height,
+          });
+          gridParentWidthPx2 = parentUnits2.wu * transform.cellPx;
+        }
+        const domParentWidthPx2 = pRect2.width;
+        const nextScale2 = gridParentWidthPx2 > 0 ? (domParentWidthPx2 / gridParentWidthPx2) : 1;
+        setAutoScale(Number.isFinite(nextScale2) && nextScale2 > 0 ? nextScale2 : 1);
+      } catch {
+        setAutoScale(1);
+      }
+    });
+    ro.observe(offsetParent);
+    return () => ro.disconnect();
+  }, [sectionId, originPx, cssScale, transform]);
 
   const originX = originPx?.x ?? measuredOrigin.x;
   const originY = originPx?.y ?? measuredOrigin.y;
+  const scale = (cssScale || 1) * (autoScale || 1);
   const _gridPx = transform.toPx(node.layout?.units ?? { xu: 0, yu: 0 });
   const x = _gridPx.x - originX;
   const y = _gridPx.y - originY;
@@ -157,8 +207,8 @@ export function DraggableNode({
     const parent = wrapper.offsetParent as HTMLElement | null;
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
-    const pointerX = (e.clientX - rect.left) / cssScale;
-    const pointerY = (e.clientY - rect.top) / cssScale;
+    const pointerX = (e.clientX - rect.left) / scale;
+    const pointerY = (e.clientY - rect.top) / scale;
     startRef.current = { pointerX, pointerY, x0: x, y0: y, w0: innerRect.width / cssScale, h0: innerRect.height / cssScale };
     setTempSize(null);
     wrapper.setPointerCapture(e.pointerId);
@@ -174,8 +224,8 @@ export function DraggableNode({
     const container = wrapper.offsetParent as HTMLElement | null;
     if (!container) return;
     const containerRect = container.getBoundingClientRect();
-    const pointerX = (e.clientX - containerRect.left) / cssScale;
-    const pointerY = (e.clientY - containerRect.top) / cssScale;
+    const pointerX = (e.clientX - containerRect.left) / scale;
+    const pointerY = (e.clientY - containerRect.top) / scale;
     const dx = pointerX - startRef.current.pointerX;
     const dy = pointerY - startRef.current.pointerY;
 
@@ -570,25 +620,25 @@ export function DraggableNode({
                     mode: dir as ResizeHandle,
                     startX: e.clientX,
                     startY: e.clientY,
-                    x0: (rect.left - parentRect.left) / cssScale,
-                    y0: (rect.top - parentRect.top) / cssScale,
-                    w0: rect.width / cssScale,
-                    h0: rect.height / cssScale,
+                    x0: (rect.left - parentRect.left) / scale,
+                    y0: (rect.top - parentRect.top) / scale,
+                    w0: rect.width / scale,
+                    h0: rect.height / scale,
                   };
                   startRef.current = {
-                    pointerX: (e.clientX - parentRect.left) / cssScale,
-                    pointerY: (e.clientY - parentRect.top) / cssScale,
+                    pointerX: (e.clientX - parentRect.left) / scale,
+                    pointerY: (e.clientY - parentRect.top) / scale,
                     x0: resizeRef.current.x0,
                     y0: resizeRef.current.y0,
-                    w0: rect.width / cssScale,
-                    h0: rect.height / cssScale,
+                    w0: rect.width / scale,
+                    h0: rect.height / scale,
                   };
                   BuilderState.startResizing(sectionId, node.id, dir as ResizeHandle);
                   wrapper.setPointerCapture(e.pointerId);
                   pressedRef.current = true;
                   setDragging(true);
                   setTempPos({ x: resizeRef.current.x0, y: resizeRef.current.y0 });
-                  setTempSize({ w: rect.width / cssScale, h: rect.height / cssScale });
+                  setTempSize({ w: rect.width / scale, h: rect.height / scale });
                   e.stopPropagation();
                 }}
                 onPointerUp={(e) => {

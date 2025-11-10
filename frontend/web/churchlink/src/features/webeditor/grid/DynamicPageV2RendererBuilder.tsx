@@ -118,7 +118,6 @@ function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(' ');
 }
 
-// highlightClass removed (no red outlines)
 
 // Updated renderNode signature with additional optional params for nesting
 function resolveLocalizedProp(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
@@ -564,8 +563,8 @@ const renderNode = (
     }
     case 'paypal': {
       const nodeStyleRaw = (node as any).style || {};
-      const BASE_W = 512;
-      const BASE_H = 700;
+      const BASE_W = 200;
+      const BASE_H = 200;
       let scale = 1;
       if (transform && (node as any)?.layout?.units) {
         const size = transform.toPx((node as any).layout.units);
@@ -610,10 +609,9 @@ const renderNode = (
     }
     case 'container': {
       const nodeStyleRaw = (node as any).style || {};
-      const maxWidth = 'full';
+      const maxWidth = (node as any).props?.maxWidth ?? 'xl';
       const px = (node as any).props?.paddingX ?? 4;
       const py = (node as any).props?.paddingY ?? 6;
-      const containerOrigin = transform ? transform.toPx((node.layout?.units as any) ?? { xu: 0, yu: 0 }) : { x: 0, y: 0 };
       const mwClass =
         maxWidth === 'full'
           ? 'w-full'
@@ -654,7 +652,6 @@ const renderNode = (
               onDoubleSelect={() => onNodeDoubleClick?.(sectionId, c.id)}
               render={() => childRendered}
               containerId={node.id}
-              originPx={{ x: containerOrigin.x ?? 0, y: containerOrigin.y ?? 0 }}
               enforceChildFullSize
               allowContentPointerEvents
             />

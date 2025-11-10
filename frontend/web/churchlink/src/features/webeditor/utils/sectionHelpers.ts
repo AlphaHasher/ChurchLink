@@ -37,7 +37,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
     return {
       id: `${newId()}-hero`,
       kind: "section",
-      heightPercent: 100,
+      heightPercent: 110,
       background: {
         className: "relative isolate overflow-hidden bg-slate-950 text-white",
         style: {
@@ -206,7 +206,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
     return {
       id: `${newId()}-paypal`,
       kind: "section",
-      heightPercent: 90,
+      heightPercent: 120,
       background: { className: "bg-gradient-to-b from-slate-50 via-white to-slate-100" },
       grid: { className: "w-full" },
       styleTokens: {},
@@ -228,10 +228,10 @@ export const createPresetSection = (key: string): SectionV2 | null => {
               id: `${newId()}-paypal`,
               type: "paypal",
               style: { borderRadius: 16, backgroundColor: "#ffffff", className: "shadow-sm ring-1 ring-slate-200" },
-              layout: { units: { xu: 0, yu: 6, wu: 12, hu: 10 } },
+              layout: { units: { xu: 0, yu: 6, wu: 12, hu: 26 } },
             } as Node,
           ],
-          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 20 } },
+          layout: { units: { xu: 0, yu: 0, wu: 12, hu: 36 } },
         } as Node,
       ],
     };
