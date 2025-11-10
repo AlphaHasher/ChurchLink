@@ -113,7 +113,7 @@ const Bulletins = () => {
                         value="bulletins"
                         className="px-6 py-2.5 transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
                     >
-                        Bulletin Announcments
+                        Bulletin Announcements
                     </TabsTrigger>
                 </TabsList>
                 

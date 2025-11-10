@@ -15,9 +15,15 @@ class SermonsService {
       final hasQuery = filter.query != null && filter.query!.isNotEmpty;
       final endpoint = hasQuery ? '/v1/sermons/search' : '/v1/sermons/';
       
+      final params = filter.toQueryParameters();
+      if (hasQuery) {
+        params.remove('date_after');
+        params.remove('date_before');
+      }
+      
       final response = await _client.get<dynamic>(
         endpoint,
-        queryParameters: filter.toQueryParameters(),
+        queryParameters: params,
       );
 
       final data = response.data;

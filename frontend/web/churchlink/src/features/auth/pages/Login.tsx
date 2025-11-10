@@ -24,6 +24,10 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetEmail, setResetEmail] = useState<string>("");
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
+  const [resetError, setResetError] = useState<string>("");
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
 
   const { user } = useAuth();
   const navigate = useNavigate();

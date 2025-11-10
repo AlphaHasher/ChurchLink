@@ -49,6 +49,9 @@ class BulletinsService {
       
       // Fallback to client-side calculation
       return ServerWeekInfo.clientFallback();
+    } on FormatException {
+      // If date parsing fails, use client-side fallback
+      return ServerWeekInfo.clientFallback();
     } on DioException {
       // If server endpoint fails, use client-side fallback
       return ServerWeekInfo.clientFallback();

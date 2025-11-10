@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, time, timedelta
 from typing import List, Optional, Set
 
@@ -73,12 +74,11 @@ def _build_image_urls(image_id: Optional[str]) -> tuple[Optional[str], Optional[
 		return None, None
 	
 	base = os.getenv("BACKEND_URL", "").rstrip('/')
-	if not base:
-		# Fallback to localhost if not configured
-		base = "http://localhost:8000"
+	image_path = f"/api/v1/assets/public/id/{normalized_id}"
+	thumbnail_path = f"/api/v1/assets/public/id/{normalized_id}?thumbnail=true"
 	
-	image_url = f"{base}/api/v1/assets/public/id/{normalized_id}"
-	thumbnail_url = f"{base}/api/v1/assets/public/id/{normalized_id}?thumbnail=true"
+	image_url = f"{base}{image_path}" if base else image_path
+	thumbnail_url = f"{base}{thumbnail_path}" if base else thumbnail_path
 	
 	return image_url, thumbnail_url
 
@@ -221,11 +221,15 @@ async def get_bulletin_by_headline(headline: str, exclude_id: Optional[str] = No
 	if DB.db is None:
 		return None
 	
-	# Build query with case-insensitive regex match
-	# Trim whitespace and use exact match with case-insensitive flag
+	# Validate headline is not None or empty
+	if not headline or not headline.strip():
+		return None
+	
+	# Escape headline to prevent regex injection, then build case-insensitive exact match
+	escaped_headline = re.escape(headline.strip())
 	query = {
 		"headline": {
-			"$regex": f"^{headline.strip()}$",
+			"$regex": f"^{escaped_headline}$",
 			"$options": "i"  # Case-insensitive
 		}
 	}

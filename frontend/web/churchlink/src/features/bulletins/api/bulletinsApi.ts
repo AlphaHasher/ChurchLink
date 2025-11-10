@@ -40,7 +40,8 @@ const isServiceData = (item: unknown): item is Record<string, unknown> => {
 		'id' in item &&
 		'title' in item &&
 		'day_of_week' in item &&
-		'time_of_day' in item
+		'time_of_day' in item &&
+		'display_week' in item
 	);
 };
 
@@ -66,11 +67,17 @@ const coerceService = (item: unknown): ServiceBulletin | null => {
 		return null;
 	}
 
+	// Explicit field mapping to avoid type pollution from spread operator
 	return {
-		...item,
+		id: String(item['id']),
+		title: safeString(item['title'], ''),
 		day_of_week: safeString(item['day_of_week'], 'Sunday'),
 		time_of_day: safeString(item['time_of_day'], '10:00'),
+		description: typeof item['description'] === 'string' ? item['description'] : undefined,
+		timeline_notes: typeof item['timeline_notes'] === 'string' ? item['timeline_notes'] : undefined,
 		display_week: coerceDate(item['display_week']),
+		order: typeof item['order'] === 'number' ? item['order'] : 0,
+		published: typeof item['published'] === 'boolean' ? item['published'] : true,
 		visibility_mode: (item['visibility_mode'] === 'always' || item['visibility_mode'] === 'specific_weeks')
 			? item['visibility_mode']
 			: 'always',
@@ -88,10 +95,21 @@ const coerceBulletin = (item: unknown): ChurchBulletin | null => {
 		return null;
 	}
 
+	// Explicit field mapping to avoid type pollution from spread operator
 	return {
-		...item,
+		id: String(item['id']),
+		headline: safeString(item['headline'], ''),
+		body: typeof item['body'] === 'string' ? item['body'] : '',
 		publish_date: coerceDate(item['publish_date']),
 		expire_at: item['expire_at'] ? coerceDate(item['expire_at']) : undefined,
+		published: typeof item['published'] === 'boolean' ? item['published'] : false,
+		order: typeof item['order'] === 'number' ? item['order'] : 0,
+		roles: Array.isArray(item['roles']) ? item['roles'].filter(r => typeof r === 'string') : [],
+		ministries: Array.isArray(item['ministries']) ? item['ministries'].filter(m => typeof m === 'string') : [],
+		attachments: Array.isArray(item['attachments']) ? item['attachments'] : [],
+		image_id: typeof item['image_id'] === 'string' ? item['image_id'] : undefined,
+		image_url: typeof item['image_url'] === 'string' ? item['image_url'] : undefined,
+		thumbnail_url: typeof item['thumbnail_url'] === 'string' ? item['thumbnail_url'] : undefined,
 		created_at: item['created_at'] ? coerceDate(item['created_at']) : undefined,
 		updated_at: item['updated_at'] ? coerceDate(item['updated_at']) : undefined
 	} as ChurchBulletin;

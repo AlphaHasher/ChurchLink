@@ -35,6 +35,7 @@ import { ImagePreviewDialog } from '../components/Media/ImagePreviewDialog';
 import ImageTile from '../components/Media/ImageTile';
 import { RenameFolderDialog } from '../components/Media/RenameFolderDialog';
 import { DeleteFolderDialog } from '../components/Media/DeleteFolderDialog';
+import { NewFolderDialog } from '../components/Media/NewFolderDialog';
 
 type DragItem =
   | { kind: 'image'; id: string; fromFolder: string }
@@ -71,6 +72,9 @@ const MediaLibrary: React.FC<{
   const [renameTarget, setRenameTarget] = useState<string>('');
   const [deleteFolderOpen, setDeleteFolderOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string>('');
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState<string>('');
+  const [createFolderError, setCreateFolderError] = useState<string | null>(null);
 
   const [erroredImages, setErroredImages] = useState<Set<string>>(new Set());
   const [selectedImage, setSelectedImage] = useState<ImageResponse | null>(null);
@@ -248,6 +252,40 @@ const MediaLibrary: React.FC<{
     }
     setDragItem(null);
   };
+
+  const openCreateFolderDialog = () => {
+    if (!requireManage('create folders')) return;
+    setNewFolderName('');
+    setCreateFolderError(null);
+    setCreateFolderOpen(true);
+  };
+
+  const handleCreateFolder = async () => {
+    const trimmedName = newFolderName.trim();
+    
+    if (!trimmedName) {
+      setCreateFolderError('Folder name cannot be empty');
+      return;
+    }
+    
+    try {
+      setCreateFolderError(null);
+      const path = currentFolder ? `${currentFolder}/${trimmedName}` : trimmedName;
+      const res = await createFolderHelper(path);
+      
+      if (res?.details?.created === false && res?.details?.reason === 'duplicate') {
+        setCreateFolderError('A folder with that name already exists here.');
+        return;
+      }
+      
+      // Success - close dialog and refresh
+      setCreateFolderOpen(false);
+      setNewFolderName('');
+      fetchCurrentData();
+    } catch (err) {
+      setCreateFolderError('Failed to create folder. Please try again.');
+    }
+  };
   // ---------------------------------------------------------------------------
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -317,34 +355,7 @@ const MediaLibrary: React.FC<{
             )}
             
             {/* New Folder button - always show regardless of selection mode */}
-            <Button onClick={async () => {
-              if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
-              
-              // Use browser prompt to get folder name
-              const folderNameInput = window.prompt('Enter folder name:');
-              
-              if (!folderNameInput || !folderNameInput.trim()) {
-                return; // User cancelled or entered empty string
-              }
-              
-              // Create folder directly using the existing helper
-              try {
-                setError(null);
-                const path = currentFolder ? `${currentFolder}/${folderNameInput.trim()}` : folderNameInput.trim();
-                const res = await createFolderHelper(path);
-                
-                if (res?.details?.created === false && res?.details?.reason === 'duplicate') {
-                  window.alert('A folder with that name already exists here.');
-                  return;
-                }
-                
-                // Refresh the current view to show the new folder
-                fetchCurrentData();
-              } catch {
-                setError('Failed to create folder');
-                window.alert('Failed to create folder');
-              }
-            }}>New Folder</Button>
+            <Button onClick={openCreateFolderDialog}>New Folder</Button>
             <input
               ref={fileInputRef}
               type="file"
@@ -535,6 +546,22 @@ const MediaLibrary: React.FC<{
           </div>
         </div>
       </div>
+
+      {/* Create Folder */}
+      <NewFolderDialog
+        open={createFolderOpen}
+        folderName={newFolderName}
+        error={createFolderError}
+        canManage={canManage}
+        onOpenChange={setCreateFolderOpen}
+        onChangeName={setNewFolderName}
+        onCancel={() => {
+          setCreateFolderOpen(false);
+          setNewFolderName('');
+          setCreateFolderError(null);
+        }}
+        onCreate={handleCreateFolder}
+      />
 
       {/* Rename Folder */}
       <RenameFolderDialog
@@ -735,34 +762,9 @@ const MediaLibrary: React.FC<{
             >
               <button
                 className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
-                onClick={async () => {
+                onClick={() => {
                   setCtx({ open: false });
-                  if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
-                  
-                  // Use browser prompt to get folder name
-                  const folderNameInput = window.prompt('Enter folder name:');
-                  
-                  if (!folderNameInput || !folderNameInput.trim()) {
-                    return; // User cancelled or entered empty string
-                  }
-                  
-                  // Create folder directly using the existing helper
-                  try {
-                    setError(null);
-                    const path = currentFolder ? `${currentFolder}/${folderNameInput.trim()}` : folderNameInput.trim();
-                    const res = await createFolderHelper(path);
-                    
-                    if (res?.details?.created === false && res?.details?.reason === 'duplicate') {
-                      window.alert('A folder with that name already exists here.');
-                      return;
-                    }
-                    
-                    // Refresh the current view to show the new folder
-                    fetchCurrentData();
-                  } catch {
-                    setError('Failed to create folder');
-                    window.alert('Failed to create folder');
-                  }
+                  openCreateFolderDialog();
                 }}
               >
                 Create folder…

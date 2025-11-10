@@ -122,7 +122,6 @@ async def get_current_week(request: Request):
 
 @public_bulletin_router.get("/", response_model=BulletinFeedOut)
 async def get_bulletins(
-	request: Request,
 	skip: int = Query(0, ge=0, description="Number of records to skip"),
 	limit: int = Query(100, ge=1, le=500, description="Max number of records to return"),
 	ministry: Optional[str] = None,
@@ -132,11 +131,10 @@ async def get_bulletins(
 	published: Optional[bool] = True,
 	upcoming_only: bool = False,
 	skip_expiration_filter: bool = False,
-	include_services: bool = False,
 ):
 	"""
 	List bulletins with optional filters.
-	Always returns BulletinFeedOut with services and bulletins arrays.
+	Always returns BulletinFeedOut with both services and bulletins arrays.
 	
 	IMPORTANT: week_start/week_end are used ONLY for services, NOT for bulletins.
 	Bulletins use upcoming_only for date-based filtering (publish_date <= today).

@@ -185,7 +185,7 @@ const BulletinsPage = () => {
                         >
                             {'\u{1F4E2}\uFE0E'}
                         </span>
-                        <h2 className="text-xl font-bold">Announcments</h2>
+                        <h2 className="text-xl font-bold">Announcements</h2>
                     </div>
                 )}
                 <BulletinList items={filteredBulletins} onItemClick={setSelectedBulletin} />

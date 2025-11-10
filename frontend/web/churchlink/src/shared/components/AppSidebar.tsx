@@ -252,7 +252,9 @@ export function AppSidebar() {
               )}
 
               {/* Dynamic Menu Items */}
-              {!loading && headerItems.map((item) => {
+              {!loading && headerItems
+                .filter((item) => item.visible !== false)
+                .map((item) => {
                 const isDropdown = 'items' in item;
                 const isExpanded = expandedDropdowns.has(item.title);
 

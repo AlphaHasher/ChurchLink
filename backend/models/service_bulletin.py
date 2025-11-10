@@ -177,11 +177,15 @@ async def get_service_by_title(title: str, exclude_id: Optional[str] = None) -> 
 	if DB.db is None:
 		return None
 	
-	# Build query with case-insensitive regex match
-	# Trim whitespace and use exact match with case-insensitive flag
+	# Validate title is not None or empty
+	if not title or not title.strip():
+		return None
+	
+	# Escape title to prevent regex injection, then build case-insensitive exact match
+	escaped_title = re.escape(title.strip())
 	query = {
 		"title": {
-			"$regex": f"^{title.strip()}$",
+			"$regex": f"^{escaped_title}$",
 			"$options": "i"  # Case-insensitive
 		}
 	}

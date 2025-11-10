@@ -172,22 +172,25 @@ export function BulletinsTable({
 
         if (!over || active.id === over.id) return;
 
-        const oldIndex = filtered.findIndex((b) => b.id === active.id);
-        const newIndex = filtered.findIndex((b) => b.id === over.id);
+        // Find indices in the full localBulletins list, not filtered
+        const oldIndex = localBulletins.findIndex((b) => b.id === active.id);
+        const newIndex = localBulletins.findIndex((b) => b.id === over.id);
 
         if (oldIndex === -1 || newIndex === -1) return;
 
-        const reordered = arrayMove(filtered, oldIndex, newIndex);
+        // Perform arrayMove on the full list
+        const reordered = arrayMove(localBulletins, oldIndex, newIndex);
         
-        // Update order field values to reflect new positions
+        // Update order field values to reflect new positions (0-indexed to match backend)
         const updatedBulletins = reordered.map((bulletin, index) => ({
             ...bulletin,
-            order: index + 1
+            order: index
         }));
         
-        // Immediately update UI with new order values
+        // Immediately update UI with the full reordered list
         setLocalBulletins(updatedBulletins);
 
+        // Pass the full list of IDs to onReorder
         const bulletinIds = updatedBulletins.map(b => b.id);
 
         setIsReordering(true);
@@ -200,7 +203,7 @@ export function BulletinsTable({
         } catch (err) {
             console.error('[Bulletin Reorder Error]', err);
             toast.error('Failed to reorder bulletins. Changes not saved.');
-            // Revert to original order on error
+            // Revert to original full bulletins on error
             setLocalBulletins(bulletins);
         } finally {
             setIsReordering(false);
