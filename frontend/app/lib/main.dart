@@ -120,8 +120,9 @@ class MyApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: c,
       builder: (_, child) {
+        final appName = dotenv.env['APP_NAME'] ?? 'ChurchLink';
         return MaterialApp(
-          title: 'ChurchLink',
+          title: appName,
           navigatorKey: navigatorKey,
           theme: AppTheme.light, // Colors are defined in app_theme.dart
           darkTheme: AppTheme.dark,
