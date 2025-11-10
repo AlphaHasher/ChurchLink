@@ -94,19 +94,15 @@ class ServiceBulletin {
 
   /// Format display week for UI (e.g., "Oct 6, 2025")
   /// NOTE: This is now handled server-side via the current_week endpoint
-  /// to ensure synchronization. This getter is kept for backward compatibility
-  /// but should not be used for displaying "For the week of" labels.
-  /// @deprecated Use ServerWeekInfo.weekLabel instead
+  /// to ensure synchronization. For displaying "For the week of" labels,
+  /// prefer using ServerWeekInfo.weekLabel from the server instead.
   String get formattedWeek {
-    // Simply return the display week as provided by server
-    // The server handles the transformation for 'always' visibility mode
     return DateFormat('MMM d, y').format(displayWeek);
   }
 
-  /// Check if service is upcoming (deprecated - services are now recurring weekly)
+  /// Check if service is upcoming
+  /// Services are recurring weekly, so this always returns true
   bool get isUpcoming {
-    // Services no longer have specific dates, they recur weekly
-    // This getter is kept for backward compatibility but always returns true
     return true;
   }
 

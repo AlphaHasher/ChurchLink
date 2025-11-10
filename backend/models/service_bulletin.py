@@ -2,30 +2,23 @@ from __future__ import annotations
 
 from datetime import datetime, time, timedelta
 from typing import List, Literal, Optional
+import re
 
 from bson import ObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from pymongo.errors import DuplicateKeyError
 
 from helpers.MongoHelper import serialize_objectid_deep
 from helpers.timezone_utils import normalize_to_local_week_start, strip_timezone_for_mongo, get_local_now
 from mongo.database import DB
 
-
-def canonicalize_week_start(dt: datetime) -> datetime:
-	"""
-	Normalize datetime to the Monday 00:00:00 of the same week in local timezone.
-	This ensures weekly services are grouped consistently according to church's local time.
-	
-	DEPRECATED: Use normalize_to_local_week_start from timezone_utils instead.
-	This function is kept for backward compatibility but now delegates to the new utility.
-	"""
-	# Use the new timezone-aware utility and strip timezone for MongoDB storage
-	return strip_timezone_for_mongo(normalize_to_local_week_start(dt))
+# Valid days of the week
+VALID_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
 class ServiceBulletinBase(BaseModel):
 	title: str
-	day_of_week: str  # Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
+	day_of_week: Literal["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 	time_of_day: str  # HH:MM format (24-hour time)
 	description: Optional[str] = None
 	timeline_notes: Optional[str] = None  # Markdown-formatted service timeline
@@ -33,6 +26,14 @@ class ServiceBulletinBase(BaseModel):
 	order: int = 0  # Display order within the week
 	published: bool = True
 	visibility_mode: Literal['always', 'specific_weeks'] = 'specific_weeks'  # Control when service appears
+	
+	@field_validator('time_of_day')
+	@classmethod
+	def validate_time_format(cls, v: str) -> str:
+		"""Validate time_of_day is in HH:MM format (24-hour time)"""
+		if not re.match(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$', v):
+			raise ValueError('time_of_day must be in HH:MM format (24-hour time)')
+		return v
 
 
 class ServiceBulletinCreate(ServiceBulletinBase):
@@ -41,7 +42,7 @@ class ServiceBulletinCreate(ServiceBulletinBase):
 
 class ServiceBulletinUpdate(BaseModel):
 	title: Optional[str] = None
-	day_of_week: Optional[str] = None
+	day_of_week: Optional[Literal["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]] = None
 	time_of_day: Optional[str] = None
 	description: Optional[str] = None
 	timeline_notes: Optional[str] = None
@@ -49,6 +50,14 @@ class ServiceBulletinUpdate(BaseModel):
 	order: Optional[int] = None
 	published: Optional[bool] = None
 	visibility_mode: Optional[Literal['always', 'specific_weeks']] = None
+	
+	@field_validator('time_of_day')
+	@classmethod
+	def validate_time_format(cls, v: Optional[str]) -> Optional[str]:
+		"""Validate time_of_day is in HH:MM format (24-hour time)"""
+		if v is not None and not re.match(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$', v):
+			raise ValueError('time_of_day must be in HH:MM format (24-hour time)')
+		return v
 
 
 class ServiceBulletinOut(ServiceBulletinBase):
@@ -101,17 +110,11 @@ async def create_service(service: ServiceBulletinCreate) -> Optional[ServiceBull
 	if DB.db is None:
 		return None
 
-	# Check for duplicate title (case-insensitive global uniqueness)
-	existing = await get_service_by_title(service.title)
-	if existing is not None:
-		print(f"Error: Service with title '{service.title}' already exists (ID: {existing.id})")
-		return None
-
 	payload = service.model_dump()
 	
 	# Normalize display_week to Monday 00:00 in local timezone
 	# This ensures week boundaries match the church's local timezone, not UTC
-	payload["display_week"] = canonicalize_week_start(service.display_week)
+	payload["display_week"] = strip_timezone_for_mongo(normalize_to_local_week_start(service.display_week))
 
 	# Ensure new services append to the end of the ordering sequence
 	order_value = payload.get("order")
@@ -134,6 +137,10 @@ async def create_service(service: ServiceBulletinCreate) -> Optional[ServiceBull
 
 	try:
 		inserted_id = await DB.insert_document("service_bulletins", payload)
+	except DuplicateKeyError:
+		# Database unique index violation (duplicate title)
+		print(f"Error: Service with title '{service.title}' already exists (duplicate key)")
+		return None
 	except Exception as exc:
 		print(f"Error inserting service bulletin: {exc}")
 		return None
@@ -206,7 +213,7 @@ async def update_service(service_id: str, updates: ServiceBulletinUpdate) -> boo
 
 	# Normalize display_week to Monday 00:00 in local timezone if provided
 	if "display_week" in update_payload:
-		update_payload["display_week"] = canonicalize_week_start(update_payload["display_week"])
+		update_payload["display_week"] = strip_timezone_for_mongo(normalize_to_local_week_start(update_payload["display_week"]))
 
 	update_payload["updated_at"] = datetime.utcnow()
 
@@ -215,7 +222,12 @@ async def update_service(service_id: str, updates: ServiceBulletinUpdate) -> boo
 			{"_id": object_id},
 			{"$set": update_payload}
 		)
-		return result.modified_count > 0
+		# Return True if document was found (matched_count > 0), regardless of whether values changed
+		return result.matched_count > 0
+	except DuplicateKeyError:
+		# Database unique index violation (duplicate title during update)
+		print(f"Error: Service title already exists (duplicate key during update)")
+		return False
 	except Exception as exc:
 		print(f"Error updating service bulletin {service_id}: {exc}")
 		return False
@@ -246,13 +258,11 @@ async def list_services(
 	week_start: Optional[datetime] = None,
 	week_end: Optional[datetime] = None,
 	published: Optional[bool] = None,
-	upcoming_only: bool = False,
 ) -> List[ServiceBulletinOut]:
 	"""
 	List service bulletins with optional filters.
 	- week_start/week_end: filter by display_week range (with visibility_mode logic)
 	- published: filter by published status
-	- upcoming_only: deprecated (kept for backward compatibility, ignored)
 	
 	Visibility logic:
 	- visibility_mode='always': always included regardless of week filters
@@ -262,9 +272,6 @@ async def list_services(
 
 	if published is not None:
 		query["published"] = published
-	
-	# Note: upcoming_only is now deprecated as service_time is no longer a datetime
-	# Services are now defined by day_of_week and time_of_day, not specific dates
 
 	# Handle visibility mode filtering with week filters
 	if week_start or week_end:
@@ -275,10 +282,10 @@ async def list_services(
 		# Normalize week_start to Monday of the week (if provided)
 		normalized_week_monday = None
 		if week_start:
-			normalized_week_monday = canonicalize_week_start(week_start)
+			normalized_week_monday = strip_timezone_for_mongo(normalize_to_local_week_start(week_start))
 		elif week_end:
 			# If only week_end provided, find its Monday
-			normalized_week_monday = canonicalize_week_start(week_end)
+			normalized_week_monday = strip_timezone_for_mongo(normalize_to_local_week_start(week_end))
 		
 		if normalized_week_monday is None:
 			# No valid week specified, skip filtering
@@ -303,13 +310,6 @@ async def list_services(
 				"display_week": normalized_week_monday  # Exact match, not a range!
 			}
 			week_conditions.append(specific_week_condition)
-			
-			# Condition 3: Handle legacy services without visibility_mode (treat as specific_weeks)
-			legacy_condition = {
-				"visibility_mode": {"$exists": False},
-				"display_week": normalized_week_monday
-			}
-			week_conditions.append(legacy_condition)
 			
 			# Combine with OR
 			query["$or"] = week_conditions
@@ -375,9 +375,15 @@ async def reorder_services(service_ids: List[str]) -> bool:
 	if DB.db is None:
 		return False
 
+	# Validate all ObjectIds upfront before modifying database
 	try:
-		for idx, service_id in enumerate(service_ids):
-			object_id = ObjectId(service_id)
+		object_ids = [ObjectId(sid) for sid in service_ids]
+	except Exception as exc:
+		print(f"Error: Invalid service ID format in reorder: {exc}")
+		return False
+
+	try:
+		for idx, object_id in enumerate(object_ids):
 			await DB.db["service_bulletins"].update_one(
 				{"_id": object_id},
 				{"$set": {"order": idx, "updated_at": datetime.utcnow()}}

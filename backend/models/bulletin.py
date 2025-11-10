@@ -6,6 +6,7 @@ from typing import List, Optional, Set
 
 from bson import ObjectId
 from pydantic import BaseModel, Field, HttpUrl
+from pymongo.errors import DuplicateKeyError
 
 from helpers.MongoHelper import serialize_objectid_deep
 from helpers.timezone_utils import get_local_now, normalize_to_local_midnight, strip_timezone_for_mongo
@@ -63,17 +64,6 @@ class BulletinFeedOut(BaseModel):
 	"""Unified response schema for bulletins feed with optional services"""
 	services: List = Field(default_factory=list)  # List[ServiceBulletinOut] to avoid circular import
 	bulletins: List[BulletinOut] = Field(default_factory=list)
-
-
-def canonicalize_week_start(dt: datetime) -> datetime:
-	"""
-	Normalize datetime to the Monday 00:00:00 of the same week.
-	This ensures Bulletin Announcments are grouped consistently.
-	"""
-	# Find Monday (weekday 0) of the week containing dt
-	days_since_monday = dt.weekday()
-	monday = dt - timedelta(days=days_since_monday)
-	return datetime.combine(monday.date(), time.min)
 
 
 def _build_image_urls(image_id: Optional[str]) -> tuple[Optional[str], Optional[str]]:
@@ -140,12 +130,6 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 	if DB.db is None:
 		return None
 
-	# Check for duplicate headline (case-insensitive global uniqueness)
-	existing = await get_bulletin_by_headline(bulletin.headline)
-	if existing is not None:
-		print(f"Error: Bulletin with headline '{bulletin.headline}' already exists (ID: {existing.id})")
-		return None
-
 	payload = bulletin.model_dump()
 	
 	# Normalize publish_date to midnight in local timezone, then strip for MongoDB
@@ -198,6 +182,10 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 
 	try:
 		inserted_id = await DB.insert_document("bulletins", payload)
+	except DuplicateKeyError:
+		# Database unique index violation (duplicate headline)
+		print(f"Error: Bulletin with headline '{bulletin.headline}' already exists (duplicate key)")
+		return None
 	except Exception as exc:
 		print(f"Error inserting bulletin: {exc}")
 		return None
@@ -310,6 +298,10 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 	try:
 		result = await DB.db["bulletins"].update_one({"_id": object_id}, update_doc)
 		return result.matched_count > 0
+	except DuplicateKeyError:
+		# Database unique index violation (duplicate headline during update)
+		print(f"Error: Bulletin headline already exists (duplicate key during update)")
+		return False
 	except Exception as exc:
 		print(f"Error updating bulletin {bulletin_id}: {exc}")
 		return False
@@ -382,11 +374,19 @@ async def list_bulletins(
 	if not skip_expiration_filter:
 		local_now = get_local_now()
 		now_mongo = strip_timezone_for_mongo(local_now)
-		query["$or"] = [
-			{"expire_at": {"$exists": False}},  # No expiration date set
-			{"expire_at": None},  # Expiration date is null
-			{"expire_at": {"$gt": now_mongo}}  # Expiration date is in the future (local time)
-		]
+		# Use $and to properly combine with existing query conditions
+		expiration_filter = {
+			"$or": [
+				{"expire_at": {"$exists": False}},  # No expiration date set
+				{"expire_at": None},  # Expiration date is null
+				{"expire_at": {"$gt": now_mongo}}  # Expiration date is in the future (local time)
+			]
+		}
+		# If query already has conditions, wrap in $and
+		if query:
+			query = {"$and": [query, expiration_filter]}
+		else:
+			query = expiration_filter
 
 	if DB.db is None:
 		return []
@@ -438,11 +438,19 @@ async def search_bulletins(
 	# Use local timezone to avoid timezone mismatch issues
 	local_now = get_local_now()
 	now_mongo = strip_timezone_for_mongo(local_now)
-	query["$or"] = [
-		{"expire_at": {"$exists": False}},  # No expiration date set
-		{"expire_at": None},  # Expiration date is null
-		{"expire_at": {"$gt": now_mongo}}  # Expiration date is in the future (local time)
-	]
+	# Use $and to properly combine with existing query conditions
+	expiration_filter = {
+		"$or": [
+			{"expire_at": {"$exists": False}},  # No expiration date set
+			{"expire_at": None},  # Expiration date is null
+			{"expire_at": {"$gt": now_mongo}}  # Expiration date is in the future (local time)
+		]
+	}
+	# If query already has conditions, wrap in $and
+	if query:
+		query = {"$and": [query, expiration_filter]}
+	else:
+		query = expiration_filter
 
 	if DB.db is None:
 		return []
@@ -477,9 +485,15 @@ async def reorder_bulletins(bulletin_ids: List[str]) -> bool:
 	if DB.db is None:
 		return False
 
+	# Validate all ObjectIds upfront before modifying database
 	try:
-		for idx, bulletin_id in enumerate(bulletin_ids):
-			object_id = ObjectId(bulletin_id)
+		object_ids = [ObjectId(bid) for bid in bulletin_ids]
+	except Exception as exc:
+		print(f"Error: Invalid bulletin ID format in reorder: {exc}")
+		return False
+
+	try:
+		for idx, object_id in enumerate(object_ids):
 			await DB.db["bulletins"].update_one(
 				{"_id": object_id},
 				{"$set": {"order": idx, "updated_at": datetime.utcnow()}}

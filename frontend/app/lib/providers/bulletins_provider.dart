@@ -140,7 +140,7 @@ class BulletinsProvider extends ChangeNotifier {
     }
   }
 
-  /// Search bulletins by headline (legacy - does not include services)
+  /// Search bulletins by headline (does not include services in results)
   Future<void> searchBulletins(String query) async {
     if (query.isEmpty) {
       await loadInitial();

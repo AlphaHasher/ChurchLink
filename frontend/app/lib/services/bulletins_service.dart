@@ -55,7 +55,7 @@ class BulletinsService {
     }
   }
 
-  /// Fetch combined feed with services and bulletins (new unified endpoint)
+  /// Fetch combined feed with services and bulletins (unified endpoint)
   Future<BulletinFeedResponse> fetchCombinedFeed(BulletinFilter filter) async {
     try {
       final queryParams = filter.toQueryParams();
@@ -72,23 +72,14 @@ class BulletinsService {
         return BulletinFeedResponse.fromJson(data);
       }
 
-      // Fallback: if response is just a list (old format), return empty services
-      if (data is List) {
-        final bulletins =
-            data
-                .whereType<Map<String, dynamic>>()
-                .map(Bulletin.fromJson)
-                .toList();
-        return BulletinFeedResponse(services: [], bulletins: bulletins);
-      }
-
+      // If unexpected format, return empty data
       return const BulletinFeedResponse(services: [], bulletins: []);
     } on DioException catch (error) {
       throw Exception('Failed to load bulletin feed: ${error.message}');
     }
   }
 
-  /// Fetch paginated bulletins using the provided filter (legacy endpoint)
+  /// Fetch paginated bulletins using the provided filter (bulletins only, no services)
   Future<List<Bulletin>> fetchBulletins(BulletinFilter filter) async {
     try {
       final response = await _client.get<dynamic>(

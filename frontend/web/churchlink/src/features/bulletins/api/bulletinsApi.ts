@@ -1,6 +1,9 @@
 import api from '@/api/api';
 import { ChurchBulletin, BulletinFilter, ServiceBulletin, BulletinFeedOut } from '@/shared/types/ChurchBulletin';
 
+/**
+ * Safely coerce unknown value to Date, with fallback to epoch (Jan 1, 1970)
+ */
 const coerceDate = (value: unknown): Date => {
 	if (value instanceof Date) {
 		return value;
@@ -13,22 +16,78 @@ const coerceDate = (value: unknown): Date => {
 		}
 	}
 
+	console.warn('[bulletinsApi] Invalid date value, using epoch:', value);
 	return new Date(0);
 };
 
-const coerceService = (item: Record<string, unknown>): ServiceBulletin => {
+/**
+ * Safely extract string value with type guard
+ */
+const safeString = (value: unknown, fallback: string): string => {
+	if (typeof value === 'string' && value.trim().length > 0) {
+		return value.trim();
+	}
+	return fallback;
+};
+
+/**
+ * Type guard for service bulletin data from API
+ */
+const isServiceData = (item: unknown): item is Record<string, unknown> => {
+	return (
+		typeof item === 'object' &&
+		item !== null &&
+		'id' in item &&
+		'title' in item &&
+		'day_of_week' in item &&
+		'time_of_day' in item
+	);
+};
+
+/**
+ * Type guard for bulletin data from API
+ */
+const isBulletinData = (item: unknown): item is Record<string, unknown> => {
+	return (
+		typeof item === 'object' &&
+		item !== null &&
+		'id' in item &&
+		'headline' in item &&
+		'publish_date' in item
+	);
+};
+
+/**
+ * Coerce API service data to ServiceBulletin with type safety
+ */
+const coerceService = (item: unknown): ServiceBulletin | null => {
+	if (!isServiceData(item)) {
+		console.error('[bulletinsApi] Invalid service data structure:', item);
+		return null;
+	}
+
 	return {
 		...item,
-		day_of_week: (item['day_of_week'] as string) || 'Sunday',
-		time_of_day: (item['time_of_day'] as string) || '10:00',
+		day_of_week: safeString(item['day_of_week'], 'Sunday'),
+		time_of_day: safeString(item['time_of_day'], '10:00'),
 		display_week: coerceDate(item['display_week']),
-		visibility_mode: (item['visibility_mode'] as 'always' | 'specific_weeks') || 'always',
+		visibility_mode: (item['visibility_mode'] === 'always' || item['visibility_mode'] === 'specific_weeks')
+			? item['visibility_mode']
+			: 'always',
 		created_at: item['created_at'] ? coerceDate(item['created_at']) : undefined,
 		updated_at: item['updated_at'] ? coerceDate(item['updated_at']) : undefined
 	} as ServiceBulletin;
 };
 
-const coerceBulletin = (item: Record<string, unknown>): ChurchBulletin => {
+/**
+ * Coerce API bulletin data to ChurchBulletin with type safety
+ */
+const coerceBulletin = (item: unknown): ChurchBulletin | null => {
+	if (!isBulletinData(item)) {
+		console.error('[bulletinsApi] Invalid bulletin data structure:', item);
+		return null;
+	}
+
 	return {
 		...item,
 		publish_date: coerceDate(item['publish_date']),
@@ -87,57 +146,67 @@ export const fetchCombinedFeed = async (filters?: BulletinFilter): Promise<Bulle
 		const res = await api.get('/v1/bulletins/', { params });
 		const data = res.data as Record<string, unknown>;
 
-		// Handle both new feed structure {services, bulletins} and legacy array response
-		let servicesRaw: unknown[] = [];
-		let bulletinsRaw: unknown[] = [];
-
-		if (Array.isArray(data.services) && Array.isArray(data.bulletins)) {
-			// New feed structure
-			servicesRaw = data.services;
-			bulletinsRaw = data.bulletins;
-			console.log(`[Combined Feed] Received ${servicesRaw.length} services, ${bulletinsRaw.length} bulletins`);
-		} else if (Array.isArray(data)) {
-			// Legacy response: array of bulletins only
-			console.warn('[Combined Feed] Received legacy array response, no services');
-			bulletinsRaw = data as unknown[];
-		} else {
-			console.warn('[Combined Feed] Unexpected response structure', data);
+		// Validate response structure
+		if (!data || typeof data !== 'object') {
+			throw new Error('Invalid response format: expected object');
 		}
 
-		return {
-			services: servicesRaw.map((s) => coerceService(s as Record<string, unknown>)),
-			bulletins: bulletinsRaw.map((b) => coerceBulletin(b as Record<string, unknown>))
-		};
+		// Extract and validate services and bulletins arrays
+		const servicesRaw = Array.isArray(data.services) ? data.services : [];
+		const bulletinsRaw = Array.isArray(data.bulletins) ? data.bulletins : [];
+		
+		// Coerce and filter out invalid entries
+		const services = servicesRaw
+			.map(coerceService)
+			.filter((s): s is ServiceBulletin => s !== null);
+		
+		const bulletins = bulletinsRaw
+			.map(coerceBulletin)
+			.filter((b): b is ChurchBulletin => b !== null);
+		
+		console.log(`[Combined Feed] Received ${services.length} services, ${bulletins.length} bulletins`);
+
+		return { services, bulletins };
 	} catch (err) {
 		console.error(`[Combined Feed] Failed to fetch at ${new Date().toISOString()}:`, err);
-		return { services: [], bulletins: [] };
+		throw err; // Re-throw to let caller handle error
 	}
 };
 
 /**
- * Legacy endpoint - fetch only bulletins
+ * Fetch only bulletins (without services)
  */
 export const fetchBulletins = async (filters?: BulletinFilter): Promise<ChurchBulletin[]> => {
 	try {
 		const params = { ...(filters || {}) };
 		const res = await api.get('/v1/bulletins/', { params });
-		const dataRaw = res.data as unknown;
-		const dataArr = Array.isArray(dataRaw) ? dataRaw : [];
+		
+		// Handle both array response and BulletinFeedOut structure
+		const data = res.data;
+		let bulletinsRaw: unknown[] = [];
+		
+		if (Array.isArray(data)) {
+			bulletinsRaw = data;
+		} else if (data && typeof data === 'object' && 'bulletins' in data) {
+			bulletinsRaw = Array.isArray(data.bulletins) ? data.bulletins : [];
+		}
 
-		return dataArr.map((entry) => coerceBulletin(entry as Record<string, unknown>));
+		return bulletinsRaw
+			.map(coerceBulletin)
+			.filter((b): b is ChurchBulletin => b !== null);
 	} catch (err) {
 		console.error('Failed to fetch bulletins:', err);
-		return [];
+		throw err;
 	}
 };
 
 export const fetchBulletinById = async (id: string): Promise<ChurchBulletin | null> => {
 	try {
 		const res = await api.get(`/v1/bulletins/${id}`);
-		return coerceBulletin(res.data as Record<string, unknown>);
+		return coerceBulletin(res.data);
 	} catch (err) {
 		console.error('Failed to fetch bulletin:', err);
-		return null;
+		throw err;
 	}
 };
 
@@ -150,20 +219,22 @@ export const fetchServices = async (filters?: BulletinFilter): Promise<ServiceBu
 		const params = { ...(filters || {}) };
 		const res = await api.get('/v1/bulletins/services/', { params });
 		const dataArr = Array.isArray(res.data) ? res.data : [];
-		return dataArr.map((s) => coerceService(s as Record<string, unknown>));
+		return dataArr
+			.map(coerceService)
+			.filter((s): s is ServiceBulletin => s !== null);
 	} catch (err) {
 		console.error('Failed to fetch services:', err);
-		return [];
+		throw err;
 	}
 };
 
 export const fetchServiceById = async (id: string): Promise<ServiceBulletin | null> => {
 	try {
 		const res = await api.get(`/v1/bulletins/services/${id}`);
-		return coerceService(res.data as Record<string, unknown>);
+		return coerceService(res.data);
 	} catch (err) {
 		console.error('Failed to fetch service:', err);
-		return null;
+		throw err;
 	}
 };
 
