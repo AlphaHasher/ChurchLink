@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
 import { fetchCombinedFeed, fetchCurrentWeek, ServerWeekInfo } from '@/features/bulletins/api/bulletinsApi';
 import BulletinList from '@/features/bulletins/components/BulletinList';
 import { ServiceCard } from '@/features/bulletins/components/ServiceCard';

@@ -103,7 +103,9 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
             <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
                     {bulletin.image_id && (
-                        <ImageIcon className="h-4 w-4 text-gray-400" title="Has image" />
+                        <div title="Has image">
+                            <ImageIcon className="h-4 w-4 text-gray-400" />
+                        </div>
                     )}
                     {bulletin.headline}
                 </div>

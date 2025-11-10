@@ -121,7 +121,7 @@ const Bulletins = () => {
                     <BulletinsTable 
                         bulletins={bulletins} 
                         permissions={perms} 
-                        onRefresh={loadBulletins}
+                        onRefresh={async () => { await loadBulletins(); }}
                         onReorder={handleReorderBulletins}
                     />
                 </TabsContent>
@@ -130,7 +130,7 @@ const Bulletins = () => {
                     <ServicesTable 
                         services={services} 
                         permissions={perms} 
-                        onRefresh={loadServices}
+                        onRefresh={async () => { await loadServices(); }}
                         onReorder={handleReorderServices}
                     />
                 </TabsContent>
