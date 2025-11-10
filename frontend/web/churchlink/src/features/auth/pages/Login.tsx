@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -80,7 +81,7 @@ function Login() {
     };
   }, []);
 
-  const handleForgotPassword = (e: React.MouseEvent) => {
+  const handleForgotPassword = (e: MouseEvent) => {
     e.preventDefault();
     // Clear any existing timeout to prevent stale timers
     if (resetTimeoutRef.current) {
@@ -127,7 +128,7 @@ function Login() {
     }
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError(""); // Clear any existing errors
     try {
