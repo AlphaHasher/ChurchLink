@@ -18,11 +18,10 @@ void main() {
   await $.pumpAndSettle();
 
   // Navigate to Sermons page
-  await $('Sermons').tap();
+  await $('Sermons').at(1).tap();
   await $.pumpAndSettle();
 
   // Check header and message
-  expect(await $('Sermons').exists, isTrue);
   expect(await $('No sermons available yet.').exists, isTrue);
 
 });

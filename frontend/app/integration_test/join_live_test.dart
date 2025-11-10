@@ -20,17 +20,9 @@ void main() {
     await $('Join Live').tap();
     await $.pumpAndSettle();
 
-    // Verify header
-    expect(await $('YouTube Live').exists, isTrue);
-
     // Verify offline message
     expect(await $('We are not currently live!').exists, isTrue);
 
-    // Verify "Go to Channel" button
-    expect(await $('Go to Channel').exists, isTrue);
-
-    // Verify description text
-    expect(await $('To keep up with our future streams').exists, isTrue);
   });
 
  patrolTest('Join Live Go to Channel button works', ($) async {

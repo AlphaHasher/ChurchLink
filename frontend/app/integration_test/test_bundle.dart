@@ -9,16 +9,7 @@ import 'package:patrol/src/native/contracts/contracts.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 // START: GENERATED TEST IMPORTS
-import 'bible_reader_test.dart' as bible_reader_test;
-import 'example_test.dart' as example_test;
-import 'forms_test.dart' as forms_test;
-import 'giving_test.dart' as giving_test;
-import 'join_live_test.dart' as join_live_test;
-import 'main_nav_test.dart' as main_nav_test;
-import 'sermons_test.dart' as sermons_test;
-import 'theme_test.dart' as theme_test;
-import 'user_settings_test.dart' as user_settings_test;
-import 'weekly_bulletin_test.dart' as weekly_bulletin_test;
+import 'forms_test.dart' as __forms_test;
 // END: GENERATED TEST IMPORTS
 
 Future<void> main() async {
@@ -78,16 +69,7 @@ Future<void> main() async {
   });
 
   // START: GENERATED TEST GROUPS
-  group('bible_reader_test', bible_reader_test.main);
-  group('example_test', example_test.main);
-  group('forms_test', forms_test.main);
-  group('giving_test', giving_test.main);
-  group('join_live_test', join_live_test.main);
-  group('main_nav_test', main_nav_test.main);
-  group('sermons_test', sermons_test.main);
-  group('theme_test', theme_test.main);
-  group('user_settings_test', user_settings_test.main);
-  group('weekly_bulletin_test', weekly_bulletin_test.main);
+  group('.forms_test', __forms_test.main);
   // END: GENERATED TEST GROUPS
 
   final dartTestGroup = await testExplorationCompleter.future;
