@@ -66,7 +66,6 @@ const coerceService = (item: unknown): ServiceBulletin | null => {
 		console.error('[bulletinsApi] Invalid service data structure:', item);
 		return null;
 	}
-
 	// Explicit field mapping to avoid type pollution from spread operator
 	return {
 		id: String(item['id']),
@@ -81,6 +80,9 @@ const coerceService = (item: unknown): ServiceBulletin | null => {
 		visibility_mode: (item['visibility_mode'] === 'always' || item['visibility_mode'] === 'specific_weeks')
 			? item['visibility_mode']
 			: 'always',
+		image_id: typeof item['image_id'] === 'string' ? item['image_id'] : undefined,
+		image_url: typeof item['image_url'] === 'string' ? item['image_url'] : undefined,
+		thumbnail_url: typeof item['thumbnail_url'] === 'string' ? item['thumbnail_url'] : undefined,
 		created_at: item['created_at'] ? coerceDate(item['created_at']) : undefined,
 		updated_at: item['updated_at'] ? coerceDate(item['updated_at']) : undefined
 	} as ServiceBulletin;

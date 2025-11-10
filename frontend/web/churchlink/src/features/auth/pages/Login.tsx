@@ -31,7 +31,7 @@ function Login() {
   const [resetLoading, setResetLoading] = useState<boolean>(false);
   const [churchName, setChurchName] = useState("Your Church Name");
 
-  const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { user } = useAuth();
   const navigate = useNavigate();
