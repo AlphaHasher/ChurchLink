@@ -25,11 +25,17 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
+    // Define button colors based on theme
+    final buttonBackgroundColor = isDarkMode ? Colors.black : Colors.grey[700];
+    final buttonTextColor = Colors.white;
+    final forgotPasswordColor = isDarkMode ? Colors.white : Colors.black;
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(_isLogin ? 'Sign In' : 'Create Account'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -46,16 +52,26 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                     // Avatar image
                     Center(
                       child: Container(
-                        width: 80,
-                        height: 80,
-                        margin: const EdgeInsets.only(bottom: 24),
+                        width: 100,
+                        height: 100,
+                        margin: const EdgeInsets.only(bottom: 32),
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDarkMode 
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.grey.withOpacity(0.2),
+                              spreadRadius: 2,
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: CircleAvatar(
-                          radius: 32,
-                          backgroundColor: Colors.black,
+                          radius: 50,
+                          backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
                           backgroundImage: const AssetImage(
                             'assets/user/ssbc-dove.png',
                           ),
@@ -70,9 +86,28 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                           Expanded(
                             child: TextFormField(
                               controller: _firstNameController,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'First Name',
-                                border: OutlineInputBorder(),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: theme.colorScheme.primary,
+                                    width: 2,
+                                  ),
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.person_outline,
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -86,9 +121,28 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                           Expanded(
                             child: TextFormField(
                               controller: _lastNameController,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Last Name',
-                                border: OutlineInputBorder(),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: theme.colorScheme.primary,
+                                    width: 2,
+                                  ),
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.person_outline,
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -105,9 +159,28 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
 
                     TextFormField(
                       controller: _emailController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Email',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        ),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
@@ -120,9 +193,28 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.lock_outlined,
+                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        ),
                       ),
                       obscureText: true,
                       validator: (value) {
@@ -136,9 +228,28 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _confirmPasswordController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Confirm Password',
-                          border: OutlineInputBorder(),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.lock_outlined,
+                            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          ),
                         ),
                         obscureText: true,
                         validator: (value) {
@@ -161,9 +272,12 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                           onPressed: () {
                             PasswordReset.show(context, null);
                           },
-                          child: const Text(
+                          child: Text(
                             'Forgot Password?',
-                            style: TextStyle(color: Colors.black),
+                            style: TextStyle(
+                              color: forgotPasswordColor,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
@@ -173,11 +287,21 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                     ElevatedButton(
                       onPressed: _submitForm,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        backgroundColor: buttonBackgroundColor,
+                        foregroundColor: buttonTextColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: Text(_isLogin ? 'Sign In' : 'Create Account'),
+                      child: Text(
+                        _isLogin ? 'Sign In' : 'Create Account',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 16),
@@ -188,13 +312,25 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         });
                       },
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.black),
+                        side: BorderSide(
+                          color: isDarkMode ? Colors.white70 : Colors.grey[800]!,
+                          width: 1.5,
+                        ),
+                        foregroundColor: isDarkMode ? Colors.white : Colors.grey[800],
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       child: Text(
                         _isLogin
                             ? 'Need an account? Sign up'
                             : 'Already have an account? Sign in',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: isDarkMode ? Colors.white : Colors.grey[800],
+                        ),
                       ),
                     ),
                   ],

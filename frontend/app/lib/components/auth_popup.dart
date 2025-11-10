@@ -23,31 +23,47 @@ class AuthPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
+    // Define button colors based on theme
+    final buttonBackgroundColor = isDarkMode ? Colors.black : Colors.grey[700]!;
+    final buttonTextColor = Colors.white;
+    
     final List<Map<String, dynamic>> authOptions = [
       {
         'title': 'Continue with Email',
         'icon': Icons.email,
         'ontap': _continueWithEmail,
-        'backgroundColor': colorScheme.primary,
-        'foregroundColor': colorScheme.onPrimary,
+        'backgroundColor': buttonBackgroundColor,
+        'foregroundColor': buttonTextColor,
       },
       {
         'title': 'Continue with Google',
         'icon': Icons.g_mobiledata,
         'ontap': _continueWithGoogle,
-        'backgroundColor': colorScheme.primary,
-        'foregroundColor': colorScheme.onPrimary,
+        'backgroundColor': buttonBackgroundColor,
+        'foregroundColor': buttonTextColor,
       },
     ];
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.5,
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode 
+                ? Colors.black.withOpacity(0.5)
+                : Colors.grey.withOpacity(0.3),
+            spreadRadius: 1,
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -57,7 +73,7 @@ class AuthPopup extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: colorScheme.outline.withOpacity(0.3),
+              color: isDarkMode ? Colors.grey[600] : Colors.grey[300],
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -67,13 +83,15 @@ class AuthPopup extends StatelessWidget {
           // Title
           Text(
             'Sign in',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: colorScheme.onSurface,
+            style: TextStyle(
+              color: isDarkMode ? Colors.white : Colors.grey[900],
+              fontSize: 28,
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
           // Subtitle
           Padding(
@@ -81,9 +99,10 @@ class AuthPopup extends StatelessWidget {
             child: Text(
               'Choose how you want to continue',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.7),
-                fontSize: 16,
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
@@ -99,7 +118,9 @@ class AuthPopup extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: option['backgroundColor'],
                   foregroundColor: option['foregroundColor'],
-                  minimumSize: const Size(double.infinity, 50),
+                  minimumSize: const Size(double.infinity, 56),
+                  elevation: 2,
+                  shadowColor: isDarkMode ? Colors.black.withOpacity(0.5) : Colors.grey.withOpacity(0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -107,12 +128,16 @@ class AuthPopup extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(option['icon'], size: 24, color: option['foregroundColor']),
+                    Icon(option['icon'], size: 26, color: option['foregroundColor']),
                     const SizedBox(width: 12),
-                    Text(option['title'], style: theme.textTheme.bodyLarge?.copyWith(
-                      color: option['foregroundColor'],
-                      fontSize: 16,
-                    )),
+                    Text(
+                      option['title'], 
+                      style: TextStyle(
+                        color: option['foregroundColor'],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -127,9 +152,11 @@ class AuthPopup extends StatelessWidget {
             child: Text(
               'By continuing, you agree to our Terms of Service and Privacy Policy',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.7),
-                fontSize: 12,
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+                height: 1.4,
               ),
             ),
           ),
