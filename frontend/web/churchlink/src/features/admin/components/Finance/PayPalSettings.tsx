@@ -6,7 +6,6 @@ import { PlusOutlined } from "@ant-design/icons";
 interface PayPalSettings {
   PAYPAL_PLAN_NAME?: string;
   PAYPAL_PLAN_DESCRIPTION?: string;
-  CHURCH_NAME?: string;
   PAYPAL_MODE?: string;
   ALLOWED_FUNDS?: string[];
 }
@@ -34,7 +33,6 @@ const PayPalSettingsComponent: React.FC = () => {
       form.setFieldsValue({
         PAYPAL_PLAN_NAME: paypalSettings.PAYPAL_PLAN_NAME || "",
         PAYPAL_PLAN_DESCRIPTION: paypalSettings.PAYPAL_PLAN_DESCRIPTION || "",
-        CHURCH_NAME: paypalSettings.CHURCH_NAME || "",
       });
     } catch (error) {
       console.error("Error fetching PayPal settings:", error);
@@ -50,7 +48,6 @@ const PayPalSettingsComponent: React.FC = () => {
       const dbSettings = {
         PAYPAL_PLAN_NAME: values.PAYPAL_PLAN_NAME,
         PAYPAL_PLAN_DESCRIPTION: values.PAYPAL_PLAN_DESCRIPTION,
-        CHURCH_NAME: values.CHURCH_NAME,
         ALLOWED_FUNDS: funds,
       };
 
@@ -80,28 +77,17 @@ const PayPalSettingsComponent: React.FC = () => {
 
   const tabItems = [
     {
-      key: "general",
-      label: "General Settings",
+      key: "subscription",
+      label: "Subscription Settings",
       children: (
         <>
-          <Form.Item name="CHURCH_NAME" label="Church/Organization Name" rules={[{ required: true, message: "Please enter the church/organization name" }]}>
-            <Input placeholder="e.g., South Side Baptist Church" />
-          </Form.Item>
-
           {settings?.PAYPAL_MODE && (
             <div style={{ marginBottom: "16px" }}>
               <div style={{ fontWeight: "bold" }}>PayPal Mode:</div>
               <div>{settings.PAYPAL_MODE === "sandbox" ? "Sandbox (Testing)" : "Live (Production)"}</div>
             </div>
           )}
-        </>
-      ),
-    },
-    {
-      key: "subscription",
-      label: "Subscription Settings",
-      children: (
-        <>
+          
           <Form.Item name="PAYPAL_PLAN_NAME" label="Plan Name" rules={[{ required: true, message: "Please enter the subscription plan name" }]}>
             <Input placeholder="e.g., Church Donation Subscription" />
           </Form.Item>
@@ -135,9 +121,9 @@ const PayPalSettingsComponent: React.FC = () => {
   ];
 
   return (
-    <Card title="PayPal Settings" style={{ marginBottom: "20px" }}>
+    <Card title="PayPal Donation Settings" style={{ marginBottom: "20px" }}>
       <Form form={form} layout="vertical" onFinish={onFinish} initialValues={settings || {}}>
-        <Tabs defaultActiveKey="general" items={tabItems} />
+        <Tabs defaultActiveKey="subscription" items={tabItems} />
 
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={loading}>Save Settings</Button>

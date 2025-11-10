@@ -10,12 +10,14 @@ import { useAuth } from "../hooks/auth-context";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Dove from "@/assets/Dove";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
+import { getChurchName } from "@/helpers/ChurchSettingsHelper";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [churchName, setChurchName] = useState("Your Church Name");
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -38,6 +40,21 @@ function Login() {
       navigate(getRedirectTo(), { replace: true });
     }
   }, [user]);
+
+  // Fetch church name on component mount
+  useEffect(() => {
+    const fetchChurchName = async () => {
+      try {
+        const name = await getChurchName();
+        setChurchName(name);
+      } catch (error) {
+        console.warn("Failed to fetch church name for login page:", error);
+        // Keep default value
+      }
+    };
+
+    fetchChurchName();
+  }, []);
 
   const handleForgotPassword = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -127,7 +144,7 @@ function Login() {
 
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
         <div className="text-gray-600 mb-6">
-          The Second Slavic Baptist Church welcomes you back! Please enter your
+          {churchName} welcomes you back! Please enter your
           credentials below.
         </div>
 

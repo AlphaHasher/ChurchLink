@@ -345,6 +345,110 @@ class TestFormPaymentIntegration:
         assert "email_address" in payer
         assert "name" in payer
 
+class TestFormPaymentCalculation:
+    """Test payment calculation functionality"""
+    
+    def test_calculate_total_amount_single_price(self):
+        """Test calculating total amount with single price field"""
+        from helpers.form_payment_helper import FormPaymentHelper
+        
+        helper = FormPaymentHelper()
+        
+        form_schema = {
+            "data": [
+                {"id": "name", "type": "text", "label": "Name"},
+                {"id": "donation", "type": "price", "label": "Donation", "price": 25.00}
+            ]
+        }
+        form_response = {
+            "name": "John Doe",
+            "donation": "selected"
+        }
+        
+        result = helper.calculate_total_amount(form_schema, form_response)
+        assert result == 25.00
+    
+    def test_calculate_total_amount_multiple_prices(self):
+        """Test calculating total amount with multiple price fields"""
+        from helpers.form_payment_helper import FormPaymentHelper
+        
+        helper = FormPaymentHelper()
+        
+        form_schema = {
+            "data": [
+                {"id": "name", "type": "text", "label": "Name"},
+                {"id": "ticket", "type": "price", "label": "Event Ticket", "price": 50.00},
+                {"id": "meal", "type": "price", "label": "Meal Add-on", "price": 15.00},
+                {"id": "parking", "type": "price", "label": "Parking", "price": 10.00}
+            ]
+        }
+        form_response = {
+            "name": "Jane Smith",
+            "ticket": "selected",
+            "meal": "selected"
+            # parking not selected
+        }
+        
+        result = helper.calculate_total_amount(form_schema, form_response)
+        assert result == 65.00
+    
+    def test_calculate_total_amount_no_selection(self):
+        """Test calculating total amount with no price fields selected"""
+        from helpers.form_payment_helper import FormPaymentHelper
+        
+        helper = FormPaymentHelper()
+        
+        form_schema = {
+            "data": [
+                {"id": "name", "type": "text", "label": "Name"},
+                {"id": "donation", "type": "price", "label": "Donation", "price": 25.00}
+            ]
+        }
+        form_response = {
+            "name": "Bob Johnson"
+            # No price fields selected
+        }
+        
+        result = helper.calculate_total_amount(form_schema, form_response)
+        assert result == 0.00
+    
+    def test_calculate_total_amount_empty_schema(self):
+        """Test calculating total amount with empty form schema"""
+        from helpers.form_payment_helper import FormPaymentHelper
+        
+        helper = FormPaymentHelper()
+        
+        form_schema = {"data": []}
+        form_response = {}
+        
+        result = helper.calculate_total_amount(form_schema, form_response)
+        assert result == 0.00
+    
+    def test_calculate_total_amount_invalid_price(self):
+        """Test calculating total amount with invalid price values"""
+        from helpers.form_payment_helper import FormPaymentHelper
+        
+        helper = FormPaymentHelper()
+        
+        form_schema = {
+            "data": [
+                {"id": "name", "type": "text", "label": "Name"},
+                {"id": "donation1", "type": "price", "label": "Good Donation", "price": 25.00},
+                {"id": "donation2", "type": "price", "label": "Invalid Donation", "price": "invalid"},
+                {"id": "donation3", "type": "price", "label": "Negative Donation", "price": -10.00}
+            ]
+        }
+        form_response = {
+            "name": "Test User",
+            "donation1": "selected",
+            "donation2": "selected", 
+            "donation3": "selected"
+        }
+        
+        # Should only count the valid positive price
+        result = helper.calculate_total_amount(form_schema, form_response)
+        assert result == 25.00
+
 if __name__ == "__main__":
     # Run specific test classes
     pytest.main([
@@ -352,5 +456,6 @@ if __name__ == "__main__":
         __file__ + "::TestFormPaymentAuditLogging",
         __file__ + "::TestFormPaymentSecurityScenarios",
         __file__ + "::TestFormPaymentIntegration",
+        __file__ + "::TestFormPaymentCalculation",
         "-v"
     ])

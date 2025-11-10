@@ -310,25 +310,44 @@ class BiblePlanNotificationManager:
                     plan_name, current_day, readings
                 )
             
-            # Send notification using the working notification system
-            result = await send_push_notification(
-                title=title,
-                body=body,
-                data={
-                    "plan_id": plan_id,
-                    "route": "bible_plan_reading",
-                    "actionType": "bible_plan",
-                    "uid": uid
-                },
-                send_to_all=True,  # Send to all devices (includes user's device)
-                token=None,
-                eventId=None,
-                link=None,
-                route="bible_plan_reading",
-                actionType="bible_plan"
-            )
+            # Get user's device tokens to send only to this user
+            user_tokens = await BiblePlanNotificationManager._get_user_device_tokens(uid)
             
-            return result
+            if not user_tokens:
+                return {"success": False, "error": "No device tokens found for user"}
+            
+            # Send notification to all of the user's devices
+            results = []
+            for token in user_tokens:
+                result = await send_push_notification(
+                    title=title,
+                    body=body,
+                    data={
+                        "plan_id": plan_id,
+                        "route": "bible_plan_reading",
+                        "actionType": "bible_plan",
+                        "uid": uid
+                    },
+                    send_to_all=False,
+                    token=token,
+                    eventId=None,
+                    link=None,
+                    route="bible_plan_reading",
+                    actionType="bible_plan"
+                )
+                results.append(result)
+            
+            # Aggregate results for multiple devices
+            if len(user_tokens) == 1:
+                return results[0]
+            else:
+                successful_sends = sum(1 for r in results if r.get("success"))
+                return {
+                    "success": successful_sends > 0,
+                    "results": results,
+                    "total_devices": len(user_tokens),
+                    "successful_sends": successful_sends
+                }
             
         except Exception as e:
             logging.error(f"Failed to send immediate Bible plan notification: {e}")
