@@ -30,7 +30,7 @@ export const useWebsiteConfig = () => {
       } catch (error) {
         console.warn('Failed to load website configuration, using defaults:', error);
         // Fallback to defaults if API fails
-        document.title = 'ChurchLink';
+        document.title = 'Your Church Website';
         updateDocumentFavicon('/dove-favicon.svg');
       }
     };

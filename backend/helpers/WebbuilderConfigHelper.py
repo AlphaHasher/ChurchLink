@@ -126,3 +126,77 @@ class WebbuilderConfigHelper:
         except Exception as e:
             print(f"Error updating website configuration: {e}")
             return False
+
+    @staticmethod
+    async def get_church_settings() -> Dict[str, Any]:
+        """
+        Get church settings from the database.
+        
+        Returns:
+            Dictionary with success status, settings, and message
+        """
+        try:
+            settings = await DB.get_church_settings()
+            
+            return {
+                "success": True,
+                "settings": settings,
+                "message": "Church settings retrieved successfully"
+            }
+        except Exception as e:
+            logging.error(f"Error getting church settings: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to get church settings: {str(e)}"
+            }
+
+    @staticmethod
+    async def update_church_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update church settings in the database.
+        
+        Args:
+            settings: Church settings to update
+        
+        Returns:
+            Dictionary with success status, updated settings, and message
+        """
+        try:
+            # Define which keys can be updated in the database
+            allowed_keys = [
+                "CHURCH_NAME",
+                "CHURCH_ADDRESS", 
+                "CHURCH_CITY",
+                "CHURCH_STATE",
+                "CHURCH_POSTAL_CODE"
+            ]
+            
+            # Update each setting in the database
+            updated_settings = {}
+            for key, value in settings.items():
+                if key in allowed_keys:
+                    # Update the setting in the database
+                    success = await DB.set_setting(key, value)
+                    if success:
+                        updated_settings[key] = value
+                    else:
+                        logging.warning(f"Failed to update setting {key}")
+                else:
+                    logging.warning(f"Attempted to update disallowed key: {key}")
+            
+            # Get the updated settings to return
+            current_settings = await DB.get_church_settings()
+            
+            return {
+                "success": True,
+                "settings": current_settings,
+                "updated_keys": list(updated_settings.keys()),
+                "message": f"Successfully updated {len(updated_settings)} church setting(s)"
+            }
+            
+        except Exception as e:
+            logging.error(f"Error updating church settings: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to update church settings: {str(e)}"
+            }

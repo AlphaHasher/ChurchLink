@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/Dialog";
+import { getChurchName } from "@/helpers/ChurchSettingsHelper";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -28,6 +29,7 @@ function Login() {
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [resetError, setResetError] = useState<string>("");
   const [resetLoading, setResetLoading] = useState<boolean>(false);
+  const [churchName, setChurchName] = useState("Your Church Name");
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -51,6 +53,22 @@ function Login() {
     }
   }, [user]);
 
+  // Fetch church name on component mount
+  useEffect(() => {
+    const fetchChurchName = async () => {
+      try {
+        const name = await getChurchName();
+        setChurchName(name);
+      } catch (error) {
+        console.warn("Failed to fetch church name for login page:", error);
+        // Keep default value
+      }
+    };
+
+    fetchChurchName();
+  }, []);
+
+  const handleForgotPassword = async (e: React.MouseEvent) => {
   const handleForgotPassword = (e: React.MouseEvent) => {
     e.preventDefault();
     setResetEmail(email); // Pre-fill with email from login form if available
@@ -136,7 +154,7 @@ function Login() {
 
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
         <div className="text-gray-600 mb-6">
-          The Second Slavic Baptist Church welcomes you back! Please enter your
+          {churchName} welcomes you back! Please enter your
           credentials below.
         </div>
 

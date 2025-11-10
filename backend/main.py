@@ -336,7 +336,7 @@ permissions_management_protected_router = PermProtectedRouter(prefix="/api/v1", 
 permissions_management_protected_router.include_router(permissions_protected_router)
 
 # WEB BUILDER MANAGEMENT CORE
-web_builder_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Header/Footer Layout"], required_perms=['web_builder_management'])
+web_builder_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Website Configuration"], required_perms=['web_builder_management'])
 web_builder_management_protected_router.include_router(mod_header_router)
 web_builder_management_protected_router.include_router(mod_footer_router)
 web_builder_management_protected_router.include_router(webbuilder_config_private_router)

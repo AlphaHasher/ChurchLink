@@ -176,6 +176,18 @@ export const websiteConfigApi = {
     const response = await api.get('/v1/website/config/admin');
     return response.data;
   },
+
+  // Get church settings (admin only)
+  getChurchSettings: async () => {
+    const response = await api.get('/v1/website/church/settings');
+    return response.data;
+  },
+
+  // Update church settings (admin only)
+  updateChurchSettings: async (settings: Record<string, any>) => {
+    const response = await api.put('/v1/website/church/settings', settings);
+    return response.data;
+  },
 };
 
 export default api;

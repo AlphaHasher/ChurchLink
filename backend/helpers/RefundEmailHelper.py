@@ -16,7 +16,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USERNAME)
-FROM_NAME = os.getenv("FROM_NAME", "ChurchLink")
+FROM_NAME = os.getenv("FROM_NAME", "Your Church")
 
 # SendGrid Configuration (alternative)
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
