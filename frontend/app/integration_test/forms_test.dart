@@ -94,7 +94,7 @@ void main() {
   await $.pumpAndSettle();
 
   await $('Continue with Google').tap();
-  await $.pumpAndSettle();
+  await $.native.waitUntilVisible(Selector(textContains: 'Google'));
 
   // Verify Google sign-in started (mocked)
   expect(await $('Sign in').exists, isFalse);

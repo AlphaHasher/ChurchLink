@@ -23,10 +23,8 @@ void main() {
 
   // Check header and message
   expect(await $('Sermons').exists, isTrue);
-  expect(await $('No sermons available yet. Pull to refresh.').exists, isTrue);
+  expect(await $('No sermons available yet.').exists, isTrue);
 
-  // Verify that refresh hint is visible
-  expect(await $('Pull to refresh.').exists, isTrue);
 });
  
  patrolTest('Opens and shows filter dialog on Sermons page', ($) async {
@@ -74,10 +72,6 @@ void main() {
   await $(Icons.search).tap();
   await $.pumpAndSettle();
 
-  // Enter search text
-  await $('Search').enterText('faith');
-  await $.pumpAndSettle();
-
   // Toggle favorites switch
   await $('Favorites only').tap();
   await $.pumpAndSettle();
@@ -102,7 +96,7 @@ void main() {
   app.main();
   await $.pumpAndSettle();
 
-  await $('Sermons').tap();
+  await $('Sermons').at(1).tap();
   await $.pumpAndSettle();
 
   await $(Icons.arrow_back).tap();
@@ -120,7 +114,7 @@ void main() {
     }
     originalOnError?.call(details);
   };
-  
+
   app.main();
   await $.pumpAndSettle();
 

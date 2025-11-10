@@ -142,7 +142,7 @@ void main() {
   await $('All ministries').tap();
   await $.pumpAndSettle();
 
-  await $('Test Ministry').tap(); // choose a specific one
+  await $('Youth').tap(); // choose a specific one
   await $.pumpAndSettle();
 
   await $('Apply').tap();

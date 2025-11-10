@@ -64,8 +64,12 @@ void main() {
   await $('Giving').tap();
   await $.pumpAndSettle();
 
-  // Enter a valid amount
-  await $('0.00').enterText('25.00');
+  // Tap to focus the field
+  await $(TextField).tap();
+  await $.pumpAndSettle();
+
+  // Enter the amount
+  await $(TextField).enterText('25.00');
   await $.pumpAndSettle();
 
   await $('Give with PayPal').tap();
@@ -132,7 +136,7 @@ void main() {
     }
     originalOnError?.call(details);
   };
-  
+
   app.main();
   await $.pumpAndSettle();
 
