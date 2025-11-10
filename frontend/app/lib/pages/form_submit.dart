@@ -573,6 +573,8 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
           label: labelText,
           inlineLabel: inlineLabel?.isNotEmpty == true ? inlineLabel : null,
           helperText: helperText,
+          onText: (field['onText'] ?? f['onText'])?.toString(),
+          offText: (field['offText'] ?? f['offText'])?.toString(),
           requiredField: requiredField,
           value: _values[fieldName] == true,
           onChanged: (val) => _updateValue(fieldName, val),

@@ -24,11 +24,11 @@ class AuthPopup extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
-    
+
     // Define button colors based on theme
     final buttonBackgroundColor = isDarkMode ? Colors.black : Colors.grey[700]!;
     final buttonTextColor = Colors.white;
-    
+
     final List<Map<String, dynamic>> authOptions = [
       {
         'title': 'Continue with Email',
@@ -56,7 +56,7 @@ class AuthPopup extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: isDarkMode 
+            color: isDarkMode
                 ? Colors.black.withOpacity(0.5)
                 : Colors.grey.withOpacity(0.3),
             spreadRadius: 1,
@@ -131,7 +131,7 @@ class AuthPopup extends StatelessWidget {
                     Icon(option['icon'], size: 26, color: option['foregroundColor']),
                     const SizedBox(width: 12),
                     Text(
-                      option['title'], 
+                      option['title'],
                       style: TextStyle(
                         color: option['foregroundColor'],
                         fontSize: 16,

@@ -18,7 +18,6 @@ interface EditingPage extends DashboardPage {
 const ALLOWED_PAGES = [
   { pageName: "join live", displayName: "Join Live" },
   { pageName: "events", displayName: "Events" },
-  { pageName: "ministries", displayName: "Ministries" },
   { pageName: "sermons", displayName: "Sermons" },
   { pageName: "giving", displayName: "Giving" },
   { pageName: "weekly bulletin", displayName: "Weekly Bulletin" },

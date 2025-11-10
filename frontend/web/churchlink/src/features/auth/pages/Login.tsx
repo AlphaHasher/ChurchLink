@@ -24,10 +24,6 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetError, setResetError] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -64,10 +60,10 @@ function Login() {
       setResetError("Please enter your email address");
       return;
     }
-    
+
     setResetLoading(true);
     setResetError("");
-    
+
     try {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetEmailSent(true);
@@ -245,7 +241,7 @@ function Login() {
               Enter your email address and we'll send you a link to reset your password.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -265,19 +261,19 @@ function Login() {
                 autoFocus
               />
             </div>
-            
+
             {resetError && (
               <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
                 {resetError}
               </div>
             )}
-            
+
             {resetEmailSent && (
               <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm">
                 Password reset email sent! Please check your inbox.
               </div>
             )}
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowResetModal(false)}
