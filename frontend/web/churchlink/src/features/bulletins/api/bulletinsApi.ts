@@ -129,7 +129,22 @@ export interface ServerWeekInfo {
 export const fetchCurrentWeek = async (): Promise<ServerWeekInfo> => {
 	try {
 		const res = await api.get('/v1/bulletins/current_week');
-		return res.data as ServerWeekInfo;
+		const data = res.data;
+		
+		// Validate server response to prevent runtime crashes
+		if (
+			!data ||
+			typeof data !== 'object' ||
+			typeof data.current_date !== 'string' ||
+			typeof data.week_start !== 'string' ||
+			typeof data.week_end !== 'string' ||
+			typeof data.week_label !== 'string' ||
+			typeof data.timezone !== 'string'
+		) {
+			throw new Error('Invalid server week response');
+		}
+		
+		return data as ServerWeekInfo;
 	} catch (err) {
 		console.error('[Current Week] Failed to fetch server week info:', err);
 		// Fallback to client-side calculation if server endpoint fails

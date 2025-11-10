@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -30,6 +30,8 @@ function Login() {
   const [resetError, setResetError] = useState<string>("");
   const [resetLoading, setResetLoading] = useState<boolean>(false);
   const [churchName, setChurchName] = useState("Your Church Name");
+
+  const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -68,9 +70,23 @@ function Login() {
     fetchChurchName();
   }, []);
 
-  const handleForgotPassword = async (e: React.MouseEvent) => {
+  // Cleanup timeout on component unmount to prevent stale state updates
+  useEffect(() => {
+    return () => {
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+        resetTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   const handleForgotPassword = (e: React.MouseEvent) => {
     e.preventDefault();
+    // Clear any existing timeout to prevent stale timers
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
+    }
     setResetEmail(email); // Pre-fill with email from login form if available
     setShowResetModal(true);
     setResetError("");
@@ -90,10 +106,15 @@ function Login() {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetEmailSent(true);
       setResetError("");
-      // Close modal after 2 seconds
-      setTimeout(() => {
+      // Clear any existing timeout before setting a new one
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
+      // Close modal after 2 seconds and store the timeout ID
+      resetTimeoutRef.current = setTimeout(() => {
         setShowResetModal(false);
         setResetEmail("");
+        resetTimeoutRef.current = null;
       }, 2000);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -255,7 +276,17 @@ function Login() {
       </div>
 
       {/* Password Reset Modal */}
-      <Dialog open={showResetModal} onOpenChange={setShowResetModal}>
+      <Dialog 
+        open={showResetModal} 
+        onOpenChange={(open) => {
+          // Clear timeout when modal is closed
+          if (!open && resetTimeoutRef.current) {
+            clearTimeout(resetTimeoutRef.current);
+            resetTimeoutRef.current = null;
+          }
+          setShowResetModal(open);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Reset Your Password</DialogTitle>
@@ -298,7 +329,14 @@ function Login() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setShowResetModal(false)}
+                onClick={() => {
+                  // Clear timeout when manually closing modal
+                  if (resetTimeoutRef.current) {
+                    clearTimeout(resetTimeoutRef.current);
+                    resetTimeoutRef.current = null;
+                  }
+                  setShowResetModal(false);
+                }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
                 disabled={resetLoading}
               >
