@@ -1,6 +1,6 @@
 // integration_test/main_nav_test.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart' show find, expect;
+import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
 import 'package:app/main.dart' as app;
 
@@ -39,6 +39,31 @@ void main() {
     await $.pumpAndSettle();
     await expectVisible($(find.byKey(const ValueKey('screen-home'))));
   });
+
+  patrolTest(
+    'Tap through all main buttons on Home screen including scrolling',
+    ($) async {
+      app.main();
+
+      await $.pumpAndSettle();
+
+      final buttons = [
+        'Join Live',
+        'Sermons',
+        'Giving',
+        'Weekly Bulletin',
+        'Forms',
+      ];
+
+      for (final label in buttons) {
+        await $(label).scrollTo();  // ensures visibility
+        await $(label).tap();
+        await $.pumpAndSettle();
+        await $(Icons.arrow_back).tap();
+        await $.pumpAndSettle();
+      }
+    },
+  );
 }
 
 
