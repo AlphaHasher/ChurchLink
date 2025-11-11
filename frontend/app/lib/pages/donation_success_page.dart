@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../helpers/localization_helper.dart';  // Adjust path if needed
 
 class DonationSuccessPage extends StatelessWidget {
   final String eventName;
@@ -9,7 +10,7 @@ class DonationSuccessPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thank you'),
+        title: Text(LocalizationHelper.localize('Thank You', capitalize: true)),
         backgroundColor: const Color.fromARGB(255, 142, 163, 168),
         foregroundColor: Colors.white,
       ),
@@ -23,7 +24,7 @@ class DonationSuccessPage extends StatelessWidget {
               const Icon(Icons.volunteer_activism, size: 72, color: Color.fromARGB(255, 34, 197, 94)),
               const SizedBox(height: 24),
               Text(
-                'Thank you for supporting',
+                LocalizationHelper.localize('Thank you for supporting', capitalize: true),
                 style: Theme.of(context).textTheme.titleMedium,
                 textAlign: TextAlign.center,
               ),
@@ -34,9 +35,9 @@ class DonationSuccessPage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Your donation was successful. We appreciate your generosity!',
-                style: TextStyle(color: Colors.black87),
+              Text(
+                LocalizationHelper.localize('Your donation was successful. We appreciate your generosity.', capitalize: true),  // Keep $amount dynamic
+                style: TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -48,7 +49,9 @@ class DonationSuccessPage extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 142, 163, 168),
                 ),
-                child: const Text('Close'),
+                child: Text(
+                  LocalizationHelper.localize('Close', capitalize: true),
+                ),
               ),
             ],
           ),

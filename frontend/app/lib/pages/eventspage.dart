@@ -7,6 +7,7 @@ import 'package:app/models/event_registration_summary.dart';
 import 'package:app/services/event_registration_service.dart';
 import 'package:app/pages/event_showcase.dart';
 import 'package:app/widgets/event_card.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 // ICS sharing + open
 import 'dart:io';
@@ -493,7 +494,7 @@ END:VCALENDAR
       key: const ValueKey('screen-events'),
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Events'),
+        title: Text(LocalizationHelper.localize('Events')),
         leading:
             showBackButton
                 ? IconButton(
@@ -519,10 +520,10 @@ END:VCALENDAR
                       child: Center(child: CircularProgressIndicator()),
                     )
                     : _events.isEmpty
-                    ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 50),
-                      child: Text("No events found."),
-                    )
+                    ? Padding(
+                       padding: EdgeInsets.symmetric(vertical: 50),
+                       child: Text(LocalizationHelper.localize("No events found.")),
+                     )
                     : ListView.builder(
                       physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,

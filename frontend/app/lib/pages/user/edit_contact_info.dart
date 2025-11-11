@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/models/contact_info.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class EditContactInfoScreen extends StatefulWidget {
   final User user;
@@ -88,8 +89,8 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
         (res.msg.isNotEmpty)
             ? res.msg
             : (res.success
-                ? 'Contact info updated.'
-                : 'Failed to update contact info.');
+                ? LocalizationHelper.localize('Contact info updated.')
+                : LocalizationHelper.localize('Failed to update contact info.'));
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
@@ -103,7 +104,7 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Contact Info')),
+      appBar: AppBar(title: Text(LocalizationHelper.localize('Edit Contact Info'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
@@ -115,8 +116,8 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                   TextFormField(
                     controller: _phoneCtrl,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone',
+                    decoration: InputDecoration(
+                      labelText: LocalizationHelper.localize('Phone'),
                       hintText: '(555) 123-4567',
                     ),
                     validator: (v) {
@@ -128,13 +129,13 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                   TextFormField(
                     controller: _addrCtrl,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Address',
+                    decoration: InputDecoration(
+                      labelText: LocalizationHelper.localize('Address'),
                       hintText: '123 Main St',
                     ),
                     validator: (v) {
                       final s = (v ?? '').trim();
-                      if (s.isEmpty) return 'Address is required';
+                      if (s.isEmpty) return LocalizationHelper.localize('Address is required');
                       return null;
                     },
                   ),
@@ -142,8 +143,8 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                   TextFormField(
                     controller: _suiteCtrl,
                     textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Apt / Suite (optional)',
+                    decoration: InputDecoration(
+                      labelText: LocalizationHelper.localize('Apt / Suite (optional)'),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -153,7 +154,7 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                         child: TextFormField(
                           controller: _cityCtrl,
                           textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(labelText: 'City'),
+                          decoration: InputDecoration(labelText: LocalizationHelper.localize('City')),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -161,8 +162,8 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                         child: TextFormField(
                           controller: _stateCtrl,
                           textCapitalization: TextCapitalization.characters,
-                          decoration: const InputDecoration(
-                            labelText: 'State/Province',
+                          decoration: InputDecoration(
+                            labelText: LocalizationHelper.localize('State/Province'),
                           ),
                         ),
                       ),
@@ -175,8 +176,8 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                         child: TextFormField(
                           controller: _countryCtrl,
                           textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(
-                            labelText: 'Country',
+                          decoration: InputDecoration(
+                            labelText: LocalizationHelper.localize('Country'),
                           ),
                         ),
                       ),
@@ -184,8 +185,8 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: _postalCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Postal Code',
+                          decoration: InputDecoration(
+                            labelText: LocalizationHelper.localize('Postal Code'),
                           ),
                         ),
                       ),
@@ -200,7 +201,7 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: theme.colorScheme.onPrimary,
                       ),
-                      child: Text(_loading ? 'Saving…' : 'Save'),
+                      child: Text(_loading ? LocalizationHelper.localize('Saving…') : LocalizationHelper.localize('Save')),
                     ),
                   ),
                 ],

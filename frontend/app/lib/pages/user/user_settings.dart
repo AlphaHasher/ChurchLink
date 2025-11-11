@@ -16,10 +16,10 @@ import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/my_events_page.dart';
 import 'package:app/theme/theme_controller.dart';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:app/helpers/backend_helper.dart';
+ 
 
 import 'package:app/widgets/change_email_sheet.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -44,6 +44,7 @@ class _UserSettingsState extends State<UserSettings> {
     super.initState();
 
     _loadLanguageFromServer();
+    LocalizationHelper.addListener(_onLocaleChanged);
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) async {
       if (!mounted) return;
       await _loadProfile();
@@ -73,6 +74,7 @@ class _UserSettingsState extends State<UserSettings> {
 
   @override
   void dispose() {
+    LocalizationHelper.removeListener(_onLocaleChanged);
     _authSub?.cancel();
     _userSub?.cancel();
     _scrollController.dispose();
@@ -138,7 +140,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_light'),
                 leading: const Icon(Icons.wb_sunny_outlined),
-                title: const Text('Light'),
+                title: Text(LocalizationHelper.localize('Light', capitalize: true)),
                 trailing: current == ThemeMode.light
                     ? const Icon(Icons.check)
                     : null,
@@ -151,7 +153,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_system'),
                 leading: const Icon(Icons.brightness_auto),
-                title: const Text('System'),
+                title: Text(LocalizationHelper.localize('System', capitalize: true)),
                 trailing: current == ThemeMode.system
                     ? const Icon(Icons.check)
                     : null,
@@ -164,7 +166,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_dark'),
                 leading: const Icon(Icons.nights_stay_outlined),
-                title: const Text('Dark'),
+                title: Text(LocalizationHelper.localize('Dark', capitalize: true)),
                 trailing: current == ThemeMode.dark
                     ? const Icon(Icons.check)
                     : null,
@@ -183,116 +185,154 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Show language selection bottom sheet
   void _showLanguageSheet() {
+    final languages = LocalizationHelper.availableLanguages;
+    final currentCode = _selectedLanguage;
+    String searchQuery = '';
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 50,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(10),
+      builder: (BuildContext context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final filtered = languages.where((lang) =>
+            lang.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+            lang.code.toLowerCase().contains(searchQuery.toLowerCase())
+          ).toList();
+
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[400],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "Select Language",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const Divider(height: 24),
-              ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text('English'),
-                trailing: _selectedLanguage == 'en'
-                    ? const Icon(Icons.check, color: Colors.blue)
-                    : null,
-                onTap: () {
-                  Navigator.pop(context);
-                  _updateLanguage('en');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.translate),
-                title: const Text('Русский'),
-                trailing: _selectedLanguage == 'ru'
-                    ? const Icon(Icons.check, color: Colors.blue)
-                    : null,
-                onTap: () {
-                  Navigator.pop(context);
-                  _updateLanguage('ru');
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  String _languageDisplayName(String code) {
-  switch (code) {
-    case 'ru':
-      return 'Русский'; // or 'Russian' if you prefer
-    case 'en':
-    default:
-      return 'English';
-  }
-}
-
-  // Show Terms and Policies popup
-  void _showTermsAndPolicies(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Terms & Policies'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Trust me bro',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text('.'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+                const SizedBox(height: 16),
+                Text(
+                  LocalizationHelper.localize("Select Language"),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                const Divider(height: 24),
+                // Search field
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    onChanged: (value) {
+                      searchQuery = value;
+                      setSheetState(() {});
+                    },
+                    decoration: InputDecoration(
+                      hintText: LocalizationHelper.localize("Search languages"),
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                // Current language
+                if (currentCode.isNotEmpty && languages.any((l) => l.code == currentCode))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: ListTile(
+                      leading: const Icon(Icons.language, color: Colors.blue),
+                      title: Text(
+                        languages.firstWhere((l) => l.code == currentCode).name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(LocalizationHelper.localize("Current")),
+                      enabled: false,
+                    ),
+                  ),
+                const Divider(),
+                // List
+                if (languages.isEmpty)
+                   Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(LocalizationHelper.localize('Loading languages...', capitalize: true)),
+                      ],
+                    ),
+                  )
+                else ...[
+                  Expanded(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final lang = filtered[index];
+                        final isSelected = lang.code == currentCode;
+                        return ListTile(
+                          leading: Icon(
+                            Icons.language,
+                            color: isSelected ? Colors.blue : null,
+                          ),
+                          title: Text(lang.name),
+                          trailing: isSelected ? const Icon(Icons.check, color: Colors.blue) : null,
+                          onTap: () {
+                            Navigator.pop(context);
+                            _updateLanguage(lang.code);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
+  // Update _updateLanguage
   Future<void> _updateLanguage(String newLang) async {
     setState(() => _loading = true);
 
-    final result = await UserHelper.updateLanguage(newLang);
-    if (mounted) {
-      setState(() {
-        if (result.success) {
+    try {
+      await LocalizationHelper.changeLocaleAndAwait(
+        newLang,
+        warmupKeys: const [
+          'User Settings', 'Theme', 'System', 'Language', 'Notifications', 'Terms & Policies',
+          'Login or Signup', 'To access more features login or signup',
+          'Home', 'Bible', 'Sermons', 'Events', 'Profile',
+          'No events found.',
+          'Customize alert preferences',
+          'Privacy policy and terms of use',
+          'Account', 'Guest', 'Preferences', 'Support',
+        ],
+      );
+      if (mounted) {
+        setState(() {
           _selectedLanguage = newLang;
-        }
-        _loading = false;
-      });
+        });
+      }
+    } catch (e) {
+      print('Failed to update language: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
+  void _onLocaleChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  // Update _loadLanguageFromServer
   Future<void> _loadLanguageFromServer() async {
     final lang = await UserHelper.fetchUserLanguage();
     if (mounted) {
@@ -303,6 +343,35 @@ class _UserSettingsState extends State<UserSettings> {
     }
   }
 
+  // Show Terms and Policies popup
+  void _showTermsAndPolicies(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(LocalizationHelper.localize('Terms & Policies')),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                LocalizationHelper.localize('Trust me bro'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text('.'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(LocalizationHelper.localize('Close')),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -340,8 +409,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.account_circle,
-            'title': 'Edit Profile',
-            'subtitle': 'First/Last name, birthday, gender',
+            'title': LocalizationHelper.localize('Edit Profile'),
+            'subtitle': LocalizationHelper.localize('First/Last name, birthday, gender'),
             'ontap': () async {
               if (user == null) return;
               // Await result and update immediately if we get a ProfileInfo back
@@ -360,8 +429,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.contact_page,
-            'title': 'Edit Contact Info',
-            'subtitle': 'Phone and address',
+            'title': LocalizationHelper.localize('Edit Contact Info'),
+            'subtitle': LocalizationHelper.localize('Phone and address'),
             'ontap': () {
               if (user != null) {
                 Navigator.push(
@@ -375,8 +444,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.card_membership,
-            'title': 'View Membership Status',
-            'subtitle': 'View your Church Membership Status',
+            'title': LocalizationHelper.localize('View Membership Status'),
+            'subtitle': LocalizationHelper.localize('View your Church Membership Status'),
             'ontap': () {
               if (user != null) {
                 Navigator.push(
@@ -388,8 +457,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.family_restroom,
-            'title': 'Family Members',
-            'subtitle': 'Manage your family members',
+            'title': LocalizationHelper.localize('Family Members'),
+            'subtitle': LocalizationHelper.localize('Manage your family members'),
             'ontap': () {
               Navigator.push(
                 context,
@@ -401,8 +470,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.event,
-            'title': 'My Events',
-            'subtitle': 'Your registrations and RSVPs',
+            'title': LocalizationHelper.localize('My Events'),
+            'subtitle': LocalizationHelper.localize('Your registrations and RSVPs'),
             'ontap': () {
               Navigator.push(
                 context,
@@ -412,14 +481,14 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.alternate_email,
-            'title': 'Change Email',
-            'subtitle': 'Request an email to change your address',
+            'title': LocalizationHelper.localize('Change Email'),
+            'subtitle': LocalizationHelper.localize('Request an email to change your address'),
             'ontap': () => ChangeEmailSheet.show(context),
           },
           {
             'icon': Icons.password,
-            'title': 'Change Password',
-            'subtitle': 'Request an email to reset your password',
+            'title': LocalizationHelper.localize('Change Password'),
+            'subtitle': LocalizationHelper.localize('Request an email to reset your password'),
             'ontap': () {
               PasswordReset.show(context, user?.email);
             },
@@ -431,8 +500,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.account_circle,
-            'title': 'Login or Signup',
-            'subtitle': 'To access more features login or signup',
+            'title': LocalizationHelper.localize('Login or Signup'),
+            'subtitle': LocalizationHelper.localize('To access more features login or signup'),
             'ontap': () {
               AuthPopup.show(context);
             },
@@ -444,21 +513,27 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.dark_mode,
-            'title': 'Theme',
+            'title': LocalizationHelper.localize('Theme'),
             'subtitle': themeLabel,
             'ontap': _showThemeSheet,
             'key': const ValueKey('settings_theme_tile'),
           },
           {
             'icon': Icons.language,
-            'title': 'Language',
-            'subtitle': _languageDisplayName(_selectedLanguage),
+            'title': LocalizationHelper.localize('Language'),
+            'subtitle': () {
+              final selectedLang = LocalizationHelper.availableLanguages.firstWhere(
+                (l) => l.code == _selectedLanguage,
+                orElse: () => const LanguageOption(code: 'en', name: 'English'),
+              );
+              return selectedLang.name;
+            }(),
             'ontap': _showLanguageSheet,
           },
           {
             'icon': Icons.notifications,
-            'title': 'Notifications',
-            'subtitle': 'Customize alert preferences',
+            'title': LocalizationHelper.localize('Notifications'),
+            'subtitle': LocalizationHelper.localize('Customize alert preferences'),
             'ontap': () {
               Navigator.push(
                 context,
@@ -475,8 +550,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.policy,
-            'title': 'Terms & Policies',
-            'subtitle': 'Privacy policy and terms of use',
+            'title': LocalizationHelper.localize('Terms & Policies'),
+            'subtitle': LocalizationHelper.localize('Privacy policy and terms of use'),
             'ontap': () => _showTermsAndPolicies(context),
           },
         ],
@@ -536,7 +611,7 @@ class _UserSettingsState extends State<UserSettings> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Text(
-            catName,
+            LocalizationHelper.localize(catName),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
@@ -624,14 +699,15 @@ class _UserSettingsState extends State<UserSettings> {
                 ),
               ),
             ),
-            child: const Text('Logout', style: TextStyle(fontSize: 16)),
+            child: Text(LocalizationHelper.localize('Logout'), style: const TextStyle(fontSize: 16)),
           ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("User Settings"), centerTitle: true),
+      key: ValueKey('settings-' + LocalizationHelper.currentLocale + '-' + LocalizationHelper.uiVersion.toString()),
+      appBar: AppBar(title: Text(LocalizationHelper.localize("User Settings")), centerTitle: true),
       backgroundColor: theme.brightness == Brightness.dark
           ? theme.colorScheme.surface
           : theme.colorScheme.surfaceContainerLow,

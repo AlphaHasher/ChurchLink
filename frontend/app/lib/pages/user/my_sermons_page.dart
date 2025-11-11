@@ -4,6 +4,7 @@ import 'package:app/widgets/sermon_card.dart';
 import 'package:app/widgets/sermon_detail_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../helpers/localization_helper.dart';
 
 class MySermonsPage extends StatefulWidget {
   const MySermonsPage({super.key});
@@ -59,7 +60,9 @@ class _MySermonsPageState extends State<MySermonsPage> {
       appBar: AppBar(
         backgroundColor: ssbcGray,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('My Sermons', style: TextStyle(color: Colors.white)),
+        title: Text(
+          LocalizationHelper.localize('My Sermons', capitalize: true),
+        ),
         centerTitle: true,
       ),
       backgroundColor: const Color.fromARGB(255, 245, 245, 245),
@@ -150,7 +153,7 @@ class _ErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: const Text('Try again')),
+            ElevatedButton(onPressed: onRetry, child: Text(LocalizationHelper.localize('Try again', capitalize: true))),
           ],
         ),
       ),

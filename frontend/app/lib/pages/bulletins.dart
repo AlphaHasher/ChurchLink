@@ -9,6 +9,7 @@ import 'package:app/widgets/bulletin_detail_sheet.dart';
 import 'package:app/widgets/bulletin_filter_sheet.dart';
 import 'package:app/widgets/service_card.dart';
 import 'package:app/pages/service_detail.dart';
+import '../helpers/localization_helper.dart';
 
 class BulletinsPage extends StatefulWidget {
   const BulletinsPage({super.key});
@@ -33,7 +34,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Weekly Bulletin'),
+        title: Text(LocalizationHelper.localize('Weekly Bulletin', capitalize: true)),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -85,13 +86,13 @@ class _BulletinsPageState extends State<BulletinsPage> {
     if (!hasServices && !hasBulletins) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
+        children: [
           SizedBox(height: 120),
           Icon(Icons.article_outlined, size: 72, color: Colors.grey),
           SizedBox(height: 12),
           Center(
             child: Text(
-              'No content available yet. Pull to refresh.',
+              LocalizationHelper.localize('No content available yet. Pull to refresh.', capitalize: true),
               style: TextStyle(color: Colors.grey),
             ),
           ),
@@ -109,7 +110,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
             child: Text(
               provider.serverWeek != null
                   ? provider.serverWeek!.weekLabel
-                  : 'Upcoming Services',
+                  : LocalizationHelper.localize('Upcoming Services', capitalize: true),
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -135,7 +136,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Announcements',
+                  LocalizationHelper.localize('Announcements', capitalize: true),
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -209,7 +210,9 @@ class _ErrorBanner extends StatelessWidget {
       color: theme.colorScheme.error.withValues(alpha: 0.1),
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
-        title: Text(message, style: TextStyle(color: theme.colorScheme.error)),
+        title: Text(
+          LocalizationHelper.localize(message, capitalize: true),
+        ),
         trailing: IconButton(
           icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,
@@ -241,7 +244,12 @@ class _ErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: const Text('Try again')),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: Text(
+                LocalizationHelper.localize('Try again', capitalize: true),
+              ),
+            ),
           ],
         ),
       ),

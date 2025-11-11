@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:app/models/family_member.dart';
 import 'package:app/services/family_member_service.dart';
 import 'package:app/pages/user/family_member_form.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class FamilyMembersPage extends StatefulWidget {
   const FamilyMembersPage({super.key});
@@ -32,7 +33,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading family members: $e')),
+          SnackBar(content: Text(LocalizationHelper.localize('Error loading family members: ', capitalize: true) + e.toString())),
         );
       }
     }
@@ -44,17 +45,17 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
       builder: (dialogContext) {
         final theme = Theme.of(dialogContext);
         return AlertDialog(
-          title: const Text('Delete Family Member'),
-          content: Text('Are you sure you want to delete ${member.fullName}?'),
+          title: Text(LocalizationHelper.localize('Delete Family Member')),
+          content: Text(LocalizationHelper.localize('Are you sure you want to delete ') + member.fullName + LocalizationHelper.localize('?')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
+              child: Text(LocalizationHelper.localize('Cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               child: Text(
-                'Delete',
+                LocalizationHelper.localize('Delete'),
                 style: TextStyle(color: theme.colorScheme.error),
               ),
             ),
@@ -69,13 +70,13 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
         _loadFamilyMembers();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${member.fullName} deleted successfully')),
+            SnackBar(content: Text(member.fullName + LocalizationHelper.localize(' deleted successfully'))),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting family member: $e')),
+            SnackBar(content: Text(LocalizationHelper.localize('Error deleting family member: ') + e.toString())),
           );
         }
       }
@@ -86,7 +87,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Family Members')),
+      appBar: AppBar(title: Text(LocalizationHelper.localize('Family Members'))),
       body: RefreshIndicator(
         onRefresh: _loadFamilyMembers,
         child:
@@ -104,7 +105,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No family members yet',
+                        LocalizationHelper.localize('No family members yet'),
                         style: TextStyle(
                           fontSize: 18,
                           color: theme.colorScheme.onSurface.withAlpha(60),
@@ -112,7 +113,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Tap the + button to add a family member',
+                        LocalizationHelper.localize('Tap the + button to add a family member'),
                         style: TextStyle(
                           color: theme.colorScheme.onSurface.withAlpha(50),
                         ),
@@ -148,17 +149,17 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                           member.fullName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text('Age: ${member.age}'),
+                        subtitle: Text(LocalizationHelper.localize('Age: ') + member.age.toString()),
                         trailing: PopupMenuButton(
                           itemBuilder:
                               (context) => [
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'edit',
                                   child: Row(
                                     children: [
                                       Icon(Icons.edit),
-                                      SizedBox(width: 8),
-                                      Text('Edit'),
+                                      const SizedBox(width: 8),
+                                      Text(LocalizationHelper.localize('Edit')),
                                     ],
                                   ),
                                 ),
@@ -172,7 +173,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Delete',
+                                        LocalizationHelper.localize('Delete'),
                                         style: TextStyle(
                                           color: theme.colorScheme.error,
                                         ),

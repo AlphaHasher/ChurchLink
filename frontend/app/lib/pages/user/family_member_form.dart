@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/family_member.dart';
 import 'package:app/services/family_member_service.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class FamilyMemberForm extends StatefulWidget {
   final FamilyMember? member; // null for create, populated for edit
@@ -56,7 +57,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
     if (!_formKey.currentState!.validate() || _selectedDate == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      ).showSnackBar(SnackBar(content: Text(LocalizationHelper.localize('Please fill all fields'))));
       return;
     }
 
@@ -89,8 +90,8 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
           SnackBar(
             content: Text(
               widget.member == null
-                  ? 'Family member added successfully'
-                  : 'Family member updated successfully',
+                  ? LocalizationHelper.localize('Family member added successfully')
+                  : LocalizationHelper.localize('Family member updated successfully'),
             ),
           ),
         );
@@ -99,7 +100,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ).showSnackBar(SnackBar(content: Text(LocalizationHelper.localize('Error: ') + e.toString())));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -114,7 +115,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
         //backgroundColor: ssbcGray,
         //iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          widget.member == null ? 'Add Family Member' : 'Edit Family Member',
+          widget.member == null ? LocalizationHelper.localize('Add Family Member') : LocalizationHelper.localize('Edit Family Member'),
         ),
       ),
       //backgroundColor: const Color.fromARGB(255, 245, 245, 245),
@@ -133,13 +134,13 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                   children: [
                     TextFormField(
                       controller: _firstNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'First Name',
+                      decoration: InputDecoration(
+                        labelText: LocalizationHelper.localize('First Name'),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a first name';
+                          return LocalizationHelper.localize('Please enter a first name');
                         }
                         return null;
                       },
@@ -147,26 +148,26 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _lastNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Last Name',
+                      decoration: InputDecoration(
+                        labelText: LocalizationHelper.localize('Last Name'),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a last name';
+                          return LocalizationHelper.localize('Please enter a last name');
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>( initialValue: _selectedGender,
-                      decoration: const InputDecoration(
-                        labelText: 'Gender',
+                      decoration: InputDecoration(
+                        labelText: LocalizationHelper.localize('Gender'),
                         border: OutlineInputBorder(),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'M', child: Text('Male')),
-                        DropdownMenuItem(value: 'F', child: Text('Female')),
+                      items: [
+                        DropdownMenuItem(value: 'M', child: Text(LocalizationHelper.localize('Male'))),
+                        DropdownMenuItem(value: 'F', child: Text(LocalizationHelper.localize('Female'))),
                       ],
                       onChanged:
                           (value) => setState(() => _selectedGender = value!),
@@ -175,15 +176,15 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                     InkWell(
                       onTap: _selectDate,
                       child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Date of Birth',
+                        decoration: InputDecoration(
+                          labelText: LocalizationHelper.localize('Date of Birth'),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.zero,
                           ),
                         ),
                         child: Text(
                           _selectedDate == null
-                              ? 'Select date'
+                              ? LocalizationHelper.localize('Select date')
                               : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                           style: TextStyle(
                             color:
@@ -223,8 +224,8 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                       )
                       : Text(
                         widget.member == null
-                            ? 'Add Family Member'
-                            : 'Update Family Member',
+                            ? LocalizationHelper.localize('Add Family Member')
+                            : LocalizationHelper.localize('Update Family Member'),
                       ),
             ),
           ],

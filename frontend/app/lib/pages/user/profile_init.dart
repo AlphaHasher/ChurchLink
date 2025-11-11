@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:app/widgets/user/profile_form.dart';
 import 'package:app/models/profile_info.dart';
 import 'package:app/helpers/user_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class ProfileInitScreen extends StatefulWidget {
   final User user;
@@ -53,7 +54,7 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
     if (result.success) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Profile initialized!')));
+      ).showSnackBar(SnackBar(content: Text(LocalizationHelper.localize('Profile initialized!'))));
       Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -61,7 +62,7 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
           content: Text(
             result.msg.isNotEmpty
                 ? result.msg
-                : 'Failed to initialize profile.',
+                : LocalizationHelper.localize('Failed to initialize profile.'),
           ),
         ),
       );
@@ -82,17 +83,16 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
     final (first, last) = _splitFirebaseName();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Initialize Profile')),
+      appBar: AppBar(title: Text(LocalizationHelper.localize('Initialize Profile'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'In order to use your account, please initialize your profile. '
-                'Otherwise, you may log out.',
-                style: TextStyle(fontSize: 16),
+              Text(
+                LocalizationHelper.localize('In order to use your account, please initialize your profile. Otherwise, you may log out.'),
+                style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),
 
@@ -108,7 +108,7 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
 
               TextButton(
                 onPressed: _saving ? null : _logout,
-                child: const Text('Log out'),
+                child: Text(LocalizationHelper.localize('Log out')),
               ),
             ],
           ),
