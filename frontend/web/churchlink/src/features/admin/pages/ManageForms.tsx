@@ -29,6 +29,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { slugify } from '@/shared/utils/slugify';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
@@ -442,15 +443,6 @@ const ManageForms = () => {
       console.error('Visibility update failed', e);
       setStatus('Visibility update failed');
     }
-  };
-
-  const slugify = (s: string) => {
-    return s
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
   };
 
   const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false, autoEnableVisibility: boolean = false) => {
