@@ -233,7 +233,10 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
     # Determine if the date the overrides should set should point to right now or when events were updated depending on if date is in the overrides
     if "date" in overrides:
         overrides_update_date = datetime.now(timezone.utc)
-        scheduled_date = datetime.fromisoformat(overrides['date'])
+        iso_str = overrides["date"]
+        if iso_str.endswith("Z"):
+            iso_str = iso_str.replace("Z", "+00:00")
+        scheduled_date = datetime.fromisoformat(iso_str)
     else:
         overrides_update_date = parent_event.get("updated_on")
         old_instance = await get_instance_by_event_and_series_index(event_id, series_index)
