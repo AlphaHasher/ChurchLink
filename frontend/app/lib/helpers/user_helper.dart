@@ -241,7 +241,10 @@ class UserHelper {
       if (res.data is Map<String, dynamic>) {
         final data = Map<String, dynamic>.from(res.data);
         final lang = data['language'];
-        if (lang == 'ru' || lang == 'en') return lang;
+        if (lang is String) {
+          final code = lang.trim();
+          if (code.isNotEmpty) return code;
+        }
       }
     } catch (e) {
     }
@@ -251,9 +254,7 @@ class UserHelper {
   /// Update user's preferred language in MongoDB.
   static Future<UpdateLanguageResult> updateLanguage(String languageCode) async {
     try {
-      final safeLang = (languageCode == 'ru') ? 'ru' : 'en';
-
-      final payload = <String, dynamic>{'language': safeLang};
+      final payload = <String, dynamic>{'language': languageCode.trim()};
 
       final res = await api.patch('/v1/users/update-language', data: payload);
 
@@ -264,7 +265,7 @@ class UserHelper {
       final success = data['success'] == true;
       final msg = (data['msg'] is String) ? data['msg'] as String : '';
 
-      return UpdateLanguageResult(success: success, msg: msg, language: safeLang);
+      return UpdateLanguageResult(success: success, msg: msg, language: languageCode.trim());
     } catch (e) {
       return const UpdateLanguageResult(
         success: false,

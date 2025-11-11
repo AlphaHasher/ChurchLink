@@ -28,6 +28,57 @@ class UserSettings extends StatefulWidget {
   State<UserSettings> createState() => _UserSettingsState();
 }
 
+class _TermsDialog extends StatefulWidget {
+  const _TermsDialog();
+  @override
+  State<_TermsDialog> createState() => _TermsDialogState();
+}
+
+class _TermsDialogState extends State<_TermsDialog> {
+  void _onLocaleChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    LocalizationHelper.addListener(_onLocaleChanged);
+  }
+
+  @override
+  void dispose() {
+    LocalizationHelper.removeListener(_onLocaleChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(LocalizationHelper.localize('Terms & Policies')),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              LocalizationHelper.localize('Trust me bro'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text('.'),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(LocalizationHelper.localize('Close')),
+        ),
+      ],
+    );
+  }
+}
+
 class _UserSettingsState extends State<UserSettings> {
   final ScrollController _scrollController = ScrollController();
   final FirebaseAuthService authService = FirebaseAuthService();
@@ -71,6 +122,8 @@ class _UserSettingsState extends State<UserSettings> {
 
     _loadProfile();
   }
+
+ 
 
   @override
   void dispose() {
@@ -313,6 +366,7 @@ class _UserSettingsState extends State<UserSettings> {
           'Customize alert preferences',
           'Privacy policy and terms of use',
           'Account', 'Guest', 'Preferences', 'Support',
+          'Trust me bro', 'Close',
         ],
       );
       if (mounted) {
@@ -334,7 +388,11 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Update _loadLanguageFromServer
   Future<void> _loadLanguageFromServer() async {
-    final lang = await UserHelper.fetchUserLanguage();
+    String lang = await UserHelper.fetchUserLanguage();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      lang = LocalizationHelper.currentLocale;
+    }
     if (mounted) {
       setState(() {
         _selectedLanguage = lang;
@@ -347,29 +405,7 @@ class _UserSettingsState extends State<UserSettings> {
   void _showTermsAndPolicies(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(LocalizationHelper.localize('Terms & Policies')),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                LocalizationHelper.localize('Trust me bro'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text('.'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(LocalizationHelper.localize('Close')),
-          ),
-        ],
-      ),
+      builder: (context) => const _TermsDialog(),
     );
   }
 
