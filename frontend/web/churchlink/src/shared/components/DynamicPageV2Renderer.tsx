@@ -295,14 +295,14 @@ const renderNode = (
         ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
         ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
         ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
-        // Natural sizing like in the builder flow layout; do not force full-width bars
-        display: "inline-flex",
+        display: "flex",
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
         margin: 0,
         whiteSpace: "nowrap",
-        maxWidth: "100%",
+        width: "100%",
+        height: "100%",
       };
       if (href) {
         return (
@@ -463,20 +463,16 @@ const renderNode = (
             left: (rect.x || 0) - domOffset.x,
             top: (rect.y || 0) - domOffset.y,
           };
-          const sizeMode = child.type === "button"
-            ? "natural"
-            : (child.type === "map" || child.type === "paypal")
-              ? "widthOnly"
-              : "full";
+          const sizeMode = (child.type === "map" || child.type === "paypal")
+            ? "widthOnly"
+            : "full";
           if (typeof rect.w === "number") style.width = rect.w;
           if (sizeMode === "full" && typeof rect.h === "number") style.height = rect.h;
 
           const enforcedChild =
             sizeMode === "widthOnly"
               ? enforceWidthOnly(childRendered)
-              : sizeMode === "natural"
-                ? childRendered
-                : enforceFullSize(childRendered);
+              : enforceFullSize(childRendered);
 
           return (
             <div key={child.id} className="absolute" style={style}>
@@ -657,20 +653,16 @@ const SectionWithVirtualGridPublic: React.FC<{
               left: transform.offsetX + (xu * transform.cellPx),
               top: transform.offsetY + (yu * transform.cellPx),
             };
-            const sizeMode = node.type === "button"
-              ? "natural"
-              : (node.type === "map" || node.type === "paypal")
-                ? "widthOnly"
-                : "full";
+            const sizeMode = (node.type === "map" || node.type === "paypal")
+              ? "widthOnly"
+              : "full";
             if (typeof wu === "number") style.width = wu * transform.cellPx;
             if (sizeMode === "full" && typeof hu === "number") style.height = hu * transform.cellPx;
 
             const enforcedRendered =
               sizeMode === "widthOnly"
                 ? enforceWidthOnly(rendered)
-                : sizeMode === "natural"
-                  ? rendered
-                  : enforceFullSize(rendered);
+                : enforceFullSize(rendered);
 
             return (
               <div key={node.id} className="absolute" style={style}>
