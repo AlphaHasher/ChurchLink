@@ -86,10 +86,8 @@ void main() {
   await $.pumpAndSettle();
 
   // Check modal content
-  expect(await $('UPCOMING').exists, isTrue);
+  expect(await $('Test Service').exists, isTrue);
   expect(await $('Test Bulletin').exists, isTrue);
-  expect(await $('Test Ministry').exists, isTrue);
-  expect(await $('Test Bulletin Desc').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );

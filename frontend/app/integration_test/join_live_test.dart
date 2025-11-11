@@ -75,7 +75,7 @@ void main() {
   // Verify we're back on the home screen
   expect(await $('Join Live').exists, true); // back to home
 },
-  timeout: Timeout(Duration(seconds: 30)),
+  timeout: Timeout(Duration(seconds: 20)),
 );
 
  patrolTest('Join Live shows offline instead of video', ($) async {

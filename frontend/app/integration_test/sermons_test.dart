@@ -22,7 +22,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Check header and message
-  expect(await $('No sermons').exists, isTrue);
+  expect(await $('No sermons available yet. Pull to refresh.').exists, isTrue);
 
 },
   timeout: Timeout(Duration(seconds: 30)),
