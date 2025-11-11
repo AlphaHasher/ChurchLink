@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import "ag-grid-community/styles/ag-theme-quartz.css";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, RefreshCcw } from "lucide-react";
 import api from "@/api/api";
 import { VisibilityToggleCellRenderer } from "@/shared/components/VisibilityToggle";
 import { Button } from "@/shared/components/ui/button";
@@ -36,15 +36,16 @@ const WebBuilderPageList = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchPages = async () => {
+    try {
+      const response = await api.get("/v1/pages/");
+      setPages(response.data);
+    } catch (error) {
+      console.error("Error fetching pages:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchPages = async () => {
-      try {
-        const response = await api.get("/v1/pages/");
-        setPages(response.data);
-      } catch (error) {
-        console.error("Error fetching pages:", error);
-      }
-    };
     fetchPages();
   }, []);
 
@@ -179,7 +180,7 @@ const WebBuilderPageList = () => {
   // Validate slug
   const validateSlug = (slug: string): boolean => {
     if (slug === "/") return true; // Special case for home page
-    return /^[a-z0-9-]+$/.test(slug);
+    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
   };
 
   const openAddDialog = () => {
@@ -217,8 +218,10 @@ const WebBuilderPageList = () => {
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-semibold">Website Pages</h1>
+      <div className="flex justify-end items-center mb-4 gap-2">
+        <Button variant="outline" size="sm" onClick={fetchPages} title="Refresh">
+          <RefreshCcw className="h-4 w-4" />
+        </Button>
         <Button onClick={openAddDialog} className="h-9">
           + Add Page
         </Button>
