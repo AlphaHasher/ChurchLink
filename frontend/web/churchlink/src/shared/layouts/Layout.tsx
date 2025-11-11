@@ -3,6 +3,12 @@ import NavBar from "../components/NavBar";
 import { SidebarProvider } from "../components/ui/sidebar";
 import Footer from "../components/Footer";
 
+/**
+ * Application layout component that provides sidebar state and wraps page content with navigation and footer.
+ *
+ * @param children - Content rendered inside the main content area.
+ * @returns A React element containing the NavBar, a responsive AppSidebar (hidden on large screens), the main content area, and Footer, all wrapped in a SidebarProvider configured with sidebar width CSS variables.
+ */
 function Layout({
   children
 }: {

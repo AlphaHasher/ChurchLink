@@ -1,5 +1,8 @@
 /**
- * Get default width units (wu) based on node type
+ * Determine the default width units for a given node type.
+ *
+ * @param type - Node type identifier (e.g., 'container', 'text', 'button', 'eventList')
+ * @returns `12` for 'container' and 'eventList', `8` for 'text' and unknown or missing types, `4` for 'button'
  */
 export function getDefaultWu(type?: string): number {
   switch (type) {
@@ -12,7 +15,10 @@ export function getDefaultWu(type?: string): number {
 }
 
 /**
- * Get default height units (hu) based on node type
+ * Selects the default height units for a node type.
+ *
+ * @param type - Node type; accepted values: `'container'`, `'text'`, `'button'`, `'eventList'`
+ * @returns `8` for `'container'`, `2` for `'text'` and unknown/omitted types, `1` for `'button'`, `6` for `'eventList'`
  */
 export function getDefaultHu(type?: string): number {
   switch (type) {
@@ -23,4 +29,3 @@ export function getDefaultHu(type?: string): number {
     default: return 2;
   }
 }
-

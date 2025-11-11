@@ -1,7 +1,12 @@
 import { Node, SectionV2 } from "@/shared/types/pageV2";
 
 /**
- * Find a node by sectionId and nodeId in a sections array
+ * Locate a Node within a section's subtree by its section and node identifiers.
+ *
+ * @param sections - Array of sections to search.
+ * @param sectionId - Identifier of the target section.
+ * @param nodeId - Identifier of the target node inside the section.
+ * @returns The matching Node if found; `undefined` if no match exists or if `sectionId` or `nodeId` is not provided.
  */
 export function findSelectedNode(
   sections: SectionV2[],
@@ -27,4 +32,3 @@ export function findSelectedNode(
   }
   return undefined;
 }
-

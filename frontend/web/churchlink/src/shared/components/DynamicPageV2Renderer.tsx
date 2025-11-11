@@ -10,10 +10,21 @@ import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { useLocalize } from "@/shared/utils/localizationUtils";
 import { makeVirtualTransform, VirtualTransform } from "@/features/webeditor/grid/virtualGrid";
 
+/**
+ * Combine multiple class name fragments into a single space-separated class string.
+ *
+ * @param classes - Class name fragments; falsy values (`undefined`, `null`, `false`, `""`) are ignored
+ * @returns The combined class string with truthy fragments separated by single spaces; an empty string if none
+ */
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
+/**
+ * Merges multiple CSS class name fragments, filtering out falsy values.
+ *
+ * @returns A space-separated string of class names.
+ */
 function mergeClassNames(
   ...classes: Array<string | undefined | null | false>
 ) {
@@ -21,7 +32,12 @@ function mergeClassNames(
 }
 
 
-// Match builder padding conversion: Tailwind spacing unit -> rem (n * 0.25rem)
+/**
+ * Convert a Tailwind spacing unit to a CSS length in `rem`.
+ *
+ * @param value - Tailwind spacing unit (each unit = 0.25rem); may be `undefined` or `null`
+ * @returns The computed CSS length as a string (e.g., `"0.25rem"`), the string `"0"` for zero, or `undefined` when `value` is not a finite number
+ */
 function tailwindSpacingToRem(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) return undefined;
   if (value === 0) return "0";
@@ -743,5 +759,4 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
 };
 
 export default DynamicPageV2Renderer;
-
 

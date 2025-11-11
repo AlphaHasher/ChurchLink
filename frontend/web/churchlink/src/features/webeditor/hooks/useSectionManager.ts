@@ -55,6 +55,33 @@ const initializeLayouts = (nodes: Node[], parentYu = 0, isNested = false): Node[
   });
 };
 
+/**
+ * Manage editor sections, node selection, clipboard, and layout-aware CRUD operations for sections and nodes.
+ *
+ * Provides state and actions for creating, copying, pasting, deleting, selecting, reordering, and updating
+ * sections and nodes while maintaining consistent layout units and history for undo/redo.
+ *
+ * @returns An object with the current editor state and actions:
+ * - `sections` — current list of sections (with initialized layout units)
+ * - `setSections` — setter that applies layout initialization when updating sections
+ * - `selection`, `setSelection` — currently selected section/node and its setter
+ * - `selectedSectionId`, `setSelectedSectionId` — selected section id and its setter
+ * - `highlightNodeId`, `setHighlightNodeId` — node id to highlight and its setter
+ * - `hoveredNodeId`, `setHoveredNodeId` — node id being hovered and its setter
+ * - `deleteSectionId`, `setDeleteSectionId` — queued section id for deletion and its setter
+ * - `deleteNodeId`, `setDeleteNodeId` — queued node (sectionId + nodeId) for deletion and its setter
+ * - `copySelected` — copy the currently selected node to an internal clipboard
+ * - `pasteClipboard` — paste the clipboard node into the current or specified section/context
+ * - `deleteNode` — execute queued node deletion
+ * - `deleteSelectedNode` — queue and delete the currently selected node
+ * - `addSection` — append a default section
+ * - `addSectionPreset` — append a preset section (ensures a unique, human-friendly name)
+ * - `addElement` — insert a new node (various types) into the appropriate section/container with computed layout
+ * - `onSelectNode` — convenience to set selection by sectionId and nodeId
+ * - `updateSelectedNode` — apply an updater to the selected node (clears pixel cache and triggers overlay updates)
+ * - `updateNodeLayout` — update a node's layout units and shift descendants when moving containers
+ * - `reorderSections` — move a section to another position (updates history and layouts)
+ */
 export function useSectionManager() {
   const [sections, setSections] = useState<SectionV2[]>([]);
   const [selection, setSelection] = useState<EditorSelection>(null);

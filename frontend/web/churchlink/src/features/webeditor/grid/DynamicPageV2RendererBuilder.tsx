@@ -114,12 +114,29 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, transform, node 
   );
 };
 
+/**
+ * Concatenates class name fragments into a single space-separated string.
+ *
+ * @param classes - Class name fragments; falsy values (`undefined`, `null`, `false`, `''`) are ignored.
+ * @returns A space-separated string of the truthy class names, or an empty string if none are provided.
+ */
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(' ');
 }
 
 
-// Updated renderNode signature with additional optional params for nesting
+/**
+ * Retrieve a localized property value for a node, falling back to the node's base prop.
+ *
+ * Checks the node's `i18n` map for `activeLocale` (or `defaultLocale` when `activeLocale` is absent)
+ * and returns the keyed value if present; otherwise returns `node.props?.[key]`.
+ *
+ * @param node - The node object containing optional `i18n` and `props`.
+ * @param key - The property key to look up.
+ * @param activeLocale - Preferred locale to resolve the property.
+ * @param defaultLocale - Locale to use if `activeLocale` is not provided.
+ * @returns The localized value for `key` when available for the chosen locale, otherwise the node's prop value for `key`, or `undefined` if not found.
+ */
 function resolveLocalizedProp(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
   const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
   const locale = activeLocale || defaultLocale;

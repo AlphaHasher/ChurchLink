@@ -9,6 +9,16 @@ export type VirtualTransform = {
   toUnits: (pxRect: { x: number; y: number; w: number; h: number }) => { xu: number; yu: number; wu: number; hu: number };
 };
 
+/**
+ * Create a VirtualTransform that maps between grid unit coordinates and pixel coordinates while preserving a fixed logical aspect ratio and centering the grid inside the container.
+ *
+ * @param containerRect - The container size in pixels used to compute cell size and centering offsets.
+ * @param cols - Number of logical columns in the virtual grid.
+ * @param aspect - Desired aspect ratio represented as `{ num, den }` (num/den).
+ * @returns A VirtualTransform containing the computed `cols`, `rows`, `cellPx`, `offsetX`, `offsetY` and two mapping methods:
+ *          `toPx` (converts `{ xu, yu, wu?, hu? }` to pixel `{ x, y, w?, h? }`) and
+ *          `toUnits` (converts pixel `{ x, y, w, h }` to `{ xu, yu, wu, hu }`).
+ */
 export function makeVirtualTransform(
   containerRect: { width: number; height: number },
   cols: number,
@@ -45,4 +55,3 @@ export function makeVirtualTransform(
     toUnits,
   };
 }
-
