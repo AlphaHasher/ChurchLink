@@ -34,7 +34,15 @@ export default function CreateEventDialogV2({
 
         setSaving(true);
         try {
-            const res = await createAdminPanelEvent(draft as EventUpdate);
+            const payload: EventUpdate = {
+                ...draft,
+                localizations:
+                    draft.localizations instanceof Map
+                        ? Object.fromEntries(draft.localizations.entries())
+                        : (draft.localizations as any),
+            };
+
+            const res = await createAdminPanelEvent(payload);
 
             // If backend explicitly indicates failure, keep dialog open and show the message
             if (res && typeof res === "object" && "success" in res && (res as any).success === false) {

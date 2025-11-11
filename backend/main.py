@@ -33,7 +33,6 @@ from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, private
 from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
 from routes.bible_routes.bible_plan_notification_routes import bible_notification_router
 
-from routes.common_routes.event_person_routes import event_person_management_router, event_person_registration_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
 from routes.common_routes.bulletin_routes import public_bulletin_router,bulletin_editing_router,public_service_router,service_bulletin_editing_router
@@ -291,8 +290,6 @@ private_router = AuthProtectedRouter(prefix="/api/v1")
 private_router.include_router(bible_note_router)
 private_router.include_router(auth_bible_plan_router)
 private_router.include_router(bible_notification_router)
-private_router.include_router(event_person_registration_router)
-private_router.include_router(event_person_management_router)
 private_router.include_router(private_sermon_router)
 private_router.include_router(user_private_router)
 private_router.include_router(member_private_router)

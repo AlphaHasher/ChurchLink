@@ -22,6 +22,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 import type { ReadAdminPanelEvent } from "@/shared/types/Event";
 import { fetchAdminEventsUsingDiscount } from "@/helpers/EventManagementHelper";
 import { AlertCircle } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 
 type Props = {
     codeId: string;
@@ -46,6 +47,8 @@ export default function ViewEventsWithDiscount({
 
 
     const gridApi = useRef<GridApi<ReadAdminPanelEvent> | null>(null);
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!open) return;
@@ -94,12 +97,11 @@ export default function ViewEventsWithDiscount({
             cellRenderer: (p: any) => {
                 const id = p?.data?.id as string;
                 if (!id) return null;
-                const href = `/admin/events/${encodeURIComponent(id)}`;
                 return (
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => (window.location.href = href)}
+                        onClick={() => navigate(`/admin/events/${encodeURIComponent(id)}`)}
                         title="View instances"
                         className="gap-2"
                     >
@@ -197,6 +199,7 @@ export default function ViewEventsWithDiscount({
                                         className="px-2 py-1 border rounded disabled:opacity-50"
                                         onClick={() => setPage(Math.max(1, safePage - 1))}
                                         disabled={loading || !canPrev}
+                                        aria-label="Previous page"
                                     >
                                         Prev
                                     </button>
@@ -207,6 +210,7 @@ export default function ViewEventsWithDiscount({
                                         className="px-2 py-1 border rounded disabled:opacity-50"
                                         onClick={() => setPage(Math.min(totalPages, safePage + 1))}
                                         disabled={loading || !canNext}
+                                        aria-label="Next page"
                                     >
                                         Next
                                     </button>
@@ -216,6 +220,7 @@ export default function ViewEventsWithDiscount({
                                         value={pageSize}
                                         onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
                                         disabled={loading}
+                                        aria-label="Items per page"
                                     >
                                         {[10, 25, 50, 100].map((s) => (
                                             <option key={s} value={s}>{s}/page</option>

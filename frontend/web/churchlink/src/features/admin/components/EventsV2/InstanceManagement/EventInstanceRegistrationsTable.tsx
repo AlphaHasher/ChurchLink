@@ -47,11 +47,15 @@ export function EventInstanceRegistrationsTable({
 
     const [q, setQ] = useState("");
 
-    const filtered = useMemo(() => rows, [rows]);
+    const filtered = useMemo(() => {
+        const term = q.trim().toLowerCase();
+        if (!term) return rows;
+        return rows.filter((row) => row.uid.toLowerCase().includes(term));
+    }, [rows, q]);
 
     useEffect(() => {
-        apiRef.current?.setGridOption?.("quickFilterText", q.trim());
-    }, [q]);
+        apiRef.current?.setGridOption?.("quickFilterText", "");
+    }, [filtered]);
 
     const ActionsRenderer = useMemo(
         () =>
